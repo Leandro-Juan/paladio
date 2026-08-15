@@ -1,0 +1,23 @@
+# TODO.txt - Tareas de Orquestación y Preparación de Datos (Capa Python)
+
+[ ] 1. CLUSTERIZACIÓN MULTIDÍA (K-MEANS / GEO-GROUPING)
+    - En lugar de pasar 50 POIs a C++, dividir los puntos de interés en grupos geográficos (Ej: Día 1: Centro histórico, Día 2: Afueras).
+    - Llamar al motor C++ en un bucle: una vez por cada día, descontando del presupuesto global lo que se gastó en el día anterior.
+
+[ ] 2. ENRUTAMIENTO PUERTA A PUERTA (TRANSIT MATRIX)
+    - Conectar una API de rutas (OSRM, Valhalla o Google Routes).
+    - Calcular el tiempo y coste total de la arista A -> B sumando: Caminata (First-mile) + Espera en parada + Viaje a bordo + Caminata (Last-mile).
+    - Generar la matriz final de `TransitInfo` (coste y duración) para enviársela masticada a C++.
+
+[ ] 3. INYECCIÓN DE HOLGURAS (SLACK TIME)
+    - Crear una función en Python que "infle" los tiempos para imprevistos.
+    - Ej: Si un museo se visita en 90 mins, enviarle a C++ un `duration = 105 mins` (+15% de holgura para colas o retrasos).
+
+[ ] 4. ESTADO DE ALOJAMIENTO ENTRE DÍAS
+    - Asegurar por código que el Hotel donde termina la ruta del Día 1 se inyecta obligatoriamente como el nodo de inicio para el grafo del Día 2.
+
+[ ] 5. MAPEO DE TRANSPORTES (METRO/UBER/A PIE)
+    - Antes de llamar a C++, decidir la mejor vía por distancia:
+        * Si distancia < 1.5km -> A pie (coste 0€, tiempo X).
+        * Si distancia > 1.5km -> Bus/Metro (coste 2.50€, tiempo Y).
+    - Insertar esa decisión estática en la matriz que se le pasa al motor.

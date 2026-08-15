@@ -1,0 +1,71 @@
+services:
+  api:
+    build:
+      context: ./backend
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - REDIS_URL=redis://redis:6379/0
+      - LLM_API_URL=http://llm:11434
+      - NODE_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    security_opt:
+      - no-new-privileges:true
+
+  db:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "127.0.0.1:5432:5432" # Exposed only to localhost for admin, tailscale
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: paladio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    security_opt:
+      - no-new-privileges:true
+
+  llm:
+    image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollamadata:/root/.ollama
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  pgdata:
+  redisdata:
+  ollamadata:
