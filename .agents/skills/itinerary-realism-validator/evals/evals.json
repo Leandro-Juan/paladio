@@ -1,0 +1,11 @@
+{
+  "skill_name": "itinerary-realism-validator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit the attached solver_output.json for realism violations. Note any issues with meal spacing or idle times.",
+      "expected_output": "Identifies the 2-hour idle time violation and the meal spacing violation.",
+      "files": ["solver_output.json"]
+    }
+  ]
+}

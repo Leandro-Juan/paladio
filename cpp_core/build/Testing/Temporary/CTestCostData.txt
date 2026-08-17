@@ -1,7 +1,0 @@
-EngineTest.BasicOptimization 4 0.00304338
-EngineTest.StrictPruningOverBudget 4 0.00365731
-EngineTest.PenalizationLogic 4 0.00338089
-EngineTest.TimeWindowsRespect 3 0.00430258
-EngineTest.StartNodeConstraint 1 0.0128887
-EngineTest.EndNodeTypeConstraint 1 0.0131099
----

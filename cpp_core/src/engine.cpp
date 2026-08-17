@@ -1,81 +1,377 @@
 #include "engine.hpp"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <limits>
+#include <cmath>
 
 namespace paladio::core {
 
 namespace {
 
+/**
+ * @brief Tracks the current state of the DFS traversal.
+ * 
+ * Designed to be lightweight and stack-allocated during the recursive search.
+ * Uses a 64-bit integer bitmask to track visited nodes in O(1) time.
+ */
+struct SearchState {
+    uint64_t visited_mask = 0;   ///< Bitmask of visited nodes by density rank.
+    double current_cost = 0.0;   ///< Accumulated financial cost.
+    int current_time = 0;        ///< Current elapsed time in the itinerary.
+    double current_score = 0.0;  ///< Accumulated objective score.
+    bool had_breakfast = false;  ///< True if a breakfast spot has been visited.
+    bool had_lunch = false;      ///< True if a lunch spot has been visited.
+    bool had_dinner = false;     ///< True if a dinner spot has been visited.
+    int last_meal_time = -9999;  ///< Arrival time of the last meal spot visited.
+    int continuous_active_time = 0; ///< Minutes spent active without a rest spot.
+    std::array<uint8_t, 8> category_visits = {0}; ///< Count of visits per NodeType.
+    std::array<int, 64> current_path; ///< Stack-allocated sequence of visited node indices.
+    int current_path_size = 0;        ///< Current number of nodes in the path.
+};
+
+struct MemoEntry {
+    uint64_t visited_mask = 0;
+    int current_node = -1;
+    int current_time = std::numeric_limits<int>::max();
+    double current_cost = std::numeric_limits<double>::infinity();
+    double current_score = -std::numeric_limits<double>::infinity();
+    bool had_breakfast = false;
+    bool had_lunch = false;
+    bool had_dinner = false;
+    int continuous_active_time = 0;
+    int last_meal_time = -9999;
+};
+
 constexpr double INF = std::numeric_limits<double>::infinity();
 
+/**
+ * @brief Computes an optimistic upper bound on the remaining potential score.
+ * 
+ * Uses the Continuous Fractional Knapsack greedy approach as an admissible heuristic.
+ * It assumes we can fractionally visit remaining unvisited POIs ordered by their
+ * value-density (score/duration), ignoring travel time. If this optimistic score
+ * combined with the current score is worse than the best known score, we can prune.
+ * 
+ * @param visited_mask The nodes already visited (to ignore them).
+ * @param current_time Current elapsed time in the traversal.
+ * @param end_time_limit Absolute deadline for the itinerary.
+ * @param pois The list of all POIs.
+ * @param sorted_pois_by_density Indices of POIs sorted descending by score/duration density.
+ * @return double The maximum possible fractional score achievable in the remaining time.
+ */
+inline double calculate_optimistic_bound(
+    uint64_t visited_mask,
+    int current_time,
+    int end_time_limit,
+    const POI* pois,
+    const int* sorted_pois_by_density,
+    int min_transit_global,
+    int n
+) {
+    int remaining_time = end_time_limit - current_time;
+    if (remaining_time <= 0) return 0.0;
+
+    double optimistic_future_score = 0.0;
+    
+    // Unvisited nodes mask using density rank
+    uint64_t unvisited = (~visited_mask);
+    if (n < 64) {
+        unvisited &= ((1ULL << n) - 1);
+    }
+    while (unvisited) {
+        int rank = __builtin_ctzll(unvisited);
+        unvisited &= unvisited - 1; // Clear lowest set bit
+        
+        int i = sorted_pois_by_density[rank];
+        int required_time = pois[i].duration + min_transit_global;
+        
+        if (current_time + required_time > pois[i].latest_time) {
+            continue;
+        }
+        
+        if (required_time <= remaining_time) {
+            optimistic_future_score += pois[i].score;
+            remaining_time -= required_time;
+        } else {
+            if (required_time > 0) {
+                optimistic_future_score += pois[i].score * (static_cast<double>(remaining_time) / required_time);
+            }
+            break;
+        }
+    }
+    return optimistic_future_score;
+}
+
+/**
+ * @brief Core recursive Depth First Search for the Branch and Bound routing.
+ * 
+ * Explores the graph of POIs while strictly pruning branches that exceed constraints
+ * (budget, deadlines, time windows) or that cannot possibly beat the best known score.
+ * 
+ * @param u The index of the current POI we are visiting.
+ * @param state The current search state (mutated and reverted during recursion).
+ * @param pois Vector of all available POIs.
+ * @param transit_times 1D flattened N x N matrix representing travel edges.
+ * @param config Global constraints for the search.
+ * @param sorted_pois_by_density Pre-computed POI indices sorted for the knapsack heuristic.
+ * @param best_result Reference to the global best result found so far.
+ */
 void dfs(
     int u,
-    uint32_t visited_mask,
-    double current_cost,
-    int current_time,
-    double current_score,
-    std::vector<int>& current_path,
-    const std::vector<POI>& pois,
-    const std::vector<std::vector<TransitInfo>>& transit_times,
+    SearchState& state,
+    const POI* pois,
+    const TransitInfo* transit_times,
     const OptimizationConfig& config,
+    const int* sorted_pois_by_density,
+    const int* density_rank,
+    int min_transit_global,
+    int n,
+    MemoEntry* memo,
     OptimizationResult& best_result
 ) {
-    // 1. Budget checking
-    if (current_cost > config.max_budget * 1.05) {
-        return; // strictly prune if > 5% over max budget
+    // 1. Dominance Pruning (Pareto optimization using direct-mapped cache)
+    int idx = (state.visited_mask ^ (u * 1234567ULL)) & ((1 << 20) - 1);
+    if (memo[idx].visited_mask == state.visited_mask && memo[idx].current_node == u) {
+        if (state.current_time >= memo[idx].current_time &&
+            state.current_cost >= memo[idx].current_cost &&
+            state.current_score <= memo[idx].current_score + 1e-5 &&
+            state.had_breakfast == memo[idx].had_breakfast &&
+            state.had_lunch == memo[idx].had_lunch &&
+            state.had_dinner == memo[idx].had_dinner &&
+            state.continuous_active_time >= memo[idx].continuous_active_time &&
+            state.last_meal_time >= memo[idx].last_meal_time) {
+            return; 
+        }
+    }
+    memo[idx] = {state.visited_mask, u, state.current_time, state.current_cost, state.current_score, state.had_breakfast, state.had_lunch, state.had_dinner, state.continuous_active_time, state.last_meal_time};
+
+    // 2. Calculate Upper Bound and prune via Fractional Knapsack
+    int effective_end_time = config.end_time_limit != -1 ? config.end_time_limit : std::numeric_limits<int>::max();
+    double max_possible_score = state.current_score + calculate_optimistic_bound(
+        state.visited_mask, state.current_time, effective_end_time, pois, sorted_pois_by_density, min_transit_global, n
+    );
+    if (max_possible_score < best_result.total_score - 1e-5) {
+        return; 
     }
 
-    double cost_penalty = 0.0;
-    if (current_cost > config.max_budget) {
-        // Severely penalize branches that exceed max_budget but are within 5%
-        cost_penalty = (current_cost - config.max_budget) * 1000.0;
-    }
-
-    // 2. Evaluate current path
-    double current_f = config.alpha * current_cost + config.beta * current_time - config.gamma * current_score + cost_penalty;
-
-    // We consider any path with at least 1 node as a candidate
-    bool valid_end_node = true;
-    if (config.end_node_type.has_value() && current_path.size() > 0) {
-        valid_end_node = (pois[current_path.back()].type == config.end_node_type.value());
-    }
-
-    if (current_path.size() > 0 && valid_end_node && current_f < best_result.objective_value) {
-        best_result.objective_value = current_f;
-        best_result.path = current_path;
-        best_result.total_cost = current_cost;
-        best_result.total_time = current_time;
-        best_result.total_score = current_score;
-    }
-
-    // 3. Expand to next nodes
-    int n = static_cast<int>(pois.size());
-    for (int v = 0; v < n; ++v) {
-        if ((visited_mask & (1U << v)) == 0) {
-            int arrival_time = current_time + transit_times[u][v].duration;
-            double transit_cost = transit_times[u][v].cost;
+    // 3. Expand children using Exploration Order (Highest Density First)
+    for (int i = 0; i < n; ++i) {
+        if ((state.visited_mask & (1ULL << i)) == 0) {
+            int v = sorted_pois_by_density[i];
             
-            // Wait if we arrive before the earliest time
+            if (pois[v].type == NodeType::HOTEL) {
+                bool allow_endpoint = false;
+                if (config.end_node_index.has_value() && config.end_node_index.value() == v) allow_endpoint = true;
+                if (config.end_node_type.has_value() && config.end_node_type.value() == pois[v].type) allow_endpoint = true;
+                if (!allow_endpoint) continue;
+            }
+
+            // Calculate temporal feasibility
+            int arrival_time_before_wait = state.current_time + transit_times[u * n + v].duration;
+            double transit_cost = transit_times[u * n + v].cost;
+            int arrival_time = arrival_time_before_wait;
+            
             if (arrival_time < pois[v].earliest_time) {
                 arrival_time = pois[v].earliest_time;
             }
 
-            // Time window pruning
-            if (arrival_time > pois[v].latest_time) {
-                continue; // Cannot visit v, it's closed
+            // 1. Idle Time Penalty
+            int idle_time = arrival_time - arrival_time_before_wait;
+            if (idle_time > config.max_idle_time) continue;
+
+            // Prune if we would leave after the POI closes
+            if (arrival_time + pois[v].duration > pois[v].latest_time) {
+                continue; 
             }
 
-            // Valid extension, compute new state
-            double next_cost = current_cost + transit_cost + pois[v].cost;
+            // Calculate budget feasibility (including return to base if specified)
+            double next_cost = state.current_cost + transit_cost + pois[v].cost;
+            if (config.end_node_index.has_value() && config.end_node_index.value() != v) {
+                int target_end = config.end_node_index.value();
+                double return_cost = transit_times[v * n + target_end].cost;
+                int return_dur = transit_times[v * n + target_end].duration;
+                
+                if (next_cost + return_cost > config.max_budget) continue;
+                
+                int time_after_visit = arrival_time + pois[v].duration;
+                if (time_after_visit + return_dur > pois[target_end].latest_time) continue;
+                if (config.end_time_limit != -1 && time_after_visit + return_dur > config.end_time_limit) continue;
+            } else {
+                if (next_cost > config.max_budget) continue;
+            }
+
+            // 3. Realistic Meal Spacing
+            bool is_strict_meal = (pois[v].type == NodeType::RESTAURANT_BREAKFAST || 
+                                   pois[v].type == NodeType::RESTAURANT_LUNCH || 
+                                   pois[v].type == NodeType::RESTAURANT_DINNER);
+            if (is_strict_meal) {
+                if (arrival_time - state.last_meal_time < config.min_meal_spacing) continue;
+            }
+
+            double node_score = pois[v].score;
+
+            // 2. Fatigue and Pacing
+            int next_continuous_active_time = state.continuous_active_time;
+            bool is_rest_node = (pois[v].type == NodeType::BAR || 
+                                 pois[v].type == NodeType::HOTEL || 
+                                 is_strict_meal);
+            if (is_rest_node) {
+                next_continuous_active_time = 0;
+            } else {
+                if (state.continuous_active_time + transit_times[u * n + v].duration > config.max_active_time_before_fatigue) {
+                    node_score *= config.fatigue_penalty_multiplier;
+                }
+                next_continuous_active_time += transit_times[u * n + v].duration + pois[v].duration;
+            }
+
+            // 4. Diminishing Returns for Monotony
+            uint8_t category_count = state.category_visits[static_cast<size_t>(pois[v].type)];
+            if (category_count >= config.monotony_threshold) {
+                node_score *= std::pow(config.monotony_multiplier, category_count - config.monotony_threshold + 1);
+            }
+
+            // Apply idle penalty to the total score
+            double penalty = (idle_time / 15.0) * config.idle_time_penalty_rate;
+            double next_score = state.current_score + node_score - penalty;
             int next_time = arrival_time + pois[v].duration;
-            double next_score = current_score + pois[v].score;
             
-            current_path.push_back(v);
-            dfs(v, visited_mask | (1U << v), next_cost, next_time, next_score, 
-                current_path, pois, transit_times, config, best_result);
-            current_path.pop_back();
+            // Determine meal constraint satisfaction
+            bool is_breakfast = pois[v].is_breakfast_spot;
+            bool is_lunch = pois[v].is_lunch_spot;
+            bool is_dinner = pois[v].is_dinner_spot;
+
+            bool next_had_breakfast = state.had_breakfast || is_breakfast;
+            bool next_had_lunch = state.had_lunch || is_lunch;
+            bool next_had_dinner = state.had_dinner || is_dinner;
+            
+            bool acts_as_meal = is_strict_meal || is_breakfast || is_lunch || is_dinner;
+            int next_last_meal_time = acts_as_meal ? arrival_time + pois[v].duration : state.last_meal_time;
+
+            // Prune if a meal deadline has passed and we haven't eaten that meal
+            if (config.breakfast_deadline != -1 && next_time > config.breakfast_deadline && !state.had_breakfast) continue;
+            if (config.lunch_deadline != -1 && next_time > config.lunch_deadline && !state.had_lunch) continue;
+            if (config.dinner_deadline != -1 && next_time > config.dinner_deadline && !state.had_dinner) continue;
+
+            // 3. Apply State Changes (Push)
+            uint64_t prev_mask = state.visited_mask;
+            double prev_cost = state.current_cost;
+            int prev_time = state.current_time;
+            double prev_score = state.current_score;
+            bool prev_breakfast = state.had_breakfast;
+            bool prev_lunch = state.had_lunch;
+            bool prev_dinner = state.had_dinner;
+            int prev_last_meal_time = state.last_meal_time;
+            int prev_continuous_active_time = state.continuous_active_time;
+
+            state.visited_mask |= (1ULL << i);
+            state.current_cost = next_cost;
+            state.current_time = next_time;
+            state.current_score = next_score;
+            state.had_breakfast = next_had_breakfast;
+            state.had_lunch = next_had_lunch;
+            state.had_dinner = next_had_dinner;
+            state.last_meal_time = next_last_meal_time;
+            state.continuous_active_time = next_continuous_active_time;
+            state.category_visits[static_cast<size_t>(pois[v].type)]++;
+            state.current_path[state.current_path_size++] = v;
+
+            // Recurse deeper
+            dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, best_result);
+
+            // 4. Revert State Changes (Pop)
+            state.current_path_size--;
+            state.category_visits[static_cast<size_t>(pois[v].type)]--;
+            state.continuous_active_time = prev_continuous_active_time;
+            state.last_meal_time = prev_last_meal_time;
+            state.had_dinner = prev_dinner;
+            state.had_lunch = prev_lunch;
+            state.had_breakfast = prev_breakfast;
+            state.current_score = prev_score;
+            state.current_time = prev_time;
+            state.current_cost = prev_cost;
+            state.visited_mask = prev_mask;
+        }
+    }
+
+    // 5. Leaf Node Processing: Evaluate complete path against global best
+    bool valid_end_node = true;
+    double final_cost = state.current_cost;
+    int final_time = state.current_time;
+    int final_path_size = state.current_path_size;
+    
+    // 5. Round-Trip / Base of Operations Verification
+    if (config.end_node_index.has_value() && state.current_path_size > 0) {
+        int target_end = config.end_node_index.value();
+        if (state.current_path[state.current_path_size - 1] != target_end) {
+            // Calculate transit back to base
+            int return_dur = transit_times[u * n + target_end].duration;
+            double return_cost = transit_times[u * n + target_end].cost;
+            final_time += return_dur;
+            final_cost += return_cost;
+            
+            int idle_time = 0;
+            if (final_time < pois[target_end].earliest_time) {
+                idle_time = pois[target_end].earliest_time - final_time;
+                final_time = pois[target_end].earliest_time;
+            }
+            
+            if (idle_time > config.max_idle_time) valid_end_node = false;
+            
+            if (final_cost > config.max_budget || 
+                final_time > pois[target_end].latest_time || 
+                (config.end_time_limit != -1 && final_time > config.end_time_limit)) {
+                valid_end_node = false;
+            }
+            
+            // If valid, conceptually the path ends with target_end
+            final_path_size++; // We will append target_end dynamically
+        } else {
+            if (config.end_time_limit != -1 && final_time > config.end_time_limit) {
+                valid_end_node = false;
+            }
+        }
+    } else if (config.end_time_limit != -1 && final_time > config.end_time_limit) {
+        valid_end_node = false;
+    }
+
+    // Verify final node matches required type if specified
+    if (config.end_node_type.has_value() && state.current_path_size > 0) {
+        int tail_node = (final_path_size > state.current_path_size) ? config.end_node_index.value() : state.current_path[state.current_path_size - 1];
+        valid_end_node = valid_end_node && (pois[tail_node].type == config.end_node_type.value());
+    }
+    
+    // Ensure all mandatory meals have been consumed if deadlines are specified
+    if (config.breakfast_deadline != -1 && !state.had_breakfast) valid_end_node = false;
+    if (config.lunch_deadline != -1 && !state.had_lunch) valid_end_node = false;
+    if (config.dinner_deadline != -1 && !state.had_dinner) valid_end_node = false;
+
+    if (state.current_path_size > 0 && valid_end_node) {
+        bool is_better = false;
+        double eps = 1e-5;
+        
+        // Lexicographical optimization: Maximize Score -> Minimize Time -> Minimize Cost
+        if (state.current_score > best_result.total_score + eps) {
+            is_better = true;
+        } else if (std::abs(state.current_score - best_result.total_score) <= eps) {
+            if (final_time < best_result.total_time) {
+                is_better = true;
+            } else if (final_time == best_result.total_time) {
+                if (final_cost < best_result.total_cost) {
+                    is_better = true;
+                }
+            }
+        }
+
+        if (is_better) {
+            best_result.path.assign(state.current_path.begin(), state.current_path.begin() + state.current_path_size);
+            if (final_path_size > state.current_path_size) {
+                best_result.path.push_back(config.end_node_index.value());
+            }
+            best_result.total_cost = final_cost;
+            best_result.total_time = final_time;
+            best_result.total_score = state.current_score;
         }
     }
 }
@@ -84,38 +380,106 @@ void dfs(
 
 OptimizationResult optimize_itinerary(
     const std::vector<POI>& pois,
-    const std::vector<std::vector<TransitInfo>>& transit_times,
+    const std::vector<TransitInfo>& transit_times,
     const OptimizationConfig& config
 ) {
+    // 64-bit mask restricts problem size. Scaling beyond this requires a vector<bool> or big integer mask.
+    if (pois.size() > 64) {
+        throw std::invalid_argument("DFS engine does not support more than 64 POIs due to bitmask limits.");
+    }
+
     OptimizationResult best_result;
-    best_result.objective_value = INF;
+    best_result.total_score = -1.0;
+    best_result.total_time = INF;
+    best_result.total_cost = INF;
 
     int n = static_cast<int>(pois.size());
     if (n == 0) return best_result;
 
-    // Start DFS from each node as the potential first node
+    // Pre-compute value density array for the Fractional Knapsack Heuristic
+    std::vector<int> sorted_pois_by_density(n);
+    for (int i = 0; i < n; ++i) sorted_pois_by_density[i] = i;
+    std::sort(sorted_pois_by_density.begin(), sorted_pois_by_density.end(), [&pois](int a, int b) {
+        double density_a = pois[a].duration > 0 ? pois[a].score / static_cast<double>(pois[a].duration) : INF;
+        double density_b = pois[b].duration > 0 ? pois[b].score / static_cast<double>(pois[b].duration) : INF;
+        return density_a > density_b; // Sort descending
+    });
+
+    std::vector<int> density_rank(n);
+    for (int i = 0; i < n; ++i) {
+        density_rank[sorted_pois_by_density[i]] = i;
+    }
+
+    int min_transit_global = std::numeric_limits<int>::max();
+    for (int u = 0; u < n; ++u) {
+        for (int v = 0; v < n; ++v) {
+            if (u != v) {
+                min_transit_global = std::min(min_transit_global, transit_times[u * n + v].duration);
+            }
+        }
+    }
+    if (min_transit_global == std::numeric_limits<int>::max()) {
+        min_transit_global = 0;
+    }
+
+    std::vector<MemoEntry> memo(1 << 20);
+
+    const POI* pois_ptr = pois.data();
+    const TransitInfo* transit_ptr = transit_times.data();
+    const int* sorted_pois_ptr = sorted_pois_by_density.data();
+    const int* density_rank_ptr = density_rank.data();
+    MemoEntry* memo_ptr = memo.data();
+
     int start_idx = config.start_node_index.value_or(-1);
+    
+    // Iterate over valid starting nodes
     for (int start_node = 0; start_node < n; ++start_node) {
         if (start_idx != -1 && start_node != start_idx) continue;
 
-        // If the node intrinsically cannot be visited (earliest > latest), skip it
-        if (pois[start_node].earliest_time > pois[start_node].latest_time) {
+        // Ensure the POI can be visited before it closes
+        if (pois[start_node].earliest_time + pois[start_node].duration > pois[start_node].latest_time) {
             continue;
         }
 
-        std::vector<int> path = {start_node};
-        
-        int start_time = pois[start_node].earliest_time + pois[start_node].duration;
         double start_cost = pois[start_node].cost;
-        double start_score = pois[start_node].score;
+        if (start_cost > config.max_budget) continue;
 
-        dfs(start_node, (1U << start_node), start_cost, start_time, start_score, 
-            path, pois, transit_times, config, best_result);
+        // Initialize root state for DFS
+        SearchState state;
+        state.visited_mask = (1ULL << density_rank[start_node]);
+        state.current_cost = start_cost;
+        state.current_time = pois[start_node].earliest_time + pois[start_node].duration;
+        state.current_score = pois[start_node].score;
+        
+        state.had_breakfast = pois[start_node].is_breakfast_spot;
+        state.had_lunch = pois[start_node].is_lunch_spot;
+        state.had_dinner = pois[start_node].is_dinner_spot;
+        state.current_path[state.current_path_size++] = start_node;
+
+        bool is_strict_meal = (pois[start_node].type == NodeType::RESTAURANT_BREAKFAST || 
+                               pois[start_node].type == NodeType::RESTAURANT_LUNCH || 
+                               pois[start_node].type == NodeType::RESTAURANT_DINNER);
+        if (is_strict_meal) {
+            state.last_meal_time = state.current_time;
+            state.continuous_active_time = 0;
+        } else if (pois[start_node].type == NodeType::BAR || pois[start_node].type == NodeType::HOTEL) {
+            state.continuous_active_time = 0;
+        } else {
+            state.continuous_active_time = pois[start_node].duration;
+        }
+        state.category_visits[static_cast<size_t>(pois[start_node].type)] = 1;
+
+        // Immediate pruning if a meal deadline is blown on the first node
+        if (config.breakfast_deadline != -1 && state.current_time > config.breakfast_deadline && !state.had_breakfast) continue;
+        if (config.lunch_deadline != -1 && state.current_time > config.lunch_deadline && !state.had_lunch) continue;
+        if (config.dinner_deadline != -1 && state.current_time > config.dinner_deadline && !state.had_dinner) continue;
+
+        // Begin recursive search from this starting node
+        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo_ptr, best_result);
     }
 
-    // If no path was found better than INF, we just return empty
-    if (best_result.objective_value == INF) {
-        best_result.objective_value = 0.0;
+    // If no valid path was found, zero out the infinite values
+    if (best_result.total_score == -1.0) {
         best_result.total_cost = 0.0;
         best_result.total_score = 0.0;
         best_result.total_time = 0.0;
@@ -133,54 +497,87 @@ OptimizationResult optimize_itinerary(
 
 namespace py = pybind11;
 
+/**
+ * @brief PyBind11 Module Definition
+ * 
+ * Exposes the C++ optimization engine as a Python module (`paladio_core`).
+ * Includes detailed docstrings for the Python bindings.
+ */
 PYBIND11_MODULE(paladio_core, m) {
-    m.doc() = "Paladio Continuous Travel Optimization C++ Core";
+    m.doc() = "Paladio Continuous Travel Optimization C++ Core. Provides deterministic branch-and-bound routing.";
     
-    py::enum_<paladio::core::NodeType>(m, "NodeType")
+    py::enum_<paladio::core::NodeType>(m, "NodeType", "Semantic categories for Points of Interest.")
         .value("ATTRACTION", paladio::core::NodeType::ATTRACTION)
         .value("HOTEL", paladio::core::NodeType::HOTEL)
-        .value("AIRPORT", paladio::core::NodeType::AIRPORT)
+        .value("RESTAURANT_BREAKFAST", paladio::core::NodeType::RESTAURANT_BREAKFAST)
+        .value("RESTAURANT_LUNCH", paladio::core::NodeType::RESTAURANT_LUNCH)
+        .value("RESTAURANT_DINNER", paladio::core::NodeType::RESTAURANT_DINNER)
+        .value("BAR", paladio::core::NodeType::BAR)
         .export_values();
 
-    py::class_<paladio::core::TransitInfo>(m, "TransitInfo")
+    py::class_<paladio::core::TransitInfo>(m, "TransitInfo", "Travel edge connecting two POIs.")
         .def(py::init<int, double>())
-        .def_readwrite("duration", &paladio::core::TransitInfo::duration)
-        .def_readwrite("cost", &paladio::core::TransitInfo::cost);
+        .def_readwrite("duration", &paladio::core::TransitInfo::duration, "Travel duration in minutes.")
+        .def_readwrite("cost", &paladio::core::TransitInfo::cost, "Financial cost of travel.");
     
-    py::class_<paladio::core::POI>(m, "POI")
+    py::class_<paladio::core::POI>(m, "POI", "A Point of Interest node in the itinerary network.")
         .def(py::init<paladio::core::NodeType, double, double, int, int, int>())
         .def_readwrite("type", &paladio::core::POI::type)
         .def_readwrite("cost", &paladio::core::POI::cost)
         .def_readwrite("score", &paladio::core::POI::score)
         .def_readwrite("earliest_time", &paladio::core::POI::earliest_time)
         .def_readwrite("latest_time", &paladio::core::POI::latest_time)
-        .def_readwrite("duration", &paladio::core::POI::duration);
+        .def_readwrite("duration", &paladio::core::POI::duration)
+        .def_readwrite("is_breakfast_spot", &paladio::core::POI::is_breakfast_spot)
+        .def_readwrite("is_lunch_spot", &paladio::core::POI::is_lunch_spot)
+        .def_readwrite("is_dinner_spot", &paladio::core::POI::is_dinner_spot);
 
-    py::class_<paladio::core::OptimizationConfig>(m, "OptimizationConfig")
-        .def(py::init<double, double, double, double, std::optional<int>, std::optional<paladio::core::NodeType>>(),
-             py::arg("alpha"), py::arg("beta"), py::arg("gamma"), py::arg("max_budget"),
-             py::arg("start_node_index") = std::nullopt, py::arg("end_node_type") = std::nullopt)
-        .def_readwrite("alpha", &paladio::core::OptimizationConfig::alpha)
-        .def_readwrite("beta", &paladio::core::OptimizationConfig::beta)
-        .def_readwrite("gamma", &paladio::core::OptimizationConfig::gamma)
+    py::class_<paladio::core::OptimizationConfig>(m, "OptimizationConfig", "Global constraints for the routing problem.")
+        .def(py::init<double, std::optional<int>, std::optional<paladio::core::NodeType>, std::optional<int>, int, int, int, int, int, double, int, double, int, int, double>(),
+             py::arg("max_budget"),
+             py::arg("start_node_index") = std::nullopt, 
+             py::arg("end_node_type") = std::nullopt,
+             py::arg("end_node_index") = std::nullopt,
+             py::arg("end_time_limit") = -1,
+             py::arg("breakfast_deadline") = -1, 
+             py::arg("lunch_deadline") = -1, 
+             py::arg("dinner_deadline") = -1,
+             py::arg("max_idle_time") = 45,
+             py::arg("idle_time_penalty_rate") = 0.5,
+             py::arg("max_active_time_before_fatigue") = 240,
+             py::arg("fatigue_penalty_multiplier") = 0.6,
+             py::arg("min_meal_spacing") = 180,
+             py::arg("monotony_threshold") = 2,
+             py::arg("monotony_multiplier") = 0.5)
         .def_readwrite("max_budget", &paladio::core::OptimizationConfig::max_budget)
         .def_readwrite("start_node_index", &paladio::core::OptimizationConfig::start_node_index)
-        .def_readwrite("end_node_type", &paladio::core::OptimizationConfig::end_node_type);
+        .def_readwrite("end_node_type", &paladio::core::OptimizationConfig::end_node_type)
+        .def_readwrite("end_node_index", &paladio::core::OptimizationConfig::end_node_index)
+        .def_readwrite("end_time_limit", &paladio::core::OptimizationConfig::end_time_limit)
+        .def_readwrite("breakfast_deadline", &paladio::core::OptimizationConfig::breakfast_deadline)
+        .def_readwrite("lunch_deadline", &paladio::core::OptimizationConfig::lunch_deadline)
+        .def_readwrite("dinner_deadline", &paladio::core::OptimizationConfig::dinner_deadline)
+        .def_readwrite("max_idle_time", &paladio::core::OptimizationConfig::max_idle_time)
+        .def_readwrite("idle_time_penalty_rate", &paladio::core::OptimizationConfig::idle_time_penalty_rate)
+        .def_readwrite("max_active_time_before_fatigue", &paladio::core::OptimizationConfig::max_active_time_before_fatigue)
+        .def_readwrite("fatigue_penalty_multiplier", &paladio::core::OptimizationConfig::fatigue_penalty_multiplier)
+        .def_readwrite("min_meal_spacing", &paladio::core::OptimizationConfig::min_meal_spacing)
+        .def_readwrite("monotony_threshold", &paladio::core::OptimizationConfig::monotony_threshold)
+        .def_readwrite("monotony_multiplier", &paladio::core::OptimizationConfig::monotony_multiplier);
 
-    py::class_<paladio::core::OptimizationResult>(m, "OptimizationResult")
-        .def_readwrite("path", &paladio::core::OptimizationResult::path)
-        .def_readwrite("total_cost", &paladio::core::OptimizationResult::total_cost)
-        .def_readwrite("total_time", &paladio::core::OptimizationResult::total_time)
-        .def_readwrite("total_score", &paladio::core::OptimizationResult::total_score)
-        .def_readwrite("objective_value", &paladio::core::OptimizationResult::objective_value);
+    py::class_<paladio::core::OptimizationResult>(m, "OptimizationResult", "Optimal path returned by the solver.")
+        .def_readwrite("path", &paladio::core::OptimizationResult::path, "Sequence of visited POI indices.")
+        .def_readwrite("total_cost", &paladio::core::OptimizationResult::total_cost, "Accumulated financial cost.")
+        .def_readwrite("total_time", &paladio::core::OptimizationResult::total_time, "Total elapsed time in minutes.")
+        .def_readwrite("total_score", &paladio::core::OptimizationResult::total_score, "Maximally accumulated score.");
 
     m.def("optimize_itinerary", [](const std::vector<paladio::core::POI>& pois,
-                                   const std::vector<std::vector<paladio::core::TransitInfo>>& transit_times,
+                                   const std::vector<paladio::core::TransitInfo>& transit_times,
                                    const paladio::core::OptimizationConfig& config) {
-        // Release GIL for the core C++ loop
+        // Release GIL for the core C++ loop to allow Python concurrent execution
         py::gil_scoped_release release;
         return paladio::core::optimize_itinerary(pois, transit_times, config);
-    }, "Optimize travel constraints (TSPTW + Knapsack)");
+    }, "Optimize travel constraints (TSPTW + Knapsack). Releases GIL during computation.");
 }
 
 #endif // PALADIO_TESTING

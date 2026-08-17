@@ -1,11 +1,22 @@
-from fastapi import FastAPI, WebSocket
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1.websockets import router as websockets_router
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize DB connections, LangGraph checkpointers, etc. here
+    print("Initializing Semantic Gateway Lifespan...")
+    yield
+    # Cleanup here
+    print("Shutting down Semantic Gateway...")
 
 # Initialize FastAPI App
 app = FastAPI(
     title="Paladio Semantic Gateway",
     description="Gateway for the Continuous Sovereign Travel Optimization Engine",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS Middleware for local web UI
@@ -21,13 +32,5 @@ app.add_middleware(
 async def health_check():
     return {"status": "ok", "service": "Paladio Gateway"}
 
-@app.websocket("/ws/stream")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        # Placeholder for LangGraph multi-agent swarm stream
-        await websocket.send_json({"event": "INICIANDO_INFERENCIA", "status": "pending"})
-        # ... processing logic
-        await websocket.send_json({"event": "EVALUANDO_RUTAS", "status": "running"})
-    except Exception as e:
-        await websocket.close(code=1011, reason=str(e))
+# Include routers
+app.include_router(websockets_router, prefix="/api/v1", tags=["stream"])

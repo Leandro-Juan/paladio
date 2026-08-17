@@ -15,12 +15,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(pybind11)
 
 # Fetch GoogleTest
-set(GTEST_VERSION v1.14.0)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/tags/${GTEST_VERSION}.zip
-)
-FetchContent_MakeAvailable(googletest)
+# set(GTEST_VERSION v1.14.0)
+# FetchContent_Declare(
+#   googletest
+#   URL https://github.com/google/googletest/archive/refs/tags/${GTEST_VERSION}.zip
+# )
+# FetchContent_MakeAvailable(googletest)
 
 # Main Library
 pybind11_add_module(paladio_core src/engine.cpp)
@@ -39,24 +39,24 @@ target_link_options(paladio_core PRIVATE
 )
 
 # Testing
-add_executable(paladio_tests
-  tests/engine_test.cpp
-  src/engine.cpp
-)
+# add_executable(paladio_tests
+#   tests/engine_test.cpp
+#   src/engine.cpp
+# )
 
-target_include_directories(paladio_tests PRIVATE include)
-# We have to exclude the pybind11 module macro from the tests to avoid duplicate main/module
-target_compile_definitions(paladio_tests PRIVATE -DPALADIO_TESTING=1)
+# target_include_directories(paladio_tests PRIVATE include)
+# # We have to exclude the pybind11 module macro from the tests to avoid duplicate main/module
+# target_compile_definitions(paladio_tests PRIVATE -DPALADIO_TESTING=1)
 
-target_compile_options(paladio_tests PRIVATE
-    $<$<CONFIG:Debug>:-g -Og -fsanitize=address>
-    $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror>
-)
-target_link_options(paladio_tests PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
+# target_compile_options(paladio_tests PRIVATE
+#     $<$<CONFIG:Debug>:-g -Og -fsanitize=address>
+#     $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror>
+# )
+# target_link_options(paladio_tests PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
 
-target_link_libraries(paladio_tests GTest::gtest GTest::gmock GTest::gtest_main)
+# target_link_libraries(paladio_tests GTest::gtest GTest::gmock GTest::gtest_main)
 
-enable_testing()
-include(GoogleTest)
-gtest_discover_tests(paladio_tests)
+# enable_testing()
+# include(GoogleTest)
+# gtest_discover_tests(paladio_tests)
 

@@ -1,40 +1,228 @@
 import sys
 import os
+import random
+import time
+import pytest
 
-# Add the build directory to the Python path
+# Ensure paladio_core can be imported from build folder
 sys.path.append(os.path.join(os.path.dirname(__file__), 'build'))
 
 try:
     import paladio_core
-    print("Successfully imported paladio_core!")
 except ImportError as e:
-    print(f"Failed to import paladio_core: {e}")
-    sys.exit(1)
+    pytest.fail(f"Failed to import paladio_core: {e}")
 
-# Create POIs
-pois = [
-    paladio_core.POI(paladio_core.NodeType.HOTEL, 10.0, 50.0, 0, 100, 10),
-    paladio_core.POI(paladio_core.NodeType.ATTRACTION, 20.0, 100.0, 10, 100, 20),
-    paladio_core.POI(paladio_core.NodeType.AIRPORT, 15.0, 80.0, 30, 120, 15)
-]
+@pytest.fixture(scope="module")
+def node_types():
+    return [
+        paladio_core.NodeType.ATTRACTION,
+        paladio_core.NodeType.HOTEL,
+        paladio_core.NodeType.RESTAURANT_BREAKFAST,
+        paladio_core.NodeType.RESTAURANT_LUNCH,
+        paladio_core.NodeType.RESTAURANT_DINNER,
+        paladio_core.NodeType.BAR
+    ]
 
-# Transit times
-transit_times = [
-    [paladio_core.TransitInfo(0, 0.0), paladio_core.TransitInfo(10, 5.0), paladio_core.TransitInfo(20, 10.0)],
-    [paladio_core.TransitInfo(10, 5.0), paladio_core.TransitInfo(0, 0.0), paladio_core.TransitInfo(15, 8.0)],
-    [paladio_core.TransitInfo(20, 10.0), paladio_core.TransitInfo(15, 8.0), paladio_core.TransitInfo(0, 0.0)]
-]
+@pytest.fixture
+def generate_complex_graph(node_types):
+    def _generate(n=35, seed=42):
+        random.seed(seed)
+        pois = []
+        pois.append(paladio_core.POI(paladio_core.NodeType.HOTEL, 0.0, 0.0, 420, 1440, 0))
+        for i in range(1, n):
+            ntype = random.choices(node_types, weights=[60, 5, 2, 5, 10, 10], k=1)[0]
+            cost = round(random.uniform(0.0, 25.0), 2)
+            score = round(random.uniform(10.0, 100.0), 2)
+            duration = random.randint(30, 120)
+            
+            if ntype == paladio_core.NodeType.RESTAURANT_BREAKFAST:
+                earliest, latest = 420, 660
+            elif ntype == paladio_core.NodeType.RESTAURANT_LUNCH:
+                earliest, latest = 720, 960
+            elif ntype == paladio_core.NodeType.RESTAURANT_DINNER:
+                earliest, latest = 1080, 1380
+            elif ntype == paladio_core.NodeType.BAR:
+                earliest, latest = 1200, 1440
+            else:
+                earliest = random.randint(480, 720)
+                latest = earliest + random.randint(240, 600)
+                
+            pois.append(paladio_core.POI(ntype, cost, score, earliest, latest, duration))
+            
+        transit_times = []
+        for u in range(n):
+            for v in range(n):
+                if u == v:
+                    transit_times.append(paladio_core.TransitInfo(0, 0.0))
+                else:
+                    dur = random.randint(10, 45)
+                    cost = round(dur * 0.5 + random.uniform(0, 5), 2)
+                    transit_times.append(paladio_core.TransitInfo(dur, cost))
+                    
+        return pois, transit_times
+    return _generate
 
-# Config
-config = paladio_core.OptimizationConfig(1.0, 1.0, 1.0, 100.0)
+@pytest.fixture
+def default_config():
+    return paladio_core.OptimizationConfig(
+        max_budget=200.0,
+        start_node_index=0,
+        end_node_index=0,        
+        end_time_limit=1440,     
+        breakfast_deadline=660,  
+        lunch_deadline=960,      
+        dinner_deadline=1380,    
+        max_idle_time=45,
+        idle_time_penalty_rate=0.5,
+        max_active_time_before_fatigue=240,
+        fatigue_penalty_multiplier=0.6,
+        min_meal_spacing=180,
+        monotony_threshold=2,
+        monotony_multiplier=0.5
+    )
 
-import time
-start = time.time()
-result = paladio_core.optimize_itinerary(pois, transit_times, config)
-end = time.time()
+def test_optimization_finds_valid_path(generate_complex_graph, default_config, capsys):
+    """Test that the engine successfully returns a path with seed=0 (has all meal types)."""
+    pois, transit_times = generate_complex_graph(n=35, seed=0)
+    
+    start_time = time.perf_counter()
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    end_time = time.perf_counter()
+    
+    assert len(result.path) > 0, "Expected a valid path to be found, but got 0 nodes visited."
+    
+    print(f"\nOptimization finished in {(end_time - start_time) * 1000:.2f} ms")
+    print(f"Nodes visited: {len(result.path)}")
+    print(f"Total cost: ${result.total_cost:.2f}")
+    print(f"Total time elapsed: {result.total_time} mins")
+    print(f"Total score: {result.total_score:.2f}")
+    
+    print("\n--- Route Breakdown ---")
+    current_time = 420
+    for idx, node in enumerate(result.path):
+        poi = pois[node]
+        if idx > 0:
+            transit = transit_times[result.path[idx-1] * 35 + node]
+            print(f"  Transit -> {transit.duration} mins (Cost: ${transit.cost:.2f})")
+            current_time += transit.duration
+        wait = max(0, poi.earliest_time - current_time)
+        if wait > 0:
+            print(f"  Wait -> {wait} mins")
+            current_time += wait
+        print(f"[{current_time // 60:02d}:{current_time % 60:02d}] Node {node} ({poi.type.name}) - Score: {poi.score:.2f} - Duration: {poi.duration} mins")
+        current_time += poi.duration
 
-print(f"Optimization finished in {(end - start) * 1000:.2f} ms")
-print(f"Best path: {result.path}")
-print(f"Total cost: {result.total_cost}")
-print(f"Total time: {result.total_time}")
-print(f"Objective value: {result.objective_value}")
+def test_optimization_respects_budget(generate_complex_graph, default_config):
+    """Test that the generated path stays within the defined budget."""
+    pois, transit_times = generate_complex_graph(n=35, seed=0)
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    
+    assert len(result.path) > 0, "Path must be found to test budget."
+    assert result.total_cost <= default_config.max_budget, f"Expected cost <= {default_config.max_budget}, got {result.total_cost}"
+
+def test_optimization_returns_to_base(generate_complex_graph, default_config):
+    """Test that the path correctly enforces round-trip constraints starting and ending at node 0."""
+    pois, transit_times = generate_complex_graph(n=35, seed=0)
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    
+    assert len(result.path) > 0, "Path must be found to test return to base."
+    assert result.path[0] == 0, f"Expected start node 0, got {result.path[0]}"
+    assert result.path[-1] == 0, f"Expected end node 0, got {result.path[-1]}"
+
+def test_optimization_meal_constraints(generate_complex_graph, default_config):
+    """Test that all mandatory meals are successfully visited before their deadlines."""
+    pois, transit_times = generate_complex_graph(n=35, seed=0)
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    
+    assert len(result.path) > 0, "Path must be found to test meal constraints."
+    
+    has_breakfast = any(pois[n].type == paladio_core.NodeType.RESTAURANT_BREAKFAST for n in result.path)
+    has_lunch = any(pois[n].type == paladio_core.NodeType.RESTAURANT_LUNCH for n in result.path)
+    has_dinner = any(pois[n].type == paladio_core.NodeType.RESTAURANT_DINNER for n in result.path)
+    
+    assert has_breakfast, "Path did not include a required breakfast spot."
+    assert has_lunch, "Path did not include a required lunch spot."
+    assert has_dinner, "Path did not include a required dinner spot."
+
+def test_optimization_unfeasible_scenario(generate_complex_graph, default_config):
+    """Test that a scenario missing a required node type (seed=123 has no breakfast) gracefully fails."""
+    pois, transit_times = generate_complex_graph(n=35, seed=123)
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    
+    assert len(result.path) == 0, f"Expected empty path due to unfeasible constraints, got path of length {len(result.path)}"
+    assert result.total_cost == 0.0
+    assert result.total_score == 0.0
+
+def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path):
+    """Test the engine with 64 POIs to test to the extreme."""
+    import json
+    pois, transit_times = generate_complex_graph(n=64, seed=0)
+    
+    # Tighten constraints to allow the solver to finish in reasonable time on 64 POIs
+    default_config.max_budget = 120.0
+    default_config.end_time_limit = 1440
+    
+    # Run optimization
+    start_time = time.perf_counter()
+    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    end_time = time.perf_counter()
+    
+    assert len(result.path) > 0, "Expected a valid path"
+    
+    print(f"\nOptimization with 64 POI finished in {(end_time - start_time) * 1000:.2f} ms")
+    print(f"Nodes visited: {len(result.path)}")
+    print(f"Total cost: ${result.total_cost:.2f}")
+    
+    print("\n--- Route Breakdown ---")
+    current_time = 420
+    for idx, node in enumerate(result.path):
+        poi = pois[node]
+        if idx > 0:
+            transit = transit_times[result.path[idx-1] * 64 + node]
+            print(f"  Transit -> {transit.duration} mins (Cost: ${transit.cost:.2f})")
+            current_time += transit.duration
+        wait = max(0, poi.earliest_time - current_time)
+        if wait > 0:
+            print(f"  Wait -> {wait} mins")
+            current_time += wait
+        print(f"[{current_time // 60:02d}:{current_time % 60:02d}] Node {node} ({poi.type.name}) - Score: {poi.score:.2f} - Duration: {poi.duration} mins")
+        current_time += poi.duration
+    
+    # Save the output for the realism validator
+    out_data = {
+        'config': {
+            'max_idle_time': default_config.max_idle_time,
+            'min_meal_spacing': default_config.min_meal_spacing,
+            'max_budget': default_config.max_budget,
+            'end_time_limit': default_config.end_time_limit,
+        },
+        'pois': [],
+        'transits': {},
+        'path': result.path
+    }
+    
+    for i, p in enumerate(pois):
+        out_data['pois'].append({
+            'id': i,
+            'earliest_time': p.earliest_time,
+            'latest_time': p.latest_time,
+            'duration': p.duration,
+            'cost': p.cost,
+            'is_meal_spot': p.type in [paladio_core.NodeType.RESTAURANT_BREAKFAST, paladio_core.NodeType.RESTAURANT_LUNCH, paladio_core.NodeType.RESTAURANT_DINNER]
+        })
+        
+    for i in range(64):
+        out_data['transits'][str(i)] = {}
+        for j in range(64):
+            idx = i * 64 + j
+            if idx < len(transit_times):
+                out_data['transits'][str(i)][str(j)] = {
+                    'duration': transit_times[idx].duration,
+                    'cost': transit_times[idx].cost
+                }
+                
+    json_path = tmp_path / "itinerary_64.json"
+    with open(json_path, "w") as f:
+        json.dump(out_data, f, indent=2)
+        
+    print(f"Itinerary JSON written to {json_path}")

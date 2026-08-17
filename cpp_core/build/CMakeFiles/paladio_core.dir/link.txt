@@ -1,1 +1,1 @@
-/usr/bin/c++ -fPIC -g -fsanitize=address -shared  -o paladio_core.cpython-314-x86_64-linux-gnu.so CMakeFiles/paladio_core.dir/src/engine.cpp.o 
+/usr/bin/c++ -fPIC -flto -shared  -o paladio_core.cpython-312-x86_64-linux-gnu.so CMakeFiles/paladio_core.dir/src/engine.cpp.o 

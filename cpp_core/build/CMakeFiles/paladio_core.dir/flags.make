@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -Dpaladio_core_EXPORTS
 
-CXX_INCLUDES = -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include -isystem /home/linuxbrew/.linuxbrew/opt/python@3.14/include/python3.14
+CXX_INCLUDES = -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include -isystem /usr/include/python3.12
 
-CXX_FLAGS = -g -std=gnu++20 -fPIC -fvisibility=hidden -g -Og -fsanitize=address -Wall -Wextra -Werror
+CXX_FLAGS = -std=gnu++20 -fPIC -fvisibility=hidden -Wall -Wextra -Werror -flto -fno-fat-lto-objects
 

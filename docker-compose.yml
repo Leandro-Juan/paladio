@@ -65,7 +65,32 @@ services:
               count: all
               capabilities: [gpu]
 
+  init-llm:
+    image: ollama/ollama:latest
+    depends_on:
+      llm:
+        condition: service_started
+    environment:
+      - OLLAMA_HOST=http://llm:11434
+    command: >
+      sh -c "sleep 5 && ollama pull llama3.1 && ollama pull nomic-embed-text"
+
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - valhalladata:/custom_files
+    environment:
+      - serve_rst=True
+      - local_map_url=http://download.geofabrik.de/europe/spain/madrid-latest.osm.pbf
+      - use_tiles_ignore_pbf=True
+      - force_rebuild=False
+      - build_elevation=False
+      - build_transit=True
+      
 volumes:
   pgdata:
   redisdata:
   ollamadata:
+  valhalladata:

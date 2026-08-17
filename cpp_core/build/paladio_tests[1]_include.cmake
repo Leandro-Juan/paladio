@@ -1,5 +1,0 @@
-if(EXISTS "/home/leandro/Code/Projects/Paladio/cpp_core/build/paladio_tests[1]_tests.cmake")
-  include("/home/leandro/Code/Projects/Paladio/cpp_core/build/paladio_tests[1]_tests.cmake")
-else()
-  add_test(paladio_tests_NOT_BUILT paladio_tests_NOT_BUILT)
-endif()

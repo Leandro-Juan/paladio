@@ -1,44 +1,8 @@
 [
 {
   "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build",
-  "command": "/usr/bin/c++ -Dpaladio_core_EXPORTS -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include -isystem /home/linuxbrew/.linuxbrew/opt/python@3.14/include/python3.14 -g -std=gnu++20 -fPIC -fvisibility=hidden -g -Og -fsanitize=address -Wall -Wextra -Werror -o CMakeFiles/paladio_core.dir/src/engine.cpp.o -c /home/leandro/Code/Projects/Paladio/cpp_core/src/engine.cpp",
+  "command": "/usr/bin/c++ -Dpaladio_core_EXPORTS -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include -isystem /usr/include/python3.12 -std=gnu++20 -fPIC -fvisibility=hidden -Wall -Wextra -Werror -flto -fno-fat-lto-objects -o CMakeFiles/paladio_core.dir/src/engine.cpp.o -c /home/leandro/Code/Projects/Paladio/cpp_core/src/engine.cpp",
   "file": "/home/leandro/Code/Projects/Paladio/cpp_core/src/engine.cpp",
   "output": "CMakeFiles/paladio_core.dir/src/engine.cpp.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build",
-  "command": "/usr/bin/c++ -DPALADIO_TESTING=1 -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock -g -std=gnu++20 -g -Og -fsanitize=address -Wall -Wextra -Werror -o CMakeFiles/paladio_tests.dir/tests/engine_test.cpp.o -c /home/leandro/Code/Projects/Paladio/cpp_core/tests/engine_test.cpp",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/tests/engine_test.cpp",
-  "output": "CMakeFiles/paladio_tests.dir/tests/engine_test.cpp.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build",
-  "command": "/usr/bin/c++ -DPALADIO_TESTING=1 -I/home/leandro/Code/Projects/Paladio/cpp_core/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock -g -std=gnu++20 -g -Og -fsanitize=address -Wall -Wextra -Werror -o CMakeFiles/paladio_tests.dir/src/engine.cpp.o -c /home/leandro/Code/Projects/Paladio/cpp_core/src/engine.cpp",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/src/engine.cpp",
-  "output": "CMakeFiles/paladio_tests.dir/src/engine.cpp.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googlemock",
-  "command": "/usr/bin/c++  -I/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/include -I/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
-  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googlemock",
-  "command": "/usr/bin/c++  -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
-  "output": "_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googletest",
-  "command": "/usr/bin/c++  -I/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -I/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/src/gtest-all.cc",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/src/gtest-all.cc",
-  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o"
-},
-{
-  "directory": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googletest",
-  "command": "/usr/bin/c++  -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/include -isystem /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/src/gtest_main.cc",
-  "file": "/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest/src/gtest_main.cc",
-  "output": "_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o"
 }
 ]
