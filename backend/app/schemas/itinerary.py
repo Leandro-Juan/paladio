@@ -1,6 +1,7 @@
+import json
 from datetime import date, time
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 class NodeConstraint(BaseModel):
     poi_id: str = Field(..., description="Unique identifier or name of the Point of Interest.")
@@ -18,3 +19,15 @@ class TravelConstraints(BaseModel):
     end_date: date = Field(..., description="End date of the itinerary.")
     nodes: List[NodeConstraint] = Field(default_factory=list, description="List of POIs or destinations to visit.")
     meals: List[MealRequirement] = Field(default_factory=list, description="Mandatory meal windows.")
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_stringified_lists(cls, values):
+        if isinstance(values, dict):
+            for field in ['nodes', 'meals']:
+                if field in values and isinstance(values[field], str):
+                    try:
+                        values[field] = json.loads(values[field])
+                    except json.JSONDecodeError:
+                        pass
+        return values

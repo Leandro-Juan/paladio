@@ -1,5 +1,4 @@
-#ifndef PALADIO_CORE_ENGINE_HPP
-#define PALADIO_CORE_ENGINE_HPP
+#pragma once
 
 #include <vector>
 #include <cstdint>
@@ -130,4 +129,3 @@ struct OptimizationResult {
 
 } // namespace paladio::core
 
-#endif // PALADIO_CORE_ENGINE_HPP

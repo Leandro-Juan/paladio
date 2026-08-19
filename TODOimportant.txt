@@ -1,1 +1,0 @@
-add the ability to specify the departure time and return to the hotel (ask if this is not already there) and ensure that the exact arrival time at each place is output in the tests (and perhaps assume that no meal takes more than 45 mins)

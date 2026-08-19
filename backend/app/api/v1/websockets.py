@@ -2,6 +2,7 @@ import asyncio
 import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from langchain_core.messages import HumanMessage
+from app.engine.bridge import OptimizationError
 
 router = APIRouter()
 
@@ -9,8 +10,7 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     
-    # We delay the import so that app lifespan can initialize any DB connections first
-    from app.swarm.graph import graph
+    graph = websocket.app.state.graph
     
     try:
         while True:
@@ -39,11 +39,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 # chunk is a dict like {"node_name": {"state_key": state_value}}
                 for node_name, state_update in chunk.items():
                     
-                    if node_name == "rag":
-                        await websocket.send_json({"event": "RETRIEVING_CONTEXT", "status": "completed"})
+                    if node_name == "router":
+                        intent = state_update.get("intent", "UNKNOWN")
+                        await websocket.send_json({"event": "ROUTING_INTENT", "status": "completed", "data": intent})
+                        
+                    elif node_name == "rag":
+                        retrieved = state_update.get("retrieved_context", "")
+                        # Send truncated context to avoid massive payloads
+                        truncated = retrieved[:500] + "..." if len(retrieved) > 500 else retrieved
+                        await websocket.send_json({"event": "RETRIEVING_CONTEXT", "status": "completed", "data": truncated})
                     
                     elif node_name == "validator":
-                        await websocket.send_json({"event": "EXTRACTING_CONSTRAINTS", "status": "completed"})
+                        constraints = state_update.get("validated_itinerary")
+                        await websocket.send_json({"event": "EXTRACTING_CONSTRAINTS", "status": "completed", "data": constraints.model_dump(mode="json") if constraints else None})
                         
                     elif node_name == "planner":
                         final_itinerary = state_update.get("final_itinerary", {})
@@ -52,9 +60,19 @@ async def websocket_endpoint(websocket: WebSocket):
                         else:
                             await websocket.send_json({"event": "EVALUATING_ROUTES", "status": "completed", "data": final_itinerary})
                             
+                    elif node_name == "alert":
+                        final_itinerary = state_update.get("final_itinerary", {})
+                        await websocket.send_json({"event": "ALERT_SCHEDULED", "status": "completed", "data": final_itinerary})
+
             await websocket.send_json({"event": "DONE", "status": "completed"})
             
     except WebSocketDisconnect:
         print("WebSocket client disconnected")
-    except Exception as e:
+    except OptimizationError as e:
+        print(f"Optimization error: {e}")
+        await websocket.send_json({"event": "ERROR", "status": str(e)})
         await websocket.close(code=1011, reason=str(e))
+    except Exception as e:
+        print(f"Internal server error: {e}")
+        error_msg = str(e)[:123] # WebSocket max reason length is 123 bytes
+        await websocket.close(code=1011, reason=error_msg)

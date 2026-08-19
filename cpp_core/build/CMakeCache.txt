@@ -14,6 +14,9 @@
 # EXTERNAL cache entries
 ########################
 
+//Builds the googlemock subproject
+BUILD_GMOCK:BOOL=ON
+
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/usr/bin/addr2line
 
@@ -52,6 +55,32 @@ CMAKE_CXX_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
 
 //Flags used by the CXX compiler during RELWITHDEBINFO builds.
 CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
+
+//C compiler
+CMAKE_C_COMPILER:FILEPATH=/usr/bin/cc
+
+//A wrapper around 'ar' adding the appropriate '--plugin' option
+// for the GCC compiler
+CMAKE_C_COMPILER_AR:FILEPATH=/usr/bin/gcc-ar-13
+
+//A wrapper around 'ranlib' adding the appropriate '--plugin' option
+// for the GCC compiler
+CMAKE_C_COMPILER_RANLIB:FILEPATH=/usr/bin/gcc-ranlib-13
+
+//Flags used by the C compiler during all build types.
+CMAKE_C_FLAGS:STRING=
+
+//Flags used by the C compiler during DEBUG builds.
+CMAKE_C_FLAGS_DEBUG:STRING=-g
+
+//Flags used by the C compiler during MINSIZEREL builds.
+CMAKE_C_FLAGS_MINSIZEREL:STRING=-Os -DNDEBUG
+
+//Flags used by the C compiler during RELEASE builds.
+CMAKE_C_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
+
+//Flags used by the C compiler during RELWITHDEBINFO builds.
+CMAKE_C_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
 
 //Path to a program.
 CMAKE_DLLTOOL:FILEPATH=CMAKE_DLLTOOL-NOTFOUND
@@ -263,17 +292,32 @@ FETCHCONTENT_FULLY_DISCONNECTED:BOOL=OFF
 FETCHCONTENT_QUIET:BOOL=ON
 
 //When not empty, overrides where to find pre-populated content
+// for googletest
+FETCHCONTENT_SOURCE_DIR_GOOGLETEST:PATH=
+
+//When not empty, overrides where to find pre-populated content
 // for pybind11
 FETCHCONTENT_SOURCE_DIR_PYBIND11:PATH=
 
 //Enables UPDATE_DISCONNECTED behavior for all content population
 FETCHCONTENT_UPDATES_DISCONNECTED:BOOL=OFF
 
+//Enables UPDATE_DISCONNECTED behavior just for population of googletest
+FETCHCONTENT_UPDATES_DISCONNECTED_GOOGLETEST:BOOL=OFF
+
 //Enables UPDATE_DISCONNECTED behavior just for population of pybind11
 FETCHCONTENT_UPDATES_DISCONNECTED_PYBIND11:BOOL=OFF
 
 //Git command line client
 GIT_EXECUTABLE:FILEPATH=/usr/bin/git
+
+//Use Abseil and RE2. Requires Abseil and RE2 to be separately
+// added to the build.
+GTEST_HAS_ABSL:BOOL=OFF
+
+//Enable installation of googletest. (Projects embedding googletest
+// may want to turn this OFF.)
+INSTALL_GTEST:BOOL=ON
 
 //Force new FindPython
 PYBIND11_FINDPYTHON:BOOL=OFF
@@ -302,10 +346,10 @@ PYBIND11_SIMPLE_GIL_MANAGEMENT:BOOL=OFF
 PYBIND11_TEST:BOOL=OFF
 
 //Path to a program.
-PYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3
+PYTHON_EXECUTABLE:FILEPATH=/home/leandro/.pyenv/shims/python3
 
 //Path to a library.
-PYTHON_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libpython3.12.so
+PYTHON_LIBRARY:FILEPATH=/home/linuxbrew/.linuxbrew/opt/python@3.14/lib/libpython3.14.so
 
 //Value Computed by CMake
 PaladioEngine_BINARY_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build
@@ -315,6 +359,52 @@ PaladioEngine_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 PaladioEngine_SOURCE_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core
+
+//Value Computed by CMake
+gmock_BINARY_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googlemock
+
+//Value Computed by CMake
+gmock_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+gmock_SOURCE_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googlemock
+
+//Build all of Google Mock's own tests.
+gmock_build_tests:BOOL=OFF
+
+//Value Computed by CMake
+googletest-distribution_BINARY_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build
+
+//Value Computed by CMake
+googletest-distribution_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+googletest-distribution_SOURCE_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src
+
+//Value Computed by CMake
+gtest_BINARY_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googletest
+
+//Value Computed by CMake
+gtest_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+gtest_SOURCE_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-src/googletest
+
+//Build gtest's sample programs.
+gtest_build_samples:BOOL=OFF
+
+//Build all of gtest's own tests.
+gtest_build_tests:BOOL=OFF
+
+//Disable uses of pthreads in gtest.
+gtest_disable_pthreads:BOOL=OFF
+
+//Use shared (DLL) run-time lib even when Google Test is built
+// as static lib.
+gtest_force_shared_crt:BOOL=OFF
+
+//Build gtest with internal symbols hidden in shared libraries.
+gtest_hide_internal_symbols:BOOL=OFF
 
 //Value Computed by CMake
 pybind11_BINARY_DIR:STATIC=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-build
@@ -366,6 +456,22 @@ CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=1
 CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_CXX_FLAGS_RELWITHDEBINFO
 CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_COMPILER
+CMAKE_C_COMPILER-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_COMPILER_AR
+CMAKE_C_COMPILER_AR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_COMPILER_RANLIB
+CMAKE_C_COMPILER_RANLIB-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_FLAGS
+CMAKE_C_FLAGS-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_FLAGS_DEBUG
+CMAKE_C_FLAGS_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_FLAGS_MINSIZEREL
+CMAKE_C_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_FLAGS_RELEASE
+CMAKE_C_FLAGS_RELEASE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CMAKE_C_FLAGS_RELWITHDEBINFO
+CMAKE_C_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_DLLTOOL
 CMAKE_DLLTOOL-ADVANCED:INTERNAL=1
 //Executable file format
@@ -392,6 +498,8 @@ CMAKE_GENERATOR_INSTANCE:INTERNAL=
 CMAKE_GENERATOR_PLATFORM:INTERNAL=
 //Name of generator toolset.
 CMAKE_GENERATOR_TOOLSET:INTERNAL=
+//Test CMAKE_HAVE_LIBC_PTHREAD
+CMAKE_HAVE_LIBC_PTHREAD:INTERNAL=1
 //Source directory with the top level CMakeLists.txt file for this
 // project
 CMAKE_HOME_DIRECTORY:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core
@@ -446,7 +554,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=2
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=5
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -492,9 +600,13 @@ CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
 //Details about finding PYTHON
-FIND_PACKAGE_MESSAGE_DETAILS_PYTHON:INTERNAL=/usr/bin/python33.12.3
+FIND_PACKAGE_MESSAGE_DETAILS_PYTHON:INTERNAL=/home/leandro/.pyenv/shims/python33.14.5
+//Details about finding Python3
+FIND_PACKAGE_MESSAGE_DETAILS_Python3:INTERNAL=[/home/leandro/Code/Projects/Paladio/.venv/bin/python3][cfound components: Interpreter ][v3.14.5()]
 //Details about finding PythonInterp
-FIND_PACKAGE_MESSAGE_DETAILS_PythonInterp:INTERNAL=[/usr/bin/python3][v3.12.3(3.6)]
+FIND_PACKAGE_MESSAGE_DETAILS_PythonInterp:INTERNAL=[/home/leandro/.pyenv/shims/python3][v3.14.5(3.6)]
+//Details about finding Threads
+FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //ADVANCED property for variable: GIT_EXECUTABLE
 GIT_EXECUTABLE-ADVANCED:INTERNAL=1
 //Test HAS_FLTO
@@ -502,26 +614,52 @@ HAS_FLTO:INTERNAL=1
 PYBIND11_INCLUDE_DIR:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include
 //ADVANCED property for variable: PYTHON_EXECUTABLE
 PYTHON_EXECUTABLE-ADVANCED:INTERNAL=1
-PYTHON_INCLUDE_DIRS:INTERNAL=/usr/include/python3.12
+PYTHON_INCLUDE_DIRS:INTERNAL=/home/linuxbrew/.linuxbrew/opt/python@3.14/include/python3.14
 PYTHON_IS_DEBUG:INTERNAL=0
-PYTHON_LIBRARIES:INTERNAL=/usr/lib/x86_64-linux-gnu/libpython3.12.so
+PYTHON_LIBRARIES:INTERNAL=/home/linuxbrew/.linuxbrew/opt/python@3.14/lib/libpython3.14.so
 //ADVANCED property for variable: PYTHON_LIBRARY
 PYTHON_LIBRARY-ADVANCED:INTERNAL=1
-PYTHON_MODULE_EXTENSION:INTERNAL=.cpython-312-x86_64-linux-gnu.so
+PYTHON_MODULE_EXTENSION:INTERNAL=.cpython-314-x86_64-linux-gnu.so
 PYTHON_MODULE_PREFIX:INTERNAL=
-PYTHON_VERSION:INTERNAL=3.12.3
+PYTHON_VERSION:INTERNAL=3.14.5
 PYTHON_VERSION_MAJOR:INTERNAL=3
-PYTHON_VERSION_MINOR:INTERNAL=12
+PYTHON_VERSION_MINOR:INTERNAL=14
 Python_ADDITIONAL_VERSIONS:INTERNAL=3.11;3.10;3.9;3.8;3.7;3.6
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
 //CMAKE_INSTALL_PREFIX during last run
 _GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=/usr/local
 _Python:INTERNAL=PYTHON
+//Compiler reason failure
+_Python3_Compiler_REASON_FAILURE:INTERNAL=
+//Development reason failure
+_Python3_Development_REASON_FAILURE:INTERNAL=
+//Path to a program.
+_Python3_EXECUTABLE:INTERNAL=/home/leandro/Code/Projects/Paladio/.venv/bin/python3
+//Python3 Properties
+_Python3_INTERPRETER_PROPERTIES:INTERNAL=Python;3;14;5;64;32;;cpython-314-x86_64-linux-gnu;abi3;/home/linuxbrew/.linuxbrew/opt/python@3.14/lib/python3.14;/home/leandro/Code/Projects/Paladio/.venv/lib/python3.14;/home/leandro/Code/Projects/Paladio/.venv/lib/python3.14/site-packages;/home/leandro/Code/Projects/Paladio/.venv/lib/python3.14/site-packages
+_Python3_INTERPRETER_SIGNATURE:INTERNAL=5ac61c5252a98a332d66ae804c951fa1
+//NumPy reason failure
+_Python3_NumPy_REASON_FAILURE:INTERNAL=
+cmake_package_name:INTERNAL=GTest
+generated_dir:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/googletest-build/googletest/generated
+//ADVANCED property for variable: gmock_build_tests
+gmock_build_tests-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: gtest_build_samples
+gtest_build_samples-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: gtest_build_tests
+gtest_build_tests-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: gtest_disable_pthreads
+gtest_disable_pthreads-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: gtest_force_shared_crt
+gtest_force_shared_crt-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: gtest_hide_internal_symbols
+gtest_hide_internal_symbols-ADVANCED:INTERNAL=1
 //True if pybind11 and all required components found on the system
 pybind11_FOUND:INTERNAL=TRUE
 //Directory where pybind11 headers are located
 pybind11_INCLUDE_DIR:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include
 //Directories where pybind11 and possibly Python headers are located
-pybind11_INCLUDE_DIRS:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include;/usr/include/python3.12
+pybind11_INCLUDE_DIRS:INTERNAL=/home/leandro/Code/Projects/Paladio/cpp_core/build/_deps/pybind11-src/include;/home/linuxbrew/.linuxbrew/opt/python@3.14/include/python3.14
+targets_export_name:INTERNAL=GTestTargets
 

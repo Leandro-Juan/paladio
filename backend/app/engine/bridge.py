@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 from typing import List, Dict
 
 try:
@@ -8,6 +9,9 @@ except ImportError:
     paladio_core = None
 
 from app.schemas.itinerary import TravelConstraints
+
+class OptimizationError(Exception):
+    pass
 
 def map_category_to_node_type(category: str):
     """Maps string categories to paladio_core.NodeType enum."""
@@ -31,13 +35,14 @@ def map_category_to_node_type(category: str):
 def run_optimization(
     constraints: TravelConstraints,
     pois_data: List[Dict],
-    transit_matrix: List[List[Dict]]
+    transit_matrix: List[List[Dict]],
+    num_days: int = 1
 ) -> Dict:
     """
     Bridges the Python orchestration layer with the C++ deterministic core.
     """
     if not paladio_core:
-        return {"error": "C++ optimization engine is not available."}
+        raise OptimizationError("C++ optimization engine is not available.")
         
     n = len(pois_data)
     
@@ -62,22 +67,34 @@ def run_optimization(
             latest,
             duration
         )
+        
+        # Set meal flags so the C++ engine can satisfy meal constraints
+        cat = poi.get("category", "").upper()
+        name = poi.get("name", "").lower()
+        if cat == "RESTAURANT":
+            if "breakfast" in name:
+                cpp_poi.is_breakfast_spot = True
+            elif "lunch" in name:
+                cpp_poi.is_lunch_spot = True
+            elif "dinner" in name:
+                cpp_poi.is_dinner_spot = True
+            else:
+                cpp_poi.is_breakfast_spot = True
+                cpp_poi.is_lunch_spot = True
+                cpp_poi.is_dinner_spot = True
+        
         cpp_pois.append(cpp_poi)
         
-    # 2. Build flattened transit matrix vector
-    cpp_transit = []
+    # 2. Build flattened transit matrices as Numpy arrays (zero-copy for PyBind11 boundary)
+    durations = np.zeros(n * n, dtype=np.int32)
+    costs = np.zeros(n * n, dtype=np.float64)
     for i in range(n):
         for j in range(n):
-            if i == j:
-                cpp_transit.append(paladio_core.TransitInfo(0, 0.0))
-            else:
+            idx = i * n + j
+            if i != j:
                 edge = transit_matrix[i][j]
-                cpp_transit.append(
-                    paladio_core.TransitInfo(
-                        edge["duration_mins"],
-                        edge["cost_eur"]
-                    )
-                )
+                durations[idx] = edge["duration_mins"]
+                costs[idx] = float(edge.get("cost_eur", 0.0))
                 
     # 3. Build Configuration
     # We parse deadlines from the constraints if present
@@ -101,7 +118,7 @@ def run_optimization(
     end_time_limit = 1439 
 
     config = paladio_core.OptimizationConfig(
-        max_budget=constraints.budget_usd, # Assuming 1:1 mapping for MVP or already converted
+        max_budget=constraints.budget_usd / num_days if num_days > 0 else constraints.budget_usd,
         end_time_limit=end_time_limit,
         breakfast_deadline=breakfast_deadline,
         lunch_deadline=lunch_deadline,
@@ -110,7 +127,7 @@ def run_optimization(
     
     # 4. Call C++ Engine
     try:
-        result = paladio_core.optimize_itinerary(cpp_pois, cpp_transit, config)
+        result = paladio_core.optimize_itinerary(cpp_pois, durations, costs, config)
         
         # 5. Map back to Python dict
         path_details = []
@@ -126,4 +143,4 @@ def run_optimization(
             "path": path_details
         }
     except Exception as e:
-        return {"error": str(e)}
+        raise OptimizationError(f"C++ engine failed: {str(e)}")

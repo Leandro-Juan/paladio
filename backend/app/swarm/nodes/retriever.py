@@ -1,7 +1,10 @@
 import os
+import logging
 from langchain_ollama import OllamaEmbeddings
 from langchain_postgres.vectorstores import PGVector
 from app.swarm.state import SwarmState
+
+logger = logging.getLogger(__name__)
 
 # Environment variables setup
 DB_USER = os.getenv("POSTGRES_USER", "postgres")
@@ -30,16 +33,19 @@ try:
     )
     retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 except Exception as e:
-    print(f"Warning: Could not connect to pgvector database: {e}")
+    logger.warning(f"Warning: Could not connect to pgvector database: {e}")
     retriever = None
 
 async def rag_node(state: SwarmState) -> dict:
     """
     Retrieves POI context from the local pgvector database.
     """
+    logger.info("--- [PHASE: RAG] Retrieving context from database ---")
     last_msg = state["messages"][-1].content
+    logger.debug(f"User query for retrieval: {last_msg}")
     
     if not retriever:
+        logger.warning("No retriever available, skipping context retrieval.")
         return {"retrieved_context": "No database connection available."}
         
     try:
@@ -47,7 +53,8 @@ async def rag_node(state: SwarmState) -> dict:
         # by the basic PGVector store in this setup, but invoke works for now.
         docs = await retriever.ainvoke(last_msg)
         context = "\n\n".join([doc.page_content for doc in docs])
+        logger.info(f"--- [PHASE: RAG] Successfully retrieved {len(docs)} documents ({len(context)} chars) ---")
         return {"retrieved_context": context}
     except Exception as e:
-        print(f"Error during retrieval: {e}")
+        logger.error(f"Error during retrieval: {e}")
         return {"retrieved_context": "Error retrieving context."}

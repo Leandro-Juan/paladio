@@ -1,7 +1,8 @@
 services:
   api:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       target: dev
     ports:
       - "8000:8000"
@@ -11,7 +12,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - REDIS_URL=redis://redis:6379/0
-      - LLM_API_URL=http://llm:11434
+      - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development
     depends_on:
       db:
@@ -51,19 +52,10 @@ services:
 
   llm:
     image: ollama/ollama:latest
-    ports:
-      - "127.0.0.1:11434:11434"
     volumes:
       - ollamadata:/root/.ollama
     security_opt:
       - no-new-privileges:true
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
   init-llm:
     image: ollama/ollama:latest
@@ -72,8 +64,8 @@ services:
         condition: service_started
     environment:
       - OLLAMA_HOST=http://llm:11434
-    command: >
-      sh -c "sleep 5 && ollama pull llama3.1 && ollama pull nomic-embed-text"
+    entrypoint: /bin/sh
+    command: -c "sleep 5 && ollama pull llama3.1 && ollama pull nomic-embed-text"
 
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
@@ -89,6 +81,50 @@ services:
       - build_elevation=False
       - build_transit=True
       
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: dev
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://llm:11434
+      - NODE_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A app.celery_app worker --loglevel=info
+    security_opt:
+      - no-new-privileges:true
+
+  beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: dev
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://llm:11434
+      - NODE_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A app.celery_app beat --loglevel=info
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   pgdata:
   redisdata:

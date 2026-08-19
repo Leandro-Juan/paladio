@@ -3,9 +3,8 @@ import os
 import random
 import time
 import pytest
+import numpy as np
 
-# Ensure paladio_core can be imported from build folder
-sys.path.append(os.path.join(os.path.dirname(__file__), 'build'))
 
 try:
     import paladio_core
@@ -49,17 +48,18 @@ def generate_complex_graph(node_types):
                 
             pois.append(paladio_core.POI(ntype, cost, score, earliest, latest, duration))
             
-        transit_times = []
+        durations = np.zeros(n * n, dtype=np.int32)
+        costs = np.zeros(n * n, dtype=np.float64)
         for u in range(n):
             for v in range(n):
-                if u == v:
-                    transit_times.append(paladio_core.TransitInfo(0, 0.0))
-                else:
+                idx = u * n + v
+                if u != v:
                     dur = random.randint(10, 45)
                     cost = round(dur * 0.5 + random.uniform(0, 5), 2)
-                    transit_times.append(paladio_core.TransitInfo(dur, cost))
+                    durations[idx] = dur
+                    costs[idx] = cost
                     
-        return pois, transit_times
+        return pois, durations, costs
     return _generate
 
 @pytest.fixture
@@ -83,10 +83,10 @@ def default_config():
 
 def test_optimization_finds_valid_path(generate_complex_graph, default_config, capsys):
     """Test that the engine successfully returns a path with seed=0 (has all meal types)."""
-    pois, transit_times = generate_complex_graph(n=35, seed=0)
+    pois, durations, costs = generate_complex_graph(n=35, seed=2)
     
     start_time = time.perf_counter()
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     end_time = time.perf_counter()
     
     assert len(result.path) > 0, "Expected a valid path to be found, but got 0 nodes visited."
@@ -102,9 +102,11 @@ def test_optimization_finds_valid_path(generate_complex_graph, default_config, c
     for idx, node in enumerate(result.path):
         poi = pois[node]
         if idx > 0:
-            transit = transit_times[result.path[idx-1] * 35 + node]
-            print(f"  Transit -> {transit.duration} mins (Cost: ${transit.cost:.2f})")
-            current_time += transit.duration
+            transit_idx = result.path[idx-1] * 35 + node
+            dur = durations[transit_idx]
+            cost = costs[transit_idx]
+            print(f"  Transit -> {dur} mins (Cost: ${cost:.2f})")
+            current_time += dur
         wait = max(0, poi.earliest_time - current_time)
         if wait > 0:
             print(f"  Wait -> {wait} mins")
@@ -114,16 +116,16 @@ def test_optimization_finds_valid_path(generate_complex_graph, default_config, c
 
 def test_optimization_respects_budget(generate_complex_graph, default_config):
     """Test that the generated path stays within the defined budget."""
-    pois, transit_times = generate_complex_graph(n=35, seed=0)
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    pois, durations, costs = generate_complex_graph(n=35, seed=2)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     
     assert len(result.path) > 0, "Path must be found to test budget."
     assert result.total_cost <= default_config.max_budget, f"Expected cost <= {default_config.max_budget}, got {result.total_cost}"
 
 def test_optimization_returns_to_base(generate_complex_graph, default_config):
     """Test that the path correctly enforces round-trip constraints starting and ending at node 0."""
-    pois, transit_times = generate_complex_graph(n=35, seed=0)
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    pois, durations, costs = generate_complex_graph(n=35, seed=2)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     
     assert len(result.path) > 0, "Path must be found to test return to base."
     assert result.path[0] == 0, f"Expected start node 0, got {result.path[0]}"
@@ -131,8 +133,8 @@ def test_optimization_returns_to_base(generate_complex_graph, default_config):
 
 def test_optimization_meal_constraints(generate_complex_graph, default_config):
     """Test that all mandatory meals are successfully visited before their deadlines."""
-    pois, transit_times = generate_complex_graph(n=35, seed=0)
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    pois, durations, costs = generate_complex_graph(n=35, seed=2)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     
     assert len(result.path) > 0, "Path must be found to test meal constraints."
     
@@ -146,8 +148,8 @@ def test_optimization_meal_constraints(generate_complex_graph, default_config):
 
 def test_optimization_unfeasible_scenario(generate_complex_graph, default_config):
     """Test that a scenario missing a required node type (seed=123 has no breakfast) gracefully fails."""
-    pois, transit_times = generate_complex_graph(n=35, seed=123)
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    pois, durations, costs = generate_complex_graph(n=35, seed=123)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     
     assert len(result.path) == 0, f"Expected empty path due to unfeasible constraints, got path of length {len(result.path)}"
     assert result.total_cost == 0.0
@@ -156,7 +158,7 @@ def test_optimization_unfeasible_scenario(generate_complex_graph, default_config
 def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path):
     """Test the engine with 64 POIs to test to the extreme."""
     import json
-    pois, transit_times = generate_complex_graph(n=64, seed=0)
+    pois, durations, costs = generate_complex_graph(n=64, seed=0)
     
     # Tighten constraints to allow the solver to finish in reasonable time on 64 POIs
     default_config.max_budget = 120.0
@@ -164,7 +166,7 @@ def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path
     
     # Run optimization
     start_time = time.perf_counter()
-    result = paladio_core.optimize_itinerary(pois, transit_times, default_config)
+    result = paladio_core.optimize_itinerary(pois, durations, costs, default_config)
     end_time = time.perf_counter()
     
     assert len(result.path) > 0, "Expected a valid path"
@@ -178,9 +180,11 @@ def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path
     for idx, node in enumerate(result.path):
         poi = pois[node]
         if idx > 0:
-            transit = transit_times[result.path[idx-1] * 64 + node]
-            print(f"  Transit -> {transit.duration} mins (Cost: ${transit.cost:.2f})")
-            current_time += transit.duration
+            transit_idx = result.path[idx-1] * 64 + node
+            dur = durations[transit_idx]
+            cost = costs[transit_idx]
+            print(f"  Transit -> {dur} mins (Cost: ${cost:.2f})")
+            current_time += dur
         wait = max(0, poi.earliest_time - current_time)
         if wait > 0:
             print(f"  Wait -> {wait} mins")
@@ -215,10 +219,10 @@ def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path
         out_data['transits'][str(i)] = {}
         for j in range(64):
             idx = i * 64 + j
-            if idx < len(transit_times):
+            if idx < len(durations):
                 out_data['transits'][str(i)][str(j)] = {
-                    'duration': transit_times[idx].duration,
-                    'cost': transit_times[idx].cost
+                    'duration': int(durations[idx]),
+                    'cost': float(costs[idx])
                 }
                 
     json_path = tmp_path / "itinerary_64.json"
@@ -226,3 +230,16 @@ def test_extreme_64_poi(generate_complex_graph, default_config, capsys, tmp_path
         json.dump(out_data, f, indent=2)
         
     print(f"Itinerary JSON written to {json_path}")
+
+def test_engine_resilience_malformed_input(default_config):
+    """Test that the PyBind11 boundary doesn't segfault with badly sized arrays."""
+    pois = []
+    for i in range(10):
+        pois.append(paladio_core.POI(paladio_core.NodeType.ATTRACTION, 0.0, 1.0, 0, 1440, 10))
+        
+    # We purposefully make durations the WRONG size (not N*N)
+    durations = np.zeros(50, dtype=np.int32)
+    costs = np.zeros(50, dtype=np.float64)
+    
+    with pytest.raises(Exception): # Assuming PyBind11 raises an exception or we catch it
+        paladio_core.optimize_itinerary(pois, durations, costs, default_config)

@@ -1,7 +1,8 @@
 # Sovereign Travel Optimization Engine — Technical Roadmap
 
 > **Architectural Reference:** [Documento de Arquitectura Soberana.pdf](./Documento%20de%20Arquitectura%20Soberana.pdf)  
-> **Core Architecture:** 100% Local Sovereign AI (NLP/Extraction) + Deterministic C++20 (CSP/Combinatorics) + Distributed Stream Engine (Python/Celery/TimescaleDB)
+> **Core Architecture:** 100% Offline, Self-Hosted & Portable Sovereign AI (NLP/Extraction) + Deterministic Cross-Platform C++20 (CSP/Combinatorics) + Distributed Stream Engine (Python/Celery/TimescaleDB)
+> **Prime Directive:** Absolute environment independence, zero cloud SaaS lock-in, hardware-agnostic execution, and full air-gap readiness across Linux (x86_64, ARM64) and macOS.
 
 ---
 
@@ -73,30 +74,31 @@ graph TD
 ## 3. Phased Execution Roadmap
 
 ### Phase 0: Infrastructure Foundation & Sovereignty Sandbox
-**Objective:** Deploy and isolate the local host environment, databases, and local inference nodes.
+**Objective:** Deploy and isolate the local host environment, ensuring a 100% self-hosted, air-gappable deployment with hardware-agnostic portability.
 
-- [ ] **0.1 Isolated Container Topology (`docker-compose.yml`):**
+- [x] **0.1 Portable Isolated Container Topology (`docker-compose.yml`):**
+  - Fully containerized, hardware-agnostic stack ensuring seamless portability.
   - PostgreSQL 16 with `TimescaleDB` and `pgvector` extensions enabled.
   - Redis 7 (broker for Celery and in-memory cache).
   - Local LLM engine (Ollama / vLLM) exposing port `11434` for Quantized models (`Llama 3.1 8B-Instruct-Q4_K_M` or `Qwen 2.5 7B`).
-- [ ] **1.2 Network & Boundary Hardening:**
+- [x] **1.2 Network & Boundary Hardening:**
   - Configure `ufw` to block all external ingress ports except the reverse proxy gateway.
-- [ ] **0.3 Healthcheck & Resource Benchmarking:**
+- [x] **0.3 Healthcheck & Resource Benchmarking:**
   - Validate VRAM/RAM allocation under peak local inference loads (minimum 16GB total target).
 
 ---
 
-### Phase 1: Reactive Optimization Core (C++20 & pybind11)
+### Phase 1: Portable Reactive Optimization Core (C++20 & pybind11)
 **Objective:** Build the deterministic mathematical calculation core for travel itineraries with sub-50ms execution latency.
 
-- [ ] **1.1 TSPTW + Knapsack Modeling:**
+- [x] **1.1 TSPTW + Knapsack Modeling:**
   - Formulate graph search for points of interest (POI), transit times, opening windows, and financial budgets.
   - Implement dynamic programming with bitmask state representation `(visited_mask, current_node, elapsed_time)`.
-- [ ] **1.2 Multi-Objective Cost Function:**
+- [x] **1.2 Multi-Objective Cost Function:**
   - Implement:  
     $$\min f(x) = \alpha \cdot C(x) + \beta \cdot T(x) - \gamma \cdot S(x)$$  
     Where $C(x)$ = total cost, $T(x)$ = transit/layover penalty, $S(x)$ = quality score, and $\alpha, \beta, \gamma$ are dynamic weights.
-- [ ] **1.3 CPython Bridge (`pybind11`):**
+- [x] **1.3 CPython Bridge (`pybind11`):**
   - Export C++ data structures and solver entrypoints as a shared dynamic library (`.so`).
   - Add benchmark tests ensuring execution time $< 50\text{ms}$ for graphs up to 25 nodes (typical 5–7 day trip).
 
@@ -105,14 +107,14 @@ graph TD
 ### Phase 2: Semantic Gateway & Multi-Agent Swarm (FastAPI + LangGraph)
 **Objective:** Create the conversational front door with structured output validation and live WebSocket event streams.
 
-- [ ] **2.1 FastAPI WebSocket Gateway:**
+- [x] **2.1 FastAPI WebSocket Gateway:**
   - Establish persistent WebSocket endpoints emitting structured granular progress states:  
-    `["INICIANDO_INFERENCIA", "EXTRAYENDO_RESTRICCIONES", "SCRAPEANDO_OFERTAS", "EVALUANDO_RUTAS"]`.
-- [ ] **2.2 LangGraph Orchestration Pipeline:**
+    `["STARTING_INFERENCE", "EXTRACTING_CONSTRAINTS", "SCRAPING_OFFERS", "EVALUATING_ROUTES"]`.
+- [x] **2.2 LangGraph Orchestration Pipeline:**
   - **Router Agent:** Classifies user intent (Reactive Itinerary Planning vs. Proactive Continuous Monitoring alert creation).
   - **RAG Agent:** Queries `pgvector` knowledge base for localized destination constraints (e.g., museum closures, transit policies).
   - **Validator Agent (The Guardrail):** Enforces strict Pydantic parsing on local LLM outputs. Automatically triggers re-prompting loop if budget or date constraints violate schema.
-- [ ] **2.3 End-to-End Reactive Integration:**
+- [x] **2.3 End-to-End Reactive Integration:**
   - Connect validated Pydantic parameters to the compiled `pybind11` C++ solver and stream back the optimized itinerary.
 
 ---
@@ -120,7 +122,7 @@ graph TD
 ### Phase 3: Continuous Ingestion & Anti-Ban Scraping (Celery Beat)
 **Objective:** Build a 24/7 distributed cron worker cluster for real-time travel market price harvesting.
 
-- [ ] **3.1 Distributed Task Scheduling:**
+- [x] **3.1 Distributed Task Scheduling:**
   - Configure Celery Beat to dispatch scheduled scraping tasks to Redis queues at configurable $N$-minute intervals.
 - [ ] **3.2 Resilient Scraping Workers:**
   - Implement async scrapers with `HTTPX` for lightweight API endpoints and `Playwright` for dynamic JavaScript single-page sites.
@@ -165,6 +167,7 @@ graph TD
 
 | Risk | Impact | Likelihood | Mitigation Strategy |
 | :--- | :---: | :---: | :--- |
+| **Cloud Dependency / Vendor Lock-in** | Critical | Low | Zero tolerance policy. Ensure all components (LLM, databases, logic) remain 100% self-hosted and air-gap compatible. |
 | **Local LLM Hallucinations on Math/Budgets** | Critical | High | Hard constraint: Relegate LLMs to NLP only; enforce Pydantic Validator with auto-retry; all math solved in C++. |
 | **Scraper IP Bans & CAPTCHAs** | High | High | Residential proxy pool rotation, Playwright stealth plugins, exponential backoff with jitter. |
 | **Database I/O Bottleneck on 50K+ Alerts** | High | Medium | In-memory C++ Interval Tree daemon bypasses SQL disk queries on every ingestion tick. |

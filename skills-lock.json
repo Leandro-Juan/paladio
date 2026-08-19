@@ -7,6 +7,12 @@
       "skillPath": "skills/building-pydantic-ai-agents/SKILL.md",
       "computedHash": "102cbcc4b4a548464814b65c44e1bd7170ff2188d07ec830544560d54133e6e6"
     },
+    "celery": {
+      "source": "bobmatnyc/claude-mpm-skills",
+      "sourceType": "github",
+      "skillPath": "toolchains/python/async/celery/SKILL.md",
+      "computedHash": "46518bcab00288bdd56b06c155809fc53e9b65264b62d46c19b33c15ce488c82"
+    },
     "cmake": {
       "source": "mohitmishra786/low-level-dev-skills",
       "sourceType": "github",
@@ -49,6 +55,12 @@
       "skillPath": "skills/find-skills/SKILL.md",
       "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
     },
+    "just-scrape": {
+      "source": "scrapegraphai/just-scrape",
+      "sourceType": "github",
+      "skillPath": "skills/just-scrape/SKILL.md",
+      "computedHash": "a9a4d7e5d1f44c351f0a7eecd486c8b9107aa866348fd0e6fb92453c0f387245"
+    },
     "langchain-dependencies": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
@@ -78,6 +90,30 @@
       "sourceType": "github",
       "skillPath": "config/skills/langgraph-persistence/SKILL.md",
       "computedHash": "0e14611b0310a7a30e9977ba99b00a11b7ea63ebdd7b0c490d03040349ead0ed"
+    },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "sourceType": "github",
+      "skillPath": "playwright-best-practices/SKILL.md",
+      "computedHash": "7eb144f734450fee649dc1d209114775ddda07cbf45be84fe969d3d4f3971dce"
+    },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "computedHash": "f602822b51bcb6d033749c60731b8f1e80f308222fcb2e4af551905a817c6e08"
+    },
+    "playwright-stealth-verify": {
+      "source": "liarjsdev/liarjs-skills",
+      "sourceType": "github",
+      "skillPath": "skills/playwright-stealth-verify/SKILL.md",
+      "computedHash": "ba1067145d6c5e3d305fd4a5e94c3b8e7d91081bd87ea437cf78581e16026ca6"
+    },
+    "proxy-manager": {
+      "source": "webshare-proxy/skills",
+      "sourceType": "github",
+      "skillPath": "skills/proxy-manager/SKILL.md",
+      "computedHash": "925c2dbc25fc7f31ccc170d6720884e2320ac33c772fb187baec626d53b6cb1c"
     },
     "pydantic": {
       "source": "pydantic/skills",

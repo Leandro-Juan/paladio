@@ -2,11 +2,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.websockets import router as websockets_router
+from app.swarm.graph import create_swarm
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize DB connections, LangGraph checkpointers, etc. here
     print("Initializing Semantic Gateway Lifespan...")
+    app.state.graph = create_swarm()
     yield
     # Cleanup here
     print("Shutting down Semantic Gateway...")
