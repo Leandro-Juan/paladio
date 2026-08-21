@@ -51,7 +51,8 @@ async def rag_node(state: SwarmState) -> dict:
     try:
         # Astream or ainvoke would be better if async was natively supported nicely 
         # by the basic PGVector store in this setup, but invoke works for now.
-        docs = await retriever.ainvoke(last_msg)
+        import asyncio
+        docs = await asyncio.to_thread(retriever.invoke, last_msg)
         context = "\n\n".join([doc.page_content for doc in docs])
         logger.info(f"--- [PHASE: RAG] Successfully retrieved {len(docs)} documents ({len(context)} chars) ---")
         return {"retrieved_context": context}

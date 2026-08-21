@@ -12,19 +12,7 @@ async def get_flights_aviationstack(origin: str, destination: str) -> Dict[str, 
     """
     api_key = os.environ.get("AVIATIONSTACK_API_KEY")
     if not api_key:
-        logger.warning("AVIATIONSTACK_API_KEY not set. Returning mock flight data.")
-        return {
-            "status": "mock",
-            "data": [
-                {
-                    "flight_date": "2026-08-20",
-                    "flight_status": "scheduled",
-                    "departure": {"airport": origin, "scheduled": "2026-08-20T10:00:00+00:00"},
-                    "arrival": {"airport": destination, "scheduled": "2026-08-20T12:00:00+00:00"},
-                    "airline": {"name": "Mock Airlines"}
-                }
-            ]
-        }
+        raise RuntimeError("AVIATIONSTACK_API_KEY not set. Cannot fetch real flight data.")
     
     url = "http://api.aviationstack.com/v1/flights"
     params = {
@@ -48,18 +36,7 @@ async def get_hotels_amadeus(city_code: str) -> Dict[str, Any]:
     client_secret = os.environ.get("AMADEUS_CLIENT_SECRET")
     
     if not client_id or not client_secret:
-        logger.warning("Amadeus credentials not set. Returning mock hotel data.")
-        return {
-            "status": "mock",
-            "data": [
-                {
-                    "hotelId": "H123",
-                    "name": f"Mock Hotel {city_code}",
-                    "rating": 4,
-                    "price": {"currency": "EUR", "total": "150.00"}
-                }
-            ]
-        }
+        raise RuntimeError("Amadeus credentials not set. Cannot fetch real hotel data.")
 
     # 1. Get access token
     auth_url = "https://test.api.amadeus.com/v1/security/oauth2/token"

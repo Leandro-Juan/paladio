@@ -14,6 +14,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development
+      - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -52,6 +53,8 @@ services:
 
   llm:
     image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11435:11434"
     volumes:
       - ollamadata:/root/.ollama
     security_opt:
@@ -89,11 +92,14 @@ services:
     volumes:
       - ./backend:/app
       - /app/.venv
+      - /var/run/docker.sock:/var/run/docker.sock
+      - valhalladata:/custom_files
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development
+      - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -116,6 +122,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development
+      - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:
       db:
         condition: service_healthy

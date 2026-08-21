@@ -1,11 +1,14 @@
 import os
 import httpx
 import asyncio
+import logging
 from typing import List, Dict, Tuple
+
+logger = logging.getLogger(__name__)
 
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
-async def get_transit_matrix(pois: List[Dict]) -> List[List[Dict]]:
+async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List[Dict]]:
     """
     Generate an N x N transit matrix between a list of POIs using local Valhalla.
     poi: dict with 'lat', 'lon'
@@ -52,10 +55,27 @@ async def get_transit_matrix(pois: List[Dict]) -> List[List[Dict]]:
         if tasks:
             responses = await asyncio.gather(*tasks, return_exceptions=True)
             
+            error_count = 0
+            for resp in responses:
+                if isinstance(resp, Exception) or resp.status_code != 200:
+                    error_count += 1
+            
+            # If >50% of requests failed, it's highly likely Valhalla is missing map tiles for this region.
+            if len(tasks) > 0 and error_count > len(tasks) * 0.5:
+                if city_name:
+                    logger.warning(f"Valhalla failed {error_count}/{len(tasks)} requests for {city_name}. Triggering automated map pipeline.")
+                    # Trigger the celery task asynchronously
+                    from app.tasks import build_city_map_task
+                    build_city_map_task.delay(city_name)
+                    
             for (i, j), resp in zip(indices, responses):
                 if isinstance(resp, Exception) or resp.status_code != 200:
-                    # Fallback on error (e.g., if transit fails due to missing tile data)
-                    matrix[i][j] = {"duration_mins": 30, "cost_eur": 5.0, "mode": "fallback"}
+                    # Fallback to straight-line geographical heuristic
+                    lat_diff = pois[i]["lat"] - pois[j]["lat"]
+                    lon_diff = pois[i]["lon"] - pois[j]["lon"]
+                    dist_km = (lat_diff**2 + lon_diff**2)**0.5 * 111
+                    duration = int(dist_km / 5.0 * 60) # 5 km/h walking speed
+                    matrix[i][j] = {"duration_mins": max(1, duration), "cost_eur": 0.0, "mode": "heuristic"}
                     continue
                 
                 data = resp.json()

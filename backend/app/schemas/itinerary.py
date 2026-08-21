@@ -14,9 +14,12 @@ class MealRequirement(BaseModel):
     end_time: time = Field(..., description="Latest time the meal must end by.")
 
 class TravelConstraints(BaseModel):
-    budget_usd: float = Field(..., description="Maximum budget for the entire trip in USD.", gt=0)
-    start_date: date = Field(..., description="Start date of the itinerary.")
-    end_date: date = Field(..., description="End date of the itinerary.")
+    origin_city: Optional[str] = Field(default="Unknown", description="The city where the trip originates from.")
+    destination_city: Optional[str] = Field(default="Unknown", description="The city where the trip takes place.")
+    budget_usd: Optional[float] = Field(default=0.0, description="Maximum budget for the entire trip in USD.", ge=0)
+    flight_cost: float = Field(default=0.0, description="Cost of the flight.")
+    start_date: Optional[date] = Field(default=None, description="Start date of the itinerary.")
+    end_date: Optional[date] = Field(default=None, description="End date of the itinerary.")
     nodes: List[NodeConstraint] = Field(default_factory=list, description="List of POIs or destinations to visit.")
     meals: List[MealRequirement] = Field(default_factory=list, description="Mandatory meal windows.")
 

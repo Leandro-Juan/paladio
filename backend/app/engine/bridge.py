@@ -36,7 +36,9 @@ def run_optimization(
     constraints: TravelConstraints,
     pois_data: List[Dict],
     transit_matrix: List[List[Dict]],
-    num_days: int = 1
+    num_days: int = 1,
+    day_start_mins: int = 480,  # Default 08:00
+    day_end_mins: int = 1320    # Default 22:00
 ) -> Dict:
     """
     Bridges the Python orchestration layer with the C++ deterministic core.
@@ -51,10 +53,16 @@ def run_optimization(
     for poi in pois_data:
         node_type = map_category_to_node_type(poi.get("category", "ATTRACTION"))
         
+        # Apply time relativity: shift the day so the engine always thinks it starts at 480
+        # If the user actually starts at 14:45 (885 mins), shift is 885 - 480 = 405.
+        time_shift = max(0, day_start_mins - 480)
+        
         # We assume for now that all POIs are open 08:00 (480 mins) to 22:00 (1320 mins)
-        # unless specified in metadata (simplified for MVP)
-        earliest = 480
-        latest = 1320
+        poi_open = 480
+        poi_close = 1320
+        
+        earliest = max(480, poi_open - time_shift)
+        latest = max(480, poi_close - time_shift)
         duration = int(poi.get("duration_mins", 60))
         cost = float(poi.get("cost_eur", 0.0))
         score = 100.0 # Base score, we could compute this based on rating/preference
@@ -113,9 +121,27 @@ def run_optimization(
         elif "DINNER" in m_type:
             dinner_deadline = end_mins
             
-    # Time limit: trip start and end date don't perfectly map to the single-day config yet,
-    # but let's assume we are planning a single day up to 23:59 (1439 mins)
-    end_time_limit = 1439 
+    # Apply the same time shift to meal deadlines, disable if missed
+    if breakfast_deadline != -1:
+        if breakfast_deadline <= day_start_mins:
+            breakfast_deadline = -1
+        else:
+            breakfast_deadline = breakfast_deadline - time_shift
+            
+    if lunch_deadline != -1:
+        if lunch_deadline <= day_start_mins:
+            lunch_deadline = -1
+        else:
+            lunch_deadline = lunch_deadline - time_shift
+            
+    if dinner_deadline != -1:
+        if dinner_deadline <= day_start_mins:
+            dinner_deadline = -1
+        else:
+            dinner_deadline = dinner_deadline - time_shift
+            
+    # Time limit:
+    end_time_limit = day_end_mins - time_shift 
 
     config = paladio_core.OptimizationConfig(
         max_budget=constraints.budget_usd / num_days if num_days > 0 else constraints.budget_usd,

@@ -1,0 +1,111 @@
+{
+    "url": "https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=2026-09-01&dateIn=&isConnectedFlight=false&isReturn=false&discount=0&promoCode=&originIata=MAD&destinationIata=OPO&tpAdults=1&tpTeens=0&tpChildren=0&tpInfants=0&tpStartDate=2026-09-01&tpEndDate=&tpDiscount=0&tpPromoCode=&tpOriginIata=MAD&tpDestinationIata=OPO",
+    "status_code": 200,
+    "title": "Ryanair",
+    "extracted_data": [
+        {
+            "id": "RYANAIR-0",
+            "type": "flight",
+            "airline": "Ryanair",
+            "flight_number": "Unknown",
+            "route": {
+                "origin_iata": "XXX",
+                "destination_iata": "XXX"
+            },
+            "schedule": {
+                "departure_utc": "2026-08-19T16:01:05.469312",
+                "arrival_utc": "2026-08-19T16:01:05.469318",
+                "duration_minutes": 120
+            },
+            "financials": {
+                "price": 0.0,
+                "currency": "EUR"
+            },
+            "booking": {
+                "provider_url": "https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=2026-09-01&dateIn=&isConnectedFlight=false&isReturn=false&discount=0&promoCode=&originIata=MAD&destinationIata=OPO&tpAdults=1&tpTeens=0&tpChildren=0&tpInfants=0&tpStartDate=2026-09-01&tpEndDate=&tpDiscount=0&tpPromoCode=&tpOriginIata=MAD&tpDestinationIata=OPO"
+            },
+            "metadata": {
+                "scraped_at": "2026-08-19T16:01:05.469344",
+                "source": "Ryanair"
+            }
+        },
+        {
+            "id": "RYANAIR-1",
+            "type": "flight",
+            "airline": "Ryanair",
+            "flight_number": "Unknown",
+            "route": {
+                "origin_iata": "XXX",
+                "destination_iata": "XXX"
+            },
+            "schedule": {
+                "departure_utc": "2026-08-19T16:01:05.469407",
+                "arrival_utc": "2026-08-19T16:01:05.469410",
+                "duration_minutes": 120
+            },
+            "financials": {
+                "price": 0.0,
+                "currency": "EUR"
+            },
+            "booking": {
+                "provider_url": "https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=2026-09-01&dateIn=&isConnectedFlight=false&isReturn=false&discount=0&promoCode=&originIata=MAD&destinationIata=OPO&tpAdults=1&tpTeens=0&tpChildren=0&tpInfants=0&tpStartDate=2026-09-01&tpEndDate=&tpDiscount=0&tpPromoCode=&tpOriginIata=MAD&tpDestinationIata=OPO"
+            },
+            "metadata": {
+                "scraped_at": "2026-08-19T16:01:05.469419",
+                "source": "Ryanair"
+            }
+        },
+        {
+            "id": "RYANAIR-2",
+            "type": "flight",
+            "airline": "Ryanair",
+            "flight_number": "Unknown",
+            "route": {
+                "origin_iata": "XXX",
+                "destination_iata": "XXX"
+            },
+            "schedule": {
+                "departure_utc": "2026-08-19T16:01:05.469441",
+                "arrival_utc": "2026-08-19T16:01:05.469443",
+                "duration_minutes": 120
+            },
+            "financials": {
+                "price": 0.0,
+                "currency": "EUR"
+            },
+            "booking": {
+                "provider_url": "https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=2026-09-01&dateIn=&isConnectedFlight=false&isReturn=false&discount=0&promoCode=&originIata=MAD&destinationIata=OPO&tpAdults=1&tpTeens=0&tpChildren=0&tpInfants=0&tpStartDate=2026-09-01&tpEndDate=&tpDiscount=0&tpPromoCode=&tpOriginIata=MAD&tpDestinationIata=OPO"
+            },
+            "metadata": {
+                "scraped_at": "2026-08-19T16:01:05.469451",
+                "source": "Ryanair"
+            }
+        },
+        {
+            "id": "RYANAIR-3",
+            "type": "flight",
+            "airline": "Ryanair",
+            "flight_number": "Unknown",
+            "route": {
+                "origin_iata": "XXX",
+                "destination_iata": "XXX"
+            },
+            "schedule": {
+                "departure_utc": "2026-08-19T16:01:05.469468",
+                "arrival_utc": "2026-08-19T16:01:05.469471",
+                "duration_minutes": 120
+            },
+            "financials": {
+                "price": 0.0,
+                "currency": "EUR"
+            },
+            "booking": {
+                "provider_url": "https://www.ryanair.com/gb/en/trip/flights/select?adults=1&teens=0&children=0&infants=0&dateOut=2026-09-01&dateIn=&isConnectedFlight=false&isReturn=false&discount=0&promoCode=&originIata=MAD&destinationIata=OPO&tpAdults=1&tpTeens=0&tpChildren=0&tpInfants=0&tpStartDate=2026-09-01&tpEndDate=&tpDiscount=0&tpPromoCode=&tpOriginIata=MAD&tpDestinationIata=OPO"
+            },
+            "metadata": {
+                "scraped_at": "2026-08-19T16:01:05.469477",
+                "source": "Ryanair"
+            }
+        }
+    ]
+}

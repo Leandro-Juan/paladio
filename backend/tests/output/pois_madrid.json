@@ -1,0 +1,515 @@
+[
+    {
+        "id": "OSM-node-56179859",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Monumento a José Calvo Sotelo",
+        "location": {
+            "latitude": 40.4651944,
+            "longitude": -3.689421
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579206",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-158849464",
+        "type": "attraction",
+        "category": "museum",
+        "name": "Museo Casa de la Moneda",
+        "location": {
+            "latitude": 40.422598,
+            "longitude": -3.6691465
+        },
+        "schedule": {
+            "osm_opening_hours": "Tu-Fr 10:00-17:30; Sa-Su 10:00-14:00; PH 10:00-14:00; Jan 01,06,Mar 19,Dec 24,25,31 off",
+            "recommended_duration_minutes": 120
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579276",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-255288522",
+        "type": "attraction",
+        "category": "museum",
+        "name": "Museo Arqueológico Nacional",
+        "location": {
+            "latitude": 40.4234289,
+            "longitude": -3.6888894
+        },
+        "schedule": {
+            "osm_opening_hours": "Mo off; Tu-Sa 09:30-20:00; Su 09:30-15:00; PH 09:30-15:00; Jan 01,06,May 01,Dec 24,25,31 off",
+            "recommended_duration_minutes": 120
+        },
+        "financials": {
+            "is_free": true,
+            "estimated_cost": 0.0,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579296",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-282708254",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Nuestra Señora de Valverde",
+        "location": {
+            "latitude": 40.5155776,
+            "longitude": -3.6855555
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579328",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-311307553",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Sexta Esclusa del Real Canal de Manzanares",
+        "location": {
+            "latitude": 40.3324054,
+            "longitude": -3.6500122
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579342",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-311307641",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Cuarta Esclusa del Real Canal de Manzanares",
+        "location": {
+            "latitude": 40.352077,
+            "longitude": -3.6722962
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579357",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-317911511",
+        "type": "attraction",
+        "category": "museum",
+        "name": "Museo del Ferrocarril de Madrid",
+        "location": {
+            "latitude": 40.3993218,
+            "longitude": -3.6921489
+        },
+        "schedule": {
+            "osm_opening_hours": "Oct 01-May 31: Mo-Th 09:30-15:00; Oct 01-May 31: PH,Fr,Sa,Su 09:30-18:00; Jun 01-Sep 30: Tu-Su 10:00-15:00; Aug 16-31,Jan 01,06,May 01,Dec 25 off",
+            "recommended_duration_minutes": 120
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579376",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-324812377",
+        "type": "attraction",
+        "category": "attraction",
+        "name": "Puerta de Felipe IV",
+        "location": {
+            "latitude": 40.4152748,
+            "longitude": -3.6886925
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579387",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-325076341",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Monumento a los Caídos por España",
+        "location": {
+            "latitude": 40.416387,
+            "longitude": -3.6928847
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579398",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-366378422",
+        "type": "attraction",
+        "category": "attraction",
+        "name": "Madrid Boarding House Historic Site",
+        "location": {
+            "latitude": 35.4066457,
+            "longitude": -106.1524998
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579416",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-367089552",
+        "type": "attraction",
+        "category": "museum",
+        "name": "Madrid Historical Museum",
+        "location": {
+            "latitude": 41.8760116,
+            "longitude": -93.8208135
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 120
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579428",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-747752114",
+        "type": "attraction",
+        "category": "monument",
+        "name": "puerta huerta de la salud",
+        "location": {
+            "latitude": 40.4749467,
+            "longitude": -3.6450166
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579438",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-902327030",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Francisco de Quevedo y Villegas",
+        "location": {
+            "latitude": 40.4336329,
+            "longitude": -3.704246
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579450",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-926197364",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Monumento a Goya",
+        "location": {
+            "latitude": 40.4248513,
+            "longitude": -3.6753031
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579460",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-927878116",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Ruinas del Ábside de la Iglesia de Nuestra Señora de la Almudena",
+        "location": {
+            "latitude": 40.4152461,
+            "longitude": -3.7130156
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579483",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-936505939",
+        "type": "attraction",
+        "category": "museum",
+        "name": "Andén Cero - Estación de Chamberí",
+        "location": {
+            "latitude": 40.4322594,
+            "longitude": -3.6977299
+        },
+        "schedule": {
+            "osm_opening_hours": "Fr 16:00-20:00; Sa 10:00-14:00,16:00-20:00; Su 10:00-14:00",
+            "recommended_duration_minutes": 120
+        },
+        "financials": {
+            "is_free": true,
+            "estimated_cost": 0.0,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579495",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-936505963",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Homenaje a los Saineteros Madrileños",
+        "location": {
+            "latitude": 40.4307553,
+            "longitude": -3.6995303
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579507",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-942080471",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Estatua de Espartero",
+        "location": {
+            "latitude": 40.4211219,
+            "longitude": -3.6835969
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579517",
+            "source": "openstreetmap"
+        }
+    },
+    {
+        "id": "OSM-node-957056337",
+        "type": "attraction",
+        "category": "monument",
+        "name": "Monumento en Memoria de las Víctimas del atentado contra SS.MM. D. Alfonso XIII y D.ª Victoria Eugenia",
+        "location": {
+            "latitude": 40.4150532,
+            "longitude": -3.7123897
+        },
+        "schedule": {
+            "osm_opening_hours": null,
+            "recommended_duration_minutes": 45
+        },
+        "financials": {
+            "is_free": false,
+            "estimated_cost": null,
+            "currency": "EUR"
+        },
+        "scoring": {
+            "rating": 0.0,
+            "reviews": 0
+        },
+        "metadata": {
+            "scraped_at": "2026-08-19T16:13:28.579529",
+            "source": "openstreetmap"
+        }
+    }
+]

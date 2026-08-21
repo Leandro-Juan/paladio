@@ -36,18 +36,23 @@ validator_agent = Agent(
     instructions=(
         "You are the Guardrail Validator Agent. Your job is to extract travel constraints "
         "from the user's natural language input and use the provided tool to output the structured data. "
-        "Ensure all constraints such as budget, dates, nodes, and meal requirements are accurately captured. "
+        "Ensure all constraints such as the destination_city, budget, dates, nodes, and meal requirements are accurately captured. "
         "IMPORTANT FORMATTING RULES:\n"
         "- Dates MUST be strictly formatted as YYYY-MM-DD strings (e.g. '2026-08-18').\n"
         "- Times MUST be strictly formatted as HH:MM strings (e.g. '13:00').\n"
-        "If a specific budget is not mentioned, make a reasonable estimate based on the destination and trip length. "
-        "Do not invent points of interest that are not mentioned or implied by the user."
+        "Extract only the parameters that the user explicitly mentions. Do NOT make up, assume, or estimate any missing information. If a parameter is completely missing from the user's prompt, you must leave it as null, 0, or Unknown.\n"
+        "Do not invent points of interest that are not mentioned or implied by the user. "
+        "1.  **Extract the origin_city and destination_city:** Parse the user's intended starting point and destination.\n"
+        "2.  **Extract Date & Budget:** Identify `start_date`, `end_date`, and `budget_usd` (convert currencies if needed).\n"
+        "3.  **Identify Mandatory Nodes:** Extract specific POIs the user wants to visit into the `nodes` list.\n"
+        "4.  **Extract Meal Constraints:** Extract any requested meal preferences into the `meals` list. If the user wants 'breakfast, lunch, and dinner each day', explicitly add these 3 meals to the constraints with appropriate time windows (e.g. Breakfast 08:00-10:30, Lunch 13:00-15:30, Dinner 19:30-22:00).\n"
+        "5.  **Calculate Limits:** Convert vague statements into rigid JSON structures."
     )
 )
 
 @validator_agent.system_prompt
 def add_date_context() -> str:
-    return f"Today's date is {date.today()}. If no specific dates are mentioned in the request, assume the trip starts tomorrow and calculate the end date based on the trip length."
+    return f"Today's date is {date.today()}."
 
 async def validator_node(state: dict) -> dict:
     """

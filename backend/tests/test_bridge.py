@@ -23,9 +23,12 @@ def mock_constraints():
     )
 
 def test_map_category_to_node_type():
-    import paladio_core
-    assert map_category_to_node_type("HOTEL") == paladio_core.NodeType.HOTEL
-    assert map_category_to_node_type("UNKNOWN") == paladio_core.NodeType.ATTRACTION
+    try:
+        import paladio_core
+        assert map_category_to_node_type("HOTEL") == paladio_core.NodeType.HOTEL
+        assert map_category_to_node_type("UNKNOWN") == paladio_core.NodeType.ATTRACTION
+    except ImportError:
+        pytest.skip("C++ optimization engine is not available")
 
 def test_bridge_64_pois(mock_constraints):
     """Test aggressive 64 POI translation and execution over the PyBind11 boundary."""
@@ -106,3 +109,20 @@ def test_bridge_transit_flattening(mock_constraints):
             pytest.skip("C++ optimization engine is not available")
         else:
             raise
+
+def test_bridge_exceeds_64_pois(mock_constraints):
+    """Test boundary condition where exceeding 64 POIs raises an exception."""
+    n = 65
+    pois_data = [{"name": f"POI {i}", "category": "ATTRACTION"} for i in range(n)]
+    transit_matrix = [[{"duration_mins": 0, "cost_eur": 0.0} for _ in range(n)] for _ in range(n)]
+    
+    # We must mock paladio_core internally to not fail completely if the engine is missing
+    try:
+        import paladio_core
+    except ImportError:
+        pytest.skip("C++ optimization engine is not available")
+        return
+        
+    with pytest.raises(OptimizationError):
+        run_optimization(mock_constraints, pois_data, transit_matrix)
+
