@@ -11,16 +11,22 @@ from app.schemas.scraper import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-OVERPASS_URL = "http://overpass-api.de/api/interpreter"
+OVERPASS_ENDPOINTS = [
+    "http://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+]
 
-async def fetch_pois_for_city(city_name: str, limit: int = 50):
+async def fetch_pois_for_city(city_name: str, limit: int = 50, mandatory_names: list[str] = None):
     """
     Fetches POIs for a given city from OSM using Overpass API.
     Uses 'out center' to get a single lat/lon coordinate even for ways/relations.
     """
+    # Strict boundary using admin_level=8 (municipality)
     query = f"""
-    [out:json][timeout:60];
-    area[name="{city_name}"]->.searchArea;
+    [out:json][timeout:25];
+    area["name"="{city_name}"]["admin_level"="8"]->.searchArea;
     (
       nwr["tourism"="museum"](area.searchArea);
       nwr["historic"~"monument|ruins|castle|archaeological_site"](area.searchArea);
@@ -36,20 +42,54 @@ async def fetch_pois_for_city(city_name: str, limit: int = 50):
         "User-Agent": "Paladio-Static-Ingester/1.0"
     }
     
-    async with httpx.AsyncClient(timeout=65.0) as client:
-        response = await client.post(OVERPASS_URL, data={"data": query}, headers=headers)
-        
-        # If POST fails, some Overpass instances prefer GET or have specific quirks, but POST form-data usually works.
-        # Let's ensure raise_for_status catches issues cleanly.
+    timeout = httpx.Timeout(25.0, connect=15.0)
+    
+    data = None
+    for endpoint in OVERPASS_ENDPOINTS:
         try:
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(endpoint, data={"data": query}, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                break
         except Exception as e:
-            logger.error(f"Failed response text: {response.text}")
-            raise e
+            continue
             
-        data = response.json()
+    if not data:
+        raise RuntimeError(f"All Overpass API endpoints failed or timed out for {city_name}.")
         
     elements = data.get("elements", [])
+    
+    # Handle mandatory POIs using targeted fallback queries
+    if mandatory_names:
+        for m_name in mandatory_names:
+            # Check if we already got it
+            if any(m_name.lower() in str(el.get("tags", {}).get("name", "")).lower() for el in elements):
+                continue
+                
+            logger.info(f"Mandatory POI '{m_name}' missing, fetching specifically...")
+            # We use ~ to do a case-insensitive regex match (e.g. "name"~"(?i)sagrada familia")
+            target_query = f"""
+            [out:json][timeout:15];
+            area["name"="{city_name}"]["admin_level"="8"]->.searchArea;
+            nwr["name"~"(?i){m_name}"](area.searchArea);
+            out center 1;
+            """
+            
+            for endpoint in OVERPASS_ENDPOINTS:
+                try:
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.post(endpoint, data={"data": target_query}, headers=headers)
+                        resp.raise_for_status()
+                        t_data = resp.json()
+                        t_elements = t_data.get("elements", [])
+                        if t_elements:
+                            elements.extend(t_elements)
+                            logger.info(f"Successfully fetched mandatory POI: {m_name}")
+                        break
+                except Exception:
+                    continue
+
     logger.info(f"Retrieved {len(elements)} raw elements from OSM.")
     return elements
 

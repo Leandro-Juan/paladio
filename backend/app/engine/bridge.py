@@ -38,7 +38,8 @@ def run_optimization(
     transit_matrix: List[List[Dict]],
     num_days: int = 1,
     day_start_mins: int = 480,  # Default 08:00
-    day_end_mins: int = 1320    # Default 22:00
+    day_end_mins: int = 1320,   # Default 22:00
+    mandatory_names: List[str] = None
 ) -> Dict:
     """
     Bridges the Python orchestration layer with the C++ deterministic core.
@@ -63,9 +64,18 @@ def run_optimization(
         
         earliest = max(480, poi_open - time_shift)
         latest = max(480, poi_close - time_shift)
-        duration = int(poi.get("duration_mins", 60))
-        cost = float(poi.get("cost_eur", 0.0))
+        duration = int(poi.get("duration_mins") or 60)
+        cost = float(poi.get("cost_eur") or 0.0)
         score = 100.0 # Base score, we could compute this based on rating/preference
+        
+        # Check if mandatory
+        is_mandatory = False
+        poi_name_lower = poi.get("name", "").lower()
+        if mandatory_names:
+            for m_name in mandatory_names:
+                if m_name.lower() in poi_name_lower:
+                    is_mandatory = True
+                    break
         
         cpp_poi = paladio_core.POI(
             node_type,
@@ -73,7 +83,8 @@ def run_optimization(
             score,
             earliest,
             latest,
-            duration
+            duration,
+            is_mandatory
         )
         
         # Set meal flags so the C++ engine can satisfy meal constraints
@@ -157,10 +168,29 @@ def run_optimization(
         
         # 5. Map back to Python dict
         path_details = []
+        current_time = day_start_mins
+        prev_idx = -1
+        
         for idx in result.path:
+            if prev_idx != -1:
+                transit_time = durations[prev_idx * n + idx]
+                current_time += transit_time
+                
+            start_h = current_time // 60
+            start_m = current_time % 60
+            
+            duration = int(pois_data[idx].get("duration_mins", 60))
+            current_time += duration
+            
+            end_h = current_time // 60
+            end_m = current_time % 60
+            
             path_details.append({
                 "poi": pois_data[idx],
+                "scheduled_start": f"{start_h:02d}:{start_m:02d}",
+                "scheduled_end": f"{end_h:02d}:{end_m:02d}"
             })
+            prev_idx = idx
             
         return {
             "total_score": result.total_score,

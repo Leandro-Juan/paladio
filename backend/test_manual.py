@@ -15,13 +15,13 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@lo
 from app.swarm.graph import graph
 
 async def main():
-    print("Welcome to the Paladio Itinerary Tester!")
+    print("Welcome to the Paladio Itinerary Tester (Manual Mode)!")
     print("----------------------------------------")
     print("This script will run your request through the entire LangGraph pipeline,")
-    print("triggering the router, validator, scrapers, and C++ optimization engine.")
-    print("Note: With strict real-data enforcement, this may take a moment or crash if data is unfound.\n")
+    print("triggering the router, validator, and C++ optimization engine.")
+    print("Note: This version uses FAKE DATA (test_data.json) to bypass live scrapers.\n")
     
-    prompt = input("Enter your travel request (e.g., 'I want to go to OPO for 3 days next Friday from MAD with 1000 euros'):\n> ")
+    prompt = input("Enter your travel request (e.g., 'I want to go to BCN for 5 days next Friday from LON with 2000 euros'):\n> ")
     
     from rich.console import Console
     console = Console()
@@ -30,15 +30,29 @@ async def main():
         console.print("[bold red]Empty prompt. Exiting.[/bold red]")
         return
         
-    console.print("\n[bold blue][Paladio] Starting inference...[/bold blue]")
+    console.print("\n[bold blue][Paladio] Starting inference with fake data...[/bold blue]")
     
+    # Load the fake test dataset generated earlier
+    try:
+        with open("test_data.json", "r") as f:
+            test_data = json.load(f)
+            
+        # Remove fake POIs so the graph fetches REAL attractions from PostgreSQL
+        if test_data and "pois" in test_data:
+            del test_data["pois"]
+            
+    except FileNotFoundError:
+        console.print("[bold yellow]Warning: test_data.json not found, proceeding without fake data.[/bold yellow]")
+        test_data = None
+
     initial_state = {
         "messages": [HumanMessage(content=prompt)],
+        "test_data": test_data,
         "error_count": 0
     }
     
     from langgraph.types import Command
-    config = {"configurable": {"thread_id": "test-1"}}
+    config = {"configurable": {"thread_id": "test-manual-1"}}
     input_data = initial_state
     
     try:
@@ -62,14 +76,18 @@ async def main():
                             console.print("-> [RAG] Database context retrieved.")
                             status.update("[bold magenta]Validator agent analyzing travel constraints (this may take a moment)...")
                             
+                        elif node_name == "check_missing":
+                            console.print("-> [CHECK] User provided missing constraints.")
+                            status.update("[bold yellow]Planner agent orchestrating itinerary and fetching POIs from database...")
+                            
                         elif node_name == "validator":
                             from app.schemas.itinerary import TravelConstraints
                             constraints_dict = state_update.get("validated_itinerary")
                             if constraints_dict:
                                 constraints = TravelConstraints(**constraints_dict)
                                 console.print(f"-> [VALIDATOR] Extracted constraints: [cyan]{constraints.origin_city} -> {constraints.destination_city}[/cyan] | [yellow]{constraints.start_date} to {constraints.end_date}[/yellow] | Budget: [green]${constraints.budget_usd}[/green]")
-                                console.print("-> [VALIDATOR] Handing off to planner (Scraping real data...)")
-                            status.update("[bold yellow]Planner agent orchestrating itinerary and scraping data (this can take a while)...")
+                                console.print("-> [VALIDATOR] Handing off to planner (Using fake data...)")
+                            status.update("[bold yellow]Planner agent orchestrating itinerary and running C++ engine (using fake data)...")
                             
                         elif node_name == "planner":
                             console.print("-> [PLANNER] Itinerary optimization complete.")

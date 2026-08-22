@@ -129,6 +129,7 @@ void dfs(
     int min_transit_global,
     int n,
     MemoEntry* memo,
+    uint64_t global_mandatory_mask,
     OptimizationResult& best_result
 ) {
     // 1. Dominance Pruning (Pareto optimization using direct-mapped cache)
@@ -278,7 +279,7 @@ void dfs(
             state.current_path[state.current_path_size++] = v;
 
             // Recurse deeper
-            dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, best_result);
+            dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, global_mandatory_mask, best_result);
 
             // 4. Revert State Changes (Pop)
             state.current_path_size--;
@@ -346,6 +347,11 @@ void dfs(
     if (config.breakfast_deadline != -1 && !state.had_breakfast) valid_end_node = false;
     if (config.lunch_deadline != -1 && !state.had_lunch) valid_end_node = false;
     if (config.dinner_deadline != -1 && !state.had_dinner) valid_end_node = false;
+    
+    // Ensure all mandatory POIs are visited
+    if ((state.visited_mask & global_mandatory_mask) != global_mandatory_mask) {
+        valid_end_node = false;
+    }
 
     if (state.current_path_size > 0 && valid_end_node) {
         bool is_better = false;
@@ -408,6 +414,13 @@ OptimizationResult optimize_itinerary(
     std::vector<int> density_rank(n);
     for (int i = 0; i < n; ++i) {
         density_rank[sorted_pois_by_density[i]] = i;
+    }
+
+    uint64_t global_mandatory_mask = 0;
+    for (int i = 0; i < n; ++i) {
+        if (pois[i].is_mandatory) {
+            global_mandatory_mask |= (1ULL << density_rank[i]);
+        }
     }
 
     int min_transit_global = std::numeric_limits<int>::max();
@@ -475,7 +488,7 @@ OptimizationResult optimize_itinerary(
         if (config.dinner_deadline != -1 && state.current_time > config.dinner_deadline && !state.had_dinner) continue;
 
         // Begin recursive search from this starting node
-        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo_ptr, best_result);
+        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo_ptr, global_mandatory_mask, best_result);
     }
 
     // If no valid path was found, zero out the infinite values

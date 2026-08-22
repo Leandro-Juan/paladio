@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Constants
 STALE_TTL_DAYS = 180
 
-async def get_attractions_for_city(city_name: str) -> List[dict]:
+async def get_attractions_for_city(city_name: str, mandatory_names: list[str] = None) -> List[dict]:
     """
     Retrieves POIs for a city using a Stale-While-Revalidate (SWR) pattern.
     
@@ -21,6 +21,7 @@ async def get_attractions_for_city(city_name: str) -> List[dict]:
     3. If present and < 180 days old, returns instantly (Cache Hit).
     4. If present but >= 180 days old, returns instantly AND triggers a background update (Stale-While-Revalidate).
     """
+    city_name = city_name.strip().title()
     logger.info(f"Retrieving POIs for {city_name}...")
     
     # 1. Query the database (Mocked DB call)
@@ -30,7 +31,7 @@ async def get_attractions_for_city(city_name: str) -> List[dict]:
     if not pois:
         logger.warning(f"Cache miss for {city_name}. Blocking to fetch fresh data...")
         # Await the actual fetch synchronously (blocking the response until done)
-        new_pois = await _fetch_and_store_pois(city_name)
+        new_pois = await _fetch_and_store_pois(city_name, mandatory_names)
         return [poi.model_dump(mode='json') for poi in new_pois]
         
     # Check TTL of the first POI to determine freshness
@@ -90,7 +91,7 @@ async def _query_db_for_city(city_name: str) -> List[Attraction]:
             
         return attractions
 
-async def _fetch_and_store_pois(city_name: str) -> List[Attraction]:
+async def _fetch_and_store_pois(city_name: str, mandatory_names: list[str] = None) -> List[Attraction]:
     """
     Invokes the Overpass API script logic, parses the POIs, and saves them to the DB.
     """
@@ -104,7 +105,7 @@ async def _fetch_and_store_pois(city_name: str) -> List[Attraction]:
         logger.error("Could not import seed script")
         return []
         
-    elements = await fetch_pois_for_city(city_name, limit=50)
+    elements = await fetch_pois_for_city(city_name, limit=50, mandatory_names=mandatory_names)
     
     attractions = []
     db_models = []

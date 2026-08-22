@@ -32,7 +32,9 @@ PYBIND11_MODULE(paladio_core, m) {
         .def_readwrite("cost", &TransitInfo::cost, "Financial cost of travel.");
     
     py::class_<POI>(m, "POI", "A Point of Interest node in the itinerary network.")
-        .def(py::init<NodeType, double, double, int, int, int>())
+        .def(py::init<NodeType, double, double, int, int, int, bool>(),
+             py::arg("type"), py::arg("cost"), py::arg("score"), py::arg("earliest_time"),
+             py::arg("latest_time"), py::arg("duration"), py::arg("is_mandatory") = false)
         .def_readwrite("type", &POI::type)
         .def_readwrite("cost", &POI::cost)
         .def_readwrite("score", &POI::score)
@@ -41,7 +43,8 @@ PYBIND11_MODULE(paladio_core, m) {
         .def_readwrite("duration", &POI::duration)
         .def_readwrite("is_breakfast_spot", &POI::is_breakfast_spot)
         .def_readwrite("is_lunch_spot", &POI::is_lunch_spot)
-        .def_readwrite("is_dinner_spot", &POI::is_dinner_spot);
+        .def_readwrite("is_dinner_spot", &POI::is_dinner_spot)
+        .def_readwrite("is_mandatory", &POI::is_mandatory);
 
     py::class_<OptimizationConfig>(m, "OptimizationConfig", "Global constraints for the routing problem.")
         .def(py::init<double, std::optional<int>, std::optional<NodeType>, std::optional<int>, int, int, int, int, int, double, int, double, int, int, double>(),

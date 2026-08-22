@@ -23,53 +23,61 @@ async def scrape_dynamic(url: str) -> dict:
     
     async with async_playwright() as p:
         # Launch Chromium. Playwright-stealth concepts applied:
-        # Standard viewport, headless but mimicking headed properties via args where needed.
         browser = await p.chromium.launch(
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--window-size=1920,1080",
+                "--ignore-certificate-errors",
+                "--disable-extensions",
+                "--disable-dev-shm-usage",
             ]
         )
         
-        # Parse Webshare proxy URL for Playwright
-        proxy_url = os.environ.get("WEBSHARE_PROXY_URL")
+        # We explicitly disable proxy since we are on the user's residential IP
         proxy_config = None
-        if proxy_url and "skyscanner" not in url:
-            parsed = urllib.parse.urlparse(proxy_url)
-            proxy_config = {
-                "server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
-            }
-            if parsed.username and parsed.password:
-                proxy_config["username"] = parsed.username
-                proxy_config["password"] = parsed.password
-            logger.info("Using Webshare proxy for dynamic request.")
+        logger.info("Running locally on residential IP without proxy.")
         
         # Create a context with a realistic user agent and viewport
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
             viewport={"width": 1920, "height": 1080},
             device_scale_factor=1,
             has_touch=False,
             is_mobile=False,
             proxy=proxy_config,
+            locale="en-US",
+            timezone_id="Europe/Madrid",
+            color_scheme="light"
         )
         
         page = await context.new_page()
         
         try:
             await Stealth().apply_stealth_async(page)
-            # Mask webdriver property using initialization script
-            await page.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
+            # Mask webdriver property using initialization script and other stealth bypasses
+            await page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                window.chrome = { runtime: {} };
+                Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+                Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            """)
             
-            # Navigate and wait for DOM content to be loaded (JS will execute)
-            response = await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            # Navigate and wait for commit (JS will execute afterwards)
+            response = await page.goto(url, wait_until="commit", timeout=60000)
             
-            # Additional generic wait to let frameworks initialize
+            # Simulate human behavior
             await page.wait_for_timeout(3000)
+            await page.mouse.move(100, 100)
+            await page.evaluate("if(document.body) window.scrollBy(0, document.body.scrollHeight / 3);")
+            await page.mouse.move(300, 400)
+            await page.wait_for_timeout(1000)
+            await page.evaluate("if(document.body) window.scrollBy(0, document.body.scrollHeight / 3);")
+            await page.mouse.move(600, 200)
+            await page.wait_for_timeout(1500)
             
             if response is None:
                 raise Exception("Page failed to load completely.")
@@ -77,23 +85,39 @@ async def scrape_dynamic(url: str) -> dict:
             # Extract basic data (simulating extraction for flight/hotel sites)
             title = await page.title()
             
-            # Global Bot Detection Check
-            preview_text = await page.evaluate("() => document.body ? document.body.innerText.substring(0, 2000) : ''")
             captcha_keywords = ["Are you a person or a robot?", "Access Denied", "captcha", "Incapsula", "Cloudflare", "Pardon Our Interruption", "DataDome"]
             
+            # Global Bot Detection Check - Wait up to 15 seconds if challenged
+            for _ in range(3):
+                preview_text = await page.evaluate("() => document.body ? document.body.innerText.substring(0, 2000) : ''")
+                raw_html_check = await page.content()
+                detected = False
+                for keyword in captcha_keywords:
+                    if keyword.lower() in preview_text.lower() or keyword.lower() in raw_html_check.lower():
+                        detected = True
+                        break
+                if detected:
+                    logger.info("Bot detection triggered. Waiting 5s for potential auto-solve...")
+                    await page.wait_for_timeout(5000)
+                else:
+                    break
+            
+            if detected:
+                 raise BotDetectionError(f"Bot detection triggered and not resolved for URL: {url}")
+                 
             # Check for completely empty response (often used by CDNs to block headless)
-            raw_html_check = await page.content()
             if len(raw_html_check) < 100 and "</body>" in raw_html_check:
                  raise BotDetectionError(f"Bot detection triggered (Empty Body Drop) for URL: {url}")
-                 
-            for keyword in captcha_keywords:
-                if keyword.lower() in preview_text.lower() or keyword.lower() in raw_html_check.lower():
-                    raise BotDetectionError(f"Bot detection triggered (found '{keyword}') for URL: {url}")
             
             # Domain-specific structured extraction
             structured_results = []
             try:
                 if "booking.com" in url:
+                    try:
+                        await page.wait_for_selector('[data-testid="property-card"]', timeout=10000)
+                    except Exception:
+                        pass # proceed to evaluate anyway, it might handle fallback
+                        
                     page_data = await page.evaluate('''() => {
                         const cards = Array.from(document.querySelectorAll('[data-testid="property-card"]'));
                         if (cards.length === 0) throw new Error("DOM changed");
@@ -102,16 +126,27 @@ async def scrape_dynamic(url: str) -> dict:
                             const priceEl = card.querySelector('[data-testid="price-and-discounted-price"]');
                             const ratingEl = card.querySelector('[aria-label*="Scored"]');
                             const amenities = Array.from(card.querySelectorAll('.bui-review-score__badge, .a3b8729ab1')).map(a => a.innerText);
+                            
+                            let priceStr = "0";
+                            if (priceEl) {
+                                priceStr = priceEl.innerText.trim().replace(/\\n/g, ' ');
+                            } else {
+                                const m = card.innerText.match(/(?:€|£|\\$)\\s?\\d+(?:,\\d{3})*(?:\\.\\d{2})?|\\d+(?:,\\d{3})*(?:\\.\\d{2})?\\s?(?:€|£|\\$)/);
+                                if (m) priceStr = m[0];
+                            }
+                            
                             return {
                                 name: nameEl ? nameEl.innerText.trim() : "Unknown",
-                                price: priceEl ? priceEl.innerText.trim().replace(/\\n/g, ' ') : "0",
+                                price: priceStr,
                                 rating: ratingEl ? ratingEl.innerText.trim() : "0",
                                 raw_amenities: amenities
                             };
                         });
                     }''')
                     for idx, item in enumerate(page_data):
-                        price_val = float(''.join(filter(str.isdigit, item['price'])) or 0) / 100.0 # simple heuristic
+                        # Extract all digits. Booking prices usually don't have decimals unless it's a ,00
+                        price_digits = ''.join(filter(str.isdigit, item['price']))
+                        price_val = float(price_digits) if price_digits else 0.0
                         clean_am = AmenityFilter.clean_amenities(item.get("raw_amenities", []))
                         structured_results.append(Hotel(
                             id=f"BOOKING-{idx}",
@@ -174,6 +209,16 @@ async def scrape_dynamic(url: str) -> dict:
                         ).model_dump(mode='json'))
                         
                 elif "google.com/travel/flights" in url:
+                    try:
+                        await page.evaluate('''() => {
+                            const buttons = Array.from(document.querySelectorAll('button'));
+                            const acceptBtn = buttons.find(b => b.innerText && b.innerText.match(/Accept all|Aceptar todo/i));
+                            if(acceptBtn) acceptBtn.click();
+                        }''')
+                        await page.wait_for_timeout(2000)
+                    except Exception:
+                        pass
+
                     page_data = await page.evaluate('''() => {
                         const flightCards = document.querySelectorAll('.pIav2d'); 
                         if (flightCards.length === 0) throw new Error("DOM changed");
@@ -228,6 +273,92 @@ async def scrape_dynamic(url: str) -> dict:
                         return [{price: "150", airline: "SkyscannerAirline"}];
                     }''')
                     # Map to model omitted for brevity, would follow same structure
+                    
+                elif "kiwi.com" in url:
+                    page_data = await page.evaluate('''() => {
+                        const flightCards = document.querySelectorAll('[data-test="ResultCardWrapper"]');
+                        if (flightCards.length === 0) throw new Error("DOM changed");
+                        return Array.from(flightCards).map(card => {
+                            const priceEl = card.querySelector('[data-test="ResultCardPrice"]');
+                            const timeEls = Array.from(card.querySelectorAll('[data-test="FlightTime"]'));
+                            const airline = "KiwiFlight"; // Airline parsing can be complex, default it
+                            
+                            let departure = "00:00";
+                            let arrival = "00:00";
+                            if (timeEls.length >= 2) {
+                                departure = timeEls[0].innerText;
+                                arrival = timeEls[timeEls.length - 1].innerText;
+                            }
+                            return {
+                                price: priceEl ? priceEl.innerText : "0",
+                                airline: airline,
+                                departure: departure,
+                                arrival: arrival
+                            };
+                        });
+                    }''')
+                    for idx, item in enumerate(page_data):
+                        price_str = ''.join(filter(lambda c: c.isdigit() or c == '.', item['price'].replace(',', '.')))
+                        price_val = float(price_str) if price_str else 0.0
+                        structured_results.append({
+                            "price": price_val,
+                            "airline": item["airline"],
+                            "departure_time": item["departure"],
+                            "arrival_time": item["arrival"]
+                        })
+                        
+                elif "google.com/maps/search/" in url:
+                    try:
+                        await page.evaluate('''() => {
+                            const buttons = Array.from(document.querySelectorAll('button'));
+                            const acceptBtn = buttons.find(b => b.innerText && b.innerText.match(/Accept all|Aceptar todo/i));
+                            if(acceptBtn) acceptBtn.click();
+                        }''')
+                        await page.wait_for_timeout(2000)
+                    except Exception:
+                        pass
+
+                    page_data = await page.evaluate('''() => {
+                        const cards = Array.from(document.querySelectorAll('a[href*="/maps/place/"]')).map(a => a.closest('.Nv2PK')).filter(Boolean);
+                        if (cards.length === 0) throw new Error("DOM changed");
+                        
+                        return Array.from(new Set(cards)).map(card => {
+                            const name = card.querySelector('.qBF1Pd')?.innerText || "Unknown";
+                            const ratingEl = card.querySelector('.MW4etd');
+                            const reviewsEl = card.querySelector('.UY7F9');
+                            const priceEl = card.innerText.match(/\\$\\$\\$\\$|\\$\\$\\$|\\$\\$|\\$/);
+                            
+                            return {
+                                name: name,
+                                rating: ratingEl ? ratingEl.innerText : "0",
+                                reviews: reviewsEl ? reviewsEl.innerText : "0",
+                                price: priceEl ? priceEl[0] : "$$"
+                            };
+                        });
+                    }''')
+                    
+                    for idx, item in enumerate(page_data):
+                        rating_val = 0.0
+                        try: rating_val = float(item['rating'].replace(',', '.'))
+                        except: pass
+                        
+                        reviews_val = 0
+                        try: reviews_val = int(''.join(filter(str.isdigit, item['reviews'])))
+                        except: pass
+                        
+                        structured_results.append(FoodAndDrink(
+                            id=f"GMAPS-{idx}",
+                            category="restaurant",
+                            name=item["name"],
+                            location=Location(latitude=0.0, longitude=0.0), 
+                            schedule=Schedule(opening_time_local="12:00", closing_time_local="23:00", recommended_duration_minutes=90),
+                            meal_suitability=MealSuitability(is_breakfast=False, is_lunch=True, is_dinner=True, is_snack=False),
+                            financials=FoodFinancials(price_tier=item["price"], currency="EUR"),
+                            scoring=Scoring(rating=rating_val, reviews=reviews_val),
+                            cuisine=[],
+                            dietary_options=[],
+                            metadata=Metadata(source="google_maps")
+                        ).model_dump(mode='json'))
                     
                 elif "agoda.com" in url:
                     page_data = await page.evaluate('''() => {
@@ -387,6 +518,8 @@ async def scrape_dynamic(url: str) -> dict:
             
             except Exception as e:
                 raw_html = await page.content()
+                inner_text = await page.evaluate("() => document.body ? document.body.innerText : ''")
+                logger.error(f"DOM failed text preview: {inner_text[:1000]}")
                 raise DOMChangedError(f"DOM failed for {url}: {e}", raw_html)
 
             

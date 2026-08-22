@@ -33,6 +33,9 @@ dependencies = [
     "playwright>=1.41.0",
     "alembic>=1.13.0",
     "docker>=7.0.0",
+    "duffel-api>=0.6.0",
+    "fast-flights>=1.0.0",
+    "amadeus>=10.0.0",
 ]
 
 [project.optional-dependencies]

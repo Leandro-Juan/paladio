@@ -42,6 +42,7 @@ struct POI {
     bool is_breakfast_spot; ///< Pre-computed flag for breakfast suitability.
     bool is_lunch_spot;     ///< Pre-computed flag for lunch suitability.
     bool is_dinner_spot;    ///< Pre-computed flag for dinner suitability.
+    bool is_mandatory;      ///< True if this POI MUST be visited.
 
     /**
      * @brief Default constructor for STL container compatibility.
@@ -57,9 +58,10 @@ struct POI {
      * @param e Earliest allowable arrival time.
      * @param l Latest allowable departure time.
      * @param d Duration of the visit.
+     * @param m Is this POI mandatory.
      */
-    POI(NodeType t, double c, double s, int e, int l, int d) 
-        : cost(c), score(s), earliest_time(e), latest_time(l), duration(d), type(t) {
+    POI(NodeType t, double c, double s, int e, int l, int d, bool m = false) 
+        : cost(c), score(s), earliest_time(e), latest_time(l), duration(d), type(t), is_mandatory(m) {
         is_breakfast_spot = (t == NodeType::RESTAURANT_BREAKFAST);
         is_lunch_spot = (t == NodeType::RESTAURANT_LUNCH);
         is_dinner_spot = (t == NodeType::RESTAURANT_DINNER);

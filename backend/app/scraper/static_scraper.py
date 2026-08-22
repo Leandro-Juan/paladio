@@ -5,7 +5,7 @@ from app.scraper.exceptions import BotDetectionError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
-async def scrape_static(url: str, params: dict = None) -> dict:
+async def scrape_static(url: str, params: dict = None, custom_headers: dict = None) -> dict:
     """
     Scrapes a lightweight, static API endpoint using HTTPX asynchronously.
     """
@@ -20,6 +20,9 @@ async def scrape_static(url: str, params: dict = None) -> dict:
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
     }
+    
+    if custom_headers:
+        headers.update(custom_headers)
     
     proxy_url = os.environ.get("WEBSHARE_PROXY_URL")
     

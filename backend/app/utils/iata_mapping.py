@@ -7483,7 +7483,7 @@ def get_iata_code(city_name: str) -> str:
         # Venezuela, Bolivarian Republic of
         "acarigua": "AGV",
         "anaco": "AAO",
-        "barcelona": "BLA",
+        "barcelona_ve": "BLA",
         "barinas": "BNS",
         "barquisimeto": "BRM",
         "bolivar": "EOR",

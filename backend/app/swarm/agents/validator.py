@@ -38,6 +38,7 @@ validator_agent = Agent(
         "from the user's natural language input and use the provided tool to output the structured data. "
         "Ensure all constraints such as the destination_city, budget, dates, nodes, and meal requirements are accurately captured. "
         "IMPORTANT FORMATTING RULES:\n"
+        "- The current year is 2026. ALL relative dates and implied dates MUST resolve to the year 2026 or later. If a month and day are provided without a year, and that date has already passed in the current year, you MUST resolve it to the NEXT year (e.g. 2027).\n"
         "- Dates MUST be strictly formatted as YYYY-MM-DD strings (e.g. '2026-08-18').\n"
         "- Times MUST be strictly formatted as HH:MM strings (e.g. '13:00').\n"
         "Extract only the parameters that the user explicitly mentions. Do NOT make up, assume, or estimate any missing information. If a parameter is completely missing from the user's prompt, you must leave it as null, 0, or Unknown.\n"
@@ -67,5 +68,20 @@ async def validator_node(state: dict) -> dict:
     
     result = await validator_agent.run(prompt)
     
+    # Python-level enforcement: If LLM extracts a date in the past, bump it to next year
+    today = date.today()
+    if result.output.start_date and result.output.start_date < today:
+        try:
+            result.output.start_date = result.output.start_date.replace(year=result.output.start_date.year + 1)
+        except ValueError:
+            # Handle leap year Feb 29 edge case
+            result.output.start_date = result.output.start_date.replace(year=result.output.start_date.year + 1, day=28)
+            
+        if result.output.end_date and result.output.end_date < today:
+            try:
+                result.output.end_date = result.output.end_date.replace(year=result.output.end_date.year + 1)
+            except ValueError:
+                result.output.end_date = result.output.end_date.replace(year=result.output.end_date.year + 1, day=28)
+    
     logger.info(f"--- [PHASE: VALIDATOR] Successfully extracted {len(result.output.nodes)} POIs and {len(result.output.meals)} meals ---")
-    return {"validated_itinerary": result.output}
+    return {"validated_itinerary": result.output.model_dump(mode='json')}

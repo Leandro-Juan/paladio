@@ -15,7 +15,7 @@
 │ 40% Core Differentiators     │ 35% Foundational Engine     │ 25% Scale & │
 │ - C++ TSPTW Bitmasking Core  │ - Local LLM & LangGraph     │   Hardening │
 │ - In-Memory Interval Trees   │ - PostgreSQL + TimescaleDB  │ - Anti-Ban  │
-│ - Z-Score Anomaly Engine     │ - FastAPI WebSocket Gateway │ - Security  │
+│ - Wasserstein Anomaly Engine │ - FastAPI WebSocket Gateway │ - Security  │
 └──────────────────────────────┴─────────────────────────────┴─────────────┘
 ```
 
@@ -54,7 +54,7 @@ graph TD
     subgraph RealTimeMatching [Phase 4: In-Memory & Anomaly Engine]
         ITREE[C++ In-Memory Interval Tree Daemon]
         GRPC[gRPC / ZeroMQ Stream Ingestion]
-        ZSCORE[Z-Score Anomaly Detector Z <= -2.0]
+        WASSERSTEIN[Wasserstein / EMD Regime Shift Detector]
         NOTIF[Alert & Notification Dispatcher]
     end
 
@@ -65,7 +65,7 @@ graph TD
     ROUTER & RAG & VALIDATOR --> API
     REDIS & DB --> CELERY_BEAT --> WORKERS --> PROXY
     WORKERS --> GRPC --> ITREE
-    WORKERS --> DB --> ZSCORE --> NOTIF
+    WORKERS --> DB --> WASSERSTEIN --> NOTIF
     ITREE --> NOTIF
 ```
 
@@ -141,11 +141,12 @@ graph TD
   - When Celery ingests flight prices, query Interval Tree in $O(\log N + K)$ time to identify matching user IDs without disk I/O bottlenecks.
 - [ ] **4.2 TimescaleDB Hyper-Tables & Continuous Aggregates:**
   - Ingest raw time-series price points into partitioned hyper-tables.
-  - Maintain 30-day rolling moving averages ($\mu$) and standard deviations ($\sigma$) per flight/hotel route.
-- [ ] **4.3 Statistical Anomaly Classifier (Z-Score):**
-  - Compute:  
-    $$Z = \frac{X - \mu}{\sigma}$$
-  - Trigger "Super Bargain" high-confidence notifications only when $Z \le -2.0$, filtering out noise and seasonal fluctuations.
+  - Provide arrays of historical prices vs. recent prices (e.g., last 24h) to construct empirical CDFs per flight/hotel route.
+- [ ] **4.3 Regime Shift Detection (1-Wasserstein Distance):**
+  - Compute using the 1D Wasserstein integral formulation:  
+    $$W_1(\mu, \nu) = \int_{-\infty}^{\infty} |F_\mu(x) - F_\nu(x)| \, dx$$
+  - **Technical Note:** In C++, this will be computed discretely in $O(N \log N + M \log M)$ time by sorting the price arrays and evaluating the area between their step functions.
+  - Trigger "Super Bargain" high-confidence notifications only when $W_1 > \text{Threshold}$ AND the current median price is lower than the historical median.
 - [ ] **4.4 Notification Dispatcher:**
   - Emit push notifications / emails containing pre-packaged itineraries for matched user alerts.
 
@@ -183,4 +184,4 @@ graph TD
 | **M1: Core Solver** | C++ `.so` Dynamic Library | Solves 25-node TSPTW within `<50ms` and passes unit tests. |
 | **M2: Reactive MVP** | FastAPI WebSocket + LangGraph | User input via WS produces validated itinerary in `<3s` without external APIs. |
 | **M3: Proactive Pipeline** | Celery + Interval Tree Daemon | Ingests 1,000 prices/min and checks 50,000 alerts with zero disk I/O lag. |
-| **M4: Anomaly Detection** | TimescaleDB Z-Score Engine | Flags offers with $Z \le -2.0$ over a 30-day baseline and dispatches alerts. |
+| **M4: Anomaly Detection** | TimescaleDB Wasserstein / EMD Engine | Flags offers when $W_1 > \text{Threshold}$ and current median is lower than historical, dispatching alerts. |

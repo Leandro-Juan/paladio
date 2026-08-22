@@ -7,12 +7,13 @@ logging.basicConfig(level=logging.INFO)
 async def main():
     print("Testing real-world dynamic scraping on skyscanner.net...")
     try:
-        url = "https://www.skyscanner.net/"
+        # We try a real search URL on Skyscanner for Madrid to Barcelona
+        url = "https://www.skyscanner.net/transport/flights/MAD/BCN/261015/"
         result = await scrape_dynamic(url)
         print("Scrape successful!")
         print(f"Title: {result.get('title')}")
-        print(f"Links found: {len(result.get('extracted_data', {}).get('links', []))}")
-        print(f"Preview text snippet: {result.get('extracted_data', {}).get('preview_text', '')[:200]}")
+        print(f"Items extracted: {len(result.get('extracted_data', []))}")
+        print(f"First item snippet: {str(result.get('extracted_data', [])[0])[:200] if result.get('extracted_data') else 'None'}")
     except Exception as e:
         print(f"Scrape failed: {e}")
 
