@@ -2,34 +2,24 @@ import os
 import logging
 from pydantic_ai import Agent
 from pydantic_ai.models.ollama import OllamaModel
+from pydantic_ai.providers.ollama import OllamaProvider
 from app.schemas.itinerary import TravelConstraints
 from datetime import date
-
-from pydantic_ai.providers.ollama import OllamaProvider
+from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 
-# According to ROADMAP.md, we use a local LLM via Ollama or vLLM on port 11434
-ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-
-# Pydantic AI's OllamaProvider uses the OpenAI client under the hood, so it requires the /v1 endpoint
-if not ollama_env_url.endswith("/v1"):
-    ollama_env_url = ollama_env_url.rstrip("/")
-    if ollama_env_url.endswith("/api"):
-        ollama_env_url = ollama_env_url[:-4]
-    validator_url = f"{ollama_env_url}/v1"
-else:
-    validator_url = ollama_env_url
-
-MODEL_NAME = os.getenv("VALIDATOR_MODEL", "ollama:llama3.1")
-
-# Extract the actual model name if it's prefixed
-actual_model = MODEL_NAME.replace("ollama:", "") if MODEL_NAME.startswith("ollama:") else MODEL_NAME
-provider = OllamaProvider(base_url=validator_url)
-model = OllamaModel(actual_model, provider=provider)
+def get_validator_model():
+    ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    if not ollama_env_url.endswith("/v1"):
+        ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
+        
+    MODEL_NAME = os.getenv("VALIDATOR_MODEL", "ollama:llama3.1")
+    actual_model = MODEL_NAME.replace("ollama:", "") if MODEL_NAME.startswith("ollama:") else MODEL_NAME
+    provider = OllamaProvider(base_url=ollama_env_url)
+    return OllamaModel(actual_model, provider=provider)
 
 validator_agent = Agent(
-    model,
     name='validator_agent',
     output_type=TravelConstraints,
     retries=3,
@@ -55,6 +45,15 @@ validator_agent = Agent(
 def add_date_context() -> str:
     return f"Today's date is {date.today()}."
 
+def fix_past_date(d: date, today: date) -> date:
+    if d >= today:
+        return d
+    
+    this_year_d = d + relativedelta(year=today.year)
+    if this_year_d < today:
+        return d + relativedelta(year=today.year + 1)
+    return this_year_d
+
 async def validator_node(state: dict) -> dict:
     """
     LangGraph node wrapper for the Pydantic AI Validator Agent.
@@ -66,22 +65,22 @@ async def validator_node(state: dict) -> dict:
     prompt = f"Context: {retrieved_context}\n\nUser Request: {last_msg}"
     logger.debug("Calling Pydantic AI Validator Agent...")
     
-    result = await validator_agent.run(prompt)
+    try:
+        model = get_validator_model()
+        result = await validator_agent.run(prompt, model=model)
+    except Exception as e:
+        logger.error(f"Validator agent failed: {e}")
+        return {"error_count": state.get("error_count", 0) + 1}
     
-    # Python-level enforcement: If LLM extracts a date in the past, bump it to next year
+    # Python-level enforcement: If LLM extracts a date in the past, bump it to the correct future year
     today = date.today()
-    if result.output.start_date and result.output.start_date < today:
-        try:
-            result.output.start_date = result.output.start_date.replace(year=result.output.start_date.year + 1)
-        except ValueError:
-            # Handle leap year Feb 29 edge case
-            result.output.start_date = result.output.start_date.replace(year=result.output.start_date.year + 1, day=28)
+    if result.output.start_date:
+        result.output.start_date = fix_past_date(result.output.start_date, today)
             
-        if result.output.end_date and result.output.end_date < today:
-            try:
-                result.output.end_date = result.output.end_date.replace(year=result.output.end_date.year + 1)
-            except ValueError:
-                result.output.end_date = result.output.end_date.replace(year=result.output.end_date.year + 1, day=28)
+    if result.output.end_date:
+        result.output.end_date = fix_past_date(result.output.end_date, today)
+        if result.output.start_date and result.output.end_date < result.output.start_date:
+            result.output.end_date = result.output.start_date
     
     logger.info(f"--- [PHASE: VALIDATOR] Successfully extracted {len(result.output.nodes)} POIs and {len(result.output.meals)} meals ---")
     return {"validated_itinerary": result.output.model_dump(mode='json')}

@@ -2,11 +2,20 @@ import os
 import httpx
 import asyncio
 import logging
+import math
 from typing import List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List[Dict]]:
     """
@@ -18,8 +27,12 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
     matrix = [[{"duration_mins": 0, "cost_eur": 0.0, "mode": "none"} for _ in range(n)] for _ in range(n)]
     
     async with httpx.AsyncClient() as client:
-        # For small N (e.g., 10-15 per day cluster), doing N*(N-1) async route queries is fast enough locally.
-        # This allows us to use Valhalla's full multimodal costing (transit, walking, etc).
+        sem = asyncio.Semaphore(15)
+        
+        async def bounded_post(req_json):
+            async with sem:
+                return await client.post(f"{VALHALLA_URL}/route", json=req_json)
+
         tasks = []
         indices = []
         for i in range(n):
@@ -36,18 +49,13 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
                         "directions_options": {"units": "km"}
                     }
                     
-                    # Rough distance heuristic to decide costing mode before query
-                    # simplified distance (Euclidean approximation for mode selection)
-                    lat_diff = pois[i]["lat"] - pois[j]["lat"]
-                    lon_diff = pois[i]["lon"] - pois[j]["lon"]
-                    dist_approx_km = (lat_diff**2 + lon_diff**2)**0.5 * 111
+                    dist_approx_km = haversine_distance(pois[i]["lat"], pois[i]["lon"], pois[j]["lat"], pois[j]["lon"])
                     
                     if dist_approx_km > 1.5:
                         req_json["costing"] = "multimodal"
                         req_json["date_time"] = {"type": 1, "value": "2026-08-18T10:00"} # Arbitrary future daytime for transit schedules
 
-                    url = f"{VALHALLA_URL}/route"
-                    tasks.append(client.post(url, json=req_json))
+                    tasks.append(bounded_post(req_json))
                     indices.append((i, j))
         
         # In a real production setup, batching these or using the /sources_to_targets matrix API 
@@ -70,10 +78,8 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
                     
             for (i, j), resp in zip(indices, responses):
                 if isinstance(resp, Exception) or resp.status_code != 200:
-                    # Fallback to straight-line geographical heuristic
-                    lat_diff = pois[i]["lat"] - pois[j]["lat"]
-                    lon_diff = pois[i]["lon"] - pois[j]["lon"]
-                    dist_km = (lat_diff**2 + lon_diff**2)**0.5 * 111
+                    # Fallback to straight-line geographical heuristic using Haversine
+                    dist_km = haversine_distance(pois[i]["lat"], pois[i]["lon"], pois[j]["lat"], pois[j]["lon"])
                     duration = int(dist_km / 5.0 * 60) # 5 km/h walking speed
                     matrix[i][j] = {"duration_mins": max(1, duration), "cost_eur": 0.0, "mode": "heuristic"}
                     continue
@@ -101,14 +107,17 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
                     
     return matrix
 
+import copy
+
 def inject_slack_time(matrix: List[List[Dict]], slack_percentage: float = 0.15) -> List[List[Dict]]:
     """
     Adds slack time to the matrix to account for unforeseen delays (TODO item #3)
     """
     n = len(matrix)
+    matrix_copy = copy.deepcopy(matrix)
     for i in range(n):
         for j in range(n):
             if i != j:
-                original = matrix[i][j]["duration_mins"]
-                matrix[i][j]["duration_mins"] = int(original * (1.0 + slack_percentage))
-    return matrix
+                original = matrix_copy[i][j]["duration_mins"]
+                matrix_copy[i][j]["duration_mins"] = int(original * (1.0 + slack_percentage))
+    return matrix_copy

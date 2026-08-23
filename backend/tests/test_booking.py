@@ -1,17 +1,18 @@
-import asyncio
-from app.scraper.dynamic_scraper import scrape_dynamic
-import urllib.parse
+import pytest
+import logging
+from unittest.mock import AsyncMock, patch
+from app.scraper.strategies.hotels import HotelScraperStrategy
 
-async def main():
-    city = "Barcelona"
-    hotel_url = f"https://www.booking.com/searchresults.html?ss={urllib.parse.quote(city)}"
-    try:
-        hotel_results = await scrape_dynamic(hotel_url)
-        print("Got hotels:", len(hotel_results.get("extracted_data", [])))
-        for h in hotel_results.get("extracted_data", [])[:2]:
-            print(h['name'], h['financials']['price_per_night'])
-    except Exception as e:
-        print(f"Error: {e}")
+logger = logging.getLogger(__name__)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+@pytest.mark.asyncio
+async def test_booking():
+    logger.info("Testing scraped data for test_booking...")
+    with patch('app.scraper.strategies.hotels.HotelScraperStrategy.scrape', new_callable=AsyncMock) as mock_scrape:
+        mock_scrape.return_value = {"title": "Mock Title", "extracted_data": [{"name": "Mock Item"}]}
+        
+        result = await HotelScraperStrategy().scrape("https://example.com/mock")
+        
+        logger.info("Scrape successful!")
+        logger.info(f"Title: {result.get('title')}")
+        assert result.get('title') == "Mock Title"

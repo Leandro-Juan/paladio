@@ -10,3 +10,6 @@ class SwarmState(TypedDict):
     error_count: int
     final_itinerary: Optional[dict]
     test_data: Optional[dict]
+    pois_data: Optional[list]
+    outbound_flight: Optional[dict]
+    return_flight: Optional[dict]

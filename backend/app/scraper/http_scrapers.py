@@ -21,8 +21,9 @@ class VuelingScraper(BaseHTTPScraper):
     async def scrape_flights(self, origin: str, destination: str, date: str) -> List[dict]:
         url = f"https://www.vueling.com/en/book-your-flight/flight-availability?OriginId={origin}&DestinationId={destination}&OutboundFlightDate={date}&Adults=1"
         try:
-            from app.scraper.dynamic_scraper import scrape_dynamic
-            result = await scrape_dynamic(url)
+            from app.scraper.strategies.flights import FlightScraperStrategy
+            strategy = FlightScraperStrategy()
+            result = await strategy.scrape(url)
             return result.get("extracted_data", [])
         except Exception as e:
             raise RuntimeError(f"Vueling scraping failed: {e}")
@@ -34,8 +35,9 @@ class EasyJetScraper(BaseHTTPScraper):
     async def scrape_flights(self, origin: str, destination: str, date: str) -> List[dict]:
         url = f"https://www.easyjet.com/en/buy/flights?origin={origin}&destination={destination}&date={date}"
         try:
-            from app.scraper.dynamic_scraper import scrape_dynamic
-            result = await scrape_dynamic(url)
+            from app.scraper.strategies.flights import FlightScraperStrategy
+            strategy = FlightScraperStrategy()
+            result = await strategy.scrape(url)
             return result.get("extracted_data", [])
         except Exception as e:
             raise RuntimeError(f"EasyJet scraping failed: {e}")
@@ -48,8 +50,9 @@ class SkyscannerScraper(BaseHTTPScraper):
         formatted_date = date.replace("-", "")[2:] if "-" in date else date
         url = f"https://www.skyscanner.net/transport/flights/{origin}/{destination}/{formatted_date}/"
         try:
-            from app.scraper.dynamic_scraper import scrape_dynamic
-            result = await scrape_dynamic(url)
+            from app.scraper.strategies.flights import FlightScraperStrategy
+            strategy = FlightScraperStrategy()
+            result = await strategy.scrape(url)
             return result.get("extracted_data", [])
         except Exception as e:
             raise RuntimeError(f"Skyscanner scraping failed: {e}")

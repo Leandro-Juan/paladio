@@ -5,6 +5,8 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include <unordered_map>
+#include <bit>
 
 namespace paladio::core {
 
@@ -29,6 +31,18 @@ struct SearchState {
     std::array<uint8_t, 8> category_visits = {0}; ///< Count of visits per NodeType.
     std::array<int, 64> current_path; ///< Stack-allocated sequence of visited node indices.
     int current_path_size = 0;        ///< Current number of nodes in the path.
+};
+
+struct MemoKey {
+    uint64_t mask;
+    int node;
+    bool operator==(const MemoKey& o) const { return mask == o.mask && node == o.node; }
+};
+
+struct MemoKeyHash {
+    size_t operator()(const MemoKey& k) const {
+        return std::hash<uint64_t>()(k.mask) ^ (std::hash<int>()(k.node) << 1);
+    }
 };
 
 struct MemoEntry {
@@ -81,7 +95,7 @@ inline double calculate_optimistic_bound(
         unvisited &= ((1ULL << n) - 1);
     }
     while (unvisited) {
-        int rank = __builtin_ctzll(unvisited);
+        int rank = std::countr_zero(unvisited);
         unvisited &= unvisited - 1; // Clear lowest set bit
         
         int i = sorted_pois_by_density[rank];
@@ -128,27 +142,39 @@ void dfs(
     const int* density_rank,
     int min_transit_global,
     int n,
-    MemoEntry* memo,
+    std::unordered_map<MemoKey, std::vector<MemoEntry>, MemoKeyHash>& memo,
     uint64_t global_mandatory_mask,
     OptimizationResult& best_result
 ) {
-    // 1. Dominance Pruning (Pareto optimization using direct-mapped cache)
-    int idx = (state.visited_mask ^ (u * 1234567ULL)) & ((1 << 20) - 1);
-    if (memo[idx].visited_mask == state.visited_mask && memo[idx].current_node == u) {
-        if (state.current_time >= memo[idx].current_time &&
-            state.current_cost >= memo[idx].current_cost &&
-            state.current_score <= memo[idx].current_score + 1e-5 &&
-            state.had_breakfast == memo[idx].had_breakfast &&
-            state.had_lunch == memo[idx].had_lunch &&
-            state.had_dinner == memo[idx].had_dinner &&
-            state.continuous_active_time >= memo[idx].continuous_active_time &&
-            state.last_meal_time >= memo[idx].last_meal_time) {
+    MemoKey key{state.visited_mask, u};
+    auto& entries = memo[key];
+    
+    for (const auto& m : entries) {
+        if (state.current_time >= m.current_time &&
+            state.current_cost >= m.current_cost &&
+            state.current_score <= m.current_score + 1e-5 &&
+            (m.had_breakfast || !state.had_breakfast) &&
+            (m.had_lunch || !state.had_lunch) &&
+            (m.had_dinner || !state.had_dinner) &&
+            state.continuous_active_time >= m.continuous_active_time &&
+            state.last_meal_time >= m.last_meal_time) {
             return; 
         }
     }
-    memo[idx] = {state.visited_mask, u, state.current_time, state.current_cost, state.current_score, state.had_breakfast, state.had_lunch, state.had_dinner, state.continuous_active_time, state.last_meal_time};
 
-    // 2. Calculate Upper Bound and prune via Fractional Knapsack
+    entries.erase(std::remove_if(entries.begin(), entries.end(), [&](const MemoEntry& m) {
+        return m.current_time >= state.current_time &&
+               m.current_cost >= state.current_cost &&
+               m.current_score <= state.current_score + 1e-5 &&
+               (state.had_breakfast || !m.had_breakfast) &&
+               (state.had_lunch || !m.had_lunch) &&
+               (state.had_dinner || !m.had_dinner) &&
+               m.continuous_active_time >= state.continuous_active_time &&
+               m.last_meal_time >= state.last_meal_time;
+    }), entries.end());
+
+    entries.push_back({state.visited_mask, u, state.current_time, state.current_cost, state.current_score, state.had_breakfast, state.had_lunch, state.had_dinner, state.continuous_active_time, state.last_meal_time});
+
     int effective_end_time = config.end_time_limit != -1 ? config.end_time_limit : std::numeric_limits<int>::max();
     double max_possible_score = state.current_score + calculate_optimistic_bound(
         state.visited_mask, state.current_time, effective_end_time, pois, sorted_pois_by_density, min_transit_global, n
@@ -157,7 +183,21 @@ void dfs(
         return; 
     }
 
-    // 3. Expand children using Exploration Order (Highest Density First)
+    uint64_t unvisited_mandatory = global_mandatory_mask & ~state.visited_mask;
+    if (unvisited_mandatory != 0 && config.end_time_limit != -1) {
+        int required_time_for_mandatory = 0;
+        uint64_t temp_mask = unvisited_mandatory;
+        while (temp_mask) {
+            int rank = std::countr_zero(temp_mask);
+            temp_mask &= temp_mask - 1;
+            int i = sorted_pois_by_density[rank];
+            required_time_for_mandatory += pois[i].duration + min_transit_global;
+        }
+        if (state.current_time + required_time_for_mandatory > config.end_time_limit) {
+            return;
+        }
+    }
+
     for (int i = 0; i < n; ++i) {
         if ((state.visited_mask & (1ULL << i)) == 0) {
             int v = sorted_pois_by_density[i];
@@ -178,7 +218,6 @@ void dfs(
                 arrival_time = pois[v].earliest_time;
             }
 
-            // 1. Idle Time Penalty
             int idle_time = arrival_time - arrival_time_before_wait;
             if (idle_time > config.max_idle_time) continue;
 
@@ -203,7 +242,6 @@ void dfs(
                 if (next_cost > config.max_budget) continue;
             }
 
-            // 3. Realistic Meal Spacing
             bool is_strict_meal = (pois[v].type == NodeType::RESTAURANT_BREAKFAST || 
                                    pois[v].type == NodeType::RESTAURANT_LUNCH || 
                                    pois[v].type == NodeType::RESTAURANT_DINNER);
@@ -213,7 +251,6 @@ void dfs(
 
             double node_score = pois[v].score;
 
-            // 2. Fatigue and Pacing
             int next_continuous_active_time = state.continuous_active_time;
             bool is_rest_node = (pois[v].type == NodeType::BAR || 
                                  pois[v].type == NodeType::HOTEL || 
@@ -227,7 +264,6 @@ void dfs(
                 next_continuous_active_time += transit_times[u * n + v].duration + pois[v].duration;
             }
 
-            // 4. Diminishing Returns for Monotony
             uint8_t category_count = state.category_visits[static_cast<size_t>(pois[v].type)];
             if (category_count >= config.monotony_threshold) {
                 node_score *= std::pow(config.monotony_multiplier, category_count - config.monotony_threshold + 1);
@@ -255,7 +291,6 @@ void dfs(
             if (config.lunch_deadline != -1 && next_time > config.lunch_deadline && !state.had_lunch) continue;
             if (config.dinner_deadline != -1 && next_time > config.dinner_deadline && !state.had_dinner) continue;
 
-            // 3. Apply State Changes (Push)
             uint64_t prev_mask = state.visited_mask;
             double prev_cost = state.current_cost;
             int prev_time = state.current_time;
@@ -281,7 +316,6 @@ void dfs(
             // Recurse deeper
             dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, global_mandatory_mask, best_result);
 
-            // 4. Revert State Changes (Pop)
             state.current_path_size--;
             state.category_visits[static_cast<size_t>(pois[v].type)]--;
             state.continuous_active_time = prev_continuous_active_time;
@@ -296,13 +330,11 @@ void dfs(
         }
     }
 
-    // 5. Leaf Node Processing: Evaluate complete path against global best
     bool valid_end_node = true;
     double final_cost = state.current_cost;
     int final_time = state.current_time;
     int final_path_size = state.current_path_size;
     
-    // 5. Round-Trip / Base of Operations Verification
     if (config.end_node_index.has_value() && state.current_path_size > 0) {
         int target_end = config.end_node_index.value();
         if (state.current_path[state.current_path_size - 1] != target_end) {
@@ -435,13 +467,12 @@ OptimizationResult optimize_itinerary(
         min_transit_global = 0;
     }
 
-    std::vector<MemoEntry> memo(1 << 20);
+    std::unordered_map<MemoKey, std::vector<MemoEntry>, MemoKeyHash> memo;
 
     const POI* pois_ptr = pois.data();
     const TransitInfo* transit_ptr = transit_times.data();
     const int* sorted_pois_ptr = sorted_pois_by_density.data();
     const int* density_rank_ptr = density_rank.data();
-    MemoEntry* memo_ptr = memo.data();
 
     int start_idx = config.start_node_index.value_or(-1);
     
@@ -488,7 +519,7 @@ OptimizationResult optimize_itinerary(
         if (config.dinner_deadline != -1 && state.current_time > config.dinner_deadline && !state.had_dinner) continue;
 
         // Begin recursive search from this starting node
-        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo_ptr, global_mandatory_mask, best_result);
+        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo, global_mandatory_mask, best_result);
     }
 
     // If no valid path was found, zero out the infinite values

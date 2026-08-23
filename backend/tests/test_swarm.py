@@ -39,7 +39,7 @@ async def test_proactive_routing_schedules_alert():
 async def test_reactive_planning_generates_itinerary():
     """Test that reactive intents flow through RAG -> Validator -> Planner."""
     # Arrange
-    config = {"configurable": {"thread_id": "test_2"}}
+    config = {"configurable": {"thread_id": "test_2", "engine": MagicMock()}}
     state = {"messages": [HumanMessage(content="I want to go to Paris for 3 days with a budget of 1000 USD")]}
     
     mock_router_result = MagicMock()
@@ -49,7 +49,7 @@ async def test_reactive_planning_generates_itinerary():
     
     # Act
     with patch('app.swarm.agents.router.router_agent.run', new_callable=AsyncMock, return_value=mock_router_result):
-        with patch('app.swarm.graph.run_optimization', return_value={"path": [{"poi": {"name": "Base Hotel"}}]}) as mock_run_opt:
+        with patch('app.use_cases.optimize_daily_itinerary.OptimizeDailyItineraryUseCase.execute', new_callable=AsyncMock, return_value={"days": [{"day": 1, "itinerary": {"path": [{"poi": {"name": "Base Hotel"}}]}}]}) as mock_run_opt:
             with validator_agent.override(model=test_model):
                 result = await graph.ainvoke(state, config)
         
@@ -57,4 +57,4 @@ async def test_reactive_planning_generates_itinerary():
     assert result.get("intent") == "REACTIVE_PLANNING"
     assert "retrieved_context" in result
     assert result.get("validated_itinerary") is not None
-    assert result["validated_itinerary"].budget_usd is not None
+    assert result["validated_itinerary"].get("budget_usd") is not None

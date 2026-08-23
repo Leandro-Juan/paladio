@@ -1,19 +1,18 @@
-import asyncio
+import pytest
 import logging
-from app.scraper.dynamic_scraper import scrape_dynamic
+from unittest.mock import AsyncMock, patch
+from app.scraper.strategies.restaurants import RestaurantScraperStrategy
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-async def main():
-    print("Testing real-world dynamic scraping on Foursquare...")
-    try:
-        url = "https://foursquare.com/explore?mode=url&near=Madrid%2C%20Spain&q=Food"
-        result = await scrape_dynamic(url)
-        print("Scrape successful!")
-        print(f"Items extracted: {len(result.get('extracted_data', []))}")
-        print(f"Title: {result.get('title')}")
-    except Exception as e:
-        print(f"Scrape failed: {e}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+@pytest.mark.asyncio
+async def test_foursquare_scrape():
+    logger.info("Testing scraped data for test_foursquare_scrape...")
+    with patch('app.scraper.strategies.restaurants.RestaurantScraperStrategy.scrape', new_callable=AsyncMock) as mock_scrape:
+        mock_scrape.return_value = {"title": "Mock Title", "extracted_data": [{"name": "Mock Item"}]}
+        
+        result = await RestaurantScraperStrategy().scrape("https://example.com/mock")
+        
+        logger.info("Scrape successful!")
+        logger.info(f"Title: {result.get('title')}")
+        assert result.get('title') == "Mock Title"

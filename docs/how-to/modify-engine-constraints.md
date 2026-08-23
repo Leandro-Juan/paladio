@@ -86,3 +86,19 @@ def run_optimization(constraints, pois, transit_matrix):
 ```
 
 You have now successfully piped a new constraint from human text, through the LangGraph Validator, and into the C++ optimization engine.
+
+## 6. Hard Boolean Constraints (e.g., Mandatory POIs)
+
+Sometimes constraints are not continuous budgets, but rigid booleans. For instance, the **Mandatory POI** constraint (`is_mandatory`) guarantees that certain points of interest (e.g., the Sagrada Familia) are forced into the final itinerary.
+
+This is enforced directly in the `POI` struct in C++:
+
+```cpp
+struct POI {
+    std::string id;
+    double score;
+    bool is_mandatory; // Hard constraint flag
+};
+```
+
+During the DFS search, the algorithm evaluates the leaf nodes. If any POI marked as `is_mandatory` is missing from the generated path, that path is instantly invalidated and its score is set to negative infinity. This ensures the output rigidly adheres to user-requested, must-see destinations.

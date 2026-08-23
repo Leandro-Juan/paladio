@@ -3,6 +3,7 @@
 #include <pybind11/numpy.h>
 #include "engine.hpp"
 #include <iostream>
+#include <pybind11/operators.h>
 
 namespace py = pybind11;
 using namespace paladio::core;
@@ -84,6 +85,7 @@ PYBIND11_MODULE(paladio_core, m) {
         .def_readwrite("total_cost", &OptimizationResult::total_cost, "Accumulated financial cost.")
         .def_readwrite("total_time", &OptimizationResult::total_time, "Total elapsed time in minutes.")
         .def_readwrite("total_score", &OptimizationResult::total_score, "Maximally accumulated score.");
+
 
     // The core takes std::vector, but we bind it via numpy array for zero-copy FFI speed
     m.def("optimize_itinerary", [](const std::vector<POI>& pois,

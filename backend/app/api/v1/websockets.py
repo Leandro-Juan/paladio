@@ -2,7 +2,10 @@ import asyncio
 import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from langchain_core.messages import HumanMessage
-from app.engine.bridge import OptimizationError
+from app.infrastructure.engine.bridge_adapter import OptimizationError, CppOptimizationAdapter
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -20,7 +23,29 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 # Try parsing as JSON first, otherwise use raw text
                 data = json.loads(text_data)
+                action = data.get("action", "chat")
                 user_msg = data.get("message", "")
+                
+                if action == "feedback":
+                    poi = data.get("poi", {})
+                    target_score = float(data.get("target_score", 50.0))
+                    user_id = data.get("user_id", "default_user")
+                    
+                    # Update User embedding
+                    from app.engine.scoring.features import PoiEncoder
+                    
+                    user_store = websocket.app.state.user_store
+                    ml_params = websocket.app.state.ml_params
+                    ml_model = websocket.app.state.ml_model
+                    
+                    poi_embedding = PoiEncoder.encode(poi)
+                    user_emb = user_store.get_embedding(user_id)
+                    updated_emb = ml_model.update_user(ml_params, user_emb, poi_embedding, target_score)
+                    user_store.save_embedding(user_id, updated_emb)
+                    
+                    await websocket.send_json({"event": "FEEDBACK_PROCESSED", "status": "completed"})
+                    continue
+                    
             except json.JSONDecodeError:
                 user_msg = text_data
                 
@@ -34,8 +59,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 "error_count": 0
             }
             
+            engine = CppOptimizationAdapter(
+                ml_model=websocket.app.state.ml_model,
+                ml_params=websocket.app.state.ml_params,
+                user_store=websocket.app.state.user_store
+            )
+            
+            config = {"configurable": {"engine": engine}}
+            
             # Stream the LangGraph execution
-            async for chunk in graph.astream(initial_state, stream_mode="updates"):
+            async for chunk in graph.astream(initial_state, config=config, stream_mode="updates"):
                 # chunk is a dict like {"node_name": {"state_key": state_value}}
                 for node_name, state_update in chunk.items():
                     
@@ -67,12 +100,12 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"event": "DONE", "status": "completed"})
             
     except WebSocketDisconnect:
-        print("WebSocket client disconnected")
+        logger.info("WebSocket client disconnected")
     except OptimizationError as e:
-        print(f"Optimization error: {e}")
+        logger.error(f"Optimization error: {e}")
         await websocket.send_json({"event": "ERROR", "status": str(e)})
         await websocket.close(code=1011, reason=str(e))
     except Exception as e:
-        print(f"Internal server error: {e}")
+        logger.error(f"Internal server error: {e}")
         error_msg = str(e)[:123] # WebSocket max reason length is 123 bytes
         await websocket.close(code=1011, reason=error_msg)

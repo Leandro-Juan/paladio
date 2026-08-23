@@ -41,7 +41,7 @@ Paladio uses **Pydantic AI** as a non-negotiable guardrail. The Validator agent 
 The system does not just plan trips; it monitors the travel market. The architecture supports two distinct execution paths, dynamically chosen by the Router agent based on user intent:
 
 - **Reactive Planning:** The user needs an immediate answer. The system runs the full validation and C++ optimization pipeline synchronously and returns an itinerary.
-- **Proactive Monitoring:** The user wants to wait for a deal (e.g., "Alert me if flights drop below $200"). Instead of running the solver, the system structures the constraints into an **Alert Payload**. This payload is dispatched to the background ingestion workers. As live price data flows into TimescaleDB, the system uses Z-Score anomaly detection to identify price drops ($Z \le -2.0$). Only when a statistical anomaly occurs is the C++ solver spun up to generate the route and push a notification.
+- **Proactive Monitoring:** The user wants to wait for a deal (e.g., "Alert me if flights drop below $200"). Instead of running the solver, the system structures the constraints into an **Alert Payload**. This payload is dispatched to the background ingestion workers. As live price data flows into TimescaleDB, the system evaluates empirical CDF arrays using the **1-Wasserstein distance** (Earth Mover's Distance) for rigorous regime shift detection. This approach runs in $O(N \log N + M \log M)$ discrete computation time. Only when a significant distribution shift occurs is the C++ solver spun up to generate the route and push a notification.
 
 ## 6. The Deterministic Core Bridge
 

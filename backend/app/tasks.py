@@ -5,7 +5,6 @@ from app.celery_app import app
 
 # Import scrapers
 from app.scraper.static_scraper import scrape_static
-from app.scraper.dynamic_scraper import scrape_dynamic
 from app.scraper.exceptions import BotDetectionError, RateLimitError
 import httpx
 
@@ -34,27 +33,6 @@ def scrape_static_task(self, url: str) -> Dict[str, Any]:
         # Reraise to trigger autoretry
         raise
 
-@app.task(
-    bind=True, 
-    name="app.tasks.scrape_dynamic_task",
-    autoretry_for=(Exception, BotDetectionError, RateLimitError, httpx.HTTPStatusError), 
-    retry_backoff=True, 
-    retry_jitter=True,
-    retry_backoff_max=1200, # Longer backoff for dynamic scraping
-    max_retries=5
-)
-def scrape_dynamic_task(self, url: str) -> Dict[str, Any]:
-    """
-    Celery task wrapper for dynamic Playwright scraping.
-    """
-    logger.info(f"Task {self.request.id}: Starting dynamic scrape for {url}")
-    try:
-        # Run the async Playwright code synchronously
-        result = asyncio.run(scrape_dynamic(url))
-        return result
-    except Exception as exc:
-        logger.error(f"Task {self.request.id}: Failed dynamic scrape for {url}: {exc}")
-        raise
 
 @app.task(bind=True, name="app.tasks.scrape_flight_prices_task")
 def scrape_flight_prices_task(self):
@@ -82,13 +60,9 @@ def scrape_flight_prices_task(self):
     for url in static_targets:
         scrape_static_task.delay(url)
         
-    # Dispatch dynamic tasks
-    for url in dynamic_targets:
-        scrape_dynamic_task.delay(url)
-        
     logger.info("Orchestrator finished: jobs dispatched to queue.")
     
-    return {"status": "success", "message": f"Dispatched {len(static_targets)} static and {len(dynamic_targets)} dynamic scraping tasks."}
+    return {"status": "success", "message": f"Dispatched {len(static_targets)} static scraping tasks."}
 
 @app.task(bind=True, name="app.tasks.refresh_city_pois_task")
 def refresh_city_pois_task(self, city_name: str):
@@ -109,7 +83,13 @@ def refresh_city_pois_task(self, city_name: str):
         logger.error(f"Task {self.request.id}: Failed to refresh POIs for {city_name}: {exc}")
         raise
 
-@app.task(bind=True, name="app.tasks.build_city_map_task")
+@app.task(
+    bind=True, 
+    name="app.tasks.build_city_map_task",
+    autoretry_for=(Exception, httpx.HTTPStatusError, httpx.RequestError),
+    retry_backoff=True,
+    max_retries=3
+)
 def build_city_map_task(self, city_name: str):
     """
     Downloads OSM map data for the requested city and triggers a Valhalla tile rebuild.
@@ -151,21 +131,22 @@ def build_city_map_task(self, city_name: str):
         urllib.request.urlretrieve(url, dest_path)
         logger.info(f"Successfully downloaded {file_name}.")
         
-        # Connect to Docker socket to restart the Valhalla container
-        logger.info("Connecting to Docker socket to restart Valhalla container...")
-        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
-        
-        # Find the valhalla container
-        valhalla_containers = client.containers.list(filters={"name": "valhalla"})
-        if not valhalla_containers:
-            logger.error("Valhalla container not found! Cannot restart.")
-            return {"status": "error", "message": "Valhalla container not found"}
+        # We no longer access the Docker socket from Celery for security reasons.
+        # Instead, we trigger an internal webhook that the host system listens to, 
+        # or we just log it for an external cron job.
+        logger.info("Triggering Valhalla map rebuild via internal webhook...")
+        try:
+            webhook_url = os.getenv("VALHALLA_REBUILD_WEBHOOK", "http://host.docker.internal:8080/rebuild")
+            response = httpx.post(webhook_url, json={"file": file_name, "city": city_name}, timeout=10.0)
+            response.raise_for_status()
+            logger.info("Webhook triggered successfully. Valhalla will compile the new map.")
+        except httpx.RequestError as e:
+            logger.error(f"Network error triggering Valhalla rebuild webhook: {e}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Webhook returned error status {e.response.status_code}: {e.response.text}")
+            raise
             
-        target_container = valhalla_containers[0]
-        logger.info(f"Restarting container: {target_container.name}")
-        target_container.restart()
-        logger.info(f"Container {target_container.name} restarted successfully. Valhalla will compile {file_name} on boot.")
-        
         return {"status": "success", "city": city_name, "file": file_name}
         
     except Exception as exc:

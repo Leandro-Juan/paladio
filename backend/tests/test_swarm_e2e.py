@@ -1,50 +1,37 @@
-import asyncio
-import sys
+import pytest
 import os
-import logging
 from datetime import date
+from langchain_core.messages import HumanMessage
 
-# Set environment variables BEFORE importing any app modules
 os.environ.setdefault("OLLAMA_BASE_URL", "http://localhost:11435")
 os.environ.setdefault("ROUTER_MODEL", "llama3.1:latest")
 os.environ.setdefault("VALIDATOR_MODEL", "llama3.1:latest")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from app.swarm.graph import graph
-from langchain_core.messages import HumanMessage
 
-logging.basicConfig(level=logging.INFO)
-
+@pytest.mark.asyncio
 async def test_full_trip_generation():
-    """
-    Feeds a natural language prompt into the Swarm, expecting it to:
-    1. Extract the destination_city (Oporto).
-    2. Fetch real static POIs from the DB.
-    3. Fetch dynamic Hotels/Restaurants via scrapers.
-    4. Inject them into the C++ Engine via Valhalla transit mapping.
-    """
-    print("\n=== Starting End-to-End Swarm Run ===\n")
-    
     prompt = "Plan a 2 day trip from London to Oporto with a budget of 500 dollars. I want breakfast, lunch, and dinner each day."
     
     initial_state = {
         "messages": [HumanMessage(content=prompt)],
         "intent": "REACTIVE_PLANNING",
         "retrieved_context": f"Today is {date.today()}.",
-        "error_count": 0
+        "error_count": 0,
+        "test_data": {
+            "flights": [{"price": 50, "arrival_time": "10:00", "departure_time": "08:00"}],
+            "return_flights": [{"price": 50, "arrival_time": "20:00", "departure_time": "18:00"}],
+            "hotels": [{"name": "Test Hotel", "location": {"latitude": 0, "longitude": 0}, "financials": {"price_per_night": 100}}],
+            "restaurants": [{"name": "Test Rest", "location": {"latitude": 0, "longitude": 0}}],
+            "pois": [{"name": "Test POI", "category": "ATTRACTION", "location": {"latitude": 0, "longitude": 0}, "financials": {"estimated_cost": 10}, "schedule": {"recommended_duration_minutes": 60}}]
+        }
     }
     
+    # Run graph with test_data injected to bypass actual scraping in CI
     final_state = await graph.ainvoke(initial_state)
     
-    if "final_itinerary" in final_state:
-        print("\n=== SUCCESS: Generated Itinerary ===")
-        import json
-        print(json.dumps(final_state["final_itinerary"], indent=2, default=str))
-    else:
-        print("\n=== FAILED: No itinerary generated ===")
-        print(final_state)
+    assert "final_itinerary" in final_state, "Should generate an itinerary"
+    assert "days" in final_state["final_itinerary"]
+    assert len(final_state["final_itinerary"]["days"]) == 2
 
-if __name__ == "__main__":
-    asyncio.run(test_full_trip_generation())
