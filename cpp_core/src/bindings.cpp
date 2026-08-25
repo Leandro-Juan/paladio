@@ -48,7 +48,7 @@ PYBIND11_MODULE(paladio_core, m) {
         .def_readwrite("is_mandatory", &POI::is_mandatory);
 
     py::class_<OptimizationConfig>(m, "OptimizationConfig", "Global constraints for the routing problem.")
-        .def(py::init<double, std::optional<int>, std::optional<NodeType>, std::optional<int>, int, int, int, int, int, double, int, double, int, int, double>(),
+        .def(py::init<double, std::optional<int>, std::optional<NodeType>, std::optional<int>, int, int, int, int, int, double, int, double, int, int, double, int>(),
              py::arg("max_budget"),
              py::arg("start_node_index") = std::nullopt, 
              py::arg("end_node_type") = std::nullopt,
@@ -63,7 +63,8 @@ PYBIND11_MODULE(paladio_core, m) {
              py::arg("fatigue_penalty_multiplier") = 0.6,
              py::arg("min_meal_spacing") = 180,
              py::arg("monotony_threshold") = 2,
-             py::arg("monotony_multiplier") = 0.5)
+             py::arg("monotony_multiplier") = 0.5,
+             py::arg("timeout_ms") = 5000)
         .def_readwrite("max_budget", &OptimizationConfig::max_budget)
         .def_readwrite("start_node_index", &OptimizationConfig::start_node_index)
         .def_readwrite("end_node_type", &OptimizationConfig::end_node_type)
@@ -78,7 +79,8 @@ PYBIND11_MODULE(paladio_core, m) {
         .def_readwrite("fatigue_penalty_multiplier", &OptimizationConfig::fatigue_penalty_multiplier)
         .def_readwrite("min_meal_spacing", &OptimizationConfig::min_meal_spacing)
         .def_readwrite("monotony_threshold", &OptimizationConfig::monotony_threshold)
-        .def_readwrite("monotony_multiplier", &OptimizationConfig::monotony_multiplier);
+        .def_readwrite("monotony_multiplier", &OptimizationConfig::monotony_multiplier)
+        .def_readwrite("timeout_ms", &OptimizationConfig::timeout_ms);
 
     py::class_<OptimizationResult>(m, "OptimizationResult", "Optimal path returned by the solver.")
         .def_readwrite("path", &OptimizationResult::path, "Sequence of visited POI indices.")

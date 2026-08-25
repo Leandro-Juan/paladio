@@ -204,3 +204,26 @@ TEST_F(ItineraryEngineTest, ExternalMealInputOnAttraction) {
     }
     EXPECT_TRUE(has_d);
 }
+
+TEST_F(ItineraryEngineTest, MandatoryPOIsEnforced) {
+    // Arrange
+    std::vector<POI> custom_pois = {
+        {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 10}, // 0
+        {NodeType::ATTRACTION, 0.0, 50.0, 0, 1440, 120, false}, // 1
+        {NodeType::ATTRACTION, 0.0, 5.0, 0, 1440, 120, true}  // 2 (Mandatory but low score)
+    };
+    
+    std::vector<TransitInfo> custom_transit(9, {0, 0.0});
+    config.max_budget = 1000.0;
+    
+    // Act
+    auto result = optimize_itinerary(custom_pois, custom_transit, config);
+    
+    // Assert
+    ASSERT_GT(result.path.size(), 0);
+    bool has_mandatory = false;
+    for (int n : result.path) {
+        if (n == 2) has_mandatory = true;
+    }
+    EXPECT_TRUE(has_mandatory);
+}

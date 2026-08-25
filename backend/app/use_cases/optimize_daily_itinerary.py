@@ -55,7 +55,10 @@ class OptimizeDailyItineraryUseCase:
             multi_day_itinerary.append({"day": day + 1, "flight_info": daily_flight, "itinerary": result})
             
             visited_names = {p["poi"]["name"] for p in result["path"]}
-            unvisited_pois = [p for p in unvisited_pois if p["category"] == "HOTEL" or p["name"] not in visited_names]
+            unvisited_pois = [p for p in unvisited_pois if p["category"] in ("HOTEL", "AIRPORT") or p["name"] not in visited_names]
+            
+            # Remove visited mandatory POIs
+            mandatory_names = [m for m in mandatory_names if not any(m in vn.lower() for vn in visited_names)]
         
         return {"days": multi_day_itinerary}
 
@@ -76,31 +79,25 @@ class OptimizeDailyItineraryUseCase:
         domain_pois = [Poi(**p) for p in unvisited_pois]
         domain_matrix = [[TransitEdge(**edge) for edge in row] for row in matrix_dict]
 
-        itinerary = self.engine.run_optimization(
+        hotel_idx = next((i for i, p in enumerate(unvisited_pois) if p.get("category") == "HOTEL"), -1)
+        airport_idx = next((i for i, p in enumerate(unvisited_pois) if p.get("category") == "AIRPORT"), -1)
+        
+        start_idx = airport_idx if day == 0 else hotel_idx
+        end_idx = airport_idx if day == num_days - 1 else hotel_idx
+        
+        import asyncio
+        itinerary = await asyncio.to_thread(
+            self.engine.run_optimization,
             constraints=constraints,
             pois=domain_pois,
             transit_matrix=domain_matrix,
             num_days=num_days,
             day_start_mins=day_start_mins,
             day_end_mins=day_end_mins,
-            mandatory_names=mandatory_names
+            mandatory_names=mandatory_names,
+            start_node_index=start_idx if start_idx != -1 else None,
+            end_node_index=end_idx if end_idx != -1 else None
         )
         
         result = itinerary.model_dump()
-        
-        hotel_idx = next((i for i, p in enumerate(unvisited_pois) if p.get("category") == "HOTEL"), -1)
-        if hotel_idx != -1 and result["path"]:
-            last_poi = result["path"][-1]["poi"]
-            last_idx = unvisited_pois.index(last_poi) if last_poi in unvisited_pois else -1
-            if last_idx != -1 and last_idx != hotel_idx:
-                transit_time = matrix_dict[last_idx][hotel_idx]["duration_mins"]
-                lh, lm = map(int, result["path"][-1]["scheduled_end"].split(":"))
-                ct = lh * 60 + lm + transit_time
-                result["path"].append({
-                    "poi": unvisited_pois[hotel_idx], 
-                    "scheduled_start": f"{ct//60:02d}:{ct%60:02d}", 
-                    "scheduled_end": f"{ct//60:02d}:{ct%60:02d}"
-                })
-                result["total_time_mins"] += transit_time
-                
         return result

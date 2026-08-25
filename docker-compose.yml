@@ -11,8 +11,10 @@ services:
       - /app/.venv
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
+      - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
       - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:
@@ -21,6 +23,18 @@ services:
       redis:
         condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
     security_opt:
       - no-new-privileges:true
 
@@ -79,8 +93,8 @@ services:
     environment:
       - serve_rst=True
       - local_map_url=http://download.geofabrik.de/europe/spain/madrid-latest.osm.pbf
-      - use_tiles_ignore_pbf=True
-      - force_rebuild=False
+      - use_tiles_ignore_pbf=False
+      - force_rebuild=True
       - build_elevation=False
       - build_transit=True
       
@@ -96,6 +110,7 @@ services:
       - valhalladata:/custom_files
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development
@@ -119,6 +134,7 @@ services:
       - /app/.venv
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
       - NODE_ENV=development

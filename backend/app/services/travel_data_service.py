@@ -79,12 +79,12 @@ async def fetch_hotels(city: str, test_data=None):
 
 async def fetch_restaurants(city: str, test_data=None):
     if test_data and "restaurants" in test_data:
-        return test_data["restaurants"][:4]
+        return test_data["restaurants"][:15]
         
     try:
         yelp_url = f"https://www.yelp.com/search?find_loc={urllib.parse.quote(city)}"
         res = await RestaurantScraperStrategy().scrape(yelp_url)
-        return res.get("extracted_data", [])[:4]
+        return res.get("extracted_data", [])[:15]
     except Exception as e:
         logger.debug(f"RestaurantScraperStrategy error: {e}")
         return []

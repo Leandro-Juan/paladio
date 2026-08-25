@@ -12,7 +12,7 @@ def client():
         async def mock_astream(*args, **kwargs):
             yield {"rag": {"retrieved_context": "dummy context"}}
             yield {"validator": {}}
-            yield {"planner": {"final_itinerary": {"days": []}}}
+            yield {"planner_optimize": {"final_itinerary": {"days": []}}}
         mock_graph.astream = mock_astream
         mock_create_swarm.return_value = mock_graph
         
@@ -26,7 +26,7 @@ def test_websocket_stream_sends_progress_events(client):
     async def mock_astream(*args, **kwargs):
         yield {"rag": {"retrieved_context": "dummy context"}}
         yield {"validator": {}}
-        yield {"planner": {"final_itinerary": {"days": []}}}
+        yield {"planner_optimize": {"final_itinerary": {"days": []}}}
     client.app.state.graph.astream = mock_astream
     
     # Act

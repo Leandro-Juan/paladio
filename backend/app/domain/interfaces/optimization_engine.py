@@ -19,7 +19,9 @@ class IOptimizationEngine(ABC):
         day_start_mins: int = 480,
         day_end_mins: int = 1320,
         mandatory_names: Optional[List[str]] = None,
-        user_id: str = "default_user"
+        user_id: str = "default_user",
+        start_node_index: Optional[int] = None,
+        end_node_index: Optional[int] = None
     ) -> Itinerary:
         """
         Runs the core optimization routine given a set of constraints and domain entities.

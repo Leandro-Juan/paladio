@@ -7,10 +7,13 @@
 #include <cmath>
 #include <unordered_map>
 #include <bit>
+#include <chrono>
 
 namespace paladio::core {
 
 namespace {
+
+struct TimeoutException : public std::exception {};
 
 /**
  * @brief Tracks the current state of the DFS traversal.
@@ -56,6 +59,14 @@ struct MemoEntry {
     bool had_dinner = false;
     int continuous_active_time = 0;
     int last_meal_time = -9999;
+};
+
+constexpr size_t TT_SIZE = 1048576; // 1M entries, limits memory to ~180MB to prevent OOM
+constexpr int TT_BUCKET_SIZE = 4; // Keep small pareto frontier in bounded array
+
+struct TTBucket {
+    MemoEntry entries[TT_BUCKET_SIZE];
+    int count = 0;
 };
 
 constexpr double INF = std::numeric_limits<double>::infinity();
@@ -142,38 +153,95 @@ void dfs(
     const int* density_rank,
     int min_transit_global,
     int n,
-    std::unordered_map<MemoKey, std::vector<MemoEntry>, MemoKeyHash>& memo,
+    std::vector<TTBucket>& memo,
     uint64_t global_mandatory_mask,
-    OptimizationResult& best_result
+    OptimizationResult& best_result,
+    const std::chrono::steady_clock::time_point& start_time,
+    int& node_eval_count
 ) {
-    MemoKey key{state.visited_mask, u};
-    auto& entries = memo[key];
+    node_eval_count++;
+    if ((node_eval_count & 1023) == 0) {
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() > config.timeout_ms) {
+            throw TimeoutException();
+        }
+    }
     
-    for (const auto& m : entries) {
-        if (state.current_time >= m.current_time &&
-            state.current_cost >= m.current_cost &&
-            state.current_score <= m.current_score + 1e-5 &&
-            (m.had_breakfast || !state.had_breakfast) &&
-            (m.had_lunch || !state.had_lunch) &&
-            (m.had_dinner || !state.had_dinner) &&
-            state.continuous_active_time >= m.continuous_active_time &&
-            state.last_meal_time >= m.last_meal_time) {
-            return; 
+    MemoKey key{state.visited_mask, u};
+    size_t hash = MemoKeyHash()(key);
+    auto& bucket = memo[hash % TT_SIZE];
+    
+    for (int i = 0; i < bucket.count; ++i) {
+        const auto& m = bucket.entries[i];
+        if (m.visited_mask == state.visited_mask && m.current_node == u) {
+            if (state.current_time >= m.current_time &&
+                state.current_cost >= m.current_cost &&
+                state.current_score <= m.current_score + 1e-5 &&
+                (m.had_breakfast || !state.had_breakfast) &&
+                (m.had_lunch || !state.had_lunch) &&
+                (m.had_dinner || !state.had_dinner) &&
+                state.continuous_active_time >= m.continuous_active_time &&
+                state.last_meal_time >= m.last_meal_time) {
+                return; 
+            }
         }
     }
 
-    entries.erase(std::remove_if(entries.begin(), entries.end(), [&](const MemoEntry& m) {
-        return m.current_time >= state.current_time &&
-               m.current_cost >= state.current_cost &&
-               m.current_score <= state.current_score + 1e-5 &&
-               (state.had_breakfast || !m.had_breakfast) &&
-               (state.had_lunch || !m.had_lunch) &&
-               (state.had_dinner || !m.had_dinner) &&
-               m.continuous_active_time >= state.continuous_active_time &&
-               m.last_meal_time >= state.last_meal_time;
-    }), entries.end());
+    bool inserted = false;
+    for (int i = 0; i < bucket.count; ++i) {
+        auto& m = bucket.entries[i];
+        if (m.visited_mask == state.visited_mask && m.current_node == u) {
+            if (state.current_time <= m.current_time &&
+                state.current_cost <= m.current_cost &&
+                state.current_score >= m.current_score - 1e-5 &&
+                (state.had_breakfast || !m.had_breakfast) &&
+                (state.had_lunch || !m.had_lunch) &&
+                (state.had_dinner || !m.had_dinner) &&
+                state.continuous_active_time <= m.continuous_active_time &&
+                state.last_meal_time >= m.last_meal_time) {
+                
+                m.current_time = state.current_time;
+                m.current_cost = state.current_cost;
+                m.current_score = state.current_score;
+                m.had_breakfast = state.had_breakfast;
+                m.had_lunch = state.had_lunch;
+                m.had_dinner = state.had_dinner;
+                m.continuous_active_time = state.continuous_active_time;
+                m.last_meal_time = state.last_meal_time;
+                inserted = true;
+                break;
+            }
+        }
+    }
 
-    entries.push_back({state.visited_mask, u, state.current_time, state.current_cost, state.current_score, state.had_breakfast, state.had_lunch, state.had_dinner, state.continuous_active_time, state.last_meal_time});
+    if (!inserted) {
+        if (bucket.count < TT_BUCKET_SIZE) {
+            auto& m = bucket.entries[bucket.count++];
+            m.visited_mask = state.visited_mask;
+            m.current_node = u;
+            m.current_time = state.current_time;
+            m.current_cost = state.current_cost;
+            m.current_score = state.current_score;
+            m.had_breakfast = state.had_breakfast;
+            m.had_lunch = state.had_lunch;
+            m.had_dinner = state.had_dinner;
+            m.continuous_active_time = state.continuous_active_time;
+            m.last_meal_time = state.last_meal_time;
+        } else {
+            int evict_idx = state.current_time % TT_BUCKET_SIZE; 
+            auto& m = bucket.entries[evict_idx];
+            m.visited_mask = state.visited_mask;
+            m.current_node = u;
+            m.current_time = state.current_time;
+            m.current_cost = state.current_cost;
+            m.current_score = state.current_score;
+            m.had_breakfast = state.had_breakfast;
+            m.had_lunch = state.had_lunch;
+            m.had_dinner = state.had_dinner;
+            m.continuous_active_time = state.continuous_active_time;
+            m.last_meal_time = state.last_meal_time;
+        }
+    }
 
     int effective_end_time = config.end_time_limit != -1 ? config.end_time_limit : std::numeric_limits<int>::max();
     double max_possible_score = state.current_score + calculate_optimistic_bound(
@@ -202,11 +270,8 @@ void dfs(
         if ((state.visited_mask & (1ULL << i)) == 0) {
             int v = sorted_pois_by_density[i];
             
-            if (pois[v].type == NodeType::HOTEL) {
-                bool allow_endpoint = false;
-                if (config.end_node_index.has_value() && config.end_node_index.value() == v) allow_endpoint = true;
-                if (config.end_node_type.has_value() && config.end_node_type.value() == pois[v].type) allow_endpoint = true;
-                if (!allow_endpoint) continue;
+            if (config.end_node_index.has_value() && v == config.end_node_index.value()) {
+                continue; // Do not visit the end node in the middle of the itinerary
             }
 
             // Calculate temporal feasibility
@@ -314,7 +379,7 @@ void dfs(
             state.current_path[state.current_path_size++] = v;
 
             // Recurse deeper
-            dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, global_mandatory_mask, best_result);
+            dfs(v, state, pois, transit_times, config, sorted_pois_by_density, density_rank, min_transit_global, n, memo, global_mandatory_mask, best_result, start_time, node_eval_count);
 
             state.current_path_size--;
             state.category_visits[static_cast<size_t>(pois[v].type)]--;
@@ -438,6 +503,9 @@ OptimizationResult optimize_itinerary(
     std::vector<int> sorted_pois_by_density(n);
     for (int i = 0; i < n; ++i) sorted_pois_by_density[i] = i;
     std::sort(sorted_pois_by_density.begin(), sorted_pois_by_density.end(), [&pois](int a, int b) {
+        if (pois[a].is_mandatory != pois[b].is_mandatory) {
+            return pois[a].is_mandatory > pois[b].is_mandatory;
+        }
         double density_a = pois[a].duration > 0 ? pois[a].score / static_cast<double>(pois[a].duration) : INF;
         double density_b = pois[b].duration > 0 ? pois[b].score / static_cast<double>(pois[b].duration) : INF;
         return density_a > density_b; // Sort descending
@@ -467,7 +535,10 @@ OptimizationResult optimize_itinerary(
         min_transit_global = 0;
     }
 
-    std::unordered_map<MemoKey, std::vector<MemoEntry>, MemoKeyHash> memo;
+    std::vector<TTBucket> memo(TT_SIZE);
+
+    auto start_time = std::chrono::steady_clock::now();
+    int node_eval_count = 0;
 
     const POI* pois_ptr = pois.data();
     const TransitInfo* transit_ptr = transit_times.data();
@@ -518,8 +589,12 @@ OptimizationResult optimize_itinerary(
         if (config.lunch_deadline != -1 && state.current_time > config.lunch_deadline && !state.had_lunch) continue;
         if (config.dinner_deadline != -1 && state.current_time > config.dinner_deadline && !state.had_dinner) continue;
 
-        // Begin recursive search from this starting node
-        dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo, global_mandatory_mask, best_result);
+        try {
+            // Begin recursive search from this starting node
+            dfs(start_node, state, pois_ptr, transit_ptr, config, sorted_pois_ptr, density_rank_ptr, min_transit_global, n, memo, global_mandatory_mask, best_result, start_time, node_eval_count);
+        } catch (const TimeoutException&) {
+            break; // Time is up, stop exploring starting nodes
+        }
     }
 
     // If no valid path was found, zero out the infinite values

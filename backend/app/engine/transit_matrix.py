@@ -26,7 +26,7 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
     n = len(pois)
     matrix = [[{"duration_mins": 0, "cost_eur": 0.0, "mode": "none"} for _ in range(n)] for _ in range(n)]
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=0.1) as client:
         sem = asyncio.Semaphore(15)
         
         async def bounded_post(req_json):
@@ -38,10 +38,15 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
         for i in range(n):
             for j in range(n):
                 if i != j:
+                    lat_i = pois[i].get("location", {}).get("latitude", pois[i].get("lat", 0.0))
+                    lon_i = pois[i].get("location", {}).get("longitude", pois[i].get("lon", 0.0))
+                    lat_j = pois[j].get("location", {}).get("latitude", pois[j].get("lat", 0.0))
+                    lon_j = pois[j].get("location", {}).get("longitude", pois[j].get("lon", 0.0))
+                    
                     req_json = {
                         "locations": [
-                            {"lat": pois[i]["lat"], "lon": pois[i]["lon"]},
-                            {"lat": pois[j]["lat"], "lon": pois[j]["lon"]}
+                            {"lat": lat_i, "lon": lon_i},
+                            {"lat": lat_j, "lon": lon_j}
                         ],
                         "costing": "pedestrian", # Fallback default
                         # If distance is > 1.5km, we could use multimodal/transit or auto.
@@ -49,7 +54,7 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
                         "directions_options": {"units": "km"}
                     }
                     
-                    dist_approx_km = haversine_distance(pois[i]["lat"], pois[i]["lon"], pois[j]["lat"], pois[j]["lon"])
+                    dist_approx_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
                     
                     if dist_approx_km > 1.5:
                         req_json["costing"] = "multimodal"
@@ -77,9 +82,14 @@ async def get_transit_matrix(pois: List[Dict], city_name: str = "") -> List[List
                     build_city_map_task.delay(city_name)
                     
             for (i, j), resp in zip(indices, responses):
+                lat_i = pois[i].get("location", {}).get("latitude", pois[i].get("lat", 0.0))
+                lon_i = pois[i].get("location", {}).get("longitude", pois[i].get("lon", 0.0))
+                lat_j = pois[j].get("location", {}).get("latitude", pois[j].get("lat", 0.0))
+                lon_j = pois[j].get("location", {}).get("longitude", pois[j].get("lon", 0.0))
+
                 if isinstance(resp, Exception) or resp.status_code != 200:
                     # Fallback to straight-line geographical heuristic using Haversine
-                    dist_km = haversine_distance(pois[i]["lat"], pois[i]["lon"], pois[j]["lat"], pois[j]["lon"])
+                    dist_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
                     duration = int(dist_km / 5.0 * 60) # 5 km/h walking speed
                     matrix[i][j] = {"duration_mins": max(1, duration), "cost_eur": 0.0, "mode": "heuristic"}
                     continue

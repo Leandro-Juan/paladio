@@ -98,6 +98,7 @@ struct OptimizationConfig {
     int min_meal_spacing = 180;              ///< Minimum minutes required between meals.
     int monotony_threshold = 2;              ///< Threshold for diminishing returns per category.
     double monotony_multiplier = 0.5;        ///< Diminishing returns multiplier per subsequent category visit.
+    int timeout_ms = 5000;                   ///< Maximum allowed execution time in milliseconds.
 };
 
 /**

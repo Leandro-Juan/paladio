@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Any
 import jax.numpy as jnp
 
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
@@ -59,7 +59,9 @@ class CppOptimizationAdapter(IOptimizationEngine):
         day_start_mins: int = 480,  # Default 08:00
         day_end_mins: int = 1320,   # Default 22:00
         mandatory_names: Optional[List[str]] = None,
-        user_id: str = "default_user"
+        user_id: str = "default_user",
+        start_node_index: Optional[int] = None,
+        end_node_index: Optional[int] = None
     ) -> Itinerary:
         
         if not paladio_core:
@@ -118,9 +120,15 @@ class CppOptimizationAdapter(IOptimizationEngine):
                 elif "dinner" in name:
                     cpp_poi.is_dinner_spot = True
                 else:
-                    cpp_poi.is_breakfast_spot = True
-                    cpp_poi.is_lunch_spot = True
-                    cpp_poi.is_dinner_spot = True
+                    # Deterministically assign a SINGLE meal type to avoid 
+                    # the engine satisfying all 3 meals with 1 visit.
+                    name_hash = sum(ord(c) for c in name) % 3
+                    if name_hash == 0:
+                        cpp_poi.is_breakfast_spot = True
+                    elif name_hash == 1:
+                        cpp_poi.is_lunch_spot = True
+                    else:
+                        cpp_poi.is_dinner_spot = True
             
             cpp_pois.append(cpp_poi)
             
@@ -160,7 +168,9 @@ class CppOptimizationAdapter(IOptimizationEngine):
         budget_eur = constraints.budget_usd * 0.92
 
         config = paladio_core.OptimizationConfig(
-            max_budget=budget_eur / num_days if num_days > 0 else budget_eur,
+            max_budget=budget_eur,
+            start_node_index=start_node_index,
+            end_node_index=end_node_index,
             end_time_limit=day_end_mins,
             breakfast_deadline=breakfast_deadline,
             lunch_deadline=lunch_deadline,

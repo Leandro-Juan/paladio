@@ -26,11 +26,28 @@ async def get_attractions_for_city(city_name: str, mandatory_names: list[str] = 
     # 1. Query the repository
     pois = await poi_repo.find_by_city(city_name)
     
-    # 2. Cache Miss
-    if not pois:
-        logger.warning(f"Cache miss for {city_name}. Blocking to fetch fresh data...")
+    # 2. Cache Miss or Missing Mandatory POIs
+    missing_mandatory = []
+    if pois and mandatory_names:
+        for m_name in mandatory_names:
+            if not any(m_name.lower() in p.name.lower() for p in pois):
+                missing_mandatory.append(m_name)
+                
+    if not pois or missing_mandatory:
+        logger.warning(f"Cache miss or missing mandatory POIs for {city_name}. Blocking to fetch fresh data...")
         new_pois = await _fetch_and_store_pois(city_name, poi_repo, mandatory_names)
-        return [poi.model_dump(mode='json') for poi in new_pois]
+        
+        # If we already had pois, append the newly fetched ones
+        if pois:
+            # We only really care about the new mandatory ones to return, but let's just 
+            # return the union of the old ones + new ones.
+            # (In a real app, _fetch_and_store_pois might fetch everything again, so 
+            # we just re-query the repo to get the complete merged list)
+            pois = await poi_repo.find_by_city(city_name)
+        else:
+            pois = new_pois
+            
+        return [poi.model_dump(mode='json') for poi in pois]
         
     first_poi_date = pois[0].metadata.scraped_at
     if first_poi_date.tzinfo is None:

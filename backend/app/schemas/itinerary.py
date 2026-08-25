@@ -22,6 +22,7 @@ class TravelConstraints(BaseModel):
     end_date: Optional[date] = Field(default=None, description="End date of the itinerary.")
     nodes: List[NodeConstraint] = Field(default_factory=list, description="List of POIs or destinations to visit.")
     meals: List[MealRequirement] = Field(default_factory=list, description="Mandatory meal windows.")
+    clarification_needed: Optional[str] = Field(default=None, description="If the user's input is ambiguous (e.g. Madrid, Spain vs Madrid, New Mexico, currency of budget), provide a question here to ask the user. Leave null if everything is clear.")
 
     @model_validator(mode='before')
     @classmethod

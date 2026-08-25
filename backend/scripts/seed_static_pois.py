@@ -26,7 +26,7 @@ async def fetch_pois_for_city(city_name: str, limit: int = 50, mandatory_names: 
     # Strict boundary using admin_level=8 (municipality)
     query = f"""
     [out:json][timeout:25];
-    area["name"="{city_name}"]["admin_level"="8"]->.searchArea;
+    area["name"="{city_name}"]["admin_level"="8"]["boundary"="administrative"]->.searchArea;
     (
       nwr["tourism"="museum"](area.searchArea);
       nwr["historic"~"monument|ruins|castle|archaeological_site"](area.searchArea);
@@ -72,7 +72,7 @@ async def fetch_pois_for_city(city_name: str, limit: int = 50, mandatory_names: 
             target_query = f"""
             [out:json][timeout:15];
             area["name"="{city_name}"]["admin_level"="8"]->.searchArea;
-            nwr["name"~"(?i){m_name}"](area.searchArea);
+            nwr["name"~"{m_name}",i](area.searchArea);
             out center 1;
             """
             

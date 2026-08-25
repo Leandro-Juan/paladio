@@ -20,6 +20,8 @@ async def websocket_endpoint(websocket: WebSocket):
             # Wait for user input
             text_data = await websocket.receive_text()
             
+            data = {}
+            action = "chat"
             try:
                 # Try parsing as JSON first, otherwise use raw text
                 data = json.loads(text_data)
@@ -54,9 +56,25 @@ async def websocket_endpoint(websocket: WebSocket):
                 
             await websocket.send_json({"event": "STARTING_INFERENCE", "status": "running"})
             
+            import os
+            from pathlib import Path
+            test_data_path = Path(__file__).parent.parent.parent.parent / "tests" / "test_data.json"
+            test_data = {}
+            if test_data_path.exists():
+                try:
+                    with open(test_data_path, 'r') as f:
+                        test_data = json.load(f)
+                        # The user requested to use the real database for POIs, 
+                        # so we strip them from the mock data to force a DB fetch.
+                        if "pois" in test_data:
+                            del test_data["pois"]
+                except Exception as e:
+                    logger.error(f"Failed to load test_data: {e}")
+
             initial_state = {
                 "messages": [HumanMessage(content=user_msg)],
-                "error_count": 0
+                "error_count": 0,
+                "test_data": test_data
             }
             
             engine = CppOptimizationAdapter(
@@ -65,12 +83,46 @@ async def websocket_endpoint(websocket: WebSocket):
                 user_store=websocket.app.state.user_store
             )
             
-            config = {"configurable": {"engine": engine}}
+            import uuid
+            # Keep thread_id consistent for a session if possible. For simplicity here, we generate a new one unless provided.
+            thread_id = data.get("thread_id", str(uuid.uuid4()))
+            config = {"configurable": {"engine": engine, "thread_id": thread_id}}
+            
+            from langgraph.types import Command
             
             # Stream the LangGraph execution
-            async for chunk in graph.astream(initial_state, config=config, stream_mode="updates"):
+            stream_input = Command(resume={"origin_city": user_msg, "destination_city": user_msg, "budget_usd": user_msg, "start_date": user_msg, "end_date": user_msg, "clarification_needed": None}) if action == "resume" else initial_state
+            
+            # Actually, to properly resume a graph interrupt waiting for a dict:
+            if action == "resume":
+                # Assuming the user just types the missing info, we pass it back. 
+                # A robust frontend would send a structured JSON. 
+                # For testing, we just try to parse it or pass a generic dict.
+                try:
+                    parsed_msg = json.loads(user_msg)
+                    resume_data = parsed_msg
+                except Exception:
+                    resume_data = {
+                        "clarification_response": user_msg,
+                        "origin_city": user_msg,
+                        "destination_city": user_msg,
+                        "budget_usd": user_msg,
+                        "start_date": user_msg,
+                        "end_date": user_msg
+                    }
+                stream_input = Command(resume=resume_data)
+
+            async for chunk in graph.astream(stream_input, config=config, stream_mode="updates"):
+                if "__interrupt__" in chunk:
+                    interrupt_data = chunk["__interrupt__"]
+                    question = interrupt_data[0].value if interrupt_data else "Please clarify your request."
+                    await websocket.send_json({"event": "CLARIFICATION_NEEDED", "status": "completed", "data": question, "thread_id": thread_id})
+                    break
+
                 # chunk is a dict like {"node_name": {"state_key": state_value}}
                 for node_name, state_update in chunk.items():
+                    if not isinstance(state_update, dict):
+                        continue
                     
                     if node_name == "router":
                         intent = state_update.get("intent", "UNKNOWN")
@@ -84,9 +136,23 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     elif node_name == "validator":
                         constraints = state_update.get("validated_itinerary")
-                        await websocket.send_json({"event": "EXTRACTING_CONSTRAINTS", "status": "completed", "data": constraints.model_dump(mode="json") if constraints else None})
+                        if constraints:
+                            data = constraints.model_dump(mode="json") if hasattr(constraints, "model_dump") else constraints
+                        else:
+                            data = None
+                        await websocket.send_json({"event": "EXTRACTING_CONSTRAINTS", "status": "completed", "data": data})
                         
-                    elif node_name == "planner":
+                    elif node_name == "check_missing":
+                        await websocket.send_json({"event": "CHECKING_MISSING_FIELDS", "status": "completed"})
+                        
+                    elif node_name == "planner_fetch":
+                        await websocket.send_json({"event": "FETCHING_STATIC_DATA", "status": "completed"})
+                        
+                    elif node_name == "planner_scrape":
+                        pois = state_update.get("pois_data", [])
+                        await websocket.send_json({"event": "SCRAPING_DYNAMIC_DATA", "status": "completed", "data": f"Fetched {len(pois)} POIs, Flight info..."})
+                        
+                    elif node_name == "planner_optimize":
                         final_itinerary = state_update.get("final_itinerary", {})
                         if "error" in final_itinerary:
                             await websocket.send_json({"event": "ERROR", "status": final_itinerary["error"]})
@@ -96,8 +162,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     elif node_name == "alert":
                         final_itinerary = state_update.get("final_itinerary", {})
                         await websocket.send_json({"event": "ALERT_SCHEDULED", "status": "completed", "data": final_itinerary})
-
-            await websocket.send_json({"event": "DONE", "status": "completed"})
+            else:
+                # Only send DONE if the loop wasn't broken by an interrupt
+                await websocket.send_json({"event": "DONE", "status": "completed"})
             
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")

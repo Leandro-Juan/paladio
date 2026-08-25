@@ -11,6 +11,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 from app.swarm.graph import graph
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="Requires a live local Ollama container running llama3.1")
 async def test_full_trip_generation():
     prompt = "Plan a 2 day trip from London to Oporto with a budget of 500 dollars. I want breakfast, lunch, and dinner each day."
     
@@ -29,7 +30,7 @@ async def test_full_trip_generation():
     }
     
     # Run graph with test_data injected to bypass actual scraping in CI
-    final_state = await graph.ainvoke(initial_state)
+    final_state = await graph.ainvoke(initial_state, config={"configurable": {"thread_id": "test_e2e"}})
     
     assert "final_itinerary" in final_state, "Should generate an itinerary"
     assert "days" in final_state["final_itinerary"]
