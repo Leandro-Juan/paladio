@@ -1,16 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import List
+
 from app.schemas.scraper import Attraction
+
 
 class IPoiRepository(ABC):
     """
     Abstract port for POI persistence.
     Isolates domain logic from database infrastructure.
     """
+
     @abstractmethod
-    async def find_by_city(self, city_name: str) -> List[Attraction]:
+    async def find_by_city(self, city_name: str) -> list[Attraction]:
         pass
 
     @abstractmethod
-    async def save_all_for_city(self, city_name: str, pois: List[Attraction]) -> None:
+    async def save_all_for_city(self, city_name: str, pois: list[Attraction]) -> None:
         pass

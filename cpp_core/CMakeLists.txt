@@ -42,6 +42,7 @@ target_link_options(paladio_core PRIVATE
 add_executable(paladio_tests
   tests/engine_test.cpp
   tests/engine_stress_test.cpp
+  tests/engine_real_data_test.cpp
   src/engine.cpp
 )
 

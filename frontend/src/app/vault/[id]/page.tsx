@@ -3,8 +3,46 @@ import Link from 'next/link';
 import MapLoader from '@/components/MapLoader';
 
 export default function VaultDetailPage({ params }: { params: { id: string } }) {
-  // To be fetched based on params.id
-  const tripDetails: any = null;
+  const MOCK_TRIPS: Record<string, any> = {
+    "tokyo-hyper": {
+      id: "tokyo-hyper",
+      destination: "Tokyo Hyper-Optimization",
+      pois: [
+        { name: "Shibuya Crossing", lat: 35.6595, lng: 139.7005 },
+        { name: "Shinjuku Gyoen", lat: 35.6852, lng: 139.7100 },
+        { name: "Meiji Shrine", lat: 35.6764, lng: 139.6993 }
+      ],
+      photos: [
+        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400",
+        "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=400",
+        "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?w=400"
+      ],
+      tickets: [
+        { title: "NRT Express Ticket", subtitle: "2024-05-12 14:00" },
+        { title: "Mori Art Museum", subtitle: "2024-05-14 10:00" }
+      ]
+    },
+    "paris-efficiency": {
+      id: "paris-efficiency",
+      destination: "Paris Efficiency Run",
+      pois: [
+        { name: "Eiffel Tower", lat: 48.8584, lng: 2.2945 },
+        { name: "Louvre Museum", lat: 48.8606, lng: 2.3376 },
+        { name: "Notre Dame", lat: 48.8529, lng: 2.3500 }
+      ],
+      photos: [
+        "https://images.unsplash.com/photo-1502602898657-3e90760020c5?w=400",
+        "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400",
+        "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?w=400"
+      ],
+      tickets: [
+        { title: "CDG RoissyBus", subtitle: "2023-09-21 08:30" },
+        { title: "Louvre Entry Pass", subtitle: "2023-09-22 09:00" }
+      ]
+    }
+  };
+
+  const tripDetails = MOCK_TRIPS[params.id] || null;
 
   return (
     <div>

@@ -1,0 +1,64 @@
+name: Paladio CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  cpp-tests:
+    name: C++ Core Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ libgtest-dev
+      - name: Configure CMake
+        run: cmake -S cpp_core -B cpp_core/build
+      - name: Build C++ Core
+        run: cmake --build cpp_core/build -j $(nproc)
+      - name: Run CTest
+        working-directory: cpp_core/build
+        run: ctest --output-on-failure
+
+  python-tests:
+    name: Python Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+        working-directory: backend
+      - name: Run Pytest
+        run: pytest backend/tests cpp_core/tests --maxfail=5
+
+  frontend-tests:
+    name: Frontend Playwright Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright Browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      - name: Run Component Tests
+        working-directory: frontend
+        run: npm run test:ct
+      - name: Run E2E Tests
+        working-directory: frontend
+        run: npm run test:e2e

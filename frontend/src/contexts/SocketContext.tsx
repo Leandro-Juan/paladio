@@ -1,0 +1,269 @@
+"use client";
+
+import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
+
+export type SocketStatus = 'disconnected' | 'connected' | 'inferencing' | 'error' | 'awaiting_input';
+
+export interface PaladioEvent {
+  event: string;
+  status: string;
+  data?: any;
+}
+
+interface SocketContextProps {
+  status: SocketStatus;
+  logs: string[];
+  itinerary: any;
+  missingFields: string[];
+  sendMessage: (msg: string) => void;
+  sendFeedback: (poi: any, targetScore: number, userId?: string) => void;
+  sendResume: (data: Record<string, string>) => void;
+  clearLogs: () => void;
+  connect: () => void;
+  disconnect: () => void;
+}
+
+export const SocketContext = createContext<SocketContextProps | null>(null);
+
+export function SocketProvider({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<SocketStatus>(() => {
+    if (typeof window !== 'undefined') {
+      const savedStatus = sessionStorage.getItem('paladio_status');
+      if (savedStatus === 'connected' || savedStatus === 'error') return 'disconnected';
+      if (savedStatus) return savedStatus as SocketStatus;
+    }
+    return 'disconnected';
+  });
+
+  const [logs, setLogs] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedStatus = sessionStorage.getItem('paladio_status');
+      if (savedStatus === 'connected' || savedStatus === 'error') {
+         sessionStorage.removeItem('paladio_logs');
+         return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
+      }
+      const saved = sessionStorage.getItem('paladio_logs');
+      if (saved) return JSON.parse(saved);
+    }
+    return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
+  });
+
+  const [itinerary, setItinerary] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const savedStatus = sessionStorage.getItem('paladio_status');
+      if (savedStatus === 'connected' || savedStatus === 'error') return null;
+      const saved = sessionStorage.getItem('paladio_itinerary');
+      if (saved) return JSON.parse(saved);
+    }
+    return null;
+  });
+
+  const [missingFields, setMissingFields] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedStatus = sessionStorage.getItem('paladio_status');
+      if (savedStatus === 'connected' || savedStatus === 'error') return [];
+      const saved = sessionStorage.getItem('paladio_missing');
+      if (saved) return JSON.parse(saved);
+    }
+    return [];
+  });
+  
+  const wsRef = useRef<WebSocket | null>(null);
+  const threadIdRef = useRef<string>(typeof window !== 'undefined' && sessionStorage.getItem('paladio_thread_id') ? sessionStorage.getItem('paladio_thread_id')! : Math.random().toString(36).substring(2, 15));
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !sessionStorage.getItem('paladio_thread_id')) {
+      sessionStorage.setItem('paladio_thread_id', threadIdRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('paladio_logs', JSON.stringify(logs));
+      sessionStorage.setItem('paladio_status', status);
+      if (itinerary) sessionStorage.setItem('paladio_itinerary', JSON.stringify(itinerary));
+      else sessionStorage.removeItem('paladio_itinerary');
+      
+      if (missingFields.length > 0) sessionStorage.setItem('paladio_missing', JSON.stringify(missingFields));
+      else sessionStorage.removeItem('paladio_missing');
+    }
+  }, [logs, status, itinerary, missingFields]);
+
+  const addLog = useCallback((msg: string) => {
+    setLogs((prev) => {
+       const replayable = [
+         '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.',
+         '> [PLANNER] ITINERARY GENERATED.',
+         '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
+       ];
+       if (replayable.includes(msg) && prev.includes(msg)) {
+           return prev;
+       }
+       return [...prev, msg];
+    });
+  }, []);
+
+  const clearLogs = useCallback(() => {
+    setLogs(['> SYSTEM READY. AWAITING INITIALIZATION.']);
+  }, []);
+
+  const handleEvent = useCallback((payload: PaladioEvent) => {
+    switch (payload.event) {
+      case 'STARTING_INFERENCE':
+        setStatus('inferencing');
+        setItinerary(null);
+        addLog('> [ENGINE] INITIALIZING LANGGRAPH SWARM...');
+        break;
+      case 'ROUTING_INTENT':
+        addLog(`> [ROUTER] INTENT DETECTED: ${payload.data}`);
+        break;
+      case 'RETRIEVING_CONTEXT':
+        addLog(`> [RAG] CONTEXT RETRIEVED (TRUNCATED): ${payload.data}`);
+        break;
+      case 'CLARIFICATION_NEEDED':
+        setStatus('awaiting_input');
+        if (payload.data && payload.data.fields) {
+          setMissingFields(payload.data.fields);
+          addLog(`> [SYSTEM] ${payload.data.message}`);
+        } else {
+          addLog(`> [SYSTEM] CLARIFICATION NEEDED.`);
+        }
+        break;
+      case 'EXTRACTING_CONSTRAINTS':
+        addLog(`> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.`);
+        break;
+      case 'EVALUATING_ROUTES':
+        addLog(`> [PLANNER] ITINERARY GENERATED.`);
+        setItinerary(payload.data);
+        break;
+      case 'FEEDBACK_PROCESSED':
+        addLog(`> [MODEL] JAX EMBEDDINGS UPDATED FROM FEEDBACK.`);
+        break;
+      case 'ERROR':
+        setStatus('error');
+        addLog(`> [CRITICAL ERROR] ${payload.status}`);
+        break;
+      case 'DONE':
+        setStatus('connected');
+        addLog('> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.');
+        break;
+      default:
+        addLog(`> [TELEMETRY] ${payload.event}: ${payload.status}`);
+    }
+  }, [addLog]);
+
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const wsUrl = `${protocol}//${host}:8000/api/v1/ws/stream`;
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'connected');
+      addLog('> [NETWORK] UPLINK ESTABLISHED WITH PALADIO GATEWAY.');
+      
+      ws.send(JSON.stringify({
+        action: 'attach',
+        thread_id: threadIdRef.current
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const payload: PaladioEvent = JSON.parse(event.data);
+        handleEvent(payload);
+      } catch (err) {
+        addLog(`> [ERROR] FAILED TO PARSE INCOMING TELEMETRY.`);
+      }
+    };
+
+    ws.onclose = (event) => {
+      setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'disconnected');
+      if (event.code !== 1000) {
+        addLog(`> [NETWORK] UPLINK LOST. (CODE: ${event.code})`);
+      }
+    };
+
+    ws.onerror = () => {
+      setStatus('error');
+      addLog('> [ERROR] WEBSOCKET CONNECTION FAILED.');
+    };
+  }, [addLog, handleEvent]);
+
+  const disconnect = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close(1000);
+      wsRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
+
+  const sendMessage = useCallback((message: string) => {
+    addLog(`> [USER] ${message}`);
+
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      addLog('> [ERROR] CANNOT SEND. UPLINK OFFLINE.');
+      return;
+    }
+    
+    const payload = {
+      action: 'chat',
+      message,
+      thread_id: threadIdRef.current
+    };
+    wsRef.current.send(JSON.stringify(payload));
+  }, [addLog]);
+
+  const sendFeedback = useCallback((poi: any, targetScore: number, userId: string = 'default_user') => {
+    addLog(`> [USER] TUNING MODEL... ADJUSTING AFFINITY FOR: ${poi.name || 'POI'}`);
+    
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      addLog('> [ERROR] CANNOT SEND FEEDBACK. UPLINK OFFLINE.');
+      return;
+    }
+    
+    const payload = {
+      action: 'feedback',
+      poi,
+      target_score: targetScore,
+      user_id: userId,
+      thread_id: threadIdRef.current
+    };
+    wsRef.current.send(JSON.stringify(payload));
+  }, [addLog]);
+
+  const sendResume = useCallback((data: Record<string, string>) => {
+    addLog(`> [USER] SUBMITTING REQUIRED FIELDS...`);
+    
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      addLog('> [ERROR] CANNOT RESUME. UPLINK OFFLINE.');
+      return;
+    }
+    
+    setStatus('inferencing');
+    setMissingFields([]);
+    
+    const payload = {
+      action: 'resume',
+      message: JSON.stringify(data),
+      thread_id: threadIdRef.current
+    };
+    wsRef.current.send(JSON.stringify(payload));
+  }, [addLog]);
+
+  return (
+    <SocketContext.Provider value={{
+      status, logs, itinerary, missingFields, sendMessage, sendFeedback, sendResume, clearLogs, connect, disconnect
+    }}>
+      {children}
+    </SocketContext.Provider>
+  );
+}

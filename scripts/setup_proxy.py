@@ -1,10 +1,12 @@
 import requests
-import json
-import os
+
 
 def main():
     token = "teeosbwqq39sbexhek8etoj56v0c2ttoemx5yz1z"
-    res = requests.get("https://proxy.webshare.io/api/v2/proxy/list/?mode=direct", headers={"Authorization": f"Token {token}"})
+    res = requests.get(
+        "https://proxy.webshare.io/api/v2/proxy/list/?mode=direct",
+        headers={"Authorization": f"Token {token}"},
+    )
     try:
         data = res.json()["results"][0]
         url = f"http://{data['username']}:{data['password']}@{data['proxy_address']}:{data['port']}"
@@ -14,6 +16,7 @@ def main():
     except Exception as e:
         print("Error:", e)
         print(res.text)
+
 
 if __name__ == "__main__":
     main()

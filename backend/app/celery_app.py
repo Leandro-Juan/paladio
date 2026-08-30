@@ -1,16 +1,12 @@
 import os
+
 from celery import Celery
 
 # Use the redis service defined in docker-compose.yml
 redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 
 # Initialize the Celery application
-app = Celery(
-    "paladio",
-    broker=redis_url,
-    backend=redis_url,
-    include=["app.tasks"]
-)
+app = Celery("paladio", broker=redis_url, backend=redis_url, include=["app.tasks"])
 
 # Celery Configuration Settings
 app.conf.update(

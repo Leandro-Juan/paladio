@@ -1,7 +1,9 @@
-import pytest
 import asyncio
-from httpx import AsyncClient, ASGITransport
+
+import pytest
 from app.main import app
+from httpx import ASGITransport, AsyncClient
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -10,8 +12,11 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest.fixture
 async def async_client():
     """Fixture to provide an AsyncClient for FastAPI application testing."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client

@@ -1,15 +1,17 @@
-from typing import TypedDict, Annotated, List, Optional
+from typing import Annotated, TypedDict
+
 from langgraph.graph.message import add_messages
-from app.schemas.itinerary import TravelConstraints
+
 
 class SwarmState(TypedDict):
     messages: Annotated[list, add_messages]
-    intent: Optional[str]
-    retrieved_context: Optional[str]
-    validated_itinerary: Optional[dict]
+    retrieved_context: str | None
+    validated_itinerary: dict | None
     error_count: int
-    final_itinerary: Optional[dict]
-    test_data: Optional[dict]
-    pois_data: Optional[list]
-    outbound_flight: Optional[dict]
-    return_flight: Optional[dict]
+    final_itinerary: dict | None
+    test_data: dict | None
+    daily_pois_data: list | None
+    outbound_flight: dict | None
+    return_flight: dict | None
+    booking_text: str | None
+    booking_anchors: dict | None

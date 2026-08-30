@@ -46,7 +46,7 @@ export default function LeafletMap({ pois }: MapProps) {
   const polyline: [number, number][] = pois.map(p => [p.lat, p.lng]);
 
   return (
-    <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%', borderRadius: '4px' }}>
+    <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%', borderRadius: '4px' }} attributionControl={false}>
       {/* Light basemap to fit the new White/Navy theme */}
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

@@ -16,7 +16,6 @@ def get_iata_code(city_name: str) -> str:
         "ras al khaimah": "RKT",
         "sharjah": "SHJ",
         "sir bani yas": "XSB",
-
         # Afghanistan
         "bagram": "OAI",
         "bamiyan": "BIN",
@@ -42,22 +41,17 @@ def get_iata_code(city_name: str) -> str:
         "taloqan": "TQN",
         "tarin kowt": "TII",
         "zaranj": "ZAJ",
-
         # Antigua and Barbuda
         "codrington": "BBQ",
         "st. george": "ANU",
-
         # Anguilla
         "the valley": "AXA",
-
         # Albania
         "kukes": "KFZ",
         "tirana": "TIA",
-
         # Armenia
         "gyumri": "LWN",
         "yerevan": "EVN",
-
         # Angola
         "ambriz": "AZZ",
         "benguela": "BUG",
@@ -92,10 +86,8 @@ def get_iata_code(city_name: str) -> str:
         "uige": "UGO",
         "waco kungo": "CEO",
         "xangongo": "XGN",
-
         # Antarctica
         "isla rey jorge": "TNM",
-
         # Argentina
         "alto rio senguerr": "ARR",
         "bahia blanca": "BHI",
@@ -195,12 +187,10 @@ def get_iata_code(city_name: str) -> str:
         "villa gesell": "VLG",
         "villa reynolds": "VME",
         "zapala": "APZ",
-
         # American Samoa
         "fitiuta village": "FTI",
         "ofu village": "OFU",
         "pago pago": "PPG",
-
         # Austria
         "graz": "GRZ",
         "hohenems / dornbirn": "HOH",
@@ -209,7 +199,6 @@ def get_iata_code(city_name: str) -> str:
         "linz": "LNZ",
         "salzburg": "SZG",
         "vienna": "VIE",
-
         # Australia
         "adelaide": "ADL",
         "airlie beach": "JHQ",
@@ -588,10 +577,8 @@ def get_iata_code(city_name: str) -> str:
         "yorketown": "ORR",
         "young": "NGA",
         "yuendumu": "YUE",
-
         # Aruba
         "oranjestad": "AUA",
-
         # Azerbaijan
         "baku": "GYD",
         "gabala": "GBB",
@@ -601,16 +588,13 @@ def get_iata_code(city_name: str) -> str:
         "yevlakh": "YLV",
         "zangilan": "ZZE",
         "zaqatala": "ZTU",
-
         # Bosnia and Herzegovina
         "banja luka": "BNX",
         "mostar": "OMO",
         "sarajevo": "SJJ",
         "tuzla": "TZL",
-
         # Barbados
         "bridgetown": "BGI",
-
         # Bangladesh
         "barisal": "BZL",
         "chittagong": "CGP",
@@ -625,7 +609,6 @@ def get_iata_code(city_name: str) -> str:
         "shamshernagar": "ZHM",
         "sylhet": "ZYL",
         "thakurgaon": "TKR",
-
         # Belgium
         "antwerp": "ANR",
         "brussels": "CRL",
@@ -635,7 +618,6 @@ def get_iata_code(city_name: str) -> str:
         "ostend": "OST",
         "wevelgem": "KJK",
         "zoersel": "OBL",
-
         # Burkina Faso
         "aribinda": "XAR",
         "arly": "ARL",
@@ -664,7 +646,6 @@ def get_iata_code(city_name: str) -> str:
         "tenkodogo": "TEG",
         "tougan": "TUQ",
         "zabre": "XZA",
-
         # Bulgaria
         "burgas": "BOJ",
         "dolna mitropoliya": "PVN",
@@ -678,15 +659,12 @@ def get_iata_code(city_name: str) -> str:
         "varna": "VAR",
         "vidin": "VID",
         "yambol": "JAM",
-
         # Bahrain
         "manama": "BAH",
-
         # Burundi
         "bujumbura": "BJM",
         "gitega": "GID",
         "kirundo": "KRE",
-
         # Benin
         "cotonou": "COO",
         "djougou": "DJA",
@@ -694,16 +672,11 @@ def get_iata_code(city_name: str) -> str:
         "natitingou": "NAE",
         "parakou": "PKO",
         "save": "SVF",
-
         # Saint Barthélemy
         "gustavia": "SBH",
-
         # Bermuda
-        "hamilton": "BDA",
-
         # Brunei Darussalam
         "bandar seri begawan": "BWN",
-
         # Bolivia, Plurinational State of
         "apolo": "APB",
         "ascension de guarayos": "ASC",
@@ -736,20 +709,16 @@ def get_iata_code(city_name: str) -> str:
         "san matias": "MQK",
         "san ramon / mamore": "SRD",
         "santa ana del yacuma": "SBL",
-        "santa cruz": "VVI",
-        "santa rosa": "SRB",
         "sucre": "SRE",
         "tarija": "TJA",
         "trinidad": "TDD",
         "vallegrande": "VAH",
         "villamontes": "VLM",
         "yacuiba": "BYC",
-
         # Bonaire, Sint Eustatius and Saba
         "kralendijk": "BON",
         "saba": "SAB",
         "sint eustatius": "EUX",
-
         # Brazil
         "agua boa": "GGB",
         "alagoinhas": "QGS",
@@ -837,7 +806,6 @@ def get_iata_code(city_name: str) -> str:
         "coari": "CIZ",
         "colatina": "QCH",
         "conceicao do araguaia": "CDJ",
-        "concordia": "CCI",
         "confresa": "CFO",
         "conselheiro lafaiete": "QDF",
         "cornelio procopio": "CKO",
@@ -997,7 +965,6 @@ def get_iata_code(city_name: str) -> str:
         "rio branco": "RBR",
         "rio claro": "QIQ",
         "rio de janeiro": "SNZ",
-        "rio grande": "RIG",
         "rio verde": "RVD",
         "rondonopolis": "ROO",
         "salinopolis": "OPP",
@@ -1005,7 +972,6 @@ def get_iata_code(city_name: str) -> str:
         "santa cruz do sul": "CSU",
         "santa isabel do rio negro": "IRZ",
         "santa maria": "RIA",
-        "santa rosa": "SRA",
         "santa terezinha": "STZ",
         "santa vitoria do palmar": "CTQ",
         "santana do araguaia": "CMP",
@@ -1068,7 +1034,6 @@ def get_iata_code(city_name: str) -> str:
         "vitória da conquista": "VDC",
         "votuporanga": "VOT",
         "xanxere": "AXE",
-
         # Bahamas
         "andros": "COX",
         "andros island": "SAQ",
@@ -1081,7 +1046,6 @@ def get_iata_code(city_name: str) -> str:
         "deadman's cay": "LGI",
         "duncan town": "DCT",
         "freeport": "FPO",
-        "george town": "GGT",
         "governor's harbour": "GHB",
         "great harbour cay": "GHC",
         "mangrove cay": "MAY",
@@ -1102,12 +1066,10 @@ def get_iata_code(city_name: str) -> str:
         "treasure cay": "TCB",
         "walkers cay": "WKR",
         "west end": "WTD",
-
         # Bhutan
         "gelephu": "GLU",
         "jakar": "BUT",
         "paro": "PBH",
-
         # Botswana
         "francistown": "FRW",
         "gaborone": "GBE",
@@ -1124,7 +1086,6 @@ def get_iata_code(city_name: str) -> str:
         "sowa": "SXN",
         "tshabong": "TBY",
         "tuli lodge": "TLD",
-
         # Belarus
         "brest": "BQT",
         "gomel": "GME",
@@ -1132,11 +1093,9 @@ def get_iata_code(city_name: str) -> str:
         "minsk": "MSQ",
         "mogilev": "MVQ",
         "vitebsk": "VTB",
-
         # Belize
         "belize city": "BZE",
         "dangriga": "DGA",
-
         # Canada
         "108 mile": "ZMH",
         "abbotsford": "YXX",
@@ -1161,7 +1120,6 @@ def get_iata_code(city_name: str) -> str:
         "banff": "YBA",
         "bar river": "YEB",
         "barrie-orillia": "YLK",
-        "bathurst": "ZBF",
         "bearskin lake": "XBE",
         "beaver creek": "YXQ",
         "bella bella": "ZEL",
@@ -1262,7 +1220,6 @@ def get_iata_code(city_name: str) -> str:
         "gander": "YQX",
         "gaspe": "YGP",
         "gatineau": "YND",
-        "geraldton": "YGQ",
         "gillam": "YGX",
         "gimli": "YGM",
         "gjoa haven": "YHK",
@@ -1280,7 +1237,6 @@ def get_iata_code(city_name: str) -> str:
         "haines junction": "YHT",
         "halifax": "YHZ",
         "hall beach": "YUX",
-        "hamilton": "YHM",
         "havre st-pierre": "YGV",
         "hay river": "YHY",
         "hearst": "YHF",
@@ -1477,7 +1433,6 @@ def get_iata_code(city_name: str) -> str:
         "suncor energy site": "YFI",
         "swan river": "ZJN",
         "swift current": "YYN",
-        "sydney": "YQY",
         "tadoule lake": "XTL",
         "taloyoak": "YYH",
         "tasiujaq": "YTQ",
@@ -1529,10 +1484,8 @@ def get_iata_code(city_name: str) -> str:
         "yellowknife": "YZF",
         "york landing": "ZAC",
         "yorkton": "YQV",
-
         # Cocos (Keeling) Islands
         "cocos (keeling) islands": "CCK",
-
         # Congo, The Democratic Republic of the
         "bandundu": "FDU",
         "basankusu": "BSU",
@@ -1594,7 +1547,6 @@ def get_iata_code(city_name: str) -> str:
         "pweto": "PWO",
         "tshikapa": "TSH",
         "yangambi": "YAN",
-
         # Central African Republic
         "bakouma": "BMF",
         "bambari": "BBY",
@@ -1617,7 +1569,6 @@ def get_iata_code(city_name: str) -> str:
         "rafai": "RFA",
         "yalinga": "AIG",
         "zemio": "IMO",
-
         # Congo
         "betou": "BTB",
         "boundji": "BOE",
@@ -1641,7 +1592,6 @@ def get_iata_code(city_name: str) -> str:
         "sibiti": "SIB",
         "souanke": "SOE",
         "zanaga": "ANJ",
-
         # Switzerland
         "altenrhein": "ACH",
         "bale/mulhouse": "MLH",
@@ -1659,7 +1609,6 @@ def get_iata_code(city_name: str) -> str:
         "sion": "SIR",
         "st. moritz": "SMV",
         "zurich": "ZRH",
-
         # Côte d'Ivoire
         "abengourou": "OGO",
         "abidjan": "ABJ",
@@ -1683,7 +1632,6 @@ def get_iata_code(city_name: str) -> str:
         "seguela": "SEO",
         "tabou": "TXU",
         "yamoussoukro": "ASK",
-
         # Cook Islands
         "aitutaki": "AIT",
         "atiu island": "AIU",
@@ -1693,7 +1641,6 @@ def get_iata_code(city_name: str) -> str:
         "mauke island": "MUK",
         "mitiaro island": "MOI",
         "penrhyn island": "PYE",
-
         # Chile
         "alto palena": "WAP",
         "ancud": "ZUD",
@@ -1701,7 +1648,6 @@ def get_iata_code(city_name: str) -> str:
         "arica": "ARI",
         "balmaceda": "BBA",
         "calama": "CJC",
-        "castro": "WCA",
         "cerro sombrero": "SMB",
         "chaiten": "WCH",
         "chanaral": "CNR",
@@ -1744,7 +1690,6 @@ def get_iata_code(city_name: str) -> str:
         "vallenar": "VLR",
         "victoria": "ZIC",
         "vina del mar": "KNA",
-
         # Cameroon
         "bafoussam": "BFX",
         "bali": "BLC",
@@ -1765,7 +1710,6 @@ def get_iata_code(city_name: str) -> str:
         "tiko": "TKC",
         "yagoua": "GXX",
         "yaounde": "NSI",
-
         # China
         "aksu": "AKU",
         "altay": "AAT",
@@ -1995,7 +1939,6 @@ def get_iata_code(city_name: str) -> str:
         "zhoushan": "HSN",
         "zhuhai": "ZUH",
         "zunyi": "ZYI",
-
         # Colombia
         "acandi": "ACD",
         "aguachica": "HAY",
@@ -2094,7 +2037,6 @@ def get_iata_code(city_name: str) -> str:
         "velasquez": "PYA",
         "villa garzon": "VGZ",
         "villavicencio": "VVC",
-
         # Costa Rica
         "brasilito": "FMG",
         "canas": "CSC",
@@ -2121,7 +2063,6 @@ def get_iata_code(city_name: str) -> str:
         "san jose": "SYQ",
         "santa cruz": "TNO",
         "upala": "UPL",
-
         # Cuba
         "baracoa": "BCA",
         "bayamo": "BYM",
@@ -2152,7 +2093,6 @@ def get_iata_code(city_name: str) -> str:
         "santiago": "SCU",
         "trinidad": "TND",
         "varadero": "VRA",
-
         # Cabo Verde
         "brava island": "BVR",
         "espargos": "SID",
@@ -2164,19 +2104,15 @@ def get_iata_code(city_name: str) -> str:
         "sao pedro": "VXE",
         "vila do maio": "MMO",
         "vila do mosteiros": "MTI",
-
         # Curaçao
         "willemstad": "CUR",
-
         # Christmas Island
         "christmas island": "XCH",
-
         # Cyprus
         "akrotiri": "AKT",
         "larnarca": "LCA",
         "nicosia": "ECN",
         "paphos": "PFO",
-
         # Czechia
         "brno": "BRQ",
         "holesov": "GTW",
@@ -2190,7 +2126,6 @@ def get_iata_code(city_name: str) -> str:
         "uherske hradiste": "UHE",
         "vodochoky": "VOD",
         "zabreh": "ZBE",
-
         # Germany
         "aachen": "AAH",
         "altenburg": "AOC",
@@ -2298,14 +2233,12 @@ def get_iata_code(city_name: str) -> str:
         "wilhelmshaven": "WVN",
         "wyk auf fohr": "OHR",
         "zweibrucken": "ZQW",
-
         # Djibouti
         "ali-sabieh": "AII",
         "djibouti city": "JIB",
         "moucha island": "MHI",
         "obock": "OBC",
         "tadjoura": "TDJ",
-
         # Denmark
         "aalborg": "AAL",
         "aarhus": "AAR",
@@ -2323,11 +2256,9 @@ def get_iata_code(city_name: str) -> str:
         "sonderborg": "SGD",
         "thisted": "TED",
         "vojens": "SKS",
-
         # Dominica
         "canefield": "DCF",
         "marigot": "DOM",
-
         # Dominican Republic
         "arroyo barril": "EPS",
         "barahona": "BRX",
@@ -2340,7 +2271,6 @@ def get_iata_code(city_name: str) -> str:
         "samana": "AZS",
         "santiago": "STI",
         "santo domingo": "SDQ",
-
         # Algeria
         "adrar": "AZR",
         "algiers": "ALG",
@@ -2382,7 +2312,6 @@ def get_iata_code(city_name: str) -> str:
         "tindouf": "TIN",
         "tlemcen": "TLM",
         "touggourt": "TGR",
-
         # Ecuador
         "ambato": "ATF",
         "bahia de caraquez": "BHA",
@@ -2412,14 +2341,12 @@ def get_iata_code(city_name: str) -> str:
         "tarapoa": "TPC",
         "tiputini": "TPN",
         "tulcan": "TUA",
-
         # Estonia
         "kardla": "KDL",
         "kuressaare": "URE",
         "parnu": "EPU",
         "tallinn": "TLL",
         "tartu": "TAY",
-
         # Egypt
         "abu simbel": "ABS",
         "alexandria": "HBE",
@@ -2446,18 +2373,15 @@ def get_iata_code(city_name: str) -> str:
         "siwa": "SEW",
         "sohag": "HMB",
         "taba": "TCP",
-
         # Western Sahara
         "dakhla": "VIL",
         "el aaiun": "EUN",
         "smara": "SMW",
-
         # Eritrea
         "asab": "ASA",
         "asmara": "ASM",
         "massawa": "MSW",
         "tessenei": "TES",
-
         # Spain
         "alajero": "GMZ",
         "alava": "VIT",
@@ -2511,7 +2435,6 @@ def get_iata_code(city_name: str) -> str:
         "valladolid": "VLL",
         "vigo": "VGO",
         "zaragoza": "ZAZ",
-
         # Ethiopia
         "addis ababa": "ADD",
         "arba minch": "AMH",
@@ -2553,7 +2476,6 @@ def get_iata_code(city_name: str) -> str:
         "soddu": "SXU",
         "tippi": "TIE",
         "waca": "WAC",
-
         # Finland
         "enontekio": "ENF",
         "forssa": "QVE",
@@ -2588,7 +2510,6 @@ def get_iata_code(city_name: str) -> str:
         "vaasa": "VAA",
         "varkaus / joroinen": "VRK",
         "ylivieska": "YLI",
-
         # Fiji
         "bureta": "LEV",
         "cicia": "ICI",
@@ -2612,20 +2533,16 @@ def get_iata_code(city_name: str) -> str:
         "vunisea": "KDV",
         "wakaya island": "KAY",
         "yasawa island": "YAS",
-
         # Falkland Islands (Malvinas)
         "mount pleasant": "MPN",
         "stanley": "PSY",
-
         # Micronesia, Federated States of
         "okat": "KSA",
         "pohnpei island": "PNI",
         "weno island": "TKK",
         "yap island": "YAP",
-
         # Faroe Islands
         "vagar": "FAE",
-
         # France
         "abbeville (buigny/saint-maclou)": "XAB",
         "agen/la garenne": "AGF",
@@ -2786,7 +2703,6 @@ def get_iata_code(city_name: str) -> str:
         "vichy/charmeil": "VHY",
         "villacoublay/velizy": "VIY",
         "villefranche/tarare": "XVF",
-
         # Gabon
         "akiéni": "AKE",
         "bitam": "BMM",
@@ -2814,7 +2730,6 @@ def get_iata_code(city_name: str) -> str:
         "port gentil": "POG",
         "sette cama": "ZKM",
         "tchibanga": "TCH",
-
         # United Kingdom
         "aberdeen": "ABZ",
         "angelsey": "HLY",
@@ -2918,17 +2833,14 @@ def get_iata_code(city_name: str) -> str:
         "wick": "WIC",
         "yateley": "BBS",
         "yeovil": "YEO",
-
         # Grenada
         "carriacou island": "CRU",
         "saint george's": "GND",
-
         # Georgia
         "batumi": "BUS",
         "kutaisi": "KUT",
         "sukhumi": "SUI",
         "tbilisi": "TBS",
-
         # French Guiana
         "cayenne / rochambeau": "CAY",
         "grand-santi": "GSI",
@@ -2937,21 +2849,17 @@ def get_iata_code(city_name: str) -> str:
         "saint-georges-de-l'oyapock airport": "OXP",
         "saint-laurent-du-maroni": "LDX",
         "saul": "XAU",
-
         # Guernsey
         "saint anne": "ACI",
         "saint peter port": "GCI",
-
         # Ghana
         "accra": "ACC",
         "kumasi": "KMS",
         "sekondi-takoradi": "TKD",
         "sunyani": "NYI",
         "tamale": "TML",
-
         # Gibraltar
         "gibraltar": "GIB",
-
         # Greenland
         "aasiaat": "JEG",
         "ilulissat": "JAV",
@@ -2967,10 +2875,8 @@ def get_iata_code(city_name: str) -> str:
         "thule": "THU",
         "upernavik": "JUV",
         "uummannaq": "JQA",
-
         # Gambia
         "banjul": "BJL",
-
         # Guinea
         "boke": "BKJ",
         "conakry": "CKY",
@@ -2983,7 +2889,6 @@ def get_iata_code(city_name: str) -> str:
         "macenta": "MCA",
         "nzerekore": "NZE",
         "siguiri": "GII",
-
         # Guadeloupe
         "basse terre": "BBR",
         "grand bourg": "GBJ",
@@ -2991,11 +2896,9 @@ def get_iata_code(city_name: str) -> str:
         "les saintes": "LSS",
         "pointe-a-pitre le raizet": "PTP",
         "st-francois": "SFC",
-
         # Equatorial Guinea
         "bata": "BSG",
         "malabo": "SSG",
-
         # Greece
         "agrinion": "AGQ",
         "alexandroupolis": "AXD",
@@ -3041,7 +2944,6 @@ def get_iata_code(city_name: str) -> str:
         "syros island": "JSY",
         "thessaloniki": "SKG",
         "zakynthos island": "ZTH",
-
         # Guatemala
         "carmelita": "CMM",
         "chiquimula": "CIQ",
@@ -3063,15 +2965,12 @@ def get_iata_code(city_name: str) -> str:
         "san benito": "FRS",
         "santa cruz del quiche": "AQB",
         "uaxactun": "UAX",
-
         # Guam
         "andersen": "UAM",
         "hagatna": "GUM",
-
         # Guinea-Bissau
         "bissau": "OXB",
         "bubaque": "BQE",
-
         # Guyana
         "aishalton": "AHL",
         "annai": "NAI",
@@ -3095,10 +2994,8 @@ def get_iata_code(city_name: str) -> str:
         "ogle": "OGL",
         "orinduik": "ORJ",
         "paruma": "PRR",
-
         # Hong Kong
         "hong kong": "HKG",
-
         # Honduras
         "ahuas": "AHS",
         "brus laguna": "BHG",
@@ -3124,7 +3021,6 @@ def get_iata_code(city_name: str) -> str:
         "tela": "TEA",
         "trujillo": "TJI",
         "utila island": "UII",
-
         # Croatia
         "brac island": "BWK",
         "dubrovnik": "DBV",
@@ -3135,7 +3031,6 @@ def get_iata_code(city_name: str) -> str:
         "split": "SPU",
         "zadar": "ZAD",
         "zagreb": "ZAG",
-
         # Haiti
         "cap haitien": "CAP",
         "jacmel": "JAK",
@@ -3143,7 +3038,6 @@ def get_iata_code(city_name: str) -> str:
         "les cayes": "CYA",
         "port-au-prince": "PAP",
         "port-de-paix": "PAX",
-
         # Hungary
         "budapest": "BUD",
         "debrecen": "DEB",
@@ -3153,7 +3047,6 @@ def get_iata_code(city_name: str) -> str:
         "sarmellek": "SOB",
         "szeged": "QZD",
         "taszar": "TZR",
-
         # Indonesia
         "alor island": "ARD",
         "amahai-seram island": "AHI",
@@ -3327,7 +3220,6 @@ def get_iata_code(city_name: str) -> str:
         "wasior-papua island": "WSR",
         "yogyakarta": "YIA",
         "yogyakarta-java island": "JOG",
-
         # Ireland
         "bantry": "BYT",
         "belmullet": "BLY",
@@ -3348,7 +3240,6 @@ def get_iata_code(city_name: str) -> str:
         "sligo": "SXL",
         "waterford": "WAT",
         "wexford": "WEX",
-
         # Israel
         "beersheba": "VTM",
         "beersheva": "BEV",
@@ -3361,10 +3252,8 @@ def get_iata_code(city_name: str) -> str:
         "sapir": "EIY",
         "tel aviv": "SDV",
         "yotvata": "YOT",
-
         # Isle of Man
         "castletown": "IOM",
-
         # India
         "agartala": "IXA",
         "agatti": "AGX",
@@ -3509,10 +3398,8 @@ def get_iata_code(city_name: str) -> str:
         "visakhapatnam": "VTZ",
         "warrangal": "WGC",
         "ziro": "ZER",
-
         # British Indian Ocean Territory
         "diego garcia": "NKW",
-
         # Iraq
         "al habbaniyah": "TQD",
         "arbil": "EBL",
@@ -3525,7 +3412,6 @@ def get_iata_code(city_name: str) -> str:
         "najaf": "NJF",
         "qayyarah": "RQW",
         "sulaymaniyah": "ISU",
-
         # Iran, Islamic Republic of
         "abadan": "ABD",
         "abu musa": "AEU",
@@ -3600,7 +3486,6 @@ def get_iata_code(city_name: str) -> str:
         "zabol": "ACZ",
         "zahedan": "ZAH",
         "zanjan": "JWN",
-
         # Iceland
         "akureyri": "AEY",
         "bakkafjordur": "BJD",
@@ -3639,7 +3524,6 @@ def get_iata_code(city_name: str) -> str:
         "tingeyri": "TEY",
         "vestmannaeyjar": "VEY",
         "vopnafjordur": "VPN",
-
         # Italy
         "albenga": "ALL",
         "alghero": "AHO",
@@ -3707,10 +3591,8 @@ def get_iata_code(city_name: str) -> str:
         "venezia": "VCE",
         "verona": "VRN",
         "vicenza": "VIC",
-
         # Jersey
         "saint helier": "JER",
-
         # Jamaica
         "ken jones": "POT",
         "kingston": "KIN",
@@ -3718,12 +3600,10 @@ def get_iata_code(city_name: str) -> str:
         "negril": "NEG",
         "ocho rios": "OCJ",
         "tinson pen": "KTP",
-
         # Jordan
         "amman": "ADJ",
         "aqaba": "AQJ",
         "mafraq": "OMF",
-
         # Japan
         "aguni": "AGJ",
         "akita": "AXT",
@@ -3819,7 +3699,6 @@ def get_iata_code(city_name: str) -> str:
         "yonago": "YGJ",
         "yonaguni": "OGN",
         "yoron": "RNJ",
-
         # Kenya
         "amboseli national park": "ASV",
         "eldoret": "EDL",
@@ -3851,12 +3730,10 @@ def get_iata_code(city_name: str) -> str:
         "samburu south": "UAS",
         "ukunda": "UKA",
         "wajir": "WJR",
-
         # Kyrgyzstan
         "bishkek": "BSZ",
         "osh": "OSS",
         "tamchy": "IKU",
-
         # Cambodia
         "battambang": "BBM",
         "kampong chhnang": "KZC",
@@ -3867,7 +3744,6 @@ def get_iata_code(city_name: str) -> str:
         "siem reap": "REP",
         "sihanukville": "KOS",
         "stung treng": "TNX",
-
         # Kiribati
         "abaiang": "ABF",
         "abariringa": "CIS",
@@ -3889,22 +3765,18 @@ def get_iata_code(city_name: str) -> str:
         "tabuaeran island": "TNV",
         "tamana island": "TMN",
         "tarawa": "TRW",
-
         # Comoros
         "fomboni": "NWA",
         "moroni": "YVA",
         "ouani": "AJN",
-
         # Saint Kitts and Nevis
         "basseterre": "SKB",
         "charlestown": "NEV",
-
         # Korea, Democratic People's Republic of
         "chongjin": "RGO",
         "hamhung": "DSO",
         "pyongyang": "FNJ",
         "samjiyon": "YJS",
-
         # Korea, Republic of
         "busan": "PUS",
         "cheongju": "CJJ",
@@ -3930,19 +3802,15 @@ def get_iata_code(city_name: str) -> str:
         "wonju": "WJU",
         "yecheon": "YEC",
         "yeosu": "RSU",
-
         # KS
         "prishtina": "PRN",
-
         # Kuwait
         "ahmed al jaber ab": "XIJ",
         "kuwait city": "KWI",
-
         # Cayman Islands
         "cayman brac": "CYB",
         "georgetown": "GCM",
         "little cayman": "LYB",
-
         # Kazakhstan
         "aima ata": "BXJ",
         "aktau": "SCO",
@@ -3969,7 +3837,6 @@ def get_iata_code(city_name: str) -> str:
         "usharal": "USJ",
         "ust kamenogorsk": "UKK",
         "zhezkazgan": "DZN",
-
         # Lao People's Democratic Republic
         "attopeu": "AOU",
         "ban houayxay": "OUI",
@@ -3985,15 +3852,12 @@ def get_iata_code(city_name: str) -> str:
         "thakhek": "THK",
         "vientiane": "VTE",
         "xieng khouang": "XKH",
-
         # Lebanon
         "beirut": "BEY",
         "tripoli": "KYE",
-
         # Saint Lucia
         "castries": "SLU",
         "vieux fort": "UVF",
-
         # Sri Lanka
         "ampara": "ADP",
         "anuradhapura": "ACJ",
@@ -4007,7 +3871,6 @@ def get_iata_code(city_name: str) -> str:
         "sigiriya": "GIU",
         "trincomalee": "TRR",
         "weerawila": "WRZ",
-
         # Liberia
         "buchanan": "UCN",
         "greenville": "SNI",
@@ -4017,7 +3880,6 @@ def get_iata_code(city_name: str) -> str:
         "sasstown": "SAZ",
         "tchien": "THC",
         "voinjama": "VOI",
-
         # Lesotho
         "lebakeng": "LEF",
         "leribe": "LRB",
@@ -4036,7 +3898,6 @@ def get_iata_code(city_name: str) -> str:
         "seshutes": "SHZ",
         "thaba-tseka": "THB",
         "tlokoeng": "TKO",
-
         # Lithuania
         "barysiai": "HLJ",
         "kaunas": "KUN",
@@ -4045,16 +3906,13 @@ def get_iata_code(city_name: str) -> str:
         "panevezys": "PNV",
         "siauliai": "SQQ",
         "vilnius": "VNO",
-
         # Luxembourg
         "luxembourg": "LUX",
-
         # Latvia
         "daugavpils": "DGP",
         "liepaja": "LPX",
         "riga": "RIX",
         "ventspils": "VNT",
-
         # Libya
         "al bayda'": "LAQ",
         "benghazi": "BEN",
@@ -4069,7 +3927,6 @@ def get_iata_code(city_name: str) -> str:
         "tobruk": "TOB",
         "tripoli": "TIP",
         "zuwara": "WAX",
-
         # Morocco
         "agadir": "AGA",
         "al hoceima": "AHU",
@@ -4093,19 +3950,15 @@ def get_iata_code(city_name: str) -> str:
         "tangier": "TNG",
         "tetouan": "TTU",
         "zagora": "OZG",
-
         # Moldova, Republic of
         "chisinau": "RMO",
         "strymba": "BZY",
-
         # Montenegro
         "berane": "IVG",
         "podgorica": "TGD",
         "tivat": "TIV",
-
         # Saint Martin (French part)
         "grand case": "SFG",
-
         # Madagascar
         "ambanja": "IVA",
         "ambatondrazaka": "WAM",
@@ -4163,18 +4016,15 @@ def get_iata_code(city_name: str) -> str:
         "vangaindrano": "VND",
         "vatomandry": "VAT",
         "vohemar": "VOH",
-
         # Marshall Islands
         "eniwetok atoll": "ENT",
         "kwajalein": "KWA",
         "majuro atoll": "MAJ",
         "mili island": "MIJ",
         "ujae atoll": "UJE",
-
         # North Macedonia
         "ohrid": "OHD",
         "skopje": "SKP",
-
         # Mali
         "gao": "GAQ",
         "goundam": "GUD",
@@ -4188,7 +4038,6 @@ def get_iata_code(city_name: str) -> str:
         "sikasso": "KSS",
         "timbuktu": "TOM",
         "yelimane": "EYL",
-
         # Myanmar
         "aeng": "VBA",
         "banmaw": "BMO",
@@ -4233,7 +4082,6 @@ def get_iata_code(city_name: str) -> str:
         "tilin": "TIO",
         "yangon": "RGN",
         "ye": "XYE",
-
         # Mongolia
         "altai": "LTI",
         "arvaikheer": "AVK",
@@ -4252,18 +4100,14 @@ def get_iata_code(city_name: str) -> str:
         "ulaangom": "ULO",
         "ulan bator": "ULN",
         "umnugobitour": "UGT",
-
         # Macao
         "taipa": "MFM",
-
         # Northern Mariana Islands
         "rota island": "ROP",
         "saipan island": "SPN",
         "tinian island": "TIQ",
-
         # Martinique
         "fort-de-france": "FDF",
-
         # Mauritania
         "aioun el atrouss": "AEO",
         "akjoujt": "AJJ",
@@ -4283,17 +4127,13 @@ def get_iata_code(city_name: str) -> str:
         "tidjikja": "TIY",
         "timbedra": "TMD",
         "zouerate": "OUZ",
-
         # Montserrat
         "gerald's park": "MNI",
-
         # Malta
         "luqa": "MLA",
-
         # Mauritius
         "port louis": "MRU",
         "port mathurin": "RRG",
-
         # Maldives
         "funadhoo": "FND",
         "fuvahmulah island": "FVM",
@@ -4312,7 +4152,6 @@ def get_iata_code(city_name: str) -> str:
         "male": "MLE",
         "naifaru": "LMV",
         "thimarafushi": "TMF",
-
         # Malawi
         "blantyre": "BLZ",
         "chelinda": "CEH",
@@ -4326,7 +4165,6 @@ def get_iata_code(city_name: str) -> str:
         "monkey bay": "MYZ",
         "mzuzu": "ZZU",
         "salima": "LMB",
-
         # Mexico
         "acapulco": "ACA",
         "aguascalientes": "AGU",
@@ -4415,7 +4253,6 @@ def get_iata_code(city_name: str) -> str:
         "zacatecas": "ZCL",
         "zamora": "ZMM",
         "zapotiltic": "WIX",
-
         # Malaysia
         "alor satar": "AOR",
         "bakalalan": "BKM",
@@ -4473,7 +4310,6 @@ def get_iata_code(city_name: str) -> str:
         "tawau": "TWU",
         "telupid": "TEL",
         "tomanggong": "TMG",
-
         # Mozambique
         "angoche": "ANO",
         "beira": "BEW",
@@ -4494,7 +4330,6 @@ def get_iata_code(city_name: str) -> str:
         "tete": "TET",
         "vilanculo": "VNX",
         "xai-xai": "VJB",
-
         # Namibia
         "arandis": "ADI",
         "gobabis": "GOG",
@@ -4517,7 +4352,6 @@ def get_iata_code(city_name: str) -> str:
         "tsumeb": "TSB",
         "walvis bay": "WVB",
         "windhoek": "WDH",
-
         # New Caledonia
         "houailou": "HLU",
         "ile des pins": "ILP",
@@ -4533,7 +4367,6 @@ def get_iata_code(city_name: str) -> str:
         "tiga": "TGJ",
         "touho": "TOU",
         "waala": "BMY",
-
         # Niger
         "agadez": "AJY",
         "arlit": "RLT",
@@ -4541,10 +4374,8 @@ def get_iata_code(city_name: str) -> str:
         "niamey": "NIM",
         "tahoua": "THZ",
         "zinder": "ZND",
-
         # Norfolk Island
         "burnt pine": "NLK",
-
         # Nigeria
         "abuja": "ABV",
         "akure": "AKR",
@@ -4568,7 +4399,6 @@ def get_iata_code(city_name: str) -> str:
         "sokoto": "SKO",
         "yola": "YOL",
         "zaria": "ZAR",
-
         # Nicaragua
         "bluefileds": "BEF",
         "bonanza": "BZA",
@@ -4580,7 +4410,6 @@ def get_iata_code(city_name: str) -> str:
         "san carlos": "NCR",
         "siuna": "SIU",
         "waspam": "WSP",
-
         # Netherlands
         "amsterdam": "AMS",
         "arnhem": "QAR",
@@ -4595,7 +4424,6 @@ def get_iata_code(city_name: str) -> str:
         "maastricht": "MST",
         "rotterdam": "RTM",
         "uden": "UDE",
-
         # Norway
         "alesund": "AES",
         "alstahaug": "SSJ",
@@ -4654,7 +4482,6 @@ def get_iata_code(city_name: str) -> str:
         "trondheim": "TRD",
         "vadso": "VDS",
         "vardo": "VAW",
-
         # Nepal
         "baglung": "BGL",
         "baitadi": "BIT",
@@ -4697,13 +4524,10 @@ def get_iata_code(city_name: str) -> str:
         "taplejung": "TPJ",
         "tikapur": "TPU",
         "tumling tar": "TMI",
-
         # Nauru
         "yaren district": "INU",
-
         # Niue
         "alofi": "IUE",
-
         # New Zealand
         "alexandra": "ALR",
         "ashburton": "ASG",
@@ -4761,7 +4585,6 @@ def get_iata_code(city_name: str) -> str:
         "whakatane": "WHK",
         "whangarei": "WRE",
         "whitianga": "WTZ",
-
         # Oman
         "adam": "AOM",
         "al muladdah": "MNH",
@@ -4777,7 +4600,6 @@ def get_iata_code(city_name: str) -> str:
         "sohar": "OHS",
         "sur": "SUH",
         "thumrait": "TTH",
-
         # Panama
         "albrook": "PAC",
         "changuinola": "CHX",
@@ -4794,7 +4616,6 @@ def get_iata_code(city_name: str) -> str:
         "santiago": "SYP",
         "tocumen": "PTY",
         "wannukandi": "NBL",
-
         # Peru
         "andahuaylas": "ANS",
         "andoas": "AOP",
@@ -4844,7 +4665,6 @@ def get_iata_code(city_name: str) -> str:
         "tumbes": "TBP",
         "uchiza": "UCZ",
         "yurimaguas": "YMS",
-
         # French Polynesia
         "ahe atoll": "AHE",
         "apataki": "APK",
@@ -4880,7 +4700,6 @@ def get_iata_code(city_name: str) -> str:
         "ua pou": "UAP",
         "uturoa": "RFP",
         "vahitahi": "VHZ",
-
         # Papua New Guinea
         "afore": "AFR",
         "aiome": "AIE",
@@ -4964,7 +4783,6 @@ def get_iata_code(city_name: str) -> str:
         "wewak": "WWK",
         "wonenara": "WOA",
         "yellow river mission": "XYR",
-
         # Philippines
         "angeles city": "CRK",
         "bacolod city": "BCD",
@@ -5028,7 +4846,6 @@ def get_iata_code(city_name: str) -> str:
         "tuguegarao city": "TUG",
         "virac": "VRC",
         "zamboanga city": "ZAM",
-
         # Pakistan
         "abbottabad": "AAW",
         "badin": "BDN",
@@ -5086,7 +4903,6 @@ def get_iata_code(city_name: str) -> str:
         "tarbela": "TLB",
         "turbat": "TUK",
         "waana": "WAF",
-
         # Poland
         "babimost": "IEG",
         "biala podlaska": "BXP",
@@ -5112,11 +4928,9 @@ def get_iata_code(city_name: str) -> str:
         "szymany": "SZY",
         "warsaw": "WAW",
         "wroclaw": "WRO",
-
         # Saint Pierre and Miquelon
         "miquelon": "MQC",
         "saint-pierre": "FSP",
-
         # Puerto Rico
         "aguadilla": "BQN",
         "arecibo": "ARE",
@@ -5127,7 +4941,6 @@ def get_iata_code(city_name: str) -> str:
         "ponce": "PSE",
         "san juan": "SJU",
         "vieques island": "VQS",
-
         # Portugal
         "alverca": "AVR",
         "beja": "BYJ",
@@ -5154,10 +4967,8 @@ def get_iata_code(city_name: str) -> str:
         "vila do porto": "SMA",
         "vila real": "VRL",
         "viseu": "VSE",
-
         # Palau
         "babelthuap island": "ROR",
-
         # Paraguay
         "asuncion": "ASU",
         "ayolas": "AYO",
@@ -5170,15 +4981,12 @@ def get_iata_code(city_name: str) -> str:
         "mariscal estigarribia": "ESG",
         "pedro juan caballero": "PJC",
         "pilar": "PIL",
-
         # Qatar
         "ar rayyan": "IUD",
         "doha": "DOH",
-
         # Réunion
         "st denis": "RUN",
         "st pierre": "ZSE",
-
         # Romania
         "arad": "ARW",
         "bacau": "BCM",
@@ -5197,7 +5005,6 @@ def get_iata_code(city_name: str) -> str:
         "targu mures": "TGM",
         "timisoara": "TSR",
         "tulcea": "TCE",
-
         # Serbia
         "batajnica": "BJY",
         "belgrad": "BEG",
@@ -5206,7 +5013,6 @@ def get_iata_code(city_name: str) -> str:
         "uzice": "UZC",
         "valjevo": "QWV",
         "zrenjanin": "ZRE",
-
         # Russian Federation
         "abakan": "ABA",
         "achinsk": "ACS",
@@ -5394,14 +5200,12 @@ def get_iata_code(city_name: str) -> str:
         "zhigansk": "ZIX",
         "zhukovsky": "ZIA",
         "zyryanka": "ZKP",
-
         # Rwanda
         "butare": "BTQ",
         "gisenyi": "GYI",
         "kamembe": "KME",
         "kigali": "KGL",
         "ruhengeri": "RHG",
-
         # Saudi Arabia
         "abha": "AHB",
         "ad dammam": "DMM",
@@ -5438,7 +5242,6 @@ def get_iata_code(city_name: str) -> str:
         "wadi al-dawasir": "WAE",
         "yanbu": "YNB",
         "zilfi": "ZUL",
-
         # Solomon Islands
         "anua": "BNY",
         "arona": "RNA",
@@ -5469,7 +5272,6 @@ def get_iata_code(city_name: str) -> str:
         "stirling island": "MNY",
         "suavanao": "VAO",
         "yandina": "XYA",
-
         # Seychelles
         "bird island": "BDI",
         "denis island": "DEI",
@@ -5477,7 +5279,6 @@ def get_iata_code(city_name: str) -> str:
         "fregate island": "FRK",
         "mahe island": "SEZ",
         "praslin island": "PRI",
-
         # Sudan
         "ad damazin": "RSS",
         "al-ubayyid": "EBD",
@@ -5501,7 +5302,6 @@ def get_iata_code(city_name: str) -> str:
         "port sudan": "PZU",
         "wadi halfa": "WHF",
         "zalingei": "ZLX",
-
         # Sweden
         "angelholm": "AGH",
         "arvidsjaur": "AJR",
@@ -5554,20 +5354,16 @@ def get_iata_code(city_name: str) -> str:
         "vaxjo": "VXO",
         "vilhelmina": "VHM",
         "visby": "VBY",
-
         # Singapore
         "seletar": "XSP",
         "singapore": "SIN",
-
         # Saint Helena, Ascension and Tristan da Cunha
         "ascension island": "ASI",
         "saint helena": "HLE",
-
         # Slovenia
         "ljubljana": "LJU",
         "maribor": "MBX",
         "portoroz": "POW",
-
         # Slovakia
         "bratislava": "BTS",
         "kosice": "KSC",
@@ -5577,7 +5373,6 @@ def get_iata_code(city_name: str) -> str:
         "presov": "POV",
         "sliac": "SLD",
         "zilina": "ILZ",
-
         # Sierra Leone
         "bo": "KBS",
         "bonthe": "BTE",
@@ -5586,7 +5381,6 @@ def get_iata_code(city_name: str) -> str:
         "kabala": "KBA",
         "kenema": "KEN",
         "yengema": "WYE",
-
         # Senegal
         "bakel": "BXE",
         "cap skirring": "CSK",
@@ -5602,7 +5396,6 @@ def get_iata_code(city_name: str) -> str:
         "simenti": "SMY",
         "tambacounda": "TUD",
         "ziguinchor": "ZIG",
-
         # Somalia
         "adado": "AAD",
         "alula": "ALU",
@@ -5621,7 +5414,6 @@ def get_iata_code(city_name: str) -> str:
         "mogadishu": "MGQ",
         "obbia": "CMO",
         "scusciuban": "CMS",
-
         # Suriname
         "albina": "ABN",
         "aurora": "LDO",
@@ -5639,24 +5431,19 @@ def get_iata_code(city_name: str) -> str:
         "wageningen airport": "AGI",
         "washabo": "WSO",
         "zandery": "PBM",
-
         # South Sudan
         "juba": "JUB",
         "malakal": "MAK",
         "rumbek": "RBX",
         "wau": "WUU",
-
         # Sao Tome and Principe
         "santo antonio": "PCP",
         "sao tome": "TMS",
-
         # El Salvador
         "san salvador": "ILS",
         "santa clara": "SAL",
-
         # Sint Maarten (Dutch part)
         "saint martin": "SXM",
-
         # Syrian Arab Republic
         "aleppo": "ALP",
         "damascus": "DAM",
@@ -5664,10 +5451,8 @@ def get_iata_code(city_name: str) -> str:
         "kamishly": "KAC",
         "latakia": "LTK",
         "palmyra": "PMS",
-
         # Eswatini
         "manzini": "SHO",
-
         # Turks and Caicos Islands
         "cockburn town": "GDT",
         "middle caicos": "MDS",
@@ -5676,7 +5461,6 @@ def get_iata_code(city_name: str) -> str:
         "providenciales island": "PLS",
         "salt cay": "SLX",
         "south caicos": "XSC",
-
         # Chad
         "abeche": "AEH",
         "am timan": "AMC",
@@ -5693,11 +5477,9 @@ def get_iata_code(city_name: str) -> str:
         "n'djamena": "NDJ",
         "pala": "PLF",
         "sarh": "SRH",
-
         # Togo
         "lome": "LFW",
         "niamtougou": "LRL",
-
         # Thailand
         "ban mak khaen": "BAO",
         "bangkok": "BKK",
@@ -5742,13 +5524,11 @@ def get_iata_code(city_name: str) -> str:
         "udon thani": "UTH",
         "uttaradit": "UTR",
         "yarom": "BTZ",
-
         # Tajikistan
         "dushanbe": "DYU",
         "khudzhand": "LBD",
         "kulyab": "TJU",
         "kurgan-tyube": "KQT",
-
         # Timor-Leste
         "atauro": "AUT",
         "baucau": "BCH",
@@ -5757,7 +5537,6 @@ def get_iata_code(city_name: str) -> str:
         "oecussi-ambeno": "OEC",
         "suai": "UAI",
         "viqueque": "VIQ",
-
         # Turkmenistan
         "ashgabat": "ASB",
         "dashoguz": "TAZ",
@@ -5766,7 +5545,6 @@ def get_iata_code(city_name: str) -> str:
         "krasnovodsk": "KRW",
         "mary": "MYP",
         "turkmenabat": "CRZ",
-
         # Tunisia
         "djerba": "DJE",
         "el borma": "EBM",
@@ -5779,7 +5557,6 @@ def get_iata_code(city_name: str) -> str:
         "tabarka": "TBJ",
         "tozeur": "TOE",
         "tunis": "TUN",
-
         # Tonga
         "angaha": "Niu",
         "eua island": "EUA",
@@ -5787,7 +5564,6 @@ def get_iata_code(city_name: str) -> str:
         "niuatoputapu": "NTT",
         "nuku'alofa": "TBU",
         "vava'u island": "VAV",
-
         # Türkiye
         "adana": "UAB",
         "adiyaman": "ADF",
@@ -5847,14 +5623,11 @@ def get_iata_code(city_name: str) -> str:
         "van": "VAN",
         "yuksekova": "YKO",
         "zonguldak": "ONQ",
-
         # Trinidad and Tobago
         "port of spain": "POS",
         "scarborough": "TAB",
-
         # Tuvalu
         "funafuti": "FUN",
-
         # Taiwan, Province of China
         "beigan island": "MFK",
         "chiayi city": "CYI",
@@ -5875,7 +5648,6 @@ def get_iata_code(city_name: str) -> str:
         "taipei city": "TSA",
         "taitung city": "TTT",
         "wang-an": "WOT",
-
         # Tanzania, United Republic of
         "arusha": "JRO",
         "bukoba": "BKZ",
@@ -5904,7 +5676,6 @@ def get_iata_code(city_name: str) -> str:
         "sumbawanga": "SUT",
         "tabora": "TBO",
         "tanga": "TGT",
-
         # Ukraine
         "berdyansk": "ERD",
         "cherkasy": "CKC",
@@ -5938,7 +5709,6 @@ def get_iata_code(city_name: str) -> str:
         "vinnitsa": "VIN",
         "zaporizhia": "OZH",
         "zhytomyr": "ZTR",
-
         # Uganda
         "arua": "RUA",
         "gulu": "ULU",
@@ -5951,11 +5721,9 @@ def get_iata_code(city_name: str) -> str:
         "pakuba": "PAF",
         "soroti": "SRT",
         "tororo": "TRY",
-
         # United States Minor Outlying Islands
         "sand island": "MDY",
         "wake island": "AWK",
-
         # United States
         "aberdeen": "ABR",
         "aberdeen proving grounds(aberdeen)": "APG",
@@ -7441,7 +7209,6 @@ def get_iata_code(city_name: str) -> str:
         "yuma proving ground(yuma)": "LGF",
         "zanesville": "ZZV",
         "zephyrhills": "ZPH",
-
         # Uruguay
         "artigas": "ATI",
         "colonia": "CYR",
@@ -7455,7 +7222,6 @@ def get_iata_code(city_name: str) -> str:
         "tacuarembo": "TAW",
         "treinta y tres": "TYT",
         "vichadero": "VCH",
-
         # Uzbekistan
         "andijan": "AZN",
         "bukhara": "BHK",
@@ -7472,14 +7238,12 @@ def get_iata_code(city_name: str) -> str:
         "termez": "TMJ",
         "urgench": "UGC",
         "zarafshan": "AFS",
-
         # Saint Vincent and the Grenadines
         "argyle": "SVD",
         "bequia": "BQU",
         "canouan": "CIW",
         "mustique island": "MQS",
         "union island": "UNI",
-
         # Venezuela, Bolivarian Republic of
         "acarigua": "AGV",
         "anaco": "AAO",
@@ -7537,16 +7301,13 @@ def get_iata_code(city_name: str) -> str:
         "valencia": "VLN",
         "valera": "VLV",
         "valle de la pascua": "VDP",
-
         # Virgin Islands, British
         "anegada": "NGD",
         "road town": "EIS",
         "spanish town": "VIJ",
-
         # Virgin Islands, U.S.
         "charlotte amalie": "STT",
         "christiansted": "STX",
-
         # Viet Nam
         "buon ma thuot": "BMV",
         "ca mau city": "CAH",
@@ -7573,7 +7334,6 @@ def get_iata_code(city_name: str) -> str:
         "vinh": "VII",
         "vung tau": "VTG",
         "vân đồn": "VDO",
-
         # Vanuatu
         "ablow": "MTV",
         "ambryn island": "ULB",
@@ -7605,16 +7365,13 @@ def get_iata_code(city_name: str) -> str:
         "tongoa island": "TGH",
         "valesdir": "VLS",
         "walaha": "WLH",
-
         # Wallis and Futuna
         "futuna island": "FUT",
         "wallis island": "WLS",
-
         # Samoa
         "apia": "FGI",
         "asau": "AAU",
         "maota": "MXS",
-
         # Yemen
         "abs": "EAB",
         "aden": "ADE",
@@ -7631,10 +7388,8 @@ def get_iata_code(city_name: str) -> str:
         "sayun": "GXF",
         "socotra islands": "SCT",
         "ta'izz": "TAI",
-
         # Mayotte
         "dzaoudzi": "DZA",
-
         # South Africa
         "aggeneys": "AGZ",
         "alexander bay": "ALJ",
@@ -7714,7 +7469,6 @@ def get_iata_code(city_name: str) -> str:
         "vyrburg": "VRU",
         "welkom": "WEL",
         "welverdiend": "TDT",
-
         # Zambia
         "chipata": "CIP",
         "kalabo": "KLB",
@@ -7737,7 +7491,6 @@ def get_iata_code(city_name: str) -> str:
         "sesheke": "SJQ",
         "solwesi": "SLI",
         "zambezi": "BBZ",
-
         # Zimbabwe
         "bulawayo": "BUQ",
         "chipinge": "CHJ",
@@ -7749,7 +7502,6 @@ def get_iata_code(city_name: str) -> str:
         "masvingo": "MVZ",
         "mutare": "UTA",
         "victoria falls": "VFA",
-
     }
 
     clean_city = city_name.lower().strip()
@@ -7757,5 +7509,8 @@ def get_iata_code(city_name: str) -> str:
         return mapping[clean_city]
 
     from langgraph.types import interrupt
-    iata_input = interrupt(f"I don't know the IATA airport code for {city_name}. Please provide the 3-letter IATA code:")
+
+    iata_input = interrupt(
+        f"I don't know the IATA airport code for {city_name}. Please provide the 3-letter IATA code:"
+    )
     return str(iata_input).upper().strip()

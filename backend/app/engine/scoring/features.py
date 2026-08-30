@@ -1,65 +1,78 @@
-import jax.numpy as jnp
-from typing import Dict, Any
 import hashlib
+from typing import Any
+
+import jax.numpy as jnp
+
 
 class UserStore:
     """
     In-memory mock store for user embeddings.
     In a real app, this would back to Postgres/Redis using pgvector.
     """
+
     def __init__(self):
         self._store = {}
-        
+
     def get_embedding(self, user_id: str) -> jnp.ndarray:
         if user_id not in self._store:
             # Default initialization using a deterministic neutral vector
             # We initialize it with small positive values to avoid dead gradients
             self._store[user_id] = jnp.ones((64,)) * 0.1
         return self._store[user_id]
-        
+
     def save_embedding(self, user_id: str, embedding: jnp.ndarray):
         self._store[user_id] = embedding
+
 
 class PoiEncoder:
     """
     Encodes POI dictionaries into 128D deterministic feature vectors.
     """
+
     @staticmethod
-    def encode(poi: Dict[str, Any]) -> jnp.ndarray:
+    def encode(poi: dict[str, Any]) -> jnp.ndarray:
         # Create a 128D vector
         features = []
-        
+
         # 1. Cost (normalized assuming max ~ 200)
         cost = float(poi.get("cost_eur", 0.0))
         features.append(min(cost / 200.0, 1.0))
-        
+
         # 2. Duration (normalized assuming max ~ 240)
         dur = float(poi.get("duration_mins", 60.0))
         features.append(min(dur / 240.0, 1.0))
-        
+
         # 3. Rating (normalized 0-5 -> 0-1)
         rating = float(poi.get("rating", 3.0))
         features.append(rating / 5.0)
-        
+
         # 4. Category one-hot encoding (simplified)
         cat = poi.get("category", "").upper()
-        cat_map = {"ATTRACTION": 0, "MUSEUM": 1, "LANDMARK": 2, "RESTAURANT": 3, "BAR": 4, "HOTEL": 5, "PARK": 6}
+        cat_map = {
+            "ATTRACTION": 0,
+            "MUSEUM": 1,
+            "LANDMARK": 2,
+            "RESTAURANT": 3,
+            "BAR": 4,
+            "HOTEL": 5,
+            "PARK": 6,
+        }
         cat_idx = cat_map.get(cat, 7)
         for i in range(8):
             features.append(1.0 if i == cat_idx else 0.0)
-            
+
         # Pad the rest with deterministically hashed values of the name to simulate text embeddings
         name = poi.get("name", "Unknown")
         hash_digest = hashlib.md5(name.encode()).digest()
-        
+
         # 16 bytes = 16 values, normalized
         for b in hash_digest:
             features.append(float(b) / 255.0)
-            
+
         # Pad remaining to 128
         while len(features) < 128:
             features.append(0.0)
-            
+
         # Truncate if we went over
         features = features[:128]
         return jnp.array(features)

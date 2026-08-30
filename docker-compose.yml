@@ -92,7 +92,6 @@ services:
       - valhalladata:/custom_files
     environment:
       - serve_rst=True
-      - local_map_url=http://download.geofabrik.de/europe/spain/madrid-latest.osm.pbf
       - use_tiles_ignore_pbf=False
       - force_rebuild=True
       - build_elevation=False

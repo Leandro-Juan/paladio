@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "test:e2e": "PORT=3001 playwright test",
+    "test:ct": "playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -17,6 +18,8 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@playwright/experimental-ct-react": "^1.62.1",
+    "@playwright/test": "^1.62.1",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",

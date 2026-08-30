@@ -7,6 +7,14 @@ interface PreferenceRadarProps {
 }
 
 export default function PreferenceRadar({ data }: PreferenceRadarProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ width: '100%', height: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p className="text-muted font-mono">No data available</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ width: '100%', height: '350px' }}>
       <ResponsiveContainer width="100%" height="100%">

@@ -1,5 +1,5 @@
 import os
-import asyncio
+
 from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 from langchain_postgres.vectorstores import PGVector
@@ -13,7 +13,9 @@ DB_NAME = os.getenv("POSTGRES_DB", "paladio")
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 # psycopg3 URL format for SQLAlchemy
-CONNECTION_STRING = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+CONNECTION_STRING = (
+    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+)
 COLLECTION_NAME = "madrid_pois"
 
 MOCK_POIS = [
@@ -25,7 +27,7 @@ MOCK_POIS = [
         "cost_eur": 150.0,
         "duration_mins": 0,
         "lat": 40.4233,
-        "lon": -3.7122
+        "lon": -3.7122,
     },
     {
         "name": "Hostal Centro Historico",
@@ -34,7 +36,7 @@ MOCK_POIS = [
         "cost_eur": 35.0,
         "duration_mins": 0,
         "lat": 40.4168,
-        "lon": -3.7038
+        "lon": -3.7038,
     },
     # Museums & Attractions
     {
@@ -44,7 +46,7 @@ MOCK_POIS = [
         "cost_eur": 15.0,
         "duration_mins": 180,
         "lat": 40.4138,
-        "lon": -3.6921
+        "lon": -3.6921,
     },
     {
         "name": "Reina Sofia Museum",
@@ -53,7 +55,7 @@ MOCK_POIS = [
         "cost_eur": 12.0,
         "duration_mins": 120,
         "lat": 40.4079,
-        "lon": -3.6946
+        "lon": -3.6946,
     },
     {
         "name": "Thyssen-Bornemisza Museum",
@@ -62,7 +64,7 @@ MOCK_POIS = [
         "cost_eur": 13.0,
         "duration_mins": 120,
         "lat": 40.4161,
-        "lon": -3.6949
+        "lon": -3.6949,
     },
     {
         "name": "Royal Palace of Madrid",
@@ -71,7 +73,7 @@ MOCK_POIS = [
         "cost_eur": 14.0,
         "duration_mins": 120,
         "lat": 40.4180,
-        "lon": -3.7143
+        "lon": -3.7143,
     },
     {
         "name": "Retiro Park",
@@ -80,7 +82,7 @@ MOCK_POIS = [
         "cost_eur": 0.0,
         "duration_mins": 90,
         "lat": 40.4153,
-        "lon": -3.6845
+        "lon": -3.6845,
     },
     {
         "name": "Plaza Mayor",
@@ -89,7 +91,7 @@ MOCK_POIS = [
         "cost_eur": 0.0,
         "duration_mins": 45,
         "lat": 40.4155,
-        "lon": -3.7074
+        "lon": -3.7074,
     },
     {
         "name": "Santiago Bernabéu Stadium",
@@ -98,7 +100,7 @@ MOCK_POIS = [
         "cost_eur": 25.0,
         "duration_mins": 120,
         "lat": 40.4531,
-        "lon": -3.6883
+        "lon": -3.6883,
     },
     {
         "name": "Temple of Debod",
@@ -107,7 +109,7 @@ MOCK_POIS = [
         "cost_eur": 0.0,
         "duration_mins": 45,
         "lat": 40.4240,
-        "lon": -3.7177
+        "lon": -3.7177,
     },
     # Restaurants & Bars
     {
@@ -117,7 +119,7 @@ MOCK_POIS = [
         "cost_eur": 50.0,
         "duration_mins": 90,
         "lat": 40.4143,
-        "lon": -3.7075
+        "lon": -3.7075,
     },
     {
         "name": "Mercado de San Miguel",
@@ -126,16 +128,16 @@ MOCK_POIS = [
         "cost_eur": 25.0,
         "duration_mins": 60,
         "lat": 40.4154,
-        "lon": -3.7090
+        "lon": -3.7090,
     },
     {
         "name": "Chocolatería San Ginés",
         "description": "Famous 24/7 cafe serving traditional Spanish churros and thick hot chocolate since 1894.",
-        "category": "BAR", # Using BAR as a generic quick food/rest stop
+        "category": "BAR",  # Using BAR as a generic quick food/rest stop
         "cost_eur": 8.0,
         "duration_mins": 45,
         "lat": 40.4168,
-        "lon": -3.7067
+        "lon": -3.7067,
     },
     {
         "name": "Taberna La Carmencita",
@@ -144,7 +146,7 @@ MOCK_POIS = [
         "cost_eur": 35.0,
         "duration_mins": 90,
         "lat": 40.4223,
-        "lon": -3.6976
+        "lon": -3.6976,
     },
     {
         "name": "Cervecería Cervantes",
@@ -153,17 +155,17 @@ MOCK_POIS = [
         "cost_eur": 15.0,
         "duration_mins": 45,
         "lat": 40.4145,
-        "lon": -3.6958
+        "lon": -3.6958,
     },
     # Transport Hubs
     {
         "name": "Madrid Barajas Airport (MAD)",
         "description": "The main international airport serving Madrid, located about 12 km from the city center.",
         "category": "AIRPORT",
-        "cost_eur": 0.0, # Cost to be at airport is 0, transit is calculated separately
-        "duration_mins": 120, # Time needed before departure
+        "cost_eur": 0.0,  # Cost to be at airport is 0, transit is calculated separately
+        "duration_mins": 120,  # Time needed before departure
         "lat": 40.4719,
-        "lon": -3.5626
+        "lon": -3.5626,
     },
     {
         "name": "Atocha Railway Station",
@@ -172,26 +174,24 @@ MOCK_POIS = [
         "cost_eur": 0.0,
         "duration_mins": 30,
         "lat": 40.4065,
-        "lon": -3.6896
-    }
+        "lon": -3.6896,
+    },
 ]
+
 
 def main():
     print(f"Connecting to Postgres at {CONNECTION_STRING}")
     print(f"Using Ollama at {OLLAMA_URL}")
-    
-    embeddings = OllamaEmbeddings(
-        model="nomic-embed-text",
-        base_url=OLLAMA_URL
-    )
-    
+
+    embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_URL)
+
     vectorstore = PGVector(
         embeddings=embeddings,
         collection_name=COLLECTION_NAME,
         connection=CONNECTION_STRING,
         use_jsonb=True,
     )
-    
+
     docs = []
     for poi in MOCK_POIS:
         # Create a rich text representation for the embedding to capture intent
@@ -202,26 +202,27 @@ def main():
             f"Cost: {poi['cost_eur']} EUR\n"
             f"Duration: {poi['duration_mins']} minutes"
         )
-        
+
         metadata = {
             "name": poi["name"],
             "category": poi["category"],
             "cost_eur": poi["cost_eur"],
             "duration_mins": poi["duration_mins"],
             "lat": poi["lat"],
-            "lon": poi["lon"]
+            "lon": poi["lon"],
         }
-        
+
         docs.append(Document(page_content=page_content, metadata=metadata))
-    
+
     print(f"Adding {len(docs)} POIs to vectorstore...")
-    
+
     # Optional: Clear existing collection if we want a fresh start
     vectorstore.drop_tables()
     vectorstore.create_tables_if_not_exists()
-    
+
     vectorstore.add_documents(docs)
     print("Successfully seeded POIs!")
+
 
 if __name__ == "__main__":
     main()

@@ -1,49 +1,68 @@
-import urllib.parse
-from datetime import datetime, date
-from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from app.scraper.strategies.base import BaseScraperStrategy, logger
-from app.scraper.exceptions import DOMChangedError
-from app.schemas.scraper import Hotel, Location, Stay, HotelFinancials, Scoring, Booking, Metadata
+from datetime import date
+
+from playwright.async_api import (
+    TimeoutError as PlaywrightTimeoutError,
+)
+from playwright.async_api import (
+    async_playwright,
+)
+
+from app.schemas.scraper import (
+    Booking,
+    Hotel,
+    HotelFinancials,
+    Location,
+    Metadata,
+    Scoring,
+    Stay,
+)
 from app.scraper.amenity_filter import AmenityFilter
+from app.scraper.exceptions import DOMChangedError
+from app.scraper.strategies.base import BaseScraperStrategy, logger
+
 
 class HotelScraperStrategy(BaseScraperStrategy):
     async def scrape(self, url: str) -> dict:
         logger.info(f"Starting hotel scrape for URL: {url}")
-        
+
         async with async_playwright() as p:
             context = await self._init_context(p)
             page = await context.new_page()
-            
+
             try:
                 await self._apply_stealth(page)
                 response = await page.goto(url, wait_until="commit", timeout=60000)
-                
+
                 await page.wait_for_timeout(3000)
                 await page.mouse.move(100, 100)
-                await page.evaluate("if(document.body) window.scrollBy(0, document.body.scrollHeight / 3);")
-                
+                await page.evaluate(
+                    "if(document.body) window.scrollBy(0, document.body.scrollHeight / 3);"
+                )
+
                 if response is None:
                     raise Exception("Page failed to load completely.")
-                
+
                 await self._check_bot_detection(page, url)
-                
+
                 structured_results = []
                 if "booking.com" in url:
                     structured_results = await self._scrape_booking(page, url)
                 elif "agoda.com" in url:
                     structured_results = await self._scrape_agoda(page, url)
                 else:
-                    raise DOMChangedError(f"Hotel strategy for {url} not supported yet.")
-                    
+                    raise DOMChangedError(
+                        f"Hotel strategy for {url} not supported yet."
+                    )
+
                 title = await page.title()
-                
+
                 return {
                     "url": url,
                     "status_code": response.status if response else 0,
                     "title": title,
-                    "extracted_data": structured_results
+                    "extracted_data": structured_results,
                 }
-                
+
             except PlaywrightTimeoutError as exc:
                 logger.error(f"Timeout while scraping {url}: {exc}")
                 raise
@@ -60,8 +79,8 @@ class HotelScraperStrategy(BaseScraperStrategy):
         except PlaywrightTimeoutError as e:
             logger.debug(f"Selector not found or timeout: {e}")
         except Exception as e:
-            logger.debug(f"Unexpected error while waiting for selector: {e}")            
-        page_data = await page.evaluate('''() => {
+            logger.debug(f"Unexpected error while waiting for selector: {e}")
+        page_data = await page.evaluate("""() => {
             const cards = Array.from(document.querySelectorAll('[data-testid="property-card"]'));
             if (cards.length === 0) throw new Error("DOM changed");
             return cards.map(card => {
@@ -85,29 +104,37 @@ class HotelScraperStrategy(BaseScraperStrategy):
                     raw_amenities: amenities
                 };
             });
-        }''')
-        
+        }""")
+
         for idx, item in enumerate(page_data):
-            price_digits = ''.join(filter(str.isdigit, item['price']))
+            price_digits = "".join(filter(str.isdigit, item["price"]))
             price_val = float(price_digits) if price_digits else 0.0
             clean_am = AmenityFilter.clean_amenities(item.get("raw_amenities", []))
-            
-            structured_results.append(Hotel(
-                id=f"BOOKING-{idx}",
-                name=item["name"],
-                location=Location(latitude=0.0, longitude=0.0),
-                stay=Stay(check_in_date=date.today(), check_out_date=date.today(), nights=1),
-                financials=HotelFinancials(total_price=price_val, price_per_night=price_val, currency="EUR"),
-                scoring=Scoring(rating=0.0),
-                amenities=clean_am,
-                booking=Booking(provider_url=url),
-                metadata=Metadata(source="Booking.com")
-            ).model_dump(mode='json'))
+
+            structured_results.append(
+                Hotel(
+                    id=f"BOOKING-{idx}",
+                    name=item["name"],
+                    location=Location(latitude=0.0, longitude=0.0),
+                    stay=Stay(
+                        check_in_date=date.today(),
+                        check_out_date=date.today(),
+                        nights=1,
+                    ),
+                    financials=HotelFinancials(
+                        total_price=price_val, price_per_night=price_val, currency="EUR"
+                    ),
+                    scoring=Scoring(rating=0.0),
+                    amenities=clean_am,
+                    booking=Booking(provider_url=url),
+                    metadata=Metadata(source="Booking.com"),
+                ).model_dump(mode="json")
+            )
         return structured_results
 
     async def _scrape_agoda(self, page, url):
         structured_results = []
-        page_data = await page.evaluate('''() => {
+        page_data = await page.evaluate("""() => {
             const propertyCards = document.querySelectorAll('[data-selenium="hotel-item"]');
             if (propertyCards.length === 0) throw new Error("DOM changed");
             return Array.from(propertyCards).map(card => {
@@ -116,22 +143,30 @@ class HotelScraperStrategy(BaseScraperStrategy):
                 const amenities = Array.from(card.querySelectorAll('.amenity-icon')).map(a => a.innerText);
                 return {name, price, raw_amenities: amenities};
             });
-        }''')
-        
+        }""")
+
         for idx, item in enumerate(page_data):
-            price_digits = ''.join(filter(str.isdigit, item['price']))
+            price_digits = "".join(filter(str.isdigit, item["price"]))
             price_val = float(price_digits) if price_digits else 0.0
             clean_am = AmenityFilter.clean_amenities(item.get("raw_amenities", []))
-            
-            structured_results.append(Hotel(
-                id=f"AGODA-{idx}",
-                name=item["name"],
-                location=Location(latitude=0.0, longitude=0.0),
-                stay=Stay(check_in_date=date.today(), check_out_date=date.today(), nights=1),
-                financials=HotelFinancials(total_price=price_val, price_per_night=price_val, currency="EUR"),
-                scoring=Scoring(rating=0.0),
-                amenities=clean_am,
-                booking=Booking(provider_url=url),
-                metadata=Metadata(source="Agoda")
-            ).model_dump(mode='json'))
+
+            structured_results.append(
+                Hotel(
+                    id=f"AGODA-{idx}",
+                    name=item["name"],
+                    location=Location(latitude=0.0, longitude=0.0),
+                    stay=Stay(
+                        check_in_date=date.today(),
+                        check_out_date=date.today(),
+                        nights=1,
+                    ),
+                    financials=HotelFinancials(
+                        total_price=price_val, price_per_night=price_val, currency="EUR"
+                    ),
+                    scoring=Scoring(rating=0.0),
+                    amenities=clean_am,
+                    booking=Booking(provider_url=url),
+                    metadata=Metadata(source="Agoda"),
+                ).model_dump(mode="json")
+            )
         return structured_results
