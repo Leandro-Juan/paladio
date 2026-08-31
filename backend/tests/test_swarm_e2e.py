@@ -13,8 +13,23 @@ from app.swarm.graph import graph
 from app.infrastructure.providers.travel_data import MockTravelDataProvider
 
 
+import urllib.request
+import urllib.error
+
+
+def is_ollama_running():
+    try:
+        urllib.request.urlopen("http://localhost:11435/", timeout=1)
+        return True
+    except Exception:
+        return False
+
+
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Requires a live local Ollama container running llama3.1")
+@pytest.mark.skipif(
+    not is_ollama_running(),
+    reason="Requires a live local Ollama container running llama3.1 on port 11435",
+)
 async def test_full_trip_generation():
     prompt = "Plan a 2 day trip from London to Oporto with a budget of 500 dollars. I want breakfast, lunch, and dinner each day."
 

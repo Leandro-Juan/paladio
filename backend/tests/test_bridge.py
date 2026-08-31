@@ -1,4 +1,3 @@
-import sys
 from datetime import time
 from unittest.mock import MagicMock
 
@@ -6,35 +5,6 @@ import pytest
 from app.domain.entities.poi import Poi, TransitEdge
 from app.schemas.itinerary import MealRequirement, TravelConstraints
 
-# Mock paladio_core globally for tests if not available
-try:
-    import paladio_core
-except ImportError:
-    mock_paladio_core = MagicMock()
-
-    class MockNodeType:
-        HOTEL = 1
-        ATTRACTION = 2
-        BAR = 3
-        RESTAURANT_LUNCH = 4
-
-    mock_paladio_core.NodeType = MockNodeType
-    mock_paladio_core.OptimizationConfig = MagicMock()
-    mock_paladio_core.POI = MagicMock()
-
-    def mock_optimize_itinerary(pois, durs, costs, config):
-        if len(pois) > 64:
-            raise Exception("Exceeds maximum POIs")
-        result = MagicMock()
-        result.path = [0, 1] if len(pois) > 1 else [0]
-        result.total_score = 100.0
-        result.total_cost = 50.0
-        result.total_time = 120
-        return result
-
-    mock_paladio_core.optimize_itinerary = mock_optimize_itinerary
-
-    sys.modules["paladio_core"] = mock_paladio_core
 
 import paladio_core
 from app.infrastructure.engine.bridge_adapter import (
