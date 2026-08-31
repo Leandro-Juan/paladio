@@ -72,7 +72,9 @@ TODO.txt
 prompt.txt
 important.txt
 scratch/
+celerybeat-schedule*
 
 # Extra
 ROADMAP.md
 skills-lock.json
+docs/NOMENCLATURE.md

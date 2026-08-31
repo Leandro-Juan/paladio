@@ -1,12 +1,7 @@
 import logging
-import os
 from typing import Any
 
 from app.schemas.itinerary import TravelConstraints
-from app.services.poi_service import get_attractions_for_city
-from app.services.travel_data_service import (
-    fetch_restaurants,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +11,14 @@ class FetchTravelContextUseCase:
     Use Case responsible for fetching and formatting all travel context
     (POIs, flights, hotels, restaurants). Extracts data fetching logic from LangGraph nodes.
     """
+
+    def __init__(self, data_provider=None):
+        if data_provider is None:
+            from app.infrastructure.providers.travel_data import LiveTravelDataProvider
+
+            self.data_provider = LiveTravelDataProvider()
+        else:
+            self.data_provider = data_provider
 
     async def execute(
         self, constraints: TravelConstraints, test_data: dict[str, Any] | None = None
@@ -27,22 +30,7 @@ class FetchTravelContextUseCase:
         )
 
         # 1. Fetch POIs
-        if test_data and "pois" in test_data:
-            db_pois = test_data["pois"]
-        else:
-            from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-            from app.infrastructure.providers.overpass_provider import (
-                OverpassProviderAdapter,
-            )
-
-            repo = SqlPoiRepository()
-            provider = OverpassProviderAdapter()
-            db_pois = await get_attractions_for_city(
-                city,
-                poi_repo=repo,
-                poi_provider=provider,
-                mandatory_names=mandatory_names,
-            )
+        db_pois = await self.data_provider.get_pois(city, mandatory_names)
 
         # Determine city center from db_pois for snapping
         center_lat, center_lon = None, None
@@ -74,26 +62,16 @@ class FetchTravelContextUseCase:
                     f"Could not geocode destination city: {city}. Missing data."
                 )
 
-        # --- TEST MODE OVERRIDE ---
-        if os.getenv("TEST_MODE") == "1":
-            logger.info(
-                "TEST_MODE=1 detected. Generating dynamic mocked data for flights, hotels, and restaurants."
-            )
-            from app.utils.mock_generator import generate_dynamic_mock_data
-
-            dynamic_test_data = generate_dynamic_mock_data(
-                city,
-                center_lat,
-                center_lon,
-                constraints.start_date,
-                constraints.end_date,
-            )
-            # Re-fetch from dynamic data so we have a ton of mock items
+        # 2. Extract Anchors & Geocode
+        # Generate mock context if applicable (LiveTravelDataProvider returns empty dict)
+        dynamic_test_data = await self.data_provider.generate_mock_context(
+            city, center_lat, center_lon, constraints.start_date, constraints.end_date
+        )
+        if dynamic_test_data:
             if not test_data:
                 test_data = {}
             test_data.update(dynamic_test_data)
 
-        # 2. Extract Anchors & Geocode
         booking_anchors = constraints.booking_anchors
         hotel_anchor = booking_anchors.hotel if booking_anchors else None
 
@@ -164,7 +142,7 @@ class FetchTravelContextUseCase:
                 logger.warning(f"Failed to geocode airport {iata}: {e}")
 
         # 3. Fetch Restaurants
-        restaurants_data = await fetch_restaurants(city, test_data)
+        restaurants_data = await self.data_provider.get_restaurants(city)
 
         # Apply Spatial-Affinity Clustering to filter POIs
         from app.engine.cluster_selector import ClusterSelector

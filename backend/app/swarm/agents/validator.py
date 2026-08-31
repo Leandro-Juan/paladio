@@ -51,9 +51,7 @@ async def validator_node(state: dict) -> dict:
     LangGraph node wrapper for the Pydantic AI Validator Agent.
     """
     last_msg = state["messages"][-1].content if state.get("messages") else ""
-    retrieved_context = state.get("retrieved_context", "")
-
-    prompt = f"Context: {retrieved_context}\n\nUser Request: {last_msg}"
+    prompt = f"User Request: {last_msg}"
     logger.debug("Calling Pydantic AI Validator Agent...")
 
     try:

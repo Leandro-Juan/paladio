@@ -128,10 +128,22 @@ async def planner_scrape_node(state: SwarmState) -> dict:
         raise RuntimeError("Missing validated itinerary for scraping phase.")
     constraints = TravelConstraints(**constraints_dict)
 
-    use_case = FetchTravelContextUseCase()
+    import os
+    from app.infrastructure.providers.travel_data import (
+        LiveTravelDataProvider,
+        MockTravelDataProvider,
+    )
+
+    test_data = state.get("test_data")
+    if os.getenv("TEST_MODE") == "1" or test_data:
+        provider = MockTravelDataProvider(test_data=test_data)
+    else:
+        provider = LiveTravelDataProvider()
+
+    use_case = FetchTravelContextUseCase(data_provider=provider)
 
     try:
-        context = await use_case.execute(constraints, state.get("test_data"))
+        context = await use_case.execute(constraints, test_data)
         return context
     except Exception as e:
         logger.error(f"Failed to fetch context: {e}")
@@ -172,10 +184,10 @@ def create_swarm():
     workflow.add_node("planner_scrape", planner_scrape_node)
     workflow.add_node("planner_optimize", planner_optimize_node)
 
-    workflow.add_edge(START, "rag")
-    workflow.add_edge("rag", "ticket_parser")
+    workflow.add_edge(START, "ticket_parser")
     workflow.add_edge("ticket_parser", "validator")
-    workflow.add_edge("validator", "check_missing")
+    workflow.add_edge("validator", "rag")
+    workflow.add_edge("rag", "check_missing")
     workflow.add_edge("check_missing", "planner_fetch")
     workflow.add_edge("planner_fetch", "planner_scrape")
     workflow.add_edge("planner_scrape", "planner_optimize")
