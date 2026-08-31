@@ -132,11 +132,15 @@ async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict
     if not provider:
         raise ValueError("travel_data_provider must be provided in the runnable config")
 
+    engine = config["configurable"].get("engine")
+    ml_scorer = engine.ml_scorer if engine else None
+    user_id = config["configurable"].get("user_id", "default_user")
+
     test_data = state.get("test_data")
-    use_case = FetchTravelContextUseCase(data_provider=provider)
+    use_case = FetchTravelContextUseCase(data_provider=provider, ml_scorer=ml_scorer)
 
     try:
-        context = await use_case.execute(constraints, test_data)
+        context = await use_case.execute(constraints, test_data, user_id=user_id)
         return context
     except Exception as e:
         logger.error(f"Failed to fetch context: {e}")

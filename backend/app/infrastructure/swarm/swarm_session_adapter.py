@@ -60,6 +60,7 @@ class SwarmSessionAdapter(ISwarmSession):
                 "engine": self.engine,
                 "thread_id": thread_id,
                 "travel_data_provider": self.travel_data_provider,
+                "user_id": data.get("user_id", "default_user"),
             }
         }
 

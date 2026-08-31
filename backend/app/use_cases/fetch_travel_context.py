@@ -12,7 +12,7 @@ class FetchTravelContextUseCase:
     (POIs, flights, hotels, restaurants). Extracts data fetching logic from LangGraph nodes.
     """
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None, ml_scorer=None):
         if data_provider is None:
             from app.infrastructure.providers.travel_data import LiveTravelDataProvider
 
@@ -20,8 +20,13 @@ class FetchTravelContextUseCase:
         else:
             self.data_provider = data_provider
 
+        self.ml_scorer = ml_scorer
+
     async def execute(
-        self, constraints: TravelConstraints, test_data: dict[str, Any] | None = None
+        self,
+        constraints: TravelConstraints,
+        test_data: dict[str, Any] | None = None,
+        user_id: str = "default_user",
     ) -> dict[str, Any]:
         city = constraints.destination_city
 
@@ -31,6 +36,16 @@ class FetchTravelContextUseCase:
 
         # 1. Fetch POIs
         db_pois = await self.data_provider.get_pois(city, mandatory_names)
+
+        # 1.5 Score POIs with ML Model to provide true user affinity before spatial clustering
+        if self.ml_scorer and db_pois:
+            from app.domain.entities.poi import Poi
+
+            domain_pois = [Poi(**p) for p in db_pois]
+            scored_pois = await self.ml_scorer.score_pois(domain_pois, user_id)
+            # Reattach the ml score into the raw dictionaries for the clustering algorithm
+            for p, sp in zip(db_pois, scored_pois):
+                p["ml_affinity_score"] = sp.score
 
         # Determine city center from db_pois for snapping
         center_lat, center_lon = None, None

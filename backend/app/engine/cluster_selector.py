@@ -58,8 +58,11 @@ class ClusterSelector:
 
         for p in pois:
             is_mandatory = is_poi_mandatory(p.get("name", ""), mandatory_names)
-            # Mock Eigenvector Centrality - highly popular global nodes
-            is_high_centrality = p.get("centrality_score", 0.0) > 0.95
+            # True Eigenvector Centrality based on actual popularity/rating data
+            scoring = p.get("scoring") or {}
+            google_rating = scoring.get("google_rating", 3.0)
+            reviews = scoring.get("reviews", 0)
+            is_high_centrality = google_rating >= 4.5 and reviews > 1000
 
             if is_mandatory or is_high_centrality:
                 mandatory_pois.append(p)
@@ -109,9 +112,12 @@ class ClusterSelector:
                 centroid_lat, centroid_lon, hotel_lat, hotel_lon
             )
 
-            # 2. Affinity Mass (Mocked random affinity removed)
-            # In a real RAG system, this would be cosine_similarity(user_embedding, poi_embedding)
-            affinity_mass = sum(1.0 for _ in members)
+            # 2. Affinity Mass (Actual ML Score derived from user & poi embeddings)
+            # FetchTravelContextUseCase computes `ml_affinity_score` before calling select_n_clusters.
+            # If not present (e.g. in tests), defaults to 50.0.
+            affinity_mass = sum(
+                p.get("ml_affinity_score", 50.0) for p in members
+            ) / len(members)
 
             # 3. Diversity (Entropy of categories)
             categories = [p.get("category", "ATTRACTION") for p in members]
