@@ -29,3 +29,17 @@ class AttractionModel(Base):
 
     # Compound index for common query pattern
     __table_args__ = (Index("idx_city_category", "city", "category"),)
+
+
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, index=True)
+
+    # Store the 64D feature vector representing user preferences
+    embedding = Column(JSONB, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )

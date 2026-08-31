@@ -10,6 +10,7 @@ os.environ.setdefault("VALIDATOR_MODEL", "llama3.1:latest")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from app.swarm.graph import graph
+from app.infrastructure.providers.travel_data import MockTravelDataProvider
 
 
 @pytest.mark.asyncio
@@ -52,8 +53,12 @@ async def test_full_trip_generation():
     }
 
     # Run graph with test_data injected to bypass actual scraping in CI
+    provider = MockTravelDataProvider(test_data=initial_state["test_data"])
     final_state = await graph.ainvoke(
-        initial_state, config={"configurable": {"thread_id": "test_e2e"}}
+        initial_state,
+        config={
+            "configurable": {"thread_id": "test_e2e", "travel_data_provider": provider}
+        },
     )
 
     assert "final_itinerary" in final_state, "Should generate an itinerary"

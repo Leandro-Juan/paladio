@@ -170,11 +170,8 @@ class OptimizeDailyItineraryUseCase:
         start_idx = hotel_idx
         end_idx = hotel_idx
 
-        import asyncio
-
         try:
-            itinerary = await asyncio.to_thread(
-                self.engine.run_optimization,
+            itinerary = await self.engine.run_optimization(
                 constraints=constraints,
                 pois=domain_pois,
                 transit_matrix=domain_matrix,

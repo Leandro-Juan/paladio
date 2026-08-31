@@ -1,14 +1,16 @@
 import jax.numpy as jnp
-from app.engine.scoring.features import PoiEncoder, UserStore
+from app.engine.scoring.features import PoiEncoder
 from app.infrastructure.scoring.jax_ml_model import JaxScoringModel, forward_pass
+from unittest.mock import MagicMock
+from app.domain.entities.poi import Poi
+from app.infrastructure.engine.ml_scorer import MLScorer
+import pytest
 
 
 def test_ml_forward_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()
-    user_store = UserStore()
-    user_id = "test_user"
-    user_emb = user_store.get_embedding(user_id)
+    user_emb = jnp.ones((64,)) * 0.1
 
     poi = {
         "name": "Test Restaurant",
@@ -25,9 +27,7 @@ def test_ml_forward_pass():
 def test_ml_batch_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()
-    user_store = UserStore()
-    user_id = "test_user"
-    user_emb = user_store.get_embedding(user_id)
+    user_emb = jnp.ones((64,)) * 0.1
 
     poi1 = {"name": "Test Restaurant", "category": "RESTAURANT", "cost_eur": 50.0}
     poi2 = {"name": "Test Park", "category": "PARK", "cost_eur": 0.0}
@@ -43,9 +43,7 @@ def test_ml_batch_pass():
 def test_ml_backward_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()
-    user_store = UserStore()
-    user_id = "test_user"
-    user_emb = user_store.get_embedding(user_id)
+    user_emb = jnp.ones((64,)) * 0.1
 
     poi = {"name": "Expensive Sushi", "category": "RESTAURANT", "cost_eur": 250.0}
     poi_emb = PoiEncoder.encode(poi)
@@ -65,20 +63,19 @@ def test_ml_backward_pass():
     assert abs(new_score - target_score) < abs(initial_score - target_score)
 
 
-from unittest.mock import MagicMock
-
-from app.domain.entities.poi import Poi
-from app.infrastructure.engine.ml_scorer import MLScorer
-
-
-def test_ml_scorer_score_pois():
+@pytest.mark.asyncio
+async def test_ml_scorer_score_pois():
     # Arrange
+    from unittest.mock import AsyncMock
+
     ml_model = MagicMock()
     ml_model.batch_score.return_value = [[95.0], [80.0]]
     ml_params = {}
-    user_store = UserStore()
 
-    scorer = MLScorer(ml_model, ml_params, user_store)
+    user_repo = MagicMock()
+    user_repo.get_embedding = AsyncMock(return_value=None)
+
+    scorer = MLScorer(ml_model, ml_params, user_repo)
 
     pois = [
         Poi(city="Rome", name="Colosseum", category="ATTRACTION"),
@@ -86,7 +83,7 @@ def test_ml_scorer_score_pois():
     ]
 
     # Act
-    scored_pois = scorer.score_pois(pois, "test_user")
+    scored_pois = await scorer.score_pois(pois, "test_user")
 
     # Assert
     assert len(scored_pois) == 2

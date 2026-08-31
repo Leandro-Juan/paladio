@@ -21,7 +21,13 @@ def mock_embeddings():
 async def test_reactive_planning_generates_itinerary():
     """Test that reactive intents flow through RAG -> Validator -> Planner."""
     # Arrange
-    config = {"configurable": {"thread_id": "test_2", "engine": MagicMock()}}
+    config = {
+        "configurable": {
+            "thread_id": "test_2",
+            "engine": MagicMock(),
+            "travel_data_provider": MagicMock(),
+        }
+    }
     state = {
         "messages": [
             HumanMessage(

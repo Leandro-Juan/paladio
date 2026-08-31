@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from app.domain.entities.poi import Poi, TransitEdge
-from app.engine.scoring.features import UserStore
 from app.schemas.itinerary import MealRequirement, TravelConstraints
 
 # Mock paladio_core globally for tests if not available
@@ -68,12 +67,16 @@ def mock_constraints():
 @pytest.fixture
 def mock_engine():
     from app.infrastructure.engine.ml_scorer import MLScorer
+    from unittest.mock import AsyncMock
 
     ml_model = MagicMock()
     ml_model.batch_score.return_value = [[50.0] for _ in range(100)]
     ml_params = {}
-    user_store = UserStore()
-    ml_scorer = MLScorer(ml_model, ml_params, user_store)
+
+    user_repo = MagicMock()
+    user_repo.get_embedding = AsyncMock(return_value=None)
+
+    ml_scorer = MLScorer(ml_model, ml_params, user_repo)
     return CppOptimizationAdapter(ml_scorer)
 
 
@@ -82,7 +85,8 @@ def test_map_category_to_node_type():
     assert map_category_to_node_type("UNKNOWN") == paladio_core.NodeType.ATTRACTION
 
 
-def test_bridge_64_pois(mock_constraints, mock_engine):
+@pytest.mark.asyncio
+async def test_bridge_64_pois(mock_constraints, mock_engine):
     """Test aggressive 64 POI translation and execution over the PyBind11 boundary."""
     n = 64
     pois = []
@@ -104,12 +108,13 @@ def test_bridge_64_pois(mock_constraints, mock_engine):
             row.append(TransitEdge(duration_mins=500, cost_eur=500.0))
         transit_matrix.append(row)
 
-    result = mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
+    result = await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
     assert result.path is not None
     assert isinstance(result.path, list)
 
 
-def test_bridge_transit_flattening(mock_constraints, mock_engine):
+@pytest.mark.asyncio
+async def test_bridge_transit_flattening(mock_constraints, mock_engine):
     """Test that matrix flattening correctly maps constraints to C++."""
     pois = [
         Poi(city="Rome", name="H1", category="HOTEL", duration_mins=10),
@@ -135,12 +140,13 @@ def test_bridge_transit_flattening(mock_constraints, mock_engine):
         ],
     ]
 
-    result = mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
+    result = await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
     path = result.path
     assert isinstance(path, list)
 
 
-def test_bridge_exceeds_64_pois(mock_constraints, mock_engine):
+@pytest.mark.asyncio
+async def test_bridge_exceeds_64_pois(mock_constraints, mock_engine):
     """Test boundary condition where exceeding 64 POIs raises an exception."""
     n = 65
     pois = [Poi(city="Rome", name=f"POI {i}", category="ATTRACTION") for i in range(n)]
@@ -149,4 +155,4 @@ def test_bridge_exceeds_64_pois(mock_constraints, mock_engine):
     ]
 
     with pytest.raises(OptimizationError):
-        mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
+        await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)

@@ -7,27 +7,7 @@ import jax.numpy as jnp
 logger = logging.getLogger(__name__)
 
 
-class UserStore:
-    """
-    In-memory mock store for user embeddings.
-    In a real app, this would back to Postgres/Redis using pgvector.
-    """
-
-    def __init__(self):
-        self._store = {}
-
-    def get_embedding(self, user_id: str) -> jnp.ndarray:
-        if user_id not in self._store:
-            logger.warning(
-                f"UserStore: Cold-start for user {user_id}. Initializing empty deterministic embedding."
-            )
-            # Default initialization using a deterministic neutral vector
-            # We initialize it with small positive values to avoid dead gradients
-            self._store[user_id] = jnp.ones((64,)) * 0.1
-        return self._store[user_id]
-
-    def save_embedding(self, user_id: str, embedding: jnp.ndarray):
-        self._store[user_id] = embedding
+# UserStore was removed and replaced by SqlUserRepository in app.adapters.repositories.sql_user_repository
 
 
 class PoiEncoder:

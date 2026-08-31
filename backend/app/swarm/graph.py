@@ -119,7 +119,7 @@ async def planner_fetch_node(state: SwarmState) -> dict:
     return {}
 
 
-async def planner_scrape_node(state: SwarmState) -> dict:
+async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict:
     logger.info(
         "--- [PHASE: PLANNER] Scraping dynamic data (Flights, Hotels, Restaurants) ---"
     )
@@ -128,18 +128,11 @@ async def planner_scrape_node(state: SwarmState) -> dict:
         raise RuntimeError("Missing validated itinerary for scraping phase.")
     constraints = TravelConstraints(**constraints_dict)
 
-    import os
-    from app.infrastructure.providers.travel_data import (
-        LiveTravelDataProvider,
-        MockTravelDataProvider,
-    )
+    provider = config["configurable"].get("travel_data_provider")
+    if not provider:
+        raise ValueError("travel_data_provider must be provided in the runnable config")
 
     test_data = state.get("test_data")
-    if os.getenv("TEST_MODE") == "1" or test_data:
-        provider = MockTravelDataProvider(test_data=test_data)
-    else:
-        provider = LiveTravelDataProvider()
-
     use_case = FetchTravelContextUseCase(data_provider=provider)
 
     try:

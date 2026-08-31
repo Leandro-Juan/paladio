@@ -35,7 +35,7 @@ class CppOptimizationAdapter(IOptimizationEngine):
         self.ml_scorer = ml_scorer
         self.exchange_rate = exchange_rate
 
-    def run_optimization(
+    async def run_optimization(
         self,
         constraints: TravelConstraints,
         pois: list[Poi],
@@ -52,7 +52,7 @@ class CppOptimizationAdapter(IOptimizationEngine):
             raise OptimizationError("C++ optimization engine is not available.")
 
         # 1. ML Scoring
-        scored_pois = self.ml_scorer.score_pois(pois, user_id)
+        scored_pois = await self.ml_scorer.score_pois(pois, user_id)
 
         # 2. Map structures
         cpp_pois = build_cpp_pois(scored_pois, day_start_mins, mandatory_names)
@@ -67,8 +67,12 @@ class CppOptimizationAdapter(IOptimizationEngine):
         )
 
         # 3. Call C++ Engine
+        import asyncio
+
         try:
-            result = paladio_core.optimize_itinerary(cpp_pois, durations, costs, config)
+            result = await asyncio.to_thread(
+                paladio_core.optimize_itinerary, cpp_pois, durations, costs, config
+            )
 
             # 4. Map back to Itinerary Entity
             path_details = []

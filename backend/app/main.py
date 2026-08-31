@@ -6,14 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.trips import router as trips_router
 from app.api.v1.websockets import router as websockets_router
-from app.engine.scoring.features import UserStore
+from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.infrastructure.scoring.jax_ml_model import JaxScoringModel
 from app.swarm.graph import create_swarm
 from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
 from app.infrastructure.engine.ml_scorer import MLScorer
 from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
 from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
+from app.infrastructure.providers.travel_data import (
+    LiveTravelDataProvider,
+    MockTravelDataProvider,
+)
 import httpx
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +32,27 @@ async def lifespan(app: FastAPI):
     # Initialize ML Models in App State to avoid horizontal scaling issues
     app.state.ml_model = JaxScoringModel()
     app.state.ml_params = app.state.ml_model.init_params()
-    app.state.user_store = UserStore()
+    app.state.user_repo = SqlUserRepository()
 
     ml_scorer = MLScorer(
         ml_model=app.state.ml_model,
         ml_params=app.state.ml_params,
-        user_store=app.state.user_store,
+        user_repo=app.state.user_repo,
     )
     engine = CppOptimizationAdapter(ml_scorer=ml_scorer)
+
+    if os.getenv("TEST_MODE") == "1":
+        travel_data_provider = MockTravelDataProvider()
+    else:
+        travel_data_provider = LiveTravelDataProvider()
 
     adapter = SwarmSessionAdapter(
         graph=app.state.graph,
         engine=engine,
         ml_model=app.state.ml_model,
         ml_params=app.state.ml_params,
-        user_store=app.state.user_store,
+        user_repo=app.state.user_repo,
+        travel_data_provider=travel_data_provider,
     )
     app.state.swarm_adapter = adapter
     app.state.swarm_manager = SwarmSessionManager(adapter)

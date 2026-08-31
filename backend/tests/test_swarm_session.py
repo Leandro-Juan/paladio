@@ -18,7 +18,8 @@ async def test_swarm_session_maps_rag_event():
         engine=MagicMock(),
         ml_model=MagicMock(),
         ml_params=MagicMock(),
-        user_store=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
     )
 
     events = []

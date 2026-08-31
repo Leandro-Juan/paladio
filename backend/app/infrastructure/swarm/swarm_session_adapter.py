@@ -10,12 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class SwarmSessionAdapter(ISwarmSession):
-    def __init__(self, graph, engine, ml_model, ml_params, user_store):
+    def __init__(
+        self, graph, engine, ml_model, ml_params, user_repo, travel_data_provider
+    ):
         self.graph = graph
         self.engine = engine
         self.ml_model = ml_model
         self.ml_params = ml_params
-        self.user_store = user_store
+        self.user_repo = user_repo
+        self.travel_data_provider = travel_data_provider
 
     async def process_message(
         self, action: str, data: dict, user_msg: str, thread_id: str
@@ -25,12 +28,19 @@ class SwarmSessionAdapter(ISwarmSession):
             target_score = float(data.get("target_score", 50.0))
             user_id = data.get("user_id", "default_user")
 
+            import jax.numpy as jnp
+
             poi_embedding = PoiEncoder.encode(poi)
-            user_emb = self.user_store.get_embedding(user_id)
+            user_emb_list = await self.user_repo.get_embedding(user_id)
+            if user_emb_list is None:
+                user_emb = jnp.ones((64,)) * 0.1
+            else:
+                user_emb = jnp.array(user_emb_list)
+
             updated_emb = self.ml_model.update_user(
                 self.ml_params, user_emb, poi_embedding, target_score
             )
-            self.user_store.save_embedding(user_id, updated_emb)
+            await self.user_repo.save_embedding(user_id, updated_emb.tolist())
 
             yield {"event": "FEEDBACK_PROCESSED", "status": "completed"}
             return
@@ -45,7 +55,13 @@ class SwarmSessionAdapter(ISwarmSession):
         if "booking_text" in data:
             initial_state["booking_text"] = data["booking_text"]
 
-        config = {"configurable": {"engine": self.engine, "thread_id": thread_id}}
+        config = {
+            "configurable": {
+                "engine": self.engine,
+                "thread_id": thread_id,
+                "travel_data_provider": self.travel_data_provider,
+            }
+        }
 
         if action == "resume":
             # swarm_session_manager passes the resume dictionary in the `data` parameter.

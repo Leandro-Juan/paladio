@@ -23,7 +23,7 @@ def mock_engine():
         "total_time": 120.0,
         "total_score": 100.0,
     }
-    engine.run_optimization.return_value = mock_result
+    engine.run_optimization = AsyncMock(return_value=mock_result)
     return engine
 
 

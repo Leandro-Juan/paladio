@@ -4,6 +4,8 @@ import os
 
 from dotenv import find_dotenv, load_dotenv
 from langchain_core.messages import HumanMessage
+from app.swarm.graph import graph
+from app.infrastructure.providers.travel_data import LiveTravelDataProvider
 
 # Find and load the root .env file automatically
 load_dotenv(find_dotenv(usecwd=True))
@@ -14,8 +16,6 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/paladio"
 )
-
-from app.swarm.graph import graph
 
 
 async def main():
@@ -45,7 +45,12 @@ async def main():
 
     from langgraph.types import Command
 
-    config = {"configurable": {"thread_id": "test-1"}}
+    config = {
+        "configurable": {
+            "thread_id": "test-1",
+            "travel_data_provider": LiveTravelDataProvider(),
+        }
+    }
     input_data = initial_state
 
     try:
