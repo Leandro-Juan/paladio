@@ -16,18 +16,18 @@ export default function ModelPage() {
   return (
     <div>
       <h2 className="font-display">PREFERENCE MODEL</h2>
-      <p className="font-mono text-muted text-sm mt-2">// JAX ML VECTOR EMBEDDINGS</p>
+      <p className="font-mono text-muted text-sm mt-2">{'// JAX ML VECTOR EMBEDDINGS'}</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
         <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h4 className="font-mono text-muted text-sm mb-4">// AFFINITY RADAR</h4>
+          <h4 className="font-mono text-muted text-sm mb-4">{'// AFFINITY RADAR'}</h4>
           
           {/* Always render the radar component so the UI doesn't look broken, just zeroed out */}
           <PreferenceRadar data={telemetryData} />
         </div>
 
         <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: '8px' }}>
-          <h4 className="font-mono text-muted text-sm mb-4">// RAW TELEMETRY</h4>
+          <h4 className="font-mono text-muted text-sm mb-4">{'// RAW TELEMETRY'}</h4>
           
           <div className="font-mono text-sm" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <span className="text-muted">[ WAITING FOR LIVE TELEMETRY UPDATE ]</span>

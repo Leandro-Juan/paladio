@@ -1,7 +1,10 @@
 import hashlib
+import logging
 from typing import Any
 
 import jax.numpy as jnp
+
+logger = logging.getLogger(__name__)
 
 
 class UserStore:
@@ -15,6 +18,9 @@ class UserStore:
 
     def get_embedding(self, user_id: str) -> jnp.ndarray:
         if user_id not in self._store:
+            logger.warning(
+                f"UserStore: Cold-start for user {user_id}. Initializing empty deterministic embedding."
+            )
             # Default initialization using a deterministic neutral vector
             # We initialize it with small positive values to avoid dead gradients
             self._store[user_id] = jnp.ones((64,)) * 0.1

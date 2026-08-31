@@ -46,23 +46,11 @@ def build_cpp_pois(
         earliest = max(poi.open_time_mins, day_start_mins)
         latest = poi.close_time_mins
 
-        is_mandatory = False
-        poi_name_lower = poi.name.lower()
-        if mandatory_names:
-            for m_name in mandatory_names:
-                m_lower = m_name.lower()
-                if m_lower in poi_name_lower or poi_name_lower in m_lower:
-                    is_mandatory = True
-                    break
-                m_words = [
-                    w
-                    for w in m_lower.split()
-                    if len(w) > 3
-                    and w not in ("museum", "the", "del", "de", "la", "el", "of", "and")
-                ]
-                if m_words and any(w in poi_name_lower for w in m_words):
-                    is_mandatory = True
-                    break
+        from app.utils.text import is_poi_mandatory
+
+        is_mandatory = (
+            is_poi_mandatory(poi.name, mandatory_names) if mandatory_names else False
+        )
 
         cpp_poi = paladio_core.POI(
             node_type,
@@ -83,14 +71,6 @@ def build_cpp_pois(
                 cpp_poi.is_lunch_spot = True
             elif "dinner" in name:
                 cpp_poi.is_dinner_spot = True
-            else:
-                name_hash = sum(ord(c) for c in name) % 3
-                if name_hash == 0:
-                    cpp_poi.is_breakfast_spot = True
-                elif name_hash == 1:
-                    cpp_poi.is_lunch_spot = True
-                else:
-                    cpp_poi.is_dinner_spot = True
 
         cpp_pois.append(cpp_poi)
 
@@ -119,6 +99,7 @@ def build_optimization_config(
     day_end_mins: int,
     start_node_index: int | None,
     end_node_index: int | None,
+    exchange_rate: float = 0.92,
 ) -> Any:
     breakfast_deadline = -1
     lunch_deadline = -1
@@ -152,7 +133,7 @@ def build_optimization_config(
     ):
         dinner_deadline = -1
 
-    budget_eur = constraints.budget_usd * 0.92
+    budget_eur = constraints.budget_usd * exchange_rate
 
     config = paladio_core.OptimizationConfig(
         max_budget=budget_eur,

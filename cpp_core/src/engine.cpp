@@ -591,17 +591,17 @@ optimize_itinerary(const std::vector<POI> &pois,
     }
   }
 
-  int min_transit_global = std::numeric_limits<int>::max();
-  for (int u = 0; u < n; ++u) {
-    for (int v = 0; v < n; ++v) {
-      if (u != v) {
-        min_transit_global =
-            std::min(min_transit_global, transit_times[u * n + v].duration);
+  int min_transit_global = 0;
+  if (n > 1) {
+    min_transit_global = std::numeric_limits<int>::max();
+    for (int u = 0; u < n; ++u) {
+      for (int v = 0; v < n; ++v) {
+        if (u != v) {
+          min_transit_global =
+              std::min(min_transit_global, transit_times[u * n + v].duration);
+        }
       }
     }
-  }
-  if (min_transit_global == std::numeric_limits<int>::max()) {
-    min_transit_global = 0;
   }
 
   std::vector<TTBucket> memo(TT_SIZE);

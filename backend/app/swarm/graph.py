@@ -9,20 +9,35 @@ from app.swarm.state import SwarmState
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
+import time
+from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
+from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
+
+_airport_cache = {}
+_CACHE_TTL = 12 * 3600
 
 
 async def get_airport_coordinates(city: str) -> tuple[float, float]:
     """Dynamically geocode the airport coordinates using Nominatim API."""
+    now = time.time()
+    if city in _airport_cache:
+        cached_data, timestamp = _airport_cache[city]
+        if now - timestamp < _CACHE_TTL:
+            return cached_data
+
     try:
         query = f"airport in {city}"
         url = "https://nominatim.openstreetmap.org/search"
         params = {"q": query, "format": "json", "limit": 1}
-        result = await scrape_static(url, params=params)
+        # Nominatim requires a User-Agent to avoid IP bans
+        headers = {"User-Agent": "PaladioOptimizationEngine/1.0 (contact@paladio.app)"}
+        result = await scrape_static(url, params=params, custom_headers=headers)
         data = result.get("data")
         if data and isinstance(data, list) and len(data) > 0:
             lat = float(data[0]["lat"])
             lon = float(data[0]["lon"])
             logger.info(f"Dynamically resolved {city} airport to {lat}, {lon}")
+            _airport_cache[city] = ((lat, lon), now)
             return lat, lon
         else:
             logger.warning(
@@ -113,8 +128,6 @@ async def planner_scrape_node(state: SwarmState) -> dict:
         raise RuntimeError("Missing validated itinerary for scraping phase.")
     constraints = TravelConstraints(**constraints_dict)
 
-    from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
-
     use_case = FetchTravelContextUseCase()
 
     try:
@@ -132,8 +145,6 @@ async def planner_optimize_node(state: SwarmState, config: RunnableConfig) -> di
         raise RuntimeError("Missing validated itinerary for optimization phase.")
 
     constraints = TravelConstraints(**constraints_dict)
-
-    from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 
     engine = config["configurable"].get("engine")
     use_case = OptimizeDailyItineraryUseCase(engine)

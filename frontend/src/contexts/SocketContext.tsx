@@ -7,16 +7,18 @@ export type SocketStatus = 'disconnected' | 'connected' | 'inferencing' | 'error
 export interface PaladioEvent {
   event: string;
   status: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
-interface SocketContextProps {
+import { OptimizationResult, Poi } from '../types/domain';
+
+export interface SocketContextProps {
   status: SocketStatus;
   logs: string[];
-  itinerary: any;
+  itinerary: OptimizationResult | null;
   missingFields: string[];
   sendMessage: (msg: string) => void;
-  sendFeedback: (poi: any, targetScore: number, userId?: string) => void;
+  sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
   sendResume: (data: Record<string, string>) => void;
   clearLogs: () => void;
   connect: () => void;
@@ -43,17 +45,29 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
          return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
       }
       const saved = sessionStorage.getItem('paladio_logs');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // ignore
+        }
+      }
     }
     return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
   });
 
-  const [itinerary, setItinerary] = useState<any>(() => {
+  const [itinerary, setItinerary] = useState<OptimizationResult | null>(() => {
     if (typeof window !== 'undefined') {
       const savedStatus = sessionStorage.getItem('paladio_status');
       if (savedStatus === 'connected' || savedStatus === 'error') return null;
       const saved = sessionStorage.getItem('paladio_itinerary');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // ignore
+        }
+      }
     }
     return null;
   });
@@ -63,13 +77,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       const savedStatus = sessionStorage.getItem('paladio_status');
       if (savedStatus === 'connected' || savedStatus === 'error') return [];
       const saved = sessionStorage.getItem('paladio_missing');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // ignore
+        }
+      }
     }
     return [];
   });
   
   const wsRef = useRef<WebSocket | null>(null);
-  const threadIdRef = useRef<string>(typeof window !== 'undefined' && sessionStorage.getItem('paladio_thread_id') ? sessionStorage.getItem('paladio_thread_id')! : Math.random().toString(36).substring(2, 15));
+  // eslint-disable-next-line react-hooks/purity
+  const threadIdRef = useRef<string>(typeof window !== 'undefined' && sessionStorage.getItem('paladio_thread_id') ? sessionStorage.getItem('paladio_thread_id')! : Date.now().toString(36).substring(2, 15));
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !sessionStorage.getItem('paladio_thread_id')) {
@@ -157,7 +178,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const wsUrl = `${protocol}//${host}:8000/api/v1/ws/stream`;
+    const port = process.env.NEXT_PUBLIC_WS_PORT || '8000';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${host}:${port}/api/v1/ws/stream`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -222,7 +244,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     wsRef.current.send(JSON.stringify(payload));
   }, [addLog]);
 
-  const sendFeedback = useCallback((poi: any, targetScore: number, userId: string = 'default_user') => {
+  const sendFeedback = useCallback((poi: Partial<Poi>, targetScore: number, userId: string = 'default_user') => {
     addLog(`> [USER] TUNING MODEL... ADJUSTING AFFINITY FOR: ${poi.name || 'POI'}`);
     
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {

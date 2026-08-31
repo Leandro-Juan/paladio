@@ -24,17 +24,24 @@ COLLECTION_NAME = "madrid_pois"
 # Initialize vector store
 embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_URL)
 
-try:
-    vectorstore = PGVector(
-        embeddings=embeddings,
-        collection_name=COLLECTION_NAME,
-        connection=CONNECTION_STRING,
-        use_jsonb=True,
-    )
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-except Exception as e:
-    logger.warning(f"Warning: Could not connect to pgvector database: {e}")
-    retriever = None
+_retriever = None
+
+
+def get_retriever():
+    global _retriever
+    if _retriever is not None:
+        return _retriever
+    try:
+        vectorstore = PGVector(
+            embeddings=embeddings,
+            collection_name=COLLECTION_NAME,
+            connection=CONNECTION_STRING,
+            use_jsonb=True,
+        )
+        _retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+    except Exception as e:
+        logger.warning(f"Warning: Could not connect to pgvector database: {e}")
+    return _retriever
 
 
 async def rag_node(state: SwarmState) -> dict:
@@ -45,9 +52,10 @@ async def rag_node(state: SwarmState) -> dict:
     last_msg = state["messages"][-1].content
     logger.debug(f"User query for retrieval: {last_msg}")
 
+    retriever = get_retriever()
     if not retriever:
         logger.warning("No retriever available, skipping context retrieval.")
-        return {"retrieved_context": "No database connection available."}
+        return {"retrieved_context": ""}
 
     try:
         # Astream or ainvoke would be better if async was natively supported nicely
@@ -62,4 +70,4 @@ async def rag_node(state: SwarmState) -> dict:
         return {"retrieved_context": context}
     except Exception as e:
         logger.error(f"Error during retrieval: {e}")
-        return {"retrieved_context": "Error retrieving context."}
+        return {"retrieved_context": ""}

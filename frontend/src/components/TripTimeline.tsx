@@ -1,53 +1,47 @@
 import React from 'react';
 
+import { OptimizationResult, DayOutput, ScheduledPoi } from '../types/domain';
+
 interface TripTimelineProps {
-  itinerary: any;
+  itinerary: OptimizationResult | null;
+}
+
+interface TimelineStop {
+  isDayHeader?: boolean;
+  label?: string;
+  name?: string;
+  time?: string;
+  duration?: string;
 }
 
 export function TripTimeline({ itinerary }: TripTimelineProps) {
-  // Try to normalize the itinerary data into a list of stops.
-  // The actual structure from the backend optimization engine might be complex,
-  // but let's assume it has some array of items or dict of days.
-  let stops: any[] = [];
-  
-  if (itinerary && Array.isArray(itinerary.days)) {
-    itinerary.days.forEach((dayObj: any) => {
-      stops.push({ isDayHeader: true, label: `DAY ${dayObj.day}` });
-      
-      if (dayObj.flight_info) {
-        stops.push({
-          name: `Flight to ${dayObj.flight_info.destination || 'Destination'}`,
-          time: dayObj.flight_info.departure_time || '--:--',
-          duration: 'Flight'
-        });
-      }
-      
-      if (dayObj.itinerary && Array.isArray(dayObj.itinerary.path)) {
-        dayObj.itinerary.path.forEach((scheduledPoi: any) => {
-          stops.push({
-            name: scheduledPoi.poi?.name || "Unknown Waypoint",
-            time: scheduledPoi.scheduled_start || "--:--",
-            duration: scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : ""
-          });
-        });
-      }
-    });
-  } else if (Array.isArray(itinerary)) {
-    stops = itinerary;
-  } else if (typeof itinerary === 'object' && itinerary !== null) {
-    Object.keys(itinerary).forEach(key => {
-      const dayData = itinerary[key];
-      if (Array.isArray(dayData)) {
-        stops.push({ isDayHeader: true, label: key });
-        stops = stops.concat(dayData);
-      }
-    });
-    if (stops.length === 0) {
-      stops = [{ raw: true, data: itinerary }];
-    }
+  if (!itinerary || !itinerary.days || itinerary.days.length === 0) {
+    return <div style={{ padding: '1rem', color: 'var(--color-muted)' }}>No route data available.</div>;
   }
 
-  if (!stops.length) return <div>No route data available.</div>;
+  const stops: TimelineStop[] = [];
+
+  itinerary.days.forEach((dayObj: DayOutput) => {
+    stops.push({ isDayHeader: true, label: `DAY ${dayObj.day}` });
+    
+    if (dayObj.flight_info) {
+      stops.push({
+        name: `Flight to ${dayObj.flight_info.destination_iata || 'Destination'}`,
+        time: dayObj.flight_info.departure_time || '--:--',
+        duration: 'Flight'
+      });
+    }
+    
+    if (dayObj.itinerary && dayObj.itinerary.path) {
+      dayObj.itinerary.path.forEach((scheduledPoi: ScheduledPoi) => {
+        stops.push({
+          name: scheduledPoi.poi?.name || "Unknown Waypoint",
+          time: scheduledPoi.arrival_time || "--:--",
+          duration: scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : ""
+        });
+      });
+    }
+  });
 
   return (
     <div style={{ padding: '1rem' }}>
@@ -69,8 +63,8 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
         }
 
         // Render a waypoint node
-        const name = stop.name || stop.poi_name || stop.id || "Unknown Waypoint";
-        const time = stop.arrival_time || stop.time || "--:--";
+        const name = stop.name || "Unknown Waypoint";
+        const time = stop.time || "--:--";
         const duration = stop.duration || "";
         
         return (

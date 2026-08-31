@@ -54,23 +54,10 @@ class ClusterSelector:
         mandatory_pois = []
         regular_pois = []
 
+        from app.utils.text import is_poi_mandatory
+
         for p in pois:
-            name_lower = p.get("name", "").lower()
-            is_mandatory = False
-            for mn in mandatory_names:
-                mn_lower = mn.lower()
-                if mn_lower in name_lower or name_lower in mn_lower:
-                    is_mandatory = True
-                    break
-                m_words = [
-                    w
-                    for w in mn_lower.split()
-                    if len(w) > 3
-                    and w not in ("museum", "the", "del", "de", "la", "el", "of", "and")
-                ]
-                if m_words and any(w in name_lower for w in m_words):
-                    is_mandatory = True
-                    break
+            is_mandatory = is_poi_mandatory(p.get("name", ""), mandatory_names)
             # Mock Eigenvector Centrality - highly popular global nodes
             is_high_centrality = p.get("centrality_score", 0.0) > 0.95
 
@@ -122,9 +109,9 @@ class ClusterSelector:
                 centroid_lat, centroid_lon, hotel_lat, hotel_lon
             )
 
-            # 2. Affinity Mass (Mocked: random affinity score for each POI for now)
+            # 2. Affinity Mass (Mocked random affinity removed)
             # In a real RAG system, this would be cosine_similarity(user_embedding, poi_embedding)
-            affinity_mass = sum(np.random.uniform(0.5, 1.0) for _ in members)
+            affinity_mass = sum(1.0 for _ in members)
 
             # 3. Diversity (Entropy of categories)
             categories = [p.get("category", "ATTRACTION") for p in members]

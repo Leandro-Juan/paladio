@@ -14,10 +14,25 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
+    import asyncio
+
     if hasattr(websocket.app.state, "mock_swarm_session"):
         session = websocket.app.state.mock_swarm_session
     else:
         session = websocket.app.state.swarm_manager
+
+    outbound_queue = asyncio.Queue()
+
+    async def writer_task():
+        try:
+            while True:
+                msg = await outbound_queue.get()
+                await websocket.send_json(msg)
+                outbound_queue.task_done()
+        except Exception as e:
+            logger.debug(f"Writer task closed: {e}")
+
+    writer = asyncio.create_task(writer_task())
 
     try:
         while True:
@@ -40,11 +55,9 @@ async def websocket_endpoint(websocket: WebSocket):
             async def stream_task(act, d, msg, tid):
                 try:
                     async for event in session.process_message(act, d, msg, tid):
-                        await websocket.send_json(event)
+                        await outbound_queue.put(event)
                 except Exception as e:
                     logger.error(f"Stream error: {e}")
-
-            import asyncio
 
             asyncio.create_task(stream_task(action, data, user_msg, thread_id))
 
@@ -52,16 +65,19 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info("WebSocket client disconnected")
     except OptimizationError as e:
         logger.error(f"Optimization error: {e}")
-        await websocket.send_json({"event": "ERROR", "status": str(e)})
-        await websocket.close(code=1011, reason=str(e))
+        await outbound_queue.put({"event": "ERROR", "status": str(e)})
+        try:
+            await websocket.close(code=1011, reason=str(e))
+        except Exception:
+            pass
     except Exception as e:
         logger.error(f"Internal server error: {e}", exc_info=True)
         error_msg = str(e)
-        if len(error_msg.encode("utf-8")) > 123:
-            error_msg = (
-                error_msg.encode("utf-8")[:120].decode("utf-8", "ignore") + "..."
-            )
+        if len(error_msg) > 120:
+            error_msg = error_msg[:117] + "..."
         try:
             await websocket.close(code=1011, reason=error_msg)
         except Exception:
             pass
+    finally:
+        writer.cancel()

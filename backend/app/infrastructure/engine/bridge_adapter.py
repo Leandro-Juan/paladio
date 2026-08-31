@@ -31,8 +31,9 @@ class CppOptimizationAdapter(IOptimizationEngine):
     Implements IOptimizationEngine interface.
     """
 
-    def __init__(self, ml_scorer: MLScorer):
+    def __init__(self, ml_scorer: MLScorer, exchange_rate: float = 0.92):
         self.ml_scorer = ml_scorer
+        self.exchange_rate = exchange_rate
 
     def run_optimization(
         self,
@@ -57,7 +58,12 @@ class CppOptimizationAdapter(IOptimizationEngine):
         cpp_pois = build_cpp_pois(scored_pois, day_start_mins, mandatory_names)
         durations, costs = flatten_transit_matrix(transit_matrix)
         config = build_optimization_config(
-            constraints, day_start_mins, day_end_mins, start_node_index, end_node_index
+            constraints,
+            day_start_mins,
+            day_end_mins,
+            start_node_index,
+            end_node_index,
+            self.exchange_rate,
         )
 
         # 3. Call C++ Engine

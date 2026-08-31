@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class SwarmSessionManager:
     """
     Manages background execution of a SINGLE global LangGraph swarm to ensure it survives WebSocket disconnects.
-    If the flow stops and the user reloads, the state is discarded.
+    In this single-user architecture, it holds a single active task and queue.
     """
 
     def __init__(self, session_adapter):
@@ -43,14 +43,15 @@ class SwarmSessionManager:
             except Exception as e:
                 logger.error(f"Error recovering state: {e}")
 
-            if self.active_task and not self.active_task.done():
+            if self.active_task and not self.active_task.done() and self.active_queue:
                 yield {
                     "event": "STARTING_INFERENCE",
                     "status": "Reattaching to active planning flow...",
                 }
+                queue_ref = self.active_queue
                 try:
                     while True:
-                        event = await self.active_queue.get()
+                        event = await queue_ref.get()
                         yield event
                         if event.get("event") in [
                             "DONE",
@@ -69,15 +70,15 @@ class SwarmSessionManager:
 
             self.active_queue = asyncio.Queue()
             self.active_thread_id = thread_id
+
+            queue_ref = self.active_queue
             self.active_task = asyncio.create_task(
-                self._run_graph_and_queue(
-                    action, data, user_msg, thread_id, self.active_queue
-                )
+                self._run_graph_and_queue(action, data, user_msg, thread_id, queue_ref)
             )
 
             try:
                 while True:
-                    event = await self.active_queue.get()
+                    event = await queue_ref.get()
                     yield event
                     if event.get("event") in ["DONE", "ERROR", "CLARIFICATION_NEEDED"]:
                         break
@@ -105,3 +106,8 @@ class SwarmSessionManager:
         except Exception as e:
             logger.error(f"Error in background graph task: {e}")
             await queue.put({"event": "ERROR", "status": str(e)})
+        finally:
+            if self.active_task and self.active_task.done():
+                self.active_task = None
+                self.active_queue = None
+                self.active_thread_id = None

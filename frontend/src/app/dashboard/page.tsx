@@ -14,7 +14,7 @@ export default function DashboardPage() {
   return (
     <div>
       <h2 className="font-display">Welcome to Paladio Control Center</h2>
-      <p className="font-mono text-muted text-sm mt-2">// SYSTEM OVERVIEW</p>
+      <p className="font-mono text-muted text-sm mt-2">{'// SYSTEM OVERVIEW'}</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginTop: '2rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

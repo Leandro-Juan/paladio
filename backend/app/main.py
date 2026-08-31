@@ -9,6 +9,11 @@ from app.api.v1.websockets import router as websockets_router
 from app.engine.scoring.features import UserStore
 from app.infrastructure.scoring.jax_ml_model import JaxScoringModel
 from app.swarm.graph import create_swarm
+from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
+from app.infrastructure.engine.ml_scorer import MLScorer
+from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
+from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +29,6 @@ async def lifespan(app: FastAPI):
     app.state.ml_params = app.state.ml_model.init_params()
     app.state.user_store = UserStore()
 
-    from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
-    from app.infrastructure.engine.ml_scorer import MLScorer
-    from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
-    from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
-
     ml_scorer = MLScorer(
         ml_model=app.state.ml_model,
         ml_params=app.state.ml_params,
@@ -43,7 +43,25 @@ async def lifespan(app: FastAPI):
         ml_params=app.state.ml_params,
         user_store=app.state.user_store,
     )
+    app.state.swarm_adapter = adapter
     app.state.swarm_manager = SwarmSessionManager(adapter)
+
+    # Fetch currency exchange rate
+    app.state.exchange_rate_usd_eur = 0.92
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.frankfurter.app/latest?from=USD&to=EUR"
+            )
+            if resp.status_code == 200:
+                app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
+                logger.info(
+                    f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
+                )
+    except Exception as e:
+        logger.error(f"Failed to fetch exchange rate, using default 0.92. Error: {e}")
+
+    engine.exchange_rate = app.state.exchange_rate_usd_eur
 
     yield
     # Cleanup here

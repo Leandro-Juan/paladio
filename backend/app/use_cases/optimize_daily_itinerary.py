@@ -6,8 +6,15 @@ from app.domain.entities.poi import Poi, TransitEdge
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
 from app.schemas.itinerary import TravelConstraints
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+HOTEL_CHECKIN_BUFFER_MINS = 45
+HOTEL_ARRIVAL_REST_MINS = 60
+AIRPORT_TRANSIT_TO_HOTEL_MINS = 20
+DEPARTURE_CHECKIN_MINS = 120
+HOTEL_TRANSIT_TO_AIRPORT_MINS = 60
 
 
 class OptimizeDailyItineraryUseCase:
@@ -46,21 +53,35 @@ class OptimizeDailyItineraryUseCase:
         local_constraints.budget_usd = max(0.0, constraints.budget_usd - flight_cost)
 
         def parse_hm(t_str):
-            if "T" in t_str:
-                tp = t_str.split("T")[1]
-            elif " " in t_str:
-                tp = t_str.split(" ")[1]
-            else:
-                tp = t_str
-            return map(int, tp.split(":")[:2])
+            try:
+                if "T" in t_str:
+                    dt = datetime.fromisoformat(t_str.replace("Z", "+00:00"))
+                    return dt.hour, dt.minute
+                elif " " in t_str:
+                    tp = t_str.split(" ")[1]
+                    parts = tp.split(":")
+                    return int(parts[0]), int(parts[1])
+                else:
+                    parts = t_str.split(":")
+                    return int(parts[0]), int(parts[1])
+            except Exception:
+                logger.warning(f"Failed to parse time {t_str}, defaulting to 08:00")
+                return 8, 0
 
         arr_h, arr_m = parse_hm(arrival_time)
         arrival_mins = arr_h * 60 + arr_m
         dep_h, dep_m = parse_hm(departure_time)
         departure_mins = dep_h * 60 + dep_m
 
-        hotel_arrival_time = arrival_mins + 45 + 60 + 20
-        hotel_departure_time = departure_mins - 120 - 60
+        hotel_arrival_time = (
+            arrival_mins
+            + HOTEL_CHECKIN_BUFFER_MINS
+            + HOTEL_ARRIVAL_REST_MINS
+            + AIRPORT_TRANSIT_TO_HOTEL_MINS
+        )
+        hotel_departure_time = (
+            departure_mins - DEPARTURE_CHECKIN_MINS - HOTEL_TRANSIT_TO_AIRPORT_MINS
+        )
 
         for day in range(num_days):
             day_pois = daily_pois_data[day] if day < len(daily_pois_data) else []
@@ -151,18 +172,22 @@ class OptimizeDailyItineraryUseCase:
 
         import asyncio
 
-        itinerary = await asyncio.to_thread(
-            self.engine.run_optimization,
-            constraints=constraints,
-            pois=domain_pois,
-            transit_matrix=domain_matrix,
-            num_days=num_days,
-            day_start_mins=day_start_mins,
-            day_end_mins=day_end_mins,
-            mandatory_names=mandatory_names,
-            start_node_index=start_idx if start_idx != -1 else None,
-            end_node_index=end_idx if end_idx != -1 else None,
-        )
+        try:
+            itinerary = await asyncio.to_thread(
+                self.engine.run_optimization,
+                constraints=constraints,
+                pois=domain_pois,
+                transit_matrix=domain_matrix,
+                num_days=num_days,
+                day_start_mins=day_start_mins,
+                day_end_mins=day_end_mins,
+                mandatory_names=mandatory_names,
+                start_node_index=start_idx if start_idx != -1 else None,
+                end_node_index=end_idx if end_idx != -1 else None,
+            )
+        except Exception as e:
+            logger.error(f"C++ optimization engine failed: {e}")
+            raise RuntimeError(f"C++ optimization engine failed: {e}")
 
         result = itinerary.model_dump()
 

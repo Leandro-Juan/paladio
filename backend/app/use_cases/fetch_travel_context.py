@@ -70,7 +70,9 @@ class FetchTravelContextUseCase:
                 logger.warning(f"Failed to geocode {city}: {e}")
 
             if center_lat is None or center_lon is None:
-                center_lat, center_lon = 40.4168, -3.7038  # default madrid fallback
+                raise RuntimeError(
+                    f"Could not geocode destination city: {city}. Missing data."
+                )
 
         # --- TEST MODE OVERRIDE ---
         if os.getenv("TEST_MODE") == "1":
@@ -241,9 +243,9 @@ class FetchTravelContextUseCase:
                 day_restaurants += restaurants_data[: 3 - len(day_restaurants)]
 
             for i, r in enumerate(day_restaurants):
-                # Scatter restaurants around the hotel
-                r_lat = hotel_lat + 0.01 * (i % 2 == 0) - 0.005
-                r_lon = hotel_lon + 0.01 * (i % 3 == 0) - 0.005
+                r_loc = r.get("location", {})
+                r_lat = r_loc.get("latitude", hotel_lat)
+                r_lon = r_loc.get("longitude", hotel_lon)
 
                 sched = r.get("schedule") or {
                     "open_time_mins": 480,

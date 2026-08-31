@@ -46,16 +46,23 @@ class DuffelScraper:
                 # Slices
                 for slice in offer.slices:
                     # Get departure and arrival times from the first segment
-                    dep_time = (
-                        slice.segments[0].departing_at.strftime("%H:%M")
-                        if hasattr(slice.segments[0].departing_at, "strftime")
-                        else str(slice.segments[0].departing_at)[11:16]
-                    )
-                    arr_time = (
-                        slice.segments[-1].arriving_at.strftime("%H:%M")
-                        if hasattr(slice.segments[-1].arriving_at, "strftime")
-                        else str(slice.segments[-1].arriving_at)[11:16]
-                    )
+                    from datetime import datetime
+
+                    dep_raw = slice.segments[0].departing_at
+                    if hasattr(dep_raw, "strftime"):
+                        dep_time = dep_raw.strftime("%H:%M")
+                    else:
+                        dep_time = datetime.fromisoformat(
+                            str(dep_raw).replace("Z", "+00:00")
+                        ).strftime("%H:%M")
+
+                    arr_raw = slice.segments[-1].arriving_at
+                    if hasattr(arr_raw, "strftime"):
+                        arr_time = arr_raw.strftime("%H:%M")
+                    else:
+                        arr_time = datetime.fromisoformat(
+                            str(arr_raw).replace("Z", "+00:00")
+                        ).strftime("%H:%M")
                     flights.append(
                         {
                             "price": price,

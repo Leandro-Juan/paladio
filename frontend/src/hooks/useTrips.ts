@@ -5,7 +5,7 @@ export interface Trip {
   destination: string;
   start_date: string;
   end_date: string;
-  itinerary_data: any;
+  itinerary_data: unknown;
   created_at?: string;
 }
 
@@ -30,6 +30,7 @@ export function useTrips() {
   };
 
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     fetchTrips();
   }, []);
 

@@ -9,7 +9,14 @@ from pydantic_ai.providers.ollama import OllamaProvider
 logger = logging.getLogger(__name__)
 
 
+_model_instance = None
+
+
 def get_parser_model():
+    global _model_instance
+    if _model_instance is not None:
+        return _model_instance
+
     ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435/v1")
     if not ollama_env_url.endswith("/v1"):
         ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
@@ -21,7 +28,8 @@ def get_parser_model():
         else MODEL_NAME
     )
     provider = OllamaProvider(base_url=ollama_env_url)
-    return OllamaModel(actual_model, provider=provider)
+    _model_instance = OllamaModel(actual_model, provider=provider)
+    return _model_instance
 
 
 ticket_parser_agent = Agent(

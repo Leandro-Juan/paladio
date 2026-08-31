@@ -9,7 +9,14 @@ from pydantic_ai.providers.ollama import OllamaProvider
 logger = logging.getLogger(__name__)
 
 
+_model_instance = None
+
+
 def get_validator_model():
+    global _model_instance
+    if _model_instance is not None:
+        return _model_instance
+
     ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435/v1")
     if not ollama_env_url.endswith("/v1"):
         ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
@@ -21,7 +28,8 @@ def get_validator_model():
         else MODEL_NAME
     )
     provider = OllamaProvider(base_url=ollama_env_url)
-    return OllamaModel(actual_model, provider=provider)
+    _model_instance = OllamaModel(actual_model, provider=provider)
+    return _model_instance
 
 
 validator_agent = Agent(
@@ -69,55 +77,31 @@ async def validator_node(state: dict) -> dict:
                 )
                 from datetime import datetime
 
-                try:
-                    dep_time = booking.outbound_flight.departure_time
-                    dep_date_str = (
-                        dep_time.split("T")[0]
-                        if "T" in dep_time
-                        else dep_time.split(" ")[0]
-                    )
-                    result.output.start_date = datetime.strptime(
-                        dep_date_str, "%Y-%m-%d"
+                if booking.outbound_flight and booking.outbound_flight.departure_time:
+                    result.output.start_date = datetime.fromisoformat(
+                        booking.outbound_flight.departure_time.replace("Z", "+00:00")
                     ).date()
-                except Exception:
-                    pass
 
             if booking.return_flight:
                 from datetime import datetime
 
-                try:
-                    dep_time = booking.return_flight.departure_time
-                    dep_date_str = (
-                        dep_time.split("T")[0]
-                        if "T" in dep_time
-                        else dep_time.split(" ")[0]
-                    )
-                    result.output.end_date = datetime.strptime(
-                        dep_date_str, "%Y-%m-%d"
+                if booking.return_flight.departure_time:
+                    result.output.end_date = datetime.fromisoformat(
+                        booking.return_flight.departure_time.replace("Z", "+00:00")
                     ).date()
-                except Exception:
-                    pass
 
             if booking.hotel:
                 result.output.destination_city = booking.hotel.city
+                from datetime import datetime
+
                 if booking.hotel.check_in_date:
-                    from datetime import datetime
-
-                    try:
-                        result.output.start_date = datetime.strptime(
-                            booking.hotel.check_in_date, "%Y-%m-%d"
-                        ).date()
-                    except Exception:
-                        pass
+                    result.output.start_date = datetime.fromisoformat(
+                        booking.hotel.check_in_date
+                    ).date()
                 if booking.hotel.check_out_date:
-                    from datetime import datetime
-
-                    try:
-                        result.output.end_date = datetime.strptime(
-                            booking.hotel.check_out_date, "%Y-%m-%d"
-                        ).date()
-                    except Exception:
-                        pass
+                    result.output.end_date = datetime.fromisoformat(
+                        booking.hotel.check_out_date
+                    ).date()
 
         except Exception as e:
             logger.warning(f"Failed to parse injected booking anchors: {e}")

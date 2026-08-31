@@ -28,7 +28,7 @@ export default function RootLayout({
                   <img src="/logo.jpeg" alt="Paladio Logo" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} />
                   <h1 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h1>
                 </div>
-                <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>// v1.0.0 ENGINE</p>
+                <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.0.0 ENGINE'}</p>
               </div>
               <ul className="nav-links font-display">
                 <li><Link href="/dashboard">Control Center</Link></li>

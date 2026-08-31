@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "eslint src/",
     "test:e2e": "PORT=3001 playwright test",
     "test:ct": "playwright test -c playwright-ct.config.ts"
   },

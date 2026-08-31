@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { useRouter } from 'next/navigation';
 
 // Fix for default Leaflet markers in Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as { _getIconUrl?: string })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -24,12 +24,12 @@ const accentIcon = new L.Icon({
 });
 
 interface VaultMapProps {
-  trips: any[];
+  trips: unknown[];
 }
 
 export default function VaultMap({ trips }: VaultMapProps) {
   const router = useRouter();
-  const [geoData, setGeoData] = useState<any>(null);
+  const [geoData, setGeoData] = useState<unknown>(null);
 
   useEffect(() => {
     // Fetch world geojson to draw country borders
@@ -42,7 +42,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
   // Countries visited based on the mock trips (Japan for Tokyo, France for Paris)
   const visitedCountries = ["Japan", "France"];
 
-  const geoJsonStyle = (feature: any) => {
+  const geoJsonStyle = (feature: unknown) => {
     const isVisited = visitedCountries.includes(feature.properties.name);
     return {
       fillColor: isVisited ? '#1E3A8A' : '#E2E8F0', // Accent blue or light gray

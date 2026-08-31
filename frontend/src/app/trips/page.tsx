@@ -12,7 +12,7 @@ export default function TripsPage() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div>
         <h2 className="font-display">UPCOMING TRIPS</h2>
-        <p className="font-mono text-muted text-sm mt-2">// CONFIRMED ITINERARIES</p>
+        <p className="font-mono text-muted text-sm mt-2">{'// CONFIRMED ITINERARIES'}</p>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -24,7 +24,7 @@ export default function TripsPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {trips.map((trip: any, idx: number) => (
+            {trips.map((trip: unknown, idx: number) => (
               <div key={idx} className="bg-surface border-subtle" style={{ borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ background: 'var(--color-accent-primary)', color: '#FFF', padding: '1rem' }}>
                   <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>{trip.destination}</h3>
