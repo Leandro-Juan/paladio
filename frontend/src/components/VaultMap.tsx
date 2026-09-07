@@ -24,12 +24,12 @@ const accentIcon = new L.Icon({
 });
 
 interface VaultMapProps {
-  trips: unknown[];
+  trips: any[];
 }
 
 export default function VaultMap({ trips }: VaultMapProps) {
   const router = useRouter();
-  const [geoData, setGeoData] = useState<unknown>(null);
+  const [geoData, setGeoData] = useState<any>(null);
 
   useEffect(() => {
     // Fetch world geojson to draw country borders
@@ -42,7 +42,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
   // Countries visited based on the mock trips (Japan for Tokyo, France for Paris)
   const visitedCountries = ["Japan", "France"];
 
-  const geoJsonStyle = (feature: unknown) => {
+  const geoJsonStyle = (feature: any) => {
     const isVisited = visitedCountries.includes(feature.properties.name);
     return {
       fillColor: isVisited ? '#1E3A8A' : '#E2E8F0', // Accent blue or light gray
@@ -69,10 +69,10 @@ export default function VaultMap({ trips }: VaultMapProps) {
       />
 
       {geoData && (
-        <GeoJSON data={geoData} style={geoJsonStyle} />
+        <GeoJSON data={geoData as any} style={geoJsonStyle} />
       )}
 
-      {trips.map(trip => (
+      {trips.map((trip: any) => (
         <Marker 
           key={trip.id} 
           position={[trip.lat, trip.lng]} 

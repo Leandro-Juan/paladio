@@ -12,11 +12,23 @@ class FlightSegment(BaseModel):
     departure_time: str = Field(
         ..., description="Local departure time: YYYY-MM-DD HH:MM or ISO 8601"
     )
-    arrival_time: str = Field(
-        ..., description="Local arrival time: YYYY-MM-DD HH:MM or ISO 8601"
+    arrival_time: str | None = Field(
+        None,
+        description="Local arrival time: YYYY-MM-DD HH:MM or ISO 8601, if available",
+    )
+    flight_duration_minutes: int | None = Field(
+        None, description="Duration of the flight in minutes, if available"
     )
     flight_number: str | None = None
     airline: str | None = None
+
+    @model_validator(mode="after")
+    def check_arrival_or_duration(self) -> "FlightSegment":
+        if self.arrival_time is None and self.flight_duration_minutes is None:
+            raise ValueError(
+                "Either arrival_time or flight_duration_minutes must be provided."
+            )
+        return self
 
 
 class HotelAnchor(BaseModel):
@@ -69,12 +81,13 @@ class TravelConstraints(BaseModel):
     end_date: date | None = Field(
         default=None, description="End date of the itinerary."
     )
-    nodes: list[NodeConstraint] = Field(
-        default_factory=list, description="List of POIs or destinations to visit."
-    )
-    meals: list[MealRequirement] = Field(
+    nodes: list[NodeConstraint] | None = Field(
         default_factory=list,
-        description="Mandatory meal windows. Must be an EMPTY list [] unless the user explicitly asks for meals.",
+        description="List of POIs or destinations to visit. Can be empty.",
+    )
+    meals: list[MealRequirement] | None = Field(
+        default_factory=list,
+        description="Mandatory meal windows. Must be empty unless the user explicitly asks for meals.",
     )
     clarification_needed: str | None = Field(
         default=None,
@@ -89,9 +102,12 @@ class TravelConstraints(BaseModel):
     def parse_stringified_lists(cls, values):
         if isinstance(values, dict):
             for field in ["nodes", "meals"]:
-                if field in values and isinstance(values[field], str):
-                    try:
-                        values[field] = json.loads(values[field])
-                    except json.JSONDecodeError:
-                        pass
+                if field in values:
+                    if values[field] is None:
+                        values[field] = []
+                    elif isinstance(values[field], str):
+                        try:
+                            values[field] = json.loads(values[field])
+                        except json.JSONDecodeError:
+                            pass
         return values

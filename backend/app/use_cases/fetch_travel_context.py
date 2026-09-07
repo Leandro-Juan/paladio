@@ -41,6 +41,10 @@ class FetchTravelContextUseCase:
         if self.ml_scorer and db_pois:
             from app.domain.entities.poi import Poi
 
+            for p in db_pois:
+                if "city" not in p:
+                    p["city"] = city
+
             domain_pois = [Poi(**p) for p in db_pois]
             scored_pois = await self.ml_scorer.score_pois(domain_pois, user_id)
             # Reattach the ml score into the raw dictionaries for the clustering algorithm

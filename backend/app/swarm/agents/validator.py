@@ -35,13 +35,15 @@ def get_validator_model():
 validator_agent = Agent(
     name="validator_agent",
     output_type=TravelConstraints,
-    retries=3,
+    retries=5,
     instructions=(
         "You are the Guardrail Validator Agent. Your job is to extract travel constraints "
         "from the user's natural language input and use the provided tool to output the structured data. "
-        "1.  **Extract Budget:** If the user states a budget, you MUST extract that number into `budget_usd` (e.g., 'My budget is 2500 USD' -> 2500.0). If no budget is specified, leave it as 0.\n"
+        "IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw JSON or text, only call the tool.\n"
+        "CRITICAL INSTRUCTIONS:\n"
+        "1.  **Extract Budget:** You MUST explicitly output the `budget_usd` field. If the user states a budget (e.g., '3000 USD', '2500 dollars'), set `budget_usd` to that EXACT numeric value (e.g. 3000.0, 2500.0). NEVER hallucinate or invent a budget. If the user does not specify a budget, you MUST set `budget_usd` to 0.0.\n"
         "2.  **Identify Mandatory Nodes:** Extract specific POIs the user wants to visit into the `nodes` list.\n"
-        "3.  **Calculate Limits:** Convert vague statements into rigid JSON structures. OUTPUT RAW JSON ONLY. Do not use markdown blocks like ```json."
+        "3.  **Calculate Limits:** Convert vague statements into strict structured data."
     ),
 )
 
@@ -68,10 +70,24 @@ async def validator_node(state: dict) -> dict:
             booking = BookingAnchors(**state["booking_anchors"])
             result.output.booking_anchors = booking
 
+            from app.utils.iata_mapping import get_city_from_iata
+
             if booking.outbound_flight:
-                result.output.origin_city = booking.outbound_flight.origin_iata
+                o_iata = (
+                    booking.outbound_flight.origin_iata.upper()
+                    if booking.outbound_flight.origin_iata
+                    else ""
+                )
+                d_iata = (
+                    booking.outbound_flight.destination_iata.upper()
+                    if booking.outbound_flight.destination_iata
+                    else ""
+                )
+                result.output.origin_city = (
+                    get_city_from_iata(o_iata) if o_iata else "Unknown"
+                )
                 result.output.destination_city = (
-                    booking.outbound_flight.destination_iata
+                    get_city_from_iata(d_iata) if d_iata else "Unknown"
                 )
                 from datetime import datetime
 

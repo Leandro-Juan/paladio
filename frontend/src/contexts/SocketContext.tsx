@@ -144,7 +144,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'CLARIFICATION_NEEDED':
         setStatus('awaiting_input');
         if (payload.data && payload.data.fields) {
-          setMissingFields(payload.data.fields);
+          setMissingFields(payload.data.fields as string[]);
           addLog(`> [SYSTEM] ${payload.data.message}`);
         } else {
           addLog(`> [SYSTEM] CLARIFICATION NEEDED.`);
@@ -155,7 +155,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       case 'EVALUATING_ROUTES':
         addLog(`> [PLANNER] ITINERARY GENERATED.`);
-        setItinerary(payload.data);
+        setItinerary(payload.data as unknown as OptimizationResult);
         break;
       case 'FEEDBACK_PROCESSED':
         addLog(`> [MODEL] JAX EMBEDDINGS UPDATED FROM FEEDBACK.`);

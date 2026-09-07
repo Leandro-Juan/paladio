@@ -14,6 +14,7 @@ services:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
+      - VALIDATOR_MODEL=ollama:qwen2.5
       - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
       - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
@@ -82,7 +83,7 @@ services:
     environment:
       - OLLAMA_HOST=http://llm:11434
     entrypoint: /bin/sh
-    command: -c "sleep 5 && ollama pull llama3.1 && ollama pull nomic-embed-text"
+    command: -c "sleep 5 && ollama pull qwen2.5 && ollama pull nomic-embed-text"
 
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
@@ -112,6 +113,7 @@ services:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
+      - VALIDATOR_MODEL=ollama:qwen2.5
       - NODE_ENV=development
       - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:
@@ -136,6 +138,7 @@ services:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
+      - VALIDATOR_MODEL=ollama:qwen2.5
       - NODE_ENV=development
       - AVIATIONSTACK_API_KEY=${AVIATIONSTACK_API_KEY}
     depends_on:

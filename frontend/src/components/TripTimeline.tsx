@@ -12,6 +12,8 @@ interface TimelineStop {
   name?: string;
   time?: string;
   duration?: string;
+  raw?: boolean;
+  data?: any;
 }
 
 export function TripTimeline({ itinerary }: TripTimelineProps) {
@@ -49,7 +51,7 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
         if (stop.isDayHeader) {
           return (
             <div key={i} style={{ margin: '2rem 0 1rem 0' }}>
-              <h4 className="font-display text-accent" style={{ fontSize: '1.2rem', letterSpacing: '1px' }}>{stop.label.toUpperCase()}</h4>
+              <h4 className="font-display text-accent" style={{ fontSize: '1.2rem', letterSpacing: '1px' }}>{stop.label?.toUpperCase()}</h4>
             </div>
           );
         }

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # access to the values within the .ini file in use.
 config = context.config
 
-from app.db.session import DATABASE_URL
+from app.db.session import DATABASE_URL  # noqa: E402
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
@@ -19,7 +19,7 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from app.db.session import Base
+from app.db.session import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

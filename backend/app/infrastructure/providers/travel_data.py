@@ -102,11 +102,20 @@ class MockTravelDataProvider(TravelDataProvider):
     async def get_pois(
         self, city: str, mandatory_names: list[str]
     ) -> list[dict[str, Any]]:
-        if "pois" in self.test_data:
-            return self.test_data["pois"]
-        if "pois" in self.dynamic_data_cache:
-            return self.dynamic_data_cache["pois"]
-        return []
+        from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+        from app.infrastructure.providers.overpass_provider import (
+            OverpassProviderAdapter,
+        )
+        from app.services.poi_service import get_attractions_for_city
+
+        repo = SqlPoiRepository()
+        provider = OverpassProviderAdapter()
+        return await get_attractions_for_city(
+            city,
+            poi_repo=repo,
+            poi_provider=provider,
+            mandatory_names=mandatory_names,
+        )
 
     async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
         if "restaurants" in self.test_data:

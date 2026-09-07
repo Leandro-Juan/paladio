@@ -24,7 +24,7 @@ export default function TripsPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {trips.map((trip: unknown, idx: number) => (
+            {trips.map((trip: any, idx: number) => (
               <div key={idx} className="bg-surface border-subtle" style={{ borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ background: 'var(--color-accent-primary)', color: '#FFF', padding: '1rem' }}>
                   <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>{trip.destination}</h3>

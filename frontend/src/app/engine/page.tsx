@@ -197,7 +197,7 @@ export default function EnginePage() {
                   {isSaving ? 'SAVING...' : 'SAVE ITINERARY'}
                 </button>
                 <button 
-                  onClick={() => sendFeedback({ name: 'TEST_POI' }, 100.0)}
+                  onClick={() => sendFeedback({ name: 'TEST_POI' } as unknown as any, 100.0)}
                   style={{ flex: 1, padding: '0.5rem', background: 'var(--color-accent-primary)', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-display)' }}
                 >
                   TUNE ML

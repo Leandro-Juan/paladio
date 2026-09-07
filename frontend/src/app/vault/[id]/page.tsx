@@ -76,7 +76,7 @@ export default function VaultDetailPage({ params }: { params: { id: string } }) 
             <div className="bg-surface border-subtle" style={{ borderRadius: '8px', padding: '1rem' }}>
               <h4 className="font-mono text-muted text-sm">{'// TICKET WALLET'}</h4>
               <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {tripDetails.tickets?.map((ticket: unknown, idx: number) => (
+                {tripDetails.tickets?.map((ticket: { title: string; subtitle: string }, idx: number) => (
                   <div key={idx} style={{ padding: '1rem', border: '1px dashed var(--color-border)', borderRadius: '4px' }}>
                     <p className="font-display text-sm">{ticket.title}</p>
                     <p className="font-mono text-muted text-xs mt-1">{ticket.subtitle}</p>

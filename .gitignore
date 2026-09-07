@@ -69,6 +69,7 @@ temp/
 tmp/
 *.log
 TODO.txt
+BACKLOG.md
 prompt.txt
 important.txt
 scratch/

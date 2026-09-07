@@ -1,4 +1,4 @@
-export function extractDestination(itineraryData: unknown): string {
+export function extractDestination(itineraryData: any): string {
   if (!itineraryData) return "Unknown Destination";
   
   if (Array.isArray(itineraryData.days)) {
@@ -18,11 +18,11 @@ export function extractDestination(itineraryData: unknown): string {
   return "Unknown Destination";
 }
 
-export function countWaypoints(itineraryData: unknown): number {
+export function countWaypoints(itineraryData: any): number {
   if (!itineraryData) return 0;
   
   if (Array.isArray(itineraryData.days)) {
-    return itineraryData.days.reduce((acc: number, day: unknown) => {
+    return itineraryData.days.reduce((acc: number, day: any) => {
       let count = 0;
       if (day.itinerary && Array.isArray(day.itinerary.path)) {
         count = day.itinerary.path.length;
