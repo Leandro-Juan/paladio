@@ -1,8 +1,24 @@
 import pytest
+import urllib.request
+import urllib.error
+import os
 from app.swarm.agents.ticket_parser import ticket_parser_node
+
+def is_ollama_running():
+    try:
+        url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        if url.endswith("/"): url = url[:-1]
+        urllib.request.urlopen(f"{url}/", timeout=1)
+        return True
+    except Exception:
+        return False
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not is_ollama_running(),
+    reason="Requires a live local Ollama container"
+)
 async def test_ticket_parser_llm_execution():
     """Test the actual LLM agent with unstructured text."""
     # Using text that does NOT trigger the regex bypass

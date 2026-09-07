@@ -27,8 +27,9 @@ async def test_swarm_session_maps_rag_event():
         events.append(event)
 
     assert events[0]["event"] == "STARTING_INFERENCE"
-    assert events[1]["event"] == "RETRIEVING_CONTEXT"
-    assert events[1]["data"] == "dummy"
-    assert events[2]["event"] == "PARSING_TICKETS"
-    assert events[2]["status"] == "running"
-    assert events[3]["event"] == "DONE"
+    assert events[1]["event"] == "PARSING_TICKETS"
+    assert events[1]["status"] == "running"
+    assert events[2]["event"] == "RETRIEVING_CONTEXT"
+    assert events[2]["data"] == "dummy"
+    assert events[3]["event"] == "CHECKING_MISSING_FIELDS"
+    assert events[4]["event"] == "DONE"
