@@ -46,6 +46,7 @@ class SwarmSessionAdapter(ISwarmSession):
             return
 
         yield {"event": "STARTING_INFERENCE", "status": "running"}
+        yield {"event": "PARSING_TICKETS", "status": "running"}
 
         initial_state = {
             "messages": [HumanMessage(content=user_msg)],
@@ -55,11 +56,14 @@ class SwarmSessionAdapter(ISwarmSession):
         if "booking_text" in data:
             initial_state["booking_text"] = data["booking_text"]
 
+        from app.infrastructure.engine.ml_scorer import MLScorer
+
         config = {
             "configurable": {
                 "engine": self.engine,
                 "thread_id": thread_id,
                 "travel_data_provider": self.travel_data_provider,
+                "ml_scorer": MLScorer(self.ml_model, self.ml_params, self.user_repo),
                 "user_id": data.get("user_id", "default_user"),
             }
         }
@@ -104,7 +108,7 @@ class SwarmSessionAdapter(ISwarmSession):
                         "data": truncated,
                     }
                     yield {
-                        "event": "PARSING_TICKETS",
+                        "event": "CHECKING_MISSING_FIELDS",
                         "status": "running",
                     }
 
@@ -133,12 +137,14 @@ class SwarmSessionAdapter(ISwarmSession):
                         "status": "completed",
                         "data": data_val,
                     }
+                    yield {
+                        "event": "RETRIEVING_CONTEXT",
+                        "status": "running",
+                    }
 
                 elif node_name == "check_missing":
                     yield {"event": "CHECKING_MISSING_FIELDS", "status": "completed"}
-
-                elif node_name == "planner_fetch":
-                    yield {"event": "FETCHING_STATIC_DATA", "status": "completed"}
+                    yield {"event": "SCRAPING_DYNAMIC_DATA", "status": "running"}
 
                 elif node_name == "planner_scrape":
                     daily_pois = state_update.get("daily_pois_data", [])
@@ -148,6 +154,7 @@ class SwarmSessionAdapter(ISwarmSession):
                         "status": "completed",
                         "data": f"Fetched {num_pois} POIs, Flight info...",
                     }
+                    yield {"event": "EVALUATING_ROUTES", "status": "running"}
 
                 elif node_name == "planner_optimize":
                     final_itinerary = state_update.get("final_itinerary", {})

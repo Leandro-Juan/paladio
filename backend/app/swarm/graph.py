@@ -1,7 +1,6 @@
 import logging
 
 from app.schemas.itinerary import TravelConstraints
-from app.scraper.static_scraper import scrape_static
 from app.swarm.agents.ticket_parser import ticket_parser_node
 from app.swarm.agents.validator import validator_node
 from app.swarm.nodes.retriever import rag_node
@@ -9,47 +8,8 @@ from app.swarm.state import SwarmState
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-import time
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
-
-_airport_cache = {}
-_CACHE_TTL = 12 * 3600
-
-
-async def get_airport_coordinates(city: str) -> tuple[float, float]:
-    """Dynamically geocode the airport coordinates using Nominatim API."""
-    now = time.time()
-    if city in _airport_cache:
-        cached_data, timestamp = _airport_cache[city]
-        if now - timestamp < _CACHE_TTL:
-            return cached_data
-
-    try:
-        query = f"airport in {city}"
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": query, "format": "json", "limit": 1}
-        # Nominatim requires a User-Agent to avoid IP bans
-        headers = {"User-Agent": "PaladioOptimizationEngine/1.0 (contact@paladio.app)"}
-        result = await scrape_static(url, params=params, custom_headers=headers)
-        data = result.get("data")
-        if data and isinstance(data, list) and len(data) > 0:
-            lat = float(data[0]["lat"])
-            lon = float(data[0]["lon"])
-            logger.info(f"Dynamically resolved {city} airport to {lat}, {lon}")
-            _airport_cache[city] = ((lat, lon), now)
-            return lat, lon
-        else:
-            logger.warning(
-                f"Could not resolve airport for {city}. Falling back to city center."
-            )
-    except Exception as e:
-        logger.error(f"Geocoding airport failed for {city}: {e}")
-
-    raise RuntimeError(
-        f"Could not resolve real airport coordinates for {city}. No mock data allowed."
-    )
-
 
 logger = logging.getLogger(__name__)
 
@@ -114,11 +74,6 @@ async def check_missing_fields_node(state: SwarmState) -> dict:
     return {}
 
 
-async def planner_fetch_node(state: SwarmState) -> dict:
-    logger.info("--- [PHASE: PLANNER] Fetching static POIs (Delegated) ---")
-    return {}
-
-
 async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict:
     logger.info(
         "--- [PHASE: PLANNER] Scraping dynamic data (Flights, Hotels, Restaurants) ---"
@@ -177,7 +132,6 @@ def create_swarm():
     workflow.add_node("ticket_parser", ticket_parser_node)
     workflow.add_node("validator", validator_node)
     workflow.add_node("check_missing", check_missing_fields_node)
-    workflow.add_node("planner_fetch", planner_fetch_node)
     workflow.add_node("planner_scrape", planner_scrape_node)
     workflow.add_node("planner_optimize", planner_optimize_node)
 
@@ -185,8 +139,7 @@ def create_swarm():
     workflow.add_edge("ticket_parser", "validator")
     workflow.add_edge("validator", "rag")
     workflow.add_edge("rag", "check_missing")
-    workflow.add_edge("check_missing", "planner_fetch")
-    workflow.add_edge("planner_fetch", "planner_scrape")
+    workflow.add_edge("check_missing", "planner_scrape")
     workflow.add_edge("planner_scrape", "planner_optimize")
     workflow.add_edge("planner_optimize", END)
 
