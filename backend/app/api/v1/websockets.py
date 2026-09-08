@@ -122,7 +122,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 except asyncio.CancelledError:
                     pass
                 except Exception as e:
-                    logger.error(f"Stream error: {e}")
+                    logger.error(f"Stream error: {e}", exc_info=True)
+                    try:
+                        await outbound_queue.put({"event": "ERROR", "status": str(e)})
+                    except Exception:
+                        pass
 
             task = asyncio.create_task(stream_task(action, data, user_msg, thread_id))
             stream_tasks.add(task)

@@ -46,7 +46,10 @@ class FetchTravelContextUseCase:
                     p["city"] = city
 
             domain_pois = [Poi(**p) for p in db_pois]
-            scored_pois = await self.ml_scorer.score_pois(domain_pois, user_id)
+            prompt_affinities = getattr(constraints, "tag_affinities", None) or {}
+            scored_pois = await self.ml_scorer.score_pois(
+                domain_pois, user_id=user_id, prompt_affinities=prompt_affinities
+            )
             # Reattach the ml score into the raw dictionaries for the clustering algorithm
             for p, sp in zip(db_pois, scored_pois):
                 p["ml_affinity_score"] = sp.score
@@ -230,6 +233,7 @@ class FetchTravelContextUseCase:
                         "financials": p.get("financials", {}),
                         "scoring": p.get("scoring")
                         or {"google_rating": 4.5, "reviews": 100},
+                        "ml_affinity_score": p.get("ml_affinity_score"),
                     }
                 )
 

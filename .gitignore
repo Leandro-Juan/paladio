@@ -70,6 +70,7 @@ tmp/
 *.log
 TODO.txt
 BACKLOG.md
+future/
 prompt.txt
 important.txt
 scratch/

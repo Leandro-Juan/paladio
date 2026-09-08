@@ -70,7 +70,7 @@ class SqlPoiRepository(IPoiRepository):
                 "schedule": stmt.excluded.schedule,
                 "financials": stmt.excluded.financials,
                 "scoring": stmt.excluded.scoring,
-                "metadata_field": stmt.excluded.metadata_field,
+                "metadata": stmt.excluded.metadata,
             },
         )
 

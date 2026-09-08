@@ -58,12 +58,15 @@ rag_analysis_agent = Agent(
     output_type=RAGPromptAnalysis,
     retries=2,
     instructions=(
-        "You analyze user travel requests to extract mandatory POIs, preferred cuisines, and travel tastes. "
+        "You analyze user travel requests to extract mandatory POIs, preferred cuisines, travel tastes, and tag affinities. "
         "IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw text. "
         "Extract: "
         "- `mandatory_pois`: Specific landmarks, museums, or places the user explicitly says they MUST or NEED to visit (e.g. 'El Prado', 'Louvre'). "
         "- `preferred_cuisines`: Cuisines or food types mentioned (e.g. 'indian', 'italian', 'tapas'). "
         "- `travel_tastes`: Desired atmospheres, trip styles, or activities (e.g. 'bar', 'relaxed', 'cultural', 'art'). "
+        "- `tag_affinities`: Dictionary with estimated affinity weights (0.0 to 1.0) for any relevant standard tags from: "
+        "['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']. "
+        "E.g., if user loves art and museums, set 'art_culture': 0.9. If user loves bars, set 'nightlife': 0.85. "
         "- `cuisine_target_frequency`: 1 or 2 meal slots for requested preferred cuisine across the trip."
     ),
 )
@@ -126,7 +129,8 @@ async def rag_node(state: SwarmState) -> dict:
             analysis = res.output
             logger.info(
                 f"LLM RAG Analysis result: mandatory_pois={analysis.mandatory_pois}, "
-                f"preferred_cuisines={analysis.preferred_cuisines}, travel_tastes={analysis.travel_tastes}"
+                f"preferred_cuisines={analysis.preferred_cuisines}, travel_tastes={analysis.travel_tastes}, "
+                f"tag_affinities={analysis.tag_affinities}"
             )
         except Exception as e:
             logger.warning(
@@ -167,6 +171,12 @@ async def rag_node(state: SwarmState) -> dict:
     existing_tastes = constraints_dict.get("travel_tastes") or []
     combined_tastes = list(dict.fromkeys(existing_tastes + analysis.travel_tastes))
     constraints_dict["travel_tastes"] = combined_tastes
+
+    # Add tag_affinities from prompt analysis
+    existing_tag_affinities = dict(constraints_dict.get("tag_affinities") or {})
+    if analysis.tag_affinities:
+        existing_tag_affinities.update(analysis.tag_affinities)
+    constraints_dict["tag_affinities"] = existing_tag_affinities
 
     constraints_dict["cuisine_target_frequency"] = max(
         1, analysis.cuisine_target_frequency

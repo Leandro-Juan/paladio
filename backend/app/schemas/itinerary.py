@@ -104,6 +104,10 @@ class TravelConstraints(BaseModel):
         default_factory=list,
         description="User travel styles, activity preferences, or tastes (e.g. ['bar', 'cultural']).",
     )
+    tag_affinities: dict[str, float] | None = Field(
+        default_factory=dict,
+        description="Estimated tag affinities extracted from user prompt (art_culture, food_culinary, etc.).",
+    )
     cuisine_target_frequency: int = Field(
         default=1,
         description="Target number of meal slots for preferred cuisine.",
@@ -122,4 +126,9 @@ class TravelConstraints(BaseModel):
                             values[field] = json.loads(values[field])
                         except json.JSONDecodeError:
                             pass
+            if "tag_affinities" in values and isinstance(values["tag_affinities"], str):
+                try:
+                    values["tag_affinities"] = json.loads(values["tag_affinities"])
+                except json.JSONDecodeError:
+                    pass
         return values

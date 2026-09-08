@@ -91,7 +91,16 @@ class SqlUserRepository:
     ) -> Optional[UserModel]:
         user = await self.get_by_id(user_id)
         if not user:
-            return None
+            from sqlalchemy.dialects.postgresql import insert
+
+            stmt = insert(UserModel).values(id=user_id, preferences=preferences)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"], set_={"preferences": stmt.excluded.preferences}
+            )
+            await self.session.execute(stmt)
+            await self.session.commit()
+            return await self.get_by_id(user_id)
+
         user.preferences = preferences
         await self.session.commit()
         await self.session.refresh(user)

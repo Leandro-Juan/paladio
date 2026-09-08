@@ -19,8 +19,13 @@ console = Console()
 
 
 def prompt_user(text: str, default: str) -> str:
+    if os.getenv("PALADIO_NON_INTERACTIVE") == "1":
+        return default
     console.print(f"[bold yellow]{text}[/bold yellow] [dim]({default})[/dim]:")
-    val = input("> ").strip()
+    try:
+        val = input("> ").strip()
+    except EOFError:
+        return default
     return val if val else default
 
 
@@ -88,7 +93,10 @@ async def run_standalone_graph(
                     console.print(
                         f"\n[bold red][CLARIFICATION NEEDED][/bold red] {interrupt_val}"
                     )
-                    user_answer = input("Your response: ").strip()
+                    try:
+                        user_answer = input("Your response: ").strip()
+                    except EOFError:
+                        user_answer = "Proceed with recommended options."
                     input_data = Command(resume=user_answer)
                     status.start()
                     interrupted = True
@@ -286,7 +294,10 @@ async def test_websocket():
                             console.print(
                                 "[bold yellow]Enter your clarification response:[/bold yellow]"
                             )
-                            user_clarification = input("> ").strip()
+                            try:
+                                user_clarification = input("> ").strip()
+                            except EOFError:
+                                user_clarification = "Proceed with recommended options."
 
                             clarification_msg = {
                                 "action": "resume",
