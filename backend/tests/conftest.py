@@ -55,6 +55,8 @@ TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     f"postgresql+asyncpg://postgres:postgres@{postgres_host}:5432/paladio_test",
 )
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 
 # ---------------------------------------------------------

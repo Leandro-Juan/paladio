@@ -97,6 +97,26 @@ class MockTravelDataProvider(TravelDataProvider):
 
     def __init__(self, test_data: dict[str, Any] = None):
         self.test_data = test_data or {}
+        if not self.test_data:
+            import json
+            import os
+
+            test_data_path = os.path.abspath(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "..",
+                    "tests",
+                    "test_data.json",
+                )
+            )
+            if os.path.exists(test_data_path):
+                try:
+                    with open(test_data_path, "r", encoding="utf-8") as f:
+                        self.test_data = json.load(f)
+                except Exception as e:
+                    logger.warning(f"Could not load mock test_data.json: {e}")
         self.dynamic_data_cache = {}
 
     async def _ensure_dynamic_data(
@@ -120,23 +140,31 @@ class MockTravelDataProvider(TravelDataProvider):
     async def get_pois(
         self, city: str, mandatory_names: list[str]
     ) -> list[dict[str, Any]]:
-        from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-        from app.infrastructure.providers.overpass_provider import (
-            OverpassProviderAdapter,
-        )
-        from app.services.poi_service import get_attractions_for_city
-
-        from app.db.session import async_session
-
-        async with async_session() as session:
-            repo = SqlPoiRepository(session)
-            provider = OverpassProviderAdapter()
-            return await get_attractions_for_city(
-                city,
-                poi_repo=repo,
-                poi_provider=provider,
-                mandatory_names=mandatory_names,
+        if "pois" in self.test_data:
+            return self.test_data["pois"]
+        if "pois" in self.dynamic_data_cache:
+            return self.dynamic_data_cache["pois"]
+        try:
+            from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+            from app.infrastructure.providers.overpass_provider import (
+                OverpassProviderAdapter,
             )
+            from app.services.poi_service import get_attractions_for_city
+
+            from app.db.session import async_session
+
+            async with async_session() as session:
+                repo = SqlPoiRepository(session)
+                provider = OverpassProviderAdapter()
+                return await get_attractions_for_city(
+                    city,
+                    poi_repo=repo,
+                    poi_provider=provider,
+                    mandatory_names=mandatory_names,
+                )
+        except Exception as e:
+            logger.warning(f"MockTravelDataProvider fallback get_pois failed: {e}")
+            return []
 
     async def get_restaurants(
         self,

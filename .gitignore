@@ -70,6 +70,8 @@ tmp/
 *.log
 TODO.txt
 BACKLOG.md
+comprehensive_audit_report.md
+CONTEXT.md
 future/
 prompt.txt
 important.txt
