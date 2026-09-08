@@ -9,7 +9,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.trips import router as trips_router
 from app.api.v1.users import router as users_router
 from app.api.v1.websockets import router as websockets_router
-from app.infrastructure.scoring.jax_ml_model import JaxScoringModel
+from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.swarm.graph import create_swarm
 import httpx
 
@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Semantic Gateway Lifespan...")
     app.state.graph = create_swarm()
 
-    # Initialize ML Models in App State to avoid horizontal scaling issues
-    app.state.ml_model = JaxScoringModel()
+    # Initialize Sovereign Hybrid Recommender in App State
+    app.state.ml_model = HybridSovereignScorer()
     app.state.ml_params = app.state.ml_model.init_params()
 
     # Fetch currency exchange rate

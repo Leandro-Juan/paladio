@@ -32,9 +32,6 @@ dependencies = [
     "httpx>=0.26.0",
     "alembic>=1.13.0",
     "docker>=7.0.0",
-    "jax>=0.4.0",
-    "jaxlib>=0.4.0",
-    "flax>=0.8.0",
     "scikit-learn>=1.4.0",
 ]
 
@@ -52,6 +49,3 @@ testpaths = [
     "tests",
 ]
 python_files = ["test_*.py"]
-markers = [
-    "ml: marks tests that involve JAX/Flax JIT compilation which can be slow (deselect with '-m \"not ml\"')",
-]

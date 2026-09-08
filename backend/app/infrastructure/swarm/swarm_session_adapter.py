@@ -28,19 +28,51 @@ class SwarmSessionAdapter(ISwarmSession):
             target_score = float(data.get("target_score", 50.0))
             user_id = data.get("user_id", "default_user")
 
-            import jax.numpy as jnp
+            import numpy as np
+            from app.engine.scoring.features import TAG_KEYS
+            from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
+            from app.schemas.user import normalize_user_preferences
 
             poi_embedding = PoiEncoder.encode(poi)
+
+            user_model = (
+                await self.user_repo.get_by_id(user_id)
+                if hasattr(self.user_repo, "get_by_id")
+                else None
+            )
+            user_pref = (
+                user_model.preferences
+                if user_model and user_model.preferences
+                else None
+            )
+
             user_emb_list = await self.user_repo.get_embedding(user_id)
             if user_emb_list is None:
-                user_emb = jnp.ones((64,)) * 0.1
+                user_emb = np.full(16, 0.5, dtype=np.float32)
             else:
-                user_emb = jnp.array(user_emb_list)
+                user_emb = np.array(user_emb_list, dtype=np.float32)
 
             updated_emb = self.ml_model.update_user(
-                self.ml_params, user_emb, poi_embedding, target_score
+                self.ml_params, user_pref or user_emb, poi_embedding, target_score
             )
-            await self.user_repo.save_embedding(user_id, updated_emb.tolist())
+
+            updated_list = (
+                updated_emb.tolist()
+                if isinstance(updated_emb, np.ndarray)
+                else list(updated_emb)
+            )
+            await self.user_repo.save_embedding(user_id, updated_list)
+
+            if user_model and hasattr(self.user_repo, "update_preferences"):
+                norm_pref = normalize_user_preferences(user_model.preferences)
+                tag_weights = HybridSovereignScorer._extract_tag_weights(updated_list)
+                for idx, tag_name in enumerate(TAG_KEYS):
+                    norm_pref.tag_affinities[tag_name] = round(
+                        float(tag_weights[idx]), 3
+                    )
+                await self.user_repo.update_preferences(
+                    user_id, norm_pref.model_dump(mode="json")
+                )
 
             yield {"event": "FEEDBACK_PROCESSED", "status": "completed"}
             return

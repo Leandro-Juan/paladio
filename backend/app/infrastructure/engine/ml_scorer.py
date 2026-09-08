@@ -1,6 +1,5 @@
 import logging
-
-import jax.numpy as jnp
+import numpy as np
 from app.domain.entities.poi import Poi, ScoredPoi
 from app.domain.interfaces.scoring_model import IScoringModel
 from app.engine.scoring.features import PoiEncoder
@@ -11,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class MLScorer:
     """
-    Service responsible for orchestrating ML inference on POIs using JAX.
-    It takes raw domain entities, encodes them, performs batch scoring via the model,
-    and returns a structured list of ScoredPoi entities.
+    Service responsible for orchestrating ML inference on POIs using pure NumPy.
+    It takes raw domain entities, encodes them into deterministic features,
+    performs batch scoring via the model, and returns structured ScoredPoi entities.
     """
 
     def __init__(
@@ -27,30 +26,53 @@ class MLScorer:
         self, pois: list[Poi], user_id: str = "default_user"
     ) -> list[ScoredPoi]:
         """
-        Batches POIs, encodes them, and computes ML scores for a specific user.
+        Batches POIs, encodes them, and computes affinity scores for a specific user.
         """
         if not pois:
             return []
 
         poi_embeddings = []
         for poi in pois:
-            # PoiEncoder currently expects dict, so we convert the entity for the encoder
             poi_embeddings.append(PoiEncoder.encode(poi.model_dump()))
 
-        poi_embeddings_jnp = jnp.stack(poi_embeddings)
+        poi_embeddings_np = np.stack(poi_embeddings)
 
-        user_embedding_list = await self.user_repo.get_embedding(user_id)
-        if user_embedding_list is None:
-            logger.warning(
-                f"SqlUserRepository: Cold-start for user {user_id}. Initializing empty deterministic embedding."
+        # Retrieve user preferences or embedding
+        user_pref = None
+        import inspect
+
+        if hasattr(self.user_repo, "get_by_id"):
+            try:
+                res = self.user_repo.get_by_id(user_id)
+                user_model = await res if inspect.isawaitable(res) else res
+                if (
+                    user_model
+                    and hasattr(user_model, "preferences")
+                    and user_model.preferences
+                ):
+                    user_pref = user_model.preferences
+            except Exception as e:
+                logger.debug(f"Could not retrieve user preferences: {e}")
+
+        if user_pref is None and hasattr(self.user_repo, "get_embedding"):
+            try:
+                res = self.user_repo.get_embedding(user_id)
+                user_embedding_list = await res if inspect.isawaitable(res) else res
+                if user_embedding_list is not None and isinstance(
+                    user_embedding_list, (list, np.ndarray)
+                ):
+                    user_pref = user_embedding_list
+            except Exception as e:
+                logger.debug(f"Could not retrieve user embedding: {e}")
+
+        if user_pref is None:
+            logger.info(
+                f"MLScorer: Cold-start for user {user_id}. Using balanced neutral preference prior."
             )
-            user_embedding = jnp.ones((64,)) * 0.1
-        else:
-            user_embedding = jnp.array(user_embedding_list)
 
         # Batch inference -> shape (N, 1)
         raw_scores = self.ml_model.batch_score(
-            self.ml_params, user_embedding, poi_embeddings_jnp
+            self.ml_params, user_pref, poi_embeddings_np
         )
 
         scored_pois = []

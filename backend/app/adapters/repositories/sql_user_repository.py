@@ -47,6 +47,8 @@ class SqlUserRepository:
         embedding: Optional[list[float]] = None,
         preferences: Optional[dict[str, Any]] = None,
     ) -> UserModel:
+        from app.schemas.user import get_default_user_preferences
+
         user = UserModel(
             id=user_id,
             email=email,
@@ -54,7 +56,9 @@ class SqlUserRepository:
             hashed_password=hashed_password,
             is_active=True,
             embedding=embedding if embedding is not None else ([0.1] * 64),
-            preferences=preferences or {},
+            preferences=preferences
+            if preferences is not None
+            else get_default_user_preferences(),
         )
         self.session.add(user)
         await self.session.commit()

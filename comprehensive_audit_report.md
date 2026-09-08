@@ -1,294 +1,232 @@
 # Comprehensive Codebase Audit Report
 
-**Final Score: 4.5/10**
+**Final Score: 5.8/10**
 
 ## Executive Summary
 
-Paladio presents an ambitious hybrid architecture combining a native C++20 branch-and-bound optimization engine (`paladio_core`), a Python FastAPI semantic gateway orchestrating LangGraph multi-agent workflows, and a Next.js 16 / React 19 web interface. The core algorithmic concept—formulating multi-day travel itinerary planning as an Orienteering Problem with Time Windows (OPTW) solved deterministically in C++ with NumPy zero-copy memory buffers—is mathematically sound and high-potential.
+Paladio has made measurable architectural progress since the initial audit. Critical host-level security risks (such as mounting `/var/run/docker.sock` into worker containers and hardcoded plaintext credentials in version control) have been mitigated, database migrations for `trips` and `users` have been formally established, CORS policies have been restricted from wildcards, and the Itinerary Vault detail page now pulls real data from the backend REST API instead of hardcoded Tokyo/Paris mocks.
 
-However, an exhaustive audit reveals severe engineering liabilities, critical logic bugs, glaring security vulnerabilities, pervasive AI slop, and substantial discrepancies between documentation and runtime implementation:
-1. **Critical Security Vulnerabilities**: Plaintext API credentials (`scripts/setup_proxy.py`) committed to source control, host Docker daemon socket (`/var/run/docker.sock`) mounted into Celery worker containers allowing container escape, and insecure wildcard CORS configuration with credentials enabled.
-2. **Core C++ Optimization Flaws**: A copy-paste logic inversion in the state dominance check (`engine.cpp`) that risks pruning optimal paths, omission of end-node financial costs and visit durations in round-trip itineraries, and default parameter discrepancies between C++ headers and pybind11 definitions.
-3. **Pervasive Machine Learning Illusion & Slop**: The JAX MLP scoring model is never trained or persisted—it reinitializes random weights on every server boot. The 128D feature encoder extracts only 11 dimensions (padding the rest with 117 zeros) and defaults all POI ratings to a hardcoded `3.0` due to dictionary key mismatches. Code comments claim "True Eigenvector Centrality" for elementary numeric if-statements.
-4. **Agent Workflow & Architecture Breakdown**: The LangGraph Swarm includes a "RAG" node whose retrieved context is never consumed by any downstream node (pure zombie code). The Human-in-the-Loop resume handler passes envelope metadata into domain constraint models, causing validation crashes upon user clarification. All state checkpoints rely on volatile process RAM (`MemorySaver`).
-5. **Background Workers & Database Disconnect**: Celery Beat continuously dispatches a deleted task (`scrape_flight_prices_task`) every 5 minutes. The database lacks an Alembic migration for the `trips` table. The map builder task attempts to hit an imaginary webhook on port 8080.
-6. **Frontend Disconnects & Facades**: The itinerary vault detail page (`vault/[id]/page.tsx`) contains hardcoded Tokyo/Paris mock data and cannot display user trips. The vault map places all saved missions at latitude/longitude (0, 0). Waypoint timelines display `--:--` due to naming mismatches with backend schemas. The ML Preference page is a non-interactive static mockup.
+However, a deep, zero-tolerance technical audit across the C++20 engine, Python FastAPI semantic gateway, LangGraph multi-agent orchestration, and Next.js frontend reveals that significant algorithmic liabilities, subtle logic bugs, AI slop facades, and integration gaps persist:
+
+1. **Algorithmic Inadmissibility in Branch-and-Bound Engine (`cpp_core/src/engine.cpp`)**: The continuous fractional knapsack bound in `calculate_optimistic_bound` requires items to be sorted strictly in descending order of value density (`score / duration`). However, `sorted_pois_by_density` prioritizes meal category flags ahead of density. Low-density meal spots are evaluated first, prematurely exhausting remaining time in the knapsack heuristic and returning an underestimated optimistic bound. This violates the admissible heuristic requirement ($h(n) \ge h^*(n)$) and causes the engine to prune branches containing optimal solutions.
+2. **Round-Trip Cost, Score, and Duration Double-Counting (`cpp_core/src/engine.cpp`)**: When an itinerary returns to the base hotel (`start_node_index == end_node_index`), the hotel's objective score, financial cost, and stay duration are added at tour initialization (lines 543-568) and added a second time during terminal path completion (lines 355-385). This inflates objective scores and doubles hotel expenses in reported totals.
+3. **Schedule Desynchronization and Opening Hours Omission (`backend/app/infrastructure/engine/bridge_adapter.py`)**: When mapping raw C++ path indices back to `ScheduledPoi` domain entities, the bridge accumulates elapsed time purely from transit and duration (`current_time += transit; current_time += duration`). It completely ignores `poi.open_time_mins` and dwell waiting time. If a user arrives at 08:30 and a museum opens at 10:00, Python schedules the visit at 08:30, desynchronizing the itinerary schedule from physical reality.
+4. **Complete Breakdown of Human-in-the-Loop Resume Protocol (`backend/app/swarm/graph.py` & `frontend/src/contexts/SocketContext.tsx`)**: When the LangGraph state machine interrupts execution for missing constraints, the frontend serializes user inputs into a JSON string inside the `"message"` key, while `test_client.py` sends `"clarification_response"`. `check_missing_fields_node` only inspects top-level keys matching `TravelConstraints.model_fields`. Because neither format matches, user clarifications are silently discarded, and the state machine resumes with the missing fields still empty.
+5. **100% Dead RAG Node (Zombie Code in `backend/app/swarm/nodes/retriever.py`)**: `rag_node` executes vector embeddings and queries PGVector, storing `retrieved_context` in state. However, no downstream node, prompt, use case, or scoring engine reads or consumes this text. The entire RAG pipeline is dead overhead.
+6. **Identity Spoofing in WebSocket Gateway (`backend/app/api/v1/websockets.py`)**: The WebSocket endpoint checks `if auth_user_id and "user_id" not in data: data["user_id"] = auth_user_id`. Clients can explicitly pass `"user_id": "<target_user_id>"` in the message body, bypassing authentication to hijack or overwrite another user's ML preferences. Unauthenticated clients can similarly pass arbitrary `user_id` values.
+7. **Runaway Multi-Gigabyte Background Downloads (`backend/app/tasks.py` & `backend/app/engine/transit_matrix.py`)**: When local Valhalla instances fail or are offline, `get_transit_matrix` triggers `build_city_map_task`, which uses blocking `urllib.request.urlretrieve` to download full country OSM archives (hundreds of megabytes to gigabytes) from Geofabrik, attempting to post to an imaginary webhook on port 8080. Configured with 3 automatic retries, each failure triggers repeated multi-gigabyte downloads.
+8. **Frontend Facades & Disconnects**: The ML Preference Model page (`frontend/src/app/model/page.tsx`) remains a static mockup displaying hardcoded zeros with zero API connectivity, falsely claiming "The C++ engine uses these exact tensors". The "TUNE ML" button on the engine page sends a hardcoded dummy object (`'TEST_POI'`). Upcoming trips on `/trips` lack navigation links to `/vault/[id]`.
 
 ---
 
 ## Detailed Findings
 
-### `scripts/setup_proxy.py`
-- **Bugs & Logic Flaws**: Directly modifies `backend/.env` without verifying existing keys, appending duplicate environment entries on repeated runs.
-- **Bad Practices & Dead Code**: Standalone script with no CLI validation or error recovery.
-- **AI Slop**: Hardcoded scratch script committed to the root repository.
-- **Scalability & Architecture**: **CRITICAL SECURITY RISK**: Hardcoded live Webshare proxy API token (`teeosbwqq39sbexhek8etoj56v0c2ttoemx5yz1z`) in line 5 committed directly to Git version control.
-
-### `docker-compose.yml`
-- **Bugs & Logic Flaws**: Celery beat service runs alongside worker but uses development-target hot reload with stale dependencies.
-- **Bad Practices & Dead Code**: Orphaned volumes and unused environment variables (`AVIATIONSTACK_API_KEY`).
-- **AI Slop**: Comments claiming hardened security while exposing critical attack surfaces.
-- **Scalability & Architecture**: **HIGH SECURITY VULNERABILITY**: Line 109 mounts `/var/run/docker.sock:/var/run/docker.sock` into the Celery worker container. Any code execution within the worker yields root-level container breakout capabilities on the host daemon. Furthermore, TimescaleDB, Ollama, and Redis bind to localhost ports without authentication tokens.
-
 ### `cpp_core/src/engine.cpp`
 - **Bugs & Logic Flaws**:
-  - **Dominance Check Inversion**: In `dfs()` (lines 134-161), both `old_dominates` and `new_dominates` use the identical condition `state.last_meal_time >= m.last_meal_time`. For state dominance, if a later meal time is considered inferior (or superior), the inequality must invert between existing entry domination and candidate entry domination. This copy-paste error causes valid branches to be prematurely pruned.
-  - **Round-Trip Cost & Duration Omission**: In lines 352-380, when `config.end_node_index` is configured, `final_score` accumulates `pois[target_end].score`, and `final_time` accumulates `return_dur`. However, `pois[target_end].cost` is **never added to `final_cost`**, and `pois[target_end].duration` is **never added to `final_time`**. Final itineraries returning to a base hotel under-report costs and elapsed time.
-- **Bad Practices & Dead Code**: Large recursive function `dfs` (~330 lines) with excessive parameter passing (14 arguments) instead of encapsulating context into a solver class.
-- **AI Slop**: Overly complex dominance conditions with redundant floating point epsilon comparisons.
-- **Scalability & Architecture**: Hard limit of 64 nodes enforced by a single `uint64_t` bitmask (`visited_mask`). Exceeding 64 nodes throws `std::invalid_argument`.
+  - **Inadmissible Continuous Knapsack Upper Bound (`calculate_optimistic_bound`)**: In lines 469-488, `sorted_pois_by_density` is sorted by `is_mandatory`, then `is_meal` (`a_is_meal != b_is_meal`), and only then by `density_a > density_b`. In `calculate_optimistic_bound` (lines 65-109), greedy fractional knapsack iterates through this array. Because meals are prioritized regardless of density, a meal with low score-to-duration density consumes `remaining_time` before high-density attractions are considered. The resulting heuristic bound underestimates achievable score, pruning branches that lead to the globally optimal itinerary.
+  - **Round-Trip Hotel Double-Counting**: In lines 355-385, when `config.end_node_index.has_value()` and `state.current_path[last] != target_end`, the solver executes `final_score += pois[target_end].score - idle_penalty`, `final_cost += pois[target_end].cost`, and `final_time += pois[target_end].duration`. For standard round trips where `start_node_index == end_node_index` (hotel origin and return), the hotel's score, cost, and duration were already accumulated during root initialization (lines 543-568). This counts the hotel's financial cost and duration twice in the final result.
+  - **Incomplete Lookahead End-Node Budget Pruning**: In lines 231-240, the lookahead pruning check for `target_end` tests `if (next_cost + return_cost > config.max_budget) continue;`, but fails to include `pois[target_end].cost`. If the end node has an entry fee or accommodation cost, the branch is not pruned early, causing useless recursive evaluations until rejected at the leaf check.
+  - **Non-Monotonic Dominance on `last_meal_time`**: In lines 142 and 156, state dominance asserts `m.last_meal_time >= state.last_meal_time`. Because `min_meal_spacing` (180 mins) is enforced forward, a later meal time delays when the next meal can be taken. An earlier meal time allows visiting a meal spot sooner, which may be required to meet an upcoming deadline. A later meal time does not strictly dominate an earlier one.
+- **Bad Practices & Dead Code**:
+  - The core search algorithm is implemented as a single monolithic recursive function (`dfs`, ~330 lines) taking 14 distinct arguments rather than encapsulating solver context inside a class instance.
+  - Hard limit of 64 nodes enforced by a single `uint64_t visited_mask`. Passing 65 POIs throws `std::invalid_argument`.
+- **AI Slop**:
+  - Magic numbers (`15.0`, `1e-5`, `1023`, `-9999`) embedded directly in search routines without named constants or documented physical rationale.
+- **Scalability & Architecture**:
+  - `memo` table dynamically allocates `std::vector<MemoEntry>` per state without a reusable memory arena, causing continuous heap fragmentation on dense 64-node graphs.
 
 ### `cpp_core/include/engine.hpp` & `cpp_core/src/bindings.cpp`
-- **Bugs & Logic Flaws**: **Default Parameter Discrepancy**: In `engine.hpp` (line 102), `OptimizationConfig.max_idle_time` defaults to `240` minutes. In `bindings.cpp` (line 65), the pybind11 constructor argument defaults to `45` minutes. Depending on whether the struct is instantiated in C++ or Python, the idle tolerance changes by over 500%.
-- **Bad Practices & Dead Code**: `#ifdef PALADIO_TESTING` inline overload inside production header file introduces build flag contamination.
-- **AI Slop**: Boilerplate Doxygen comments describing standard C++ types without providing operational guarantees.
-- **Scalability & Architecture**: Pybind11 correctly releases the GIL (`py::gil_scoped_release`), but memory buffers are allocated on each invocation without reuse pools.
-
-### `backend/app/domain/interfaces/poi_repository.py` & `backend/app/domain/interfaces/poi_provider.py`
-- **Bugs & Logic Flaws**: None.
-- **Bad Practices & Dead Code**: None.
-- **AI Slop**: None.
-- **Scalability & Architecture**: **CLEAN ARCHITECTURE VIOLATION**: Both interfaces import `Attraction` from `app.schemas.scraper` (an outer infrastructure / data-transfer schema) instead of returning core domain entities (`app.domain.entities.poi.Poi`). The inner domain layer is tightly coupled to scraping DTOs.
-
-### `backend/app/domain/interfaces/optimization_engine.py`
-- **Bugs & Logic Flaws**: The interface signature declares `run_optimization(...)` as a synchronous method (`def run_optimization`), but `CppOptimizationAdapter` implements it as `async def run_optimization`, violating the Liskov Substitution Principle and method signature contract.
-- **Bad Practices & Dead Code**: Default parameters in domain interface method signatures.
-- **AI Slop**: Redundant docstrings explaining standard clean architecture concepts.
-- **Scalability & Architecture**: Imports `TravelConstraints` from `app.schemas.itinerary`, leaking API request schemas into the domain interface.
-
-### `backend/app/engine/scoring/features.py`
-- **Bugs & Logic Flaws**:
-  - **Rating Key Mismatch**: Line 31 calls `poi.get("rating", 3.0)`. In the domain entity `Poi`, ratings are nested under `poi.scoring["google_rating"]`. `poi.get("rating")` always evaluates to `None`, causing **every single POI to default to a hardcoded 3.0 rating**.
-- **Bad Practices & Dead Code**: Manual one-hot encoding array loop instead of vectorized or dictionary-based lookups.
-- **AI Slop**: Generates a supposed "128D feature vector", but only computes 11 scalar values and pads the remaining 117 elements with hardcoded zeroes (`0.0`).
-- **Scalability & Architecture**: Generates JAX arrays element-by-element inside Python loops rather than operating on vectorized batches.
-
-### `backend/app/infrastructure/scoring/jax_ml_model.py`
-- **Bugs & Logic Flaws**:
-  - **Untrained Ephemeral Model**: The MLP weights are initialized with random Gaussian noise (`jax.random.key(42)`) in `main.py` on startup and never loaded from disk or pre-trained on travel datasets. All affinity predictions are arbitrary random projections.
-- **Bad Practices & Dead Code**: Model gradient update (`update_user_embedding`) performs online gradient descent on user vectors with fixed learning rate (0.05) and no regularization or clipping, risking vector divergence.
-- **AI Slop**: "Enterprisey" JAX / Flax neural network boilerplate wrapped around an untrained 3-layer perceptron.
-- **Scalability & Architecture**: State is held in FastAPI process memory (`app.state.ml_params`). In a multi-worker production deployment, worker processes have isolated, out-of-sync parameters.
-
-### `backend/app/engine/cluster_selector.py`
-- **Bugs & Logic Flaws**:
-  - **Centrality Over-Pollution**: Lines 65-68 treat any POI with `google_rating >= 4.5 and reviews > 1000` as "mandatory" (`mandatory_pois.append(p)`). In major tourist destinations (Rome, Paris, Madrid), dozens of attractions meet this threshold, flooding the mandatory pool and causing the C++ solver to fail feasibility checks.
-- **Bad Practices & Dead Code**: Re-imports `is_poi_mandatory` inside the method body (line 57).
-- **AI Slop**: Line 61 contains a hallucinated comment: `# True Eigenvector Centrality based on actual popularity/rating data`. There is zero graph construction, no adjacency matrix, and no eigenvector computation; it is simply a primitive scalar threshold check.
-- **Scalability & Architecture**: Hardcoded `KMeans(random_state=42, n_init="auto")` called synchronously on CPU within the async request flow.
-
-### `backend/app/infrastructure/engine/struct_mapper.py`
-- **Bugs & Logic Flaws**:
-  - **Meal Type Classification Failure**: `map_category_to_node_type` maps all `"RESTAURANT"` POIs to `NodeType::RESTAURANT_LUNCH`. Lines 70-76 only assign `is_dinner_spot = True` if the word `"dinner"` appears in the restaurant's lowercase name. Real restaurants rarely have "dinner" in their title, resulting in zero valid dinner spots. Any request with dinner constraints fails to generate an itinerary.
-- **Bad Practices & Dead Code**: Repeated module imports within function bodies (`from app.utils.text import is_poi_mandatory`).
-- **AI Slop**: Hardcoded heuristic string parsing for meal window classification.
-- **Scalability & Architecture**: Dense $N \times N$ matrix flattening uses nested Python loops instead of NumPy vectorization.
+- **Bugs & Logic Flaws**: None observed in the bindings themselves. Matrix length verification (`dur_buf.shape[0] == pois.size() * pois.size()`) is properly enforced.
+- **Bad Practices & Dead Code**:
+  - `#ifdef PALADIO_TESTING` inline overload inside the production header file `engine.hpp` introduces build flag contamination between production and test targets.
+- **AI Slop**:
+  - Verbose boilerplate docstrings that restate parameter names without explaining algorithmic invariants or boundary expectations.
+- **Scalability & Architecture**:
+  - Pybind11 correctly releases the GIL (`py::gil_scoped_release`), allowing C++ search to execute in background threads without blocking the Python runtime.
 
 ### `backend/app/infrastructure/engine/bridge_adapter.py`
 - **Bugs & Logic Flaws**:
-  - **Timeline Time Desynchronization**: Lines 78-105 reconstruct itinerary schedule timestamps without accounting for POI opening hours. If an attraction opens at 10:00 AM but the solver arrives at 8:30 AM, the bridge adapter schedules the visit at 8:30 AM, ignoring the waiting time simulated by the C++ engine.
-- **Bad Practices & Dead Code**: Interface signature mismatch with `IOptimizationEngine`.
-- **AI Slop**: Generic `except Exception as e: raise OptimizationError` swallowing stack traces.
-- **Scalability & Architecture**: Wraps synchronous C++ execution in `asyncio.to_thread`, which is appropriate, but serializes and deserializes large intermediate dictionaries.
+  - **Complete Disregard for Opening Hours and Waiting Times**: In lines 78-105, `bridge_adapter.py` reconstructs itinerary timestamps by accumulating elapsed time: `current_time += transit_time; ... current_time += duration;`. It never checks `poi.open_time_mins` or `poi.earliest_time`. If transit arrives before opening hours, C++ waits, but Python immediately starts the activity, producing illegal schedules where POIs are visited before opening.
+- **Bad Practices & Dead Code**:
+  - Hardcoded default start and end times (`day_start_mins = 480`, `day_end_mins = 1320`).
+- **AI Slop**:
+  - Redundant conversion pipelines mapping domain models to intermediate dictionaries, then to C++ structs, and back to domain entities.
+- **Scalability & Architecture**:
+  - Flat transit matrices are dynamically allocated as NumPy arrays on every call rather than utilizing shared buffers.
 
-### `backend/app/infrastructure/providers/overpass_provider.py`
+### `backend/app/swarm/graph.py`
 - **Bugs & Logic Flaws**:
-  - **Rigid Admin Level Overpass Query**: Line 120 queries `area["name"="{city_name}"]["admin_level"="8"]`. Many global metropolises (London, Tokyo, Berlin, New York) do not use OSM `admin_level=8`, causing area resolution to return empty and mandatory POI queries to fail.
-  - **Unescaped Regex Injection**: Line 121 interpolates `m_name` directly into an Overpass regex query (`nwr["name"~"{m_name}",i]`), susceptible to query syntax errors if POI names contain parentheses or brackets.
-- **Bad Practices & Dead Code**: Global state variables (`_nominatim_last_called`, `_nominatim_lock`) used for rate-limiting outside dependency injection.
-- **AI Slop**: Hardcoded OSM tag heuristics and hardcoded fallback durations (120m for museums, 60m for restaurants).
-- **Scalability & Architecture**: Sequential fallback through 4 public Overpass interpreter mirrors with 25s timeouts. Worst-case latency before failure is 100 seconds, blocking the user request pipeline.
+  - **Silent Dropping of User Inputs in HITL Resume Handler**: In `check_missing_fields_node` (lines 66-88), `answers` returned from `interrupt()` is filtered against `valid_keys = set(TravelConstraints.model_fields.keys())`. The frontend sends `{ "action": "resume", "message": JSON.stringify(data) }` and `test_client.py` sends `{ "clarification_response": ... }`. Neither contains top-level constraint keys. `filtered_answers` evaluates to an empty dictionary, and missing constraints remain permanently missing.
+- **Bad Practices & Dead Code**:
+  - Hardcoded `MemorySaver()` checkpointer in `create_swarm()`. All swarm state snapshots reside in ephemeral RAM and cannot be shared across multiple Uvicorn worker processes.
+- **AI Slop**:
+  - Duplicate checkpointer declarations (`app.swarm.checkpointer.memory` exists as an unused singleton while `create_swarm` instantiates its own `MemorySaver`).
+- **Scalability & Architecture**:
+  - Module-level graph compilation (`graph = create_swarm()`) executes at import time, preventing dynamic configuration of checkpointers or graph topologies.
 
-### `backend/app/infrastructure/providers/travel_data.py`
-- **Bugs & Logic Flaws**: `MockTravelDataProvider.get_pois` copies the exact production implementation of `LiveTravelDataProvider.get_pois`, querying real PostgreSQL sessions and calling Overpass APIs instead of using mock data.
-- **Bad Practices & Dead Code**: Code duplication between `LiveTravelDataProvider` and `MockTravelDataProvider`.
-- **AI Slop**: Redundant abstractions wrapping basic service calls.
-- **Scalability & Architecture**: Instantiates short-lived database sessions on every invocation rather than utilizing FastAPI dependency injection.
-
-### `backend/app/services/poi_service.py` & `backend/app/utils/text.py`
+### `backend/app/swarm/nodes/retriever.py`
 - **Bugs & Logic Flaws**:
-  - **Matching Logic Inconsistency**: `poi_service.py` implements `is_poi_match` (using substring containment and word length $\ge 3$), while `text.py` implements `is_poi_mandatory` (using regex word boundaries and word length $> 3$). A POI deemed mandatory during cache revalidation may be deemed non-mandatory by the solver.
-- **Bad Practices & Dead Code**: `city_name.strip().title()` corrupts multi-word names with lowercase particles (e.g., "Rio de Janeiro" becomes "Rio De Janeiro"), breaking Overpass exact matches.
-- **AI Slop**: Redundant duplicate implementations of string matching algorithms.
-- **Scalability & Architecture**: Celery background refresh task (`refresh_city_pois_task.delay`) triggered on stale cache hits is good practice, but has no idempotency or deduplication guard.
-
-### `backend/app/use_cases/fetch_travel_context.py`
-- **Bugs & Logic Flaws**: Unthrottled geocoding calls to public Nominatim (`https://nominatim.openstreetmap.org/search`) without required Contact headers or 1 req/sec pacing, risking permanent IP ban from OpenStreetMap Foundation.
-- **Bad Practices & Dead Code**: Nested imports of `urllib.parse`, `httpx`, and `ClusterSelector` within method bodies.
-- **AI Slop**: Procedural generation of 100 fake restaurants in `mock_generator.py` with randomized coordinates and names.
-- **Scalability & Architecture**: Multi-day trip handling appends airports to day 0 and day $N-1$, but passes the entire cluster to the daily solver without validating whether total day transit fits within daily operational envelopes.
-
-### `backend/app/use_cases/optimize_daily_itinerary.py`
-- **Bugs & Logic Flaws**:
-  - **Multi-Day Budget Multiplication**: In line 53, `local_constraints.budget_usd` is set to the total trip budget. Inside the `for day in range(num_days)` loop, this total budget is passed into each single-day optimization call. A user with a \$600 total budget across 3 days is permitted to spend \$600 *per day* (\$1,800 total).
-  - **Hardcoded Flight Cost**: Line 44 sets `flight_cost = 0.0`. Real flight pricing is never deducted from the user's travel budget.
-  - **Airport Bypass & Metric Inaccuracy**: Lines 173-176 filter out airports from the solver graph, and lines 232-254 manually prepend/append the airport to the route array. The transit time and cost of the airport leg are never added to `total_cost_eur`, `total_time_mins`, or `total_score`, producing inaccurate summary telemetry.
-- **Bad Practices & Dead Code**: Deepcopy of constraints and matrix on every invocation.
-- **AI Slop**: Dummy heuristic fallback transit matrices when Valhalla fails.
-- **Scalability & Architecture**: Daily optimization loop runs sequentially on the event loop rather than exploiting parallel worker threads for independent days.
-
-### `backend/app/swarm/graph.py` & `backend/app/swarm/nodes/retriever.py`
-- **Bugs & Logic Flaws**:
-  - **Zombie RAG Node**: `rag_node` queries PGVector, retrieves context, and writes it to `SwarmState.retrieved_context`. **No subsequent node (`check_missing`, `planner_scrape`, `planner_optimize`) ever reads or references `retrieved_context`**. It is completely dead computation.
-  - **Unseeded PGVector**: PGVector tables are only populated by an offline manual seed script (`seed_pois.py`). For any user-queried city not pre-seeded, PGVector is empty and returns empty strings.
-  - **Human-in-the-Loop Resume Corruption**: In `check_missing_fields_node`, `interrupt()` pauses execution. When resumed via WebSocket, the payload dictionary (including `action: "resume"`, `thread_id`, and JSON message) is unpacked directly into `constraints_dict`. Instantiating `TravelConstraints(**constraints_dict)` crashes with unexpected field errors.
-- **Bad Practices & Dead Code**: Dead state variables in `SwarmState` (`error_count`, `retrieved_context`).
-- **AI Slop**: "Swarm" marketing terminology applied to a strictly linear 6-node state graph with zero branching or agent autonomy.
-- **Scalability & Architecture**: `MemorySaver` checkpointer stores all graph state in Python process RAM. Server restarts or worker scaling destroy active sessions.
-
-### `backend/app/swarm/agents/ticket_parser.py` & `backend/app/swarm/agents/validator.py`
-- **Bugs & Logic Flaws**:
-  - Both agents run un-mocked LLM inference against Ollama on CPU during automated unit tests, causing test suite runs to hang for minutes and fail in environments without local LLMs.
-- **Bad Practices & Dead Code**: Custom retry loops wrapping Pydantic AI agents with redundant exception logging.
-- **AI Slop**: Lengthy system prompts attempting to force local LLMs to invoke specific tools via natural language hints.
-- **Scalability & Architecture**: No pooling or rate limiting of Ollama API requests; concurrent WebSocket users trigger concurrent CPU-bound LLM generations.
+  - **Complete Zombie Computation**: `rag_node` queries PGVector using `nomic-embed-text` embeddings and returns `{"retrieved_context": context}`. No downstream node in the graph, no LLM prompt, and no use case ever references `retrieved_context`. It is executed purely to emit a UI progress event.
+- **Bad Practices & Dead Code**:
+  - Creates synchronous PGVector connections via thread pool (`asyncio.to_thread(retriever.invoke, last_msg)`) instead of using async drivers.
+- **AI Slop**:
+  - Hardcoded fallback messages and silent exception suppression (`return {"retrieved_context": ""}`).
+- **Scalability & Architecture**:
+  - Global `_retrievers` cache dictionary grows unbounded across different queried cities without eviction policies.
 
 ### `backend/app/api/v1/websockets.py`
 - **Bugs & Logic Flaws**:
-  - **Session Lifetime & Thread Safety Violation**: Lines 35-40 instantiate a single SQLAlchemy `AsyncSession` per WebSocket connection and share it across all message handlers. Concurrent requests or streaming tasks sharing an un-synchronized `AsyncSession` trigger `IllegalStateChangeError: Method 'execute()' can't be called here; another operation is in progress`.
-  - **Silent Stream Task Failure**: In `stream_task` (lines 98-99), errors are caught and logged, but never transmitted to `outbound_queue`. When an error occurs in the pipeline, the WebSocket client is never notified and hangs in the "SOLVER ACTIVE" state indefinitely.
-- **Bad Practices & Dead Code**: Inverted exception handling where `OptimizationError` is handled outside the connection message loop.
-- **AI Slop**: Telemetry strings mimicking fictional military/cyberpunk terminals (`"UPLINK ESTABLISHED"`, `"MISSION SAVED"`).
-- **Scalability & Architecture**: Unbounded in-memory queue (`asyncio.Queue(maxsize=100)`) per connection with no backpressure mechanism.
+  - **Identity Spoofing Vulnerability**: In line 113, `if auth_user_id and "user_id" not in data: data["user_id"] = auth_user_id`. A client providing a valid JWT can explicitly pass `"user_id": "<target_user_id>"` in the message body, bypassing authentication to hijack or overwrite another user's ML preferences. Unauthenticated clients can similarly pass arbitrary `user_id` values.
+  - **Unbounded Concurrent Stream Tasks**: Every received message immediately creates an unmanaged background task (`asyncio.create_task(stream_task(...))`), allowing a single client to trigger dozens of overlapping swarm executions on the same thread checkpointer.
+- **Bad Practices & Dead Code**:
+  - Long-lived database sessions (`db_session = async_session()`) held open for the entire duration of the WebSocket connection (lines 47-154). Under high concurrency, idle WebSocket connections exhaust the database connection pool.
+- **AI Slop**:
+  - Hardcoded exception string slicing (`if len(error_msg) > 120: error_msg = error_msg[:117] + "..."`).
+- **Scalability & Architecture**:
+  - In-memory async queue `outbound_queue = asyncio.Queue(maxsize=100)` lacks backpressure handling if clients lag in consuming messages.
 
 ### `backend/app/api/v1/trips.py`
-- **Bugs & Logic Flaws**: Missing `GET /trips/{trip_id}` endpoint. The frontend routes users to `/vault/{id}`, but the backend API provides no endpoint to retrieve an individual trip by ID.
-- **Bad Practices & Dead Code**: Mixing ISO timestamp generation in Python with PostgreSQL database timestamps.
-- **AI Slop**: None.
-- **Scalability & Architecture**: Unpaginated `GET /trips/` endpoint (`scalars().all()`) returning all historical trips and full JSON itinerary payloads.
-
-### `backend/app/db/models.py` & `backend/migrations/`
-- **Bugs & Logic Flaws**: **MISSING DATABASE MIGRATION**: `TripModel` is declared in `models.py`, but only two Alembic migrations exist (`5cef38496ec5_init_pois.py` and `67f4819ee5c6_add_users.py`). There is **NO migration creating the `trips` table**. Running migrations on a fresh PostgreSQL container leaves the schema without `trips`, causing trip operations to fail.
-- **Bad Practices & Dead Code**: Ambiguous column renaming `metadata_field = Column("metadata", ...)` due to conflicts with SQLAlchemy's internal `Base.metadata`.
-- **AI Slop**: Heavy reliance on unstructured `JSONB` for domain fields (financials, schedule, scoring) instead of strongly typed relational tables.
-- **Scalability & Architecture**: No foreign keys between users and trips; user association is implicit.
-
-### `backend/app/celery_app.py` & `backend/app/tasks.py`
 - **Bugs & Logic Flaws**:
-  - **Phantom Periodic Task**: In `celery_app.py` (lines 19-25), Celery Beat is scheduled to execute `app.tasks.scrape_flight_prices_task` every 300 seconds. This task was deleted from `tasks.py` during the scraper refactor. Celery Beat continuously logs errors dispatching a non-existent task.
-  - **Failing Map Rebuild Webhook**: `build_city_map_task` in `tasks.py` downloads large OpenStreetMap `.pbf` files and attempts to POST to `http://host.docker.internal:8080/rebuild`. No server listens on port 8080, causing repeated network connection errors and task retries.
-- **Bad Practices & Dead Code**: Blocking `urllib.request.urlretrieve` inside Celery worker process blocking worker concurrency.
-- **AI Slop**: Remnants of deleted scrapers in `app/scraper/browser_pool.py` and `app/scraper/strategies/base.py` with zero consumers.
-- **Scalability & Architecture**: Worker and beat share single Redis broker queue without task prioritization.
+  - **Unrestricted Deletion and Global Leakage of Anonymous Trips**: In `delete_trip` (lines 142-145), ownership is checked only if `trip.user_id is not None`. Anyone can delete trips created without authentication (`user_id is None`). Furthermore, `get_trips` returns all anonymous trips globally to any unauthenticated visitor, exposing users' itineraries across distinct sessions.
+- **Bad Practices & Dead Code**:
+  - Missing pagination on `GET /api/v1/trips/`. Calling `scalars().all()` on large tables causes unbounded memory consumption.
+- **AI Slop**:
+  - Copy-pasted manual mapping between SQLAlchemy `TripModel` and Pydantic `TripResponse` repeated across three route handlers.
+- **Scalability & Architecture**:
+  - Stores `start_date` and `end_date` as unindexed `String` columns rather than SQL `Date` or `DateTime` types, preventing efficient range indexing.
 
-### `backend/app/main.py`
-- **Bugs & Logic Flaws**: Insecure CORS configuration (`allow_origins=["*"]`, `allow_credentials=True`).
-- **Bad Practices & Dead Code**: Synchronous initialization of ML parameters in lifespan hook without persistent storage.
-- **AI Slop**: Comments claiming app state initialization solves horizontal scaling when it does the exact opposite.
-- **Scalability & Architecture**: Single uvicorn process handles WebSocket streaming, database queries, and async dispatch without connection pools.
-
-### `backend/tests/` (Test Suite Health)
+### `backend/app/infrastructure/scoring/jax_ml_model.py` & `backend/app/engine/scoring/features.py`
 - **Bugs & Logic Flaws**:
-  - `tests/test_optimize_daily_itinerary.py`: Test `test_optimize_single_day_no_pois_except_hotel` crashes because `_optimize_single_day` updated its signature to require `matrix_dict_full`, but the test was never updated.
-  - `tests/test_ticket_parser.py` and `tests/test_validator.py` make real HTTP calls to local Ollama LLMs on CPU, hanging test runs for minutes.
-  - `tests/test_swarm_e2e.py` hardcodes `localhost:11435`, causing it to always skip when run inside Docker containers.
-- **Bad Practices & Dead Code**: 19,000 lines of static test fixtures in `test_data.json`.
-- **AI Slop**: Tests written to assert on mocked return values without exercising real validation boundaries.
-- **Scalability & Architecture**: No separation between fast hermetic unit tests and slow end-to-end integration tests.
+  - **Random Weight Initialization and Zero Model Persistence**: `ScoringMLP` parameters are randomly initialized on every startup (`jax.random.key(42)`). The weights are never trained, saved, or loaded from disk. Scoring outputs are pseudo-random numbers rather than real affinity predictions.
+  - **91.4% Padding in Feature Vectors**: In `PoiEncoder.encode`, only 11 dimensions are extracted (cost, duration, rating, 8 category one-hot flags). The remaining 117 dimensions are padded with zeros (`features.append(0.0)`). The 128D tensor is predominantly dead space.
+- **Bad Practices & Dead Code**:
+  - Category mapping in `features.py` silently defaults any unknown category to index 7 without logging warnings.
+- **AI Slop**:
+  - Enterprisey claims of "JIT-compiled batched forward pass for deep user affinity" masking an untrained 2-layer MLP operating on 11 non-zero features.
+- **Scalability & Architecture**:
+  - Multi-worker deployments (e.g. Uvicorn with `--workers 4`) will maintain distinct in-memory model instances and disjoint parameters.
 
-### `frontend/src/app/vault/[id]/page.tsx`
+### `backend/app/use_cases/fetch_travel_context.py` & `backend/app/use_cases/optimize_daily_itinerary.py`
 - **Bugs & Logic Flaws**:
-  - **Entirely Fake Mock Implementation**: The page contains a hardcoded dictionary `MOCK_TRIPS` with only two entries (`"tokyo-hyper"` and `"paris-efficiency"`). Clicking on any real trip saved by the user produces `[ MISSION DATA NOT FOUND ]`. It has zero integration with the backend API.
-  - **Next.js 15+ Async Params Incompatibility**: Accesses `params.id` synchronously, violating Next.js 15+ asynchronous route parameter contract (`Promise<{ id: string }>`).
-- **Bad Practices & Dead Code**: Hardcoded Unsplash image URLs in component body.
-- **AI Slop**: Fake mission data masquerading as functional trip detail views.
-- **Scalability & Architecture**: No data fetching layer, SWR, or React Query integration.
+  - **Unthrottled Nominatim API Flooding**: `fetch_travel_context.py` calls Nominatim directly (lines 68-75, 111-125, 146-160) without acquiring `_nominatim_lock` or observing the 1 request/second rate limit, risking HTTP 429 errors and IP bans from OpenStreetMap.
+  - **Late Arrival Deadlock**: If a flight arrives late in the day (e.g., 21:00), `hotel_arrival_time` calculates to ~23:05. Clamping `day_start_mins` to `max(480, 1385) = 1385` produces `day_start_mins > day_end_mins (1320)`, causing the C++ solver to reject all POIs and return an empty route.
+  - **Uniform Restaurant Pricing**: `fetch_travel_context.py` hardcodes `"cost_eur": 20.0` for all restaurants regardless of price tier or category.
+- **Bad Practices & Dead Code**:
+  - Deep-copying large transit matrices (`copy.deepcopy(matrix)`) on every invocation of `inject_slack_time`.
+- **AI Slop**:
+  - Magic numbers for travel buffers (`HOTEL_CHECKIN_BUFFER_MINS = 45`, `HOTEL_ARRIVAL_REST_MINS = 60`, `arr_mins = hotel_arrival_time - 105`).
+- **Scalability & Architecture**:
+  - Daily optimization executes strictly sequentially in a Python `for day in range(num_days)` loop, failing to exploit potential concurrency for multi-day plans.
 
-### `frontend/src/app/vault/page.tsx` & `frontend/src/components/VaultMap.tsx`
+### `backend/app/engine/transit_matrix.py` & `backend/app/tasks.py`
 - **Bugs & Logic Flaws**:
-  - **Coordinates Default to (0, 0)**: In `VaultPage` (lines 13-19), `mappedTrips` attempts to read `t.lat` and `t.lng`. Neither field exists on `TripModel` or `TripResponse`. All saved trips are assigned coordinate (0, 0), rendering markers in the Atlantic Ocean.
-  - **Choropleth Matching Flaw**: `VaultMap.tsx` checks `visitedCountries.includes(feature.properties.name)`. `visitedCountries` contains city names ("Madrid", "Paris"), while `feature.properties.name` contains country names ("Spain", "France"). Visited country styling never triggers.
-  - **Unauthenticated Third-Party GitHub Fetch**: Line 37 fetches GeoJSON from `https://raw.githubusercontent.com/johan/world.geo.json/...` directly in client render. Subject to GitHub rate limiting and network failure.
-- **Bad Practices & Dead Code**: Multiple ESLint warnings for `any` types.
-- **AI Slop**: Fictional terminal headers (`"ITINERARY VAULT // GLOBAL MISSIONS DASHBOARD"`).
-- **Scalability & Architecture**: Re-fetches large GeoJSON file on every page mount without caching.
+  - **Runaway Geofabrik Downloads**: If local Valhalla is unreachable, `get_transit_matrix` triggers `build_city_map_task`. This task uses blocking `urllib.request.urlretrieve` to download multi-gigabyte `.osm.pbf` archives and attempts to POST to a non-existent webhook (`http://host.docker.internal:8080/rebuild`). With `max_retries=3`, it re-downloads the archive three times in a loop, saturating disk and network.
+- **Bad Practices & Dead Code**:
+  - Calling `asyncio.run(run_fetch())` synchronously inside Celery worker processes creates short-lived event loops that interfere with asyncpg connection pooling.
+- **AI Slop**:
+  - Webhook integration code in `tasks.py` pointing to dummy host targets.
+- **Scalability & Architecture**:
+  - Missing persistent caching for computed transit matrices. Repeated requests between identical POIs re-query Valhalla or re-compute Haversine heuristics every time.
 
-### `frontend/src/components/TripTimeline.tsx`
+### `docker-compose.yml`
 - **Bugs & Logic Flaws**:
-  - **Timestamp Field Mismatch**: Line 41 attempts to read `scheduledPoi.arrival_time`. The backend domain entity `ScheduledPoi` outputs `scheduled_start` and `scheduled_end`. Because `arrival_time` is undefined, **every single waypoint on the timeline renders time as `--:--`**.
-- **Bad Practices & Dead Code**: Untyped `any` parameters and dead fallback branches.
-- **AI Slop**: Non-functional dummy visual dividers.
-- **Scalability & Architecture**: Renders all waypoints in a single unvirtualized DOM tree.
+  - **Zombie Celery Beat Service**: Lines 127-151 define a dedicated `beat` container running 24/7, despite `celery_app.py` defining an empty schedule (`beat_schedule = {}`).
+- **Bad Practices & Dead Code**:
+  - `AVIATIONSTACK_API_KEY` is passed into three containers (lines 20, 117, 142) despite external flight scrapers having been deleted from the repository.
+  - Default database credentials (`postgres:postgres`) configured in plaintext.
+- **AI Slop**:
+  - Unused service definitions and leftover environment flags.
+- **Scalability & Architecture**:
+  - `init-llm` service uses a fragile `sleep 5` command to wait for Ollama before pulling models, failing if the container takes longer than 5 seconds to initialize.
 
 ### `frontend/src/app/model/page.tsx`
-- **Bugs & Logic Flaws**: Completely non-functional static page. Displays a hardcoded zeroed-out radar chart and a static message `[ WAITING FOR LIVE TELEMETRY UPDATE ]`. Has zero API calls, zero WebSocket subscriptions, and zero interactivity.
-- **Bad Practices & Dead Code**: Misleading user-facing text claiming "The C++ engine uses these exact tensors" when no tensors are sent to or used by this page.
-- **AI Slop**: High visual fidelity placeholder designed to simulate machine learning telemetry without actual engineering.
-- **Scalability & Architecture**: None.
-
-### `frontend/src/contexts/SocketContext.tsx`
 - **Bugs & Logic Flaws**:
-  - **Resume Command Payload Corruption**: Lines 289-294 construct an invalid resume payload stringifying answers into a `message` key, conflicting with LangGraph's expected dictionary resume schema.
-- **Bad Practices & Dead Code**: Disables React Hook purity rules (`// eslint-disable-next-line react-hooks/purity`) to read `sessionStorage` in `useRef`.
-- **AI Slop**: Cyberpunk status telemetry strings logged to session storage.
-- **Scalability & Architecture**: WebSocket connection lifecycle tied to component mounting without automatic exponential backoff reconnection.
+  - **Static Mockup Facade**: The page is completely non-interactive. `telemetryData` hardcodes all metrics (`A: 0`). No API calls are made to `/api/v1/users/me/embedding` or `/api/v1/users/me/preferences`.
+- **Bad Practices & Dead Code**:
+  - Hardcoded placeholder text claiming "These weights are updated in real-time... The C++ engine uses these exact tensors" when no telemetry uplink exists.
+- **AI Slop**:
+  - Empty UI shell presented as a functional machine learning control panel.
+- **Scalability & Architecture**:
+  - Does not connect to the existing WebSocket or REST endpoints for real-time model updates.
+
+### `frontend/src/app/engine/page.tsx`
+- **Bugs & Logic Flaws**:
+  - **Hardcoded ML Feedback**: Line 209 hardcodes the "TUNE ML" button to `onClick={() => sendFeedback({ name: 'TEST_POI' } as unknown as any, 100.0)}`. Users cannot provide real feedback on generated itinerary stops.
+  - **Start Date Fallback to Today**: If flight info lacks departure time, `startDate` defaults to `new Date()`, ignoring trip date constraints provided by the user.
+- **Bad Practices & Dead Code**:
+  - Explicit ESLint rule disablement for missing hook dependencies (`eslint-disable-next-line react-hooks/exhaustive-deps`).
+- **AI Slop**:
+  - Sci-fi status labels masking missing interactive controls.
+- **Scalability & Architecture**:
+  - Logs are stored in `sessionStorage` with unbounded growth, causing performance degradation during extended sessions.
+
+### `frontend/src/app/trips/page.tsx` & `frontend/src/components/ActiveTripTicket.tsx`
+- **Bugs & Logic Flaws**:
+  - **Missing Route Navigation**: Upcoming trip cards on `/trips` render an "ABORT MISSION" button, but have no link to `/vault/[id]`. Users who save an itinerary cannot view its detailed map, timeline, or stops from this page.
+- **Bad Practices & Dead Code**:
+  - Unused `Link` import in `ActiveTripTicket.tsx`.
+  - Type casts to `any` across trip mapping logic.
+- **AI Slop**:
+  - Inconsistent naming: missions vs trips vs itineraries.
+- **Scalability & Architecture**:
+  - Renders all trips simultaneously without pagination or virtual scrolling.
+
+### `frontend/src/types/domain.ts` vs Backend Return Schema
+- **Bugs & Logic Flaws**:
+  - **Schema Divergence**: `domain.ts` expects `OptimizationResult` to contain `metadata: { engine, version, nodes_evaluated }`, `travel_constraints`, and `total_trip_cost`. Backend `OptimizeDailyItineraryUseCase` only returns `{"days": multi_day_itinerary}`. Consequently, metrics displayed on `vault/[id]/page.tsx` evaluate to `undefined`.
+- **Bad Practices & Dead Code**:
+  - Unused attributes in `DailyItinerary` (`is_valid`, `constraint_violations`).
+- **AI Slop**:
+  - Complex nested interfaces that do not mirror runtime backend payloads.
+- **Scalability & Architecture**:
+  - Types manually duplicated between frontend TypeScript and backend Pydantic instead of being code-generated from OpenAPI specs.
+
+### `backend/tests/` & `cpp_core/tests/`
+- **Bugs & Logic Flaws**:
+  - **False Test Confidence via Silent Field Ignorance**: In `test_bridge.py` and `test_use_case_fetch_travel_context.py`, test fixtures pass unsupported parameters (`destination="Rome"`, `pace="medium"`, `interests=["history"]`, `adults=1`) to `TravelConstraints`. Because Pydantic silently drops undeclared fields, tests pass without verifying that user interests or party sizes are respected.
+  - **Ad-hoc Non-Pytest Script**: `backend/tests/test_pricewin_mcp.py` contains a standalone `asyncio.run(main())` entry point attempting to connect to external servers rather than being a valid pytest unit test.
+- **Bad Practices & Dead Code**:
+  - `test_swarm.py` mocks out the entire optimization use case, failing to test multi-agent integration.
+- **AI Slop**:
+  - Redundant mock fixtures duplicated across four separate test files.
+- **Scalability & Architecture**:
+  - Tests do not clean up database tables in TimescaleDB between test runs.
 
 ---
 
 ## Recommendations
 
-### Phase 1: Critical Security & Safety Remediations (Immediate)
-1. **Revoke and Remove Plaintext Secrets**:
-   - Immediately rotate and revoke the exposed Webshare proxy token (`teeosbwqq39sbexhek8etoj56v0c2ttoemx5yz1z`).
-   - Remove `scripts/setup_proxy.py` or refactor it to read strictly from `os.environ["WEBSHARE_API_KEY"]`.
-   - Add `.env` and secret patterns to `.gitignore` and run `git filter-repo` / BFG to purge the secret from git history.
-2. **Remove Host Docker Socket Mount**:
-   - Delete `/var/run/docker.sock:/var/run/docker.sock` from `docker-compose.yml` under the `worker` service.
-   - Restructure map compilation tasks to operate within containerized environments or via authenticated external worker jobs.
-3. **Fix CORS Configuration**:
-   - In `backend/app/main.py`, replace `allow_origins=["*"]` with explicit domain origins (`["http://localhost:3000"]`) when `allow_credentials=True`.
+### Phase 1: Algorithmic & Mathematical Fixes (High Priority)
+1. **Restore Admissibility in `calculate_optimistic_bound` (`cpp_core/src/engine.cpp`)**:
+   - Separate the branching ordering array from the heuristic knapsack evaluation array.
+   - For the knapsack upper bound, sort strictly by score-to-duration density (`score / duration`) in descending order without prioritizing meal spots or categories. This guarantees that $h(n)$ is an upper bound and prevents premature pruning of optimal itineraries.
+2. **Eliminate Round-Trip Double-Counting (`cpp_core/src/engine.cpp`)**:
+   - In `dfs()`, check if `target_end == state.current_path[0]`. If returning to the origin hotel, add only `return_dur` and `return_cost`; do NOT re-add `pois[target_end].score`, `.cost`, or `.duration`.
+   - Include `pois[target_end].cost` in the lookahead budget check (line 237).
+3. **Synchronize Opening Hours in Bridge (`bridge_adapter.py`)**:
+   - In `bridge_adapter.py`, calculate `current_time = max(current_time + transit_time, pois[idx].open_time_mins)` to properly reflect waiting/dwell time and opening hours.
 
-### Phase 2: Core Algorithm & Solver Corrections
-1. **Correct Dominance Condition in `engine.cpp`**:
-   - Fix the meal time comparison in `dfs()`: ensure that if `state.last_meal_time >= m.last_meal_time` indicates dominance in one direction, the inverse condition is evaluated for reverse dominance.
-2. **Fix End-Node Financial and Duration Accounting**:
-   - In `cpp_core/src/engine.cpp` (lines 352-380), add `pois[target_end].cost` to `final_cost` and `pois[target_end].duration` to `final_time`.
-3. **Synchronize Default Configuration Values**:
-   - Align `max_idle_time` in `cpp_core/include/engine.hpp` and `cpp_core/src/bindings.cpp` to a unified standard (e.g., 60 minutes).
-4. **Fix Restaurant Meal Type Mapping**:
-   - In `struct_mapper.py`, update meal classification to inspect opening hours and metadata tags (or mark restaurants as eligible for both lunch and dinner) rather than requiring the word "dinner" in the name.
+### Phase 2: Workflow & API Protocol Integrity (High Priority)
+4. **Fix HITL Resume Deserialization (`graph.py` & `SocketContext.tsx`)**:
+   - Standardize resume payload formatting. In `check_missing_fields_node`, unpack nested JSON strings if `answers` contains `"message"`, or update `SocketContext.tsx` to send `{ "action": "resume", "answers": clarificationData }`.
+5. **Eliminate Zombie RAG Node (`graph.py` & `nodes/retriever.py`)**:
+   - Either inject `retrieved_context` into `validator_agent` or `FetchTravelContextUseCase` to filter POIs based on user queries, or remove `rag_node` entirely from the active state graph.
+6. **Enforce Strict User Authorization on WebSockets & Trips**:
+   - In `websockets.py`, force `data["user_id"] = auth_user_id` whenever authenticated, preventing client spoofing. Reject unauthenticated access to user preference tuning.
+   - In `trips.py`, require session tokens or client-scoped UUIDs for anonymous itineraries, and disallow unauthenticated deletion of anonymous trips.
 
-### Phase 3: Machine Learning & Scoring Modernization (Deslop)
-1. **Model Persistence or Heuristic Scoring**:
-   - Either train and persist the JAX MLP weights using real travel preference datasets (saving weights via Flax `checkpoints`), or replace the random MLP with a deterministic multi-attribute utility function (combining rating, price tier, duration, and category match).
-2. **Fix Feature Encoder Key Mismatches**:
-   - Update `PoiEncoder.encode` in `features.py` to extract ratings correctly from `poi.get("scoring", {}).get("google_rating")` or `poi.get("rating")`.
-3. **Deslop AI Buzzwords & Heuristics**:
-   - In `cluster_selector.py`, remove misleading comments referencing "Eigenvector Centrality" and implement proper spatial-budget clustering with bounded mandatory node injection.
+### Phase 3: Infrastructure, Background Workers & Cleanup (Medium Priority)
+7. **Harden Map Download Pipeline (`tasks.py` & `transit_matrix.py`)**:
+   - Remove automatic triggering of multi-gigabyte Geofabrik downloads during transit matrix failures.
+   - Replace the missing webhook with an internal asynchronous worker task or queue notification, and disable aggressive autoretry on large file downloads.
+8. **Prune Dead Services & Config (`docker-compose.yml`)**:
+   - Remove the idle `beat` service container or define actual periodic tasks in `celery_app.py`.
+   - Remove unused `AVIATIONSTACK_API_KEY` references.
 
-### Phase 4: Swarm, LangGraph & Backend Engineering
-1. **Eliminate Zombie RAG Node or Complete Ingestion**:
-   - Either remove `rag_node` from `graph.py` to save latency and database queries, or integrate `retrieved_context` into the prompt of downstream agent nodes.
-   - Build an automated ingestion pipeline that indexes fresh Overpass POIs into PGVector with `nomic-embed-text` embeddings upon city retrieval.
-2. **Implement Persistent LangGraph Checkpointer**:
-   - Replace `MemorySaver` in `graph.py` with `PostgresSaver` / `AsyncpgSaver` utilizing the existing PostgreSQL connection pool.
-3. **Fix Human-in-the-Loop Resume Data Flow**:
-   - In `websockets.py` and `swarm_session_adapter.py`, extract the clean clarification dictionary and pass it directly to `Command(resume=clarification_dict)` so `check_missing_fields_node` updates constraints without schema pollution.
-4. **Fix Multi-Day Budget Allocation**:
-   - In `optimize_daily_itinerary.py`, divide the total trip budget across the days (or implement dynamic remaining-budget carryover) rather than allocating the entire budget to every individual day. Deduct actual flight costs from the total budget.
-5. **Add Missing Alembic Migration for `trips`**:
-   - Generate and commit an Alembic migration creating the `trips` table with appropriate indexes.
-6. **Clean Up Celery Beat & Dead Scraper Code**:
-   - Remove `scrape-every-5-minutes` from `celery_app.py`.
-   - Delete orphaned scraper files (`app/scraper/browser_pool.py`, `app/scraper/strategies/base.py`).
-
-### Phase 5: Frontend Integration & Real Data Binding
-1. **Connect Vault Detail Page to Backend API**:
-   - Add `GET /api/v1/trips/{id}` to the FastAPI backend.
-   - Rewrite `frontend/src/app/vault/[id]/page.tsx` to fetch real trip data by ID, extract waypoints, and display them on LeafletMap. Remove `MOCK_TRIPS`.
-2. **Fix Geocoding for Saved Vault Trips**:
-   - Update `TripModel` or `extractDestination` to store destination center coordinates (`latitude`, `longitude`) so `VaultMap` markers render on actual geographic locations instead of (0, 0).
-3. **Fix Timeline Field Mismatch**:
-   - In `TripTimeline.tsx`, update property access to read `scheduledPoi.scheduled_start` and `scheduledPoi.scheduled_end` so arrival and dwell times display accurately.
-4. **Bundle GeoJSON Assets**:
-   - Download the world countries GeoJSON into `frontend/public/data/countries.geo.json` to eliminate external runtime dependencies on personal GitHub repositories.
-5. **Replace Static Preference Mock with Real State**:
-   - Connect `model/page.tsx` to the user embedding endpoint or WebSocket telemetry stream, or remove the page until live preference tuning is fully implemented.
-
-### Phase 6: Testing & Quality Gates
-1. **Fix Broken Backend Tests**:
-   - Update `tests/test_optimize_daily_itinerary.py` to match the current signature of `_optimize_single_day`.
-2. **Hermetic LLM Mocking**:
-   - Mock Pydantic AI agent runs in `test_ticket_parser.py` and `test_validator.py` using `TestModel()` so the test suite runs deterministically in CI in under 5 seconds.
-3. **Expand Frontend Test Coverage**:
-   - Implement component and integration tests for `SocketContext`, `useTrips`, and `TripTimeline` using Playwright component testing.
+### Phase 4: Frontend Usability & Schema Alignment (Medium Priority)
+9. **Connect Preference Model Page (`model/page.tsx`)**:
+   - Replace the static zero-state mockup with a real hook fetching `/api/v1/users/me/embedding` and `/api/v1/users/me/preferences`.
+10. **Enable Real ML Tuning & Navigation**:
+    - Allow users to select specific POIs from the itinerary in `engine/page.tsx` to tune affinity scores.
+    - Wrap trip cards in `trips/page.tsx` with `<Link href={`/vault/${trip.id}`}>` to restore mission details navigation.
+    - Synchronize backend `OptimizeDailyItineraryUseCase` response format with frontend `OptimizationResult` schema.
