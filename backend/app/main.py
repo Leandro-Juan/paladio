@@ -28,22 +28,25 @@ async def lifespan(app: FastAPI):
 
     # Fetch currency exchange rate
     app.state.exchange_rate_usd_eur = 0.92
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://api.frankfurter.app/latest?from=USD&to=EUR"
-            )
-            if resp.status_code == 200:
-                app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
-                logger.info(
-                    f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
+    if os.getenv("TEST_MODE") != "1":
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(
+                    "https://api.frankfurter.app/latest?from=USD&to=EUR"
                 )
-    except Exception as e:
-        import asyncio
+                if resp.status_code == 200:
+                    app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
+                    logger.info(
+                        f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
+                    )
+        except Exception as e:
+            import asyncio
 
-        if isinstance(e, asyncio.CancelledError):
-            raise
-        logger.error(f"Failed to fetch exchange rate, using default 0.92. Error: {e}")
+            if isinstance(e, asyncio.CancelledError):
+                raise
+            logger.error(
+                f"Failed to fetch exchange rate, using default 0.92. Error: {e}"
+            )
 
     yield
     # Cleanup here
