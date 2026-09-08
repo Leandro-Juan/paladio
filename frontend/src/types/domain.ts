@@ -36,6 +36,8 @@ export interface ScheduledPoi {
     departure_time_mins: number;
     arrival_time: string;
     departure_time: string;
+    scheduled_start?: string;
+    scheduled_end?: string;
     travel_time_mins_from_prev: number;
     cost_from_prev: number;
 }

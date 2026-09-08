@@ -11,7 +11,7 @@ class IOptimizationEngine(ABC):
     """
 
     @abstractmethod
-    def run_optimization(
+    async def run_optimization(
         self,
         constraints: TravelConstraints,
         pois: list[Poi],

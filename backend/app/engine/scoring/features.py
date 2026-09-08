@@ -28,7 +28,9 @@ class PoiEncoder:
         features.append(min(dur / 240.0, 1.0))
 
         # 3. Rating (normalized 0-5 -> 0-1)
-        rating = float(poi.get("rating", 3.0))
+        scoring = poi.get("scoring") or {}
+        raw_rating = scoring.get("google_rating") or poi.get("rating") or 3.0
+        rating = float(raw_rating)
         features.append(rating / 5.0)
 
         # 4. Category one-hot encoding (simplified)

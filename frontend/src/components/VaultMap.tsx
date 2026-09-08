@@ -24,8 +24,16 @@ const accentIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+interface VaultTrip {
+  id?: string;
+  destination: string;
+  country?: string;
+  lat: number;
+  lng: number;
+}
+
 interface VaultMapProps {
-  trips: any[];
+  trips: VaultTrip[];
 }
 
 export default function VaultMap({ trips }: VaultMapProps) {
@@ -33,17 +41,38 @@ export default function VaultMap({ trips }: VaultMapProps) {
   const [geoData, setGeoData] = useState<any>(null);
 
   useEffect(() => {
-    // Fetch world geojson to draw country borders
+    let isMounted = true;
+    // Fetch world geojson to draw country borders with error handling / fallback
     fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
-      .then(res => res.json())
-      .then(data => setGeoData(data))
-      .catch(console.error);
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`GeoJSON fetch failed with status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (isMounted && data && (data.type === 'FeatureCollection' || Array.isArray(data.features))) {
+          setGeoData(data);
+        }
+      })
+      .catch(err => {
+        console.warn('World GeoJSON borders unavailable, falling back to clean basemap:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const visitedCountries = trips.map(t => t.country || t.destination);
+  const visitedCountries = trips
+    .map(t => t.country || t.destination || '')
+    .filter(Boolean);
 
   const geoJsonStyle = (feature: any) => {
-    const isVisited = visitedCountries.includes(feature.properties.name);
+    const countryName = feature?.properties?.name;
+    const isVisited = countryName && visitedCountries.some(c => 
+      typeof c === 'string' && c.toLowerCase().includes(countryName.toLowerCase())
+    );
     return {
       fillColor: isVisited ? '#1E3A8A' : '#E2E8F0', // Accent blue or light gray
       weight: 1,
@@ -52,6 +81,10 @@ export default function VaultMap({ trips }: VaultMapProps) {
       fillOpacity: isVisited ? 0.7 : 0.3
     };
   };
+
+  const validTrips = trips.filter(
+    t => typeof t.lat === 'number' && !isNaN(t.lat) && typeof t.lng === 'number' && !isNaN(t.lng)
+  );
 
   return (
     <MapContainer 
@@ -73,19 +106,19 @@ export default function VaultMap({ trips }: VaultMapProps) {
       )}
 
       <MarkerClusterGroup>
-        {trips.map((trip: any) => (
+        {validTrips.map((trip) => (
         <Marker 
-          key={trip.id} 
+          key={trip.id || `${trip.lat}-${trip.lng}`} 
           position={[trip.lat, trip.lng]} 
           icon={accentIcon}
           eventHandlers={{
             click: () => {
-              router.push(`/vault/${trip.id}`);
+              if (trip.id) router.push(`/vault/${trip.id}`);
             },
           }}
         >
           <Popup className="premium-popup">
-            <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => router.push(`/vault/${trip.id}`)}>
+            <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => trip.id && router.push(`/vault/${trip.id}`)}>
               <strong className="font-display" style={{ display: 'block', fontSize: '1.1rem' }}>{trip.destination}</strong>
               <span className="font-mono text-muted text-xs mt-1">CLICK TO VIEW MISSION</span>
             </div>

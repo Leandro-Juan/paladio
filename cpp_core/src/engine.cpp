@@ -139,7 +139,7 @@ void dfs(int u, SearchState &state, const POI *pois,
          (m.had_lunch || !state.had_lunch) &&
          (m.had_dinner || !state.had_dinner) &&
          state.continuous_active_time >= m.continuous_active_time &&
-         state.last_meal_time >= m.last_meal_time);
+         m.last_meal_time >= state.last_meal_time);
 
     if (old_dominates) {
       return;
@@ -371,6 +371,9 @@ void dfs(int u, SearchState &state, const POI *pois,
 
       double idle_penalty = (idle_time / 15.0) * config.idle_time_penalty_rate;
       final_score += pois[target_end].score - idle_penalty;
+
+      final_cost += pois[target_end].cost;
+      final_time += pois[target_end].duration;
 
       if (final_cost > config.max_budget ||
           final_time > pois[target_end].latest_time ||

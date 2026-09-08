@@ -64,9 +64,25 @@ async def check_missing_fields_node(state: SwarmState) -> dict:
         )
 
         if isinstance(answers, dict):
-            constraints_dict.update({k: v for k, v in answers.items() if v})
+            raw_answers = (
+                answers.get("answers")
+                if isinstance(answers.get("answers"), dict)
+                else answers
+            )
+            valid_keys = set(TravelConstraints.model_fields.keys())
+            if isinstance(raw_answers, dict):
+                filtered_answers = {
+                    k: v
+                    for k, v in raw_answers.items()
+                    if k in valid_keys and v is not None and v != ""
+                }
+                constraints_dict.update(filtered_answers)
+
+            clean_constraints = {
+                k: v for k, v in constraints_dict.items() if k in valid_keys
+            }
             try:
-                constraints = TravelConstraints(**constraints_dict)
+                constraints = TravelConstraints(**clean_constraints)
             except Exception as e:
                 logger.error(f"Validation error on user input: {e}")
 

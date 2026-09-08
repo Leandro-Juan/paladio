@@ -1,10 +1,13 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.trips import router as trips_router
+from app.api.v1.users import router as users_router
 from app.api.v1.websockets import router as websockets_router
 from app.infrastructure.scoring.jax_ml_model import JaxScoringModel
 from app.swarm.graph import create_swarm
@@ -56,9 +59,16 @@ app = FastAPI(
 )
 
 # CORS Middleware for local web UI
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
+allowed_origins = (
+    [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+    if allowed_origins_env
+    else ["http://localhost:3000", "http://127.0.0.1:3000"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,5 +81,7 @@ async def health_check():
 
 
 # Include routers
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(websockets_router, prefix="/api/v1", tags=["stream"])
 app.include_router(trips_router, prefix="/api/v1/trips", tags=["trips"])

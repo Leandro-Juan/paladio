@@ -154,6 +154,7 @@ async def test_optimize_single_day_no_pois_except_hotel(
         hotel_arrival_time=600,
         hotel_departure_time=1200,
         mandatory_names=[],
+        matrix_dict_full=[[{"duration_mins": 0, "cost_eur": 0}]],
     )
 
     # Assert

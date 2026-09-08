@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 
+from app.core.security import decode_access_token
 from app.infrastructure.engine.bridge_adapter import OptimizationError
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -14,21 +15,32 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
+    # Extract optional token from query parameters: /ws/stream?token=<jwt>
+    token = websocket.query_params.get("token")
+    auth_user_id = None
+    if token:
+        payload = decode_access_token(token)
+        if payload and "sub" in payload:
+            auth_user_id = payload["sub"]
+            logger.info(
+                f"WebSocket client authenticated via query param as user {auth_user_id}"
+            )
+
     import asyncio
 
     if hasattr(websocket.app.state, "mock_swarm_session"):
         session = websocket.app.state.mock_swarm_session
     else:
-        from app.db.session import async_session
         from app.adapters.repositories.sql_user_repository import SqlUserRepository
-        from app.infrastructure.engine.ml_scorer import MLScorer
+        from app.db.session import async_session
         from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
-        from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
-        from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
+        from app.infrastructure.engine.ml_scorer import MLScorer
         from app.infrastructure.providers.travel_data import (
             LiveTravelDataProvider,
             MockTravelDataProvider,
         )
+        from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
+        from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
         import os
 
         # We must keep the session open for the duration of the websocket
@@ -86,6 +98,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if not user_msg and action not in ["feedback", "attach", "resume"]:
                 continue
+
+            # Check if token provided in message payload
+            if "token" in data and not auth_user_id:
+                msg_token = data["token"]
+                payload = decode_access_token(msg_token)
+                if payload and "sub" in payload:
+                    auth_user_id = payload["sub"]
+                    logger.info(
+                        f"WebSocket client authenticated via message as user {auth_user_id}"
+                    )
+
+            # Assign authenticated user_id if available and not explicitly overridden
+            if auth_user_id and "user_id" not in data:
+                data["user_id"] = auth_user_id
 
             thread_id = data.get("thread_id", str(uuid.uuid4()))
 

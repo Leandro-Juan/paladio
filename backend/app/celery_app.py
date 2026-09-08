@@ -16,11 +16,5 @@ app.conf.update(
     timezone="UTC",
     enable_utc=True,
     # Configure periodic tasks (Celery Beat)
-    beat_schedule={
-        "scrape-every-5-minutes": {
-            "task": "app.tasks.scrape_flight_prices_task",
-            # Dispatch task every 300 seconds (5 minutes)
-            "schedule": 300.0,
-        },
-    },
+    beat_schedule={},
 )

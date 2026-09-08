@@ -99,7 +99,7 @@ struct OptimizationConfig {
       -1; ///< Latest time by which a lunch spot must be visited.
   int dinner_deadline =
       -1; ///< Latest time by which a dinner spot must be visited.
-  int max_idle_time = 240; ///< Maximum allowed waiting time before a POI opens.
+  int max_idle_time = 60; ///< Maximum allowed waiting time before a POI opens.
   double idle_time_penalty_rate =
       0.5; ///< Penalty deducted per 15 mins of idle time.
   int max_active_time_before_fatigue =

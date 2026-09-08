@@ -7,6 +7,7 @@ from app.infrastructure.engine.ml_scorer import MLScorer
 import pytest
 
 
+@pytest.mark.ml
 def test_ml_forward_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()
@@ -24,6 +25,7 @@ def test_ml_forward_pass():
     assert 0.0 <= score <= 100.0
 
 
+@pytest.mark.ml
 def test_ml_batch_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()
@@ -40,6 +42,7 @@ def test_ml_batch_pass():
     assert 0.0 <= float(scores[1][0]) <= 100.0
 
 
+@pytest.mark.ml
 def test_ml_backward_pass():
     ml_model = JaxScoringModel()
     params = ml_model.init_params()

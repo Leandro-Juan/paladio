@@ -94,15 +94,15 @@ TEST_F(ItineraryEngineTest, PrefersHotelForMealsIfConfigured) {
 TEST_F(ItineraryEngineTest, ComputesTotalTimeIncludingReturnToStart) {
   // Arrange
   std::vector<POI> custom_pois = {
-      {NodeType::HOTEL, 0.0, 0.0, 0, 2000, 1000},    // Base: dur 1000
-      {NodeType::ATTRACTION, 0.0, 10.0, 0, 2000, 30} // Attraction: dur 30
+      {NodeType::HOTEL, 0.0, 0.0, 0, 3000, 1000},    // Base: dur 1000
+      {NodeType::ATTRACTION, 0.0, 10.0, 0, 3000, 30} // Attraction: dur 30
   };
   std::vector<TransitInfo> custom_transit = {
       {0, 0.0}, {10, 0.0}, {10, 0.0}, {0, 0.0}};
   config.max_budget = 100.0;
   config.end_node_index = 0;
   config.start_node_index = 0;
-  config.end_time_limit = 2000;
+  config.end_time_limit = 3000;
 
   // Act
   auto result = optimize_itinerary(custom_pois, custom_transit, config);
@@ -112,7 +112,7 @@ TEST_F(ItineraryEngineTest, ComputesTotalTimeIncludingReturnToStart) {
   EXPECT_EQ(result.path[0], 0);
   EXPECT_EQ(result.path[1], 1);
   EXPECT_EQ(result.path[2], 0);
-  EXPECT_DOUBLE_EQ(result.total_time, 1050.0);
+  EXPECT_DOUBLE_EQ(result.total_time, 2050.0);
 }
 
 TEST_F(ItineraryEngineTest, TieBreakerLogic) {

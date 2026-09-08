@@ -38,7 +38,7 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
       dayObj.itinerary.path.forEach((scheduledPoi: ScheduledPoi) => {
         stops.push({
           name: scheduledPoi.poi?.name || "Unknown Waypoint",
-          time: scheduledPoi.arrival_time || "--:--",
+          time: scheduledPoi.scheduled_start || scheduledPoi.arrival_time || "--:--",
           duration: scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : ""
         });
       });

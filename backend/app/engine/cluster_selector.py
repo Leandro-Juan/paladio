@@ -4,6 +4,8 @@ from typing import Any
 import numpy as np
 from sklearn.cluster import KMeans
 
+from app.utils.text import is_poi_mandatory
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,17 +56,8 @@ class ClusterSelector:
         mandatory_pois = []
         regular_pois = []
 
-        from app.utils.text import is_poi_mandatory
-
         for p in pois:
-            is_mandatory = is_poi_mandatory(p.get("name", ""), mandatory_names)
-            # True Eigenvector Centrality based on actual popularity/rating data
-            scoring = p.get("scoring") or {}
-            google_rating = scoring.get("google_rating", 3.0)
-            reviews = scoring.get("reviews", 0)
-            is_high_centrality = google_rating >= 4.5 and reviews > 1000
-
-            if is_mandatory or is_high_centrality:
+            if is_poi_mandatory(p.get("name", ""), mandatory_names):
                 mandatory_pois.append(p)
             else:
                 regular_pois.append(p)

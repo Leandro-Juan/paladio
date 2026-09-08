@@ -3,6 +3,7 @@ from typing import Any
 import numpy as np
 from app.domain.entities.poi import ScoredPoi, TransitEdge
 from app.schemas.itinerary import TravelConstraints
+from app.utils.text import is_poi_mandatory
 
 try:
     import paladio_core
@@ -49,8 +50,6 @@ def build_cpp_pois(
         earliest = max(poi.open_time_mins, day_start_mins)
         latest = poi.close_time_mins
 
-        from app.utils.text import is_poi_mandatory
-
         is_mandatory = (
             is_poi_mandatory(poi.name, mandatory_names) if mandatory_names else False
         )
@@ -68,11 +67,18 @@ def build_cpp_pois(
         cat = poi.category.upper()
         name = poi.name.lower()
         if cat == "RESTAURANT":
-            if "breakfast" in name:
+            if "breakfast" in name or (earliest <= 10 * 60 and latest >= 11 * 60):
                 cpp_poi.is_breakfast_spot = True
-            elif "lunch" in name:
+            if "lunch" in name or (earliest <= 14 * 60 and latest >= 13 * 60):
                 cpp_poi.is_lunch_spot = True
-            elif "dinner" in name:
+            if "dinner" in name or (latest >= 20 * 60 and earliest <= 21 * 60):
+                cpp_poi.is_dinner_spot = True
+            if not (
+                cpp_poi.is_breakfast_spot
+                or cpp_poi.is_lunch_spot
+                or cpp_poi.is_dinner_spot
+            ):
+                cpp_poi.is_lunch_spot = True
                 cpp_poi.is_dinner_spot = True
 
         cpp_pois.append(cpp_poi)

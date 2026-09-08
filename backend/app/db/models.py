@@ -1,5 +1,5 @@
 from app.db.session import Base
-from sqlalchemy import Column, DateTime, Index, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -35,9 +35,16 @@ class UserModel(Base):
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=True)
+    username = Column(String, unique=True, index=True, nullable=True)
+    hashed_password = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # Store the 64D feature vector representing user preferences
-    embedding = Column(JSONB, nullable=False)
+    embedding = Column(JSONB, nullable=True)
+
+    # Structured preferences (e.g. pace, budget, categories)
+    preferences = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -49,6 +56,9 @@ class TripModel(Base):
     __tablename__ = "trips"
 
     id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     destination = Column(String, nullable=False)
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)

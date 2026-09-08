@@ -47,7 +47,11 @@ dev = [
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -q --asyncio-mode=auto"
+pythonpath = ["."]
 testpaths = [
     "tests",
 ]
 python_files = ["test_*.py"]
+markers = [
+    "ml: marks tests that involve JAX/Flax JIT compilation which can be slow (deselect with '-m \"not ml\"')",
+]

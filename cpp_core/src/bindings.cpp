@@ -62,7 +62,7 @@ PYBIND11_MODULE(paladio_core, m) {
            py::arg("end_node_index") = std::nullopt,
            py::arg("end_time_limit") = -1, py::arg("breakfast_deadline") = -1,
            py::arg("lunch_deadline") = -1, py::arg("dinner_deadline") = -1,
-           py::arg("max_idle_time") = 45,
+           py::arg("max_idle_time") = 60,
            py::arg("idle_time_penalty_rate") = 0.5,
            py::arg("max_active_time_before_fatigue") = 240,
            py::arg("fatigue_penalty_multiplier") = 0.6,

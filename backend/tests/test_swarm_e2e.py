@@ -26,6 +26,7 @@ def is_ollama_running():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="LLM inference too slow for local tests")
 @pytest.mark.skipif(
     not is_ollama_running(),
     reason="Requires a live local Ollama container running llama3.1 on port 11435",

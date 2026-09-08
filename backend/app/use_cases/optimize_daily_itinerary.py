@@ -97,6 +97,8 @@ class OptimizeDailyItineraryUseCase:
             global_matrix = await get_transit_matrix(all_pois_flat, city)
             global_matrix = inject_slack_time(global_matrix, 0.15)
 
+        daily_budget = max(0.0, local_constraints.budget_usd / num_days)
+
         for day in range(num_days):
             day_pois = daily_pois_data[day] if day < len(daily_pois_data) else []
 
@@ -113,12 +115,15 @@ class OptimizeDailyItineraryUseCase:
                     )
                 day_matrix.append(row)
 
+            day_constraints = copy.deepcopy(local_constraints)
+            day_constraints.budget_usd = daily_budget
+
             result = await self._optimize_single_day(
                 day,
                 num_days,
                 day_pois,
                 day_matrix,
-                local_constraints,
+                day_constraints,
                 city,
                 hotel_arrival_time,
                 hotel_departure_time,
@@ -160,6 +165,13 @@ class OptimizeDailyItineraryUseCase:
         hotel_departure_time: int,
         mandatory_names: list,
     ) -> dict[str, Any]:
+        if (
+            len(unvisited_pois) <= 1
+            and unvisited_pois
+            and unvisited_pois[0].get("category") in ("HOTEL", "AIRPORT")
+        ):
+            return None
+
         selected_hotel = next(
             (p for p in unvisited_pois if p.get("category") == "HOTEL"), None
         )

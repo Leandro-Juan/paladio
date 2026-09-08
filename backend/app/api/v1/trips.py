@@ -1,15 +1,15 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from app.api.deps import get_optional_user
+from app.db.models import TripModel, UserModel
+from app.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
-
-from app.db.session import get_db
-from app.db.models import TripModel
 
 router = APIRouter()
 
@@ -23,14 +23,20 @@ class TripCreate(BaseModel):
 
 class TripResponse(TripCreate):
     id: str
+    user_id: Optional[str] = None
     created_at: str
 
 
-@router.post("/", response_model=TripResponse)
-async def create_trip(trip: TripCreate, session: AsyncSession = Depends(get_db)):
+@router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
+async def create_trip(
+    trip: TripCreate,
+    current_user: Optional[UserModel] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
     new_id = str(uuid.uuid4())
     db_trip = TripModel(
         id=new_id,
+        user_id=current_user.id if current_user else None,
         destination=trip.destination,
         start_date=trip.start_date,
         end_date=trip.end_date,
@@ -42,6 +48,7 @@ async def create_trip(trip: TripCreate, session: AsyncSession = Depends(get_db))
 
     return TripResponse(
         id=db_trip.id,
+        user_id=db_trip.user_id,
         destination=db_trip.destination,
         start_date=db_trip.start_date,
         end_date=db_trip.end_date,
@@ -53,10 +60,24 @@ async def create_trip(trip: TripCreate, session: AsyncSession = Depends(get_db))
 
 
 @router.get("/", response_model=list[TripResponse])
-async def get_trips(session: AsyncSession = Depends(get_db)):
-    result = await session.execute(
-        select(TripModel).order_by(TripModel.start_date.asc())
-    )
+async def get_trips(
+    current_user: Optional[UserModel] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    if current_user:
+        stmt = (
+            select(TripModel)
+            .where(TripModel.user_id == current_user.id)
+            .order_by(TripModel.start_date.asc())
+        )
+    else:
+        stmt = (
+            select(TripModel)
+            .where(TripModel.user_id.is_(None))
+            .order_by(TripModel.start_date.asc())
+        )
+
+    result = await session.execute(stmt)
     trips = result.scalars().all()
 
     response = []
@@ -64,6 +85,7 @@ async def get_trips(session: AsyncSession = Depends(get_db)):
         response.append(
             TripResponse(
                 id=t.id,
+                user_id=t.user_id,
                 destination=t.destination,
                 start_date=t.start_date,
                 end_date=t.end_date,
@@ -76,10 +98,51 @@ async def get_trips(session: AsyncSession = Depends(get_db)):
     return response
 
 
-@router.delete("/{trip_id}")
-async def delete_trip(trip_id: str, session: AsyncSession = Depends(get_db)):
-    result = await session.execute(delete(TripModel).where(TripModel.id == trip_id))
-    if result.rowcount == 0:
+@router.get("/{trip_id}", response_model=TripResponse)
+async def get_trip(
+    trip_id: str,
+    current_user: Optional[UserModel] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+
+    # If the trip belongs to a specific user, enforce ownership
+    if trip.user_id is not None:
+        if not current_user or current_user.id != trip.user_id:
+            raise HTTPException(status_code=404, detail="Trip not found")
+
+    return TripResponse(
+        id=trip.id,
+        user_id=trip.user_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        created_at=trip.created_at.isoformat()
+        if trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@router.delete("/{trip_id}")
+async def delete_trip(
+    trip_id: str,
+    current_user: Optional[UserModel] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    # If the trip belongs to a specific user, enforce ownership
+    if trip.user_id is not None:
+        if not current_user or current_user.id != trip.user_id:
+            raise HTTPException(status_code=404, detail="Trip not found")
+
+    await session.execute(delete(TripModel).where(TripModel.id == trip_id))
     await session.commit()
     return {"status": "success", "message": "Trip deleted"}
