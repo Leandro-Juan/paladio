@@ -81,12 +81,30 @@ class SwarmSessionAdapter(ISwarmSession):
         yield {"event": "PARSING_TICKETS", "status": "running"}
 
         initial_state = {
-            "messages": [HumanMessage(content=user_msg)],
+            "messages": [HumanMessage(content=user_msg)] if user_msg else [],
             "error_count": 0,
         }
 
         if "booking_text" in data:
             initial_state["booking_text"] = data["booking_text"]
+
+        manual_constraints = {}
+        if "manual_constraints" in data and isinstance(
+            data["manual_constraints"], dict
+        ):
+            manual_constraints.update(data["manual_constraints"])
+        elif "constraints" in data and isinstance(data["constraints"], dict):
+            manual_constraints.update(data["constraints"])
+
+        if "budget_usd" in data:
+            manual_constraints["budget_usd"] = data["budget_usd"]
+        if "meals" in data:
+            manual_constraints["meals"] = data["meals"]
+        if "nodes" in data:
+            manual_constraints["nodes"] = data["nodes"]
+
+        if manual_constraints:
+            initial_state["manual_constraints"] = manual_constraints
 
         from app.infrastructure.engine.ml_scorer import MLScorer
 
@@ -129,22 +147,7 @@ class SwarmSessionAdapter(ISwarmSession):
                 if not isinstance(state_update, dict):
                     continue
 
-                if node_name == "rag":
-                    retrieved = state_update.get("retrieved_context") or ""
-                    truncated = (
-                        retrieved[:500] + "..." if len(retrieved) > 500 else retrieved
-                    )
-                    yield {
-                        "event": "RETRIEVING_CONTEXT",
-                        "status": "completed",
-                        "data": truncated,
-                    }
-                    yield {
-                        "event": "CHECKING_MISSING_FIELDS",
-                        "status": "running",
-                    }
-
-                elif node_name == "ticket_parser":
+                if node_name == "ticket_parser":
                     yield {
                         "event": "PARSING_TICKETS",
                         "status": "completed",
@@ -155,7 +158,7 @@ class SwarmSessionAdapter(ISwarmSession):
                         "status": "running",
                     }
 
-                elif node_name == "validator":
+                elif node_name in ["assemble_constraints", "validator"]:
                     constraints = state_update.get("validated_itinerary")
                     data_val = None
                     if constraints:
@@ -170,13 +173,28 @@ class SwarmSessionAdapter(ISwarmSession):
                         "data": data_val,
                     }
                     yield {
-                        "event": "RETRIEVING_CONTEXT",
+                        "event": "CHECKING_MISSING_FIELDS",
                         "status": "running",
                     }
 
                 elif node_name == "check_missing":
                     yield {"event": "CHECKING_MISSING_FIELDS", "status": "completed"}
-                    yield {"event": "SCRAPING_DYNAMIC_DATA", "status": "running"}
+                    yield {"event": "RETRIEVING_CONTEXT", "status": "running"}
+
+                elif node_name == "rag":
+                    retrieved = state_update.get("retrieved_context") or ""
+                    truncated = (
+                        retrieved[:500] + "..." if len(retrieved) > 500 else retrieved
+                    )
+                    yield {
+                        "event": "RETRIEVING_CONTEXT",
+                        "status": "completed",
+                        "data": truncated,
+                    }
+                    yield {
+                        "event": "SCRAPING_DYNAMIC_DATA",
+                        "status": "running",
+                    }
 
                 elif node_name == "planner_scrape":
                     daily_pois = state_update.get("daily_pois_data", [])

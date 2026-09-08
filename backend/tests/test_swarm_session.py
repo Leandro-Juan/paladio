@@ -31,5 +31,5 @@ async def test_swarm_session_maps_rag_event():
     assert events[1]["status"] == "running"
     assert events[2]["event"] == "RETRIEVING_CONTEXT"
     assert events[2]["data"] == "dummy"
-    assert events[3]["event"] == "CHECKING_MISSING_FIELDS"
+    assert events[3]["event"] == "SCRAPING_DYNAMIC_DATA"
     assert events[4]["event"] == "DONE"

@@ -24,7 +24,16 @@ async def test_websocket():
             destination = input("> ").strip()
 
             console.print(
-                "[bold yellow]Enter your travel requirements/prompt (e.g., 'My budget is 2500 USD. I must visit the Louvre.'):[/bold yellow]"
+                "[bold yellow]Enter trip budget in USD (e.g. 1500):[/bold yellow]"
+            )
+            budget_str = input("> ").strip() or "1500"
+            try:
+                budget_usd = float(budget_str)
+            except ValueError:
+                budget_usd = 1500.0
+
+            console.print(
+                "[bold yellow]Enter your POI preferences/prompt for RAG (e.g., 'I must visit the Louvre and Eiffel Tower'):[/bold yellow]"
             )
             query = input("> ").strip()
 
@@ -36,13 +45,27 @@ async def test_websocket():
             # Auto-generated mock booking data with real IATA codes
             booking_text = f"Flight outbound {orig_iata} to {dest_iata} on 2026-09-10 10:00 (duration 420m). Flight return {dest_iata} to {orig_iata} on 2026-09-15 10:00 (duration 480m). The Grand Hotel booked in {destination} from 2026-09-10 to 2026-09-15."
 
-            console.print(f"[bold cyan]Sending query:[/bold cyan] {query}")
+            manual_constraints = {
+                "budget_usd": budget_usd,
+                "meals": [
+                    {"meal_type": "LUNCH", "start_time": "12:00", "end_time": "14:30"},
+                    {"meal_type": "DINNER", "start_time": "19:30", "end_time": "22:00"},
+                ],
+            }
+
+            console.print(f"[bold cyan]Sending query (RAG prompt):[/bold cyan] {query}")
+            console.print(f"[bold cyan]Sending budget:[/bold cyan] ${budget_usd}")
             console.print(
                 f"[bold cyan]Sending booking_text:[/bold cyan] {booking_text}"
             )
             await websocket.send(
                 json.dumps(
-                    {"action": "chat", "message": query, "booking_text": booking_text}
+                    {
+                        "action": "chat",
+                        "message": query,
+                        "booking_text": booking_text,
+                        "manual_constraints": manual_constraints,
+                    }
                 )
             )
 

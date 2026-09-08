@@ -82,17 +82,17 @@ async def main():
                                 "[bold magenta]Validator agent analyzing travel constraints (this may take a moment)..."
                             )
 
-                        elif node_name == "validator":
+                        elif node_name in ["assemble_constraints", "validator"]:
                             from app.schemas.itinerary import TravelConstraints
 
                             constraints_dict = state_update.get("validated_itinerary")
                             if constraints_dict:
                                 constraints = TravelConstraints(**constraints_dict)
                                 console.print(
-                                    f"-> [VALIDATOR] Extracted constraints: [cyan]{constraints.origin_city} -> {constraints.destination_city}[/cyan] | [yellow]{constraints.start_date} to {constraints.end_date}[/yellow] | Budget: [green]${constraints.budget_usd}[/green]"
+                                    f"-> [CONSTRAINTS] Assembled constraints: [cyan]{constraints.origin_city} -> {constraints.destination_city}[/cyan] | [yellow]{constraints.start_date} to {constraints.end_date}[/yellow] | Budget: [green]${constraints.budget_usd}[/green]"
                                 )
                                 console.print(
-                                    "-> [VALIDATOR] Handing off to planner (Scraping real data...)"
+                                    "-> [CONSTRAINTS] Handing off to planner (Scraping real data...)"
                                 )
                             status.update(
                                 "[bold yellow]Planner agent orchestrating itinerary and scraping data (this can take a while)..."

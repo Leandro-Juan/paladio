@@ -1,8 +1,9 @@
+import json
 import logging
 
 from app.schemas.itinerary import TravelConstraints
 from app.swarm.agents.ticket_parser import ticket_parser_node
-from app.swarm.agents.validator import validator_node
+from app.swarm.nodes.constraint_builder import assemble_constraints_node
 from app.swarm.nodes.retriever import rag_node
 from app.swarm.state import SwarmState
 from langchain_core.runnables.config import RunnableConfig
@@ -54,6 +55,15 @@ async def check_missing_fields_node(state: SwarmState) -> dict:
         if not constraints.booking_anchors.return_flight:
             missing_fields.append("return_flight")
 
+    if not constraints.meals or len(constraints.meals) == 0:
+        missing_fields.append("meals")
+    else:
+        meal_types = [m.meal_type.upper() for m in constraints.meals]
+        if not any("LUNCH" in mt for mt in meal_types) or not any(
+            "DINNER" in mt for mt in meal_types
+        ):
+            missing_fields.append("meals")
+
     if missing_fields:
         # Request all missing fields at once to prevent hanging the state machine loop
         answers = interrupt(
@@ -71,6 +81,21 @@ async def check_missing_fields_node(state: SwarmState) -> dict:
             )
             valid_keys = set(TravelConstraints.model_fields.keys())
             if isinstance(raw_answers, dict):
+                # Handle nested or converted fields
+                if "budget_usd" in raw_answers:
+                    try:
+                        raw_answers["budget_usd"] = float(raw_answers["budget_usd"])
+                    except (ValueError, TypeError):
+                        pass
+
+                if "meals" in raw_answers:
+                    meals_val = raw_answers["meals"]
+                    if isinstance(meals_val, str):
+                        try:
+                            raw_answers["meals"] = json.loads(meals_val)
+                        except Exception:
+                            pass
+
                 filtered_answers = {
                     k: v
                     for k, v in raw_answers.items()
@@ -144,18 +169,18 @@ async def planner_optimize_node(state: SwarmState, config: RunnableConfig) -> di
 
 def create_swarm():
     workflow = StateGraph(SwarmState)
-    workflow.add_node("rag", rag_node)
     workflow.add_node("ticket_parser", ticket_parser_node)
-    workflow.add_node("validator", validator_node)
+    workflow.add_node("assemble_constraints", assemble_constraints_node)
     workflow.add_node("check_missing", check_missing_fields_node)
+    workflow.add_node("rag", rag_node)
     workflow.add_node("planner_scrape", planner_scrape_node)
     workflow.add_node("planner_optimize", planner_optimize_node)
 
     workflow.add_edge(START, "ticket_parser")
-    workflow.add_edge("ticket_parser", "validator")
-    workflow.add_edge("validator", "rag")
-    workflow.add_edge("rag", "check_missing")
-    workflow.add_edge("check_missing", "planner_scrape")
+    workflow.add_edge("ticket_parser", "assemble_constraints")
+    workflow.add_edge("assemble_constraints", "check_missing")
+    workflow.add_edge("check_missing", "rag")
+    workflow.add_edge("rag", "planner_scrape")
     workflow.add_edge("planner_scrape", "planner_optimize")
     workflow.add_edge("planner_optimize", END)
 

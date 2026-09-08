@@ -96,12 +96,24 @@ class TravelConstraints(BaseModel):
     booking_anchors: BookingAnchors | None = Field(
         default=None, description="Extracted flight and hotel bookings"
     )
+    preferred_cuisines: list[str] | None = Field(
+        default_factory=list,
+        description="User preferred cuisines extracted from human prompt (e.g. ['indian']).",
+    )
+    travel_tastes: list[str] | None = Field(
+        default_factory=list,
+        description="User travel styles, activity preferences, or tastes (e.g. ['bar', 'cultural']).",
+    )
+    cuisine_target_frequency: int = Field(
+        default=1,
+        description="Target number of meal slots for preferred cuisine.",
+    )
 
     @model_validator(mode="before")
     @classmethod
     def parse_stringified_lists(cls, values):
         if isinstance(values, dict):
-            for field in ["nodes", "meals"]:
+            for field in ["nodes", "meals", "preferred_cuisines", "travel_tastes"]:
                 if field in values:
                     if values[field] is None:
                         values[field] = []

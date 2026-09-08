@@ -15,3 +15,4 @@ class SwarmState(TypedDict):
     return_flight: dict | None
     booking_text: str | None
     booking_anchors: dict | None
+    manual_constraints: dict | None

@@ -161,8 +161,25 @@ class FetchTravelContextUseCase:
             except Exception as e:
                 logger.warning(f"Failed to geocode airport {iata}: {e}")
 
+        # Calculate trip duration strictly from real dates
+        if not constraints.start_date or not constraints.end_date:
+            raise ValueError(
+                "Missing start_date or end_date in TravelConstraints to calculate trip duration."
+            )
+
+        num_days = max(1, (constraints.end_date - constraints.start_date).days + 1)
+
+        total_meal_slots = num_days * 2
+        # Math formula: 20% of meal slots, bounded between 1 and 3
+        calculated_target = max(1, min(3, int(total_meal_slots * 0.2)))
+
         # 3. Fetch Restaurants
-        restaurants_data = await self.data_provider.get_restaurants(city)
+        preferred_cuisines = getattr(constraints, "preferred_cuisines", []) or []
+        restaurants_data = await self.data_provider.get_restaurants(
+            city,
+            preferred_cuisines=preferred_cuisines,
+            target_frequency=calculated_target,
+        )
 
         # Apply Spatial-Affinity Clustering to filter POIs
         from app.engine.cluster_selector import ClusterSelector
@@ -171,7 +188,6 @@ class FetchTravelContextUseCase:
             max_pois=30
         )  # leave room for hotels/restaurants (max 64)
 
-        num_days = max(1, (constraints.end_date - constraints.start_date).days + 1)
         daily_clusters = selector.select_n_clusters(
             db_pois, hotel_lat, hotel_lon, mandatory_names, num_days
         )

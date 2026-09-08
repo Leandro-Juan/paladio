@@ -18,7 +18,12 @@ class TravelDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
+    async def get_restaurants(
+        self,
+        city: str,
+        preferred_cuisines: list[str] | None = None,
+        target_frequency: int = 1,
+    ) -> list[dict[str, Any]]:
         pass
 
     @abstractmethod
@@ -59,10 +64,20 @@ class LiveTravelDataProvider(TravelDataProvider):
                 mandatory_names=mandatory_names,
             )
 
-    async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
+    async def get_restaurants(
+        self,
+        city: str,
+        preferred_cuisines: list[str] | None = None,
+        target_frequency: int = 1,
+    ) -> list[dict[str, Any]]:
         from app.services.travel_data_service import fetch_restaurants
 
-        return await fetch_restaurants(city, None)
+        return await fetch_restaurants(
+            city,
+            test_data=None,
+            preferred_cuisines=preferred_cuisines,
+            target_frequency=target_frequency,
+        )
 
     async def generate_mock_context(
         self,
@@ -123,14 +138,24 @@ class MockTravelDataProvider(TravelDataProvider):
                 mandatory_names=mandatory_names,
             )
 
-    async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
+    async def get_restaurants(
+        self,
+        city: str,
+        preferred_cuisines: list[str] | None = None,
+        target_frequency: int = 1,
+    ) -> list[dict[str, Any]]:
         if "restaurants" in self.test_data:
             return self.test_data["restaurants"]
         if "restaurants" in self.dynamic_data_cache:
             return self.dynamic_data_cache["restaurants"]
         from app.services.travel_data_service import fetch_restaurants
 
-        return await fetch_restaurants(city, self.test_data)
+        return await fetch_restaurants(
+            city,
+            test_data=self.test_data,
+            preferred_cuisines=preferred_cuisines,
+            target_frequency=target_frequency,
+        )
 
     async def generate_mock_context(
         self,

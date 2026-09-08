@@ -20,7 +20,9 @@ def get_parser_model():
     if not ollama_env_url.endswith("/v1"):
         ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
 
-    MODEL_NAME = os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5")
+    MODEL_NAME = os.getenv(
+        "TICKET_PARSER_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5")
+    )
     actual_model = (
         MODEL_NAME.replace("ollama:", "")
         if MODEL_NAME.startswith("ollama:")
@@ -43,7 +45,7 @@ async def ticket_parser_node(state: dict) -> dict:
     booking_text = state.get("booking_text")
     if not booking_text or not booking_text.strip():
         logger.info("No booking text provided. Bypassing ticket parser.")
-        return {"booking_anchors": None}
+        return {"booking_anchors": state.get("booking_anchors")}
 
     logger.debug("Calling Pydantic AI Ticket Parser Agent...")
     model = get_parser_model()

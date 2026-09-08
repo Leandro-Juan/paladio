@@ -7510,8 +7510,9 @@ def get_iata_code(city_name: str) -> str:
         return "XXX"
 
     clean_city = city_name.lower().strip()
-    if clean_city in MAPPING:
-        return MAPPING[clean_city]
+    for iata, city in MAPPING.items():
+        if city.lower() == clean_city:
+            return iata
 
     from langgraph.types import interrupt
 
@@ -7529,8 +7530,6 @@ def get_city_from_iata(iata_code: str) -> str:
         return "Unknown"
 
     clean_iata = iata_code.upper().strip()
-    # Reverse mapping
-    for city, iata in MAPPING.items():
-        if iata == clean_iata:
-            return city.title()
+    if clean_iata in MAPPING:
+        return MAPPING[clean_iata].title()
     return "Unknown"

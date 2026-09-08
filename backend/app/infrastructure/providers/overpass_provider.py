@@ -30,19 +30,22 @@ _nominatim_last_called = 0.0
 
 
 class OverpassProviderAdapter(IPoiProvider):
-    async def fetch_restaurants(self, city: str, limit: int = 15) -> list[Attraction]:
+    async def fetch_restaurants(
+        self, city: str, limit: int = 15, cuisine: str | None = None
+    ) -> list[Attraction]:
         logger.info(
-            f"Fetching restaurants for {city} from Overpass API (limit={limit})"
+            f"Fetching restaurants for {city} (cuisine={cuisine}) from Overpass API (limit={limit})"
         )
         coords = await self._get_city_coordinates(city)
         if not coords:
             return []
 
         lat, lon = coords
+        cuisine_filter = f'["cuisine"~"{cuisine}",i]' if cuisine else ""
         query = f"""
         [out:json][timeout:25];
         (
-          node["amenity"~"restaurant|cafe|bar"](around:10000,{lat},{lon});
+          node["amenity"~"restaurant|cafe|bar"]{cuisine_filter}(around:10000,{lat},{lon});
         );
         out center {limit};
         """
