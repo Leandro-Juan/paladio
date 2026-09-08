@@ -75,6 +75,7 @@ prompt.txt
 important.txt
 scratch/
 celerybeat-schedule*
+itinerary_output.json
 
 # Extra
 ROADMAP.md
