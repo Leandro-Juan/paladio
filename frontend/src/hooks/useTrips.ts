@@ -16,8 +16,8 @@ export function useTrips() {
   const fetchTrips = async () => {
     setLoading(true);
     try {
-      const host = window.location.hostname;
-      const res = await fetch(`http://${host}:8000/api/v1/trips/`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+      const res = await fetch(`${apiUrl}/trips/`);
       if (res.ok) {
         const data = await res.json();
         setTrips(data);
@@ -36,8 +36,8 @@ export function useTrips() {
 
   const saveTrip = async (tripData: Omit<Trip, 'id' | 'created_at'>) => {
     try {
-      const host = window.location.hostname;
-      const res = await fetch(`http://${host}:8000/api/v1/trips/`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+      const res = await fetch(`${apiUrl}/trips/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -57,8 +57,8 @@ export function useTrips() {
 
   const deleteTrip = async (id: string) => {
     try {
-      const host = window.location.hostname;
-      const res = await fetch(`http://${host}:8000/api/v1/trips/${id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+      const res = await fetch(`${apiUrl}/trips/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {

@@ -41,3 +41,15 @@ export function countWaypoints(itineraryData: any): number {
   
   return 0;
 }
+
+export function getSafeDate(dateString?: string): string {
+  try {
+    if (dateString) {
+      const d = new Date(dateString);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+    return new Date().toISOString();
+  } catch (e) {
+    return new Date().toISOString();
+  }
+}

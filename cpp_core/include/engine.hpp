@@ -140,8 +140,22 @@ struct OptimizationResult {
  * @throws std::invalid_argument if the number of POIs exceeds 64.
  */
 [[nodiscard]] OptimizationResult
-optimize_itinerary(const std::vector<POI> &pois,
-                   const std::vector<TransitInfo> &transit_times,
+optimize_itinerary(const std::vector<POI> &pois, const int *transit_durations,
+                   const double *transit_costs,
                    const OptimizationConfig &config);
 
+#ifdef PALADIO_TESTING
+inline OptimizationResult
+optimize_itinerary(const std::vector<POI> &pois,
+                   const std::vector<TransitInfo> &transit_times,
+                   const OptimizationConfig &config) {
+  std::vector<int> durations(transit_times.size());
+  std::vector<double> costs(transit_times.size());
+  for (size_t i = 0; i < transit_times.size(); ++i) {
+    durations[i] = transit_times[i].duration;
+    costs[i] = transit_times[i].cost;
+  }
+  return optimize_itinerary(pois, durations.data(), costs.data(), config);
+}
+#endif
 } // namespace paladio::core

@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import logging
 import math
@@ -36,103 +35,85 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
         [{"duration_mins": 0, "cost_eur": 0.0, "mode": "none"} for _ in range(n)]
         for _ in range(n)
     ]
+    if n == 0:
+        return matrix
 
-    async with httpx.AsyncClient(timeout=2.0) as client:
-        sem = asyncio.Semaphore(15)
+    locations = []
+    for p in pois:
+        lat = p.get("location", {}).get("latitude", p.get("lat", 0.0))
+        lon = p.get("location", {}).get("longitude", p.get("lon", 0.0))
+        locations.append({"lat": lat, "lon": lon})
 
-        async def bounded_post(req_json):
-            async with sem:
-                return await client.post(f"{VALHALLA_URL}/route", json=req_json)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        req_json = {
+            "sources": locations,
+            "targets": locations,
+            "costing": "auto",
+            "units": "km",
+        }
 
-        tasks = []
-        indices = []
-        for i in range(n):
-            for j in range(n):
-                if i != j:
-                    lat_i = (
-                        pois[i]
-                        .get("location", {})
-                        .get("latitude", pois[i].get("lat", 0.0))
-                    )
-                    lon_i = (
-                        pois[i]
-                        .get("location", {})
-                        .get("longitude", pois[i].get("lon", 0.0))
-                    )
-                    lat_j = (
-                        pois[j]
-                        .get("location", {})
-                        .get("latitude", pois[j].get("lat", 0.0))
-                    )
-                    lon_j = (
-                        pois[j]
-                        .get("location", {})
-                        .get("longitude", pois[j].get("lon", 0.0))
-                    )
+        try:
+            resp = await client.post(
+                f"{VALHALLA_URL}/sources_to_targets", json=req_json
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            sources_to_targets = data.get("sources_to_targets", [])
 
-                    req_json = {
-                        "locations": [
-                            {"lat": lat_i, "lon": lon_i},
-                            {"lat": lat_j, "lon": lon_j},
-                        ],
-                        "costing": "pedestrian",  # Fallback default
-                        "directions_options": {"units": "km"},
-                    }
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
 
-                    dist_approx_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
+                    if i < len(sources_to_targets) and j < len(sources_to_targets[i]):
+                        cell = sources_to_targets[i][j]
+                        dist_km = cell.get(
+                            "distance",
+                            haversine_distance(
+                                locations[i]["lat"],
+                                locations[i]["lon"],
+                                locations[j]["lat"],
+                                locations[j]["lon"],
+                            ),
+                        )
+                        duration_secs = cell.get("time", 1800)
 
-                    if dist_approx_km > 1.5:
-                        req_json["costing"] = "multimodal"
-                        req_json["date_time"] = {"type": 1, "value": "2026-08-18T10:00"}
+                        mode = "pedestrian"
+                        cost = 0.0
+                        if dist_km > 1.5:
+                            mode = "transit"
+                            cost = 1.50
 
-                    tasks.append(bounded_post(req_json))
-                    indices.append((i, j))
+                        matrix[i][j] = {
+                            "duration_mins": max(1, int(duration_secs / 60)),
+                            "cost_eur": cost,
+                            "mode": mode,
+                        }
+                    else:
+                        raise ValueError("Matrix size mismatch")
 
-        if tasks:
-            responses = await asyncio.gather(*tasks, return_exceptions=True)
-
-            error_count = 0
-            for resp in responses:
-                if isinstance(resp, Exception) or resp.status_code != 200:
-                    error_count += 1
-
-            if len(tasks) > 0 and error_count > len(tasks) * 0.5:
-                if city_name:
-                    logger.warning(
-                        f"Valhalla failed {error_count}/{len(tasks)} requests for {city_name}. Triggering automated map pipeline."
-                    )
-                    from app.tasks import build_city_map_task
-
-                    build_city_map_task.delay(city_name)
-
-            for (i, j), resp in zip(indices, responses):
-                lat_i = (
-                    pois[i].get("location", {}).get("latitude", pois[i].get("lat", 0.0))
+        except Exception:
+            if city_name:
+                logger.warning(
+                    f"Valhalla failed matrix request for {city_name}. Triggering automated map pipeline."
                 )
-                lon_i = (
-                    pois[i]
-                    .get("location", {})
-                    .get("longitude", pois[i].get("lon", 0.0))
-                )
-                lat_j = (
-                    pois[j].get("location", {}).get("latitude", pois[j].get("lat", 0.0))
-                )
-                lon_j = (
-                    pois[j]
-                    .get("location", {})
-                    .get("longitude", pois[j].get("lon", 0.0))
-                )
+                from app.tasks import build_city_map_task
 
-                if isinstance(resp, Exception) or resp.status_code != 200:
-                    # Fallback to realistic geographical heuristic using Haversine
+                build_city_map_task.delay(city_name)
+
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
+                    lat_i, lon_i = locations[i]["lat"], locations[i]["lon"]
+                    lat_j, lon_j = locations[j]["lat"], locations[j]["lon"]
+
                     dist_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
                     if dist_km > 1.5:
-                        # Transit / Taxi speed (~30 km/h average + 5m initial wait/boarding)
                         duration = int((dist_km / 30.0 * 60) + 5)
                         cost = 2.50
                         mode = "heuristic_transit"
                     else:
-                        # Walking speed (5 km/h)
                         duration = int(dist_km / 5.0 * 60)
                         cost = 0.0
                         mode = "heuristic_walking"
@@ -140,32 +121,6 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
                         "duration_mins": max(1, duration),
                         "cost_eur": cost,
                         "mode": mode,
-                    }
-                    continue
-
-                data = resp.json()
-                if "trip" in data and "summary" in data["trip"]:
-                    summary = data["trip"]["summary"]
-                    duration_secs = summary.get("time", 1800)
-                    dist_km = summary.get("length", 1.0)
-
-                    mode = "pedestrian"
-                    cost = 0.0
-
-                    if dist_km > 1.5:
-                        mode = "transit"
-                        cost = 1.50  # Standard local transit fare
-
-                    matrix[i][j] = {
-                        "duration_mins": int(duration_secs / 60),
-                        "cost_eur": cost,
-                        "mode": mode,
-                    }
-                else:
-                    matrix[i][j] = {
-                        "duration_mins": 30,
-                        "cost_eur": 5.0,
-                        "mode": "fallback",
                     }
 
     return matrix

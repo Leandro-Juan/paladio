@@ -83,39 +83,59 @@ async def validator_node(state: dict) -> dict:
                     if booking.outbound_flight.destination_iata
                     else ""
                 )
-                result.output.origin_city = (
-                    get_city_from_iata(o_iata) if o_iata else "Unknown"
-                )
-                result.output.destination_city = (
-                    get_city_from_iata(d_iata) if d_iata else "Unknown"
-                )
+
+                if (
+                    result.output.origin_city is None
+                    or result.output.origin_city == "Unknown"
+                ):
+                    result.output.origin_city = (
+                        get_city_from_iata(o_iata) if o_iata else "Unknown"
+                    )
+                if (
+                    result.output.destination_city is None
+                    or result.output.destination_city == "Unknown"
+                ):
+                    result.output.destination_city = (
+                        get_city_from_iata(d_iata) if d_iata else "Unknown"
+                    )
+
                 from datetime import datetime
 
                 if booking.outbound_flight and booking.outbound_flight.departure_time:
-                    result.output.start_date = datetime.fromisoformat(
-                        booking.outbound_flight.departure_time.replace("Z", "+00:00")
-                    ).date()
+                    if result.output.start_date is None:
+                        result.output.start_date = datetime.fromisoformat(
+                            booking.outbound_flight.departure_time.replace(
+                                "Z", "+00:00"
+                            )
+                        ).date()
 
             if booking.return_flight:
                 from datetime import datetime
 
                 if booking.return_flight.departure_time:
-                    result.output.end_date = datetime.fromisoformat(
-                        booking.return_flight.departure_time.replace("Z", "+00:00")
-                    ).date()
+                    if result.output.end_date is None:
+                        result.output.end_date = datetime.fromisoformat(
+                            booking.return_flight.departure_time.replace("Z", "+00:00")
+                        ).date()
 
             if booking.hotel:
-                result.output.destination_city = booking.hotel.city
+                if (
+                    result.output.destination_city is None
+                    or result.output.destination_city == "Unknown"
+                ):
+                    result.output.destination_city = booking.hotel.city
                 from datetime import datetime
 
                 if booking.hotel.check_in_date:
-                    result.output.start_date = datetime.fromisoformat(
-                        booking.hotel.check_in_date
-                    ).date()
+                    if result.output.start_date is None:
+                        result.output.start_date = datetime.fromisoformat(
+                            booking.hotel.check_in_date
+                        ).date()
                 if booking.hotel.check_out_date:
-                    result.output.end_date = datetime.fromisoformat(
-                        booking.hotel.check_out_date
-                    ).date()
+                    if result.output.end_date is None:
+                        result.output.end_date = datetime.fromisoformat(
+                            booking.hotel.check_out_date
+                        ).date()
 
         except Exception as e:
             logger.warning(f"Failed to parse injected booking anchors: {e}")

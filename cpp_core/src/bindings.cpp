@@ -128,18 +128,11 @@ PYBIND11_MODULE(paladio_core, m) {
 
         int *d_ptr = static_cast<int *>(dur_buf.ptr);
         double *c_ptr = static_cast<double *>(cost_buf.ptr);
-        size_t size = dur_buf.shape[0];
-
-        std::vector<TransitInfo> transit_times;
-        transit_times.reserve(size);
-        for (size_t i = 0; i < size; ++i) {
-          transit_times.push_back({d_ptr[i], c_ptr[i]});
-        }
 
         // Release GIL for the core C++ loop to allow Python concurrent
         // execution
         py::gil_scoped_release release;
-        return optimize_itinerary(pois, transit_times, config);
+        return optimize_itinerary(pois, d_ptr, c_ptr, config);
       },
       "Optimize travel constraints (TSPTW + Knapsack). Releases GIL during "
       "computation.");

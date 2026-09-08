@@ -1,4 +1,3 @@
-import hashlib
 import logging
 from typing import Any
 
@@ -47,14 +46,7 @@ class PoiEncoder:
         for i in range(8):
             features.append(1.0 if i == cat_idx else 0.0)
 
-        # Pad the rest with deterministically hashed values of the name to simulate text embeddings
-        name = poi.get("name", "Unknown")
-        hash_digest = hashlib.md5(name.encode()).digest()
-
-        # 16 bytes = 16 values, normalized
-        for b in hash_digest:
-            features.append(float(b) / 255.0)
-
+        # Remove the md5 hash text embedding simulation
         # Pad remaining to 128
         while len(features) < 128:
             features.append(0.0)

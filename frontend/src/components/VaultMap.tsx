@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useRouter } from 'next/navigation';
@@ -39,8 +40,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
       .catch(console.error);
   }, []);
 
-  // Countries visited based on the mock trips (Japan for Tokyo, France for Paris)
-  const visitedCountries = ["Japan", "France"];
+  const visitedCountries = trips.map(t => t.country || t.destination);
 
   const geoJsonStyle = (feature: any) => {
     const isVisited = visitedCountries.includes(feature.properties.name);
@@ -72,7 +72,8 @@ export default function VaultMap({ trips }: VaultMapProps) {
         <GeoJSON data={geoData as any} style={geoJsonStyle} />
       )}
 
-      {trips.map((trip: any) => (
+      <MarkerClusterGroup>
+        {trips.map((trip: any) => (
         <Marker 
           key={trip.id} 
           position={[trip.lat, trip.lng]} 
@@ -91,6 +92,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
           </Popup>
         </Marker>
       ))}
+      </MarkerClusterGroup>
     </MapContainer>
   );
 }

@@ -1,29 +1,24 @@
 "use client";
 import React from 'react';
+import { useTrips } from '@/hooks/useTrips';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const VaultMap = dynamic(() => import('@/components/VaultMap'), { ssr: false, loading: () => <div className="font-mono text-muted flex items-center justify-center h-full w-full bg-surface">LOADING MAP DATA...</div> });
 
 export default function VaultPage() {
-  const pastTrips: unknown[] = [
-    {
-      id: "tokyo-hyper",
-      destination: "Tokyo Hyper-Optimization",
-      date: "2024-05-12",
-      score: 99.4,
-      lat: 35.6762,
-      lng: 139.6503,
-    },
-    {
-      id: "paris-efficiency",
-      destination: "Paris Efficiency Run",
-      date: "2023-09-21",
-      score: 97.8,
-      lat: 48.8566,
-      lng: 2.3522,
-    }
-  ];
+  const { trips, loading } = useTrips();
+  
+  // Try to extract lat/lng if possible, else default to 0,0 or random for visualization
+  const mappedTrips = trips.map((t: any) => ({
+    id: t.id,
+    destination: t.destination,
+    date: t.start_date,
+    lat: t.lat || 0, // Should be geocoded realistically
+    lng: t.lng || 0
+  }));
+
+  if (loading) return <div className="font-mono text-muted p-8">LOADING VAULT DATA...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -33,7 +28,7 @@ export default function VaultPage() {
       </div>
 
       <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-        <VaultMap trips={pastTrips} />
+        <VaultMap trips={mappedTrips} />
       </div>
     </div>
   );

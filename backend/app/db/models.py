@@ -43,3 +43,18 @@ class UserModel(Base):
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
     )
+
+
+class TripModel(Base):
+    __tablename__ = "trips"
+
+    id = Column(String, primary_key=True, index=True)
+    destination = Column(String, nullable=False)
+    start_date = Column(String, nullable=False)
+    end_date = Column(String, nullable=False)
+    itinerary_data = Column(JSONB, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )

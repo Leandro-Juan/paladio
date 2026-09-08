@@ -94,7 +94,8 @@ class FetchTravelContextUseCase:
         booking_anchors = constraints.booking_anchors
         hotel_anchor = booking_anchors.hotel if booking_anchors else None
 
-        hotel_lat, hotel_lon = center_lat + 0.005, center_lon + 0.005  # default offset
+        hotel_lat, hotel_lon = center_lat, center_lon
+
         hotel_name = "Hotel"
 
         if hotel_anchor:
@@ -128,7 +129,7 @@ class FetchTravelContextUseCase:
         outbound_flight = booking_anchors.outbound_flight if booking_anchors else None
         return_flight = booking_anchors.return_flight if booking_anchors else None
 
-        airport_lat, airport_lon = center_lat + 0.1, center_lon + 0.1
+        airport_lat, airport_lon = center_lat, center_lon
         airport_name = f"{city.title()} International Airport"
 
         if outbound_flight:

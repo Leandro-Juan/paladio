@@ -24,9 +24,15 @@ def refresh_city_pois_task(self, city_name: str):
 
     try:
         # Run the async ingestion script synchronously in the Celery worker
-        repo = SqlPoiRepository()
-        provider = OverpassProviderAdapter()
-        asyncio.run(_fetch_and_store_pois(city_name, repo, provider))
+        from app.db.session import async_session
+
+        async def run_fetch():
+            async with async_session() as session:
+                repo = SqlPoiRepository(session)
+                provider = OverpassProviderAdapter()
+                await _fetch_and_store_pois(city_name, repo, provider)
+
+        asyncio.run(run_fetch())
         logger.info(
             f"Task {self.request.id}: Successfully refreshed POIs for {city_name}"
         )

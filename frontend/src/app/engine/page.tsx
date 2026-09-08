@@ -5,9 +5,13 @@ import { TripTimeline } from '@/components/TripTimeline';
 import { useTrips } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
 import { extractDestination } from '@/utils/tripParser';
+import { Virtuoso } from 'react-virtuoso';
+import { useLogStore } from '@/contexts/SocketContext';
+
 
 export default function EnginePage() {
-  const { status, logs, itinerary, missingFields, sendMessage, sendFeedback, sendResume, clearLogs } = usePaladioSocket();
+  const { status, itinerary, missingFields, sendMessage, sendFeedback, sendResume } = usePaladioSocket();
+  const { logs, clearLogs } = useLogStore();
   const { saveTrip } = useTrips();
   const [input, setInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -26,7 +30,7 @@ export default function EnginePage() {
 
   // Auto-scroll terminal
   useEffect(() => {
-    endOfLogsRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (endOfLogsRef.current) { endOfLogsRef.current.scrollTop = endOfLogsRef.current.scrollHeight; }
   }, [logs]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -40,9 +44,10 @@ export default function EnginePage() {
     setIsSaving(true);
     
     const destination = extractDestination(itinerary);
-    let startDate = new Date();
+        let startDate = new Date();
     if (itinerary?.days?.[0]?.flight_info?.departure_time) {
-       startDate = new Date(itinerary.days[0].flight_info.departure_time);
+       const parsed = new Date(itinerary.days[0].flight_info.departure_time);
+       if (!isNaN(parsed.getTime())) startDate = parsed;
     }
     const daysLength = itinerary?.days?.length || 3;
     
@@ -72,13 +77,17 @@ export default function EnginePage() {
           fontFamily: 'var(--font-mono)',
           fontSize: '0.875rem'
         }}>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {logs.map((log, i) => (
-              <div key={i} className={log.includes('ERROR') ? 'text-accent' : 'text-muted'}>
-                {log}
-              </div>
-            ))}
-            <div ref={endOfLogsRef} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <Virtuoso
+              style={{ flex: 1, height: '400px' }}
+              data={logs}
+              itemContent={(index, log) => (
+                  <div className={log.includes('ERROR') ? 'text-accent' : 'text-muted'}>
+                    {log}
+                  </div>
+              )}
+              followOutput="smooth"
+            />
           </div>
           
           {status === 'awaiting_input' && missingFields.length > 0 ? (

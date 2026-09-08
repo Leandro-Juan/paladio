@@ -1,3 +1,4 @@
+from datetime import timezone
 from datetime import datetime
 from typing import Literal
 
@@ -17,7 +18,8 @@ class Booking(BaseModel):
 
 class Metadata(BaseModel):
     scraped_at: datetime = Field(
-        default_factory=datetime.utcnow, description="When this data was scraped"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this data was scraped",
     )
     source: str = Field(
         description="Source of the data (e.g., 'Skyscanner', 'Booking.com')"

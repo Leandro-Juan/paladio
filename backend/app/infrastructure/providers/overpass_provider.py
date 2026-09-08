@@ -1,3 +1,6 @@
+import time
+import asyncio
+from datetime import timezone
 import logging
 from datetime import datetime
 
@@ -20,6 +23,10 @@ OVERPASS_ENDPOINTS = [
     "https://z.overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
 ]
+
+
+_nominatim_lock = asyncio.Lock()
+_nominatim_last_called = 0.0
 
 
 class OverpassProviderAdapter(IPoiProvider):
@@ -220,12 +227,22 @@ class OverpassProviderAdapter(IPoiProvider):
                 is_free=is_free, estimated_cost=estimated_cost, currency="EUR"
             ),
             scoring=Scoring(rating=0.0, reviews=0),
-            metadata=Metadata(scraped_at=datetime.utcnow(), source="openstreetmap"),
+            metadata=Metadata(
+                scraped_at=datetime.now(timezone.utc), source="openstreetmap"
+            ),
         )
 
     async def _get_city_coordinates(self, city: str) -> tuple[float, float] | None:
+        global _nominatim_last_called, _nominatim_lock
         try:
             import urllib.parse
+
+            async with _nominatim_lock:
+                now = time.time()
+                elapsed = now - _nominatim_last_called
+                if elapsed < 1.0:
+                    await asyncio.sleep(1.0 - elapsed)
+                _nominatim_last_called = time.time()
 
             q = urllib.parse.quote(city)
             url = (

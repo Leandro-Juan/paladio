@@ -83,12 +83,41 @@ class OptimizeDailyItineraryUseCase:
             departure_mins - DEPARTURE_CHECKIN_MINS - HOTEL_TRANSIT_TO_AIRPORT_MINS
         )
 
+        all_pois_flat = []
+        poi_to_index = {}
+        for day_list in daily_pois_data:
+            for p in day_list:
+                key = p.get("name", str(p))
+                if key not in poi_to_index:
+                    poi_to_index[key] = len(all_pois_flat)
+                    all_pois_flat.append(p)
+
+        global_matrix = []
+        if all_pois_flat:
+            global_matrix = await get_transit_matrix(all_pois_flat, city)
+            global_matrix = inject_slack_time(global_matrix, 0.15)
+
         for day in range(num_days):
             day_pois = daily_pois_data[day] if day < len(daily_pois_data) else []
+
+            day_matrix = []
+            for p1 in day_pois:
+                row = []
+                idx1 = poi_to_index[p1.get("name", str(p1))]
+                for p2 in day_pois:
+                    idx2 = poi_to_index[p2.get("name", str(p2))]
+                    row.append(
+                        global_matrix[idx1][idx2]
+                        if global_matrix
+                        else {"duration_mins": 0, "cost_eur": 0, "mode": "none"}
+                    )
+                day_matrix.append(row)
+
             result = await self._optimize_single_day(
                 day,
                 num_days,
                 day_pois,
+                day_matrix,
                 local_constraints,
                 city,
                 hotel_arrival_time,
@@ -124,6 +153,7 @@ class OptimizeDailyItineraryUseCase:
         day: int,
         num_days: int,
         unvisited_pois: list,
+        matrix_dict_full: list,
         constraints: TravelConstraints,
         city: str,
         hotel_arrival_time: int,
@@ -137,12 +167,26 @@ class OptimizeDailyItineraryUseCase:
             (p for p in unvisited_pois if p.get("category") == "AIRPORT"), None
         )
 
-        day_pois = [
-            p
-            for p in unvisited_pois
-            if p.get("category") not in ("HOTEL", "AIRPORT")
-            or (selected_hotel and p is selected_hotel)
-        ]
+        day_pois = []
+        matrix_dict = []
+
+        for i, p in enumerate(unvisited_pois):
+            if p.get("category") not in ("HOTEL", "AIRPORT") or (
+                selected_hotel and p is selected_hotel
+            ):
+                day_pois.append(p)
+
+        for i, p1 in enumerate(unvisited_pois):
+            if p1.get("category") not in ("HOTEL", "AIRPORT") or (
+                selected_hotel and p1 is selected_hotel
+            ):
+                row = []
+                for j, p2 in enumerate(unvisited_pois):
+                    if p2.get("category") not in ("HOTEL", "AIRPORT") or (
+                        selected_hotel and p2 is selected_hotel
+                    ):
+                        row.append(matrix_dict_full[i][j])
+                matrix_dict.append(row)
 
         if (
             len(day_pois) <= 1
@@ -150,9 +194,6 @@ class OptimizeDailyItineraryUseCase:
             and day_pois[0].get("category") in ("HOTEL", "AIRPORT")
         ):
             return None
-
-        matrix_dict = await get_transit_matrix(day_pois, city)
-        matrix_dict = inject_slack_time(matrix_dict, 0.15)
 
         day_start_mins, day_end_mins = 480, 1320
         if day == 0:

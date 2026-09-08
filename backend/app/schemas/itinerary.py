@@ -71,7 +71,7 @@ class TravelConstraints(BaseModel):
     destination_city: str | None = Field(
         default="Unknown", description="The city where the trip takes place."
     )
-    budget_usd: float | None = Field(
+    budget_usd: float = Field(
         default=0.0, description="Maximum budget for the entire trip in USD.", ge=0
     )
     flight_cost: float = Field(default=0.0, description="Cost of the flight.")
@@ -91,7 +91,7 @@ class TravelConstraints(BaseModel):
     )
     clarification_needed: str | None = Field(
         default=None,
-        description="If the user's input is ambiguous (e.g. Madrid, Spain vs Madrid, New Mexico, currency of budget), provide a question here to ask the user. Leave null if everything is clear.",
+        description="Question to ask the user if their input is ambiguous.",
     )
     booking_anchors: BookingAnchors | None = Field(
         default=None, description="Extracted flight and hotel bookings"

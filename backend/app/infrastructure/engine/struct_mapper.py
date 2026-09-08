@@ -35,6 +35,9 @@ def build_cpp_pois(
     day_start_mins: int,
     mandatory_names: list[str] | None = None,
 ) -> list[Any]:
+    if not paladio_core:
+        return []
+
     cpp_pois = []
 
     for sp in scored_pois:
@@ -101,6 +104,9 @@ def build_optimization_config(
     end_node_index: int | None,
     exchange_rate: float = 0.92,
 ) -> Any:
+    if not paladio_core:
+        return None
+
     breakfast_deadline = -1
     lunch_deadline = -1
     dinner_deadline = -1

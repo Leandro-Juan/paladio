@@ -47,14 +47,17 @@ class LiveTravelDataProvider(TravelDataProvider):
         )
         from app.services.poi_service import get_attractions_for_city
 
-        repo = SqlPoiRepository()
-        provider = OverpassProviderAdapter()
-        return await get_attractions_for_city(
-            city,
-            poi_repo=repo,
-            poi_provider=provider,
-            mandatory_names=mandatory_names,
-        )
+        from app.db.session import async_session
+
+        async with async_session() as session:
+            repo = SqlPoiRepository(session)
+            provider = OverpassProviderAdapter()
+            return await get_attractions_for_city(
+                city,
+                poi_repo=repo,
+                poi_provider=provider,
+                mandatory_names=mandatory_names,
+            )
 
     async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
         from app.services.travel_data_service import fetch_restaurants
@@ -108,14 +111,17 @@ class MockTravelDataProvider(TravelDataProvider):
         )
         from app.services.poi_service import get_attractions_for_city
 
-        repo = SqlPoiRepository()
-        provider = OverpassProviderAdapter()
-        return await get_attractions_for_city(
-            city,
-            poi_repo=repo,
-            poi_provider=provider,
-            mandatory_names=mandatory_names,
-        )
+        from app.db.session import async_session
+
+        async with async_session() as session:
+            repo = SqlPoiRepository(session)
+            provider = OverpassProviderAdapter()
+            return await get_attractions_for_city(
+                city,
+                poi_repo=repo,
+                poi_provider=provider,
+                mandatory_names=mandatory_names,
+            )
 
     async def get_restaurants(self, city: str) -> list[dict[str, Any]]:
         if "restaurants" in self.test_data:

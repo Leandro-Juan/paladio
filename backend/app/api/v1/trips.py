@@ -1,15 +1,17 @@
-import json
-import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import delete
+
+from app.db.session import get_db
+from app.db.models import TripModel
 
 router = APIRouter()
-
-TRIPS_FILE = os.path.join(os.path.dirname(__file__), "../../../data/trips.json")
 
 
 class TripCreate(BaseModel):
@@ -24,47 +26,60 @@ class TripResponse(TripCreate):
     created_at: str
 
 
-def _load_trips() -> list[dict[str, Any]]:
-    if not os.path.exists(TRIPS_FILE):
-        return []
-    try:
-        with open(TRIPS_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-
-def _save_trips(trips: list[dict[str, Any]]):
-    os.makedirs(os.path.dirname(TRIPS_FILE), exist_ok=True)
-    with open(TRIPS_FILE, "w") as f:
-        json.dump(trips, f, indent=2)
-
-
 @router.post("/", response_model=TripResponse)
-async def create_trip(trip: TripCreate):
-    trips = _load_trips()
-    new_trip = trip.dict()
-    new_trip["id"] = str(uuid.uuid4())
-    new_trip["created_at"] = datetime.utcnow().isoformat()
-    trips.append(new_trip)
-    _save_trips(trips)
-    return new_trip
+async def create_trip(trip: TripCreate, session: AsyncSession = Depends(get_db)):
+    new_id = str(uuid.uuid4())
+    db_trip = TripModel(
+        id=new_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+    )
+    session.add(db_trip)
+    await session.commit()
+    await session.refresh(db_trip)
+
+    return TripResponse(
+        id=db_trip.id,
+        destination=db_trip.destination,
+        start_date=db_trip.start_date,
+        end_date=db_trip.end_date,
+        itinerary_data=db_trip.itinerary_data,
+        created_at=db_trip.created_at.isoformat()
+        if db_trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+    )
 
 
 @router.get("/", response_model=list[TripResponse])
-async def get_trips():
-    trips = _load_trips()
-    # Sort by start_date ascending (closest first)
-    trips.sort(key=lambda x: x.get("start_date", ""))
-    return trips
+async def get_trips(session: AsyncSession = Depends(get_db)):
+    result = await session.execute(
+        select(TripModel).order_by(TripModel.start_date.asc())
+    )
+    trips = result.scalars().all()
+
+    response = []
+    for t in trips:
+        response.append(
+            TripResponse(
+                id=t.id,
+                destination=t.destination,
+                start_date=t.start_date,
+                end_date=t.end_date,
+                itinerary_data=t.itinerary_data,
+                created_at=t.created_at.isoformat()
+                if t.created_at
+                else datetime.now(timezone.utc).isoformat(),
+            )
+        )
+    return response
 
 
 @router.delete("/{trip_id}")
-async def delete_trip(trip_id: str):
-    trips = _load_trips()
-    original_len = len(trips)
-    trips = [t for t in trips if t.get("id") != trip_id]
-    if len(trips) == original_len:
+async def delete_trip(trip_id: str, session: AsyncSession = Depends(get_db)):
+    result = await session.execute(delete(TripModel).where(TripModel.id == trip_id))
+    if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Trip not found")
-    _save_trips(trips)
+    await session.commit()
     return {"status": "success", "message": "Trip deleted"}

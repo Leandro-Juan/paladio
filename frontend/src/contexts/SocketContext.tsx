@@ -12,15 +12,61 @@ export interface PaladioEvent {
 
 import { OptimizationResult, Poi } from '../types/domain';
 
+import { create } from 'zustand';
+
+interface LogStore {
+  logs: string[];
+  addLog: (msg: string) => void;
+  clearLogs: () => void;
+  initLogs: () => void;
+}
+
+export const useLogStore = create<LogStore>((set) => ({
+  logs: ['> SYSTEM READY. AWAITING INITIALIZATION.'],
+  addLog: (msg) => set((state) => {
+    const replayable = [
+      '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.',
+      '> [PLANNER] ITINERARY GENERATED.',
+      '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
+    ];
+    if (replayable.includes(msg) && state.logs.includes(msg)) return state;
+    const newLogs = [...state.logs, msg];
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('paladio_logs', JSON.stringify(newLogs));
+    }
+    return { logs: newLogs };
+  }),
+  clearLogs: () => {
+    const newLogs = ['> SYSTEM READY. AWAITING INITIALIZATION.'];
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('paladio_logs', JSON.stringify(newLogs));
+    }
+    set({ logs: newLogs });
+  },
+  initLogs: () => {
+    if (typeof window !== 'undefined') {
+      const savedStatus = sessionStorage.getItem('paladio_status');
+      if (savedStatus === 'connected' || savedStatus === 'error') {
+         sessionStorage.removeItem('paladio_logs');
+         set({ logs: ['> SYSTEM READY. AWAITING INITIALIZATION.'] });
+      } else {
+        const saved = sessionStorage.getItem('paladio_logs');
+        if (saved) {
+          try {
+            set({ logs: JSON.parse(saved) });
+          } catch (e) {}
+        }
+      }
+    }
+  }
+}));
 export interface SocketContextProps {
   status: SocketStatus;
-  logs: string[];
   itinerary: OptimizationResult | null;
   missingFields: string[];
   sendMessage: (msg: string) => void;
   sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
   sendResume: (data: Record<string, string>) => void;
-  clearLogs: () => void;
   connect: () => void;
   disconnect: () => void;
 }
@@ -37,24 +83,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     return 'disconnected';
   });
 
-  const [logs, setLogs] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'connected' || savedStatus === 'error') {
-         sessionStorage.removeItem('paladio_logs');
-         return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
-      }
-      const saved = sessionStorage.getItem('paladio_logs');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
-    return ['> SYSTEM READY. AWAITING INITIALIZATION.'];
-  });
+  const { addLog } = useLogStore.getState();
+  useEffect(() => { useLogStore.getState().initLogs(); }, []);
 
   const [itinerary, setItinerary] = useState<OptimizationResult | null>(() => {
     if (typeof window !== 'undefined') {
@@ -100,34 +130,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('paladio_logs', JSON.stringify(logs));
-      sessionStorage.setItem('paladio_status', status);
+            sessionStorage.setItem('paladio_status', status);
       if (itinerary) sessionStorage.setItem('paladio_itinerary', JSON.stringify(itinerary));
       else sessionStorage.removeItem('paladio_itinerary');
       
       if (missingFields.length > 0) sessionStorage.setItem('paladio_missing', JSON.stringify(missingFields));
       else sessionStorage.removeItem('paladio_missing');
     }
-  }, [logs, status, itinerary, missingFields]);
+  }, [status, itinerary, missingFields]);
 
-  const addLog = useCallback((msg: string) => {
-    setLogs((prev) => {
-       const replayable = [
-         '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.',
-         '> [PLANNER] ITINERARY GENERATED.',
-         '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
-       ];
-       if (replayable.includes(msg) && prev.includes(msg)) {
-           return prev;
-       }
-       return [...prev, msg];
-    });
-  }, []);
-
-  const clearLogs = useCallback(() => {
-    setLogs(['> SYSTEM READY. AWAITING INITIALIZATION.']);
-  }, []);
-
+  
+  
   const handleEvent = useCallback((payload: PaladioEvent) => {
     switch (payload.event) {
       case 'STARTING_INFERENCE':
@@ -283,7 +296,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SocketContext.Provider value={{
-      status, logs, itinerary, missingFields, sendMessage, sendFeedback, sendResume, clearLogs, connect, disconnect
+      status, itinerary, missingFields, sendMessage, sendFeedback, sendResume, connect, disconnect
     }}>
       {children}
     </SocketContext.Provider>
