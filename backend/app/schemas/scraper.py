@@ -1,18 +1,7 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
-
-
-class Route(BaseModel):
-    origin_iata: str = Field(description="Origin airport IATA code")
-    destination_iata: str = Field(description="Destination airport IATA code")
-
-
-class FlightSchedule(BaseModel):
-    departure_utc: datetime = Field(description="Departure time in UTC")
-    arrival_utc: datetime = Field(description="Arrival time in UTC")
-    duration_minutes: int = Field(description="Flight duration in minutes")
 
 
 class Financials(BaseModel):
@@ -35,52 +24,14 @@ class Metadata(BaseModel):
     )
 
 
-class Flight(BaseModel):
-    id: str = Field(description="Unique identifier for the flight")
-    type: Literal["flight"] = "flight"
-    airline: str = Field(description="Airline name")
-    flight_number: str = Field(description="Flight number")
-    route: Route
-    schedule: FlightSchedule
-    financials: Financials
-    booking: Booking
-    metadata: Metadata
-
-
 class Location(BaseModel):
     latitude: float
     longitude: float
 
 
-class Stay(BaseModel):
-    check_in_date: date
-    check_out_date: date
-    nights: int
-    capacity: int = Field(default=2, description="Capacity of the room, defaults to 2")
-
-
-class HotelFinancials(BaseModel):
-    total_price: float
-    price_per_night: float
-    currency: str
-
-
 class Scoring(BaseModel):
     rating: float = Field(description="Rating of the hotel")
     reviews: int | None = Field(default=None, description="Number of reviews")
-
-
-class Hotel(BaseModel):
-    id: str = Field(description="Unique identifier for the hotel")
-    type: Literal["hotel"] = "hotel"
-    name: str = Field(description="Name of the hotel")
-    location: Location
-    stay: Stay
-    financials: HotelFinancials
-    scoring: Scoring
-    amenities: list[str] = Field(description="List of amenities")
-    booking: Booking
-    metadata: Metadata
 
 
 class Schedule(BaseModel):

@@ -1,66 +1,11 @@
 import asyncio
 import logging
-from typing import Any
 
 import httpx
 
 from app.celery_app import app
-from app.scraper.exceptions import BotDetectionError, RateLimitError
-
-# Import scrapers
-from app.scraper.static_scraper import scrape_static
 
 logger = logging.getLogger(__name__)
-
-
-@app.task(
-    bind=True,
-    name="app.tasks.scrape_static_task",
-    autoretry_for=(Exception, BotDetectionError, RateLimitError, httpx.HTTPStatusError),
-    retry_backoff=True,
-    retry_jitter=True,
-    retry_backoff_max=600,
-    max_retries=5,
-)
-def scrape_static_task(self, url: str) -> dict[str, Any]:
-    """
-    Celery task wrapper for static scraping.
-    """
-    logger.info(f"Task {self.request.id}: Starting static scrape for {url}")
-    try:
-        # Since Celery workers run synchronously by default, we use asyncio.run
-        result = asyncio.run(scrape_static(url))
-        return result
-    except Exception as exc:
-        logger.error(f"Task {self.request.id}: Failed static scrape for {url}: {exc}")
-        # Reraise to trigger autoretry
-        raise
-
-
-@app.task(bind=True, name="app.tasks.scrape_flight_prices_task")
-def scrape_flight_prices_task(self):
-    """
-    Orchestrator task that triggers the individual scraping tasks.
-    This replaces the previous dummy task.
-    """
-    logger.info("Orchestrator started: dispatching scraping jobs...")
-
-    # List of target websites to scrape (e.g. Skyscanner, Ryanair, Booking, eDreams)
-    # Using specific landing pages for testing.
-    static_targets = [
-        "https://jsonplaceholder.typicode.com/posts/1",  # Mock static endpoint for testing
-    ]
-
-    # Dispatch static tasks
-    for url in static_targets:
-        scrape_static_task.delay(url)
-
-    logger.info("Orchestrator finished: jobs dispatched to queue.")
-
-    return {
-        "status": "success",
-        "message": f"Dispatched {len(static_targets)} static scraping tasks.",
-    }
 
 
 @app.task(bind=True, name="app.tasks.refresh_city_pois_task")
