@@ -98,4 +98,65 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     await expect(mealSelects).toHaveCount(3);
     await expect(mealSelects.nth(0)).toHaveValue('BREAKFAST');
   });
+
+  test('renders all days and waypoints in TripTimeline for a 5-day itinerary', async ({ page }) => {
+    const mock5DayItinerary = {
+      days: [1, 2, 3, 4, 5].map((dayNum) => ({
+        day: dayNum,
+        flight_info: dayNum === 1 ? { destination_iata: 'CDG', departure_time: '10:00' } : null,
+        itinerary: {
+          total_score: 150.0,
+          total_cost_eur: 50.0,
+          total_time_mins: 720,
+          path: [
+            {
+              poi: { name: `Day ${dayNum} Morning Spot`, category: 'attraction', duration_mins: 60 },
+              scheduled_start: '09:00',
+              scheduled_end: '10:00',
+            },
+            {
+              poi: { name: `Day ${dayNum} Lunch Bistro`, category: 'restaurant', duration_mins: 60 },
+              scheduled_start: '12:30',
+              scheduled_end: '13:30',
+            },
+            {
+              poi: { name: `Day ${dayNum} Evening Museum`, category: 'museum', duration_mins: 90 },
+              scheduled_start: '15:00',
+              scheduled_end: '16:30',
+            },
+          ],
+        },
+      })),
+    };
+
+    await page.routeWebSocket('**/api/v1/ws/stream*', (ws) => {
+      ws.onMessage((msg) => {
+        try {
+          const parsed = JSON.parse(msg.toString());
+          if (parsed.action === 'chat') {
+            ws.send(JSON.stringify({
+              event: 'EVALUATING_ROUTES',
+              status: 'SUCCESS',
+              data: mock5DayItinerary,
+            }));
+          }
+        } catch (e) {}
+      });
+    });
+
+    await page.goto('/engine');
+
+    // Click launch
+    const launchBtn = page.getByRole('button', { name: /INITIALIZE SOLVER/i });
+    await launchBtn.click();
+
+    // Verify all 5 days are visible in the TripTimeline
+    for (let d = 1; d <= 5; d++) {
+      await expect(page.getByRole('heading', { name: `DAY ${d}` })).toBeVisible();
+      await expect(page.getByText(`Day ${d} Morning Spot`)).toBeVisible();
+      await expect(page.getByText(`Day ${d} Lunch Bistro`)).toBeVisible();
+      await expect(page.getByText(`Day ${d} Evening Museum`)).toBeVisible();
+    }
+  });
 });
+
