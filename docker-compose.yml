@@ -92,6 +92,7 @@ services:
       - "127.0.0.1:8002:8002"
     volumes:
       - valhalladata:/custom_files
+      - gtfsdata:/gtfs_feeds
     environment:
       - serve_rst=True
       - use_tiles_ignore_pbf=False
@@ -108,6 +109,7 @@ services:
       - ./backend:/app
       - /app/.venv
       - valhalladata:/custom_files
+      - gtfsdata:/gtfs_feeds
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - POSTGRES_HOST=db
@@ -157,3 +159,4 @@ volumes:
   redisdata:
   ollamadata:
   valhalladata:
+  gtfsdata:

@@ -1,6 +1,8 @@
+import enum
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
-from pgvector.sqlalchemy import Vector
 
 from app.db.session import Base
 
@@ -69,6 +71,26 @@ class TripModel(Base):
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)
     itinerary_data = Column(JSONB, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+
+class TransitCacheStatus(str, enum.Enum):
+    BUILDING = "BUILDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class TransitCacheModel(Base):
+    __tablename__ = "transit_cache"
+
+    city = Column(String, primary_key=True, index=True)
+    status = Column(String, default=TransitCacheStatus.BUILDING.value, nullable=False)
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+    gtfs_feed_name = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

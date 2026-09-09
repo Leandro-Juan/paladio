@@ -50,10 +50,28 @@ class TransitEdge(BaseModel):
     cost_eur: float = 0.0
 
 
+class TransitStep(BaseModel):
+    type: str  # "walk", "transit_board", "transit_alight", "transfer"
+    instruction: str
+    duration_mins: int
+    distance_km: float = 0.0
+    transit_line: str | None = None
+    headsign: str | None = None
+    station_name: str | None = None
+
+
+class TransitLeg(BaseModel):
+    duration_mins: int
+    cost_eur: float = 0.0
+    mode: str = "multimodal"  # "multimodal", "pedestrian", "transit"
+    steps: list[TransitStep] = Field(default_factory=list)
+
+
 class ScheduledPoi(BaseModel):
     poi: Poi
     scheduled_start: str
     scheduled_end: str
+    transit_from_previous: TransitLeg | None = None
 
 
 class Itinerary(BaseModel):

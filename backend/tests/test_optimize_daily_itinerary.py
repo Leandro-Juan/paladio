@@ -185,3 +185,86 @@ async def test_optimize_handles_missing_flights_gracefully(
 
         # Assert
         assert "days" in result
+
+
+@pytest.mark.asyncio
+async def test_optimize_enriches_transit_maneuvers(
+    sample_constraints, sample_flights, sample_pois_data
+):
+    from app.domain.entities.poi import TransitLeg, TransitStep
+
+    mock_engine = MagicMock()
+    mock_result = MagicMock()
+    mock_result.model_dump.return_value = {
+        "path": [
+            {
+                "poi": {"name": "Hotel Paris", "lat": 48.85, "lon": 2.35},
+                "scheduled_start": "09:00",
+                "scheduled_end": "09:30",
+            },
+            {
+                "poi": {"name": "Louvre", "lat": 48.86, "lon": 2.33},
+                "scheduled_start": "10:00",
+                "scheduled_end": "12:00",
+            },
+        ],
+        "total_cost": 20.0,
+        "total_time": 180.0,
+        "total_score": 100.0,
+    }
+    mock_engine.run_optimization = AsyncMock(return_value=mock_result)
+
+    mock_transit_leg = TransitLeg(
+        duration_mins=15,
+        cost_eur=1.80,
+        mode="transit",
+        steps=[
+            TransitStep(
+                type="walk",
+                instruction="Walk to Metro",
+                duration_mins=5,
+                distance_km=0.3,
+            ),
+            TransitStep(
+                type="transit",
+                instruction="Take Metro 1",
+                duration_mins=10,
+                distance_km=1.2,
+                transit_line="1",
+            ),
+        ],
+    )
+
+    with (
+        patch(
+            "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
+            new_callable=AsyncMock,
+        ) as mock_matrix,
+        patch(
+            "app.use_cases.optimize_daily_itinerary.inject_slack_time"
+        ) as mock_inject,
+        patch(
+            "app.services.transit_service.get_detailed_transit_leg",
+            new_callable=AsyncMock,
+        ) as mock_leg,
+    ):
+        mock_matrix.return_value = [
+            [{"duration_mins": 10, "cost_eur": 0} for _ in range(3)] for _ in range(3)
+        ]
+        mock_inject.return_value = mock_matrix.return_value
+        mock_leg.return_value = mock_transit_leg
+
+        use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
+        outbound, return_flight = sample_flights
+        result = await use_case.execute(
+            sample_constraints, [sample_pois_data], outbound, return_flight
+        )
+
+        day1_path = result["days"][0]["itinerary"]["path"]
+        assert len(day1_path) >= 2
+        # Louvre should have transit_from_previous enriched
+        louvre_step = next(p for p in day1_path if p["poi"]["name"] == "Louvre")
+        assert "transit_from_previous" in louvre_step
+        assert louvre_step["transit_from_previous"]["mode"] == "transit"
+        assert len(louvre_step["transit_from_previous"]["steps"]) == 2
+        assert louvre_step["transit_from_previous"]["steps"][1]["transit_line"] == "1"

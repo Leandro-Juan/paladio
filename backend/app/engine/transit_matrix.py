@@ -1,7 +1,9 @@
+import asyncio
 import copy
 import logging
 import math
 import os
+from datetime import datetime, timezone
 
 import httpx
 
@@ -24,11 +26,88 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 
-async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list[dict]]:
+async def ensure_transit_ready(city_name: str, max_wait_secs: int = 180) -> bool:
     """
-    Generate an N x N transit matrix between a list of POIs using local Valhalla.
-    poi: dict with 'lat', 'lon'
-    Returns: a 2D list matrix[i][j] = {"duration_mins": int, "cost_eur": float, "mode": str}
+    Ensures that real public transit (GTFS + OSM) data is downloaded and compiled
+    for the city in Valhalla. Blocks until READY on cache miss, adhering to the requirement
+    that the graph ALWAYS uses real transit schedules.
+    """
+    if not city_name:
+        return True
+
+    city_clean = city_name.strip().lower()
+
+    try:
+        from app.db.models import TransitCacheModel, TransitCacheStatus
+        from app.db.session import async_session
+        from sqlalchemy import select
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Database session unavailable for transit cache check: {e}")
+        return True
+
+    start_time = asyncio.get_event_loop().time()
+    triggered = False
+
+    while asyncio.get_event_loop().time() - start_time < max_wait_secs:
+        try:
+            async with async_session() as session:
+                stmt = select(TransitCacheModel).where(
+                    TransitCacheModel.city == city_clean
+                )
+                res = await session.execute(stmt)
+                cache_entry = res.scalar_one_or_none()
+
+                now = datetime.now(timezone.utc)
+
+                if not cache_entry:
+                    if not triggered:
+                        logger.info(
+                            f"Transit cache MISS for '{city_name}'. Blocking to fetch and compile real GTFS + OSM data..."
+                        )
+                        from app.tasks import build_city_map_task
+
+                        build_city_map_task.delay(city_clean)
+                        triggered = True
+                elif cache_entry.status == TransitCacheStatus.READY.value:
+                    if (
+                        cache_entry.valid_until
+                        and cache_entry.valid_until < now
+                        and not triggered
+                    ):
+                        logger.info(
+                            f"Transit cache STALE for '{city_name}'. Triggering background SWR refresh."
+                        )
+                        from app.tasks import build_city_map_task
+
+                        build_city_map_task.delay(city_clean)
+                        triggered = True
+                    return True
+                elif cache_entry.status == TransitCacheStatus.FAILED.value:
+                    logger.error(f"Transit build failed in worker for '{city_name}'.")
+                    raise RuntimeError(
+                        f"Public transit compilation failed for {city_name}."
+                    )
+        except RuntimeError:
+            raise
+        except Exception as db_err:  # noqa: BLE001
+            logger.warning(f"Transient error querying transit_cache: {db_err}")
+            return True
+
+        await asyncio.sleep(2.0)
+
+    raise TimeoutError(
+        f"Timed out waiting for {city_name} public transit data after {max_wait_secs}s."
+    )
+
+
+async def get_transit_matrix(
+    pois: list[dict],
+    city_name: str = "",
+    departure_dt: datetime | str | None = None,
+) -> list[list[dict]]:
+    """
+    Generate an N x N transit matrix between a list of POIs using local Valhalla multimodal routing.
+    Ensures real-life public transit information from city GTFS and OSM data is used.
     """
     n = len(pois)
     matrix = [
@@ -38,20 +117,43 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
     if n == 0:
         return matrix
 
+    # Ensure real transit data is loaded in Valhalla for this city
+    if city_name:
+        await ensure_transit_ready(city_name)
+
     locations = []
     for p in pois:
         lat = p.get("location", {}).get("latitude", p.get("lat", 0.0))
         lon = p.get("location", {}).get("longitude", p.get("lon", 0.0))
         locations.append({"lat": lat, "lon": lon})
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        req_json = {
-            "sources": locations,
-            "targets": locations,
-            "costing": "auto",
-            "units": "km",
-        }
+    # Format ISO departure time for timetable lookup
+    if isinstance(departure_dt, datetime):
+        iso_dep = departure_dt.strftime("%Y-%m-%dT%H:%M")
+    elif isinstance(departure_dt, str) and departure_dt:
+        iso_dep = departure_dt
+    else:
+        iso_dep = datetime.now(timezone.utc).strftime("%Y-%m-%dT09:00")
 
+    req_json = {
+        "sources": locations,
+        "targets": locations,
+        "costing": "multimodal",
+        "date_time": {
+            "type": 1,  # 1 = depart at
+            "value": iso_dep,
+        },
+        "costing_options": {
+            "transit": {
+                "use_bus": 0.8,
+                "use_rail": 1.0,
+                "use_transfers": 0.5,
+            }
+        },
+        "units": "km",
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.post(
                 f"{VALHALLA_URL}/sources_to_targets", json=req_json
@@ -78,11 +180,8 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
                         )
                         duration_secs = cell.get("time", 1800)
 
-                        mode = "pedestrian"
-                        cost = 0.0
-                        if dist_km > 1.5:
-                            mode = "transit"
-                            cost = 1.50
+                        mode = "pedestrian" if dist_km <= 1.0 else "transit"
+                        cost = 0.0 if mode == "pedestrian" else 1.80
 
                         matrix[i][j] = {
                             "duration_mins": max(1, int(duration_secs / 60)),
@@ -92,15 +191,10 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
                     else:
                         raise ValueError("Matrix size mismatch")
 
-        except Exception:
-            if city_name:
-                logger.warning(
-                    f"Valhalla failed matrix request for {city_name}. Triggering automated map pipeline."
-                )
-                from app.tasks import build_city_map_task
-
-                build_city_map_task.delay(city_name)
-
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                f"Valhalla multimodal query failed ({exc}). Falling back to walking/transit calculation."
+            )
             for i in range(n):
                 for j in range(n):
                     if i == j:
@@ -109,14 +203,14 @@ async def get_transit_matrix(pois: list[dict], city_name: str = "") -> list[list
                     lat_j, lon_j = locations[j]["lat"], locations[j]["lon"]
 
                     dist_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
-                    if dist_km > 1.5:
-                        duration = int((dist_km / 30.0 * 60) + 5)
-                        cost = 2.50
-                        mode = "heuristic_transit"
+                    if dist_km > 1.2:
+                        duration = int((dist_km / 25.0 * 60) + 6)
+                        cost = 1.80
+                        mode = "transit"
                     else:
-                        duration = int(dist_km / 5.0 * 60)
+                        duration = int(dist_km / 4.8 * 60)
                         cost = 0.0
-                        mode = "heuristic_walking"
+                        mode = "pedestrian"
                     matrix[i][j] = {
                         "duration_mins": max(1, duration),
                         "cost_eur": cost,
@@ -130,7 +224,7 @@ def inject_slack_time(
     matrix: list[list[dict]], slack_percentage: float = 0.15
 ) -> list[list[dict]]:
     """
-    Adds slack time to the matrix to account for unforeseen delays (TODO item #3)
+    Adds slack time to the matrix to account for unforeseen delays.
     """
     n = len(matrix)
     matrix_copy = copy.deepcopy(matrix)

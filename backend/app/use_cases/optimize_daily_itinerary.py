@@ -1,12 +1,12 @@
 import copy
 import logging
+from datetime import datetime
 from typing import Any
 
 from app.domain.entities.poi import Poi, TransitEdge
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
 from app.schemas.itinerary import TravelConstraints
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class OptimizeDailyItineraryUseCase:
                 else:
                     parts = t_str.split(":")
                     return int(parts[0]), int(parts[1])
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.warning(f"Failed to parse time {t_str}, defaulting to 08:00")
                 return 8, 0
 
@@ -92,9 +92,15 @@ class OptimizeDailyItineraryUseCase:
                     poi_to_index[key] = len(all_pois_flat)
                     all_pois_flat.append(p)
 
+        departure_dt = None
+        if constraints.start_date:
+            departure_dt = f"{constraints.start_date.isoformat()}T09:00"
+
         global_matrix = []
         if all_pois_flat:
-            global_matrix = await get_transit_matrix(all_pois_flat, city)
+            global_matrix = await get_transit_matrix(
+                all_pois_flat, city, departure_dt=departure_dt
+            )
             global_matrix = inject_slack_time(global_matrix, 0.15)
 
         daily_budget = max(0.0, local_constraints.budget_usd / num_days)
@@ -235,7 +241,7 @@ class OptimizeDailyItineraryUseCase:
                 start_node_index=start_idx if start_idx != -1 else None,
                 end_node_index=end_idx if end_idx != -1 else None,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"C++ optimization engine failed: {e}")
             raise RuntimeError(f"C++ optimization engine failed: {e}")
 
@@ -252,17 +258,36 @@ class OptimizeDailyItineraryUseCase:
                 },
             )
 
-        if day == num_days - 1 and selected_airport:
-            if result["path"]:
-                last_end = result["path"][-1]["scheduled_end"]
-                lh, lm = map(int, last_end.split(":"))
-                start_mins = lh * 60 + lm + 45
-                result["path"].append(
-                    {
-                        "poi": selected_airport,
-                        "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
-                        "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
-                    }
+        if day == num_days - 1 and selected_airport and result["path"]:
+            last_end = result["path"][-1]["scheduled_end"]
+            lh, lm = map(int, last_end.split(":"))
+            start_mins = lh * 60 + lm + 45
+            result["path"].append(
+                {
+                    "poi": selected_airport,
+                    "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
+                    "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
+                }
+            )
+
+        # Enrich each step in path with detailed public transit instructions from the previous POI
+        from app.services.transit_service import get_detailed_transit_leg
+
+        path_items = result.get("path", [])
+        for k in range(1, len(path_items)):
+            prev_poi = path_items[k - 1].get("poi", {})
+            curr_poi = path_items[k].get("poi", {})
+            scheduled_start = path_items[k].get("scheduled_start", "09:00")
+            dep_iso = f"2026-09-10T{scheduled_start}"
+
+            try:
+                transit_leg = await get_detailed_transit_leg(
+                    origin=prev_poi,
+                    destination=curr_poi,
+                    departure_iso=dep_iso,
                 )
+                path_items[k]["transit_from_previous"] = transit_leg.model_dump()
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Could not enrich transit leg: {e}")
 
         return result
