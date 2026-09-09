@@ -5,7 +5,6 @@ from langgraph.graph.message import add_messages
 
 class SwarmState(TypedDict):
     messages: Annotated[list, add_messages]
-    retrieved_context: str | None
     validated_itinerary: dict | None
     error_count: int
     final_itinerary: dict | None

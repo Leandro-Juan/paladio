@@ -183,18 +183,6 @@ class SwarmSessionAdapter(ISwarmSession):
 
                 elif node_name in ["prompt_analyzer", "prompt_analysis"]:
                     yield {"event": "ANALYZING_PROMPT", "status": "completed"}
-                    yield {"event": "RETRIEVING_CONTEXT", "status": "running"}
-
-                elif node_name == "rag":
-                    retrieved = state_update.get("retrieved_context") or ""
-                    truncated = (
-                        retrieved[:500] + "..." if len(retrieved) > 500 else retrieved
-                    )
-                    yield {
-                        "event": "RETRIEVING_CONTEXT",
-                        "status": "completed",
-                        "data": truncated,
-                    }
                     yield {
                         "event": "SCRAPING_DYNAMIC_DATA",
                         "status": "running",

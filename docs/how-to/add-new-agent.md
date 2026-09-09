@@ -51,8 +51,7 @@ def create_swarm():
     workflow = StateGraph(SwarmState)
     
     # 1. Add existing nodes
-    workflow.add_node("router", router_node)
-    workflow.add_node("rag", rag_node)
+    workflow.add_node("prompt_analyzer", prompt_analyzer_node)
     
     # 2. Add your new node
     workflow.add_node("weather", weather_node)
@@ -60,9 +59,8 @@ def create_swarm():
     # ...
     
     # 3. Update Edges
-    # For example, route to weather before validator
-    workflow.add_edge("rag", "weather")
-    workflow.add_edge("weather", "validator")
+    workflow.add_edge("prompt_analyzer", "weather")
+    workflow.add_edge("weather", "planner_scrape")
     
     return workflow.compile()
 ```

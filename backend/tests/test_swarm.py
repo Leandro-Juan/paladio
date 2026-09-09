@@ -11,8 +11,8 @@ from langchain_core.messages import HumanMessage
 
 
 @pytest.fixture(autouse=True)
-def mock_embeddings():
-    """Mock out the LangChain Ollama embeddings, PGVector, and RAG Agent so tests don't require the LLM backend."""
+def mock_prompt_analyzer():
+    """Mock out the Prompt Analyzer Agent so tests don't require the LLM backend."""
     mock_run_result = MagicMock()
     from app.schemas.rag_schema import RAGPromptAnalysis
 
@@ -22,11 +22,6 @@ def mock_embeddings():
         travel_tastes=[],
     )
     with patch(
-        "app.swarm.nodes.retriever.OllamaEmbeddings.aembed_query",
-        return_value=[0.0] * 768,
-    ), patch(
-        "app.swarm.nodes.retriever.PGVector.asimilarity_search", return_value=[]
-    ), patch(
         "app.swarm.agents.prompt_analyzer.prompt_analysis_agent.run",
         new_callable=AsyncMock,
         return_value=mock_run_result,
@@ -103,7 +98,7 @@ async def test_reactive_planning_generates_itinerary():
         result = await graph.ainvoke(state, config)
 
     # Assert
-    assert "retrieved_context" in result
+    assert result.get("prompt_analysis") is not None
     assert result.get("validated_itinerary") is not None
     assert result["validated_itinerary"]["destination_city"] == "Paris"
     assert result["validated_itinerary"]["origin_city"] == "New York"

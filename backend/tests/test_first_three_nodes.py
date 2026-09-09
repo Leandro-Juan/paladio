@@ -69,7 +69,6 @@ async def test_first_three_nodes_pipeline(mock_ticket_parser):
             ],
         },
         "messages": [],
-        "retrieved_context": None,
         "validated_itinerary": None,
         "error_count": 0,
         "final_itinerary": None,

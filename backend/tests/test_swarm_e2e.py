@@ -1,5 +1,4 @@
 import os
-from datetime import date
 
 import pytest
 from langchain_core.messages import HumanMessage
@@ -37,7 +36,6 @@ async def test_full_trip_generation():
     initial_state = {
         "messages": [HumanMessage(content=prompt)],
         "intent": "REACTIVE_PLANNING",
-        "retrieved_context": f"Today is {date.today()}.",
         "error_count": 0,
         "test_data": {
             "flights": [

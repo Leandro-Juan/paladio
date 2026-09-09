@@ -70,7 +70,6 @@ async def test_prompt_analyzer_node_extracts_tag_affinities_and_preserves_mandat
             MagicMock(content="I must visit Prado Museum. I love art and history.")
         ],
         "validated_itinerary": {"destination_city": "Madrid"},
-        "retrieved_context": None,
         "error_count": 0,
         "final_itinerary": None,
         "test_data": None,

@@ -9,7 +9,6 @@ The core communication bus for the LangGraph workflow, defined in `state.py`.
 ```python
 class SwarmState(TypedDict):
     messages: Annotated[list, add_messages]
-    retrieved_context: str | None
     validated_itinerary: dict | None
     error_count: int
     final_itinerary: dict | None
@@ -31,10 +30,9 @@ The workflow is compiled using `StateGraph(SwarmState)` and follows this executi
 2. `ticket_parser` -> `assemble_constraints`
 3. `assemble_constraints` -> `check_missing`
 4. `check_missing` -> `prompt_analyzer`
-5. `prompt_analyzer` -> `rag`
-6. `rag` -> `planner_scrape`
-7. `planner_scrape` -> `planner_optimize`
-8. `planner_optimize` -> **END**
+5. `prompt_analyzer` -> `planner_scrape`
+6. `planner_scrape` -> `planner_optimize`
+7. `planner_optimize` -> **END**
 
 ## Agents & Nodes
 
@@ -53,10 +51,6 @@ The workflow is compiled using `StateGraph(SwarmState)` and follows this executi
 ### `prompt_analyzer_node` (`agents/prompt_analyzer.py` / `nodes/prompt_analyzer.py`)
 - **Purpose:** Analyzes the user's conversational prompt and chat history using an LLM agent to extract mandatory POIs, preferred cuisines, travel tastes, and tag affinities.
 - **Output:** Enriches `state["validated_itinerary"]` and outputs `state["prompt_analysis"]`.
-
-### `rag_node` (`nodes/retriever.py`)
-- **Purpose:** Pure retrieval node querying the `pgvector` knowledge base for localized city POIs matching the destination and extracted taste/POI terms.
-- **Output:** Mutates `state["retrieved_context"]`.
 
 ### `planner_scrape_node` (`graph.py`)
 - **Purpose:** Fetches dynamic context (POIs, hotels, flight verification) from external data providers and applies machine learning scoring.
