@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthenticatedUser } from './test-utils';
 
 test('has title and welcome message', async ({ page }) => {
+  await mockAuthenticatedUser(page);
   await page.goto('/');
 
   // Expect a title "to contain" a substring.

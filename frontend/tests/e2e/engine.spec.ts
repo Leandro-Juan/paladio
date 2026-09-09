@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthenticatedUser } from './test-utils';
 
 test.describe('Engine Trip Preparation Cockpit', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAuthenticatedUser(page);
+  });
+
   test('renders mission preparation form with default constraints and anchor mode switcher', async ({ page }) => {
     await page.goto('/engine');
 

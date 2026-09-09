@@ -1,6 +1,7 @@
-from app.db.session import Base
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
+
+from app.db.session import Base
 
 
 class AttractionModel(Base):
@@ -38,6 +39,7 @@ class UserModel(Base):
     email = Column(String, unique=True, index=True, nullable=True)
     username = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=True)
+    role = Column(String, default="user", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Store the 64D feature vector representing user preferences

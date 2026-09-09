@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch, getApiBaseUrl } from '@/utils/api';
+
+export { getApiBaseUrl };
 
 export interface Trip {
   id?: string;
@@ -9,18 +12,6 @@ export interface Trip {
   created_at?: string;
 }
 
-export const getApiBaseUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-    return `${protocol}//${host}:8000/api/v1`;
-  }
-  return 'http://localhost:8000/api/v1';
-};
-
 export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,12 +19,8 @@ export function useTrips() {
   const fetchTrips = useCallback(async () => {
     setLoading(true);
     try {
-      const apiUrl = getApiBaseUrl();
-      const res = await fetch(`${apiUrl}/trips/`);
-      if (res.ok) {
-        const data = await res.json();
-        setTrips(data);
-      }
+      const data = await apiFetch<Trip[]>('/trips/');
+      setTrips(data);
     } catch (e) {
       console.error("Failed to fetch trips", e);
     } finally {
@@ -48,11 +35,7 @@ export function useTrips() {
 
   const getTrip = useCallback(async (id: string): Promise<Trip | null> => {
     try {
-      const apiUrl = getApiBaseUrl();
-      const res = await fetch(`${apiUrl}/trips/${id}`);
-      if (res.ok) {
-        return await res.json();
-      }
+      return await apiFetch<Trip>(`/trips/${id}`);
     } catch (e) {
       console.error("Failed to fetch trip", e);
     }
@@ -61,19 +44,12 @@ export function useTrips() {
 
   const saveTrip = async (tripData: Omit<Trip, 'id' | 'created_at'>) => {
     try {
-      const apiUrl = getApiBaseUrl();
-      const res = await fetch(`${apiUrl}/trips/`, {
+      const newTrip = await apiFetch<Trip>('/trips/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(tripData)
+        body: JSON.stringify(tripData),
       });
-      if (res.ok) {
-        const newTrip = await res.json();
-        setTrips(prev => [...prev, newTrip]);
-        return newTrip;
-      }
+      setTrips(prev => [...prev, newTrip]);
+      return newTrip;
     } catch (e) {
       console.error("Failed to save trip", e);
     }
@@ -82,14 +58,11 @@ export function useTrips() {
 
   const deleteTrip = async (id: string) => {
     try {
-      const apiUrl = getApiBaseUrl();
-      const res = await fetch(`${apiUrl}/trips/${id}`, {
-        method: 'DELETE'
+      await apiFetch(`/trips/${id}`, {
+        method: 'DELETE',
       });
-      if (res.ok) {
-        setTrips(prev => prev.filter(t => t.id !== id));
-        return true;
-      }
+      setTrips(prev => prev.filter(t => t.id !== id));
+      return true;
     } catch (e) {
       console.error("Failed to delete trip", e);
     }

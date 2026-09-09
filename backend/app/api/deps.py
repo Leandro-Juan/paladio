@@ -1,5 +1,3 @@
-from typing import Optional
-
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.core.security import decode_access_token
 from app.db.models import UserModel
@@ -12,7 +10,7 @@ security_bearer = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_bearer),
     session: AsyncSession = Depends(get_db),
 ) -> UserModel:
     if not credentials:
@@ -50,10 +48,21 @@ async def get_current_user(
     return user
 
 
+async def get_current_admin_user(
+    current_user: UserModel = Depends(get_current_user),
+) -> UserModel:
+    if getattr(current_user, "role", "user") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator privileges required",
+        )
+    return current_user
+
+
 async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_bearer),
     session: AsyncSession = Depends(get_db),
-) -> Optional[UserModel]:
+) -> UserModel | None:
     if not credentials:
         return None
 

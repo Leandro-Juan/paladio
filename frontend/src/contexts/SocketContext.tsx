@@ -204,7 +204,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
     const port = process.env.NEXT_PUBLIC_WS_PORT || '8000';
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${host}:${port}/api/v1/ws/stream`;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('paladio_token') : null;
+    const authQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${host}:${port}/api/v1/ws/stream${authQuery}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

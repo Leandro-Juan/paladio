@@ -1,7 +1,7 @@
-import sys
-import os
 import asyncio
-from typing import AsyncGenerator
+import os
+import sys
+from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock
 
 import pytest
@@ -57,6 +57,7 @@ TEST_DATABASE_URL = os.getenv(
 )
 if "DATABASE_URL" not in os.environ:
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+os.environ["ALLOW_PUBLIC_REGISTRATION"] = "true"
 
 
 # ---------------------------------------------------------

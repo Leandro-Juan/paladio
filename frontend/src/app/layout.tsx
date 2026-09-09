@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Link from 'next/link';
 
+import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthGuard } from '@/components/AuthGuard';
 import { SocketProvider } from '@/contexts/SocketContext';
 
 export const metadata: Metadata = {
@@ -20,29 +21,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SocketProvider>
-          <div className="layout-container">
-            <nav className="sidebar">
-              <div className="brand">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <img src="/logo.jpeg" alt="Paladio Logo" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} />
-                  <h1 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h1>
-                </div>
-                <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.0.0 ENGINE'}</p>
-              </div>
-              <ul className="nav-links font-display">
-                <li><Link href="/dashboard">Control Center</Link></li>
-                <li><Link href="/engine">Active Engine</Link></li>
-                <li><Link href="/trips">Upcoming Trips</Link></li>
-                <li><Link href="/vault">Itinerary Vault</Link></li>
-                <li><Link href="/model">Preference Model</Link></li>
-              </ul>
-            </nav>
-            <main className="main-content">
+        <AuthProvider>
+          <SocketProvider>
+            <AuthGuard>
               {children}
-            </main>
-          </div>
-        </SocketProvider>
+            </AuthGuard>
+          </SocketProvider>
+        </AuthProvider>
       </body>
     </html>
   );

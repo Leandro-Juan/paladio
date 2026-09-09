@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -48,7 +49,7 @@ def get_default_user_preferences() -> dict[str, Any]:
     return UserPreferences().model_dump(mode="json")
 
 
-def normalize_user_preferences(raw: Optional[dict[str, Any]]) -> UserPreferences:
+def normalize_user_preferences(raw: dict[str, Any] | None) -> UserPreferences:
     """Safely coerces raw JSONB/dict preferences into a validated UserPreferences instance."""
     if not raw:
         return UserPreferences()
@@ -92,11 +93,34 @@ def normalize_user_preferences(raw: Optional[dict[str, Any]]) -> UserPreferences
         return UserPreferences()
 
 
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+
+class SetupStatusResponse(BaseModel):
+    setup_required: bool
+    user_count: int
+
+
+class MasterAdminSetup(BaseModel):
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6, max_length=128)
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6, max_length=128)
-    preferences: Optional[dict[str, Any]] = None
+    role: str | None = "user"
+    preferences: dict[str, Any] | None = None
+
+
+class UserAdminUpdate(BaseModel):
+    role: str | None = None
+    is_active: bool | None = None
+    password: str | None = Field(None, min_length=6, max_length=128)
 
 
 class UserLogin(BaseModel):
@@ -116,10 +140,11 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: str
+    role: str = "user"
     is_active: bool
-    preferences: Optional[dict[str, Any]] = None
+    preferences: dict[str, Any] | None = None
     has_embedding: bool = False
-    created_at: Optional[str] = None
+    created_at: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
