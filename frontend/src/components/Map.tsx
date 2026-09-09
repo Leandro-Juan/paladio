@@ -47,10 +47,16 @@ export default function LeafletMap({ pois }: MapProps) {
 
   return (
     <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%', borderRadius: '4px' }} attributionControl={false}>
-      {/* Light basemap to fit the new White/Navy theme */}
+      {/* Esri Light Gray Canvas basemap */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        attribution='Tiles &copy; Esri'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={16}
+      />
+      <TileLayer
+        attribution='Tiles &copy; Esri'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={16}
       />
       
       {pois.map((poi, idx) => (
