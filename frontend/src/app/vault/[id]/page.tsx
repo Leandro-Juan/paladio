@@ -154,7 +154,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
   const itinerary = trip.itinerary_data as RouteItineraryData | null | undefined;
 
   // Extract waypoint markers from itinerary_data
-  const pois: { name: string; lat: number; lng: number }[] = [];
+  const pois: { name: string; lat: number; lng: number; category?: string }[] = [];
   if (Array.isArray(itinerary?.days)) {
     itinerary.days.forEach(day => {
       if (Array.isArray(day?.itinerary?.path)) {
@@ -166,7 +166,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
             pois.push({
               name: p?.name || 'Waypoint',
               lat,
-              lng
+              lng,
+              category: p?.category
             });
           }
         });
@@ -180,7 +181,8 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
         pois.push({
           name: p?.name || 'Waypoint',
           lat,
-          lng
+          lng,
+          category: (p as any)?.category
         });
       }
     });

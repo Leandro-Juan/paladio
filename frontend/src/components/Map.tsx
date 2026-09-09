@@ -4,6 +4,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+import { PoiCategoryBadge } from './PoiCategoryBadge';
+
 // Fix for default Leaflet markers in Next.js
 delete (L.Icon.Default.prototype as { _getIconUrl?: string })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -26,6 +28,7 @@ interface POI {
   name: string;
   lat: number;
   lng: number;
+  category?: string;
 }
 
 interface MapProps {
@@ -62,8 +65,13 @@ export default function LeafletMap({ pois }: MapProps) {
       {pois.map((poi, idx) => (
         <Marker key={idx} position={[poi.lat, poi.lng]} icon={accentIcon}>
           <Popup>
-            <strong className="font-display">{poi.name}</strong><br />
-            <span className="font-mono text-sm text-muted">STOP {idx + 1}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '120px' }}>
+              <strong className="font-display" style={{ fontSize: '0.9rem' }}>{poi.name}</strong>
+              <div>
+                <PoiCategoryBadge category={poi.category} name={poi.name} size="xs" />
+              </div>
+              <span className="font-mono text-xs text-muted">STOP {idx + 1}</span>
+            </div>
           </Popup>
         </Marker>
       ))}

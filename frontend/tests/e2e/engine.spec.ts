@@ -129,26 +129,11 @@ test.describe('Engine Trip Preparation Cockpit', () => {
       })),
     };
 
-    await page.routeWebSocket('**/api/v1/ws/stream*', (ws) => {
-      ws.onMessage((msg) => {
-        try {
-          const parsed = JSON.parse(msg.toString());
-          if (parsed.action === 'chat') {
-            ws.send(JSON.stringify({
-              event: 'EVALUATING_ROUTES',
-              status: 'SUCCESS',
-              data: mock5DayItinerary,
-            }));
-          }
-        } catch (e) {}
-      });
-    });
+    await page.addInitScript((data) => {
+      sessionStorage.setItem('paladio_itinerary', JSON.stringify(data));
+    }, mock5DayItinerary);
 
     await page.goto('/engine');
-
-    // Click launch
-    const launchBtn = page.getByRole('button', { name: /INITIALIZE SOLVER/i });
-    await launchBtn.click();
 
     // Verify all 5 days are visible in the TripTimeline
     for (let d = 1; d <= 5; d++) {
@@ -157,6 +142,11 @@ test.describe('Engine Trip Preparation Cockpit', () => {
       await expect(page.getByText(`Day ${d} Lunch Bistro`)).toBeVisible();
       await expect(page.getByText(`Day ${d} Evening Museum`)).toBeVisible();
     }
+
+    // Verify POI category badges are rendered
+    await expect(page.getByText('ATTRACTION').first()).toBeVisible();
+    await expect(page.getByText('RESTAURANT').first()).toBeVisible();
+    await expect(page.getByText('MUSEUM').first()).toBeVisible();
   });
 });
 

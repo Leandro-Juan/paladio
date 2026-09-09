@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { OptimizationResult, DayOutput, ScheduledPoi } from '../types/domain';
+import { PoiCategoryBadge } from './PoiCategoryBadge';
 
 interface TripTimelineProps {
   itinerary: OptimizationResult | null;
@@ -12,6 +13,7 @@ interface TimelineStop {
   name?: string;
   time?: string;
   duration?: string;
+  category?: string;
   raw?: boolean;
   data?: any;
 }
@@ -30,7 +32,8 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
       stops.push({
         name: `Flight to ${dayObj.flight_info.destination_iata || 'Destination'}`,
         time: dayObj.flight_info.departure_time || '--:--',
-        duration: 'Flight'
+        duration: 'Flight',
+        category: 'flight'
       });
     }
     
@@ -39,7 +42,8 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
         stops.push({
           name: scheduledPoi.poi?.name || "Unknown Waypoint",
           time: scheduledPoi.scheduled_start || scheduledPoi.arrival_time || "--:--",
-          duration: scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : ""
+          duration: scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : "",
+          category: scheduledPoi.poi?.category
         });
       });
     }
@@ -68,6 +72,7 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
         const name = stop.name || "Unknown Waypoint";
         const time = stop.time || "--:--";
         const duration = stop.duration || "";
+        const category = stop.category;
         
         return (
           <div key={i} style={{ display: 'flex', gap: '1rem', position: 'relative', marginBottom: '1.5rem' }}>
@@ -95,8 +100,11 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
             
             {/* Content */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span className="font-mono" style={{ fontWeight: 600 }}>{name}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span className="font-mono" style={{ fontWeight: 600 }}>{name}</span>
+                  <PoiCategoryBadge category={category} name={name} size="xs" />
+                </div>
                 <span className="font-mono text-muted text-sm">{time}</span>
               </div>
               {duration && (
