@@ -1,9 +1,8 @@
 import logging
 import os
-from typing import Optional
+
 import httpx
 import numpy as np
-
 from app.domain.interfaces.embedding_provider import IEmbeddingProvider
 
 logger = logging.getLogger(__name__)
@@ -17,8 +16,8 @@ class OllamaEmbeddingProvider(IEmbeddingProvider):
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
+        base_url: str | None = None,
+        model: str | None = None,
         timeout: float = 15.0,
     ):
         env_url = os.getenv("OLLAMA_BASE_URL")

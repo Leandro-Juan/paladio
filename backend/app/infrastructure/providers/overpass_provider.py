@@ -1,8 +1,7 @@
-import time
 import asyncio
-from datetime import timezone
 import logging
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 
 import httpx
 from app.domain.interfaces.poi_provider import IPoiProvider

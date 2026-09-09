@@ -3,7 +3,7 @@ import hmac
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import jwt
 
@@ -44,8 +44,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(
     subject: str,
-    expires_delta: Optional[timedelta] = None,
-    extra_claims: Optional[dict[str, Any]] = None,
+    expires_delta: timedelta | None = None,
+    extra_claims: dict[str, Any] | None = None,
 ) -> str:
     """
     Generates a signed JWT access token for a given user subject.
@@ -68,7 +68,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[dict[str, Any]]:
+def decode_access_token(token: str) -> dict[str, Any] | None:
     """
     Decodes and validates a JWT access token. Returns payload dict or None if invalid/expired.
     """

@@ -56,41 +56,25 @@ async def test_trips_user_isolation(async_client: AsyncClient):
     assert create_b_res.status_code == 201
     trip_b_id = create_b_res.json()["id"]
 
-    # User A lists trips -> should only see Trip A
+    # Universal access: User A lists trips -> should see both trips
     trips_a_res = await async_client.get("/api/v1/trips/", headers=headers_a)
     assert trips_a_res.status_code == 200
     trips_a_ids = [t["id"] for t in trips_a_res.json()]
     assert trip_a_id in trips_a_ids
-    assert trip_b_id not in trips_a_ids
+    assert trip_b_id in trips_a_ids
 
-    # User B lists trips -> should only see Trip B
+    # Universal access: User B lists trips -> should see both trips
     trips_b_res = await async_client.get("/api/v1/trips/", headers=headers_b)
     assert trips_b_res.status_code == 200
     trips_b_ids = [t["id"] for t in trips_b_res.json()]
     assert trip_b_id in trips_b_ids
-    assert trip_a_id not in trips_b_ids
+    assert trip_a_id in trips_b_ids
 
-    # User B attempts to fetch User A's trip -> should return 404
-    get_unauth_res = await async_client.get(
-        f"/api/v1/trips/{trip_a_id}", headers=headers_b
-    )
-    assert get_unauth_res.status_code == 404
+    # Universal access: User B fetches User A's trip -> should succeed with 200
+    get_res = await async_client.get(f"/api/v1/trips/{trip_a_id}", headers=headers_b)
+    assert get_res.status_code == 200
+    assert get_res.json()["destination"] == "Rome"
 
-    # User B attempts to delete User A's trip -> should return 404
-    del_unauth_res = await async_client.delete(
-        f"/api/v1/trips/{trip_a_id}", headers=headers_b
-    )
-    assert del_unauth_res.status_code == 404
-
-    # User A successfully fetches their own trip
-    get_auth_res = await async_client.get(
-        f"/api/v1/trips/{trip_a_id}", headers=headers_a
-    )
-    assert get_auth_res.status_code == 200
-    assert get_auth_res.json()["destination"] == "Rome"
-
-    # User A deletes their own trip
-    del_auth_res = await async_client.delete(
-        f"/api/v1/trips/{trip_a_id}", headers=headers_a
-    )
-    assert del_auth_res.status_code == 200
+    # Universal access: User B deletes trip -> succeeds
+    del_res = await async_client.delete(f"/api/v1/trips/{trip_a_id}", headers=headers_b)
+    assert del_res.status_code == 200

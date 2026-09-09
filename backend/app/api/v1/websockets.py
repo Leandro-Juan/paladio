@@ -102,11 +102,19 @@ async def websocket_endpoint(websocket: WebSocket):
                         f"WebSocket client authenticated via message as user {auth_user_id}"
                     )
 
-            # Assign authenticated user_id if available and not explicitly overridden
-            if auth_user_id and "user_id" not in data:
+            # Enforce authenticated user_id if available, disallowing client spoofing
+            if auth_user_id:
                 data["user_id"] = auth_user_id
+            else:
+                data["user_id"] = "default_user"
 
             thread_id = data.get("thread_id", str(uuid.uuid4()))
+
+            # Cancel any previous running stream task on this socket to prevent overlapping inferences
+            for t in list(stream_tasks):
+                if not t.done():
+                    t.cancel()
+            stream_tasks.clear()
 
             async def stream_task(act, d, msg, tid):
                 try:

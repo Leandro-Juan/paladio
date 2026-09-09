@@ -1,9 +1,10 @@
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models import AttractionModel
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.schemas.scraper import Attraction
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

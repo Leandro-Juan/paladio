@@ -21,7 +21,6 @@ class IPoiRepository(ABC):
         Retrieves top candidate attractions in the specified city ordered by cosine similarity
         to the user's semantic preference vector. Returns pairs of (Attraction, semantic_affinity).
         """
-        pass
 
     @abstractmethod
     async def save_all_for_city(self, city_name: str, pois: list[Attraction]) -> None:
@@ -34,4 +33,3 @@ class IPoiRepository(ABC):
         """
         Updates the 768D semantic embedding for multiple attractions (poi_id, embedding_vector).
         """
-        pass

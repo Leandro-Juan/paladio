@@ -1,5 +1,20 @@
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from app.services.poi_service import is_poi_match
+from app.schemas.scraper import (
+    Attraction,
+    AttractionFinancials,
+    AttractionSchedule,
+    Location,
+    Metadata,
+    Scoring,
+)
+from app.services.poi_service import (
+    STALE_TTL_DAYS,
+    get_attractions_for_city,
+    is_poi_match,
+)
 
 
 def test_is_poi_match_short_words():
@@ -17,20 +32,6 @@ def test_is_poi_match_substring():
 
 def test_is_poi_match_different():
     assert is_poi_match("Eiffel Tower", "Louvre Museum") is False
-
-
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
-
-from app.schemas.scraper import (
-    Attraction,
-    AttractionFinancials,
-    AttractionSchedule,
-    Location,
-    Metadata,
-    Scoring,
-)
-from app.services.poi_service import STALE_TTL_DAYS, get_attractions_for_city
 
 
 @pytest.fixture

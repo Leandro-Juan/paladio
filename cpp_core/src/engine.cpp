@@ -139,7 +139,7 @@ void dfs(int u, SearchState &state, const POI *pois,
          (m.had_lunch || !state.had_lunch) &&
          (m.had_dinner || !state.had_dinner) &&
          state.continuous_active_time >= m.continuous_active_time &&
-         m.last_meal_time >= state.last_meal_time);
+         m.last_meal_time == state.last_meal_time);
 
     if (old_dominates) {
       return;
@@ -153,7 +153,7 @@ void dfs(int u, SearchState &state, const POI *pois,
          (state.had_lunch || !m.had_lunch) &&
          (state.had_dinner || !m.had_dinner) &&
          state.continuous_active_time <= m.continuous_active_time &&
-         state.last_meal_time >= m.last_meal_time);
+         state.last_meal_time == m.last_meal_time);
 
     if (new_dominates) {
       it = bucket.erase(it);
@@ -233,8 +233,10 @@ void dfs(int u, SearchState &state, const POI *pois,
         int target_end = config.end_node_index.value();
         double return_cost = transit_costs[v * n + target_end];
         int return_dur = transit_durations[v * n + target_end];
-
-        if (next_cost + return_cost > config.max_budget)
+        double end_node_cost = (pois[target_end].type == NodeType::HOTEL)
+                                   ? 0.0
+                                   : pois[target_end].cost;
+        if (next_cost + return_cost + end_node_cost > config.max_budget)
           continue;
 
         int time_after_visit = arrival_time + pois[v].duration;
@@ -385,10 +387,13 @@ void dfs(int u, SearchState &state, const POI *pois,
         valid_end_node = false;
 
       double idle_penalty = (idle_time / 15.0) * config.idle_time_penalty_rate;
-      final_score += pois[target_end].score - idle_penalty;
-
-      final_cost += pois[target_end].cost;
-      final_time += pois[target_end].duration;
+      if (pois[target_end].type != NodeType::HOTEL) {
+        final_score += pois[target_end].score - idle_penalty;
+        final_cost += pois[target_end].cost;
+        final_time += pois[target_end].duration;
+      } else {
+        final_score -= idle_penalty;
+      }
 
       if (final_cost > config.max_budget ||
           final_time > pois[target_end].latest_time ||
@@ -482,24 +487,19 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
     sorted_pois_by_density[i] = i;
   std::sort(sorted_pois_by_density.begin(), sorted_pois_by_density.end(),
             [&pois](int a, int b) {
-              if (pois[a].is_mandatory != pois[b].is_mandatory) {
-                return pois[a].is_mandatory > pois[b].is_mandatory;
-              }
               double density_a =
                   pois[a].duration > 0
                       ? pois[a].score / static_cast<double>(pois[a].duration)
-                      : INF;
+                      : (pois[a].score > 0 ? INF : 0.0);
               double density_b =
                   pois[b].duration > 0
                       ? pois[b].score / static_cast<double>(pois[b].duration)
-                      : INF;
-              bool a_is_meal = pois[a].is_breakfast_spot ||
-                               pois[a].is_lunch_spot || pois[a].is_dinner_spot;
-              bool b_is_meal = pois[b].is_breakfast_spot ||
-                               pois[b].is_lunch_spot || pois[b].is_dinner_spot;
-              if (a_is_meal != b_is_meal)
-                return a_is_meal > b_is_meal;
-              return density_a > density_b;
+                      : (pois[b].score > 0 ? INF : 0.0);
+              if (density_a != density_b)
+                return density_a > density_b;
+              if (pois[a].is_mandatory != pois[b].is_mandatory)
+                return pois[a].is_mandatory > pois[b].is_mandatory;
+              return a < b;
             });
 
   std::vector<int> density_rank(n);
@@ -543,13 +543,14 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
       continue;
 
     int arrival_start = std::max(0, pois[start_node].earliest_time);
+    bool is_hotel_start = (pois[start_node].type == NodeType::HOTEL);
 
-    if (arrival_start + pois[start_node].duration >
-        pois[start_node].latest_time) {
+    if (!is_hotel_start && arrival_start + pois[start_node].duration >
+                               pois[start_node].latest_time) {
       continue;
     }
 
-    double start_cost = pois[start_node].cost;
+    double start_cost = is_hotel_start ? 0.0 : pois[start_node].cost;
     if (start_cost > config.max_budget)
       continue;
 
@@ -557,8 +558,10 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
     state.visited_mask = (1ULL << density_rank[start_node]);
     state.current_cost = start_cost;
 
-    state.current_time = arrival_start + pois[start_node].duration;
-    state.current_score = pois[start_node].score;
+    state.current_time = is_hotel_start
+                             ? arrival_start
+                             : (arrival_start + pois[start_node].duration);
+    state.current_score = is_hotel_start ? 0.0 : pois[start_node].score;
 
     state.had_breakfast = pois[start_node].is_breakfast_spot;
     state.had_lunch = pois[start_node].is_lunch_spot;

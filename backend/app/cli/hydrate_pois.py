@@ -1,15 +1,16 @@
 import asyncio
 import logging
 import sys
+
 from sqlalchemy import select
 
+from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 from app.db.models import AttractionModel
 from app.db.session import async_session
 from app.engine.hydration.poi_synthesizer import PoiNaturalLanguageSynthesizer
 from app.infrastructure.providers.ollama_embedding_provider import (
     OllamaEmbeddingProvider,
 )
-from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"

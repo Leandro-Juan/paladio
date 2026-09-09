@@ -1,8 +1,9 @@
 import logging
 from typing import Any
+
 import numpy as np
 from app.domain.interfaces.scoring_model import IScoringModel
-from app.engine.scoring.features import PoiEncoder, TAG_KEYS
+from app.engine.scoring.features import TAG_KEYS, PoiEncoder
 
 logger = logging.getLogger(__name__)
 

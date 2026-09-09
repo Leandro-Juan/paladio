@@ -81,7 +81,7 @@ def mock_engine():
     return CppOptimizationAdapter(ml_scorer)
 
 
-def mock_get_transit_matrix(pois, city):
+def mock_get_transit_matrix(pois, city, departure_dt=None):
     n = len(pois)
     return [
         [{"duration_mins": 10, "cost_eur": 5.0} for _ in range(n)] for _ in range(n)

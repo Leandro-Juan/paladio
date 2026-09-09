@@ -59,8 +59,8 @@ class DefaultTravelDataProvider(TravelDataProvider):
                     mandatory_names=mandatory_names,
                 )
         except Exception as e:
-            logger.warning(f"Could not load POIs for {city}: {e}")
-            return []
+            logger.error(f"Could not load POIs for {city}: {e}")
+            raise RuntimeError(f"Could not load POIs for {city}: {e}") from e
 
     async def get_restaurants(
         self,

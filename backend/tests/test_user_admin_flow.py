@@ -5,7 +5,15 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_user_admin_bootstrap_and_management(async_client: AsyncClient):
+async def test_user_admin_bootstrap_and_management(
+    async_client: AsyncClient, db_session
+):
+    from sqlalchemy import delete
+    from app.db.models import UserModel
+
+    await db_session.execute(delete(UserModel))
+    await db_session.commit()
+
     # 1. Check initial setup-status
     status_res = await async_client.get("/api/v1/auth/setup-status")
     assert status_res.status_code == 200

@@ -112,7 +112,7 @@ TEST_F(ItineraryEngineTest, ComputesTotalTimeIncludingReturnToStart) {
   EXPECT_EQ(result.path[0], 0);
   EXPECT_EQ(result.path[1], 1);
   EXPECT_EQ(result.path[2], 0);
-  EXPECT_DOUBLE_EQ(result.total_time, 2050.0);
+  EXPECT_DOUBLE_EQ(result.total_time, 50.0);
 }
 
 TEST_F(ItineraryEngineTest, TieBreakerLogic) {

@@ -33,11 +33,11 @@ def main():
             c = p["cost"]
             s = p["score"]
             e = p["earliest_time"]
-            l = p["latest_time"]
+            latest = p["latest_time"]
             d = p["duration"]
             m = "true" if p.get("is_mandatory", False) else "false"
             f.write(
-                f"        {{static_cast<NodeType>({t}), {c}, {s}, {e}, {l}, {d}, {m}}},\n"
+                f"        {{static_cast<NodeType>({t}), {c}, {s}, {e}, {latest}, {d}, {m}}},\n"
             )
         f.write("    };\n")
         f.write("}\n\n")

@@ -145,9 +145,9 @@ async def _async_update_transit_cache(
 @app.task(
     bind=True,
     name="app.tasks.build_city_map_task",
-    autoretry_for=(Exception, httpx.HTTPStatusError, httpx.RequestError),
+    autoretry_for=(httpx.RequestError,),
     retry_backoff=True,
-    max_retries=3,
+    max_retries=1,
 )
 def build_city_map_task(self, city_name: str):
     """

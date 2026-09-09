@@ -73,8 +73,9 @@ TEST_F(EngineStressTest, MaximumBitmaskIndex) {
   config.end_node_index = 63;
   config.max_budget = 1000.0;
 
-  // We allow visiting node 0 and node 63 only
-  config.end_time_limit = 25;
+  // We allow visiting node 0 and node 63 only (duration 0 for hotels, 10 for
+  // attractions)
+  config.end_time_limit = 5;
 
   // Act
   auto result = optimize_itinerary(pois, transit, config);

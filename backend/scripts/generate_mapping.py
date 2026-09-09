@@ -49,7 +49,7 @@ with open("backend/app/utils/iata_mapping.py", "w") as f:
             c = pycountry.countries.get(alpha_2=cc)
             if c:
                 country_name = c.name
-        except:
+        except (LookupError, AttributeError):
             pass
 
         f.write(f"        # {country_name}\n")

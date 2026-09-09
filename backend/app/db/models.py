@@ -48,7 +48,7 @@ class UserModel(Base):
     role = Column(String, default="user", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # Store the 64D feature vector representing user preferences
+    # Store the 768D semantic vector representing user preferences
     embedding = Column(JSONB, nullable=True)
 
     # Structured preferences (e.g. pace, budget, categories)

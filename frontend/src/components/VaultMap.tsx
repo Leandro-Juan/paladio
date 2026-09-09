@@ -6,23 +6,16 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useRouter } from 'next/navigation';
 
-// Fix for default Leaflet markers in Next.js
-delete (L.Icon.Default.prototype as { _getIconUrl?: string })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Custom marker for Paladio (Navy Blue / Accent)
-const accentIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Self-contained custom marker for Paladio (Navy Blue / Accent)
+const accentIcon = typeof window !== 'undefined' ? L.divIcon({
+  className: 'paladio-map-marker',
+  html: `<div style="width:20px;height:20px;border-radius:50%;background:#2563EB;border:2px solid #FFF;box-shadow:0 0 8px rgba(37,99,235,0.6);display:flex;align-items:center;justify-content:center;">
+    <div style="width:6px;height:6px;border-radius:50%;background:#FFF;"></div>
+  </div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -12],
+}) : ({} as L.DivIcon);
 
 interface VaultTrip {
   id?: string;

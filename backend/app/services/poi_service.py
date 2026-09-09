@@ -107,6 +107,7 @@ async def _fetch_and_store_pois(
         await poi_repo.save_all_for_city(city_name, attractions)
         try:
             import asyncio
+
             from app.cli.hydrate_pois import hydrate_attractions
 
             asyncio.create_task(hydrate_attractions(force_all=False))

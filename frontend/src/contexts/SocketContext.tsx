@@ -307,6 +307,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     
     const payload = {
       action: 'resume',
+      answers: data,
       message: JSON.stringify(data),
       thread_id: threadIdRef.current
     };

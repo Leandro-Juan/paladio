@@ -94,10 +94,10 @@ inline std::vector<POI> get_real_pois() {
         c = p["cost"]
         s = p["score"]
         e = p["earliest_time"]
-        l = p["latest_time"]
+        latest = p["latest_time"]
         d = p["duration"]
         m = p["is_mandatory"]
-        hpp_content += f"        {{static_cast<NodeType>({t}), {c:.1f}, {s:.1f}, {e}, {l}, {d}, {m}}},\n"
+        hpp_content += f"        {{static_cast<NodeType>({t}), {c:.1f}, {s:.1f}, {e}, {latest}, {d}, {m}}},\n"
 
     hpp_content += """    };
 }

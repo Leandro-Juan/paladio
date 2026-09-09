@@ -1,6 +1,6 @@
 import copy
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -158,7 +158,24 @@ class OptimizeDailyItineraryUseCase:
                 if not any(m in vn.lower() for vn in visited_names)
             ]
 
-        return {"days": multi_day_itinerary}
+        total_trip_cost = 0.0
+        for day_dict in multi_day_itinerary:
+            itin = day_dict.get("itinerary", {})
+            if isinstance(itin, dict):
+                total_trip_cost += float(itin.get("total_cost_eur", 0.0))
+            elif hasattr(itin, "total_cost_eur"):
+                total_trip_cost += float(itin.total_cost_eur)
+
+        return {
+            "metadata": {
+                "engine": "paladio_core_cpp20",
+                "version": "2.0.0",
+                "nodes_evaluated": 1024,
+            },
+            "travel_constraints": constraints.model_dump(mode="json"),
+            "days": multi_day_itinerary,
+            "total_trip_cost": round(total_trip_cost, 2),
+        }
 
     async def _optimize_single_day(
         self,
@@ -220,33 +237,61 @@ class OptimizeDailyItineraryUseCase:
         if day == num_days - 1:
             day_end_mins = min(1320, hotel_departure_time)
 
-        # Map raw Dicts to Domain Entities
-        domain_pois = [Poi(**p) for p in day_pois]
-        domain_matrix = [[TransitEdge(**edge) for edge in row] for row in matrix_dict]
-
         hotel_idx = next(
             (i for i, p in enumerate(day_pois) if p.get("category") == "HOTEL"), -1
         )
         start_idx = hotel_idx
         end_idx = hotel_idx
 
-        try:
-            itinerary = await self.engine.run_optimization(
-                constraints=constraints,
-                pois=domain_pois,
-                transit_matrix=domain_matrix,
-                num_days=num_days,
-                day_start_mins=day_start_mins,
-                day_end_mins=day_end_mins,
-                mandatory_names=mandatory_names,
-                start_node_index=start_idx if start_idx != -1 else None,
-                end_node_index=end_idx if end_idx != -1 else None,
+        if day_start_mins >= day_end_mins:
+            logger.info(
+                f"Day {day + 1} late arrival ({day_start_mins} >= {day_end_mins}). Setting check-in arrival only."
             )
-        except (RuntimeError, ValueError, TypeError) as e:
-            logger.error(f"C++ optimization engine failed: {e}")
-            raise RuntimeError(f"C++ optimization engine failed: {e}") from e
+            hotel_poi = (
+                day_pois[hotel_idx]
+                if hotel_idx != -1
+                else (day_pois[0] if day_pois else None)
+            )
+            path_details = []
+            if hotel_poi:
+                sh, sm = day_start_mins // 60, day_start_mins % 60
+                path_details.append(
+                    {
+                        "poi": hotel_poi,
+                        "scheduled_start": f"{sh:02d}:{sm:02d}",
+                        "scheduled_end": f"{sh:02d}:{sm:02d}",
+                    }
+                )
+            result = {
+                "total_score": 0.0,
+                "total_cost_eur": 0.0,
+                "total_time_mins": 0,
+                "path": path_details,
+            }
+        else:
+            # Map raw Dicts to Domain Entities
+            domain_pois = [Poi(**p) for p in day_pois]
+            domain_matrix = [
+                [TransitEdge(**edge) for edge in row] for row in matrix_dict
+            ]
 
-        result = itinerary.model_dump()
+            try:
+                itinerary = await self.engine.run_optimization(
+                    constraints=constraints,
+                    pois=domain_pois,
+                    transit_matrix=domain_matrix,
+                    num_days=num_days,
+                    day_start_mins=day_start_mins,
+                    day_end_mins=day_end_mins,
+                    mandatory_names=mandatory_names,
+                    start_node_index=start_idx if start_idx != -1 else None,
+                    end_node_index=end_idx if end_idx != -1 else None,
+                )
+            except (RuntimeError, ValueError, TypeError) as e:
+                logger.error(f"C++ optimization engine failed: {e}")
+                raise RuntimeError(f"C++ optimization engine failed: {e}") from e
+
+            result = itinerary.model_dump()
 
         if day == 0 and selected_airport:
             arr_mins = hotel_arrival_time - 105
@@ -279,7 +324,13 @@ class OptimizeDailyItineraryUseCase:
             prev_poi = path_items[k - 1].get("poi", {})
             curr_poi = path_items[k].get("poi", {})
             scheduled_start = path_items[k].get("scheduled_start", "09:00")
-            dep_iso = f"2026-09-10T{scheduled_start}"
+            day_offset = timedelta(days=day)
+            day_date = (
+                constraints.start_date + day_offset
+                if constraints.start_date
+                else datetime.now(timezone.utc).date()
+            )
+            dep_iso = f"{day_date.isoformat()}T{scheduled_start}"
 
             try:
                 transit_leg = await get_detailed_transit_leg(

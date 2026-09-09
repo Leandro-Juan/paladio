@@ -6,6 +6,7 @@ from app.api.deps import get_current_admin_user, get_current_user
 from app.core.security import hash_password
 from app.db.models import UserModel
 from app.db.session import get_db
+from app.engine.scoring.semantic_learning import SemanticLearningEngine
 from app.schemas.user import (
     UserAdminUpdate,
     UserCreate,
@@ -16,8 +17,6 @@ from app.schemas.user import (
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.engine.scoring.semantic_learning import SemanticLearningEngine
 
 router = APIRouter()
 

@@ -56,13 +56,18 @@ def build_cpp_pois(
             is_poi_mandatory(poi.name, mandatory_names) if mandatory_names else False
         )
 
+        is_hotel = node_type == paladio_core.NodeType.HOTEL
+        node_cost = 0.0 if is_hotel else poi.cost_eur
+        node_score = 0.0 if is_hotel else score
+        node_dur = 0 if is_hotel else poi.duration_mins
+
         cpp_poi = paladio_core.POI(
             node_type,
-            poi.cost_eur,
-            score,
+            node_cost,
+            node_score,
             earliest,
             latest,
-            poi.duration_mins,
+            node_dur,
             is_mandatory,
         )
 

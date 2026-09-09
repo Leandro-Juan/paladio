@@ -1,11 +1,12 @@
 import logging
 from typing import Any
+
 import numpy as np
-from app.domain.entities.poi import Poi, ScoredPoi
-from app.domain.interfaces.scoring_model import IScoringModel
-from app.domain.interfaces.embedding_provider import IEmbeddingProvider
-from app.engine.scoring.features import PoiEncoder
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
+from app.domain.entities.poi import Poi, ScoredPoi
+from app.domain.interfaces.embedding_provider import IEmbeddingProvider
+from app.domain.interfaces.scoring_model import IScoringModel
+from app.engine.scoring.features import PoiEncoder
 from app.engine.scoring.semantic_learning import SemanticLearningEngine
 
 logger = logging.getLogger(__name__)

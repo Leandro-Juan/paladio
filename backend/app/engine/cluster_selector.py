@@ -2,9 +2,8 @@ import logging
 from typing import Any
 
 import numpy as np
-from sklearn.cluster import KMeans
-
 from app.utils.text import is_poi_mandatory
+from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,20 @@ class ClusterSelector:
         # Distribute mandatory POIs evenly to ensure they are visited
         for i, mp in enumerate(mandatory_pois):
             idx = i % num_days
+            if any(p.get("name") == mp.get("name") for p in daily_clusters[idx]):
+                continue
             if len(daily_clusters[idx]) < self.max_pois:
                 daily_clusters[idx].append(mp)
+            else:
+                non_mand_indices = [
+                    j
+                    for j, p in enumerate(daily_clusters[idx])
+                    if not p.get("is_mandatory")
+                    and p.get("category") not in ("HOTEL", "AIRPORT")
+                ]
+                if non_mand_indices:
+                    daily_clusters[idx][non_mand_indices[-1]] = mp
+                else:
+                    daily_clusters[idx].append(mp)
 
         return daily_clusters

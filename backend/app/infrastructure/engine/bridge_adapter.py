@@ -90,10 +90,15 @@ class CppOptimizationAdapter(IOptimizationEngine):
                     transit_time = int(durations[prev_idx * n + idx])
                     current_time += transit_time
 
+                # Enforce venue opening hours and dwell time
+                earliest_open = getattr(pois[idx], "open_time_mins", 0) or 0
+                current_time = max(current_time, earliest_open)
+
                 start_h = current_time // 60
                 start_m = current_time % 60
 
-                duration = int(pois[idx].duration_mins)
+                is_hotel = getattr(pois[idx], "category", "").upper() == "HOTEL"
+                duration = 0 if is_hotel else int(pois[idx].duration_mins)
                 current_time += duration
 
                 end_h = current_time // 60

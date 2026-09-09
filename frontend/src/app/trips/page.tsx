@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useTrips } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
 import { countWaypoints } from '@/utils/tripParser';
@@ -43,24 +44,46 @@ export default function TripsPage() {
                     <span className="font-mono text-sm text-muted">STATUS</span>
                     <span className="font-mono text-accent" style={{ fontWeight: 600 }}>CONFIRMED</span>
                   </div>
-                  <button 
-                    onClick={() => setTripToDelete(trip.id)}
-                    style={{ 
-                      marginTop: '0.5rem', 
-                      padding: '0.5rem', 
-                      background: 'transparent', 
-                      border: '1px solid var(--color-accent-secondary)', 
-                      color: 'var(--color-accent-secondary)', 
-                      borderRadius: '4px', 
-                      cursor: 'pointer', 
-                      fontFamily: 'var(--font-display)',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-accent-secondary)'; e.currentTarget.style.color = '#FFF'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-accent-secondary)'; }}
-                  >
-                    ABORT MISSION
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    <Link
+                      href={`/vault/${trip.id}`}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        background: 'var(--color-accent-primary)',
+                        color: '#FFF',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      VIEW MISSION
+                    </Link>
+                    <button 
+                      onClick={() => setTripToDelete(trip.id)}
+                      style={{ 
+                        padding: '0.5rem 0.75rem', 
+                        background: 'transparent', 
+                        border: '1px solid var(--color-accent-secondary)', 
+                        color: 'var(--color-accent-secondary)', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer', 
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '0.875rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-accent-secondary)'; e.currentTarget.style.color = '#FFF'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-accent-secondary)'; }}
+                    >
+                      ABORT
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

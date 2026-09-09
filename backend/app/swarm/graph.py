@@ -6,11 +6,11 @@ from app.swarm.agents.ticket_parser import ticket_parser_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
 from app.swarm.nodes.prompt_analyzer import prompt_analyzer_node
 from app.swarm.state import SwarmState
+from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
+from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
-from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -74,11 +74,21 @@ async def check_missing_fields_node(state: SwarmState) -> dict:
         )
 
         if isinstance(answers, dict):
-            raw_answers = (
-                answers.get("answers")
-                if isinstance(answers.get("answers"), dict)
-                else answers
-            )
+            raw_answers = answers.get("answers")
+            if not isinstance(raw_answers, dict):
+                msg_val = answers.get("message")
+                if isinstance(msg_val, str):
+                    try:
+                        parsed_msg = json.loads(msg_val)
+                        if isinstance(parsed_msg, dict):
+                            raw_answers = parsed_msg
+                    except Exception:
+                        raw_answers = answers
+                elif isinstance(msg_val, dict):
+                    raw_answers = msg_val
+                else:
+                    raw_answers = answers
+
             valid_keys = set(TravelConstraints.model_fields.keys())
             if isinstance(raw_answers, dict):
                 # Handle nested or converted fields

@@ -1,5 +1,4 @@
-from datetime import timezone
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, Field

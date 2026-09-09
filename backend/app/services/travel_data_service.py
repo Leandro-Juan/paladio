@@ -69,5 +69,7 @@ async def fetch_restaurants(
 
         return result[:15]
     except Exception as fallback_e:
-        logger.error(f"Fallback Overpass restaurant fetch failed: {fallback_e}")
-        return []
+        logger.error(f"Overpass restaurant fetch failed: {fallback_e}")
+        raise RuntimeError(
+            f"Failed to fetch restaurants for {city}: {fallback_e}"
+        ) from fallback_e
