@@ -16,15 +16,17 @@ class HybridSovereignScorer(IScoringModel):
 
     def __init__(
         self,
-        w_quality: float = 0.40,
-        w_affinity: float = 0.45,
+        w_quality: float = 0.35,
+        w_affinity: float = 0.40,
         w_pacing: float = 0.15,
+        w_budget: float = 0.10,
         prior_reviews_m: float = 50.0,
         prior_rating_C: float = 4.0,
     ):
         self.w_quality = w_quality
         self.w_affinity = w_affinity
         self.w_pacing = w_pacing
+        self.w_budget = w_budget
         self.prior_reviews_m = prior_reviews_m
         self.prior_rating_C = prior_rating_C
 
@@ -34,6 +36,7 @@ class HybridSovereignScorer(IScoringModel):
             "w_quality": self.w_quality,
             "w_affinity": self.w_affinity,
             "w_pacing": self.w_pacing,
+            "w_budget": self.w_budget,
             "prior_reviews_m": self.prior_reviews_m,
             "prior_rating_C": self.prior_rating_C,
             "learning_rate": 0.15,
@@ -74,7 +77,7 @@ class HybridSovereignScorer(IScoringModel):
                     1.0,
                 )
             elif len(arr) >= num_tags:
-                # Handle legacy 64D embeddings: take the first 8 elements
+                # Handle legacy 64D or extended embeddings: take the first 8 elements
                 # If they are all 0.1 (legacy cold-start default), boost to neutral 0.5
                 extracted = arr[:num_tags]
                 if np.allclose(extracted, 0.1, atol=1e-3):
@@ -94,7 +97,7 @@ class HybridSovereignScorer(IScoringModel):
         """
         Computes calibrated scores in [0.0, 100.0] for a batch of POIs.
         poi_embeddings: shape (N, 16) or (N, 128)
-        user_embedding: user's taste weights
+        user_embedding: user's taste weights or full user preference dict
         Returns: shape (N, 1) float32 array
         """
         if poi_embeddings is None:
@@ -119,6 +122,22 @@ class HybridSovereignScorer(IScoringModel):
 
         user_tag_weights = self._extract_tag_weights(user_embedding)
 
+        # Extract structured user preferences (pace & budget) if available
+        user_pace = "balanced"
+        user_budget = "balanced"
+        if isinstance(user_embedding, dict):
+            user_pace = str(user_embedding.get("pace", "balanced")).lower()
+            user_budget = str(
+                user_embedding.get(
+                    "budget_tier", user_embedding.get("budget", "balanced")
+                )
+            ).lower()
+        elif isinstance(params, dict):
+            user_pace = str(params.get("pace", "balanced")).lower()
+            user_budget = str(
+                params.get("budget_tier", params.get("budget", "balanced"))
+            ).lower()
+
         # 1. Bayesian Rating Smoothing
         # Q_p = (v * R + m * C) / (5.0 * (v + m))
         raw_ratings = P[:, 4]
@@ -135,35 +154,66 @@ class HybridSovereignScorer(IScoringModel):
         )
 
         denom = 5.0 * (review_counts + m)
-        # Prevent division by zero (though m > 0 guarantees denom > 0)
         denom = np.maximum(denom, 1e-5)
         quality_scores = (review_counts * raw_ratings + m * C) / denom
         quality_scores = np.clip(quality_scores, 0.0, 1.0)
 
-        # 2. Tag & Category Affinity
-        # Dot product with activated tags
-        tag_matrix = P[
-            :, PoiEncoder.TAG_START_IDX : PoiEncoder.TAG_START_IDX + len(TAG_KEYS)
-        ]
-        tag_sums = np.sum(tag_matrix, axis=1)
+        # 2. Semantic or Tag & Category Affinity
+        if (
+            isinstance(params, dict)
+            and "semantic_affinities" in params
+            and params["semantic_affinities"] is not None
+        ):
+            sem_aff = np.asarray(params["semantic_affinities"], dtype=np.float32)
+            if len(sem_aff) == n_samples:
+                affinity_scores = np.clip(sem_aff, 0.0, 1.0)
+            else:
+                affinity_scores = np.full(n_samples, 0.5, dtype=np.float32)
+        else:
+            tag_matrix = P[
+                :, PoiEncoder.TAG_START_IDX : PoiEncoder.TAG_START_IDX + len(TAG_KEYS)
+            ]
+            tag_sums = np.sum(tag_matrix, axis=1)
 
-        # Where tags are present, compute normalized dot product; otherwise default to 0.5 (neutral)
-        has_tags = tag_sums > 0
-        affinity_scores = np.full(n_samples, 0.5, dtype=np.float32)
-        if np.any(has_tags):
-            dot_products = tag_matrix[has_tags] @ user_tag_weights
-            affinity_scores[has_tags] = dot_products / np.maximum(
-                tag_sums[has_tags], 1e-5
-            )
-        affinity_scores = np.clip(affinity_scores, 0.0, 1.0)
+            has_tags = tag_sums > 0
+            affinity_scores = np.full(n_samples, 0.5, dtype=np.float32)
+            if np.any(has_tags):
+                dot_products = tag_matrix[has_tags] @ user_tag_weights
+                affinity_scores[has_tags] = dot_products / np.maximum(
+                    tag_sums[has_tags], 1e-5
+                )
+            affinity_scores = np.clip(affinity_scores, 0.0, 1.0)
 
-        # 3. Pacing & Duration Fit
-        durations_norm = P[:, 1]
-        # Moderate duration (60-90 mins, ~0.3) is ideal baseline
-        pacing_scores = 1.0 - 0.5 * np.abs(durations_norm - 0.3)
+        # 3. Pacing & Duration Fit (Adapts to traveler pace preference)
+        durations_norm = P[:, 1]  # duration / 240 mins
+        if user_pace in ("leisurely", "relaxed", "slow"):
+            # Ideal dwell time ~120 mins (0.50 normalized). Penalize hurried <30 min visits
+            pacing_scores = 1.0 - 0.7 * np.abs(durations_norm - 0.50)
+            pacing_scores -= 0.25 * (durations_norm < 0.125).astype(np.float32)
+        elif user_pace in ("intense", "fast", "packed"):
+            # Ideal duration ~45 mins (0.19 normalized). Penalize massive multi-hour time sinks
+            pacing_scores = 1.0 - 0.7 * np.abs(durations_norm - 0.19)
+            pacing_scores -= 0.25 * (durations_norm > 0.50).astype(np.float32)
+        else:
+            # Balanced baseline ~60-90 mins (~0.30 normalized)
+            pacing_scores = 1.0 - 0.5 * np.abs(durations_norm - 0.30)
         pacing_scores = np.clip(pacing_scores, 0.0, 1.0)
 
-        # 4. Composite Score
+        # 4. Budget Fit (Adapts to traveler budget preference)
+        costs_norm = P[:, 0]  # cost / 200 EUR
+        is_free = P[:, 6]
+        if user_budget in ("budget", "low", "cheap", "budget_friendly"):
+            # Heavy penalty for expensive spots; bonus for free spots
+            budget_scores = 1.0 - np.clip(costs_norm * 2.2, 0.0, 1.0) + 0.15 * is_free
+        elif user_budget in ("luxury", "high", "splurge"):
+            # No cost penalty for luxury travelers
+            budget_scores = np.ones(n_samples, dtype=np.float32)
+        else:
+            # Balanced: mild cost sensitivity
+            budget_scores = 1.0 - 0.7 * costs_norm
+        budget_scores = np.clip(budget_scores, 0.0, 1.0)
+
+        # 5. Composite Multi-Attribute Utility Score
         wq = (
             float(params.get("w_quality", self.w_quality))
             if isinstance(params, dict)
@@ -179,13 +229,21 @@ class HybridSovereignScorer(IScoringModel):
             if isinstance(params, dict)
             else self.w_pacing
         )
+        wb = (
+            float(params.get("w_budget", self.w_budget))
+            if isinstance(params, dict)
+            else self.w_budget
+        )
 
-        total_weight = wq + wa + wp
+        total_weight = wq + wa + wp + wb
         if total_weight <= 0:
             total_weight = 1.0
 
         composite = (
-            wq * quality_scores + wa * affinity_scores + wp * pacing_scores
+            wq * quality_scores
+            + wa * affinity_scores
+            + wp * pacing_scores
+            + wb * budget_scores
         ) / total_weight
         scores = np.clip(composite * 100.0, 0.0, 100.0).astype(np.float32)
 
@@ -233,7 +291,7 @@ class HybridSovereignScorer(IScoringModel):
                 step = lr * (error * tags[i] - l2_reg * (user_weights[i] - 0.5))
                 user_weights[i] = np.clip(user_weights[i] + step, 0.0, 1.0)
 
-        # If the input user_embedding was a 64D array or list, preserve that length for caller compatibility
+        # If caller explicitly provided a 64D array, preserve length for legacy compatibility
         if isinstance(user_embedding, (list, np.ndarray)):
             orig_len = len(user_embedding)
             if orig_len == 64:

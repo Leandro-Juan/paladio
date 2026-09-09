@@ -105,4 +105,11 @@ async def _fetch_and_store_pois(
 
     if attractions:
         await poi_repo.save_all_for_city(city_name, attractions)
+        try:
+            import asyncio
+            from app.cli.hydrate_pois import hydrate_attractions
+
+            asyncio.create_task(hydrate_attractions(force_all=False))
+        except Exception as e:
+            logger.debug(f"Could not trigger background POI hydration: {e}")
     return attractions

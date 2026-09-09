@@ -122,3 +122,4 @@ class Attraction(BaseModel):
     financials: AttractionFinancials
     scoring: Scoring
     metadata: Metadata
+    embedding: list[float] | None = None

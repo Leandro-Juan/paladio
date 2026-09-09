@@ -38,6 +38,72 @@ class SqlPoiRepository(IPoiRepository):
 
         return attractions
 
+    async def find_semantic_candidates(
+        self, city_name: str, user_vector: list[float], limit: int = 150
+    ) -> list[tuple[Attraction, float]]:
+        """
+        Retrieves candidate attractions in the city ordered by pgvector cosine similarity (<=>)
+        to the user's 768D semantic vector. Returns tuples of (Attraction, semantic_affinity).
+        """
+        if not user_vector:
+            all_pois = await self.find_by_city(city_name)
+            return [(p, 0.5) for p in all_pois[:limit]]
+
+        dist_col = AttractionModel.embedding.cosine_distance(user_vector)
+        stmt = (
+            select(AttractionModel, dist_col.label("distance"))
+            .where(AttractionModel.city == city_name)
+            .where(AttractionModel.embedding.isnot(None))
+            .order_by(dist_col.asc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        rows = result.all()
+
+        if not rows:
+            # Fallback if POIs are not yet hydrated with embeddings
+            all_pois = await self.find_by_city(city_name)
+            return [(p, 0.5) for p in all_pois[:limit]]
+
+        candidates: list[tuple[Attraction, float]] = []
+        for model, dist in rows:
+            dist_val = float(dist) if dist is not None else 1.0
+            # Cosine similarity in [0.0, 1.0]
+            sim = float(max(0.0, min(1.0, 1.0 - dist_val)))
+            attraction = Attraction(
+                id=model.id,
+                type="attraction",
+                category=model.category,
+                name=model.name,
+                location=model.location,
+                schedule=model.schedule,
+                financials=model.financials,
+                scoring=model.scoring,
+                metadata=model.metadata_field,
+            )
+            candidates.append((attraction, sim))
+
+        return candidates
+
+    async def update_poi_embeddings(
+        self, updates: list[tuple[str, list[float]]]
+    ) -> None:
+        """Updates 768D semantic embeddings for attractions in batch."""
+        if not updates:
+            return
+
+        from sqlalchemy import update
+
+        for poi_id, emb in updates:
+            stmt = (
+                update(AttractionModel)
+                .where(AttractionModel.id == poi_id)
+                .values(embedding=emb)
+            )
+            await self.session.execute(stmt)
+        await self.session.commit()
+        logger.info(f"Updated embeddings for {len(updates)} attractions in database.")
+
     async def save_all_for_city(self, city_name: str, pois: list[Attraction]) -> None:
         if not pois:
             return

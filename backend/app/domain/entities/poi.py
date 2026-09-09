@@ -17,6 +17,7 @@ class Poi(BaseModel):
     cost_eur: float = 0.0
     open_time_mins: int = 480
     close_time_mins: int = 1320
+    embedding: list[float] | None = None
 
     @field_validator("duration_mins")
     @classmethod

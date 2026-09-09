@@ -82,18 +82,21 @@ async def test_reactive_planning_generates_itinerary():
         ],
     }
 
-    with patch(
-        "app.swarm.graph.FetchTravelContextUseCase.execute",
-        new_callable=AsyncMock,
-        return_value={"daily_pois_data": [[]]},
-    ), patch(
-        "app.swarm.graph.OptimizeDailyItineraryUseCase.execute",
-        new_callable=AsyncMock,
-        return_value={
-            "days": [
-                {"day": 1, "itinerary": {"path": [{"poi": {"name": "Base Hotel"}}]}}
-            ]
-        },
+    with (
+        patch(
+            "app.swarm.graph.FetchTravelContextUseCase.execute",
+            new_callable=AsyncMock,
+            return_value={"daily_pois_data": [[]]},
+        ),
+        patch(
+            "app.swarm.graph.OptimizeDailyItineraryUseCase.execute",
+            new_callable=AsyncMock,
+            return_value={
+                "days": [
+                    {"day": 1, "itinerary": {"path": [{"poi": {"name": "Base Hotel"}}]}}
+                ]
+            },
+        ),
     ):
         result = await graph.ainvoke(state, config)
 

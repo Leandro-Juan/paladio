@@ -14,11 +14,16 @@ from app.schemas.user import (
     UserCreate,
     UserLogin,
     UserResponse,
+    get_default_user_preferences,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.engine.scoring.semantic_learning import SemanticLearningEngine
+
 router = APIRouter()
+
+DEFAULT_INITIAL_EMBEDDING = SemanticLearningEngine.get_neutral_768d_prior(768)
 
 
 def _build_user_response(user: UserModel) -> UserResponse:
@@ -69,8 +74,8 @@ async def setup_initial_admin(
         username=setup_in.username,
         hashed_password=hashed_pwd,
         role="admin",
-        embedding=[0.1] * 64,
-        preferences={},
+        embedding=DEFAULT_INITIAL_EMBEDDING,
+        preferences=get_default_user_preferences(),
     )
 
     access_token = create_access_token(user.id)
@@ -128,8 +133,10 @@ async def register(
         username=user_in.username,
         hashed_password=hashed_pwd,
         role=assigned_role,
-        embedding=[0.1] * 64,
-        preferences=user_in.preferences or {},
+        embedding=DEFAULT_INITIAL_EMBEDDING,
+        preferences=user_in.preferences
+        if user_in.preferences
+        else get_default_user_preferences(),
     )
 
     access_token = create_access_token(user.id)

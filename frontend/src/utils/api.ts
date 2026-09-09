@@ -112,3 +112,19 @@ export const deleteUserApi = (userId: string): Promise<{ status: string; id: str
     method: 'DELETE',
   });
 };
+
+export const updatePreferencesApi = (preferences: Record<string, unknown>): Promise<User> => {
+  return apiFetch<User>('/users/me/preferences', {
+    method: 'PUT',
+    body: JSON.stringify({ preferences }),
+  });
+};
+
+export const fetchUserEmbeddingApi = (): Promise<{
+  user_id: string;
+  embedding: number[];
+  dimension: number;
+}> => {
+  return apiFetch<{ user_id: string; embedding: number[]; dimension: number }>('/users/me/embedding');
+};
+

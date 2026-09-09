@@ -34,15 +34,15 @@ async def test_user_preferences_and_embedding(async_client: AsyncClient):
         "pace": "relaxed",
     }
 
-    # 4. Check embedding
+    # 4. Check embedding (768D semantic vector)
     emb_res = await async_client.get("/api/v1/users/me/embedding", headers=headers)
     assert emb_res.status_code == 200
     emb_data = emb_res.json()
-    assert emb_data["dimension"] == 64
-    assert len(emb_data["embedding"]) == 64
+    assert emb_data["dimension"] == 768
+    assert len(emb_data["embedding"]) == 768
 
     # 5. Update embedding
-    new_embedding = [0.5] * 64
+    new_embedding = [0.75] * 768
     put_emb_res = await async_client.put(
         "/api/v1/users/me/embedding",
         headers=headers,
@@ -55,4 +55,5 @@ async def test_user_preferences_and_embedding(async_client: AsyncClient):
         "/api/v1/users/me/embedding", headers=headers
     )
     assert check_emb_res.status_code == 200
+    assert check_emb_res.json()["dimension"] == 768
     assert check_emb_res.json()["embedding"] == new_embedding

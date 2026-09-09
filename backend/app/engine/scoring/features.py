@@ -1,5 +1,7 @@
 import logging
+import re
 from typing import Any
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -26,57 +28,174 @@ CATEGORY_TO_TAG: dict[str, list[str]] = {
     "HOTEL": ["architecture"],
 }
 
-# Mapping common travel keywords to standard tags
+# Mapping common travel keywords to standard tags (English, Spanish, Italian, French)
 KEYWORD_TO_TAG: dict[str, str] = {
+    # Art & Culture
     "museum": "art_culture",
+    "museo": "art_culture",
+    "musée": "art_culture",
     "art": "art_culture",
+    "arts": "art_culture",
     "gallery": "art_culture",
+    "galería": "art_culture",
+    "galerie": "art_culture",
     "painting": "art_culture",
     "sculpture": "art_culture",
+    "exhibition": "art_culture",
+    "theatre": "art_culture",
+    "theater": "art_culture",
+    "teatro": "art_culture",
+    "opera": "art_culture",
+    # History & Heritage
     "history": "history_heritage",
     "historic": "history_heritage",
+    "historical": "history_heritage",
     "ancient": "history_heritage",
     "castle": "history_heritage",
-    "cathedral": "history_heritage",
-    "church": "history_heritage",
-    "monument": "history_heritage",
-    "ruin": "history_heritage",
+    "castillo": "history_heritage",
+    "château": "history_heritage",
     "palace": "history_heritage",
+    "palacio": "history_heritage",
+    "palazzo": "history_heritage",
+    "cathedral": "history_heritage",
+    "catedral": "history_heritage",
+    "duomo": "history_heritage",
+    "basilica": "history_heritage",
+    "basílica": "history_heritage",
+    "church": "history_heritage",
+    "iglesia": "history_heritage",
+    "monastery": "history_heritage",
+    "monasterio": "history_heritage",
+    "abbey": "history_heritage",
+    "ruin": "history_heritage",
+    "ruins": "history_heritage",
+    "monument": "history_heritage",
+    "monumento": "history_heritage",
+    "citadel": "history_heritage",
+    "alcazar": "history_heritage",
+    "alcázar": "history_heritage",
+    "mezquita": "history_heritage",
+    "fortress": "history_heritage",
+    "fort": "history_heritage",
+    "amphitheater": "history_heritage",
+    "colosseum": "history_heritage",
+    "sanctuary": "history_heritage",
+    "shrine": "history_heritage",
+    "temple": "history_heritage",
+    # Nature & Outdoors
     "park": "nature_outdoors",
+    "parque": "nature_outdoors",
     "garden": "nature_outdoors",
+    "gardens": "nature_outdoors",
+    "jardín": "nature_outdoors",
+    "jardines": "nature_outdoors",
     "nature": "nature_outdoors",
     "forest": "nature_outdoors",
+    "bosque": "nature_outdoors",
     "beach": "nature_outdoors",
+    "playa": "nature_outdoors",
     "trail": "nature_outdoors",
+    "hiking": "nature_outdoors",
+    "senderismo": "nature_outdoors",
+    "lake": "nature_outdoors",
+    "lago": "nature_outdoors",
+    "cliff": "nature_outdoors",
+    "canyon": "nature_outdoors",
+    "waterfall": "nature_outdoors",
+    "cascada": "nature_outdoors",
+    "botanical": "nature_outdoors",
+    "botánico": "nature_outdoors",
+    "reserve": "nature_outdoors",
+    "reserva": "nature_outdoors",
+    # Architecture
     "architecture": "architecture",
+    "arquitectura": "architecture",
     "building": "architecture",
+    "edificio": "architecture",
     "tower": "architecture",
+    "torre": "architecture",
     "bridge": "architecture",
+    "puente": "architecture",
     "plaza": "architecture",
     "square": "architecture",
+    "piazza": "architecture",
+    "facade": "architecture",
+    "monumental": "architecture",
+    "fountain": "architecture",
+    "fuente": "architecture",
+    # Food & Culinary
     "restaurant": "food_culinary",
+    "restaurante": "food_culinary",
     "food": "food_culinary",
+    "comida": "food_culinary",
     "cafe": "food_culinary",
+    "café": "food_culinary",
+    "cafeteria": "food_culinary",
     "bakery": "food_culinary",
+    "panaderia": "food_culinary",
+    "pasteleria": "food_culinary",
     "tapas": "food_culinary",
     "bistro": "food_culinary",
+    "brasserie": "food_culinary",
     "gastronomy": "food_culinary",
+    "gastronomia": "food_culinary",
+    "osteria": "food_culinary",
+    "trattoria": "food_culinary",
+    "pizzeria": "food_culinary",
+    "bodega": "food_culinary",
+    "taberna": "food_culinary",
+    "meson": "food_culinary",
+    "mesón": "food_culinary",
+    "churreria": "food_culinary",
+    "churrería": "food_culinary",
+    "culinary": "food_culinary",
+    # Nightlife
     "bar": "nightlife",
     "pub": "nightlife",
     "cocktail": "nightlife",
+    "coctel": "nightlife",
+    "coctelería": "nightlife",
     "club": "nightlife",
+    "discoteca": "nightlife",
     "nightlife": "nightlife",
     "beer": "nightlife",
+    "cerveza": "nightlife",
+    "cerveceria": "nightlife",
+    "cervecería": "nightlife",
     "wine": "nightlife",
+    "vino": "nightlife",
+    "lounge": "nightlife",
+    "speakeasy": "nightlife",
+    "jazz": "nightlife",
+    # Shopping
     "market": "shopping",
+    "mercado": "shopping",
+    "mercadillo": "shopping",
     "shopping": "shopping",
     "bazaar": "shopping",
+    "bazar": "shopping",
     "mall": "shopping",
+    "boutique": "shopping",
+    "souvenir": "shopping",
+    "artisan": "shopping",
+    "artesanía": "shopping",
+    # Scenic Views
     "view": "scenic_views",
+    "views": "scenic_views",
+    "vistas": "scenic_views",
     "viewpoint": "scenic_views",
+    "mirador": "scenic_views",
     "panorama": "scenic_views",
+    "panoramic": "scenic_views",
+    "panorámica": "scenic_views",
     "lookout": "scenic_views",
     "terrace": "scenic_views",
+    "terraza": "scenic_views",
+    "rooftop": "scenic_views",
+    "belvedere": "scenic_views",
+    "overlook": "scenic_views",
+    "observation": "scenic_views",
+    "skyline": "scenic_views",
 }
 
 
@@ -141,14 +260,23 @@ class PoiEncoder:
                     idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
                     features[idx] = 1.0
 
-        # Text keyword extraction from name and description
+        # Text keyword extraction from name and description using regex word boundaries
         text_corpus = (
             f"{poi.get('name', '')} {poi.get('description', '')} {category}".lower()
         )
         for kw, tag in KEYWORD_TO_TAG.items():
-            if kw in text_corpus and tag in TAG_KEYS:
-                idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
-                features[idx] = 1.0
+            if tag in TAG_KEYS:
+                # Word boundary check prevents "bar" from matching "baroque", etc.
+                pattern = rf"\b{re.escape(kw)}\b"
+                if re.search(pattern, text_corpus):
+                    # Guardrail: avoid false-positive shopping when "market" is solely a street name
+                    if kw == "market" and re.search(
+                        r"\bmarket\s+(?:st|street|ave|avenue|rd|road|sq|square)\b",
+                        text_corpus,
+                    ):
+                        continue
+                    idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
+                    features[idx] = 1.0
 
         # Metadata tags list if available
         metadata_tags = poi.get("metadata", {}).get("tags", [])
@@ -156,9 +284,11 @@ class PoiEncoder:
             for t in metadata_tags:
                 t_clean = str(t).lower()
                 for kw, tag in KEYWORD_TO_TAG.items():
-                    if kw in t_clean and tag in TAG_KEYS:
-                        idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
-                        features[idx] = 1.0
+                    if tag in TAG_KEYS:
+                        pattern = rf"\b{re.escape(kw)}\b"
+                        if re.search(pattern, t_clean):
+                            idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
+                            features[idx] = 1.0
 
         # Outdoor flag
         if features[PoiEncoder.TAG_START_IDX + TAG_KEYS.index("nature_outdoors")] > 0:

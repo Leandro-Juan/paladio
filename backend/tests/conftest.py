@@ -108,7 +108,10 @@ async def db_engine():
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool, echo=False)
     # Using try/except in case the test database isn't ready
     try:
+        from sqlalchemy import text
+
         async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:

@@ -68,8 +68,10 @@ class SqlUserRepository:
         embedding: list[float] | None = None,
         preferences: dict[str, Any] | None = None,
     ) -> UserModel:
+        from app.engine.scoring.semantic_learning import SemanticLearningEngine
         from app.schemas.user import get_default_user_preferences
 
+        default_emb = SemanticLearningEngine.get_neutral_768d_prior(768)
         user = UserModel(
             id=user_id,
             email=email,
@@ -77,9 +79,11 @@ class SqlUserRepository:
             hashed_password=hashed_password,
             role=role,
             is_active=True,
-            embedding=embedding if embedding is not None else ([0.1] * 64),
+            embedding=embedding
+            if (embedding is not None and len(embedding) > 0)
+            else default_emb,
             preferences=preferences
-            if preferences is not None
+            if (preferences is not None and bool(preferences))
             else get_default_user_preferences(),
         )
         self.session.add(user)

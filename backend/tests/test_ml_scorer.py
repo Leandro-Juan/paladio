@@ -210,3 +210,127 @@ async def test_ml_scorer_service_orchestration_aaa():
     assert scored_pois[1].poi.name == "Roman Forum"
     assert scored_pois[1].score == 80.0
     ml_model.batch_score.assert_called_once()
+
+
+def test_multilingual_keywords_and_word_boundary_isolation():
+    # 1. Word boundary isolation: "baroque" must NOT trigger nightlife ("bar")
+    baroque_palace = {
+        "name": "Baroque Palace of the Nobles",
+        "description": "Exquisite baroque architecture with ornate ceilings.",
+        "category": "LANDMARK",
+        "cost_eur": 10.0,
+        "duration_mins": 60,
+    }
+    features_baroque = PoiEncoder.encode(baroque_palace)
+    nightlife_idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index("nightlife")
+    arch_idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index("architecture")
+    history_idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index("history_heritage")
+
+    assert (
+        features_baroque[nightlife_idx] == 0.0
+    ), "Word 'baroque' falsely triggered nightlife tag!"
+    assert features_baroque[arch_idx] == 1.0
+    assert features_baroque[history_idx] == 1.0
+
+    # 2. Multilingual: "basilica" (Italian/Spanish), "mirador" (Spanish), "osteria" (Italian)
+    basilica = {"name": "Basilica di San Giovanni", "category": "ATTRACTION"}
+    mirador = {
+        "name": "Mirador de San Nicolás",
+        "description": "Vistas panorámicas espectaculares",
+        "category": "ATTRACTION",
+    }
+    osteria = {
+        "name": "Osteria Da Enzo",
+        "description": "Cucina romana tradicional",
+        "category": "RESTAURANT",
+    }
+
+    f_basilica = PoiEncoder.encode(basilica)
+    f_mirador = PoiEncoder.encode(mirador)
+    f_osteria = PoiEncoder.encode(osteria)
+
+    scenic_idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index("scenic_views")
+    food_idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index("food_culinary")
+
+    assert f_basilica[history_idx] == 1.0
+    assert f_mirador[scenic_idx] == 1.0
+    assert f_osteria[food_idx] == 1.0
+
+
+def test_pace_sensitive_scoring_leisurely_vs_intense():
+    scorer = HybridSovereignScorer()
+    params = scorer.init_params()
+
+    # Long museum visit (150 mins) vs compact visit (30 mins)
+    long_poi = {"name": "Grand Gallery", "category": "MUSEUM", "duration_mins": 150}
+    short_poi = {"name": "Quick Landmark", "category": "LANDMARK", "duration_mins": 30}
+
+    embs = np.stack([PoiEncoder.encode(long_poi), PoiEncoder.encode(short_poi)])
+
+    user_leisurely = {"pace": "leisurely", "tag_affinities": {t: 0.5 for t in TAG_KEYS}}
+    user_intense = {"pace": "intense", "tag_affinities": {t: 0.5 for t in TAG_KEYS}}
+
+    scores_leisurely = scorer.batch_score(params, user_leisurely, embs)
+    scores_intense = scorer.batch_score(params, user_intense, embs)
+
+    # Leisurely user scores the long, unhurried visit higher than the rushed visit
+    assert scores_leisurely[0, 0] > scores_leisurely[1, 0]
+
+    # Intense user scores the compact highlight visit higher than the long 150-min time sink
+    assert scores_intense[1, 0] > scores_intense[0, 0]
+
+
+def test_budget_sensitive_scoring_budget_vs_luxury():
+    scorer = HybridSovereignScorer()
+    params = scorer.init_params()
+
+    expensive_poi = {
+        "name": "Luxury Tasting Menu",
+        "category": "RESTAURANT",
+        "cost_eur": 120.0,
+        "duration_mins": 60,
+    }
+    free_poi = {
+        "name": "Historic City Plaza",
+        "category": "LANDMARK",
+        "cost_eur": 0.0,
+        "duration_mins": 60,
+    }
+
+    embs = np.stack([PoiEncoder.encode(expensive_poi), PoiEncoder.encode(free_poi)])
+
+    user_budget = {
+        "budget_tier": "budget",
+        "tag_affinities": {t: 0.5 for t in TAG_KEYS},
+    }
+    user_luxury = {
+        "budget_tier": "luxury",
+        "tag_affinities": {t: 0.5 for t in TAG_KEYS},
+    }
+
+    scores_budget = scorer.batch_score(params, user_budget, embs)
+    scores_luxury = scorer.batch_score(params, user_luxury, embs)
+
+    # For budget traveler, free attraction decisively beats 120 EUR attraction
+    assert scores_budget[1, 0] > scores_budget[0, 0] + 8.0
+
+    # For luxury traveler, 120 EUR attraction has significantly higher relative score than for budget traveler
+    budget_expensive_score = float(scores_budget[0, 0])
+    luxury_expensive_score = float(scores_luxury[0, 0])
+    assert luxury_expensive_score > budget_expensive_score + 8.0
+
+
+def test_semantic_affinity_scoring():
+    scorer = HybridSovereignScorer()
+    params = scorer.init_params()
+
+    poi1 = {"name": "Gothic Cathedral", "category": "MONUMENT", "duration_mins": 60}
+    poi2 = {"name": "Generic Shop", "category": "SHOPPING", "duration_mins": 60}
+    embs = np.stack([PoiEncoder.encode(poi1), PoiEncoder.encode(poi2)])
+
+    # POI 1 has high semantic affinity 0.95, POI 2 has low semantic affinity 0.15
+    params["semantic_affinities"] = [0.95, 0.15]
+    user_neutral = {"tag_affinities": {t: 0.5 for t in TAG_KEYS}}
+
+    scores = scorer.batch_score(params, user_neutral, embs)
+    assert scores[0, 0] > scores[1, 0] + 25.0

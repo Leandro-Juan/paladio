@@ -296,15 +296,30 @@ void dfs(int u, SearchState &state, const POI *pois,
       int next_last_meal_time =
           acts_as_meal ? arrival_time + pois[v].duration : state.last_meal_time;
 
-      if (config.breakfast_deadline != -1 &&
-          next_time > config.breakfast_deadline && !state.had_breakfast)
-        continue;
-      if (config.lunch_deadline != -1 && next_time > config.lunch_deadline &&
-          !state.had_lunch)
-        continue;
-      if (config.dinner_deadline != -1 && next_time > config.dinner_deadline &&
-          !state.had_dinner)
-        continue;
+      if (config.breakfast_deadline != -1 && !state.had_breakfast) {
+        if (is_breakfast) {
+          if (arrival_time > config.breakfast_deadline)
+            continue;
+        } else if (next_time > config.breakfast_deadline) {
+          continue;
+        }
+      }
+      if (config.lunch_deadline != -1 && !state.had_lunch) {
+        if (is_lunch) {
+          if (arrival_time > config.lunch_deadline)
+            continue;
+        } else if (next_time > config.lunch_deadline) {
+          continue;
+        }
+      }
+      if (config.dinner_deadline != -1 && !state.had_dinner) {
+        if (is_dinner) {
+          if (arrival_time > config.dinner_deadline)
+            continue;
+        } else if (next_time > config.dinner_deadline) {
+          continue;
+        }
+      }
 
       uint64_t prev_mask = state.visited_mask;
       double prev_cost = state.current_cost;
@@ -542,11 +557,8 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
     state.visited_mask = (1ULL << density_rank[start_node]);
     state.current_cost = start_cost;
 
-    int idle_time = arrival_start;
-    double penalty = (idle_time / 15.0) * config.idle_time_penalty_rate;
-
     state.current_time = arrival_start + pois[start_node].duration;
-    state.current_score = pois[start_node].score - penalty;
+    state.current_score = pois[start_node].score;
 
     state.had_breakfast = pois[start_node].is_breakfast_spot;
     state.had_lunch = pois[start_node].is_lunch_spot;

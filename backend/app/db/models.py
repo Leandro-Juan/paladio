@@ -1,5 +1,6 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
 
 from app.db.session import Base
 
@@ -12,6 +13,9 @@ class AttractionModel(Base):
     city = Column(String, index=True, nullable=False)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
+
+    # 768D semantic embedding for pgvector cosine retrieval
+    embedding = Column(Vector(768), nullable=True)
 
     # Flexible JSONB fields for deep nesting and schema evolution
     location = Column(JSONB, nullable=False)
