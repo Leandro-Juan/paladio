@@ -27,7 +27,7 @@ def mock_embeddings():
     ), patch(
         "app.swarm.nodes.retriever.PGVector.asimilarity_search", return_value=[]
     ), patch(
-        "app.swarm.nodes.retriever.rag_analysis_agent.run",
+        "app.swarm.agents.prompt_analyzer.prompt_analysis_agent.run",
         new_callable=AsyncMock,
         return_value=mock_run_result,
     ):

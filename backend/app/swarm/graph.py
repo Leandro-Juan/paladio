@@ -4,6 +4,7 @@ import logging
 from app.schemas.itinerary import TravelConstraints
 from app.swarm.agents.ticket_parser import ticket_parser_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
+from app.swarm.nodes.prompt_analyzer import prompt_analyzer_node
 from app.swarm.nodes.retriever import rag_node
 from app.swarm.state import SwarmState
 from langchain_core.runnables.config import RunnableConfig
@@ -172,6 +173,7 @@ def create_swarm():
     workflow.add_node("ticket_parser", ticket_parser_node)
     workflow.add_node("assemble_constraints", assemble_constraints_node)
     workflow.add_node("check_missing", check_missing_fields_node)
+    workflow.add_node("prompt_analyzer", prompt_analyzer_node)
     workflow.add_node("rag", rag_node)
     workflow.add_node("planner_scrape", planner_scrape_node)
     workflow.add_node("planner_optimize", planner_optimize_node)
@@ -179,7 +181,8 @@ def create_swarm():
     workflow.add_edge(START, "ticket_parser")
     workflow.add_edge("ticket_parser", "assemble_constraints")
     workflow.add_edge("assemble_constraints", "check_missing")
-    workflow.add_edge("check_missing", "rag")
+    workflow.add_edge("check_missing", "prompt_analyzer")
+    workflow.add_edge("prompt_analyzer", "rag")
     workflow.add_edge("rag", "planner_scrape")
     workflow.add_edge("planner_scrape", "planner_optimize")
     workflow.add_edge("planner_optimize", END)

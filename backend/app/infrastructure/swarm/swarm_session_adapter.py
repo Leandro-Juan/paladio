@@ -179,6 +179,10 @@ class SwarmSessionAdapter(ISwarmSession):
 
                 elif node_name == "check_missing":
                     yield {"event": "CHECKING_MISSING_FIELDS", "status": "completed"}
+                    yield {"event": "ANALYZING_PROMPT", "status": "running"}
+
+                elif node_name in ["prompt_analyzer", "prompt_analysis"]:
+                    yield {"event": "ANALYZING_PROMPT", "status": "completed"}
                     yield {"event": "RETRIEVING_CONTEXT", "status": "running"}
 
                 elif node_name == "rag":

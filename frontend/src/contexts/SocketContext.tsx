@@ -151,6 +151,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'ROUTING_INTENT':
         addLog(`> [ROUTER] INTENT DETECTED: ${payload.data}`);
         break;
+      case 'ANALYZING_PROMPT':
+        addLog(`> [ANALYZER] ANALYZING USER REQUEST & PREFERENCES...`);
+        break;
       case 'RETRIEVING_CONTEXT':
         addLog(`> [RAG] CONTEXT RETRIEVED (TRUNCATED): ${payload.data}`);
         break;

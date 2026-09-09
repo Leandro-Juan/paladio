@@ -8,7 +8,7 @@ from app.schemas.itinerary import TravelConstraints, NodeConstraint
 from app.domain.entities.poi import Poi, ScoredPoi
 from app.engine.scoring.features import TAG_KEYS
 from app.infrastructure.engine.ml_scorer import MLScorer
-from app.swarm.nodes.retriever import rag_node
+from app.swarm.agents.prompt_analyzer import prompt_analyzer_node
 from app.swarm.state import SwarmState
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 
@@ -52,15 +52,10 @@ def test_travel_constraints_tag_affinities_deserialization():
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.nodes.retriever.rag_analysis_agent")
-@patch("app.swarm.nodes.retriever.get_retriever")
-async def test_rag_node_extracts_tag_affinities_and_preserves_mandatory_pois(
-    mock_get_retriever, mock_agent
+@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
+async def test_prompt_analyzer_node_extracts_tag_affinities_and_preserves_mandatory_pois(
+    mock_agent,
 ):
-    mock_retriever = MagicMock()
-    mock_retriever.invoke.return_value = []
-    mock_get_retriever.return_value = mock_retriever
-
     mock_run_result = MagicMock()
     mock_run_result.output = RAGPromptAnalysis(
         mandatory_pois=["Prado Museum"],
@@ -84,9 +79,11 @@ async def test_rag_node_extracts_tag_affinities_and_preserves_mandatory_pois(
         "return_flight": None,
         "booking_text": None,
         "booking_anchors": None,
+        "manual_constraints": None,
+        "prompt_analysis": None,
     }
 
-    result = await rag_node(state)
+    result = await prompt_analyzer_node(state)
     val_it = result["validated_itinerary"]
 
     # Assert mandatory POIs preserved
