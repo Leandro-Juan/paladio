@@ -26,11 +26,37 @@ except ImportError:
         HOTEL = 1
         ATTRACTION = 2
         BAR = 3
-        RESTAURANT_LUNCH = 4
+        RESTAURANT_BREAKFAST = 4
+        RESTAURANT_LUNCH = 5
+        RESTAURANT_DINNER = 6
+
+    class MockOptimizationConfig:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    class MockPOI:
+        def __init__(self, *args, **kwargs):
+            self.type = args[0] if len(args) > 0 else kwargs.get("type", 1)
+            self.cost = args[1] if len(args) > 1 else kwargs.get("cost", 0.0)
+            self.score = args[2] if len(args) > 2 else kwargs.get("score", 0.0)
+            self.earliest_time = (
+                args[3] if len(args) > 3 else kwargs.get("earliest_time", 0)
+            )
+            self.latest_time = (
+                args[4] if len(args) > 4 else kwargs.get("latest_time", 1440)
+            )
+            self.duration = args[5] if len(args) > 5 else kwargs.get("duration", 60)
+            self.is_mandatory = (
+                args[6] if len(args) > 6 else kwargs.get("is_mandatory", False)
+            )
+            self.is_breakfast_spot = self.type == MockNodeType.RESTAURANT_BREAKFAST
+            self.is_lunch_spot = self.type == MockNodeType.RESTAURANT_LUNCH
+            self.is_dinner_spot = self.type == MockNodeType.RESTAURANT_DINNER
 
     mock_paladio_core.NodeType = MockNodeType
-    mock_paladio_core.OptimizationConfig = MagicMock()
-    mock_paladio_core.POI = MagicMock()
+    mock_paladio_core.OptimizationConfig = MockOptimizationConfig
+    mock_paladio_core.POI = MockPOI
 
     def mock_optimize_itinerary(pois, durs, costs, config):
         if len(pois) > 64:

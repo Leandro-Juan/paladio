@@ -23,9 +23,12 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     const budgetInput = page.locator('input[type="number"]');
     await expect(budgetInput).toHaveValue('1500');
 
-    // Meal constraints check: Lunch and Dinner
-    await expect(page.getByText('LUNCH')).toBeVisible();
-    await expect(page.getByText('DINNER')).toBeVisible();
+    // Meal constraints check: Breakfast, Lunch, and Dinner
+    const mealSelects = page.locator('select.font-mono');
+    await expect(mealSelects).toHaveCount(3);
+    await expect(mealSelects.nth(0)).toHaveValue('BREAKFAST');
+    await expect(mealSelects.nth(1)).toHaveValue('LUNCH');
+    await expect(mealSelects.nth(2)).toHaveValue('DINNER');
 
     // Ingestion mode buttons
     const simulatedBtn = page.getByRole('button', { name: /SIMULATED ANCHORS \(TEST MODE\)/i });
@@ -70,5 +73,29 @@ test.describe('Engine Trip Preparation Cockpit', () => {
 
     // The launch button from the prep tab should no longer be rendered
     await expect(launchBtn).not.toBeVisible();
+  });
+
+  test('supports adding and removing meal windows including breakfast', async ({ page }) => {
+    await page.goto('/engine');
+
+    // Default meal windows
+    const mealSelects = page.locator('select.font-mono');
+    await expect(mealSelects).toHaveCount(3);
+    await expect(mealSelects.nth(0)).toHaveValue('BREAKFAST');
+    await expect(mealSelects.nth(1)).toHaveValue('LUNCH');
+    await expect(mealSelects.nth(2)).toHaveValue('DINNER');
+
+    // Remove breakfast
+    const removeBtn = page.locator('button[title="Remove meal window"]').first();
+    await removeBtn.click();
+    await expect(mealSelects).toHaveCount(2);
+    await expect(mealSelects.nth(0)).toHaveValue('LUNCH');
+    await expect(mealSelects.nth(1)).toHaveValue('DINNER');
+
+    // Add meal window back (should intelligently add BREAKFAST)
+    const addMealBtn = page.getByRole('button', { name: /\+ ADD MEAL WINDOW/i });
+    await addMealBtn.click();
+    await expect(mealSelects).toHaveCount(3);
+    await expect(mealSelects.nth(0)).toHaveValue('BREAKFAST');
   });
 });

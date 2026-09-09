@@ -25,6 +25,8 @@ def map_category_to_node_type(category: str):
         "PARK": paladio_core.NodeType.ATTRACTION,
         "BAR": paladio_core.NodeType.BAR,
         "RESTAURANT": paladio_core.NodeType.RESTAURANT_LUNCH,
+        "CAFE": paladio_core.NodeType.RESTAURANT_BREAKFAST,
+        "BAKERY": paladio_core.NodeType.RESTAURANT_BREAKFAST,
         "AIRPORT": paladio_core.NodeType.ATTRACTION,
         "TRANSIT": paladio_core.NodeType.ATTRACTION,
     }
@@ -66,8 +68,16 @@ def build_cpp_pois(
 
         cat = poi.category.upper()
         name = poi.name.lower()
-        if cat == "RESTAURANT":
-            if "breakfast" in name or (earliest <= 10 * 60 and latest >= 11 * 60):
+        if cat in ("RESTAURANT", "CAFE", "BAKERY"):
+            if (
+                "breakfast" in name
+                or "cafe" in name
+                or "café" in name
+                or "bakery" in name
+                or "desayuno" in name
+                or cat in ("CAFE", "BAKERY")
+                or (earliest <= 10 * 60 and latest >= 11 * 60)
+            ):
                 cpp_poi.is_breakfast_spot = True
             if "lunch" in name or (earliest <= 14 * 60 and latest >= 13 * 60):
                 cpp_poi.is_lunch_spot = True

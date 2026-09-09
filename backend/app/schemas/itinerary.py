@@ -59,7 +59,9 @@ class NodeConstraint(BaseModel):
 
 
 class MealRequirement(BaseModel):
-    meal_type: str = Field(..., description="Type of meal (e.g., LUNCH, DINNER).")
+    meal_type: str = Field(
+        ..., description="Type of meal (e.g., BREAKFAST, LUNCH, DINNER)."
+    )
     start_time: time = Field(..., description="Earliest time the meal can start.")
     end_time: time = Field(..., description="Latest time the meal must end by.")
 

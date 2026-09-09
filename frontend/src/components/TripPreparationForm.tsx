@@ -17,8 +17,9 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
   // 2. Financial Budget Ceiling
   const [budgetUsd, setBudgetUsd] = useState(1500);
 
-  // 3. Meal Constraints (Lunch & Dinner by default as required by solver)
+  // 3. Meal Constraints (Breakfast, Lunch & Dinner by default as supported by solver)
   const [meals, setMeals] = useState<MealRequirement[]>([
+    { meal_type: 'BREAKFAST', start_time: '08:00', end_time: '10:00' },
     { meal_type: 'LUNCH', start_time: '12:00', end_time: '14:30' },
     { meal_type: 'DINNER', start_time: '19:30', end_time: '22:00' },
   ]);
@@ -33,22 +34,43 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
   // Direct Ingestion (Production Mode) fields
   const [rawBookingText, setRawBookingText] = useState('');
 
-  const handleMealChange = (index: number, field: 'start_time' | 'end_time', value: string) => {
+  const handleMealChange = (
+    index: number,
+    field: 'meal_type' | 'start_time' | 'end_time',
+    value: string
+  ) => {
     const updated = [...meals];
     updated[index] = { ...updated[index], [field]: value };
+    if (field === 'meal_type') {
+      if (value === 'BREAKFAST' && updated[index].start_time === '16:00') {
+        updated[index].start_time = '08:00';
+        updated[index].end_time = '10:00';
+      } else if (value === 'SNACK' && updated[index].start_time === '08:00') {
+        updated[index].start_time = '16:00';
+        updated[index].end_time = '17:00';
+      }
+    }
     setMeals(updated);
   };
 
   const handleAddMeal = () => {
-    setMeals([
-      ...meals,
-      { meal_type: 'SNACK', start_time: '16:00', end_time: '17:00' },
-    ]);
+    const hasBreakfast = meals.some((m) => m.meal_type.toUpperCase() === 'BREAKFAST');
+    if (!hasBreakfast) {
+      setMeals([
+        { meal_type: 'BREAKFAST', start_time: '08:00', end_time: '10:00' },
+        ...meals,
+      ]);
+    } else {
+      setMeals([
+        ...meals,
+        { meal_type: 'SNACK', start_time: '16:00', end_time: '17:00' },
+      ]);
+    }
   };
 
   const handleRemoveMeal = (index: number) => {
     if (meals.length <= 2) {
-      // Keep lunch and dinner for solver stability
+      // Keep at least two meal windows for solver stability
       return;
     }
     setMeals(meals.filter((_, i) => i !== index));
@@ -181,9 +203,27 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 gap: '0.75rem',
               }}
             >
-              <span className="font-mono text-xs text-accent" style={{ fontWeight: 600, minWidth: '70px' }}>
-                {meal.meal_type}
-              </span>
+              <select
+                value={meal.meal_type}
+                onChange={(e) => handleMealChange(idx, 'meal_type', e.target.value)}
+                disabled={disabled}
+                className="font-mono text-xs text-accent"
+                style={{
+                  background: 'var(--color-bg-main)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  padding: '0.25rem 0.4rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  minWidth: '105px',
+                }}
+              >
+                <option value="BREAKFAST">BREAKFAST</option>
+                <option value="LUNCH">LUNCH</option>
+                <option value="DINNER">DINNER</option>
+                <option value="SNACK">SNACK</option>
+              </select>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                 <input
                   type="time"
