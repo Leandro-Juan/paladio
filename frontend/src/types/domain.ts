@@ -74,3 +74,44 @@ export interface OptimizationResult {
     days: DayOutput[];
     total_trip_cost: number;
 }
+
+export interface MealRequirement {
+    meal_type: string;
+    start_time: string;
+    end_time: string;
+}
+
+export interface ManualConstraints {
+    origin_city?: string;
+    destination_city?: string;
+    start_date?: string;
+    end_date?: string;
+    budget_usd: number;
+    meals: MealRequirement[];
+    nodes?: Array<{ poi_id: string; mandatory?: boolean; min_duration_minutes?: number }>;
+}
+
+export interface FlightSegment {
+    origin_iata: string;
+    destination_iata: string;
+    departure_time: string;
+    arrival_time?: string;
+    flight_duration_minutes?: number;
+    flight_number?: string;
+    airline?: string;
+}
+
+export interface HotelAnchor {
+    name: string;
+    address?: string;
+    city: string;
+    check_in_date?: string;
+    check_in_time?: string;
+    check_out_date?: string;
+}
+
+export interface BookingAnchors {
+    outbound_flight?: FlightSegment;
+    return_flight?: FlightSegment;
+    hotel?: HotelAnchor;
+}

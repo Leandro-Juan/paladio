@@ -7,12 +7,14 @@ import { Modal } from '@/components/Modal';
 import { extractDestination } from '@/utils/tripParser';
 import { Virtuoso } from 'react-virtuoso';
 import { useLogStore } from '@/contexts/SocketContext';
+import { TripPreparationForm } from '@/components/TripPreparationForm';
 
 
 export default function EnginePage() {
   const { status, itinerary, missingFields, sendMessage, sendFeedback, sendResume } = usePaladioSocket();
   const { logs, clearLogs } = useLogStore();
   const { saveTrip } = useTrips();
+  const [activeTab, setActiveTab] = useState<'prep' | 'telemetry'>('prep');
   const [input, setInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,7 +26,6 @@ export default function EnginePage() {
     if (status === 'connected' && logs.length > 3) {
       clearLogs();
     }
-    // We only want this to run once on mount, so we disable the exhaustive-deps rule for this specifically
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -33,7 +34,14 @@ export default function EnginePage() {
     if (endOfLogsRef.current) { endOfLogsRef.current.scrollTop = endOfLogsRef.current.scrollHeight; }
   }, [logs]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+
+  const handlePrepSubmit = (prompt: string, extras: Record<string, unknown>) => {
+    sendMessage(prompt, extras);
+    setActiveTab('telemetry');
+  };
+
+  const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     sendMessage(input);
@@ -44,7 +52,7 @@ export default function EnginePage() {
     setIsSaving(true);
     
     const destination = extractDestination(itinerary);
-        let startDate = new Date();
+    let startDate = new Date();
     if (itinerary?.days?.[0]?.flight_info?.departure_time) {
        const parsed = new Date(itinerary.days[0].flight_info.departure_time);
        if (!isNaN(parsed.getTime())) startDate = parsed;
@@ -64,95 +72,173 @@ export default function EnginePage() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', height: '100%' }}>
-      {/* Left Pane: Terminal / Command Center */}
+      {/* Left Pane: Preparation Cockpit / Command Center */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
-        <h2 className="font-display">ACTIVE ENGINE</h2>
-        
-        <div className="bg-surface border-subtle" style={{ 
-          flex: 1, 
-          borderRadius: '8px', 
-          padding: '1rem', 
-          display: 'flex', 
-          flexDirection: 'column',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.875rem'
-        }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <Virtuoso
-              style={{ flex: 1, height: '400px' }}
-              data={logs}
-              itemContent={(index, log) => (
-                  <div className={log.includes('ERROR') ? 'text-accent' : 'text-muted'}>
-                    {log}
-                  </div>
-              )}
-              followOutput="smooth"
-            />
-          </div>
-          
-          {status === 'awaiting_input' && missingFields.length > 0 ? (
-            <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--color-accent-primary)', paddingTop: '1rem' }} className="text-accent font-mono">
-              <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>{'>'} CLARIFICATION REQUIRED:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '1rem' }}>
-                {missingFields.map(field => (
-                  <div key={field} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <label style={{ width: '120px', textTransform: 'uppercase' }}>{field.replace('_', ' ')}:</label>
-                    <input 
-                      type={field.includes('date') ? 'date' : field.includes('budget') ? 'number' : 'text'}
-                      value={clarificationData[field] || ''}
-                      onChange={(e) => setClarificationData({ ...clarificationData, [field]: e.target.value })}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid var(--color-accent-primary)',
-                        color: 'var(--color-accent-primary)',
-                        padding: '0.2rem 0.5rem',
-                        flex: 1,
-                        fontFamily: 'var(--font-mono)'
-                      }}
-                    />
-                  </div>
-                ))}
-                <button 
-                  onClick={() => {
-                    sendResume(clarificationData);
-                    setClarificationData({});
-                  }}
-                  style={{
-                    background: 'var(--color-accent-primary)',
-                    color: '#FFF',
-                    border: 'none',
-                    padding: '0.5rem',
-                    marginTop: '0.5rem',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-mono)',
-                    alignSelf: 'flex-start'
-                  }}
-                >
-                  SUBMIT CLARIFICATION
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ marginTop: '1rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-              <span className="text-accent">{'>'}</span>
-              <input 
-                type="text" 
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Define target destination and constraints..." 
-                disabled={status === 'disconnected' || status === 'inferencing'}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-text-primary)',
-                  fontFamily: 'var(--font-mono)',
-                  width: '100%',
-                  outline: 'none'
-                }}
-              />
-            </form>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 className="font-display">ACTIVE ENGINE</h2>
+          {status === 'inferencing' && (
+            <span className="font-mono text-xs text-accent" style={{ fontWeight: 600 }}>
+              ● SWARM INFERENCING
+            </span>
           )}
         </div>
+
+        {/* Segmented Tab Switcher */}
+        <div
+          style={{
+            display: 'flex',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '8px',
+            padding: '4px',
+            gap: '6px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('prep')}
+            style={{
+              flex: 1,
+              padding: '0.6rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: activeTab === 'prep' ? 'var(--color-accent-primary)' : 'transparent',
+              color: activeTab === 'prep' ? '#FFF' : 'var(--color-text-muted)',
+              transition: 'all 0.2s',
+            }}
+          >
+            01 // MISSION PREPARATION
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('telemetry')}
+            style={{
+              flex: 1,
+              padding: '0.6rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: activeTab === 'telemetry' ? 'var(--color-accent-primary)' : 'transparent',
+              color: activeTab === 'telemetry' ? '#FFF' : 'var(--color-text-muted)',
+              transition: 'all 0.2s',
+            }}
+          >
+            02 // TELEMETRY CONSOLE
+          </button>
+        </div>
+
+        {/* Tab 1: Mission Preparation Form */}
+        {activeTab === 'prep' ? (
+          <div
+            className="bg-surface border-subtle"
+            style={{
+              flex: 1,
+              borderRadius: '8px',
+              padding: '1.25rem',
+              overflowY: 'auto',
+            }}
+          >
+            <TripPreparationForm
+              onSubmit={handlePrepSubmit}
+              disabled={status === 'disconnected' || status === 'inferencing'}
+            />
+          </div>
+        ) : (
+          /* Tab 2: Terminal / Logs Command Center */
+          <div className="bg-surface border-subtle" style={{ 
+            flex: 1, 
+            borderRadius: '8px', 
+            padding: '1rem', 
+            display: 'flex', 
+            flexDirection: 'column',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.875rem',
+            overflow: 'hidden',
+          }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Virtuoso
+                style={{ flex: 1, height: '400px' }}
+                data={logs}
+                itemContent={(index, log) => (
+                    <div className={log.includes('ERROR') ? 'text-accent' : 'text-muted'}>
+                      {log}
+                    </div>
+                )}
+                followOutput="smooth"
+              />
+            </div>
+            
+            {status === 'awaiting_input' && missingFields.length > 0 ? (
+              <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--color-accent-primary)', paddingTop: '1rem' }} className="text-accent font-mono">
+                <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>{'>'} CLARIFICATION REQUIRED:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '1rem' }}>
+                  {missingFields.map(field => (
+                    <div key={field} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <label style={{ width: '120px', textTransform: 'uppercase' }}>{field.replace('_', ' ')}:</label>
+                      <input 
+                        type={field.includes('date') ? 'date' : field.includes('budget') ? 'number' : 'text'}
+                        value={clarificationData[field] || ''}
+                        onChange={(e) => setClarificationData({ ...clarificationData, [field]: e.target.value })}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-accent-primary)',
+                          color: 'var(--color-accent-primary)',
+                          padding: '0.2rem 0.5rem',
+                          flex: 1,
+                          fontFamily: 'var(--font-mono)'
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <button 
+                    onClick={() => {
+                      sendResume(clarificationData);
+                      setClarificationData({});
+                    }}
+                    style={{
+                      background: 'var(--color-accent-primary)',
+                      color: '#FFF',
+                      border: 'none',
+                      padding: '0.5rem',
+                      marginTop: '0.5rem',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)',
+                      alignSelf: 'flex-start'
+                    }}
+                  >
+                    SUBMIT CLARIFICATION
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleQuickSubmit} style={{ marginTop: '1rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                <span className="text-accent">{'>'}</span>
+                <input 
+                  type="text" 
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Quick prompt or constraint adjustment..." 
+                  disabled={status === 'disconnected' || status === 'inferencing'}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-text-primary)',
+                    fontFamily: 'var(--font-mono)',
+                    width: '100%',
+                    outline: 'none'
+                  }}
+                />
+              </form>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right Pane: Live Itinerary Output */}
@@ -189,7 +275,7 @@ export default function EnginePage() {
               <p className="text-muted mt-2">
                 {status === 'inferencing' 
                   ? 'LangGraph swarm is currently orchestrating the C++ branch-and-bound optimization.'
-                  : 'Initialize the LangGraph swarm to begin C++ optimization.'}
+                  : 'Configure travel parameters in Mission Preparation to begin C++ optimization.'}
               </p>
             </>
           ) : (

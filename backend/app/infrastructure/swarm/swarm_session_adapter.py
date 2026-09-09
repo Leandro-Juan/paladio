@@ -85,9 +85,6 @@ class SwarmSessionAdapter(ISwarmSession):
             "error_count": 0,
         }
 
-        if "booking_text" in data:
-            initial_state["booking_text"] = data["booking_text"]
-
         manual_constraints = {}
         if "manual_constraints" in data and isinstance(
             data["manual_constraints"], dict
@@ -102,6 +99,32 @@ class SwarmSessionAdapter(ISwarmSession):
             manual_constraints["meals"] = data["meals"]
         if "nodes" in data:
             manual_constraints["nodes"] = data["nodes"]
+        if "origin_city" in data:
+            manual_constraints["origin_city"] = data["origin_city"]
+        if "destination_city" in data:
+            manual_constraints["destination_city"] = data["destination_city"]
+        if "start_date" in data:
+            manual_constraints["start_date"] = data["start_date"]
+        if "end_date" in data:
+            manual_constraints["end_date"] = data["end_date"]
+
+        # Support Test Mode auto-mock tickets using iata_mapping and 5-day next-week duration
+        origin = manual_constraints.get("origin_city") or data.get("origin_city")
+        dest = manual_constraints.get("destination_city") or data.get(
+            "destination_city"
+        )
+        is_test_mode = data.get("test_mode") is True or (
+            origin and dest and not data.get("booking_text")
+        )
+
+        if is_test_mode and origin and dest:
+            from app.utils.mock_tickets import generate_mock_tickets
+
+            mock_res = generate_mock_tickets(origin, dest)
+            initial_state["booking_text"] = mock_res["booking_text"]
+        else:
+            if "booking_text" in data:
+                initial_state["booking_text"] = data["booking_text"]
 
         if manual_constraints:
             initial_state["manual_constraints"] = manual_constraints

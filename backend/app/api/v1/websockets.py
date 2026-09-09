@@ -35,13 +35,9 @@ async def websocket_endpoint(websocket: WebSocket):
         from app.db.session import async_session
         from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
         from app.infrastructure.engine.ml_scorer import MLScorer
-        from app.infrastructure.providers.travel_data import (
-            LiveTravelDataProvider,
-            MockTravelDataProvider,
-        )
+        from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
         from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
         from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
-        import os
 
         # We must keep the session open for the duration of the websocket
         db_session = async_session()
@@ -54,10 +50,7 @@ async def websocket_endpoint(websocket: WebSocket):
         engine = CppOptimizationAdapter(ml_scorer=ml_scorer)
         engine.exchange_rate = websocket.app.state.exchange_rate_usd_eur
 
-        if os.getenv("TEST_MODE") == "1":
-            travel_data_provider = MockTravelDataProvider()
-        else:
-            travel_data_provider = LiveTravelDataProvider()
+        travel_data_provider = DefaultTravelDataProvider()
 
         adapter = SwarmSessionAdapter(
             graph=websocket.app.state.graph,

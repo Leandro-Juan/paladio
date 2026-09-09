@@ -85,15 +85,6 @@ class FetchTravelContextUseCase:
                 )
 
         # 2. Extract Anchors & Geocode
-        # Generate mock context if applicable (LiveTravelDataProvider returns empty dict)
-        dynamic_test_data = await self.data_provider.generate_mock_context(
-            city, center_lat, center_lon, constraints.start_date, constraints.end_date
-        )
-        if dynamic_test_data:
-            if not test_data:
-                test_data = {}
-            test_data.update(dynamic_test_data)
-
         booking_anchors = constraints.booking_anchors
         hotel_anchor = booking_anchors.hotel if booking_anchors else None
 

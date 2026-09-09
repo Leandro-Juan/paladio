@@ -64,7 +64,7 @@ export interface SocketContextProps {
   status: SocketStatus;
   itinerary: OptimizationResult | null;
   missingFields: string[];
-  sendMessage: (msg: string) => void;
+  sendMessage: (msg: string, payloadExtras?: Record<string, unknown>) => void;
   sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
   sendResume: (data: Record<string, string>) => void;
   connect: () => void;
@@ -148,11 +148,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setItinerary(null);
         addLog('> [ENGINE] INITIALIZING LANGGRAPH SWARM...');
         break;
+      case 'PARSING_TICKETS':
+        addLog(`> [PARSER] BOOKING ANCHORS PROCESSED.`);
+        break;
+      case 'CHECKING_MISSING_FIELDS':
+        addLog(`> [VALIDATOR] VALIDATING TRIP CONSTRAINTS...`);
+        break;
       case 'ROUTING_INTENT':
         addLog(`> [ROUTER] INTENT DETECTED: ${payload.data}`);
         break;
       case 'ANALYZING_PROMPT':
         addLog(`> [ANALYZER] ANALYZING USER REQUEST & PREFERENCES...`);
+        break;
+      case 'SCRAPING_DYNAMIC_DATA':
+        addLog(`> [PLANNER] ${payload.data || 'FETCHING POIS & TRANSIT...'}`);
         break;
       case 'RETRIEVING_CONTEXT':
         addLog(`> [RAG] CONTEXT RETRIEVED (TRUNCATED): ${payload.data}`);
@@ -244,7 +253,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     return () => disconnect();
   }, [connect, disconnect]);
 
-  const sendMessage = useCallback((message: string) => {
+  const sendMessage = useCallback((message: string, payloadExtras?: Record<string, unknown>) => {
     addLog(`> [USER] ${message}`);
 
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -255,7 +264,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const payload = {
       action: 'chat',
       message,
-      thread_id: threadIdRef.current
+      thread_id: threadIdRef.current,
+      ...(payloadExtras || {})
     };
     wsRef.current.send(JSON.stringify(payload));
   }, [addLog]);

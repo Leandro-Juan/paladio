@@ -2,6 +2,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +12,6 @@ from app.api.v1.users import router as users_router
 from app.api.v1.websockets import router as websockets_router
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.swarm.graph import create_swarm
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -28,25 +28,22 @@ async def lifespan(app: FastAPI):
 
     # Fetch currency exchange rate
     app.state.exchange_rate_usd_eur = 0.92
-    if os.getenv("TEST_MODE") != "1":
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                resp = await client.get(
-                    "https://api.frankfurter.app/latest?from=USD&to=EUR"
-                )
-                if resp.status_code == 200:
-                    app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
-                    logger.info(
-                        f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
-                    )
-        except Exception as e:
-            import asyncio
-
-            if isinstance(e, asyncio.CancelledError):
-                raise
-            logger.error(
-                f"Failed to fetch exchange rate, using default 0.92. Error: {e}"
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(
+                "https://api.frankfurter.app/latest?from=USD&to=EUR"
             )
+            if resp.status_code == 200:
+                app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
+                logger.info(
+                    f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
+                )
+    except Exception as e:
+        import asyncio
+
+        if isinstance(e, asyncio.CancelledError):
+            raise
+        logger.error(f"Failed to fetch exchange rate, using default 0.92. Error: {e}")
 
     yield
     # Cleanup here

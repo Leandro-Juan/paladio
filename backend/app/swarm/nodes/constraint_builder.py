@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any
 
 from app.schemas.itinerary import (
@@ -104,8 +104,11 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
     if isinstance(raw_meals, list):
         for m in raw_meals:
             if isinstance(m, dict):
+                m_dict = dict(m)
+                if "type" in m_dict and "meal_type" not in m_dict:
+                    m_dict["meal_type"] = m_dict.pop("type")
                 try:
-                    meals.append(MealRequirement(**m))
+                    meals.append(MealRequirement(**m_dict))
                 except Exception as e:
                     logger.warning(f"Could not parse meal requirement: {e}")
             elif isinstance(m, MealRequirement):

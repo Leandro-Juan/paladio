@@ -52,7 +52,12 @@ class CppOptimizationAdapter(IOptimizationEngine):
             raise OptimizationError("C++ optimization engine is not available.")
 
         # 1. ML Scoring
-        scored_pois = await self.ml_scorer.score_pois(pois, user_id)
+        if self.ml_scorer:
+            scored_pois = await self.ml_scorer.score_pois(pois, user_id)
+        else:
+            from app.domain.entities.poi import ScoredPoi
+
+            scored_pois = [ScoredPoi(poi=p, score=1.0) for p in pois]
 
         # 2. Map structures
         cpp_pois = build_cpp_pois(scored_pois, day_start_mins, mandatory_names)
