@@ -142,18 +142,24 @@ def build_optimization_config(
             elif "DINNER" in m_type:
                 dinner_deadline = end_mins
 
-    if breakfast_deadline != -1 and (
-        breakfast_deadline <= day_start_mins + 90 or breakfast_deadline > day_end_mins
-    ):
+    if day_end_mins - day_start_mins < 240:
         breakfast_deadline = -1
-    if lunch_deadline != -1 and (
-        lunch_deadline <= day_start_mins + 120 or lunch_deadline > day_end_mins
-    ):
         lunch_deadline = -1
-    if dinner_deadline != -1 and (
-        dinner_deadline <= day_start_mins + 120 or dinner_deadline > day_end_mins
-    ):
         dinner_deadline = -1
+    else:
+        if breakfast_deadline != -1 and (
+            breakfast_deadline <= day_start_mins + 90
+            or breakfast_deadline > day_end_mins
+        ):
+            breakfast_deadline = -1
+        if lunch_deadline != -1 and (
+            lunch_deadline <= day_start_mins + 120 or lunch_deadline > day_end_mins
+        ):
+            lunch_deadline = -1
+        if dinner_deadline != -1 and (
+            dinner_deadline <= day_start_mins + 120 or dinner_deadline > day_end_mins
+        ):
+            dinner_deadline = -1
 
     budget_eur = constraints.budget_usd * exchange_rate
 
