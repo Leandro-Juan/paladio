@@ -7,6 +7,7 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.celery_app import app
 from app.db.models import TransitCacheStatus
@@ -81,7 +82,7 @@ def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
                             end_str.strip(), "%Y%m%d"
                         ).replace(tzinfo=timezone.utc)
                         break
-        except Exception as e:  # noqa: BLE001
+        except (OSError, csv.Error, ValueError, KeyError) as e:
             logger.warning(f"Failed parsing feed_info.txt: {e}")
 
     if not candidate_date:
@@ -100,7 +101,7 @@ def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
                             if max_cal_date is None or dt > max_cal_date:
                                 max_cal_date = dt
                     candidate_date = max_cal_date
-            except Exception as e:  # noqa: BLE001
+            except (OSError, csv.Error, ValueError, KeyError) as e:
                 logger.warning(f"Failed parsing calendar.txt: {e}")
 
     if candidate_date:
@@ -166,7 +167,7 @@ def build_city_map_task(self, city_name: str):
                 city_name=city_lower, status=TransitCacheStatus.BUILDING.value
             )
         )
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, OSError, RuntimeError) as e:
         logger.warning(f"Could not set transit_cache BUILDING status: {e}")
 
     # Map cities to their Geofabrik paths
@@ -234,7 +235,7 @@ def build_city_map_task(self, city_name: str):
             )
             response.raise_for_status()
             logger.info("Webhook triggered successfully.")
-        except Exception as webhook_err:  # noqa: BLE001
+        except httpx.HTTPError as webhook_err:
             logger.warning(
                 f"Valhalla webhook not reachable ({webhook_err}), relying on container restart or file reload."
             )

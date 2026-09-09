@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import httpx
 from app.domain.entities.poi import Poi, TransitEdge
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
@@ -64,7 +65,7 @@ class OptimizeDailyItineraryUseCase:
                 else:
                     parts = t_str.split(":")
                     return int(parts[0]), int(parts[1])
-            except Exception:  # noqa: BLE001
+            except (ValueError, TypeError, IndexError, AttributeError):
                 logger.warning(f"Failed to parse time {t_str}, defaulting to 08:00")
                 return 8, 0
 
@@ -241,9 +242,9 @@ class OptimizeDailyItineraryUseCase:
                 start_node_index=start_idx if start_idx != -1 else None,
                 end_node_index=end_idx if end_idx != -1 else None,
             )
-        except Exception as e:  # noqa: BLE001
+        except (RuntimeError, ValueError, TypeError) as e:
             logger.error(f"C++ optimization engine failed: {e}")
-            raise RuntimeError(f"C++ optimization engine failed: {e}")
+            raise RuntimeError(f"C++ optimization engine failed: {e}") from e
 
         result = itinerary.model_dump()
 
@@ -287,7 +288,7 @@ class OptimizeDailyItineraryUseCase:
                     departure_iso=dep_iso,
                 )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump()
-            except Exception as e:  # noqa: BLE001
+            except (httpx.HTTPError, ValueError, KeyError) as e:
                 logger.debug(f"Could not enrich transit leg: {e}")
 
         return result

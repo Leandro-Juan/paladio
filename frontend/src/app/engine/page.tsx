@@ -21,13 +21,15 @@ export default function EnginePage() {
   const [clarificationData, setClarificationData] = useState<Record<string, string>>({});
   const endOfLogsRef = useRef<HTMLDivElement>(null);
 
+  const hasClearedRef = useRef(false);
+
   // Clear logs when entering page if idle
   useEffect(() => {
-    if (status === 'connected' && logs.length > 3) {
+    if (!hasClearedRef.current && status === 'connected' && logs.length > 3) {
       clearLogs();
+      hasClearedRef.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status, logs.length, clearLogs]);
 
   // Auto-scroll terminal
   useEffect(() => {

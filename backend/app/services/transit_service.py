@@ -111,7 +111,7 @@ async def get_detailed_transit_leg(
                 mode = "pedestrian"
                 total_cost_eur = 0.0
 
-    except Exception as exc:  # noqa: BLE001
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         logger.warning(
             f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}. Using pedestrian/transit estimate."
         )

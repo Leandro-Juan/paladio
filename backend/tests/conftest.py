@@ -1,4 +1,6 @@
 import asyncio
+import importlib
+import logging
 import os
 import sys
 from collections.abc import AsyncGenerator
@@ -7,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -18,7 +21,7 @@ from sqlalchemy.pool import NullPool
 try:
     if os.getenv("MOCK_PALADIO_CORE", "1") == "1":
         raise ImportError("Forcing mock paladio_core")
-    import paladio_core  # noqa: F401
+    importlib.import_module("paladio_core")
 except ImportError:
     mock_paladio_core = MagicMock()
 
@@ -60,7 +63,7 @@ except ImportError:
 
     def mock_optimize_itinerary(pois, durs, costs, config):
         if len(pois) > 64:
-            raise Exception("Exceeds maximum POIs")
+            raise ValueError("Exceeds maximum POIs")
         result = MagicMock()
         result.path = [0, 1] if len(pois) > 1 else [0]
         result.total_score = 100.0
@@ -114,17 +117,15 @@ async def db_engine():
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
-    except Exception as e:
-        import logging
-
-        logging.warning(
+    except (SQLAlchemyError, OSError) as e:
+        logging.getLogger(__name__).warning(
             f"Could not initialize test DB tables. Ensure test DB exists. {e}"
         )
     yield engine
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-    except Exception:
+    except (SQLAlchemyError, OSError):
         pass
     await engine.dispose()
 

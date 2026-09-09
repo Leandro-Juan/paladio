@@ -16,8 +16,29 @@ export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      try {
+        const data = await apiFetch<Trip[]>('/trips/');
+        if (!ignore) {
+          setTrips(data);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to fetch trips", e);
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const fetchTrips = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await apiFetch<Trip[]>('/trips/');
       setTrips(data);
@@ -27,11 +48,6 @@ export function useTrips() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
-    fetchTrips();
-  }, [fetchTrips]);
 
   const getTrip = useCallback(async (id: string): Promise<Trip | null> => {
     try {

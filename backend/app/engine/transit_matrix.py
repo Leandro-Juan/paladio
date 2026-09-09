@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 180) -> bool
         from app.db.models import TransitCacheModel, TransitCacheStatus
         from app.db.session import async_session
         from sqlalchemy import select
-    except Exception as e:  # noqa: BLE001
+    except (ImportError, ModuleNotFoundError) as e:
         logger.warning(f"Database session unavailable for transit cache check: {e}")
         return True
 
@@ -89,7 +90,7 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 180) -> bool
                     )
         except RuntimeError:
             raise
-        except Exception as db_err:  # noqa: BLE001
+        except (SQLAlchemyError, OSError) as db_err:
             logger.warning(f"Transient error querying transit_cache: {db_err}")
             return True
 
@@ -191,7 +192,7 @@ async def get_transit_matrix(
                     else:
                         raise ValueError("Matrix size mismatch")
 
-        except Exception as exc:  # noqa: BLE001
+        except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
             logger.warning(
                 f"Valhalla multimodal query failed ({exc}). Falling back to walking/transit calculation."
             )

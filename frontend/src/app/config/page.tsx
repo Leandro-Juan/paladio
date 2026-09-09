@@ -10,7 +10,9 @@ export default function ConfigPage() {
   const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [hasFetched, setHasFetched] = useState<boolean>(false);
+  const loading = isFetching || (!hasFetched && isAdmin);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -27,11 +29,8 @@ export default function ConfigPage() {
   const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!isAdmin) return;
+    setIsFetching(true);
     try {
       const data = await listUsersApi();
       setUsers(data);
@@ -39,14 +38,36 @@ export default function ConfigPage() {
       const msg = err instanceof Error ? err.message : 'Failed to fetch users';
       setActionError(msg);
     } finally {
-      setLoading(false);
+      setIsFetching(false);
+      setHasFetched(true);
     }
   }, [isAdmin]);
 
   useEffect(() => {
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
-    fetchUsers();
-  }, [fetchUsers]);
+    if (!isAdmin) return;
+    let ignore = false;
+    async function load() {
+      try {
+        const data = await listUsersApi();
+        if (!ignore) {
+          setUsers(data);
+        }
+      } catch (err: unknown) {
+        if (!ignore) {
+          const msg = err instanceof Error ? err.message : 'Failed to fetch users';
+          setActionError(msg);
+        }
+      } finally {
+        if (!ignore) {
+          setHasFetched(true);
+        }
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [isAdmin]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -119,12 +119,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   });
   
   const wsRef = useRef<WebSocket | null>(null);
-  // eslint-disable-next-line react-hooks/purity
-  const threadIdRef = useRef<string>(typeof window !== 'undefined' && sessionStorage.getItem('paladio_thread_id') ? sessionStorage.getItem('paladio_thread_id')! : Date.now().toString(36).substring(2, 15));
+  const threadIdRef = useRef<string>('');
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !sessionStorage.getItem('paladio_thread_id')) {
-      sessionStorage.setItem('paladio_thread_id', threadIdRef.current);
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('paladio_thread_id');
+      const tid = stored || Date.now().toString(36).substring(2, 15);
+      threadIdRef.current = tid;
+      if (!stored) {
+        sessionStorage.setItem('paladio_thread_id', tid);
+      }
     }
   }, []);
 

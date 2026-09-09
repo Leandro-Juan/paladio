@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import PreferenceRadar from '@/components/PreferenceRadar';
 import { fetchCurrentUser, fetchUserEmbeddingApi } from '@/utils/api';
 import { User } from '@/types/auth';
@@ -33,41 +33,48 @@ export default function ModelPage() {
   const [budgetTier, setBudgetTier] = useState<string>('balanced');
   const [embeddingDim, setEmbeddingDim] = useState<number>(768);
 
-  const loadUserData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [currentUser, embData] = await Promise.all([
-        fetchCurrentUser(),
-        fetchUserEmbeddingApi().catch(() => ({ dimension: 768, embedding: [] })),
-      ]);
-
-      setUser(currentUser);
-      setEmbeddingDim(embData.dimension || 768);
-
-      const prefs = (currentUser.preferences || {}) as Record<string, unknown>;
-      const rawAffinities = (prefs.tag_affinities || {}) as Record<string, number>;
-
-      const initialAffinities: Record<string, number> = {};
-      CATEGORY_MAP.forEach(({ key }) => {
-        initialAffinities[key] = typeof rawAffinities[key] === 'number' ? rawAffinities[key] : 0.5;
-      });
-      setTagAffinities(initialAffinities);
-
-      if (typeof prefs.pace === 'string') setPace(prefs.pace.toLowerCase());
-      if (typeof prefs.budget_tier === 'string') setBudgetTier(prefs.budget_tier.toLowerCase());
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load user preference model.';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    let ignore = false;
+
+    async function loadUserData() {
+      try {
+        const [currentUser, embData] = await Promise.all([
+          fetchCurrentUser(),
+          fetchUserEmbeddingApi().catch(() => ({ dimension: 768, embedding: [] })),
+        ]);
+
+        if (ignore) return;
+        setUser(currentUser);
+        setEmbeddingDim(embData.dimension || 768);
+
+        const prefs = (currentUser.preferences || {}) as Record<string, unknown>;
+        const rawAffinities = (prefs.tag_affinities || {}) as Record<string, number>;
+
+        const initialAffinities: Record<string, number> = {};
+        CATEGORY_MAP.forEach(({ key }) => {
+          initialAffinities[key] = typeof rawAffinities[key] === 'number' ? rawAffinities[key] : 0.5;
+        });
+        setTagAffinities(initialAffinities);
+
+        if (typeof prefs.pace === 'string') setPace(prefs.pace.toLowerCase());
+        if (typeof prefs.budget_tier === 'string') setBudgetTier(prefs.budget_tier.toLowerCase());
+      } catch (err: unknown) {
+        if (!ignore) {
+          const msg = err instanceof Error ? err.message : 'Failed to load user preference model.';
+          setError(msg);
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
     loadUserData();
-  }, [loadUserData]);
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Build radar chart data from live state
   const radarData = CATEGORY_MAP.map(({ key, label }) => ({
