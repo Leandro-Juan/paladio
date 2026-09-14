@@ -102,3 +102,33 @@ class SemanticLearningEngine:
                 projected[tag] = 0.50
 
         return projected
+
+    def synthesize_768d_from_harmonics(
+        self, affinities: dict[str, float], dim: int = 768
+    ) -> list[float]:
+        """
+        Synthesizes a 768D semantic vector from category harmonic affinities.
+        Uses anchor vector linear combination if anchors are loaded, or returns
+        a normalized harmonic synthesis of dimension 768.
+        """
+        if self._anchors:
+            vec = np.zeros(dim, dtype=np.float32)
+            for tag in TAG_KEYS:
+                w = float(affinities.get(tag, 0.5))
+                if tag in self._anchors:
+                    vec += w * self._anchors[tag]
+            norm = np.linalg.norm(vec)
+            if norm > 1e-6:
+                return (vec / norm).tolist()
+
+        chunk_size = dim // len(TAG_KEYS)
+        vec = np.zeros(dim, dtype=np.float32)
+        for idx, tag in enumerate(TAG_KEYS):
+            w = float(affinities.get(tag, 0.5))
+            start_idx = idx * chunk_size
+            end_idx = start_idx + chunk_size
+            vec[start_idx:end_idx] = w
+        norm = np.linalg.norm(vec)
+        if norm > 1e-6:
+            vec /= norm
+        return vec.tolist()

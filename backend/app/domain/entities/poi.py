@@ -1,6 +1,76 @@
+from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class PoiLocation(BaseModel):
+    latitude: float | None = None
+    longitude: float | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+class PoiMetadata(BaseModel):
+    scraped_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: str | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+class PoiSchedule(BaseModel):
+    osm_opening_hours: str | None = None
+    opening_time_local: str | None = None
+    closing_time_local: str | None = None
+    recommended_duration_minutes: int | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+class PoiFinancials(BaseModel):
+    is_free: bool | None = None
+    estimated_cost: float | None = None
+    currency: str | None = None
+    price_tier: str | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+class PoiScoring(BaseModel):
+    rating: float | None = None
+    reviews: int | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
 
 
 class Poi(BaseModel):
@@ -8,26 +78,32 @@ class Poi(BaseModel):
     city: str
     name: str
     category: str
-    location: dict[str, Any] = Field(default_factory=dict)
-    schedule: dict[str, Any] = Field(default_factory=dict)
-    financials: dict[str, Any] = Field(default_factory=dict)
-    scoring: dict[str, Any] = Field(default_factory=dict)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    location: PoiLocation = Field(default_factory=PoiLocation)
+    schedule: PoiSchedule = Field(default_factory=PoiSchedule)
+    financials: PoiFinancials = Field(default_factory=PoiFinancials)
+    scoring: PoiScoring = Field(default_factory=PoiScoring)
+    metadata: PoiMetadata = Field(default_factory=PoiMetadata)
     duration_mins: int = 60
     cost_eur: float = 0.0
     open_time_mins: int = 480
     close_time_mins: int = 1320
     embedding: list[float] | None = None
 
+    model_config = ConfigDict(extra="allow")
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
     @field_validator("duration_mins")
-    @classmethod
     def check_duration(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("duration_mins must be strictly positive")
         return v
 
     @field_validator("cost_eur")
-    @classmethod
     def check_cost(cls, v: float) -> float:
         if v < 0:
             raise ValueError("cost_eur must be greater than or equal to 0")

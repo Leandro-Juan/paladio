@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas.scraper import Attraction
+from app.domain.entities.poi import Poi
 
 
 class IPoiRepository(ABC):
@@ -10,20 +10,20 @@ class IPoiRepository(ABC):
     """
 
     @abstractmethod
-    async def find_by_city(self, city_name: str) -> list[Attraction]:
+    async def find_by_city(self, city_name: str) -> list[Poi]:
         pass
 
     @abstractmethod
     async def find_semantic_candidates(
         self, city_name: str, user_vector: list[float], limit: int = 150
-    ) -> list[tuple[Attraction, float]]:
+    ) -> list[tuple[Poi, float]]:
         """
         Retrieves top candidate attractions in the specified city ordered by cosine similarity
-        to the user's semantic preference vector. Returns pairs of (Attraction, semantic_affinity).
+        to the user's semantic preference vector. Returns pairs of (Poi, semantic_affinity).
         """
 
     @abstractmethod
-    async def save_all_for_city(self, city_name: str, pois: list[Attraction]) -> None:
+    async def save_all_for_city(self, city_name: str, pois: list[Poi]) -> None:
         pass
 
     @abstractmethod

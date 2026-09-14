@@ -218,3 +218,165 @@ TEST_F(ItineraryEngineTest, MandatoryPOIsEnforced) {
       std::find(result.path.begin(), result.path.end(), 2) != result.path.end();
   EXPECT_TRUE(has_mandatory);
 }
+
+TEST_F(ItineraryEngineTest, MandatoryEndNodeDifferentFromStart) {
+  // Arrange
+  std::vector<POI> custom_pois = {
+      {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 10, false},      // 0: Start Hotel
+      {NodeType::ATTRACTION, 0.0, 50.0, 0, 1440, 60, false}, // 1: Attraction
+      {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 10, true} // 2: Mandatory End Hotel
+  };
+
+  std::vector<TransitInfo> custom_transit(9, {10, 0.0});
+  config.start_node_index = 0;
+  config.end_node_index = 2; // Different from start
+  config.max_budget = 1000.0;
+  config.end_time_limit = 1440;
+
+  // Act
+  auto result = optimize_itinerary(custom_pois, custom_transit, config);
+
+  // Assert
+  ASSERT_GT(result.path.size(), 1);
+  EXPECT_EQ(result.path.front(), 0);
+  EXPECT_EQ(result.path.back(), 2);
+  EXPECT_GT(result.total_score, 0.0);
+}
+
+TEST_F(ItineraryEngineTest, MandatoryEndHotelWithLargeDurationAndTightLimit) {
+  // Arrange
+  // Start Hotel (0), Attraction (1), Mandatory End Hotel with large duration
+  // (2)
+  std::vector<POI> custom_pois = {
+      {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 10, false},      // 0: Start Hotel
+      {NodeType::ATTRACTION, 0.0, 50.0, 0, 1440, 60, false}, // 1: Attraction
+      {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 600,
+       true} // 2: Mandatory End Hotel (duration 600)
+  };
+
+  std::vector<TransitInfo> custom_transit(9, {10, 0.0});
+  config.start_node_index = 0;
+  config.end_node_index = 2;
+  config.max_budget = 1000.0;
+  config.end_time_limit =
+      300; // Tight limit: 300 mins < hotel duration 600 mins
+
+  // Act
+  auto result = optimize_itinerary(custom_pois, custom_transit, config);
+
+  // Assert
+  ASSERT_GE(result.path.size(), 2);
+  EXPECT_EQ(result.path.front(), 0);
+  EXPECT_EQ(result.path.back(), 2);
+  EXPECT_GT(result.total_score, 0.0);
+  EXPECT_LE(result.total_time, 300);
+}
+
+TEST_F(ItineraryEngineTest, EndNodeMealDeadlineEnforcedByArrivalTime) {
+  // Arrange
+  // An itinerary ending at a dinner spot where arrival is before deadline,
+  // but arrival + duration extends beyond deadline.
+  std::vector<POI> custom_pois = {
+      {NodeType::HOTEL, 0.0, 10.0, 0, 1440, 10, false},      // 0: Start Hotel
+      {NodeType::ATTRACTION, 0.0, 50.0, 0, 1440, 60, false}, // 1: Attraction
+      {NodeType::RESTAURANT_DINNER, 0.0, 40.0, 0, 1440, 60,
+       false} // 2: Dinner spot (duration 60)
+  };
+
+  std::vector<TransitInfo> custom_transit(9, {10, 0.0});
+  config.start_node_index = 0;
+  config.end_node_index = 2;
+  config.dinner_deadline =
+      100; // Arrival is at 80 mins <= 100, but final_time = 80 + 60 = 140 > 100
+  config.end_time_limit = 200;
+  config.max_budget = 1000.0;
+
+  // Act
+  auto result = optimize_itinerary(custom_pois, custom_transit, config);
+
+  // Assert
+  ASSERT_EQ(result.path.size(), 3);
+  EXPECT_EQ(result.path[0], 0);
+  EXPECT_EQ(result.path[1], 1);
+  EXPECT_EQ(result.path[2], 2);
+  EXPECT_GT(result.total_score, 0.0);
+}
+
+TEST_F(ItineraryEngineTest, ThrowsOnInvalidNodeIndices) {
+  // Invalid start node (negative)
+  config.start_node_index = -1;
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, transit_times, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+
+  // Invalid start node (>= n)
+  config.start_node_index = static_cast<int>(pois.size());
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, transit_times, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+
+  // Invalid end node (negative)
+  config.start_node_index = 0;
+  config.end_node_index = -1;
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, transit_times, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+
+  // Invalid end node (>= n)
+  config.end_node_index = static_cast<int>(pois.size());
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, transit_times, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+
+  // Null transit pointers
+  int durations[16] = {0};
+  double costs[16] = {0.0};
+  config.start_node_index.reset();
+  config.end_node_index.reset();
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, nullptr, costs, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+  EXPECT_THROW(
+      {
+        auto _res = optimize_itinerary(pois, durations, nullptr, config);
+        (void)_res;
+      },
+      std::invalid_argument);
+}
+
+TEST_F(ItineraryEngineTest, EmptyPOIsReturnsZeroedResult) {
+  // Arrange
+  std::vector<POI> empty_pois;
+  std::vector<TransitInfo> empty_transit;
+
+  // Act
+  auto result = optimize_itinerary(empty_pois, empty_transit, config);
+
+  // Assert
+  EXPECT_TRUE(result.path.empty());
+  EXPECT_DOUBLE_EQ(result.total_score, 0.0);
+  EXPECT_DOUBLE_EQ(result.total_cost, 0.0);
+  EXPECT_DOUBLE_EQ(result.total_time, 0.0);
+
+  // Also test with null pointers on empty POIs
+  auto result_null = optimize_itinerary(empty_pois, nullptr, nullptr, config);
+  EXPECT_TRUE(result_null.path.empty());
+  EXPECT_DOUBLE_EQ(result_null.total_score, 0.0);
+  EXPECT_DOUBLE_EQ(result_null.total_cost, 0.0);
+  EXPECT_DOUBLE_EQ(result_null.total_time, 0.0);
+}

@@ -179,10 +179,15 @@ async def get_embedding(
 ) -> Any:
     repo = SqlUserRepository(session)
     embedding = await repo.get_embedding(current_user.id)
+    emb_list = (
+        embedding.tolist()
+        if hasattr(embedding, "tolist")
+        else (list(embedding) if embedding is not None else None)
+    )
     return {
         "user_id": current_user.id,
-        "embedding": embedding,
-        "dimension": len(embedding) if embedding else 0,
+        "embedding": emb_list,
+        "dimension": len(emb_list) if emb_list is not None else 0,
     }
 
 
@@ -193,9 +198,10 @@ async def update_embedding(
     session: AsyncSession = Depends(get_db),
 ) -> Any:
     repo = SqlUserRepository(session)
-    await repo.save_embedding(current_user.id, body.embedding)
+    user_id = current_user.id
+    await repo.save_embedding(user_id, body.embedding)
     return {
         "status": "success",
-        "user_id": current_user.id,
+        "user_id": user_id,
         "dimension": len(body.embedding),
     }

@@ -93,71 +93,50 @@ class PoiNaturalLanguageSynthesizer:
             or "botanical" in name.lower()
         )
 
-        # Build intro sentence
+        # Build intro sentence based on verified tags
         if is_viewpoint:
             components.append(
                 f"{name} is a scenic panoramic viewpoint, mirador, and observation spot{loc_str}."
             )
-            components.append(
-                "It offers sweeping horizons, elevated skyline vistas, and picturesque terrace lookouts."
-            )
         elif is_religious:
-            arch_note = (
-                f" featuring magnificent {arch_style} architecture"
-                if arch_style
-                else " of monumental architecture"
-            )
+            arch_note = f" featuring {arch_style} architecture" if arch_style else ""
             components.append(
-                f"{name} is a sacred historical cathedral, basilica, or church{loc_str}{arch_note}."
-            )
-            components.append(
-                "It represents profound spiritual heritage, religious art, ancient stone carvings, and sacred history."
+                f"{name} is a historical cathedral, church, or sacred religious site{loc_str}{arch_note}."
             )
         elif is_castle:
             components.append(
                 f"{name} is an ancient historical fortress, castle, or monumental rampart{loc_str}."
             )
-            components.append(
-                "It boasts fortified walls, medieval stonework, ancient battlements, and historic defense heritage."
-            )
         elif is_museum:
-            components.append(
-                f"{name} is an inspiring museum and cultural institution{loc_str}."
-            )
-            components.append(
-                "It exhibits historic artifacts, fine art collections, cultural exhibitions, and educational heritage."
-            )
+            components.append(f"{name} is a museum and cultural institution{loc_str}.")
         elif is_restaurant:
             cuisine_str = (
                 f" specializing in authentic {cuisine.replace(';', ', ')} cuisine"
                 if cuisine
-                else " offering local culinary gastronomy"
+                else ""
             )
             components.append(
-                f"{name} is a welcoming restaurant, cafe, or dining establishment{loc_str}{cuisine_str}."
-            )
-            components.append(
-                "It features delicious food, traditional dishes, artisan drinks, and relaxed culinary ambiance."
+                f"{name} is a restaurant, cafe, or dining establishment{loc_str}{cuisine_str}."
             )
         elif is_park:
             components.append(
-                f"{name} is a lush green park, botanical garden, and outdoor natural retreat{loc_str}."
-            )
-            components.append(
-                "It provides tree-lined walking paths, natural landscape, flora, and a tranquil outdoor sanctuary."
+                f"{name} is a park, botanical garden, and outdoor natural space{loc_str}."
             )
         else:
-            components.append(
-                f"{name} is a notable {category} and point of interest{loc_str}."
-            )
-            components.append(
-                "It provides sightseeing, architectural interest, and cultural discovery."
-            )
+            components.append(f"{name} is a {category} and point of interest{loc_str}.")
 
-        # 2. Add extra details from tags if available
+        # 2. Add real description and verified metadata attributes if available
+        raw_desc = (
+            tags.get("description")
+            or metadata.get("description")
+            or poi_data.get("description")
+        )
+        if raw_desc and isinstance(raw_desc, str) and raw_desc.strip():
+            components.append(raw_desc.strip())
+
         if arch_style and not is_religious:
             components.append(
-                f"The building displays distinctive {arch_style} architectural character."
+                f"The building displays {arch_style} architectural character."
             )
 
         if tags.get("wheelchair") in ("yes", "designated"):
@@ -165,6 +144,11 @@ class PoiNaturalLanguageSynthesizer:
 
         if financials.get("is_free") or tags.get("fee") in ("no", "0"):
             components.append("Admission is free of charge to all visitors.")
+
+        # Real opening hours if present (do not fabricate fake opening hours when missing)
+        opening_hours = tags.get("opening_hours") or metadata.get("osm_opening_hours")
+        if opening_hours and isinstance(opening_hours, str) and opening_hours.strip():
+            components.append(f"Opening hours: {opening_hours.strip()}.")
 
         # Combine into cohesive narrative
         full_text = " ".join(components)

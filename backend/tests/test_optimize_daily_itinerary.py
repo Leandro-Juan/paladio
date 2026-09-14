@@ -268,3 +268,100 @@ async def test_optimize_enriches_transit_maneuvers(
         assert louvre_step["transit_from_previous"]["mode"] == "transit"
         assert len(louvre_step["transit_from_previous"]["steps"]) == 2
         assert louvre_step["transit_from_previous"]["steps"][1]["transit_line"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_airport_splicing_dwell_and_transit_accounting(
+    sample_constraints, sample_flights, sample_pois_data
+):
+    from app.domain.entities.poi import TransitLeg, TransitStep
+
+    mock_engine = MagicMock()
+    mock_result = MagicMock()
+    mock_result.model_dump.return_value = {
+        "path": [
+            {
+                "poi": {"name": "Hotel Paris", "category": "HOTEL", "cost_eur": 50.0},
+                "scheduled_start": "10:00",
+                "scheduled_end": "10:30",
+            },
+            {
+                "poi": {"name": "Louvre", "category": "ATTRACTION", "cost_eur": 20.0},
+                "scheduled_start": "11:00",
+                "scheduled_end": "13:00",
+            },
+        ],
+        "total_cost_eur": 70.0,
+        "total_time_mins": 180,
+        "total_score": 95.0,
+    }
+    mock_engine.run_optimization = AsyncMock(return_value=mock_result)
+
+    mock_transit_leg = TransitLeg(
+        duration_mins=40,
+        cost_eur=2.50,
+        mode="transit",
+        steps=[
+            TransitStep(
+                type="transit",
+                instruction="RER B Airport Shuttle",
+                duration_mins=40,
+                distance_km=25.0,
+            )
+        ],
+    )
+
+    with (
+        patch(
+            "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
+            new_callable=AsyncMock,
+        ) as mock_matrix,
+        patch(
+            "app.use_cases.optimize_daily_itinerary.inject_slack_time"
+        ) as mock_inject,
+        patch(
+            "app.services.transit_service.get_detailed_transit_leg",
+            new_callable=AsyncMock,
+        ) as mock_leg,
+    ):
+        mock_matrix.return_value = [
+            [{"duration_mins": 10, "cost_eur": 0} for _ in range(3)] for _ in range(3)
+        ]
+        mock_inject.return_value = mock_matrix.return_value
+        mock_leg.return_value = mock_transit_leg
+
+        use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
+        outbound, return_flight = sample_flights
+
+        # Single-day trip: day 0 is both arrival (day 0) and departure (num_days - 1)
+        res = await use_case._optimize_single_day(
+            day=0,
+            num_days=1,
+            unvisited_pois=sample_pois_data,
+            constraints=sample_constraints,
+            city="Paris",
+            hotel_arrival_time=600,
+            hotel_departure_time=1200,
+            mandatory_names=["Louvre"],
+            matrix_dict_full=[
+                [{"duration_mins": 0, "cost_eur": 0} for _ in range(3)]
+                for _ in range(3)
+            ],
+        )
+
+        assert res is not None
+        path = res["path"]
+        # Airport should be spliced at arrival (index 0) and departure (last index)
+        assert path[0]["poi"]["name"] == "CDG Airport"
+        assert path[-1]["poi"]["name"] == "CDG Airport"
+
+        # Base time was 180 mins.
+        # Arrival dwell: 60 mins. Arrival airport transit: 40 mins.
+        # Departure dwell: 120 mins. Departure airport transit: 40 mins.
+        # Total time = 180 + 60 + 120 + 40 + 40 = 440 mins.
+        assert res["total_time_mins"] == 180 + 60 + 120 + 40 + 40
+
+        # Base cost was 70.0 EUR.
+        # Arrival transit cost: 2.50 EUR. Departure transit cost: 2.50 EUR.
+        # Total cost = 70.0 + 2.50 + 2.50 = 75.0 EUR.
+        assert res["total_cost_eur"] == 70.0 + 2.50 + 2.50

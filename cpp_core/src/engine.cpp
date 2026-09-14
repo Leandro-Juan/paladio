@@ -193,7 +193,13 @@ void dfs(int u, SearchState &state, const POI *pois,
       int rank = std::countr_zero(temp_mask);
       temp_mask &= temp_mask - 1;
       int i = sorted_pois_by_density[rank];
-      required_time_for_mandatory += pois[i].duration + min_transit_global;
+      int node_dur = pois[i].duration;
+      if (config.end_node_index.has_value() &&
+          i == config.end_node_index.value() &&
+          pois[i].type == NodeType::HOTEL) {
+        node_dur = 0;
+      }
+      required_time_for_mandatory += node_dur + min_transit_global;
     }
     if (state.current_time + required_time_for_mandatory >
         config.end_time_limit) {
@@ -368,19 +374,22 @@ void dfs(int u, SearchState &state, const POI *pois,
   int final_time = state.current_time;
   double final_score = state.current_score;
   size_t final_path_size = state.current_path_size;
+  int arrival_at_end = final_time;
 
   if (config.end_node_index.has_value() && state.current_path_size > 0) {
     int target_end = config.end_node_index.value();
     if (state.current_path[state.current_path_size - 1] != target_end) {
       int return_dur = transit_durations[u * n + target_end];
       double return_cost = transit_costs[u * n + target_end];
-      final_time += return_dur;
+      arrival_at_end = state.current_time + return_dur;
+      final_time = arrival_at_end;
       final_cost += return_cost;
 
       int idle_time = 0;
       if (final_time < pois[target_end].earliest_time) {
         idle_time = pois[target_end].earliest_time - final_time;
         final_time = pois[target_end].earliest_time;
+        arrival_at_end = pois[target_end].earliest_time;
       }
 
       if (idle_time > config.max_idle_time)
@@ -421,14 +430,41 @@ void dfs(int u, SearchState &state, const POI *pois,
                      (pois[tail_node].type == config.end_node_type.value());
   }
 
-  if (config.breakfast_deadline != -1 && !state.had_breakfast)
+  bool had_b = state.had_breakfast;
+  bool had_l = state.had_lunch;
+  bool had_d = state.had_dinner;
+  uint64_t full_visited_mask = state.visited_mask;
+
+  if (config.end_node_index.has_value() &&
+      final_path_size > static_cast<size_t>(state.current_path_size)) {
+    int target_end = config.end_node_index.value();
+    full_visited_mask |= (1ULL << density_rank[target_end]);
+
+    if (pois[target_end].is_breakfast_spot &&
+        (config.breakfast_deadline == -1 ||
+         arrival_at_end <= config.breakfast_deadline)) {
+      had_b = true;
+    }
+    if (pois[target_end].is_lunch_spot &&
+        (config.lunch_deadline == -1 ||
+         arrival_at_end <= config.lunch_deadline)) {
+      had_l = true;
+    }
+    if (pois[target_end].is_dinner_spot &&
+        (config.dinner_deadline == -1 ||
+         arrival_at_end <= config.dinner_deadline)) {
+      had_d = true;
+    }
+  }
+
+  if (config.breakfast_deadline != -1 && !had_b)
     valid_end_node = false;
-  if (config.lunch_deadline != -1 && !state.had_lunch)
+  if (config.lunch_deadline != -1 && !had_l)
     valid_end_node = false;
-  if (config.dinner_deadline != -1 && !state.had_dinner)
+  if (config.dinner_deadline != -1 && !had_d)
     valid_end_node = false;
 
-  if ((state.visited_mask & global_mandatory_mask) != global_mandatory_mask) {
+  if ((full_visited_mask & global_mandatory_mask) != global_mandatory_mask) {
     valid_end_node = false;
   }
 
@@ -468,19 +504,41 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
                                       const int *transit_durations,
                                       const double *transit_costs,
                                       const OptimizationConfig &config) {
+  if (pois.empty()) {
+    OptimizationResult empty_result;
+    empty_result.total_cost = 0.0;
+    empty_result.total_score = 0.0;
+    empty_result.total_time = 0.0;
+    return empty_result;
+  }
+
   if (pois.size() > 64) {
     throw std::invalid_argument(
         "DFS engine does not support more than 64 POIs due to bitmask limits.");
+  }
+
+  if (transit_durations == nullptr || transit_costs == nullptr) {
+    throw std::invalid_argument("Transit matrices pointers must not be null.");
+  }
+
+  int n = static_cast<int>(pois.size());
+
+  if (config.start_node_index.has_value() &&
+      (config.start_node_index.value() < 0 ||
+       config.start_node_index.value() >= n)) {
+    throw std::invalid_argument("start_node_index is out of range.");
+  }
+
+  if (config.end_node_index.has_value() &&
+      (config.end_node_index.value() < 0 ||
+       config.end_node_index.value() >= n)) {
+    throw std::invalid_argument("end_node_index is out of range.");
   }
 
   OptimizationResult best_result;
   best_result.total_score = -1.0;
   best_result.total_time = INF;
   best_result.total_cost = INF;
-
-  int n = static_cast<int>(pois.size());
-  if (n == 0)
-    return best_result;
 
   std::vector<int> sorted_pois_by_density(n);
   for (int i = 0; i < n; ++i)
@@ -564,8 +622,8 @@ OptimizationResult optimize_itinerary(const std::vector<POI> &pois,
     state.current_score = is_hotel_start ? 0.0 : pois[start_node].score;
 
     state.had_breakfast = pois[start_node].is_breakfast_spot;
-    state.had_lunch = pois[start_node].is_lunch_spot;
-    state.had_dinner = pois[start_node].is_dinner_spot;
+    state.had_lunch = false;
+    state.had_dinner = false;
     state.current_path[state.current_path_size++] = start_node;
 
     bool is_strict_meal =

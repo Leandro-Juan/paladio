@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from app.schemas.itinerary import TravelConstraints
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
-from app.infrastructure.providers.travel_data import MockTravelDataProvider
+from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 
 
 @pytest.fixture
 def use_case():
-    provider = MagicMock(spec=MockTravelDataProvider)
+    provider = MagicMock(spec=DefaultTravelDataProvider)
     provider.get_pois = AsyncMock(
         return_value=[{"location": {"latitude": 40.0, "longitude": -3.0}}]
     )

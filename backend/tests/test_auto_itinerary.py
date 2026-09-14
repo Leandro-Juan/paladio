@@ -8,7 +8,7 @@ from app.schemas.itinerary import (
 )
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
-from app.infrastructure.providers.travel_data import MockTravelDataProvider
+from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -109,7 +109,7 @@ async def test_calculate_itinerary_auto(mock_inject, mock_matrix, mock_engine):
     constraints = generate_mock_constraints_with_real_locations(city, budget)
 
     # 1. Fetch Context
-    provider = MockTravelDataProvider()
+    provider = DefaultTravelDataProvider()
     fetch_use_case = FetchTravelContextUseCase(data_provider=provider, ml_scorer=None)
 
     context = await fetch_use_case.execute(constraints)

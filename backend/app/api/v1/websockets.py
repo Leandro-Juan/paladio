@@ -28,8 +28,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     import asyncio
 
-    if hasattr(websocket.app.state, "mock_swarm_session"):
-        session = websocket.app.state.mock_swarm_session
+    if (
+        hasattr(websocket.app.state, "swarm_session")
+        and websocket.app.state.swarm_session is not None
+    ):
+        session = websocket.app.state.swarm_session
     else:
         from app.adapters.repositories.sql_user_repository import SqlUserRepository
         from app.db.session import async_session
@@ -39,24 +42,25 @@ async def websocket_endpoint(websocket: WebSocket):
         from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
         from app.infrastructure.swarm.swarm_session_manager import SwarmSessionManager
 
-        # We must keep the session open for the duration of the websocket
-        db_session = async_session()
-        user_repo = SqlUserRepository(db_session)
+        # Short-lived scoped DB sessions per operation to prevent pool starvation
+        user_repo = SqlUserRepository(session_factory=async_session)
         ml_scorer = MLScorer(
-            ml_model=websocket.app.state.ml_model,
-            ml_params=websocket.app.state.ml_params,
+            ml_model=getattr(websocket.app.state, "ml_model", None),
+            ml_params=getattr(websocket.app.state, "ml_params", None),
             user_repo=user_repo,
         )
         engine = CppOptimizationAdapter(ml_scorer=ml_scorer)
-        engine.exchange_rate = websocket.app.state.exchange_rate_usd_eur
+        engine.exchange_rate = getattr(
+            websocket.app.state, "exchange_rate_usd_eur", 1.0
+        )
 
         travel_data_provider = DefaultTravelDataProvider()
 
         adapter = SwarmSessionAdapter(
-            graph=websocket.app.state.graph,
+            graph=getattr(websocket.app.state, "graph", None),
             engine=engine,
-            ml_model=websocket.app.state.ml_model,
-            ml_params=websocket.app.state.ml_params,
+            ml_model=getattr(websocket.app.state, "ml_model", None),
+            ml_params=getattr(websocket.app.state, "ml_params", None),
             user_repo=user_repo,
             travel_data_provider=travel_data_provider,
         )
@@ -155,5 +159,3 @@ async def websocket_endpoint(websocket: WebSocket):
         writer.cancel()
         for t in stream_tasks:
             t.cancel()
-        if "db_session" in locals():
-            await db_session.close()

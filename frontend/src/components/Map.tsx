@@ -1,6 +1,7 @@
 "use client";
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -28,6 +29,39 @@ interface MapProps {
   pois: POI[];
 }
 
+/**
+ * Handles Leaflet viewport resizing and bounds adjustment without recreating the map instance.
+ */
+function MapViewportController({ pois }: { pois: POI[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || pois.length === 0) return;
+    const bounds = L.latLngBounds(pois.map(p => [p.lat, p.lng]));
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
+  }, [map, pois]);
+
+  useEffect(() => {
+    if (!map) return;
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+
+  return null;
+}
+
 export default function LeafletMap({ pois }: MapProps) {
   if (!pois || pois.length === 0) {
     return <div className="text-muted font-mono" style={{ padding: '2rem', textAlign: 'center' }}>[ NO GEODATA PROVIDED ]</div>;
@@ -43,6 +77,8 @@ export default function LeafletMap({ pois }: MapProps) {
 
   return (
     <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%', borderRadius: '4px' }} attributionControl={false}>
+      <MapViewportController pois={pois} />
+
       {/* Esri Light Gray Canvas basemap */}
       <TileLayer
         attribution='Tiles &copy; Esri'
@@ -55,19 +91,21 @@ export default function LeafletMap({ pois }: MapProps) {
         maxZoom={16}
       />
       
-      {pois.map((poi, idx) => (
-        <Marker key={idx} position={[poi.lat, poi.lng]} icon={accentIcon}>
-          <Popup>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '120px' }}>
-              <strong className="font-display" style={{ fontSize: '0.9rem' }}>{poi.name}</strong>
-              <div>
-                <PoiCategoryBadge category={poi.category} name={poi.name} size="xs" />
+      <MarkerClusterGroup chunkedLoading>
+        {pois.map((poi, idx) => (
+          <Marker key={`${poi.lat}-${poi.lng}-${idx}`} position={[poi.lat, poi.lng]} icon={accentIcon}>
+            <Popup>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '120px' }}>
+                <strong className="font-display" style={{ fontSize: '0.9rem' }}>{poi.name}</strong>
+                <div>
+                  <PoiCategoryBadge category={poi.category} name={poi.name} size="xs" />
+                </div>
+                <span className="font-mono text-xs text-muted">STOP {idx + 1}</span>
               </div>
-              <span className="font-mono text-xs text-muted">STOP {idx + 1}</span>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+            </Popup>
+          </Marker>
+        ))}
+      </MarkerClusterGroup>
 
       <Polyline positions={polyline} color="#1E3A8A" weight={3} dashArray="5, 10" />
     </MapContainer>

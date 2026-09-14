@@ -47,8 +47,8 @@ async def run_standalone_graph(
     from langchain_core.messages import HumanMessage
     from app.swarm.graph import graph
     from app.infrastructure.providers.travel_data import (
+        DefaultTravelDataProvider,
         LiveTravelDataProvider,
-        MockTravelDataProvider,
     )
     from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
     from app.infrastructure.engine.ml_scorer import MLScorer
@@ -61,7 +61,9 @@ async def run_standalone_graph(
     }
 
     use_live = os.getenv("TEST_MODE") != "1"
-    travel_provider = LiveTravelDataProvider() if use_live else MockTravelDataProvider()
+    travel_provider = (
+        LiveTravelDataProvider() if use_live else DefaultTravelDataProvider()
+    )
     ml_scorer = MLScorer(ml_model=None, ml_params=None, user_repo=None)
     engine = CppOptimizationAdapter(ml_scorer=ml_scorer)
 

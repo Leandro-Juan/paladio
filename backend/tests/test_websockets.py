@@ -18,7 +18,7 @@ class MockSwarmSession(ISwarmSession):
 @pytest.fixture
 def client():
     # No need to mock create_swarm since we mock the session directly
-    app.state.mock_swarm_session = MockSwarmSession(
+    app.state.swarm_session = MockSwarmSession(
         [
             {"event": "STARTING_INFERENCE", "status": "running"},
             {
@@ -34,8 +34,8 @@ def client():
     with TestClient(app) as c:
         yield c
 
-    if hasattr(app.state, "mock_swarm_session"):
-        delattr(app.state, "mock_swarm_session")
+    if hasattr(app.state, "swarm_session"):
+        delattr(app.state, "swarm_session")
 
 
 def test_websocket_stream_sends_progress_events(client):
@@ -82,8 +82,8 @@ def test_websocket_stream_resists_abrupt_disconnect(client):
 
 
 def test_websocket_rag_handles_none_context(client):
-    # Overwrite the mock to return none context
-    client.app.state.mock_swarm_session = MockSwarmSession(
+    # Overwrite the session to return none context
+    client.app.state.swarm_session = MockSwarmSession(
         [
             {"event": "STARTING_INFERENCE", "status": "running"},
             {"event": "RETRIEVING_CONTEXT", "status": "completed", "data": ""},

@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.schemas.rag_schema import RAGPromptAnalysis
 from app.schemas.itinerary import TravelConstraints, NodeConstraint
 from app.domain.entities.poi import Poi, ScoredPoi
-from app.engine.scoring.features import TAG_KEYS
 from app.infrastructure.engine.ml_scorer import MLScorer
 from app.swarm.agents.prompt_analyzer import prompt_analyzer_node
 from app.swarm.state import SwarmState
@@ -136,8 +135,7 @@ async def test_ml_scorer_blends_and_persists_user_tastes_aaa():
     user_repo.save_embedding.assert_called_once()
     called_user_id_emb, called_emb = user_repo.save_embedding.call_args[0]
     assert called_user_id_emb == "test_user_persistent"
-    art_idx = TAG_KEYS.index("art_culture")
-    assert called_emb[art_idx] == expected_art
+    assert len(called_emb) == 768
 
     # Check in-memory cache
     assert "test_user_persistent" in scorer._cached_user_prefs

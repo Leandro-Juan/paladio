@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
 
+class TransitRoutingError(Exception):
+    """Raised when multimodal transit routing cannot be fetched or parsed."""
+
+
 async def get_detailed_transit_leg(
     origin: dict[str, Any],
     destination: dict[str, Any],
@@ -112,18 +116,12 @@ async def get_detailed_transit_leg(
                 total_cost_eur = 0.0
 
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-        logger.warning(
-            f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}. Using pedestrian/transit estimate."
+        logger.error(
+            f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}."
         )
-        # Fallback step
-        steps = [
-            TransitStep(
-                type="walk",
-                instruction=f"Walk towards {dest_name}",
-                duration_mins=total_duration_mins,
-                distance_km=1.0,
-            )
-        ]
+        raise TransitRoutingError(
+            f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}"
+        ) from exc
 
     return TransitLeg(
         duration_mins=total_duration_mins,

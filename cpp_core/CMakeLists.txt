@@ -22,14 +22,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+option(PALADIO_ENABLE_NATIVE "Enable -march=native optimization" OFF)
+
 # Main Library
 pybind11_add_module(paladio_core src/engine.cpp src/bindings.cpp)
 target_include_directories(paladio_core PRIVATE include)
 
+set_target_properties(paladio_core PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+
 # Compiler optimizations and sanitizer flags (configurable via presets or CLI)
 target_compile_options(paladio_core PRIVATE
     $<$<CONFIG:Debug>:-g -Og -fsanitize=address>
-    $<$<CONFIG:Release>:-O3 -march=native -DNDEBUG>
+    $<$<AND:$<CONFIG:Release>,$<BOOL:${PALADIO_ENABLE_NATIVE}>>:-O3 -march=native -DNDEBUG>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<BOOL:${PALADIO_ENABLE_NATIVE}>>>:-O3 -DNDEBUG>
     $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Werror>
     $<$<CXX_COMPILER_ID:Clang>:-Weverything -Wno-c++98-compat>
 )

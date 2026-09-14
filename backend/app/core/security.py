@@ -7,9 +7,19 @@ from typing import Any
 
 import jwt
 
-SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY", "paladio-sovereign-secret-key-change-in-production"
-)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+APP_ENV = os.getenv("APP_ENV", "").lower()
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    if ENVIRONMENT == "production" or APP_ENV == "production":
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be explicitly configured in production environment."
+        )
+    SECRET_KEY = os.getenv(
+        "DEV_JWT_SECRET",
+        "paladio-dev-ephemeral-jwt-secret-key-do-not-use-in-production",
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")

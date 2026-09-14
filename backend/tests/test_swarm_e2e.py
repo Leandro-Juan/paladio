@@ -9,7 +9,7 @@ os.environ.setdefault("VALIDATOR_MODEL", "llama3.1:latest")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from app.swarm.graph import graph
-from app.infrastructure.providers.travel_data import MockTravelDataProvider
+from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 
 
 import urllib.request
@@ -67,7 +67,7 @@ async def test_full_trip_generation():
     }
 
     # Run graph with test_data injected to bypass actual scraping in CI
-    provider = MockTravelDataProvider(test_data=initial_state["test_data"])
+    provider = DefaultTravelDataProvider(test_data=initial_state["test_data"])
     final_state = await graph.ainvoke(
         initial_state,
         config={

@@ -81,6 +81,5 @@ class DefaultTravelDataProvider(TravelDataProvider):
         )
 
 
-# Backward-compatible aliases
+# Backward-compatible alias
 LiveTravelDataProvider = DefaultTravelDataProvider
-MockTravelDataProvider = DefaultTravelDataProvider

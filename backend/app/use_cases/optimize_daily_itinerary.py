@@ -170,7 +170,10 @@ class OptimizeDailyItineraryUseCase:
             "metadata": {
                 "engine": "paladio_core_cpp20",
                 "version": "2.0.0",
-                "nodes_evaluated": 1024,
+                "nodes_evaluated": sum(
+                    len(d.get("itinerary", {}).get("path", []))
+                    for d in multi_day_itinerary
+                ),
             },
             "travel_constraints": constraints.model_dump(mode="json"),
             "days": multi_day_itinerary,
@@ -293,6 +296,11 @@ class OptimizeDailyItineraryUseCase:
 
             result = itinerary.model_dump()
 
+        if "total_time_mins" not in result and "total_time" in result:
+            result["total_time_mins"] = int(result["total_time"])
+        if "total_cost_eur" not in result and "total_cost" in result:
+            result["total_cost_eur"] = float(result["total_cost"])
+
         if day == 0 and selected_airport:
             arr_mins = hotel_arrival_time - 105
             result["path"].insert(
@@ -303,6 +311,10 @@ class OptimizeDailyItineraryUseCase:
                     "scheduled_end": f"{(arr_mins + 60) // 60:02d}:{(arr_mins + 60) % 60:02d}",
                 },
             )
+            # Account for arrival airport dwell time (60 mins) and cost
+            result["total_time_mins"] = result.get("total_time_mins", 0) + 60
+            airport_cost = float(selected_airport.get("cost_eur", 0.0) or 0.0)
+            result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 
         if day == num_days - 1 and selected_airport and result["path"]:
             last_end = result["path"][-1]["scheduled_end"]
@@ -315,9 +327,16 @@ class OptimizeDailyItineraryUseCase:
                     "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
                 }
             )
+            # Account for departure airport dwell time (120 mins) and cost
+            result["total_time_mins"] = result.get("total_time_mins", 0) + 120
+            airport_cost = float(selected_airport.get("cost_eur", 0.0) or 0.0)
+            result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 
         # Enrich each step in path with detailed public transit instructions from the previous POI
-        from app.services.transit_service import get_detailed_transit_leg
+        from app.services.transit_service import (
+            TransitRoutingError,
+            get_detailed_transit_leg,
+        )
 
         path_items = result.get("path", [])
         for k in range(1, len(path_items)):
@@ -332,6 +351,13 @@ class OptimizeDailyItineraryUseCase:
             )
             dep_iso = f"{day_date.isoformat()}T{scheduled_start}"
 
+            is_airport_leg = (day == 0 and k == 1 and selected_airport) or (
+                day == num_days - 1 and k == len(path_items) - 1 and selected_airport
+            )
+
+            leg_dur = 45 if is_airport_leg else 0
+            leg_cost = 0.0
+
             try:
                 transit_leg = await get_detailed_transit_leg(
                     origin=prev_poi,
@@ -339,7 +365,21 @@ class OptimizeDailyItineraryUseCase:
                     departure_iso=dep_iso,
                 )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump()
-            except (httpx.HTTPError, ValueError, KeyError) as e:
+                if is_airport_leg:
+                    leg_dur = (
+                        transit_leg.duration_mins if transit_leg.duration_mins else 45
+                    )
+                    leg_cost = float(transit_leg.cost_eur or 0.0)
+            except (TransitRoutingError, httpx.HTTPError, ValueError, KeyError) as e:
                 logger.debug(f"Could not enrich transit leg: {e}")
+
+            if is_airport_leg:
+                result["total_time_mins"] = result.get("total_time_mins", 0) + leg_dur
+                result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + leg_cost
+
+        if "total_time" in result:
+            result["total_time"] = result["total_time_mins"]
+        if "total_cost" in result:
+            result["total_cost"] = result["total_cost_eur"]
 
         return result

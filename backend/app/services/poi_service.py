@@ -68,7 +68,20 @@ async def get_attractions_for_city(
 
         return [poi.model_dump(mode="json") for poi in pois]
 
-    first_poi_date = pois[0].metadata.scraped_at
+    meta = pois[0].metadata
+    first_poi_date = (
+        meta.scraped_at
+        if hasattr(meta, "scraped_at")
+        else (meta.get("scraped_at") if isinstance(meta, dict) else None)
+    )
+    if isinstance(first_poi_date, str):
+        try:
+            first_poi_date = datetime.fromisoformat(first_poi_date)
+        except Exception:
+            first_poi_date = datetime.now(timezone.utc)
+    elif not isinstance(first_poi_date, datetime):
+        first_poi_date = datetime.now(timezone.utc)
+
     if first_poi_date.tzinfo is None:
         first_poi_date = first_poi_date.replace(tzinfo=timezone.utc)
 

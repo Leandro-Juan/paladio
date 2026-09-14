@@ -31,7 +31,7 @@ class Location(BaseModel):
 
 
 class Scoring(BaseModel):
-    rating: float = Field(description="Rating of the hotel")
+    rating: float | None = Field(default=None, description="Rating of the attraction")
     reviews: int | None = Field(default=None, description="Number of reviews")
 
 

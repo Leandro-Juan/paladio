@@ -3,6 +3,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from app.db.models import TransitCacheStatus
 from app.engine.transit_matrix import (
@@ -191,3 +192,17 @@ async def test_get_detailed_transit_leg():
         assert leg.steps[1].transit_line == "1"
         assert leg.steps[1].headsign == "Atocha"
         assert leg.steps[2].type == "walk"
+
+
+@pytest.mark.asyncio
+async def test_get_detailed_transit_leg_failure_raises():
+    from app.services.transit_service import TransitRoutingError
+
+    origin = {"name": "Sol", "location": {"latitude": 40.4168, "longitude": -3.7038}}
+    dest = {"name": "Prado", "location": {"latitude": 40.4138, "longitude": -3.6922}}
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        with pytest.raises(TransitRoutingError):
+            await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")

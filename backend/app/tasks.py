@@ -2,6 +2,7 @@ import asyncio
 import csv
 import logging
 import os
+import re
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -158,7 +159,7 @@ def build_city_map_task(self, city_name: str):
         f"Task {self.request.id}: Starting Valhalla map and GTFS build for {city_name}"
     )
 
-    city_lower = city_name.strip().lower()
+    city_lower = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
 
     # 1. Mark cache status as BUILDING in DB
     try:
@@ -214,7 +215,16 @@ def build_city_map_task(self, city_name: str):
             urllib.request.urlretrieve(gtfs_url, zip_tmp)
 
             with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
-                zip_ref.extractall(gtfs_dest_dir)
+                target_base = os.path.abspath(gtfs_dest_dir)
+                for member in zip_ref.infolist():
+                    member_path = os.path.abspath(
+                        os.path.join(target_base, member.filename)
+                    )
+                    if os.path.commonpath([target_base, member_path]) != target_base:
+                        raise ValueError(
+                            f"Zip Slip attempt detected in member: {member.filename}"
+                        )
+                    zip_ref.extract(member, target_base)
             if os.path.exists(zip_tmp):
                 os.remove(zip_tmp)
             logger.info(f"Extracted GTFS feed into {gtfs_dest_dir}.")

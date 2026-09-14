@@ -54,7 +54,7 @@ export const useLogStore = create<LogStore>((set) => ({
         if (saved) {
           try {
             set({ logs: JSON.parse(saved) });
-          } catch (e) {}
+          } catch {}
         }
       }
     }
@@ -94,7 +94,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           return JSON.parse(saved);
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -110,7 +110,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           return JSON.parse(saved);
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -187,7 +187,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setItinerary(payload.data as unknown as OptimizationResult);
         break;
       case 'FEEDBACK_PROCESSED':
-        addLog(`> [MODEL] JAX EMBEDDINGS UPDATED FROM FEEDBACK.`);
+        addLog(`> [MODEL] PREFERENCE WEIGHTS UPDATED FROM FEEDBACK.`);
         break;
       case 'ERROR':
         setStatus('error');
@@ -229,7 +229,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       try {
         const payload: PaladioEvent = JSON.parse(event.data);
         handleEvent(payload);
-      } catch (err) {
+      } catch {
         addLog(`> [ERROR] FAILED TO PARSE INCOMING TELEMETRY.`);
       }
     };

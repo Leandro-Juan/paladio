@@ -199,6 +199,24 @@ KEYWORD_TO_TAG: dict[str, str] = {
 }
 
 
+# Pre-compiled categorical regex patterns for multi-hot tag extraction at module load time
+TAG_REGEX_MAP: dict[str, re.Pattern] = {
+    tag: re.compile(
+        rf"\b(?:{'|'.join(re.escape(kw) for kw, t in KEYWORD_TO_TAG.items() if t == tag)})\b",
+        re.IGNORECASE,
+    )
+    for tag in TAG_KEYS
+}
+
+COMPILED_KEYWORD_PATTERNS: list[tuple[re.Pattern, str, str]] = [
+    (re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE), kw, tag)
+    for kw, tag in KEYWORD_TO_TAG.items()
+]
+MARKET_STREET_PATTERN: re.Pattern = re.compile(
+    r"\bmarket\s+(?:st|street|ave|avenue|rd|road|sq|square)\b", re.IGNORECASE
+)
+
+
 class PoiEncoder:
     """
     Encodes POI dictionaries into deterministic, interpretable 16D feature vectors
@@ -222,7 +240,12 @@ class PoiEncoder:
     TAG_START_IDX: int = 8
 
     @staticmethod
-    def encode(poi: dict[str, Any]) -> np.ndarray:
+    def encode(poi: dict[str, Any] | Any) -> np.ndarray:
+        if hasattr(poi, "model_dump"):
+            poi = poi.model_dump()
+        elif not isinstance(poi, dict):
+            poi = dict(poi)
+
         features = np.zeros(PoiEncoder.FEATURE_DIM, dtype=np.float32)
 
         # 1. Cost
@@ -261,32 +284,39 @@ class PoiEncoder:
                     features[idx] = 1.0
 
         # Text keyword extraction from name and description using regex word boundaries
-        text_corpus = (
-            f"{poi.get('name', '')} {poi.get('description', '')} {category}".lower()
+        meta = poi.get("metadata")
+        meta_dict = (
+            meta
+            if isinstance(meta, dict)
+            else (meta.model_dump() if hasattr(meta, "model_dump") else {})
         )
-        for kw, tag in KEYWORD_TO_TAG.items():
+        description = (
+            (meta_dict.get("description") if isinstance(meta_dict, dict) else "")
+            or poi.get("description", "")
+            or ""
+        )
+        text_corpus = f"{poi.get('name', '')} {description} {category}".lower()
+        for pattern, kw, tag in COMPILED_KEYWORD_PATTERNS:
             if tag in TAG_KEYS:
-                # Word boundary check prevents "bar" from matching "baroque", etc.
-                pattern = rf"\b{re.escape(kw)}\b"
-                if re.search(pattern, text_corpus):
+                if pattern.search(text_corpus):
                     # Guardrail: avoid false-positive shopping when "market" is solely a street name
-                    if kw == "market" and re.search(
-                        r"\bmarket\s+(?:st|street|ave|avenue|rd|road|sq|square)\b",
-                        text_corpus,
-                    ):
+                    if kw == "market" and MARKET_STREET_PATTERN.search(text_corpus):
                         continue
                     idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
                     features[idx] = 1.0
 
         # Metadata tags list if available
-        metadata_tags = poi.get("metadata", {}).get("tags", [])
+        metadata_tags = (
+            meta_dict.get("tags", [])
+            if isinstance(meta_dict, dict)
+            else poi.get("metadata", {}).get("tags", [])
+        )
         if isinstance(metadata_tags, list):
             for t in metadata_tags:
                 t_clean = str(t).lower()
-                for kw, tag in KEYWORD_TO_TAG.items():
+                for pattern, kw, tag in COMPILED_KEYWORD_PATTERNS:
                     if tag in TAG_KEYS:
-                        pattern = rf"\b{re.escape(kw)}\b"
-                        if re.search(pattern, t_clean):
+                        if pattern.search(t_clean):
                             idx = PoiEncoder.TAG_START_IDX + TAG_KEYS.index(tag)
                             features[idx] = 1.0
 

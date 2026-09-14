@@ -49,7 +49,7 @@ class UserModel(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Store the 768D semantic vector representing user preferences
-    embedding = Column(JSONB, nullable=True)
+    embedding = Column(Vector(768), nullable=True)
 
     # Structured preferences (e.g. pace, budget, categories)
     preferences = Column(JSONB, nullable=True)

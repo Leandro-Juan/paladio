@@ -61,18 +61,25 @@ class SwarmSessionAdapter(ISwarmSession):
                 if isinstance(updated_emb, np.ndarray)
                 else list(updated_emb)
             )
-            await self.user_repo.save_embedding(user_id, updated_list)
 
-            if user_model and hasattr(self.user_repo, "update_preferences"):
-                norm_pref = normalize_user_preferences(user_model.preferences)
-                tag_weights = HybridSovereignScorer._extract_tag_weights(updated_list)
-                for idx, tag_name in enumerate(TAG_KEYS):
-                    norm_pref.tag_affinities[tag_name] = round(
-                        float(tag_weights[idx]), 3
-                    )
+            from app.engine.scoring.semantic_learning import SemanticLearningEngine
+
+            raw_pref = user_model.preferences if user_model else None
+            norm_pref = normalize_user_preferences(raw_pref)
+            tag_weights = HybridSovereignScorer._extract_tag_weights(updated_list)
+            for idx, tag_name in enumerate(TAG_KEYS):
+                norm_pref.tag_affinities[tag_name] = round(float(tag_weights[idx]), 3)
+
+            if hasattr(self.user_repo, "update_preferences"):
                 await self.user_repo.update_preferences(
                     user_id, norm_pref.model_dump(mode="json")
                 )
+
+            learning_engine = SemanticLearningEngine()
+            synthesized_768d = learning_engine.synthesize_768d_from_harmonics(
+                norm_pref.tag_affinities, dim=768
+            )
+            await self.user_repo.save_embedding(user_id, synthesized_768d)
 
             yield {"event": "FEEDBACK_PROCESSED", "status": "completed"}
             return

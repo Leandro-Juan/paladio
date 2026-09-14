@@ -21,13 +21,13 @@ class MockSwarmSession(ISwarmSession):
 @pytest.fixture
 def mock_ws_client():
     mock_session = MockSwarmSession()
-    app.state.mock_swarm_session = mock_session
+    app.state.swarm_session = mock_session
 
     with TestClient(app) as c:
         yield c, mock_session
 
-    if hasattr(app.state, "mock_swarm_session"):
-        delattr(app.state, "mock_swarm_session")
+    if hasattr(app.state, "swarm_session"):
+        delattr(app.state, "swarm_session")
 
 
 def test_websocket_token_query_param_auth(mock_ws_client):

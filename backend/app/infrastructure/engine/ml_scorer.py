@@ -204,17 +204,24 @@ class MLScorer:
                             f"Could not persist updated user preferences: {e}"
                         )
 
-                embedding_vector = [float(w_new[tag]) for tag in TAG_KEYS]
+                try:
+                    engine = await self._get_semantic_engine()
+                    v_prompt_768d = engine.synthesize_768d_from_harmonics(w_new)
+                    v_new = engine.apply_ema_update(
+                        user_768d, v_prompt_768d, gamma=alpha
+                    )
+                    user_768d = v_new
+                except Exception as e:
+                    logger.warning(f"Could not synthesize 768D vector: {e}")
+                    v_new = None
 
-                if hasattr(self.user_repo, "save_embedding"):
+                if v_new is not None and hasattr(self.user_repo, "save_embedding"):
                     try:
-                        emb_res = self.user_repo.save_embedding(
-                            user_id, embedding_vector
-                        )
+                        emb_res = self.user_repo.save_embedding(user_id, v_new)
                         if inspect.isawaitable(emb_res):
                             await emb_res
                         logger.info(
-                            f"Permanently updated and persisted ML taste affinities for user {user_id}"
+                            f"Permanently updated and persisted 768D ML taste embedding for user {user_id}"
                         )
                     except Exception as e:
                         logger.warning(f"Could not persist updated user embedding: {e}")
@@ -225,8 +232,7 @@ class MLScorer:
             )
 
         if not self.ml_model:
-            # Fallback if no model is loaded
-            return [ScoredPoi(poi=poi, score=50.0) for poi in pois]
+            raise RuntimeError("ML model is not loaded in MLScorer")
 
         # Calculate semantic affinities if 768D embeddings are present
         semantic_affinities = None
@@ -243,7 +249,7 @@ class MLScorer:
                     norm_sim = float(np.clip((sim + 1.0) / 2.0, 0.0, 1.0))
                     poi_sims.append(norm_sim)
                 else:
-                    poi_sims.append(0.5)
+                    poi_sims.append(0.0)
 
             if has_poi_embeddings:
                 semantic_affinities = poi_sims
