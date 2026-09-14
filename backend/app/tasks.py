@@ -54,7 +54,7 @@ def refresh_city_pois_task(self, city_name: str):
 
 # Open-data GTFS directories for supported cities
 CITY_GTFS_MAP = {
-    "madrid": "https://data.crtm.es/gtfs/google_transit.zip",
+    "madrid": "https://www.arcgis.com/sharing/rest/content/items/5c7f2951962540d69ffe8f640d94c246/data",
     "oporto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
     "porto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
     "paris": "https://data.iledefrance-mobilites.fr/explore/dataset/offre-horaires-tc-idf-gtfs/files/gtfs.zip",
