@@ -1,7 +1,7 @@
 from typing import Any
 
 import numpy as np
-from app.domain.entities.poi import ScoredPoi, TransitEdge
+from app.domain.entities.poi import ScoredPoi
 from app.schemas.itinerary import TravelConstraints
 from app.utils.text import is_poi_mandatory
 
@@ -102,7 +102,7 @@ def build_cpp_pois(
 
 
 def flatten_transit_matrix(
-    transit_matrix: list[list[TransitEdge]],
+    transit_matrix: list[list[Any]],
 ) -> tuple[np.ndarray, np.ndarray]:
     n = len(transit_matrix)
     durations = np.zeros(n * n, dtype=np.int32)
@@ -111,9 +111,16 @@ def flatten_transit_matrix(
         for j in range(n):
             idx = i * n + j
             if i != j:
-                edge = transit_matrix[i][j]
-                durations[idx] = edge.duration_mins
-                costs[idx] = edge.cost_eur
+                cell = transit_matrix[i][j]
+                if isinstance(cell, (tuple, list)):
+                    durations[idx] = int(cell[0])
+                    costs[idx] = float(cell[1])
+                elif isinstance(cell, dict):
+                    durations[idx] = int(cell.get("duration_mins", 0))
+                    costs[idx] = float(cell.get("cost_eur", 0.0))
+                else:
+                    durations[idx] = int(getattr(cell, "duration_mins", 0))
+                    costs[idx] = float(getattr(cell, "cost_eur", 0.0))
     return durations, costs
 
 

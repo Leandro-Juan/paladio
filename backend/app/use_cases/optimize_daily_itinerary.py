@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from app.domain.entities.poi import Poi, TransitEdge
+from app.domain.entities.poi import Poi
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
 from app.schemas.itinerary import TravelConstraints
@@ -274,15 +274,12 @@ class OptimizeDailyItineraryUseCase:
         else:
             # Map raw Dicts to Domain Entities
             domain_pois = [Poi(**p) for p in day_pois]
-            domain_matrix = [
-                [TransitEdge(**edge) for edge in row] for row in matrix_dict
-            ]
 
             try:
                 itinerary = await self.engine.run_optimization(
                     constraints=constraints,
                     pois=domain_pois,
-                    transit_matrix=domain_matrix,
+                    transit_matrix=matrix_dict,
                     num_days=num_days,
                     day_start_mins=day_start_mins,
                     day_end_mins=day_end_mins,

@@ -1,6 +1,7 @@
 import logging
+from typing import Any
 
-from app.domain.entities.poi import Itinerary, Poi, ScheduledPoi, TransitEdge
+from app.domain.entities.poi import Itinerary, Poi, ScheduledPoi, TransitMatrix
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.infrastructure.engine.ml_scorer import MLScorer
 from app.infrastructure.engine.struct_mapper import (
@@ -39,7 +40,7 @@ class CppOptimizationAdapter(IOptimizationEngine):
         self,
         constraints: TravelConstraints,
         pois: list[Poi],
-        transit_matrix: list[list[TransitEdge]],
+        transit_matrix: TransitMatrix | list[list[dict[str, Any]]],
         num_days: int = 1,
         day_start_mins: int = 480,  # Default 08:00
         day_end_mins: int = 1320,  # Default 22:00
@@ -119,5 +120,5 @@ class CppOptimizationAdapter(IOptimizationEngine):
                 total_time_mins=int(result.total_time),
                 path=path_details,
             )
-        except Exception as e:
-            raise OptimizationError(f"C++ engine failed: {e!s}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError) as e:
+            raise OptimizationError(f"C++ engine failed: {e!s}") from e

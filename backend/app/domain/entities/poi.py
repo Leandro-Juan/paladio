@@ -121,9 +121,8 @@ class ScoredPoi(BaseModel):
     score: float
 
 
-class TransitEdge(BaseModel):
-    duration_mins: int
-    cost_eur: float = 0.0
+TransitCell = tuple[int, float]  # (duration_mins, cost_eur)
+TransitMatrix = list[list[TransitCell]]
 
 
 class TransitStep(BaseModel):

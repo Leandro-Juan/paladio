@@ -27,6 +27,10 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 
+class PublicTransitCompilationError(RuntimeError):
+    """Raised when public transit compilation fails in background worker."""
+
+
 async def ensure_transit_ready(city_name: str, max_wait_secs: int = 180) -> bool:
     """
     Ensures that real public transit (GTFS + OSM) data is downloaded and compiled
@@ -85,12 +89,12 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 180) -> bool
                     return True
                 elif cache_entry.status == TransitCacheStatus.FAILED.value:
                     logger.error(f"Transit build failed in worker for '{city_name}'.")
-                    raise RuntimeError(
+                    raise PublicTransitCompilationError(
                         f"Public transit compilation failed for {city_name}."
                     )
-        except RuntimeError:
+        except PublicTransitCompilationError:
             raise
-        except (SQLAlchemyError, OSError) as db_err:
+        except (SQLAlchemyError, OSError, RuntimeError) as db_err:
             logger.warning(f"Transient error querying transit_cache: {db_err}")
             return True
 

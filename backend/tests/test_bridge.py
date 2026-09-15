@@ -1,17 +1,15 @@
 from datetime import time
 from unittest.mock import MagicMock
 
-import pytest
-from app.domain.entities.poi import Poi, TransitEdge
-from app.schemas.itinerary import MealRequirement, TravelConstraints
-
-
 import paladio_core
+import pytest
+from app.domain.entities.poi import Poi
 from app.infrastructure.engine.bridge_adapter import (
     CppOptimizationAdapter,
     OptimizationError,
 )
 from app.infrastructure.engine.struct_mapper import map_category_to_node_type
+from app.schemas.itinerary import MealRequirement, TravelConstraints
 
 
 @pytest.fixture
@@ -36,8 +34,9 @@ def mock_constraints():
 
 @pytest.fixture
 def mock_engine():
-    from app.infrastructure.engine.ml_scorer import MLScorer
     from unittest.mock import AsyncMock
+
+    from app.infrastructure.engine.ml_scorer import MLScorer
 
     ml_model = MagicMock()
     ml_model.batch_score.return_value = [[50.0] for _ in range(100)]
@@ -75,7 +74,7 @@ async def test_bridge_64_pois(mock_constraints, mock_engine):
     for i in range(n):
         row = []
         for j in range(n):
-            row.append(TransitEdge(duration_mins=500, cost_eur=500.0))
+            row.append((500, 500.0))
         transit_matrix.append(row)
 
     result = await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
@@ -93,21 +92,9 @@ async def test_bridge_transit_flattening(mock_constraints, mock_engine):
     ]
 
     transit_matrix = [
-        [
-            TransitEdge(duration_mins=0),
-            TransitEdge(duration_mins=5),
-            TransitEdge(duration_mins=999),
-        ],
-        [
-            TransitEdge(duration_mins=999),
-            TransitEdge(duration_mins=0),
-            TransitEdge(duration_mins=5),
-        ],
-        [
-            TransitEdge(duration_mins=999),
-            TransitEdge(duration_mins=999),
-            TransitEdge(duration_mins=0),
-        ],
+        [(0, 0.0), (5, 0.0), (999, 0.0)],
+        [(999, 0.0), (0, 0.0), (5, 0.0)],
+        [(999, 0.0), (999, 0.0), (0, 0.0)],
     ]
 
     result = await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)
@@ -120,9 +107,7 @@ async def test_bridge_exceeds_64_pois(mock_constraints, mock_engine):
     """Test boundary condition where exceeding 64 POIs raises an exception."""
     n = 65
     pois = [Poi(city="Rome", name=f"POI {i}", category="ATTRACTION") for i in range(n)]
-    transit_matrix = [
-        [TransitEdge(duration_mins=0, cost_eur=0.0) for _ in range(n)] for _ in range(n)
-    ]
+    transit_matrix = [[(0, 0.0) for _ in range(n)] for _ in range(n)]
 
     with pytest.raises(OptimizationError):
         await mock_engine.run_optimization(mock_constraints, pois, transit_matrix)

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
-from app.domain.entities.poi import Itinerary, Poi, TransitEdge
+from app.domain.entities.poi import Itinerary, Poi, TransitMatrix
 from app.schemas.itinerary import TravelConstraints
 
 
@@ -15,7 +16,7 @@ class IOptimizationEngine(ABC):
         self,
         constraints: TravelConstraints,
         pois: list[Poi],
-        transit_matrix: list[list[TransitEdge]],
+        transit_matrix: TransitMatrix | list[list[dict[str, Any]]],
         num_days: int = 1,
         day_start_mins: int = 480,
         day_end_mins: int = 1320,
