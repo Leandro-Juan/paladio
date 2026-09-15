@@ -1,7 +1,7 @@
 import enum
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.session import Base
@@ -91,6 +91,27 @@ class TransitCacheModel(Base):
     status = Column(String, default=TransitCacheStatus.BUILDING.value, nullable=False)
     valid_until = Column(DateTime(timezone=True), nullable=True)
     gtfs_feed_name = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+
+class CityTransitFareModel(Base):
+    __tablename__ = "city_transit_fares"
+
+    city = Column(String, primary_key=True, index=True)
+    country = Column(String, nullable=True)
+    currency = Column(String, default="EUR", nullable=False)
+    single_fare = Column(Float, nullable=False)
+    pass_24h_price = Column(Float, nullable=True)
+    pass_24h_name = Column(String, nullable=True)
+    pass_24h_includes_airport = Column(Boolean, default=False, nullable=False)
+    airport_surcharge = Column(Float, default=0.0, nullable=False)
+    airport_station_keywords = Column(JSONB, default=list, nullable=False)
+    is_estimated = Column(Boolean, default=False, nullable=False)
+    source = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

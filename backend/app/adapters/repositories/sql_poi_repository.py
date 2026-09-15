@@ -13,6 +13,7 @@ from app.schemas.scraper import (
     Metadata,
     Scoring,
 )
+from app.services.poi_pricing_service import PoiPricingService
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,9 +58,18 @@ def model_to_poi(model: AttractionModel) -> Poi:
     dur = (
         sched.get("recommended_duration_minutes", 60) if isinstance(sched, dict) else 60
     )
-    cost = fin.get("estimated_cost", 0.0) if isinstance(fin, dict) else 0.0
-    if cost is None:
-        cost = 0.0
+    raw_cost = fin.get("estimated_cost", 0.0) if isinstance(fin, dict) else 0.0
+    raw_is_estimated = fin.get("is_estimated", True) if isinstance(fin, dict) else True
+    raw_price_source = fin.get("price_source", None) if isinstance(fin, dict) else None
+
+    cost, is_estimated, price_source = PoiPricingService.resolve_poi_price(
+        poi_name=model.name,
+        city=model.city,
+        category=model.category,
+        existing_cost=raw_cost,
+        existing_is_estimated=raw_is_estimated,
+        existing_source=raw_price_source,
+    )
 
     emb = None
     if model.embedding is not None:
@@ -81,6 +91,8 @@ def model_to_poi(model: AttractionModel) -> Poi:
         metadata=meta,
         duration_mins=int(dur) if dur and int(dur) > 0 else 60,
         cost_eur=float(cost) if cost and float(cost) >= 0 else 0.0,
+        cost_is_estimated=bool(is_estimated),
+        cost_source=price_source,
         embedding=emb,
     )
 
@@ -114,7 +126,18 @@ def attraction_to_poi(attraction: Attraction, city: str = "") -> Poi:
     )
 
     dur = sched.get("recommended_duration_minutes", 60)
-    cost = fin.get("estimated_cost", 0.0) or 0.0
+    raw_cost = fin.get("estimated_cost", 0.0) or 0.0
+    raw_is_estimated = fin.get("is_estimated", True) if isinstance(fin, dict) else True
+    raw_price_source = fin.get("price_source", None) if isinstance(fin, dict) else None
+
+    cost, is_estimated, price_source = PoiPricingService.resolve_poi_price(
+        poi_name=attraction.name,
+        city=city or "",
+        category=attraction.category,
+        existing_cost=raw_cost,
+        existing_is_estimated=raw_is_estimated,
+        existing_source=raw_price_source,
+    )
 
     return Poi(
         id=attraction.id,
@@ -128,6 +151,8 @@ def attraction_to_poi(attraction: Attraction, city: str = "") -> Poi:
         metadata=_to_attr_dict(meta),
         duration_mins=int(dur) if dur and int(dur) > 0 else 60,
         cost_eur=float(cost) if cost and float(cost) >= 0 else 0.0,
+        cost_is_estimated=bool(is_estimated),
+        cost_source=price_source,
         embedding=attraction.embedding,
     )
 

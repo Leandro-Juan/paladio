@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import time
 from datetime import datetime, timezone
 
@@ -200,22 +201,57 @@ class OverpassProviderAdapter(IPoiProvider):
         fee_tag = tags.get("fee", "").lower()
         is_free = False
         estimated_cost = None
+        is_estimated = True
+        price_source = "category_benchmark_estimate"
+
         if fee_tag in ["no", "false", "0"]:
             is_free = True
             estimated_cost = 0.0
+            is_estimated = False
+            price_source = "osm_fee_tag_free"
         elif fee_tag in ["yes", "true"]:
             is_free = False
 
         charge_tag = tags.get("charge")
         if charge_tag:
             try:
-                parts = charge_tag.split()
-                nums = [float(p) for p in parts if p.replace(".", "", 1).isdigit()]
+                # Extract numeric value e.g. "15 EUR", "12 €", "8.50"
+                cleaned = re.sub(r"[^\d.]", " ", charge_tag)
+                nums = [
+                    float(p)
+                    for p in cleaned.split()
+                    if p and p.replace(".", "", 1).isdigit()
+                ]
                 if nums:
                     estimated_cost = nums[0]
                     is_free = estimated_cost == 0
+                    is_estimated = False
+                    price_source = "osm_charge_tag"
             except Exception:
                 pass
+
+        if estimated_cost is None:
+            is_estimated = True
+            if is_free:
+                estimated_cost = 0.0
+                is_estimated = False
+                price_source = "osm_fee_tag_free"
+            elif category == "museum":
+                estimated_cost = 14.00
+                price_source = "category_benchmark_estimate"
+            elif category == "monument":
+                estimated_cost = 10.00
+                price_source = "category_benchmark_estimate"
+            elif category in ["park", "viewpoint"]:
+                estimated_cost = 0.00
+                is_free = True
+                price_source = "category_benchmark_estimate"
+            elif category == "restaurant":
+                estimated_cost = 25.00
+                price_source = "category_benchmark_estimate"
+            else:
+                estimated_cost = 5.00
+                price_source = "category_benchmark_estimate"
 
         return Attraction(
             id=f"OSM-{el_type}-{osm_id}",
@@ -226,7 +262,11 @@ class OverpassProviderAdapter(IPoiProvider):
                 osm_opening_hours=opening_hours, recommended_duration_minutes=duration
             ),
             financials=AttractionFinancials(
-                is_free=is_free, estimated_cost=estimated_cost, currency="EUR"
+                is_free=is_free,
+                estimated_cost=estimated_cost,
+                currency="EUR",
+                is_estimated=is_estimated,
+                price_source=price_source,
             ),
             scoring=Scoring(rating=0.0, reviews=0),
             metadata=Metadata(

@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 from app.domain.entities.poi import TransitLeg, TransitStep
+from app.services.transit_fare_service import TransitFareService
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +109,11 @@ async def get_detailed_transit_leg(
                         )
                     )
 
-            if has_transit_step:
-                mode = "transit"
-                total_cost_eur = 1.80
-            else:
-                mode = "pedestrian"
-                total_cost_eur = 0.0
+            city_name = str(origin.get("city") or destination.get("city") or "").strip()
+            total_cost_eur, cost_is_estimated, price_source, _ = (
+                TransitFareService.calculate_transit_leg_fare(city_name, steps)
+            )
+            mode = "transit" if has_transit_step else "pedestrian"
 
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         logger.error(
@@ -126,6 +126,8 @@ async def get_detailed_transit_leg(
     return TransitLeg(
         duration_mins=total_duration_mins,
         cost_eur=total_cost_eur,
+        cost_is_estimated=cost_is_estimated,
+        price_source=price_source,
         mode=mode,
         steps=steps,
     )

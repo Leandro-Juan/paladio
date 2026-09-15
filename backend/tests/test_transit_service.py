@@ -10,8 +10,16 @@ from app.services.transit_service import (
 
 @pytest.mark.asyncio
 async def test_get_detailed_transit_leg_success():
-    origin = {"name": "Sol", "location": {"latitude": 40.4168, "longitude": -3.7038}}
-    dest = {"name": "Prado", "location": {"latitude": 40.4138, "longitude": -3.6922}}
+    origin = {
+        "name": "Sol",
+        "city": "madrid",
+        "location": {"latitude": 40.4168, "longitude": -3.7038},
+    }
+    dest = {
+        "name": "Prado",
+        "city": "madrid",
+        "location": {"latitude": 40.4138, "longitude": -3.6922},
+    }
 
     mock_resp = httpx.Response(
         200,
@@ -56,13 +64,61 @@ async def test_get_detailed_transit_leg_success():
 
         assert leg.mode == "transit"
         assert leg.duration_mins == 15
-        assert leg.cost_eur == 1.80
+        assert leg.cost_eur == 1.50
+        assert leg.cost_is_estimated is False
+        assert leg.price_source == "official_crtm_tariff"
         assert len(leg.steps) == 3
         assert leg.steps[0].type == "walk"
         assert leg.steps[1].type == "transit"
         assert leg.steps[1].transit_line == "1"
         assert leg.steps[1].headsign == "Atocha"
         assert leg.steps[2].type == "walk"
+
+
+@pytest.mark.asyncio
+async def test_get_detailed_transit_leg_unindexed_city_estimate():
+    origin = {
+        "name": "Unindexed Origin",
+        "city": "UnknownCity",
+        "location": {"latitude": 50.0, "longitude": 10.0},
+    }
+    dest = {
+        "name": "Unindexed Dest",
+        "city": "UnknownCity",
+        "location": {"latitude": 50.1, "longitude": 10.1},
+    }
+
+    mock_resp = httpx.Response(
+        200,
+        json={
+            "trip": {
+                "summary": {"time": 600, "length": 2.0},
+                "legs": [
+                    {
+                        "maneuvers": [
+                            {
+                                "instruction": "Take Bus 42",
+                                "time": 600,
+                                "length": 2.0,
+                                "transit_info": {"short_name": "42"},
+                            }
+                        ]
+                    }
+                ],
+            }
+        },
+        request=httpx.Request("POST", "http://localhost:8002/route"),
+    )
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        leg = await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")
+
+        assert leg.mode == "transit"
+        assert leg.cost_eur == 2.00
+        assert leg.cost_is_estimated is True
+        assert leg.price_source == "regional_benchmark_estimate"
 
 
 @pytest.mark.asyncio

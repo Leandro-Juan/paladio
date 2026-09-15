@@ -130,7 +130,7 @@ async def test_get_transit_matrix_multimodal():
         assert matrix[0][0]["duration_mins"] == 0
         assert matrix[0][1]["duration_mins"] == 12
         assert matrix[0][1]["mode"] == "transit"
-        assert matrix[0][1]["cost_eur"] == 1.80
+        assert matrix[0][1]["cost_eur"] == 1.50
 
         # Verify request parameters
         call_kwargs = mock_post.call_args[1]
@@ -141,8 +141,16 @@ async def test_get_transit_matrix_multimodal():
 
 @pytest.mark.asyncio
 async def test_get_detailed_transit_leg():
-    origin = {"name": "Sol", "location": {"latitude": 40.4168, "longitude": -3.7038}}
-    dest = {"name": "Prado", "location": {"latitude": 40.4138, "longitude": -3.6922}}
+    origin = {
+        "name": "Sol",
+        "city": "madrid",
+        "location": {"latitude": 40.4168, "longitude": -3.7038},
+    }
+    dest = {
+        "name": "Prado",
+        "city": "madrid",
+        "location": {"latitude": 40.4138, "longitude": -3.6922},
+    }
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -185,7 +193,9 @@ async def test_get_detailed_transit_leg():
 
         assert leg.mode == "transit"
         assert leg.duration_mins == 15
-        assert leg.cost_eur == 1.80
+        assert leg.cost_eur == 1.50
+        assert leg.cost_is_estimated is False
+        assert leg.price_source == "official_crtm_tariff"
         assert len(leg.steps) == 3
         assert leg.steps[0].type == "walk"
         assert leg.steps[1].type == "transit"

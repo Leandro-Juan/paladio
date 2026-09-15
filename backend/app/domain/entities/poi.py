@@ -50,6 +50,8 @@ class PoiFinancials(BaseModel):
     estimated_cost: float | None = None
     currency: str | None = None
     price_tier: str | None = None
+    is_estimated: bool = True
+    price_source: str | None = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -85,6 +87,8 @@ class Poi(BaseModel):
     metadata: PoiMetadata = Field(default_factory=PoiMetadata)
     duration_mins: int = 60
     cost_eur: float = 0.0
+    cost_is_estimated: bool = True
+    cost_source: str | None = None
     open_time_mins: int = 480
     close_time_mins: int = 1320
     embedding: list[float] | None = None
@@ -138,8 +142,20 @@ class TransitStep(BaseModel):
 class TransitLeg(BaseModel):
     duration_mins: int
     cost_eur: float = 0.0
+    cost_is_estimated: bool = False
+    price_source: str | None = None
     mode: str = "multimodal"  # "multimodal", "pedestrian", "transit"
     steps: list[TransitStep] = Field(default_factory=list)
+
+
+class TransitRecommendation(BaseModel):
+    type: str  # "24H_PASS_RECOMMENDED" | "SINGLE_TICKETS_OPTIMAL"
+    single_tickets_total_eur: float
+    pass_name: str | None = None
+    pass_price_eur: float | None = None
+    savings_eur: float = 0.0
+    includes_airport: bool = False
+    message: str | None = None
 
 
 class ScheduledPoi(BaseModel):
@@ -154,3 +170,4 @@ class Itinerary(BaseModel):
     total_cost_eur: float
     total_time_mins: int
     path: list[ScheduledPoi]
+    transit_recommendation: TransitRecommendation | None = None

@@ -88,6 +88,14 @@ class AttractionFinancials(BaseModel):
     currency: str | None = Field(
         default="EUR", description="Currency of the estimated cost"
     )
+    is_estimated: bool = Field(
+        default=True,
+        description="Whether this price is an estimate (True) or a verified real-world price (False)",
+    )
+    price_source: str | None = Field(
+        default=None,
+        description="Source of the price (e.g. 'osm_charge', 'wikidata_p2121', 'verified_catalog', 'category_benchmark_estimate')",
+    )
 
 
 class AttractionSchedule(BaseModel):

@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 import httpx
+from app.services.transit_fare_service import TransitFareService
 from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
@@ -158,6 +159,9 @@ async def get_transit_matrix(
         "units": "km",
     }
 
+    fare_info = TransitFareService.get_city_transit_fare(city_name)
+    transit_single_fare = fare_info.single_fare
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.post(
@@ -186,7 +190,7 @@ async def get_transit_matrix(
                         duration_secs = cell.get("time", 1800)
 
                         mode = "pedestrian" if dist_km <= 1.0 else "transit"
-                        cost = 0.0 if mode == "pedestrian" else 1.80
+                        cost = 0.0 if mode == "pedestrian" else transit_single_fare
 
                         matrix[i][j] = {
                             "duration_mins": max(1, int(duration_secs / 60)),
@@ -210,7 +214,7 @@ async def get_transit_matrix(
                     dist_km = haversine_distance(lat_i, lon_i, lat_j, lon_j)
                     if dist_km > 1.2:
                         duration = int((dist_km / 25.0 * 60) + 6)
-                        cost = 1.80
+                        cost = transit_single_fare
                         mode = "transit"
                     else:
                         duration = int(dist_km / 4.8 * 60)

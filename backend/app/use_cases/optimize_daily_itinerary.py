@@ -330,12 +330,16 @@ class OptimizeDailyItineraryUseCase:
             result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 
         # Enrich each step in path with detailed public transit instructions from the previous POI
+        from app.services.transit_fare_service import TransitFareService
         from app.services.transit_service import (
             TransitRoutingError,
             get_detailed_transit_leg,
         )
 
         path_items = result.get("path", [])
+        transit_leg_costs: list[float] = []
+        has_airport_transit = False
+
         for k in range(1, len(path_items)):
             prev_poi = path_items[k - 1].get("poi", {})
             curr_poi = path_items[k].get("poi", {})
@@ -356,12 +360,24 @@ class OptimizeDailyItineraryUseCase:
             leg_cost = 0.0
 
             try:
+                if isinstance(prev_poi, dict) and "city" not in prev_poi and city:
+                    prev_poi["city"] = city
+                if isinstance(curr_poi, dict) and "city" not in curr_poi and city:
+                    curr_poi["city"] = city
+
                 transit_leg = await get_detailed_transit_leg(
                     origin=prev_poi,
                     destination=curr_poi,
                     departure_iso=dep_iso,
                 )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump()
+                if transit_leg.cost_eur > 0:
+                    transit_leg_costs.append(transit_leg.cost_eur)
+                for step in transit_leg.steps:
+                    st_text = f"{step.station_name or ''} {step.instruction or ''} {step.headsign or ''}".lower()
+                    if TransitFareService.is_airport_station(st_text, []):
+                        has_airport_transit = True
+
                 if is_airport_leg:
                     leg_dur = (
                         transit_leg.duration_mins if transit_leg.duration_mins else 45
@@ -373,6 +389,14 @@ class OptimizeDailyItineraryUseCase:
             if is_airport_leg:
                 result["total_time_mins"] = result.get("total_time_mins", 0) + leg_dur
                 result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + leg_cost
+
+        # Evaluate 24-hour tourist pass savings advisory
+        transit_rec = TransitFareService.evaluate_daily_transit_savings(
+            city=city,
+            leg_costs=transit_leg_costs,
+            has_airport_leg=has_airport_transit,
+        )
+        result["transit_recommendation"] = transit_rec.model_dump()
 
         if "total_time" in result:
             result["total_time"] = result["total_time_mins"]
