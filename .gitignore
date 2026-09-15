@@ -72,6 +72,7 @@ TODO.txt
 BACKLOG.md
 comprehensive_audit_report.md
 CONTEXT.md
+documento_arquitectura_soberana.pdf
 future/
 prompt.txt
 important.txt
@@ -84,3 +85,11 @@ real_itinerary_output.json
 ROADMAP.md
 skills-lock.json
 docs/NOMENCLATURE.md
+*.pdf
+*.so
+frontend/playwright-report/
+frontend/test-results/
+frontend/.cache/
+backend/import_times.log
+backend/*.so
+

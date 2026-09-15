@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockPaladioWebSocket } from './test-utils';
 
 test.describe('Preference Model & Taste Vector Telemetry', () => {
   test('renders 8D affinity radar, active pace and budget, and persists preference updates', async ({ page }) => {
@@ -16,6 +17,8 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
         scenic_views: 0.5,
       },
     };
+
+    await mockPaladioWebSocket(page);
 
     await page.addInitScript(() => {
       localStorage.setItem('paladio_token', 'mock-token');
@@ -118,7 +121,7 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
 
     // Take screenshot of autonomous read-only telemetry dashboard
     await page.screenshot({
-      path: '/home/leandro/.gemini/antigravity/brain/af338d72-5951-4c93-8d89-7b2ef0802b83/preference_model_saved.png',
+      path: 'test-results/preference_model_saved.png',
     });
   });
 });

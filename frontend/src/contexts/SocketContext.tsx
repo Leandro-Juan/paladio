@@ -216,6 +216,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (wsRef.current !== ws) return;
       setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'connected');
       addLog('> [NETWORK] UPLINK ESTABLISHED WITH PALADIO GATEWAY.');
       
@@ -226,6 +227,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     ws.onmessage = (event) => {
+      if (wsRef.current !== ws) return;
       try {
         const payload: PaladioEvent = JSON.parse(event.data);
         handleEvent(payload);
@@ -235,6 +237,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     ws.onclose = (event) => {
+      if (wsRef.current !== ws) return;
       setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'disconnected');
       if (event.code !== 1000) {
         addLog(`> [NETWORK] UPLINK LOST. (CODE: ${event.code})`);
@@ -242,6 +245,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     ws.onerror = () => {
+      if (wsRef.current !== ws) return;
       setStatus('error');
       addLog('> [ERROR] WEBSOCKET CONNECTION FAILED.');
     };
@@ -249,8 +253,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
-      wsRef.current.close(1000);
+      const socket = wsRef.current;
       wsRef.current = null;
+      socket.close(1000);
     }
   }, []);
 
