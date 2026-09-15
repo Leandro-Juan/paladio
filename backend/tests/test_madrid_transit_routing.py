@@ -12,11 +12,23 @@ VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
 
 def is_valhalla_online() -> bool:
-    try:
-        resp = httpx.get(f"{VALHALLA_URL}/status", timeout=2.0)
-        return resp.status_code == 200
-    except (httpx.HTTPError, OSError):
-        return False
+    env_url = os.getenv("VALHALLA_URL")
+    if env_url:
+        urls = [env_url.rstrip("/")]
+    else:
+        urls = [
+            "http://127.0.0.1:8002",
+            "http://localhost:8002",
+            "http://valhalla:8002",
+        ]
+    for url in urls:
+        try:
+            resp = httpx.get(f"{url}/status", timeout=2.0)
+            if resp.status_code == 200:
+                return True
+        except (httpx.HTTPError, OSError):
+            continue
+    return False
 
 
 valhalla_required = pytest.mark.skipif(

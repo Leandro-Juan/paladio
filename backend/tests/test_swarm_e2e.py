@@ -17,11 +17,22 @@ import urllib.error
 
 
 def is_ollama_running():
-    try:
-        urllib.request.urlopen("http://localhost:11435/", timeout=1)
-        return True
-    except Exception:
-        return False
+    urls = [
+        os.getenv("OLLAMA_BASE_URL", "").rstrip("/"),
+        "http://127.0.0.1:11435",
+        "http://localhost:11435",
+        "http://llm:11434",
+        "http://localhost:11434",
+    ]
+    for url in urls:
+        if not url:
+            continue
+        try:
+            urllib.request.urlopen(f"{url}/", timeout=1)
+            return True
+        except Exception:
+            continue
+    return False
 
 
 @pytest.mark.asyncio

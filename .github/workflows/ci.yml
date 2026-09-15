@@ -77,6 +77,9 @@ jobs:
               await conn.close()
           asyncio.run(init())
           "
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+        working-directory: backend
       - name: Run Pytest
         run: pytest backend/tests cpp_core/tests --maxfail=5
 
