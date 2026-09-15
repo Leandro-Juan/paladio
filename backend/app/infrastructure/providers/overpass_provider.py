@@ -275,6 +275,15 @@ class OverpassProviderAdapter(IPoiProvider):
         )
 
     async def _get_city_coordinates(self, city: str) -> tuple[float, float] | None:
+        city_clean = city.strip().lower()
+        from app.use_cases.fetch_travel_context import KNOWN_CITY_CENTERS
+
+        if city_clean in KNOWN_CITY_CENTERS:
+            return KNOWN_CITY_CENTERS[city_clean]
+        for k, coords in KNOWN_CITY_CENTERS.items():
+            if k in city_clean or city_clean in k:
+                return coords
+
         global _nominatim_last_called, _nominatim_lock
         try:
             import urllib.parse

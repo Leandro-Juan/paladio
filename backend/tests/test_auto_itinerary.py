@@ -101,15 +101,113 @@ def mock_inject_slack(matrix, slack_factor):
     "app.use_cases.optimize_daily_itinerary.inject_slack_time",
     side_effect=mock_inject_slack,
 )
-async def test_calculate_itinerary_auto(mock_inject, mock_matrix, mock_engine):
+@patch("httpx.AsyncClient.get")
+async def test_calculate_itinerary_auto(
+    mock_http_get, mock_inject, mock_matrix, mock_engine
+):
     city = "Paris"
     budget = 1000.0
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = [{"lat": "48.8675", "lon": "2.3294"}]
+    mock_http_get.return_value = mock_resp
 
     # Automatically generate constraints with real hotel/airport locations
     constraints = generate_mock_constraints_with_real_locations(city, budget)
 
-    # 1. Fetch Context
-    provider = DefaultTravelDataProvider()
+    # 1. Fetch Context with hermetic test data
+    mock_pois = [
+        {
+            "name": "Eiffel Tower",
+            "city": "Paris",
+            "category": "ATTRACTION",
+            "location": {"latitude": 48.8584, "longitude": 2.2945},
+            "schedule": {
+                "open_time_mins": 540,
+                "close_time_mins": 1380,
+                "recommended_duration_minutes": 120,
+            },
+            "financials": {"estimated_cost": 25.0},
+        },
+        {
+            "name": "Louvre Museum",
+            "city": "Paris",
+            "category": "MUSEUM",
+            "location": {"latitude": 48.8606, "longitude": 2.3376},
+            "schedule": {
+                "open_time_mins": 540,
+                "close_time_mins": 1080,
+                "recommended_duration_minutes": 180,
+            },
+            "financials": {"estimated_cost": 17.0},
+        },
+        {
+            "name": "Notre-Dame Cathedral",
+            "city": "Paris",
+            "category": "HISTORIC",
+            "location": {"latitude": 48.8530, "longitude": 2.3499},
+            "schedule": {
+                "open_time_mins": 480,
+                "close_time_mins": 1140,
+                "recommended_duration_minutes": 90,
+            },
+            "financials": {"estimated_cost": 0.0},
+        },
+        {
+            "name": "Arc de Triomphe",
+            "city": "Paris",
+            "category": "HISTORIC",
+            "location": {"latitude": 48.8738, "longitude": 2.2950},
+            "schedule": {
+                "open_time_mins": 600,
+                "close_time_mins": 1380,
+                "recommended_duration_minutes": 60,
+            },
+            "financials": {"estimated_cost": 13.0},
+        },
+        {
+            "name": "Musée d'Orsay",
+            "city": "Paris",
+            "category": "MUSEUM",
+            "location": {"latitude": 48.8600, "longitude": 2.3266},
+            "schedule": {
+                "open_time_mins": 570,
+                "close_time_mins": 1080,
+                "recommended_duration_minutes": 120,
+            },
+            "financials": {"estimated_cost": 16.0},
+        },
+        {
+            "name": "Sacré-Cœur",
+            "city": "Paris",
+            "category": "HISTORIC",
+            "location": {"latitude": 48.8867, "longitude": 2.3431},
+            "schedule": {
+                "open_time_mins": 360,
+                "close_time_mins": 1350,
+                "recommended_duration_minutes": 60,
+            },
+            "financials": {"estimated_cost": 0.0},
+        },
+    ]
+    mock_restaurants = [
+        {
+            "name": "Le Bouillon Chartier",
+            "city": "Paris",
+            "category": "RESTAURANT",
+            "location": {"latitude": 48.8718, "longitude": 2.3429},
+            "schedule": {
+                "open_time_mins": 690,
+                "close_time_mins": 1440,
+                "recommended_duration_minutes": 60,
+            },
+            "financials": {"estimated_cost": 20.0},
+        }
+    ]
+    provider = DefaultTravelDataProvider(
+        test_data={"pois": mock_pois, "restaurants": mock_restaurants}
+    )
     fetch_use_case = FetchTravelContextUseCase(data_provider=provider, ml_scorer=None)
 
     context = await fetch_use_case.execute(constraints)

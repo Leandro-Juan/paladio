@@ -6,6 +6,51 @@ from app.schemas.itinerary import TravelConstraints
 logger = logging.getLogger(__name__)
 
 
+KNOWN_CITY_CENTERS: dict[str, tuple[float, float]] = {
+    "paris": (48.8566, 2.3522),
+    "rome": (41.9028, 12.4964),
+    "madrid": (40.4168, -3.7038),
+    "barcelona": (41.3851, 2.1734),
+    "london": (51.5074, -0.1278),
+    "berlin": (52.5200, 13.4050),
+    "amsterdam": (52.3676, 4.9041),
+    "new york": (40.7128, -74.0060),
+    "tokyo": (35.6762, 139.6503),
+    "lisbon": (38.7223, -9.1393),
+    "vienna": (48.2082, 16.3738),
+    "prague": (50.0755, 14.4378),
+    "milan": (45.4642, 9.1900),
+    "florence": (43.7696, 11.2558),
+    "venice": (45.4408, 12.3155),
+    "seville": (37.3891, -5.9845),
+    "valencia": (39.4699, -0.3763),
+    "munich": (48.1351, 11.5820),
+    "dublin": (53.3498, -6.2603),
+    "brussels": (50.8503, 4.3517),
+}
+
+KNOWN_AIRPORT_COORDINATES: dict[str, tuple[float, float]] = {
+    "cdg": (49.0097, 2.5479),
+    "ory": (48.7262, 2.3652),
+    "mad": (40.4839, -3.5680),
+    "bcn": (41.2974, 2.0833),
+    "fco": (41.8003, 12.2389),
+    "cia": (41.7999, 12.5949),
+    "lhr": (51.4700, -0.4543),
+    "lgw": (51.1537, -0.1821),
+    "jfk": (40.6413, -73.7781),
+    "ewr": (40.6895, -74.1745),
+    "lga": (40.7769, -73.8740),
+    "ber": (52.3667, 13.5033),
+    "ams": (52.3105, 4.7683),
+    "lis": (38.7742, -9.1342),
+    "vie": (48.1103, 16.5697),
+    "prg": (50.1008, 14.2600),
+    "mxp": (45.6301, 8.7255),
+    "lin": (45.4451, 9.2767),
+}
+
+
 class FetchTravelContextUseCase:
     """
     Use Case responsible for fetching and formatting all travel context
@@ -69,28 +114,39 @@ class FetchTravelContextUseCase:
             center_lon = db_pois[0]["location"].get("longitude")
 
         if center_lat is None or center_lon is None:
-            try:
-                import urllib.parse
+            city_clean = city.strip().lower()
+            if city_clean in KNOWN_CITY_CENTERS:
+                center_lat, center_lon = KNOWN_CITY_CENTERS[city_clean]
+            else:
+                try:
+                    import urllib.parse
 
-                import httpx
+                    import httpx
 
-                query = urllib.parse.quote(city)
-                url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(
-                        url, headers={"User-Agent": "PaladioApp/1.0"}
+                    query = urllib.parse.quote(city)
+                    url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            url, headers={"User-Agent": "PaladioApp/1.0"}
+                        )
+                        if resp.status_code == 200 and resp.json():
+                            data = resp.json()[0]
+                            center_lat = float(data["lat"])
+                            center_lon = float(data["lon"])
+                except Exception as e:
+                    logger.warning(f"Failed to geocode {city}: {e}")
+
+                if center_lat is None or center_lon is None:
+                    # Partial match in known centers as final fallback
+                    for k, (klat, klon) in KNOWN_CITY_CENTERS.items():
+                        if k in city_clean or city_clean in k:
+                            center_lat, center_lon = klat, klon
+                            break
+
+                if center_lat is None or center_lon is None:
+                    raise RuntimeError(
+                        f"Could not geocode destination city: {city}. Missing data."
                     )
-                    if resp.status_code == 200 and resp.json():
-                        data = resp.json()[0]
-                        center_lat = float(data["lat"])
-                        center_lon = float(data["lon"])
-            except Exception as e:
-                logger.warning(f"Failed to geocode {city}: {e}")
-
-            if center_lat is None or center_lon is None:
-                raise RuntimeError(
-                    f"Could not geocode destination city: {city}. Missing data."
-                )
 
         # 2. Extract Anchors & Geocode
         booking_anchors = constraints.booking_anchors
@@ -110,7 +166,7 @@ class FetchTravelContextUseCase:
 
                 q = urllib.parse.quote(query)
                 url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=5.0) as client:
                     resp = await client.get(
                         url, headers={"User-Agent": "PaladioApp/1.0"}
                     )
@@ -137,31 +193,38 @@ class FetchTravelContextUseCase:
         if outbound_flight:
             iata = outbound_flight.destination_iata
             airport_name = f"{iata} Airport"
-            query = f"{iata} airport"
-            try:
-                import urllib.parse
+            iata_clean = iata.strip().lower()
+            if iata_clean in KNOWN_AIRPORT_COORDINATES:
+                airport_lat, airport_lon = KNOWN_AIRPORT_COORDINATES[iata_clean]
+                logger.info(
+                    f"Resolved airport {iata} from known coordinates: {airport_lat}, {airport_lon}"
+                )
+            else:
+                query = f"{iata} airport"
+                try:
+                    import urllib.parse
 
-                import httpx
+                    import httpx
 
-                q = urllib.parse.quote(query)
-                url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(
-                        url, headers={"User-Agent": "PaladioApp/1.0"}
-                    )
-                    if resp.status_code == 200 and resp.json():
-                        data = resp.json()[0]
-                        airport_lat = float(data["lat"])
-                        airport_lon = float(data["lon"])
-                        logger.info(
-                            f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
+                    q = urllib.parse.quote(query)
+                    url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            url, headers={"User-Agent": "PaladioApp/1.0"}
                         )
-                    else:
-                        logger.warning(
-                            f"Nominatim returned no results for airport: {query}"
-                        )
-            except Exception as e:
-                logger.warning(f"Failed to geocode airport {iata}: {e}")
+                        if resp.status_code == 200 and resp.json():
+                            data = resp.json()[0]
+                            airport_lat = float(data["lat"])
+                            airport_lon = float(data["lon"])
+                            logger.info(
+                                f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
+                            )
+                        else:
+                            logger.warning(
+                                f"Nominatim returned no results for airport: {query}"
+                            )
+                except Exception as e:
+                    logger.warning(f"Failed to geocode airport {iata}: {e}")
 
         # Calculate trip duration strictly from real dates
         if not constraints.start_date or not constraints.end_date:
