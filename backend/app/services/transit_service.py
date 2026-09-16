@@ -131,3 +131,114 @@ async def get_detailed_transit_leg(
         mode=mode,
         steps=steps,
     )
+
+
+def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    import math
+
+    r = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return r * c
+
+
+def synthesize_fallback_transit_leg(
+    origin: dict[str, Any],
+    destination: dict[str, Any],
+    city: str | None = None,
+) -> TransitLeg:
+    """
+    Synthesizes a realistic fallback transit leg with step-by-step instructions
+    when Valhalla is unavailable or the route cannot be resolved.
+    """
+    orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
+    orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+    orig_name = origin.get("name", "Origin")
+
+    dest_lat = destination.get("location", {}).get(
+        "latitude", destination.get("lat", 0.0)
+    )
+    dest_lon = destination.get("location", {}).get(
+        "longitude", destination.get("lon", 0.0)
+    )
+    dest_name = destination.get("name", "Destination")
+
+    dist_km = 0.5
+    if orig_lat and orig_lon and dest_lat and dest_lon:
+        try:
+            dist_km = calculate_haversine_km(
+                float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+            )
+        except (ValueError, TypeError):
+            dist_km = 0.5
+
+    city_name = str(city or origin.get("city") or destination.get("city") or "").strip()
+
+    # If distance < 1.2 km: Pedestrian walk
+    if dist_km < 1.2:
+        dur_mins = max(4, int(dist_km / 4.5 * 60))
+        dist_m = int(dist_km * 1000)
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Walk approx {dist_m}m to {dest_name}",
+                duration_mins=dur_mins,
+                distance_km=round(dist_km, 2),
+            )
+        ]
+        return TransitLeg(
+            duration_mins=dur_mins,
+            cost_eur=0.0,
+            cost_is_estimated=False,
+            price_source="pedestrian_walk",
+            mode="pedestrian",
+            steps=steps,
+        )
+
+    # If distance >= 1.2 km: Multimodal transit route
+    dur_mins = max(12, int(dist_km / 22.0 * 60) + 8)
+    walk1_dist = round(min(0.4, dist_km * 0.1), 2)
+    walk2_dist = round(min(0.3, dist_km * 0.08), 2)
+    transit_dist = round(max(0.5, dist_km - walk1_dist - walk2_dist), 2)
+
+    fare_info = TransitFareService.get_city_transit_fare(city_name)
+    fare = fare_info.single_fare if fare_info else 1.80
+
+    steps = [
+        TransitStep(
+            type="walk",
+            instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
+            duration_mins=5,
+            distance_km=walk1_dist,
+        ),
+        TransitStep(
+            type="transit_board",
+            instruction=f"Board public transit towards {dest_name}",
+            duration_mins=max(7, dur_mins - 9),
+            distance_km=transit_dist,
+            transit_line="Transit",
+            headsign=dest_name,
+        ),
+        TransitStep(
+            type="transit_alight",
+            instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
+            duration_mins=4,
+            distance_km=walk2_dist,
+        ),
+    ]
+
+    return TransitLeg(
+        duration_mins=dur_mins,
+        cost_eur=fare,
+        cost_is_estimated=True,
+        price_source="estimated_city_transit_fare",
+        mode="transit",
+        steps=steps,
+    )

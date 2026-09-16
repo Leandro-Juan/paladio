@@ -30,25 +30,58 @@ export interface Poi {
     scoring?: PoiScoring;
 }
 
+export interface TransitStep {
+    type: 'walk' | 'transit' | 'transit_board' | 'transit_alight' | 'transfer' | string;
+    instruction: string;
+    duration_mins: number;
+    distance_km: number;
+    transit_line?: string | null;
+    headsign?: string | null;
+    station_name?: string | null;
+}
+
+export interface TransitLeg {
+    duration_mins: number;
+    cost_eur: number;
+    cost_is_estimated: boolean;
+    price_source?: string | null;
+    mode: 'transit' | 'pedestrian' | 'multimodal' | string;
+    steps: TransitStep[];
+}
+
+export interface TransitRecommendation {
+    type: '24H_PASS_RECOMMENDED' | 'SINGLE_TICKETS_OPTIMAL' | string;
+    single_tickets_total_eur: number;
+    pass_name?: string | null;
+    pass_price_eur?: number | null;
+    savings_eur: number;
+    includes_airport: boolean;
+    message?: string | null;
+}
+
 export interface ScheduledPoi {
     poi: Poi;
-    arrival_time_mins: number;
-    departure_time_mins: number;
-    arrival_time: string;
-    departure_time: string;
+    arrival_time_mins?: number;
+    departure_time_mins?: number;
+    arrival_time?: string;
+    departure_time?: string;
     scheduled_start?: string;
     scheduled_end?: string;
-    travel_time_mins_from_prev: number;
-    cost_from_prev: number;
+    travel_time_mins_from_prev?: number;
+    cost_from_prev?: number;
+    transit_from_previous?: TransitLeg | null;
 }
 
 export interface DailyItinerary {
-    day_index: number;
+    day_index?: number;
     path: ScheduledPoi[];
-    total_cost: number;
-    total_duration_mins: number;
-    is_valid: boolean;
-    constraint_violations: string[];
+    total_cost?: number;
+    total_cost_eur?: number;
+    total_duration_mins?: number;
+    total_time_mins?: number;
+    is_valid?: boolean;
+    constraint_violations?: string[];
+    transit_recommendation?: TransitRecommendation | null;
 }
 
 export interface FlightInfo {

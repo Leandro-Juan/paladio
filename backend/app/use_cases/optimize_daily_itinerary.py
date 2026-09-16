@@ -334,6 +334,7 @@ class OptimizeDailyItineraryUseCase:
         from app.services.transit_service import (
             TransitRoutingError,
             get_detailed_transit_leg,
+            synthesize_fallback_transit_leg,
         )
 
         path_items = result.get("path", [])
@@ -384,7 +385,22 @@ class OptimizeDailyItineraryUseCase:
                     )
                     leg_cost = float(transit_leg.cost_eur or 0.0)
             except (TransitRoutingError, httpx.HTTPError, ValueError, KeyError) as e:
-                logger.debug(f"Could not enrich transit leg: {e}")
+                logger.debug(
+                    f"Could not enrich transit leg from Valhalla: {e}. Using resilient fallback."
+                )
+                transit_leg = synthesize_fallback_transit_leg(
+                    origin=prev_poi,
+                    destination=curr_poi,
+                    city=city,
+                )
+                path_items[k]["transit_from_previous"] = transit_leg.model_dump()
+                if transit_leg.cost_eur > 0:
+                    transit_leg_costs.append(transit_leg.cost_eur)
+                if is_airport_leg:
+                    leg_dur = (
+                        transit_leg.duration_mins if transit_leg.duration_mins else 45
+                    )
+                    leg_cost = float(transit_leg.cost_eur or 0.0)
 
             if is_airport_leg:
                 result["total_time_mins"] = result.get("total_time_mins", 0) + leg_dur

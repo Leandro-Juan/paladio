@@ -5,7 +5,7 @@ import Link from 'next/link';
 import MapLoader from '@/components/MapLoader';
 import { TripTimeline } from '@/components/TripTimeline';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
-import { OptimizationResult } from '@/types/domain';
+import { OptimizationResult, TransitLeg, TransitRecommendation } from '@/types/domain';
 
 interface RouteItineraryData {
   metadata?: {
@@ -35,8 +35,10 @@ interface RouteItineraryData {
         arrival_time?: string;
         scheduled_start?: string;
         departure_time?: string;
+        transit_from_previous?: TransitLeg | null;
       }>;
       total_cost?: number;
+      transit_recommendation?: TransitRecommendation | null;
     };
   }>;
   pois?: Array<{
