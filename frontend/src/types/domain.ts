@@ -47,6 +47,7 @@ export interface TransitLeg {
     price_source?: string | null;
     mode: 'transit' | 'pedestrian' | 'multimodal' | string;
     steps: TransitStep[];
+    airport_surcharge_eur?: number;
 }
 
 export interface TransitRecommendation {

@@ -18,8 +18,10 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
     duration_mins = 0,
     cost_eur = 0,
     cost_is_estimated = false,
+    price_source,
     mode = 'multimodal',
     steps = [],
+    airport_surcharge_eur = 0,
   } = transitLeg;
 
   // Extract unique transit lines from steps (e.g. Line 1, Line 10)
@@ -51,6 +53,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
   return (
     <div
       data-testid="transit-leg-view"
+      title={originName && destinationName ? `${originName} → ${destinationName}` : undefined}
       style={{
         margin: '0.5rem 0 1rem 1.75rem',
         padding: '0.6rem 0.85rem',
@@ -119,6 +122,37 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
             </span>
           ) : (
             <span style={{ color: '#16A34A', fontWeight: 600 }}>FREE</span>
+          )}
+
+          {airport_surcharge_eur > 0 && (
+            <span
+              data-testid="airport-surcharge-badge"
+              style={{
+                fontSize: '0.65rem',
+                background: '#DBEAFE',
+                color: '#1E40AF',
+                border: '1px solid #93C5FD',
+                padding: '1px 5px',
+                borderRadius: '3px',
+                fontWeight: 600,
+                letterSpacing: '0.3px',
+              }}
+            >
+              +{airport_surcharge_eur.toFixed(2)} € AIRPORT SURCHARGE INCLUDED
+            </span>
+          )}
+
+          {price_source && price_source.startsWith('official_') && (
+            <span
+              data-testid="official-tariff-source"
+              style={{
+                fontSize: '0.65rem',
+                color: 'var(--color-text-muted)',
+                fontStyle: 'italic',
+              }}
+            >
+              Official {price_source.replace('official_', '').replace(/_/g, ' ').toUpperCase()} tariff
+            </span>
           )}
 
           {cost_is_estimated && (

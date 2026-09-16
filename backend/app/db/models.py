@@ -3,6 +3,7 @@ import enum
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import synonym
 
 from app.db.session import Base
 
@@ -101,19 +102,95 @@ class TransitCacheModel(Base):
 class CityTransitFareModel(Base):
     __tablename__ = "city_transit_fares"
 
-    city = Column(String, primary_key=True, index=True)
+    city_name = Column("city", String, primary_key=True, index=True)
     country = Column(String, nullable=True)
     currency = Column(String, default="EUR", nullable=False)
-    single_fare = Column(Float, nullable=False)
-    pass_24h_price = Column(Float, nullable=True)
-    pass_24h_name = Column(String, nullable=True)
+    agency_name = Column(String, nullable=True)
+    single_fare_eur = Column("single_fare", Float, nullable=False, default=2.0)
+    day_pass_fare_eur = Column("pass_24h_price", Float, nullable=True)
+    day_pass_name = Column("pass_24h_name", String, nullable=True)
     pass_24h_includes_airport = Column(Boolean, default=False, nullable=False)
-    airport_surcharge = Column(Float, default=0.0, nullable=False)
+    airport_surcharge_eur = Column(
+        "airport_surcharge", Float, default=0.0, nullable=False
+    )
     airport_station_keywords = Column(JSONB, default=list, nullable=False)
+    source = Column("source", String, nullable=True)
     is_estimated = Column(Boolean, default=False, nullable=False)
-    source = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+    # Property getters, setters and synonyms for backward compatibility
+    @property
+    def city(self) -> str:
+        return self.city_name
+
+    @city.setter
+    def city(self, val: str):
+        self.city_name = val
+
+    city = synonym("city_name", descriptor=property(city.fget, city.fset))
+
+    @property
+    def single_fare(self) -> float:
+        return self.single_fare_eur
+
+    @single_fare.setter
+    def single_fare(self, val: float):
+        self.single_fare_eur = val
+
+    single_fare = synonym(
+        "single_fare_eur", descriptor=property(single_fare.fget, single_fare.fset)
+    )
+
+    @property
+    def pass_24h_price(self) -> float | None:
+        return self.day_pass_fare_eur
+
+    @pass_24h_price.setter
+    def pass_24h_price(self, val: float | None):
+        self.day_pass_fare_eur = val
+
+    pass_24h_price = synonym(
+        "day_pass_fare_eur",
+        descriptor=property(pass_24h_price.fget, pass_24h_price.fset),
+    )
+
+    @property
+    def pass_24h_name(self) -> str | None:
+        return self.day_pass_name
+
+    @pass_24h_name.setter
+    def pass_24h_name(self, val: str | None):
+        self.day_pass_name = val
+
+    pass_24h_name = synonym(
+        "day_pass_name", descriptor=property(pass_24h_name.fget, pass_24h_name.fset)
+    )
+
+    @property
+    def airport_surcharge(self) -> float:
+        return self.airport_surcharge_eur
+
+    @airport_surcharge.setter
+    def airport_surcharge(self, val: float):
+        self.airport_surcharge_eur = val
+
+    airport_surcharge = synonym(
+        "airport_surcharge_eur",
+        descriptor=property(airport_surcharge.fget, airport_surcharge.fset),
+    )
+
+    @property
+    def source_url(self) -> str | None:
+        return self.source
+
+    @source_url.setter
+    def source_url(self, val: str | None):
+        self.source = val
+
+    source_url = synonym(
+        "source", descriptor=property(source_url.fget, source_url.fset)
     )

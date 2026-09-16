@@ -1,6 +1,13 @@
+from unittest.mock import AsyncMock, patch
+
+import httpx
+import pytest
 from app.domain.entities.poi import TransitStep
 from app.services.poi_pricing_service import PoiPricingService
-from app.services.transit_fare_service import TransitFareService
+from app.services.transit_fare_service import (
+    TransitFareExtractionSchema,
+    TransitFareService,
+)
 
 # ============================================================================
 # 1. Real-World Public Transit Tariffs for 5 Cities
@@ -241,3 +248,157 @@ def test_poi_real_world_pricing_five_cities():
     )
     assert trevi_cost == 0.00
     assert trevi_est is False
+
+
+# ============================================================================
+# 6. Acceptance Criteria Tests (MAD Airport Leg, Ollama Mock, Fallback, Cache)
+# ============================================================================
+
+
+def test_calculate_transit_leg_fare_mad_airport_to_sol():
+    """Verify MAD Airport -> Sol correctly yields total_cost == 4.50 and airport_surcharge_eur == 3.00."""
+    origin = {
+        "category": "AIRPORT",
+        "name": "Madrid-Barajas Airport T4",
+        "city": "madrid",
+    }
+    destination = {
+        "category": "SQUARE",
+        "name": "Puerta del Sol",
+        "city": "madrid",
+    }
+    steps = [
+        TransitStep(type="walk", instruction="Walk to station", duration_mins=5),
+        TransitStep(
+            type="transit",
+            instruction="Board Metro Line 8",
+            duration_mins=15,
+            transit_line="8",
+            station_name="Aeropuerto T4",
+        ),
+        TransitStep(
+            type="transit_alight",
+            instruction="Alight at Nuevos Ministerios",
+            duration_mins=2,
+        ),
+    ]
+    res = TransitFareService.calculate_transit_leg_fare(
+        "madrid", steps, origin=origin, destination=destination, is_airport_leg=True
+    )
+    assert res.total_cost == 4.50
+    assert res.airport_surcharge_eur == 3.00
+    assert res.has_airport is True
+    assert res.cost_is_estimated is False
+    assert res.price_source == "official_crtm_tariff"
+
+
+@pytest.mark.asyncio
+async def test_ollama_json_schema_parsing_mocked():
+    """Verify Ollama JSON schema parsing using a mocked web context response for deterministic CI runs."""
+    sample_context = (
+        "In Munich, the MVV operates the transit system. A single ticket for Zone M costs 3.90 EUR. "
+        "A single day ticket (Tageskarte) is 9.20 EUR. The airport is located in zone 5 and requires "
+        "an Airport-City-Day-Ticket or an airport supplement of 13.00 EUR. Keyword: Flughafen."
+    )
+    mock_extracted = TransitFareExtractionSchema(
+        agency_name="MVV",
+        single_fare_eur=3.90,
+        day_pass_name="Tageskarte",
+        day_pass_fare_eur=9.20,
+        airport_surcharge_eur=13.00,
+        airport_station_keywords=["Flughafen München", "Airport"],
+        source_url="https://www.mvv-muenchen.de",
+    )
+
+    with (
+        patch.object(
+            TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
+        ) as mock_fetch,
+        patch.object(
+            TransitFareService, "extract_fare_with_ollama", new_callable=AsyncMock
+        ) as mock_extract,
+        patch.object(
+            TransitFareService, "_lookup_db", new_callable=AsyncMock
+        ) as mock_lookup_db,
+        patch.object(TransitFareService, "persist_fare_to_db", new_callable=AsyncMock),
+    ):
+        mock_lookup_db.return_value = None
+        mock_fetch.return_value = sample_context
+        mock_extract.return_value = mock_extracted
+
+        test_city = "mock_munich_extract"
+        TransitFareService.get_cache().invalidate(test_city)
+
+        try:
+            fare = await TransitFareService.resolve_city_transit_fare(test_city)
+            assert fare.agency_name == "MVV"
+            assert fare.single_fare == 3.90
+            assert fare.pass_24h_price == 9.20
+            assert fare.airport_surcharge == 13.00
+            assert fare.is_estimated is False
+            assert fare.source == "official_mvv"
+        finally:
+            TransitFareService.get_cache().invalidate(test_city)
+
+
+@pytest.mark.asyncio
+async def test_graceful_fallback_behavior_on_network_error():
+    """Verify graceful fallback behavior (is_estimated = True) when web extraction simulates timeout."""
+    with patch.object(
+        TransitFareService,
+        "fetch_wikivoyage_transit_text",
+        side_effect=httpx.TimeoutException("Connection timed out"),
+    ):
+        TransitFareService.get_cache().invalidate("atlantis_unindexed_city")
+        fare = await TransitFareService.resolve_city_transit_fare(
+            "atlantis_unindexed_city"
+        )
+        assert fare.is_estimated is True
+        assert fare.source == "regional_benchmark_estimate"
+        assert fare.single_fare == 2.00
+        assert fare.pass_24h_price == 8.00
+        assert fare.airport_surcharge == 3.00
+
+
+@pytest.mark.asyncio
+async def test_database_persistence_and_cache_hits_on_repeated_lookups():
+    """Verify in-memory cache hits on repeated lookups without redundant network calls."""
+    cache = TransitFareService.get_cache()
+    test_city = "valencia_test_city"
+    cache.invalidate(test_city)
+
+    with (
+        patch.object(
+            TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
+        ) as mock_fetch,
+        patch.object(
+            TransitFareService, "extract_fare_with_ollama", new_callable=AsyncMock
+        ) as mock_extract,
+        patch.object(
+            TransitFareService, "_lookup_db", new_callable=AsyncMock
+        ) as mock_lookup_db,
+        patch.object(TransitFareService, "persist_fare_to_db", new_callable=AsyncMock),
+    ):
+        mock_lookup_db.return_value = None
+        mock_fetch.return_value = "Transit text for Valencia"
+        mock_extract.return_value = TransitFareExtractionSchema(
+            agency_name="EMT Valencia",
+            single_fare_eur=1.50,
+            day_pass_name="Valencia Card",
+            day_pass_fare_eur=15.00,
+            airport_surcharge_eur=3.00,
+            airport_station_keywords=["Aeroport"],
+            source_url="https://www.emtvalencia.es",
+        )
+
+        try:
+            fare1 = await TransitFareService.resolve_city_transit_fare(test_city)
+            assert fare1.single_fare == 1.50
+            assert mock_fetch.call_count == 1
+
+            # Second lookup hits cache directly
+            fare2 = await TransitFareService.resolve_city_transit_fare(test_city)
+            assert fare2.single_fare == 1.50
+            assert mock_fetch.call_count == 1
+        finally:
+            cache.invalidate(test_city)

@@ -82,6 +82,14 @@ class FetchTravelContextUseCase:
         # 1. Fetch POIs
         db_pois = await self.data_provider.get_pois(city, mandatory_names)
 
+        # 1.1 Pre-warm destination city transit fare
+        try:
+            from app.services.transit_fare_service import TransitFareService
+
+            await TransitFareService.prewarm_city_fare(city)
+        except (RuntimeError, ValueError, KeyError, OSError, TimeoutError) as tf_err:
+            logger.debug(f"Prewarming transit fare for '{city}' failed: {tf_err}")
+
         # 1.5 Score POIs with ML Model to provide true user affinity before spatial clustering
         if self.ml_scorer and db_pois:
             from app.domain.entities.poi import Poi
@@ -133,7 +141,14 @@ class FetchTravelContextUseCase:
                             data = resp.json()[0]
                             center_lat = float(data["lat"])
                             center_lon = float(data["lon"])
-                except Exception as e:
+                except (
+                    httpx.HTTPError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    RuntimeError,
+                    OSError,
+                ) as e:
                     logger.warning(f"Failed to geocode {city}: {e}")
 
                 if center_lat is None or center_lon is None:
@@ -181,7 +196,14 @@ class FetchTravelContextUseCase:
                         logger.warning(
                             f"Nominatim returned no results for hotel: {query}"
                         )
-            except Exception as e:
+            except (
+                httpx.HTTPError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                RuntimeError,
+                OSError,
+            ) as e:
                 logger.warning(f"Failed to geocode hotel {hotel_name}: {e}")
 
         outbound_flight = booking_anchors.outbound_flight if booking_anchors else None
@@ -223,7 +245,14 @@ class FetchTravelContextUseCase:
                             logger.warning(
                                 f"Nominatim returned no results for airport: {query}"
                             )
-                except Exception as e:
+                except (
+                    httpx.HTTPError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    RuntimeError,
+                    OSError,
+                ) as e:
                     logger.warning(f"Failed to geocode airport {iata}: {e}")
 
         # Calculate trip duration strictly from real dates

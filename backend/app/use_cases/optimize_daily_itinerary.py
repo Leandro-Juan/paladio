@@ -407,12 +407,15 @@ class OptimizeDailyItineraryUseCase:
                     origin=prev_poi,
                     destination=curr_poi,
                     departure_iso=dep_iso,
+                    is_airport_leg=is_airport_leg,
                 )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump(
                     mode="json"
                 )
                 if transit_leg.cost_eur > 0:
                     transit_leg_costs.append(transit_leg.cost_eur)
+                if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
+                    has_airport_transit = True
                 for step in transit_leg.steps:
                     st_text = f"{step.station_name or ''} {step.instruction or ''} {step.headsign or ''}".lower()
                     if TransitFareService.is_airport_station(st_text, []):
@@ -431,12 +434,15 @@ class OptimizeDailyItineraryUseCase:
                     origin=prev_poi,
                     destination=curr_poi,
                     city=city,
+                    is_airport_leg=is_airport_leg,
                 )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump(
                     mode="json"
                 )
                 if transit_leg.cost_eur > 0:
                     transit_leg_costs.append(transit_leg.cost_eur)
+                if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
+                    has_airport_transit = True
                 if is_airport_leg:
                     leg_dur = (
                         transit_leg.duration_mins if transit_leg.duration_mins else 45

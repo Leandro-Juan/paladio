@@ -124,4 +124,17 @@ test('create itinerary from scratch and verify rendering', async ({ page }) => {
   // Verify that mandatory POI (Museo del Prado) is rendered
   const pradoPoi = page.getByText(/Museo del Prado/i).first();
   await expect(pradoPoi).toBeVisible();
+
+  // Verify Airport Leg Surcharge & Transit Fare (Madrid Line 8: 1.50 + 3.00 = 4.50 EUR)
+  const surchargeBadge = page.locator('[data-testid="airport-surcharge-badge"]').first();
+  await expect(surchargeBadge).toBeVisible({ timeout: 10000 });
+  await expect(surchargeBadge).toContainText('+3.00 € AIRPORT SURCHARGE INCLUDED');
+
+  const fare450 = page.getByText('4.50 €').first();
+  await expect(fare450).toBeVisible();
+
+  // Verify that estimated fare badge is NOT present on this verified leg
+  const transitLeg = page.locator('[data-testid="transit-leg-view"]').first();
+  const estimatedBadge = transitLeg.locator('[data-testid="estimated-fare-badge"]');
+  await expect(estimatedBadge).toHaveCount(0);
 });

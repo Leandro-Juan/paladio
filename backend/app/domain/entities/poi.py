@@ -146,6 +146,7 @@ class TransitLeg(BaseModel):
     price_source: str | None = None
     mode: str = "multimodal"  # "multimodal", "pedestrian", "transit"
     steps: list[TransitStep] = Field(default_factory=list)
+    airport_surcharge_eur: float = 0.0
 
 
 class TransitRecommendation(BaseModel):

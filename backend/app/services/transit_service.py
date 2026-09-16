@@ -19,9 +19,10 @@ async def get_detailed_transit_leg(
     origin: dict[str, Any],
     destination: dict[str, Any],
     departure_iso: str | None = None,
+    is_airport_leg: bool = False,
 ) -> TransitLeg:
     """
-    Fetches turn-by-turn public transit instructions (walk to station, board line,
+    Retrieves detailed multimodal transit maneuvers (walk to stop, board line,
     transfer, alight, walk to destination) between two locations via Valhalla /route.
     """
     orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
@@ -61,7 +62,7 @@ async def get_detailed_transit_leg(
 
     steps: list[TransitStep] = []
     total_duration_mins = 15
-    total_cost_eur = 0.0
+    fare_result = None
     mode = "multimodal"
 
     try:
@@ -110,8 +111,12 @@ async def get_detailed_transit_leg(
                     )
 
             city_name = str(origin.get("city") or destination.get("city") or "").strip()
-            total_cost_eur, cost_is_estimated, price_source, _ = (
-                TransitFareService.calculate_transit_leg_fare(city_name, steps)
+            fare_result = TransitFareService.calculate_transit_leg_fare(
+                city_name,
+                steps,
+                is_airport_leg=is_airport_leg,
+                origin=origin,
+                destination=destination,
             )
             mode = "transit" if has_transit_step else "pedestrian"
 
@@ -125,11 +130,12 @@ async def get_detailed_transit_leg(
 
     return TransitLeg(
         duration_mins=total_duration_mins,
-        cost_eur=total_cost_eur,
-        cost_is_estimated=cost_is_estimated,
-        price_source=price_source,
+        cost_eur=fare_result.total_cost if fare_result else 0.0,
+        cost_is_estimated=fare_result.cost_is_estimated if fare_result else False,
+        price_source=fare_result.price_source if fare_result else None,
         mode=mode,
         steps=steps,
+        airport_surcharge_eur=fare_result.airport_surcharge_eur if fare_result else 0.0,
     )
 
 
@@ -153,6 +159,7 @@ def synthesize_fallback_transit_leg(
     origin: dict[str, Any],
     destination: dict[str, Any],
     city: str | None = None,
+    is_airport_leg: bool = False,
 ) -> TransitLeg:
     """
     Synthesizes a realistic fallback transit leg with step-by-step instructions
@@ -181,8 +188,20 @@ def synthesize_fallback_transit_leg(
 
     city_name = str(city or origin.get("city") or destination.get("city") or "").strip()
 
-    # If distance < 1.2 km: Pedestrian walk
-    if dist_km < 1.2:
+    orig_is_airport = (
+        str(origin.get("category") or "").strip().upper() == "AIRPORT"
+        or "airport" in orig_name.lower()
+        or "aeropuerto" in orig_name.lower()
+    )
+    dest_is_airport = (
+        str(destination.get("category") or "").strip().upper() == "AIRPORT"
+        or "airport" in dest_name.lower()
+        or "aeropuerto" in dest_name.lower()
+    )
+    is_airport = is_airport_leg or orig_is_airport or dest_is_airport
+
+    # If distance < 1.2 km and not airport: Pedestrian walk
+    if dist_km < 1.2 and not is_airport:
         dur_mins = max(4, int(dist_km / 4.5 * 60))
         dist_m = int(dist_km * 1000)
         steps = [
@@ -200,45 +219,104 @@ def synthesize_fallback_transit_leg(
             price_source="pedestrian_walk",
             mode="pedestrian",
             steps=steps,
+            airport_surcharge_eur=0.0,
         )
 
-    # If distance >= 1.2 km: Multimodal transit route
-    dur_mins = max(12, int(dist_km / 22.0 * 60) + 8)
+    # Multimodal transit route
+    dur_mins = max(15, int(dist_km / 22.0 * 60) + 8)
     walk1_dist = round(min(0.4, dist_km * 0.1), 2)
     walk2_dist = round(min(0.3, dist_km * 0.08), 2)
     transit_dist = round(max(0.5, dist_km - walk1_dist - walk2_dist), 2)
 
-    fare_info = TransitFareService.get_city_transit_fare(city_name)
-    fare = fare_info.single_fare if fare_info else 1.80
+    if is_airport:
+        if orig_is_airport:
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(walk1_dist * 1000)}m to the airport metro / rail terminal station",
+                    duration_mins=5,
+                    distance_km=walk1_dist,
+                    station_name=orig_name,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board airport metro / express line towards {dest_name}",
+                    duration_mins=max(10, dur_mins - 9),
+                    distance_km=transit_dist,
+                    transit_line="Airport Line",
+                    headsign=dest_name,
+                    station_name=orig_name,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
+                    duration_mins=4,
+                    distance_km=walk2_dist,
+                ),
+            ]
+        else:
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(walk1_dist * 1000)}m to public transit station near {orig_name}",
+                    duration_mins=5,
+                    distance_km=walk1_dist,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board airport metro / express line towards {dest_name}",
+                    duration_mins=max(10, dur_mins - 9),
+                    distance_km=transit_dist,
+                    transit_line="Airport Line",
+                    headsign=dest_name,
+                    station_name=dest_name,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight at {dest_name} terminal station",
+                    duration_mins=4,
+                    distance_km=walk2_dist,
+                    station_name=dest_name,
+                ),
+            ]
+    else:
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
+                duration_mins=5,
+                distance_km=walk1_dist,
+            ),
+            TransitStep(
+                type="transit_board",
+                instruction=f"Board public transit towards {dest_name}",
+                duration_mins=max(7, dur_mins - 9),
+                distance_km=transit_dist,
+                transit_line="Transit",
+                headsign=dest_name,
+            ),
+            TransitStep(
+                type="transit_alight",
+                instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
+                duration_mins=4,
+                distance_km=walk2_dist,
+            ),
+        ]
 
-    steps = [
-        TransitStep(
-            type="walk",
-            instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
-            duration_mins=5,
-            distance_km=walk1_dist,
-        ),
-        TransitStep(
-            type="transit_board",
-            instruction=f"Board public transit towards {dest_name}",
-            duration_mins=max(7, dur_mins - 9),
-            distance_km=transit_dist,
-            transit_line="Transit",
-            headsign=dest_name,
-        ),
-        TransitStep(
-            type="transit_alight",
-            instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
-            duration_mins=4,
-            distance_km=walk2_dist,
-        ),
-    ]
+    fare_res = TransitFareService.calculate_transit_leg_fare(
+        city_name,
+        steps,
+        is_airport_leg=is_airport,
+        origin=origin,
+        destination=destination,
+    )
 
     return TransitLeg(
         duration_mins=dur_mins,
-        cost_eur=fare,
-        cost_is_estimated=True,
-        price_source="estimated_city_transit_fare",
+        cost_eur=fare_res.total_cost,
+        cost_is_estimated=fare_res.cost_is_estimated,
+        price_source=fare_res.price_source,
         mode="transit",
         steps=steps,
+        airport_surcharge_eur=fare_res.airport_surcharge_eur,
     )
