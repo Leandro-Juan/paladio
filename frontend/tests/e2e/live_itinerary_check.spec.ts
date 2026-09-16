@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('create itinerary from scratch and verify rendering', async ({ page }) => {
+  test.skip(!process.env.RUN_LIVE_TESTS, 'Skipping live check: requires running full stack on port 3000');
   test.setTimeout(360000); // 6 mins timeout for full LLM and C++ solver flow
 
   console.log('Navigating to login page...');

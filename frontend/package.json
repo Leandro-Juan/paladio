@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint src/",
     "test:e2e": "PORT=3001 playwright test",
-    "test:ct": "playwright test -c playwright-ct.config.ts"
+    "test:ct": "playwright test -c playwright-ct.config.ts",
+    "test:live": "RUN_LIVE_TESTS=true playwright test tests/e2e/live_*.spec.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

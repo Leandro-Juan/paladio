@@ -5,6 +5,7 @@ const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: process.env.RUN_LIVE_TESTS ? [] : ['**/live_*.spec.ts'],
   timeout: 30000,
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
@@ -24,7 +25,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: `npx next dev -p ${PORT}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
