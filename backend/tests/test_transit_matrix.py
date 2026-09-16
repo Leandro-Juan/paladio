@@ -216,3 +216,66 @@ async def test_get_detailed_transit_leg_failure_raises():
 
         with pytest.raises(TransitRoutingError):
             await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")
+
+
+@pytest.mark.asyncio
+async def test_get_transit_matrix_when_ensure_transit_ready_times_out():
+    """Verify that get_transit_matrix does not crash when ensure_transit_ready times out."""
+    pois = [
+        {"name": "Eiffel", "location": {"latitude": 48.8584, "longitude": 2.2945}},
+        {"name": "Louvre", "location": {"latitude": 48.8606, "longitude": 2.3376}},
+    ]
+
+    with patch(
+        "app.engine.transit_matrix.ensure_transit_ready",
+        side_effect=TimeoutError("Timed out waiting for paris transit data after 5s"),
+    ):
+        matrix = await get_transit_matrix(pois, city_name="paris")
+        assert len(matrix) == 2
+        assert len(matrix[0]) == 2
+        assert matrix[0][0]["duration_mins"] == 0
+        assert matrix[0][1]["duration_mins"] > 0
+        assert matrix[0][1]["cost_eur"] == 2.15
+        assert matrix[0][1]["mode"] == "transit"
+
+
+@pytest.mark.asyncio
+async def test_get_transit_matrix_when_compilation_fails():
+    """Verify that get_transit_matrix handles PublicTransitCompilationError and produces fallback."""
+    from app.engine.transit_matrix import PublicTransitCompilationError
+
+    pois = [
+        {"name": "Eiffel", "location": {"latitude": 48.8584, "longitude": 2.2945}},
+        {"name": "Louvre", "location": {"latitude": 48.8606, "longitude": 2.3376}},
+    ]
+
+    with patch(
+        "app.engine.transit_matrix.ensure_transit_ready",
+        side_effect=PublicTransitCompilationError(
+            "Public transit compilation failed for paris."
+        ),
+    ):
+        matrix = await get_transit_matrix(pois, city_name="paris")
+        assert len(matrix) == 2
+        assert matrix[0][1]["cost_eur"] == 2.15
+        assert matrix[0][1]["mode"] == "transit"
+
+
+@pytest.mark.asyncio
+async def test_get_transit_matrix_unindexed_city_uses_estimate():
+    """Verify that an unindexed city with failed transit compilation uses regional estimate."""
+    from app.engine.transit_matrix import PublicTransitCompilationError
+
+    pois = [
+        {"name": "Stop A", "location": {"latitude": 52.5200, "longitude": 13.4050}},
+        {"name": "Stop B", "location": {"latitude": 52.5300, "longitude": 13.4300}},
+    ]
+
+    with patch(
+        "app.engine.transit_matrix.ensure_transit_ready",
+        side_effect=PublicTransitCompilationError("Failed"),
+    ):
+        matrix = await get_transit_matrix(pois, city_name="unindexed_city")
+        assert len(matrix) == 2
+        # Unindexed city baseline single fare is 2.00
+        assert matrix[0][1]["cost_eur"] == 2.00

@@ -16,6 +16,29 @@ from app.db.models import TransitCacheStatus
 logger = logging.getLogger(__name__)
 
 
+def _get_task_session_maker():
+    """
+    Creates an isolated SQLAlchemy async session factory using NullPool.
+    Prevents event-loop binding errors when Celery workers invoke asyncio.run()
+    multiple times across sequential task invocations.
+    """
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
+    from sqlalchemy.pool import NullPool
+
+    from app.db.session import DATABASE_URL
+
+    task_engine = create_async_engine(
+        DATABASE_URL, poolclass=NullPool, echo=False, future=True
+    )
+    return async_sessionmaker(
+        task_engine, class_=AsyncSession, expire_on_commit=False
+    ), task_engine
+
+
 @app.task(bind=True, name="app.tasks.refresh_city_pois_task")
 def refresh_city_pois_task(self, city_name: str):
     """
@@ -31,14 +54,16 @@ def refresh_city_pois_task(self, city_name: str):
     from app.services.poi_service import _fetch_and_store_pois
 
     try:
-        # Run the async ingestion script synchronously in the Celery worker
-        from app.db.session import async_session
+        session_maker, task_engine = _get_task_session_maker()
 
         async def run_fetch():
-            async with async_session() as session:
-                repo = SqlPoiRepository(session)
-                provider = OverpassProviderAdapter()
-                await _fetch_and_store_pois(city_name, repo, provider)
+            try:
+                async with session_maker() as session:
+                    repo = SqlPoiRepository(session)
+                    provider = OverpassProviderAdapter()
+                    await _fetch_and_store_pois(city_name, repo, provider)
+            finally:
+                await task_engine.dispose()
 
         asyncio.run(run_fetch())
         logger.info(
@@ -120,27 +145,30 @@ async def _async_update_transit_cache(
     from sqlalchemy import select
 
     from app.db.models import TransitCacheModel
-    from app.db.session import async_session
 
-    async with async_session() as session:
-        stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_name)
-        res = await session.execute(stmt)
-        record = res.scalar_one_or_none()
-        if not record:
-            record = TransitCacheModel(
-                city=city_name,
-                status=status,
-                valid_until=valid_until,
-                gtfs_feed_name=feed_name,
-            )
-            session.add(record)
-        else:
-            record.status = status
-            if valid_until is not None:
-                record.valid_until = valid_until
-            if feed_name is not None:
-                record.gtfs_feed_name = feed_name
-        await session.commit()
+    session_maker, task_engine = _get_task_session_maker()
+    try:
+        async with session_maker() as session:
+            stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_name)
+            res = await session.execute(stmt)
+            record = res.scalar_one_or_none()
+            if not record:
+                record = TransitCacheModel(
+                    city=city_name,
+                    status=status,
+                    valid_until=valid_until,
+                    gtfs_feed_name=feed_name,
+                )
+                session.add(record)
+            else:
+                record.status = status
+                if valid_until is not None:
+                    record.valid_until = valid_until
+                if feed_name is not None:
+                    record.gtfs_feed_name = feed_name
+            await session.commit()
+    finally:
+        await task_engine.dispose()
 
 
 @app.task(
@@ -212,27 +240,41 @@ def build_city_map_task(self, city_name: str):
             os.makedirs(gtfs_dest_dir, exist_ok=True)
             zip_tmp = f"/tmp/{city_lower}_gtfs.zip"
             logger.info(f"Downloading GTFS feed from {gtfs_url} to {zip_tmp}...")
-            urllib.request.urlretrieve(gtfs_url, zip_tmp)
+            try:
+                urllib.request.urlretrieve(gtfs_url, zip_tmp)
 
-            with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
-                target_base = os.path.abspath(gtfs_dest_dir)
-                for member in zip_ref.infolist():
-                    member_path = os.path.abspath(
-                        os.path.join(target_base, member.filename)
-                    )
-                    if os.path.commonpath([target_base, member_path]) != target_base:
-                        raise ValueError(
-                            f"Zip Slip attempt detected in member: {member.filename}"
+                with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
+                    target_base = os.path.abspath(gtfs_dest_dir)
+                    for member in zip_ref.infolist():
+                        member_path = os.path.abspath(
+                            os.path.join(target_base, member.filename)
                         )
-                    zip_ref.extract(member, target_base)
-            if os.path.exists(zip_tmp):
-                os.remove(zip_tmp)
-            logger.info(f"Extracted GTFS feed into {gtfs_dest_dir}.")
+                        if (
+                            os.path.commonpath([target_base, member_path])
+                            != target_base
+                        ):
+                            raise ValueError(
+                                f"Zip Slip attempt detected in member: {member.filename}"
+                            )
+                        zip_ref.extract(member, target_base)
+                if os.path.exists(zip_tmp):
+                    os.remove(zip_tmp)
+                logger.info(f"Extracted GTFS feed into {gtfs_dest_dir}.")
 
-            valid_until = extract_gtfs_expiry(gtfs_dest_dir)
-            logger.info(
-                f"Calculated GTFS schedule validity for {city_name}: {valid_until.isoformat()}"
-            )
+                valid_until = extract_gtfs_expiry(gtfs_dest_dir)
+                logger.info(
+                    f"Calculated GTFS schedule validity for {city_name}: {valid_until.isoformat()}"
+                )
+            except (
+                urllib.error.URLError,
+                OSError,
+                zipfile.BadZipFile,
+                ValueError,
+            ) as gtfs_err:
+                logger.warning(
+                    f"Could not download/extract GTFS feed for {city_name}: {gtfs_err}. "
+                    "Proceeding without transit schedule overlay."
+                )
 
         # Trigger Valhalla rebuild webhook
         logger.info("Triggering Valhalla map rebuild via internal webhook...")
@@ -267,11 +309,22 @@ def build_city_map_task(self, city_name: str):
             "valid_until": valid_until.isoformat(),
         }
 
-    except Exception as exc:
+    except (
+        urllib.error.URLError,
+        OSError,
+        zipfile.BadZipFile,
+        ValueError,
+        httpx.HTTPError,
+        RuntimeError,
+        KeyError,
+    ) as exc:
         logger.error(f"Failed to build map & transit for {city_name}: {exc}")
-        asyncio.run(
-            _async_update_transit_cache(
-                city_name=city_lower, status=TransitCacheStatus.FAILED.value
+        try:
+            asyncio.run(
+                _async_update_transit_cache(
+                    city_name=city_lower, status=TransitCacheStatus.FAILED.value
+                )
             )
-        )
+        except (SQLAlchemyError, OSError, RuntimeError) as db_err:
+            logger.warning(f"Could not update status to FAILED in DB: {db_err}")
         raise

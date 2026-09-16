@@ -17,9 +17,10 @@ def test_zip_slip_path_traversal_detection():
 
         # Directly verify safe extraction logic matching tasks.py
         target_base = os.path.abspath(dest_dir)
-        with pytest.raises(ValueError) as exc_info, zipfile.ZipFile(
-            zip_path, "r"
-        ) as zip_ref:
+        with (
+            pytest.raises(ValueError) as exc_info,
+            zipfile.ZipFile(zip_path, "r") as zip_ref,
+        ):
             for member in zip_ref.infolist():
                 member_path = os.path.abspath(
                     os.path.join(target_base, member.filename)
@@ -41,3 +42,17 @@ def test_city_name_path_traversal_sanitization():
     assert sanitized == "etcpasswd"
     assert "/" not in sanitized
     assert ".." not in sanitized
+
+
+def test_task_session_maker_uses_nullpool():
+    import asyncio
+
+    from app.tasks import _get_task_session_maker
+    from sqlalchemy.pool import NullPool
+
+    session_maker, engine = _get_task_session_maker()
+    try:
+        assert isinstance(engine.pool, NullPool)
+        assert session_maker is not None
+    finally:
+        asyncio.run(engine.dispose())

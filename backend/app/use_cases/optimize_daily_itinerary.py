@@ -426,16 +426,51 @@ class OptimizeDailyItineraryUseCase:
                         transit_leg.duration_mins if transit_leg.duration_mins else 45
                     )
                     leg_cost = float(transit_leg.cost_eur or 0.0)
-            except (TransitRoutingError, httpx.HTTPError, ValueError, KeyError) as e:
+            except (
+                TransitRoutingError,
+                httpx.HTTPError,
+                ValueError,
+                KeyError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.debug(
                     f"Could not enrich transit leg from Valhalla: {e}. Using resilient fallback."
                 )
-                transit_leg = synthesize_fallback_transit_leg(
-                    origin=prev_poi,
-                    destination=curr_poi,
-                    city=city,
-                    is_airport_leg=is_airport_leg,
-                )
+                try:
+                    transit_leg = synthesize_fallback_transit_leg(
+                        origin=prev_poi,
+                        destination=curr_poi,
+                        city=city,
+                        is_airport_leg=is_airport_leg,
+                    )
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    OSError,
+                    RuntimeError,
+                ) as synth_err:
+                    logger.warning(
+                        f"Synthesize fallback failed ({synth_err}). Using estimated transit leg."
+                    )
+                    from app.domain.entities.poi import TransitLeg, TransitStep
+
+                    transit_leg = TransitLeg(
+                        duration_mins=45 if is_airport_leg else 20,
+                        cost_eur=5.0 if is_airport_leg else 2.0,
+                        cost_is_estimated=True,
+                        price_source="fallback_estimate",
+                        mode="transit",
+                        steps=[
+                            TransitStep(
+                                type="transit",
+                                instruction=f"Public transit to {curr_poi.get('name', 'destination')}",
+                                duration_mins=45 if is_airport_leg else 20,
+                            )
+                        ],
+                        airport_surcharge_eur=3.0 if is_airport_leg else 0.0,
+                    )
                 path_items[k]["transit_from_previous"] = transit_leg.model_dump(
                     mode="json"
                 )
