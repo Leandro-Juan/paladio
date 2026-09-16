@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -20,16 +21,19 @@ export function Sidebar() {
 
   return (
     <nav className="sidebar">
-      <div className="brand">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <img
-            src="/logo.jpeg"
-            alt="Paladio Logo"
-            style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
-          />
-          <h1 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h1>
+      <div className="brand" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <img
+              src="/logo.jpeg"
+              alt="Paladio Logo"
+              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
+            />
+            <h1 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h1>
+          </div>
+          <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.0.0 ENGINE'}</p>
         </div>
-        <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.0.0 ENGINE'}</p>
+        <NotificationBell />
       </div>
 
       <ul className="nav-links font-display" style={{ flex: 1 }}>

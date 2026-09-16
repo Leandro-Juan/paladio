@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { ToastContainer } from '@/components/ToastContainer';
 
 export const metadata: Metadata = {
   title: 'Paladio Control Center',
@@ -26,6 +27,7 @@ export default function RootLayout({
             <AuthGuard>
               {children}
             </AuthGuard>
+            <ToastContainer />
           </SocketProvider>
         </AuthProvider>
       </body>

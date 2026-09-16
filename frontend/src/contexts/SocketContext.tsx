@@ -11,6 +11,7 @@ export interface PaladioEvent {
 }
 
 import { OptimizationResult, Poi } from '../types/domain';
+import { notify } from '@/utils/notify';
 
 import { create } from 'zustand';
 
@@ -176,8 +177,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (payload.data && payload.data.fields) {
           setMissingFields(payload.data.fields as string[]);
           addLog(`> [SYSTEM] ${payload.data.message}`);
+          notify.warning('Input Required', (payload.data.message as string) || 'Solver requires additional constraints.', {
+            actionLink: '/engine',
+            actionLabel: 'Open Engine',
+          });
         } else {
           addLog(`> [SYSTEM] CLARIFICATION NEEDED.`);
+          notify.warning('Input Required', 'Clarification needed to proceed with itinerary optimization.', {
+            actionLink: '/engine',
+            actionLabel: 'Open Engine',
+          });
         }
         break;
       case 'EXTRACTING_CONSTRAINTS':
@@ -187,19 +196,32 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if ((payload.status === 'completed' || payload.status === 'recovered') && payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
           setItinerary(payload.data as unknown as OptimizationResult);
+          notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
+            actionLink: '/vault',
+            actionLabel: 'View Itinerary',
+          });
         } else if (payload.status === 'running') {
           addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...`);
         } else if (payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
           setItinerary(payload.data as unknown as OptimizationResult);
+          notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
+            actionLink: '/vault',
+            actionLabel: 'View Itinerary',
+          });
         }
         break;
       case 'FEEDBACK_PROCESSED':
         addLog(`> [MODEL] PREFERENCE WEIGHTS UPDATED FROM FEEDBACK.`);
+        notify.info('Preferences Updated', 'Preference weights calibrated from feedback.', {
+          actionLink: '/model',
+          actionLabel: 'View Model',
+        });
         break;
       case 'ERROR':
         setStatus('error');
         addLog(`> [CRITICAL ERROR] ${payload.status}`);
+        notify.error('Engine Fault', `Execution error encountered: ${payload.status || 'Inference error'}`);
         break;
       case 'DONE':
         setStatus('connected');

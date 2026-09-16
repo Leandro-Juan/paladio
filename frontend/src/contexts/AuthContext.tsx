@@ -11,6 +11,7 @@ import {
   setAuthToken,
   setupMasterAdmin,
 } from '@/utils/api';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 interface AuthContextType {
   user: User | null;
@@ -106,6 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout();
     }
   };
+
+  useEffect(() => {
+    useNotificationStore.getState().initUser(user?.id || null);
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider
