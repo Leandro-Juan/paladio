@@ -87,6 +87,7 @@ services:
 
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8002:8002"
     volumes:

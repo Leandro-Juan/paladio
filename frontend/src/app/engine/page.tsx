@@ -23,13 +23,13 @@ export default function EnginePage() {
 
   const hasClearedRef = useRef(false);
 
-  // Clear logs when entering page if idle
+  // Clear logs when entering page if idle and no itinerary is present
   useEffect(() => {
-    if (!hasClearedRef.current && status === 'connected' && logs.length > 3) {
+    if (!hasClearedRef.current && status === 'connected' && logs.length > 3 && !itinerary) {
       clearLogs();
       hasClearedRef.current = true;
     }
-  }, [status, logs.length, clearLogs]);
+  }, [status, logs.length, itinerary, clearLogs]);
 
   // Auto-scroll terminal
   useEffect(() => {

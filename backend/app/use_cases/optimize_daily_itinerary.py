@@ -138,7 +138,12 @@ class OptimizeDailyItineraryUseCase:
             )
 
             if not result:
-                break
+                result = {
+                    "total_score": 0.0,
+                    "total_cost_eur": 0.0,
+                    "total_time_mins": 0,
+                    "path": [],
+                }
 
             daily_flight = (
                 outbound_flight
@@ -291,7 +296,7 @@ class OptimizeDailyItineraryUseCase:
                 logger.error(f"C++ optimization engine failed: {e}")
                 raise RuntimeError(f"C++ optimization engine failed: {e}") from e
 
-            result = itinerary.model_dump()
+            result = itinerary.model_dump(mode="json")
 
         if "total_time_mins" not in result and "total_time" in result:
             result["total_time_mins"] = int(result["total_time"])
@@ -300,30 +305,62 @@ class OptimizeDailyItineraryUseCase:
 
         if day == 0 and selected_airport:
             arr_mins = hotel_arrival_time - 105
-            result["path"].insert(
-                0,
-                {
-                    "poi": selected_airport,
-                    "scheduled_start": f"{arr_mins // 60:02d}:{arr_mins % 60:02d}",
-                    "scheduled_end": f"{(arr_mins + 60) // 60:02d}:{(arr_mins + 60) % 60:02d}",
-                },
-            )
+            airport_node = {
+                "poi": selected_airport,
+                "scheduled_start": f"{arr_mins // 60:02d}:{arr_mins % 60:02d}",
+                "scheduled_end": f"{(arr_mins + 60) // 60:02d}:{(arr_mins + 60) % 60:02d}",
+            }
+            if not result.get("path"):
+                result["path"] = [airport_node]
+                if selected_hotel:
+                    ch_h, ch_m = hotel_arrival_time // 60, hotel_arrival_time % 60
+                    result["path"].append(
+                        {
+                            "poi": selected_hotel,
+                            "scheduled_start": f"{ch_h:02d}:{ch_m:02d}",
+                            "scheduled_end": f"{ch_h:02d}:{ch_m:02d}",
+                        }
+                    )
+            else:
+                result["path"].insert(0, airport_node)
+
             # Account for arrival airport dwell time (60 mins) and cost
             result["total_time_mins"] = result.get("total_time_mins", 0) + 60
             airport_cost = float(selected_airport.get("cost_eur", 0.0) or 0.0)
             result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 
-        if day == num_days - 1 and selected_airport and result["path"]:
-            last_end = result["path"][-1]["scheduled_end"]
-            lh, lm = map(int, last_end.split(":"))
-            start_mins = lh * 60 + lm + 45
-            result["path"].append(
-                {
-                    "poi": selected_airport,
-                    "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
-                    "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
-                }
-            )
+        if day == num_days - 1 and selected_airport:
+            if not result.get("path"):
+                if selected_hotel:
+                    dep_h, dep_m = hotel_departure_time // 60, hotel_departure_time % 60
+                    result["path"] = [
+                        {
+                            "poi": selected_hotel,
+                            "scheduled_start": f"{dep_h:02d}:{dep_m:02d}",
+                            "scheduled_end": f"{dep_h:02d}:{dep_m:02d}",
+                        }
+                    ]
+                else:
+                    result["path"] = []
+                start_mins = hotel_departure_time + 45
+                result["path"].append(
+                    {
+                        "poi": selected_airport,
+                        "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
+                        "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
+                    }
+                )
+            else:
+                last_end = result["path"][-1]["scheduled_end"]
+                lh, lm = map(int, last_end.split(":"))
+                start_mins = lh * 60 + lm + 45
+                result["path"].append(
+                    {
+                        "poi": selected_airport,
+                        "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
+                        "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
+                    }
+                )
             # Account for departure airport dwell time (120 mins) and cost
             result["total_time_mins"] = result.get("total_time_mins", 0) + 120
             airport_cost = float(selected_airport.get("cost_eur", 0.0) or 0.0)
@@ -371,7 +408,9 @@ class OptimizeDailyItineraryUseCase:
                     destination=curr_poi,
                     departure_iso=dep_iso,
                 )
-                path_items[k]["transit_from_previous"] = transit_leg.model_dump()
+                path_items[k]["transit_from_previous"] = transit_leg.model_dump(
+                    mode="json"
+                )
                 if transit_leg.cost_eur > 0:
                     transit_leg_costs.append(transit_leg.cost_eur)
                 for step in transit_leg.steps:
@@ -393,7 +432,9 @@ class OptimizeDailyItineraryUseCase:
                     destination=curr_poi,
                     city=city,
                 )
-                path_items[k]["transit_from_previous"] = transit_leg.model_dump()
+                path_items[k]["transit_from_previous"] = transit_leg.model_dump(
+                    mode="json"
+                )
                 if transit_leg.cost_eur > 0:
                     transit_leg_costs.append(transit_leg.cost_eur)
                 if is_airport_leg:
@@ -412,7 +453,7 @@ class OptimizeDailyItineraryUseCase:
             leg_costs=transit_leg_costs,
             has_airport_leg=has_airport_transit,
         )
-        result["transit_recommendation"] = transit_rec.model_dump()
+        result["transit_recommendation"] = transit_rec.model_dump(mode="json")
 
         if "total_time" in result:
             result["total_time"] = result["total_time_mins"]

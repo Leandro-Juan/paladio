@@ -73,7 +73,10 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             while True:
                 msg = await outbound_queue.get()
-                await websocket.send_json(msg)
+                try:
+                    await websocket.send_text(json.dumps(msg, default=str))
+                except Exception as e:
+                    logger.error(f"Failed to serialize/send websocket message: {e}")
                 outbound_queue.task_done()
         except Exception as e:
             logger.debug(f"Writer task closed: {e}")

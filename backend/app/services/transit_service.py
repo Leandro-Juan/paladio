@@ -65,7 +65,7 @@ async def get_detailed_transit_leg(
     mode = "multimodal"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
             resp.raise_for_status()
             data = resp.json()

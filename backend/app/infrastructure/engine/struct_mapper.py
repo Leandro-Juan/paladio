@@ -131,6 +131,7 @@ def build_optimization_config(
     start_node_index: int | None,
     end_node_index: int | None,
     exchange_rate: float = 0.92,
+    cpp_pois: list[Any] | None = None,
 ) -> Any:
     if not paladio_core:
         return None
@@ -171,6 +172,18 @@ def build_optimization_config(
         if dinner_deadline != -1 and (
             dinner_deadline <= day_start_mins + 120 or dinner_deadline > day_end_mins
         ):
+            dinner_deadline = -1
+
+    # If cpp_pois is provided, verify candidate spots exist before enforcing meal deadlines
+    if cpp_pois is not None:
+        has_b = any(getattr(p, "is_breakfast_spot", False) for p in cpp_pois)
+        has_l = any(getattr(p, "is_lunch_spot", False) for p in cpp_pois)
+        has_d = any(getattr(p, "is_dinner_spot", False) for p in cpp_pois)
+        if not has_b:
+            breakfast_deadline = -1
+        if not has_l:
+            lunch_deadline = -1
+        if not has_d:
             dinner_deadline = -1
 
     budget_eur = constraints.budget_usd * exchange_rate

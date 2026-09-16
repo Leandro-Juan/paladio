@@ -43,7 +43,26 @@ export function TripTimeline({ itinerary }: TripTimelineProps) {
             </div>
 
             {/* Daily Transit Pass Advisory Banner */}
-            {transitRec && <TransitRecommendationCard recommendation={transitRec} />}
+            {transitRec && path.length > 1 && (transitRec.single_tickets_total_eur || 0) > 0 && (
+              <TransitRecommendationCard recommendation={transitRec} />
+            )}
+
+            {/* Empty day message */}
+            {path.length === 0 && !dayObj.flight_info && (
+              <div
+                className="font-mono text-muted text-sm"
+                style={{
+                  padding: '1rem',
+                  border: '1px dashed var(--color-border)',
+                  borderRadius: '6px',
+                  background: 'rgba(255,255,255,0.02)',
+                  textAlign: 'center',
+                  marginBottom: '1rem',
+                }}
+              >
+                No scheduled stops for this day. Free exploration.
+              </div>
+            )}
 
             {/* Flight info if present */}
             {dayObj.flight_info && (

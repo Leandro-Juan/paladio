@@ -14,7 +14,7 @@ from app.schemas.scraper import (
     Scoring,
 )
 from app.services.poi_pricing_service import PoiPricingService
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -278,7 +278,9 @@ class SqlPoiRepository(IPoiRepository):
         self.session = session
 
     async def find_by_city(self, city_name: str) -> list[Poi]:
-        stmt = select(AttractionModel).where(AttractionModel.city == city_name)
+        stmt = select(AttractionModel).where(
+            func.lower(AttractionModel.city) == city_name.strip().lower()
+        )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
@@ -298,7 +300,7 @@ class SqlPoiRepository(IPoiRepository):
         dist_col = AttractionModel.embedding.cosine_distance(user_vector)
         stmt = (
             select(AttractionModel, dist_col.label("distance"))
-            .where(AttractionModel.city == city_name)
+            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
             .where(AttractionModel.embedding.isnot(None))
             .order_by(dist_col.asc())
             .limit(limit)

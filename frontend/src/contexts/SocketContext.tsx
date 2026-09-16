@@ -26,6 +26,7 @@ export const useLogStore = create<LogStore>((set) => ({
   addLog: (msg) => set((state) => {
     const replayable = [
       '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.',
+      '> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...',
       '> [PLANNER] ITINERARY GENERATED.',
       '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
     ];
@@ -89,7 +90,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [itinerary, setItinerary] = useState<OptimizationResult | null>(() => {
     if (typeof window !== 'undefined') {
       const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'connected' || savedStatus === 'error') return null;
+      if (savedStatus === 'error') return null;
       const saved = sessionStorage.getItem('paladio_itinerary');
       if (saved) {
         try {
@@ -183,8 +184,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         addLog(`> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.`);
         break;
       case 'EVALUATING_ROUTES':
-        addLog(`> [PLANNER] ITINERARY GENERATED.`);
-        setItinerary(payload.data as unknown as OptimizationResult);
+        if ((payload.status === 'completed' || payload.status === 'recovered') && payload.data) {
+          addLog(`> [PLANNER] ITINERARY GENERATED.`);
+          setItinerary(payload.data as unknown as OptimizationResult);
+        } else if (payload.status === 'running') {
+          addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...`);
+        } else if (payload.data) {
+          addLog(`> [PLANNER] ITINERARY GENERATED.`);
+          setItinerary(payload.data as unknown as OptimizationResult);
+        }
         break;
       case 'FEEDBACK_PROCESSED':
         addLog(`> [MODEL] PREFERENCE WEIGHTS UPDATED FROM FEEDBACK.`);

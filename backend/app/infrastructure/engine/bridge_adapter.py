@@ -70,6 +70,7 @@ class CppOptimizationAdapter(IOptimizationEngine):
             start_node_index,
             end_node_index,
             self.exchange_rate,
+            cpp_pois=cpp_pois,
         )
 
         # 3. Call C++ Engine
