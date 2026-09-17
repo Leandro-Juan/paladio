@@ -128,3 +128,41 @@ export const fetchUserEmbeddingApi = (): Promise<{
   return apiFetch<{ user_id: string; embedding: number[]; dimension: number }>('/users/me/embedding');
 };
 
+export interface CityGtfsItem {
+  city: string;
+  display_name: string;
+  status: string;
+  osm_status: string;
+  gtfs_status: string;
+  is_ready: boolean;
+  is_building: boolean;
+  is_downloaded: boolean;
+  is_compiled: boolean;
+  has_feed: boolean;
+  feed_url?: string | null;
+  valid_until?: string | null;
+  gtfs_feed_name?: string | null;
+  updated_at?: string | null;
+}
+
+export interface GtfsRegistryResponse {
+  has_active_process: boolean;
+  active_processes_count: number;
+  active_cities: string[];
+  total_cities: number;
+  compiled_cities: number;
+  cities: CityGtfsItem[];
+}
+
+export const fetchGtfsRegistryApi = (): Promise<GtfsRegistryResponse> => {
+  return apiFetch<GtfsRegistryResponse>('/trips/transit/registry');
+};
+
+export const triggerGtfsCompileApi = (city: string): Promise<{ status: string; city: string; message: string }> => {
+  return apiFetch<{ status: string; city: string; message: string }>('/trips/transit/compile', {
+    method: 'POST',
+    body: JSON.stringify({ city }),
+  });
+};
+
+

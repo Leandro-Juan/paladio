@@ -3,7 +3,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, UserRole } from '@/types/auth';
-import { createUserApi, deleteUserApi, listUsersApi, updateUserApi } from '@/utils/api';
+import {
+  createUserApi,
+  deleteUserApi,
+  listUsersApi,
+  updateUserApi,
+  fetchGtfsRegistryApi,
+  triggerGtfsCompileApi,
+  GtfsRegistryResponse,
+} from '@/utils/api';
 
 export default function ConfigPage() {
   const { user: currentUser } = useAuth();
@@ -16,6 +24,12 @@ export default function ConfigPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // GTFS Telemetry State
+  const [gtfsTelemetry, setGtfsTelemetry] = useState<GtfsRegistryResponse | null>(null);
+  const [gtfsLoading, setGtfsLoading] = useState<boolean>(false);
+  const [compilingCity, setCompilingCity] = useState<string | null>(null);
+  const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
@@ -27,6 +41,70 @@ export default function ConfigPage() {
   // Confirm delete state
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const fetchGtfsData = useCallback(async (showLoading: boolean = false) => {
+    if (showLoading) {
+      setGtfsLoading(true);
+    }
+    try {
+      const data = await fetchGtfsRegistryApi();
+      setGtfsTelemetry(data);
+    } catch (err: unknown) {
+      console.warn('Failed to fetch GTFS registry:', err);
+    } finally {
+      if (showLoading) {
+        setGtfsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      try {
+        const data = await fetchGtfsRegistryApi();
+        if (!ignore) {
+          setGtfsTelemetry(data);
+        }
+      } catch (err: unknown) {
+        console.warn('Failed to fetch GTFS registry:', err);
+      } finally {
+        if (!ignore) {
+          setGtfsLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const intervalMs = gtfsTelemetry?.has_active_process ? 3000 : 12000;
+    const interval = setInterval(() => {
+      fetchGtfsData();
+    }, intervalMs);
+    return () => clearInterval(interval);
+  }, [fetchGtfsData, gtfsTelemetry?.has_active_process]);
+
+  const handleTriggerCompile = async (city: string) => {
+    setCompilingCity(city);
+    setGtfsMessage(null);
+    try {
+      const res = await triggerGtfsCompileApi(city);
+      setGtfsMessage({
+        type: 'success',
+        text: res.message || `Download & compile started for ${city}.`,
+      });
+      await fetchGtfsData(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to trigger GTFS compilation';
+      setGtfsMessage({ type: 'error', text: msg });
+    } finally {
+      setCompilingCity(null);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -387,6 +465,300 @@ export default function ConfigPage() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Public Transit & GTFS Schedule Engine */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Public Transit & GTFS Schedules
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// VALHALLA SCHEDULE REGISTRY & TILE COMPILER'}
+            </p>
+          </div>
+          <button
+            onClick={() => fetchGtfsData(true)}
+            disabled={gtfsLoading}
+            className="font-mono"
+            style={{
+              padding: '6px 12px',
+              fontSize: '11px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border)',
+              background: '#FFF',
+              color: 'var(--color-text-primary)',
+              cursor: gtfsLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>{gtfsLoading ? '⏳' : '↻'}</span> REFRESH STATUS
+          </button>
+        </div>
+
+        {/* Action feedback message */}
+        {gtfsMessage && (
+          <div
+            style={{
+              background: gtfsMessage.type === 'success' ? '#F0FDF4' : '#FEF2F2',
+              border: `1px solid ${gtfsMessage.type === 'success' ? '#BBF7D0' : '#FECACA'}`,
+              color: gtfsMessage.type === 'success' ? '#16A34A' : '#DC2626',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '12px',
+            }}
+          >
+            {gtfsMessage.text}
+          </div>
+        )}
+
+        {/* Live Compilation Process Banner */}
+        {gtfsTelemetry?.has_active_process ? (
+          <div
+            data-testid="gtfs-active-process-banner"
+            style={{
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '16px' }}>⚡</span>
+              <div>
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#D97706',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE COMPILATION PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
+                </span>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#78350F' }}>
+                  Downloading and compiling GTFS schedules for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Valhalla routing tiles are regenerating in the background.
+                </p>
+              </div>
+            </div>
+            <span
+              className="font-mono"
+              style={{
+                fontSize: '10px',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                background: '#FEF3C7',
+                color: '#B45309',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              COMPILING LIVE
+            </span>
+          </div>
+        ) : (
+          <div
+            data-testid="gtfs-idle-banner"
+            style={{
+              background: 'rgba(16, 185, 129, 0.06)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#059669', fontSize: '12px' }}>●</span>
+              <span className="font-mono" style={{ fontSize: '11px', color: '#065F46', fontWeight: 600 }}>
+                ALL GTFS SCHEDULES IDLE — NO ACTIVE COMPILATIONS
+              </span>
+            </div>
+            <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
+              {gtfsTelemetry?.compiled_cities || 0} COMPILED & READY
+            </span>
+          </div>
+        )}
+
+        {/* Quick Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ background: '#FFF', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem' }}>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DOWNLOADED & COMPILED</span>
+            <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: '#15803D', marginTop: '4px' }}>
+              {gtfsTelemetry?.compiled_cities ?? '...'}
+            </div>
+          </div>
+          <div style={{ background: '#FFF', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem' }}>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>ACTIVE BACKGROUND TASKS</span>
+            <div
+              className="font-display"
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color: (gtfsTelemetry?.active_processes_count || 0) > 0 ? '#D97706' : 'var(--color-text-primary)',
+                marginTop: '4px',
+              }}
+            >
+              {gtfsTelemetry?.active_processes_count ?? 0}
+            </div>
+          </div>
+        </div>
+
+        {/* Registry Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CITY</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>GTFS STATUS</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>COMPILED IN VALHALLA</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>OSM NETWORK</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>SCHEDULE VALIDITY</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const activeOrCompiledCities = (gtfsTelemetry?.cities || []).filter(
+                  (c) => c.is_compiled || c.is_building || compilingCity === c.city
+                );
+                if (activeOrCompiledCities.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+                        No public transit networks currently compiled or downloading.
+                      </td>
+                    </tr>
+                  );
+                }
+                return activeOrCompiledCities.map((cityItem) => {
+                  const isItemCompiling = cityItem.is_building || compilingCity === cityItem.city;
+                  return (
+                    <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '12px', fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {isItemCompiling && (
+                            <span className="animate-spin" style={{ display: 'inline-block', fontSize: '14px' }}>⏳</span>
+                          )}
+                          <div>
+                            <span>{cityItem.display_name}</span>
+                            <div className="font-mono text-muted" style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px' }}>
+                              {cityItem.has_feed ? 'Open Data Transit Feed' : 'No Official Feed Mapped'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span
+                          className="font-mono"
+                          style={{
+                            fontSize: '10px',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            background:
+                              cityItem.gtfs_status === 'READY'
+                                ? '#DCFCE7'
+                                : isItemCompiling
+                                ? '#FEF3C7'
+                                : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
+                                ? '#FEE2E2'
+                                : '#E2E8F0',
+                            color:
+                              cityItem.gtfs_status === 'READY'
+                                ? '#15803D'
+                                : isItemCompiling
+                                ? '#B45309'
+                                : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
+                                ? '#B91C1C'
+                                : '#475569',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {isItemCompiling && <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span>}
+                          {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {cityItem.is_compiled && !isItemCompiling ? (
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#15803D', fontWeight: 600 }}>
+                            ✓ YES (READY)
+                          </span>
+                        ) : (
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span> IN PROGRESS
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span
+                          className="font-mono"
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: cityItem.osm_status === 'READY' ? '#DCFCE7' : '#E2E8F0',
+                            color: cityItem.osm_status === 'READY' ? '#15803D' : '#475569',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {cityItem.osm_status}
+                        </span>
+                      </td>
+                      <td className="font-mono text-muted" style={{ padding: '12px', fontSize: '11px' }}>
+                        {cityItem.valid_until
+                          ? new Date(cityItem.valid_until).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleTriggerCompile(cityItem.city)}
+                          disabled={isItemCompiling}
+                          className="font-mono"
+                          style={{
+                            padding: '5px 10px',
+                            fontSize: '11px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--color-border)',
+                            background: isItemCompiling ? '#F1F5F9' : '#FFF',
+                            color: isItemCompiling ? '#94A3B8' : 'var(--color-accent-primary)',
+                            cursor: isItemCompiling ? 'not-allowed' : 'pointer',
+                            opacity: isItemCompiling ? 0.6 : 1,
+                          }}
+                        >
+                          {isItemCompiling
+                            ? 'DOWNLOADING...'
+                            : cityItem.is_compiled
+                            ? 'RECOMPILE'
+                            : 'DOWNLOAD & COMPILE'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Docker Instance Health Panel */}

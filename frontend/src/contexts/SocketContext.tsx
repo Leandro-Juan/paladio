@@ -266,6 +266,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'MAP_INGESTION':
         addLog(`> [MAP] ${payload.message || payload.status}`);
         break;
+      case 'TRANSIT_DOWNLOAD_STARTED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] Downloading official GTFS schedule for ${cityName}...`);
+        notify.info(
+          'GTFS Download Started',
+          `Downloading official GTFS public transit data for ${cityName} in the background...`,
+          {
+            actionLink: '/config',
+            actionLabel: 'View Status',
+          }
+        );
+        break;
+      }
       case 'TRANSIT_TILES_READY': {
         const cityName = payload.city_name || payload.city || 'City';
         addLog(`> [TRANSIT] Real transit data compiled and verified for ${cityName}.`);

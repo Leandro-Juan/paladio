@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -8,8 +9,11 @@ from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import delete
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -18,6 +22,36 @@ class TransitStatusResponse(BaseModel):
     city: str
     gtfs_status: str
     is_ready: bool
+
+
+class CityGtfsItem(BaseModel):
+    city: str
+    display_name: str
+    status: str
+    osm_status: str
+    gtfs_status: str
+    is_ready: bool
+    is_building: bool
+    is_downloaded: bool
+    is_compiled: bool
+    has_feed: bool
+    feed_url: str | None = None
+    valid_until: str | None = None
+    gtfs_feed_name: str | None = None
+    updated_at: str | None = None
+
+
+class GtfsRegistryResponse(BaseModel):
+    has_active_process: bool
+    active_processes_count: int
+    active_cities: list[str]
+    total_cities: int
+    compiled_cities: int
+    cities: list[CityGtfsItem]
+
+
+class CompileCityRequest(BaseModel):
+    city: str
 
 
 class TripCreate(BaseModel):
@@ -51,6 +85,21 @@ async def create_trip(
     session.add(db_trip)
     await session.commit()
     await session.refresh(db_trip)
+
+    # Auto-trigger GTFS download for trip destination if needed
+    if db_trip.destination:
+        try:
+            from app.tasks import async_trigger_city_gtfs_download_if_needed
+
+            await async_trigger_city_gtfs_download_if_needed(
+                city_name=db_trip.destination,
+                trip_id=db_trip.id,
+                session=session,
+            )
+        except (SQLAlchemyError, OSError, RuntimeError) as e:
+            logger.warning(
+                f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
+            )
 
     return TripResponse(
         id=db_trip.id,
@@ -137,6 +186,122 @@ async def get_transit_status_by_trip(
         gtfs_status=gtfs_status,
         is_ready=is_ready,
     )
+
+
+@router.get("/transit/registry", response_model=GtfsRegistryResponse)
+async def get_transit_registry(session: AsyncSession = Depends(get_db)):
+    from app.tasks import CITY_GTFS_MAP
+
+    stmt = select(TransitCacheModel).order_by(TransitCacheModel.city.asc())
+    res = await session.execute(stmt)
+    records = {r.city.lower(): r for r in res.scalars().all()}
+
+    all_city_keys = sorted(set(list(records.keys()) + list(CITY_GTFS_MAP.keys())))
+
+    city_items: list[CityGtfsItem] = []
+    active_cities: list[str] = []
+
+    for city_key in all_city_keys:
+        rec = records.get(city_key)
+        has_feed = city_key in CITY_GTFS_MAP
+        feed_url = CITY_GTFS_MAP.get(city_key)
+
+        status_val = rec.status if rec else "PENDING"
+        osm_status_val = rec.osm_status if rec else "PENDING"
+        gtfs_status_val = rec.gtfs_status if rec else "PENDING"
+
+        is_building = (
+            gtfs_status_val == "BUILDING"
+            or status_val == "BUILDING"
+            or osm_status_val == "BUILDING"
+        )
+        is_ready = bool(gtfs_status_val == "READY")
+        is_downloaded = is_ready
+        is_compiled = bool(is_ready and status_val == "READY")
+
+        display_name = city_key.title()
+        if city_key == "oporto":
+            display_name = "Porto (Oporto)"
+
+        if is_building:
+            active_cities.append(display_name)
+
+        # ONLY list cities that are already compiled OR currently downloading/building
+        if not (is_compiled or is_building):
+            continue
+
+        valid_until_str = (
+            rec.valid_until.isoformat() if rec and rec.valid_until else None
+        )
+        updated_at_str = rec.updated_at.isoformat() if rec and rec.updated_at else None
+
+        city_items.append(
+            CityGtfsItem(
+                city=city_key,
+                display_name=display_name,
+                status=status_val,
+                osm_status=osm_status_val,
+                gtfs_status=gtfs_status_val,
+                is_ready=is_ready,
+                is_building=is_building,
+                is_downloaded=is_downloaded,
+                is_compiled=is_compiled,
+                has_feed=has_feed,
+                feed_url=feed_url,
+                valid_until=valid_until_str,
+                gtfs_feed_name=rec.gtfs_feed_name if rec else None,
+                updated_at=updated_at_str,
+            )
+        )
+
+    compiled_count = sum(1 for c in city_items if c.is_compiled)
+
+    return GtfsRegistryResponse(
+        has_active_process=len(active_cities) > 0,
+        active_processes_count=len(active_cities),
+        active_cities=active_cities,
+        total_cities=len(city_items),
+        compiled_cities=compiled_count,
+        cities=city_items,
+    )
+
+
+@router.post("/transit/compile")
+async def trigger_city_gtfs_compile(
+    req: CompileCityRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    city_clean = req.city.strip().lower()
+    from app.db.models import TransitCacheStatus
+
+    stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+    if not record:
+        record = TransitCacheModel(
+            city=city_clean,
+            status=TransitCacheStatus.BUILDING.value,
+            osm_status="PENDING",
+            gtfs_status="BUILDING",
+        )
+        session.add(record)
+    else:
+        record.status = TransitCacheStatus.BUILDING.value
+        record.gtfs_status = "BUILDING"
+    await session.commit()
+
+    try:
+        from app.tasks import build_city_gtfs_task
+
+        build_city_gtfs_task.delay(city_clean)
+    except (OSError, RuntimeError) as exc:
+        logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
+
+    return {
+        "status": "triggered",
+        "city": city_clean,
+        "message": f"GTFS download and compilation process initiated for {city_clean}.",
+    }
 
 
 @router.get("/{trip_id}", response_model=TripResponse)

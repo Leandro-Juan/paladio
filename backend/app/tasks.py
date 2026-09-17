@@ -3,9 +3,11 @@ import csv
 import logging
 import os
 import re
+import shutil
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -97,9 +99,123 @@ CITY_GTFS_MAP = {
     "madrid": "https://www.arcgis.com/sharing/rest/content/items/5c7f2951962540d69ffe8f640d94c246/data",
     "oporto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
     "porto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
-    "paris": "https://data.iledefrance-mobilites.fr/explore/dataset/offre-horaires-tc-idf-gtfs/files/gtfs.zip",
+    "paris": "https://eu.ftp.opendatasoft.com/sncf/gtfs/transilien-gtfs.zip",
     "barcelona": "https://opendata-ajuntament.barcelona.cat/data/dataset/844c8789-f538-4e11-bf37-0205be4a1ca2/resource/cfbcbe68-54b0-466d-8692-0b2a3045df6a/download/transit.zip",
 }
+
+
+def _publish_transit_started_event(
+    city_clean: str, city_name: str, trip_id: str | None = None
+) -> None:
+    try:
+        import json
+
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        event_payload = json.dumps(
+            {
+                "event": "TRANSIT_DOWNLOAD_STARTED",
+                "city": city_clean,
+                "city_name": city_name.strip().title(),
+                "trip_id": trip_id,
+            }
+        )
+        r.publish("paladio:events", event_payload)
+        logger.info(f"Published TRANSIT_DOWNLOAD_STARTED for {city_name} to Redis.")
+    except (redis.RedisError, OSError, RuntimeError) as r_err:
+        logger.warning(f"Could not publish TRANSIT_DOWNLOAD_STARTED event: {r_err}")
+
+
+async def async_trigger_city_gtfs_download_if_needed(
+    city_name: str,
+    trip_id: str | None = None,
+    session: Any | None = None,
+) -> bool:
+    """
+    Checks if GTFS data for the city is already READY and valid.
+    If not, asynchronously kicks off build_city_gtfs_task and publishes
+    TRANSIT_DOWNLOAD_STARTED event to Redis so frontend is notified.
+    Returns True if compilation/download was initiated, False if already READY or compiling.
+    """
+    if not city_name:
+        return False
+
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+    if city_clean not in CITY_GTFS_MAP:
+        logger.info(f"No GTFS feed configured for city: {city_clean}")
+        return False
+
+    from sqlalchemy import select
+
+    from app.db.models import TransitCacheModel
+
+    async def _do_check_and_trigger(db_session):
+        stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
+        res = await db_session.execute(stmt)
+        entry = res.scalar_one_or_none()
+
+        now = datetime.now(timezone.utc)
+        if (
+            entry
+            and entry.gtfs_status == "READY"
+            and entry.valid_until
+            and entry.valid_until > now
+        ):
+            logger.info(
+                f"GTFS data for {city_clean} is already READY and valid until {entry.valid_until}."
+            )
+            return False
+
+        if entry and entry.gtfs_status == "BUILDING":
+            logger.info(
+                f"GTFS compilation for {city_clean} is already in progress (BUILDING)."
+            )
+            return False
+
+        if not entry:
+            entry = TransitCacheModel(
+                city=city_clean,
+                status=TransitCacheStatus.BUILDING.value,
+                osm_status="PENDING",
+                gtfs_status="BUILDING",
+            )
+            db_session.add(entry)
+        else:
+            entry.status = TransitCacheStatus.BUILDING.value
+            entry.gtfs_status = "BUILDING"
+        await db_session.commit()
+        return True
+
+    try:
+        if session is not None:
+            should_trigger = await _do_check_and_trigger(session)
+        else:
+            session_maker, task_engine = _get_task_session_maker()
+            try:
+                async with session_maker() as new_session:
+                    should_trigger = await _do_check_and_trigger(new_session)
+            finally:
+                await task_engine.dispose()
+
+        if not should_trigger:
+            return False
+
+        build_city_gtfs_task.delay(city_name=city_clean, trip_id=trip_id)
+        _publish_transit_started_event(city_clean, city_name, trip_id)
+        return True
+    except (SQLAlchemyError, OSError, RuntimeError) as e:
+        logger.error(f"Error checking/triggering GTFS download for {city_name}: {e}")
+        return False
+
+
+def trigger_city_gtfs_download_if_needed(
+    city_name: str,
+    trip_id: str | None = None,
+) -> bool:
+    """Synchronous wrapper for async_trigger_city_gtfs_download_if_needed."""
+    return _run_async(async_trigger_city_gtfs_download_if_needed(city_name, trip_id))
 
 
 def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
@@ -306,6 +422,8 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
     except (SQLAlchemyError, OSError, RuntimeError) as e:
         logger.warning(f"Could not update gtfs_status to BUILDING: {e}")
 
+    _publish_transit_started_event(city_lower, city_name, trip_id)
+
     gtfs_url = CITY_GTFS_MAP.get(city_lower)
     gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
     gtfs_dest_dir = f"{gtfs_base}/{city_lower}"
@@ -317,7 +435,18 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             zip_tmp = f"/tmp/{city_lower}_gtfs.zip"
             logger.info(f"Downloading GTFS feed from {gtfs_url} to {zip_tmp}...")
             try:
-                urllib.request.urlretrieve(gtfs_url, zip_tmp)
+                req = urllib.request.Request(
+                    gtfs_url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    },
+                )
+                with (
+                    urllib.request.urlopen(req, timeout=120) as resp,
+                    open(zip_tmp, "wb") as out_f,
+                ):
+                    shutil.copyfileobj(resp, out_f)
+
                 with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
                     target_base = os.path.abspath(gtfs_dest_dir)
                     for member in zip_ref.infolist():

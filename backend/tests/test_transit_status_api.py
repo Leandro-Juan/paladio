@@ -75,3 +75,50 @@ async def test_transit_status_by_trip_id(async_client: AsyncClient, db_session):
 
     res_404 = await async_client.get("/api/v1/trips/non-existent-id/transit-status")
     assert res_404.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_transit_registry(async_client: AsyncClient, db_session):
+    # Ensure madrid is compiled in test db
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == "madrid")
+    )
+    madrid_cache = TransitCacheModel(
+        city="madrid",
+        status=TransitCacheStatus.READY.value,
+        osm_status="READY",
+        gtfs_status="READY",
+    )
+    db_session.add(madrid_cache)
+    await db_session.commit()
+
+    res = await async_client.get("/api/v1/trips/transit/registry")
+    assert res.status_code == 200
+    data = res.json()
+    assert "has_active_process" in data
+    assert "active_processes_count" in data
+    assert "active_cities" in data
+    assert "total_cities" in data
+    assert "compiled_cities" in data
+    assert "cities" in data
+    assert len(data["cities"]) > 0
+
+    # Registry must ONLY include compiled (READY) or downloading (BUILDING) cities
+    city_names = [c["city"] for c in data["cities"]]
+    assert "madrid" in city_names
+    assert "valencia" in city_names
+    assert "berlin" in city_names
+    # Uncompiled / unmonitored cities must NOT be present
+    assert "barcelona" not in city_names
+
+
+@pytest.mark.asyncio
+async def test_trigger_city_gtfs_compile(async_client: AsyncClient, db_session):
+    res = await async_client.post(
+        "/api/v1/trips/transit/compile",
+        json={"city": "madrid"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "triggered"
+    assert data["city"] == "madrid"

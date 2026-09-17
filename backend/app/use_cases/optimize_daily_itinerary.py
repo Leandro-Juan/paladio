@@ -8,6 +8,7 @@ from app.domain.entities.poi import Poi
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
 from app.schemas.itinerary import TravelConstraints
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,16 @@ class OptimizeDailyItineraryUseCase:
         return_flight: dict,
     ) -> dict[str, Any]:
         city = constraints.destination_city
+        if city:
+            try:
+                from app.tasks import async_trigger_city_gtfs_download_if_needed
+
+                await async_trigger_city_gtfs_download_if_needed(city_name=city)
+            except (SQLAlchemyError, OSError, RuntimeError) as e:
+                logger.warning(
+                    f"Could not auto-trigger GTFS download during itinerary optimization for {city}: {e}"
+                )
+
         mandatory_names = (
             [n.poi_id.lower() for n in constraints.nodes] if constraints.nodes else []
         )
