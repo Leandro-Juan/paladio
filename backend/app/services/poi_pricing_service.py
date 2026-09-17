@@ -318,6 +318,10 @@ class PoiPricingService:
         ):
             return existing_cost, False, existing_source
 
+        # 4.5 If existing data has a non-zero cost (e.g. scraped estimated cost), preserve it
+        if existing_cost is not None and existing_cost > 0.0:
+            return existing_cost, True, (existing_source or "existing_estimate")
+
         # 5. Fallback: Category benchmark estimation
         # Mandatory Guardrail: Clearly state that this is AN ESTIMATED PRICE
         cat_key = category.lower() if category else "generic"

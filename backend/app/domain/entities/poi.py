@@ -103,6 +103,12 @@ class Poi(BaseModel):
         d = dict(data)
         from app.utils.opening_hours_parser import parse_osm_opening_hours
 
+        top_osm = d.get("osm_opening_hours")
+        if top_osm and not d.get("open_time_mins_by_day"):
+            parsed = parse_osm_opening_hours(top_osm)
+            d["open_time_mins_by_day"] = parsed.open_time_mins_by_day
+            d["close_time_mins_by_day"] = parsed.close_time_mins_by_day
+
         if "schedule" in d and isinstance(d["schedule"], dict):
             sched = d.pop("schedule")
             osm_h = sched.get("osm_opening_hours")

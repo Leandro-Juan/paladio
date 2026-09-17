@@ -308,6 +308,9 @@ class SqlPoiRepository(IPoiRepository):
 
         values = []
         for p in pois:
+            if isinstance(p, Attraction):
+                p = attraction_to_poi(p, city_name)
+
             if isinstance(p, dict):
                 p_id = p.get("id")
                 p_name = p.get("name", "")
