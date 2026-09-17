@@ -108,6 +108,7 @@ def generate_mock_tickets(
         flight_duration_minutes=180,
         flight_number="PL-101",
         airline="Paladio Airways",
+        direction="arrival",
     )
 
     return_flight = FlightSegment(
@@ -118,6 +119,7 @@ def generate_mock_tickets(
         flight_duration_minutes=180,
         flight_number="PL-102",
         airline="Paladio Airways",
+        direction="departure",
     )
 
     hotel = HotelAnchor(
@@ -136,8 +138,8 @@ def generate_mock_tickets(
     )
 
     booking_text = (
-        f"Flight outbound {orig_iata} to {dest_iata} on {outbound_date.isoformat()} 10:00 (duration 180m). "
-        f"Flight return {dest_iata} to {orig_iata} on {return_date.isoformat()} 14:00 (duration 180m). "
+        f"Flight outbound {orig_iata} to {dest_iata} on {outbound_date.isoformat()} 10:00 arriving at {outbound_arr} (duration 180m). "
+        f"Flight return {dest_iata} to {orig_iata} on {return_date.isoformat()} 14:00 arriving at {return_arr} (duration 180m). "
         f"{hotel_name} booked in {destination_city.title()} from {outbound_date.isoformat()} to {return_date.isoformat()}."
     )
 

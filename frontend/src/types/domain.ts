@@ -95,22 +95,38 @@ export interface FlightInfo {
     origin_iata: string;
     destination_iata: string;
     departure_time: string;
-    arrival_time: string;
+    arrival_time?: string;
+    flight_duration_minutes?: number;
+    direction?: 'arrival' | 'departure' | string;
+    flight_number?: string;
+    airline?: string;
 }
 
 export interface DayOutput {
     day: number;
     itinerary: DailyItinerary;
     flight_info?: FlightInfo;
+    inbound_flight?: FlightInfo;
+    outbound_flight?: FlightInfo;
 }
 
 export interface OptimizationResult {
+    is_upgraded?: boolean;
     metadata: {
         engine: string;
         version: string;
         nodes_evaluated: number;
+        transit_upgraded?: boolean;
+        [key: string]: unknown;
     };
-    travel_constraints: unknown;
+    travel_constraints?: {
+        origin_city?: string;
+        destination_city?: string;
+        start_date?: string;
+        end_date?: string;
+        budget_usd?: number;
+        [key: string]: unknown;
+    };
     days: DayOutput[];
     total_trip_cost: number;
 }

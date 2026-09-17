@@ -12,8 +12,22 @@ STALE_TTL_DAYS = 180
 
 
 def is_poi_match(mandatory_name: str, poi_name: str) -> bool:
-    m_lower = mandatory_name.lower()
-    p_lower = poi_name.lower()
+    m_lower = mandatory_name.lower().strip()
+    p_lower = poi_name.lower().strip()
+    if not m_lower:
+        return True
+    # Generic category names are fulfilled by any category-relevant POI in the city
+    generic_words = {
+        "museum",
+        "museums",
+        "landmark",
+        "landmarks",
+        "attraction",
+        "attractions",
+        "cultural",
+    }
+    if any(gw in m_lower for gw in generic_words):
+        return True
     if m_lower in p_lower or p_lower in m_lower:
         return True
     m_words = [
@@ -52,9 +66,15 @@ async def get_attractions_for_city(
         logger.warning(
             f"Cache miss or missing mandatory POIs for {city_name}. Blocking to fetch fresh data..."
         )
-        new_pois = await _fetch_and_store_pois(
-            city_name, poi_repo, poi_provider, mandatory_names
-        )
+        try:
+            new_pois = await _fetch_and_store_pois(
+                city_name, poi_repo, poi_provider, mandatory_names
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to fetch fresh POIs for {city_name} ({exc}), falling back to cached POIs."
+            )
+            new_pois = []
 
         # If we already had pois, append the newly fetched ones
         if pois:
@@ -62,9 +82,16 @@ async def get_attractions_for_city(
             # return the union of the old ones + new ones.
             # (In a real app, _fetch_and_store_pois might fetch everything again, so
             # we just re-query the repo to get the complete merged list)
-            pois = await poi_repo.find_by_city(city_name)
+            merged = await poi_repo.find_by_city(city_name)
+            if merged:
+                pois = merged
         else:
             pois = new_pois
+
+        if not pois:
+            raise RuntimeError(
+                f"All Overpass API endpoints failed or timed out for {city_name}."
+            )
 
         return [poi.model_dump(mode="json") for poi in pois]
 

@@ -43,18 +43,59 @@ class OptimizeDailyItineraryUseCase:
         multi_day_itinerary = []
 
         flight_cost = 0.0
-        arrival_time = "08:00"
-        departure_time = "22:00"
+        arrival_time = None
+        departure_time = None
 
-        if outbound_flight and return_flight:
-            arrival_time = outbound_flight.get("arrival_time", "08:00")
-            departure_time = return_flight.get("departure_time", "22:00")
+        if outbound_flight:
+            arrival_time = outbound_flight.get("arrival_time")
+            if not arrival_time:
+                dep_t = outbound_flight.get("departure_time")
+                dur = outbound_flight.get("flight_duration_minutes") or 120
+                if dep_t:
+                    from app.utils.timezone_utils import (
+                        calculate_timezone_aware_arrival,
+                    )
+
+                    arrival_time = calculate_timezone_aware_arrival(
+                        dep_t,
+                        dur,
+                        outbound_flight.get("origin_iata"),
+                        outbound_flight.get("destination_iata"),
+                    )
+                    outbound_flight["arrival_time"] = arrival_time
+            if not outbound_flight.get("direction"):
+                outbound_flight["direction"] = "arrival"
+
+        if return_flight:
+            departure_time = return_flight.get("departure_time")
+            if not return_flight.get("arrival_time"):
+                dur = return_flight.get("flight_duration_minutes") or 120
+                if departure_time:
+                    from app.utils.timezone_utils import (
+                        calculate_timezone_aware_arrival,
+                    )
+
+                    return_flight["arrival_time"] = calculate_timezone_aware_arrival(
+                        departure_time,
+                        dur,
+                        return_flight.get("origin_iata"),
+                        return_flight.get("destination_iata"),
+                    )
+            if not return_flight.get("direction"):
+                return_flight["direction"] = "departure"
+
+        if not arrival_time:
+            arrival_time = "12:00"
+        if not departure_time:
+            departure_time = "18:00"
 
         local_constraints = copy.deepcopy(constraints)
         local_constraints.budget_usd = max(0.0, constraints.budget_usd - flight_cost)
 
         def parse_hm(t_str):
             try:
+                if not t_str:
+                    return 12, 0
                 if "T" in t_str:
                     dt = datetime.fromisoformat(t_str.replace("Z", "+00:00"))
                     return dt.hour, dt.minute
@@ -66,23 +107,32 @@ class OptimizeDailyItineraryUseCase:
                     parts = t_str.split(":")
                     return int(parts[0]), int(parts[1])
             except (ValueError, TypeError, IndexError, AttributeError):
-                logger.warning(f"Failed to parse time {t_str}, defaulting to 08:00")
-                return 8, 0
+                logger.warning(f"Failed to parse time {t_str}, defaulting to 12:00")
+                return 12, 0
 
         arr_h, arr_m = parse_hm(arrival_time)
         arrival_mins = arr_h * 60 + arr_m
         dep_h, dep_m = parse_hm(departure_time)
         departure_mins = dep_h * 60 + dep_m
 
-        hotel_arrival_time = (
-            arrival_mins
-            + HOTEL_CHECKIN_BUFFER_MINS
-            + HOTEL_ARRIVAL_REST_MINS
-            + AIRPORT_TRANSIT_TO_HOTEL_MINS
-        )
-        hotel_departure_time = (
-            departure_mins - DEPARTURE_CHECKIN_MINS - HOTEL_TRANSIT_TO_AIRPORT_MINS
-        )
+        if outbound_flight:
+            AIRPORT_DEPLANING_BUFFER_MINS = 60
+            hotel_arrival_time = (
+                arrival_mins
+                + AIRPORT_DEPLANING_BUFFER_MINS
+                + AIRPORT_TRANSIT_TO_HOTEL_MINS
+                + HOTEL_CHECKIN_BUFFER_MINS
+                + HOTEL_ARRIVAL_REST_MINS
+            )
+        else:
+            hotel_arrival_time = 480
+
+        if return_flight:
+            hotel_departure_time = (
+                departure_mins - DEPARTURE_CHECKIN_MINS - HOTEL_TRANSIT_TO_AIRPORT_MINS
+            )
+        else:
+            hotel_departure_time = 1320
 
         all_pois_flat = []
         poi_to_index = {}
@@ -135,6 +185,8 @@ class OptimizeDailyItineraryUseCase:
                 hotel_arrival_time,
                 hotel_departure_time,
                 mandatory_names,
+                flight_arrival_mins=arrival_mins,
+                flight_departure_mins=departure_mins,
             )
 
             if not result:
@@ -145,13 +197,26 @@ class OptimizeDailyItineraryUseCase:
                     "path": [],
                 }
 
-            daily_flight = (
-                outbound_flight
-                if day == 0
-                else (return_flight if day == num_days - 1 else None)
-            )
+            daily_flight = None
+            if day == 0 and outbound_flight:
+                daily_flight = copy.deepcopy(outbound_flight)
+                daily_flight["direction"] = "arrival"
+            elif day == num_days - 1 and return_flight:
+                daily_flight = copy.deepcopy(return_flight)
+                daily_flight["direction"] = "departure"
+
             multi_day_itinerary.append(
-                {"day": day + 1, "flight_info": daily_flight, "itinerary": result}
+                {
+                    "day": day + 1,
+                    "flight_info": daily_flight,
+                    "inbound_flight": copy.deepcopy(outbound_flight)
+                    if day == 0 and outbound_flight
+                    else None,
+                    "outbound_flight": copy.deepcopy(return_flight)
+                    if day == num_days - 1 and return_flight
+                    else None,
+                    "itinerary": result,
+                }
             )
 
             visited_names = {p["poi"]["name"] for p in result["path"]}
@@ -196,6 +261,8 @@ class OptimizeDailyItineraryUseCase:
         hotel_arrival_time: int,
         hotel_departure_time: int,
         mandatory_names: list,
+        flight_arrival_mins: int = 720,
+        flight_departure_mins: int = 1080,
     ) -> dict[str, Any]:
         if (
             len(unvisited_pois) <= 1
@@ -320,7 +387,7 @@ class OptimizeDailyItineraryUseCase:
             result["total_cost_eur"] = float(result["total_cost"])
 
         if day == 0 and selected_airport:
-            arr_mins = hotel_arrival_time - 105
+            arr_mins = flight_arrival_mins
             airport_node = {
                 "poi": selected_airport,
                 "scheduled_start": f"{arr_mins // 60:02d}:{arr_mins % 60:02d}",
@@ -346,6 +413,8 @@ class OptimizeDailyItineraryUseCase:
             result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 
         if day == num_days - 1 and selected_airport:
+            airport_arr = max(0, flight_departure_mins - 120)
+            airport_dep = flight_departure_mins
             if not result.get("path"):
                 if selected_hotel:
                     dep_h, dep_m = hotel_departure_time // 60, hotel_departure_time % 60
@@ -358,27 +427,31 @@ class OptimizeDailyItineraryUseCase:
                     ]
                 else:
                     result["path"] = []
-                start_mins = hotel_departure_time + 45
                 result["path"].append(
                     {
                         "poi": selected_airport,
-                        "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
-                        "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
+                        "scheduled_start": f"{airport_arr // 60:02d}:{airport_arr % 60:02d}",
+                        "scheduled_end": f"{airport_dep // 60:02d}:{airport_dep % 60:02d}",
                     }
                 )
             else:
                 last_end = result["path"][-1]["scheduled_end"]
                 lh, lm = map(int, last_end.split(":"))
-                start_mins = lh * 60 + lm + 45
+                last_end_mins = lh * 60 + lm
+                start_mins = min(
+                    max(last_end_mins + 45, airport_arr), max(0, airport_dep - 30)
+                )
+                end_mins = max(start_mins + 15, airport_dep)
                 result["path"].append(
                     {
                         "poi": selected_airport,
                         "scheduled_start": f"{start_mins // 60:02d}:{start_mins % 60:02d}",
-                        "scheduled_end": f"{(start_mins + 120) // 60:02d}:{(start_mins + 120) % 60:02d}",
+                        "scheduled_end": f"{end_mins // 60:02d}:{end_mins % 60:02d}",
                     }
                 )
             # Account for departure airport dwell time (120 mins) and cost
-            result["total_time_mins"] = result.get("total_time_mins", 0) + 120
+            dwell_mins = max(30, airport_dep - airport_arr)
+            result["total_time_mins"] = result.get("total_time_mins", 0) + dwell_mins
             airport_cost = float(selected_airport.get("cost_eur", 0.0) or 0.0)
             result["total_cost_eur"] = result.get("total_cost_eur", 0.0) + airport_cost
 

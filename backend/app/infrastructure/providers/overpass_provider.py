@@ -18,7 +18,7 @@ from app.schemas.scraper import (
 logger = logging.getLogger(__name__)
 
 OVERPASS_ENDPOINTS = [
-    "http://overpass-api.de/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
     "https://z.overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
@@ -87,7 +87,7 @@ class OverpassProviderAdapter(IPoiProvider):
             "Accept": "application/json",
             "User-Agent": "Paladio-Static-Ingester/1.0",
         }
-        timeout = httpx.Timeout(25.0, connect=15.0)
+        timeout = httpx.Timeout(8.0, connect=5.0)
         data = None
 
         for endpoint in OVERPASS_ENDPOINTS:
@@ -315,7 +315,7 @@ class OverpassProviderAdapter(IPoiProvider):
             "Accept": "application/json",
             "User-Agent": "Paladio-Static-Ingester/1.0",
         }
-        timeout = httpx.Timeout(25.0, connect=15.0)
+        timeout = httpx.Timeout(4.0, connect=2.0)
 
         for endpoint in OVERPASS_ENDPOINTS:
             try:

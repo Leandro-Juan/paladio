@@ -159,3 +159,99 @@ test('renders POI category badges correctly for museum, restaurant, cafe, bus st
   await expect(component.getByText('Grand Central Hotel')).toBeVisible();
   await expect(badges.nth(5)).toContainText('HOTEL');
 });
+
+test('renders upgrade button disabled and gray with info tooltip when estimated transit exists', async ({ mount, page }) => {
+  const estimItinerary: OptimizationResult = {
+    metadata: { engine: 'BranchAndBound', version: '2.0', nodes_evaluated: 42 },
+    travel_constraints: { destination_city: 'Paris' },
+    total_trip_cost: 150,
+    days: [
+      {
+        day: 1,
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'p1', name: 'Start Point', city: 'Paris', category: 'HOTEL', cost_eur: 0, duration_mins: 60, location: { latitude: 48.8, longitude: 2.3 } },
+              scheduled_start: '09:00',
+              scheduled_end: '10:00',
+            },
+            {
+              poi: { id: 'p2', name: 'End Point', city: 'Paris', category: 'MUSEUM', cost_eur: 15, duration_mins: 90, location: { latitude: 48.85, longitude: 2.35 } },
+              scheduled_start: '10:30',
+              scheduled_end: '12:00',
+              transit_from_previous: {
+                mode: 'transit',
+                cost_eur: 2.1,
+                cost_is_estimated: true,
+                price_source: 'fallback_estimate',
+                duration_mins: 20,
+                steps: [],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const component = await mount(<TripTimeline itinerary={estimItinerary} />);
+
+  // Upgrade button should be present
+  const btn = component.locator('[data-testid="upgrade-transit-btn"]');
+  await expect(btn).toBeVisible();
+  await expect(btn).toContainText('UPGRADE TO REAL PUBLIC TRANSIT');
+
+  // Should be disabled because GTFS is not ready
+  await expect(btn).toBeDisabled();
+
+  // Info icon should be present to the left of the button
+  const infoIcon = component.locator('[data-testid="transit-info-icon"]');
+  await expect(infoIcon).toBeVisible();
+
+  // Tooltip appears on hover
+  await infoIcon.hover();
+  const tooltip = component.locator('[data-testid="transit-info-tooltip"]');
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Public transit schedule data (GTFS) for this city');
+});
+
+test('hides upgrade button when itinerary is already marked as upgraded', async ({ mount }) => {
+  const upgradedItinerary: OptimizationResult = {
+    is_upgraded: true,
+    metadata: { engine: 'BranchAndBound', version: '2.0', nodes_evaluated: 42, transit_upgraded: true },
+    travel_constraints: { destination_city: 'Madrid' },
+    total_trip_cost: 150,
+    days: [
+      {
+        day: 1,
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'p1', name: 'Start Point', city: 'Madrid', category: 'HOTEL', cost_eur: 0, duration_mins: 60, location: { latitude: 40.4, longitude: -3.7 } },
+              scheduled_start: '09:00',
+              scheduled_end: '10:00',
+            },
+            {
+              poi: { id: 'p2', name: 'End Point', city: 'Madrid', category: 'MUSEUM', cost_eur: 12, duration_mins: 90, location: { latitude: 40.41, longitude: -3.69 } },
+              scheduled_start: '10:30',
+              scheduled_end: '12:00',
+              transit_from_previous: {
+                mode: 'transit',
+                cost_eur: 1.5,
+                cost_is_estimated: false,
+                duration_mins: 15,
+                steps: [],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const component = await mount(<TripTimeline itinerary={upgradedItinerary} />);
+
+  // Upgrade toolbar and button should NOT exist
+  await expect(component.locator('[data-testid="transit-upgrade-toolbar"]')).toHaveCount(0);
+  await expect(component.locator('[data-testid="upgrade-transit-btn"]')).toHaveCount(0);
+});

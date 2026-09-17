@@ -3,15 +3,21 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
-from app.db.models import TripModel, UserModel
+from app.db.models import TransitCacheModel, TripModel, UserModel
 from app.db.session import get_db
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 router = APIRouter()
+
+
+class TransitStatusResponse(BaseModel):
+    city: str
+    gtfs_status: str
+    is_ready: bool
 
 
 class TripCreate(BaseModel):
@@ -85,6 +91,52 @@ async def get_trips(
             )
         )
     return response
+
+
+@router.get("/transit-status", response_model=TransitStatusResponse)
+async def get_transit_status_by_city(
+    city: str = Query(..., description="Destination city name"),
+    session: AsyncSession = Depends(get_db),
+):
+    city_clean = city.strip().lower()
+    stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+
+    gtfs_status = record.gtfs_status if record else "PENDING"
+    is_ready = bool(record and record.gtfs_status == "READY")
+
+    return TransitStatusResponse(
+        city=city_clean,
+        gtfs_status=gtfs_status,
+        is_ready=is_ready,
+    )
+
+
+@router.get("/{trip_id}/transit-status", response_model=TransitStatusResponse)
+async def get_transit_status_by_trip(
+    trip_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    trip = res.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    city = (trip.destination or "").strip().lower()
+    stmt_cache = select(TransitCacheModel).where(TransitCacheModel.city == city)
+    res_cache = await session.execute(stmt_cache)
+    record = res_cache.scalar_one_or_none()
+
+    gtfs_status = record.gtfs_status if record else "PENDING"
+    is_ready = bool(record and record.gtfs_status == "READY")
+
+    return TransitStatusResponse(
+        city=city,
+        gtfs_status=gtfs_status,
+        is_ready=is_ready,
+    )
 
 
 @router.get("/{trip_id}", response_model=TripResponse)

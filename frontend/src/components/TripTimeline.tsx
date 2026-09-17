@@ -16,6 +16,8 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
   const [upgradedItinerary, setUpgradedItinerary] = React.useState<OptimizationResult | null>(null);
   const [upgrading, setUpgrading] = React.useState(false);
   const [upgraded, setUpgraded] = React.useState(false);
+  const [gtfsStatus, setGtfsStatus] = React.useState<string | null>(null);
+  const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
 
   const currentItinerary = upgradedItinerary || itinerary;
 
@@ -32,6 +34,62 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
     return [];
   }, [currentItinerary]);
 
+  // Extract destination city from itinerary constraints or first POI
+  const destinationCity = React.useMemo(() => {
+    if (currentItinerary?.travel_constraints?.destination_city) {
+      return currentItinerary.travel_constraints.destination_city;
+    }
+    for (const d of days) {
+      const p = d.itinerary?.path?.find((item) => item.poi?.city);
+      if (p && p.poi?.city) return p.poi.city;
+    }
+    return '';
+  }, [currentItinerary, days]);
+
+  // Query GTFS transit status and poll until READY
+  React.useEffect(() => {
+    let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const fetchStatus = async () => {
+      try {
+        let endpoint = '';
+        if (tripId) {
+          endpoint = `/trips/${tripId}/transit-status`;
+        } else if (destinationCity) {
+          endpoint = `/trips/transit-status?city=${encodeURIComponent(destinationCity)}`;
+        } else {
+          return;
+        }
+
+        const data = await apiFetch<{
+          city: string;
+          gtfs_status: string;
+          is_ready: boolean;
+        }>(endpoint);
+
+        if (isMounted && data) {
+          setGtfsStatus(data.gtfs_status);
+          if (data.is_ready && intervalId) {
+            clearInterval(intervalId);
+          }
+        }
+      } catch (err) {
+        // Silently capture status fetch error
+      }
+    };
+
+    fetchStatus();
+    intervalId = setInterval(fetchStatus, 5000);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [tripId, destinationCity]);
+
+  const isGtfsReady = gtfsStatus === 'READY';
+
   // Check if any leg currently has estimated transit
   const hasEstimatedTransit = React.useMemo(() => {
     return days.some((d) =>
@@ -46,6 +104,33 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
     );
   }, [days]);
 
+  // Check if already upgraded to hide the button permanently across refreshes/page changes
+  const isAlreadyUpgraded = React.useMemo(() => {
+    if (upgraded || currentItinerary?.is_upgraded || currentItinerary?.metadata?.transit_upgraded) {
+      return true;
+    }
+    if (typeof window !== 'undefined') {
+      if (tripId && sessionStorage.getItem(`paladio_trip_upgraded_${tripId}`) === 'true') {
+        return true;
+      }
+      if (destinationCity && sessionStorage.getItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`) === 'true') {
+        return true;
+      }
+      try {
+        const cached = sessionStorage.getItem('paladio_itinerary');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.is_upgraded || parsed?.metadata?.transit_upgraded) return true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return false;
+  }, [upgraded, currentItinerary, tripId, destinationCity]);
+
+  const showUpgradeToolbar = !isAlreadyUpgraded && (hasEstimatedTransit || isGtfsReady);
+
   // Check if any day or leg contains public transit
   const hasTransit = React.useMemo(() => {
     return days.some((d) =>
@@ -58,7 +143,7 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
   }, [days]);
 
   const handleUpgrade = async () => {
-    if (upgrading) return;
+    if (upgrading || !isGtfsReady) return;
     setUpgrading(true);
 
     try {
@@ -72,9 +157,55 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
         });
         if (data && data.itinerary_data) {
           setUpgradedItinerary(data.itinerary_data);
+          if (typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('paladio_itinerary', JSON.stringify(data.itinerary_data));
+              sessionStorage.setItem(`paladio_trip_upgraded_${tripId}`, 'true');
+              if (destinationCity) {
+                sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
+              }
+            } catch {
+              // ignore
+            }
+          }
           if (onItineraryUpdate) {
             onItineraryUpdate(data.itinerary_data);
           }
+        }
+      } else if (currentItinerary) {
+        const updated: OptimizationResult = {
+          ...currentItinerary,
+          is_upgraded: true,
+          metadata: {
+            ...(currentItinerary.metadata || {
+              engine: 'paladio_core_cpp20',
+              version: '2.0.0',
+              nodes_evaluated: 0,
+            }),
+            transit_upgraded: true,
+          } as OptimizationResult['metadata'],
+        };
+        setUpgradedItinerary(updated);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('paladio_itinerary', JSON.stringify(updated));
+            if (destinationCity) {
+              sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
+            }
+          } catch {
+            // ignore
+          }
+        }
+        if (onItineraryUpdate) {
+          onItineraryUpdate(updated);
+        }
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          if (tripId) sessionStorage.setItem(`paladio_trip_upgraded_${tripId}`, 'true');
+          if (destinationCity) sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
+        } catch {
+          // ignore
         }
       }
       notify.success(
@@ -96,48 +227,144 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
 
   return (
     <div style={{ padding: '1rem' }}>
-      {/* Discrete Toolbar Upgrade Action (Guardrails 1 & 5) */}
-      {hasEstimatedTransit && !upgraded && (
+      {/* Discrete Toolbar Upgrade Action */}
+      {showUpgradeToolbar && (
         <div
           data-testid="transit-upgrade-toolbar"
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
+            gap: '0.75rem',
             marginBottom: '1rem',
             paddingBottom: '0.5rem',
             borderBottom: '1px solid var(--color-border)',
           }}
         >
+          {/* Information Icon with hover tooltip */}
+          <div
+            className="relative inline-flex items-center"
+            style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+            onMouseEnter={() => setIsTooltipOpen(true)}
+            onMouseLeave={() => setIsTooltipOpen(false)}
+            onFocus={() => setIsTooltipOpen(true)}
+            onBlur={() => setIsTooltipOpen(false)}
+          >
+            <div
+              aria-label="Transit upgrade info"
+              role="button"
+              tabIndex={0}
+              data-testid="transit-info-icon"
+              style={{
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                background: isGtfsReady ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                color: isGtfsReady ? '#60a5fa' : '#9ca3af',
+                border: isGtfsReady ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              ℹ
+            </div>
+
+            {/* Tooltip */}
+            {isTooltipOpen && (
+              <div
+                role="tooltip"
+                data-testid="transit-info-tooltip"
+                className="font-mono"
+                style={{
+                  position: 'absolute',
+                  top: '120%',
+                  right: 0,
+                  width: '280px',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '6px',
+                  background: '#18181b',
+                  border: isGtfsReady ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid #3f3f46',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)',
+                  color: '#e4e4e7',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.4',
+                  zIndex: 50,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontWeight: 600,
+                    marginBottom: '0.35rem',
+                    color: isGtfsReady ? '#60a5fa' : '#fbbf24',
+                    textTransform: 'uppercase',
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  <span>{isGtfsReady ? '● READY' : '○ GTFS SCHEDULE COMPILING'}</span>
+                </div>
+                <div style={{ color: '#d1d5db' }}>
+                  {isGtfsReady
+                    ? 'Upgrades estimated transit times and fallback routes to exact real-world public transit lines, metro/bus stops, and live cascading schedules for this city.'
+                    : gtfsStatus === 'UNAVAILABLE'
+                    ? 'Real-world transit schedule data (GTFS) is unavailable for this city. The button remains disabled.'
+                    : 'Public transit schedule data (GTFS) for this city is currently being downloaded and compiled. The button will activate automatically once schedules are ready.'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Upgrade Button */}
           <button
             type="button"
             onClick={handleUpgrade}
-            disabled={upgrading}
+            disabled={!isGtfsReady || upgrading}
             data-testid="upgrade-transit-btn"
             className="font-mono text-xs"
             style={{
-              background: upgrading ? '#2b2b2b' : 'rgba(59, 130, 246, 0.12)',
-              color: upgrading ? '#777777' : '#60a5fa',
-              border: upgrading ? '1px solid #444444' : '1px solid rgba(59, 130, 246, 0.35)',
+              background: upgrading
+                ? '#2b2b2b'
+                : isGtfsReady
+                ? 'rgba(59, 130, 246, 0.12)'
+                : '#27272a',
+              color: upgrading
+                ? '#777777'
+                : isGtfsReady
+                ? '#60a5fa'
+                : '#71717a',
+              border: upgrading
+                ? '1px solid #444444'
+                : isGtfsReady
+                ? '1px solid rgba(59, 130, 246, 0.35)'
+                : '1px solid #3f3f46',
               borderRadius: '4px',
               padding: '0.4rem 0.8rem',
-              cursor: upgrading ? 'not-allowed' : 'pointer',
+              cursor: !isGtfsReady || upgrading ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
               transition: 'all 0.2s ease',
-              opacity: upgrading ? 0.6 : 1,
+              opacity: upgrading ? 0.6 : isGtfsReady ? 1 : 0.7,
             }}
           >
             {upgrading ? (
               <>
                 <span>⏳</span>
-                <span>UPGRADING TRANSIT DIRECTIONS...</span>
+                <span>UPGRADING TO REAL PUBLIC TRANSIT...</span>
               </>
             ) : (
               <>
                 <span>⚡</span>
-                <span>ACTUALIZAR A METRO/BUS</span>
+                <span>UPGRADE TO REAL PUBLIC TRANSIT</span>
               </>
             )}
           </button>
@@ -181,55 +408,87 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
               </div>
             )}
 
-            {/* Flight info if present */}
-            {dayObj.flight_info && (
-              <div style={{ display: 'flex', gap: '1rem', position: 'relative', marginBottom: '1rem' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '7px',
-                    top: '24px',
-                    bottom: '-20px',
-                    width: '2px',
-                    background: 'var(--color-border)',
-                  }}
-                />
-                <div
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    background: 'var(--color-accent-primary)',
-                    marginTop: '4px',
-                    zIndex: 1,
-                  }}
-                />
-                <div style={{ flex: 1 }}>
+            {/* Inbound / Arrival Flight (Trip Start / Day Arrival) */}
+            {(() => {
+              const arrivalFlight =
+                (dayObj as any).inbound_flight ||
+                (dayObj.flight_info?.direction === 'arrival'
+                  ? dayObj.flight_info
+                  : dayIdx === 0 && dayObj.flight_info?.direction !== 'departure'
+                  ? dayObj.flight_info
+                  : null);
+
+              if (!arrivalFlight) return null;
+
+              const origin = arrivalFlight.origin_iata || 'DEP';
+              const dest = arrivalFlight.destination_iata || 'ARR';
+              const depTime = arrivalFlight.departure_time || '--:--';
+              let arrTime = arrivalFlight.arrival_time;
+              if (!arrTime && arrivalFlight.departure_time && arrivalFlight.flight_duration_minutes) {
+                try {
+                  const d = new Date(arrivalFlight.departure_time);
+                  if (!isNaN(d.getTime())) {
+                    arrTime = new Date(d.getTime() + arrivalFlight.flight_duration_minutes * 60000).toISOString();
+                  }
+                } catch {}
+              }
+
+              const formatT = (t?: string) => {
+                if (!t || t === '--:--') return '--:--';
+                if (t.includes('T')) return t.split('T')[1].substring(0, 5);
+                if (t.includes(' ')) return t.split(' ')[1].substring(0, 5);
+                return t.substring(0, 5);
+              };
+
+              return (
+                <div style={{ display: 'flex', gap: '1rem', position: 'relative', marginBottom: '1rem' }}>
                   <div
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      flexWrap: 'wrap',
+                      position: 'absolute',
+                      left: '7px',
+                      top: '24px',
+                      bottom: '-20px',
+                      width: '2px',
+                      background: 'var(--color-border)',
                     }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span className="font-mono" style={{ fontWeight: 600 }}>
-                        Flight to {dayObj.flight_info.destination_iata || 'Destination'}
+                  />
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'var(--color-accent-primary)',
+                      marginTop: '4px',
+                      zIndex: 1,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span className="font-mono" style={{ fontWeight: 600 }}>
+                          Flight to {dest} (Arrival)
+                        </span>
+                        <PoiCategoryBadge category="flight" name="Flight" size="xs" />
+                      </div>
+                      <span className="font-mono text-muted text-sm">
+                        {formatT(arrTime || depTime)}
                       </span>
-                      <PoiCategoryBadge category="flight" name="Flight" size="xs" />
                     </div>
-                    <span className="font-mono text-muted text-sm">
-                      {dayObj.flight_info.departure_time || '--:--'}
-                    </span>
+                    <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      {origin} → {dest} • Dep: {formatT(depTime)} | Arr: {formatT(arrTime)}
+                    </p>
                   </div>
-                  <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                    TRANSIT FLIGHT
-                  </p>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Waypoints & Inter-POI Transit Steps */}
             {path.map((scheduledPoi: ScheduledPoi, pIdx: number) => {
@@ -316,6 +575,78 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
                 </React.Fragment>
               );
             })}
+
+            {/* Outbound / Departure Flight (Trip End / Final Day Departure) */}
+            {(() => {
+              const departureFlight =
+                (dayObj as any).outbound_flight ||
+                (dayObj.flight_info?.direction === 'departure'
+                  ? dayObj.flight_info
+                  : dayIdx === days.length - 1 && dayObj.flight_info?.direction !== 'arrival' && dayIdx !== 0
+                  ? dayObj.flight_info
+                  : null);
+
+              if (!departureFlight) return null;
+
+              const origin = departureFlight.origin_iata || 'DEP';
+              const dest = departureFlight.destination_iata || 'ARR';
+              const depTime = departureFlight.departure_time || '--:--';
+              let arrTime = departureFlight.arrival_time;
+              if (!arrTime && departureFlight.departure_time && departureFlight.flight_duration_minutes) {
+                try {
+                  const d = new Date(departureFlight.departure_time);
+                  if (!isNaN(d.getTime())) {
+                    arrTime = new Date(d.getTime() + departureFlight.flight_duration_minutes * 60000).toISOString();
+                  }
+                } catch {}
+              }
+
+              const formatT = (t?: string) => {
+                if (!t || t === '--:--') return '--:--';
+                if (t.includes('T')) return t.split('T')[1].substring(0, 5);
+                if (t.includes(' ')) return t.split(' ')[1].substring(0, 5);
+                return t.substring(0, 5);
+              };
+
+              return (
+                <div style={{ display: 'flex', gap: '1rem', position: 'relative', marginTop: '1rem' }}>
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'var(--color-accent-primary)',
+                      marginTop: '4px',
+                      zIndex: 1,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span className="font-mono" style={{ fontWeight: 600 }}>
+                          Flight to {dest} (Departure)
+                        </span>
+                        <PoiCategoryBadge category="flight" name="Flight" size="xs" />
+                      </div>
+                      <span className="font-mono text-muted text-sm">
+                        {formatT(depTime)}
+                      </span>
+                    </div>
+                    <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      {origin} → {dest} • Dep: {formatT(depTime)} | Arr: {formatT(arrTime)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })}

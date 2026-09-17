@@ -56,16 +56,37 @@ export default function EnginePage() {
     
     const destination = extractDestination(itinerary);
     let startDate = new Date();
-    if (itinerary?.days?.[0]?.flight_info?.departure_time) {
-       const parsed = new Date(itinerary.days[0].flight_info.departure_time);
-       if (!isNaN(parsed.getTime())) startDate = parsed;
+    if (itinerary?.travel_constraints?.start_date) {
+      const parsed = new Date(itinerary.travel_constraints.start_date);
+      if (!isNaN(parsed.getTime())) startDate = parsed;
+    } else if (itinerary?.days?.[0]?.flight_info?.departure_time) {
+      const parsed = new Date(itinerary.days[0].flight_info.departure_time);
+      if (!isNaN(parsed.getTime())) startDate = parsed;
     }
     const daysLength = itinerary?.days?.length || 3;
+    
+    // DST-safe calendar date arithmetic: avoid naive millisecond math
+    let endDate: Date | null = null;
+    if (itinerary?.travel_constraints?.end_date) {
+      const parsed = new Date(itinerary.travel_constraints.end_date);
+      if (!isNaN(parsed.getTime())) endDate = parsed;
+    }
+    if (!endDate && itinerary?.days && itinerary.days.length > 0) {
+      const lastDayFlight = itinerary.days[itinerary.days.length - 1]?.flight_info?.departure_time;
+      if (lastDayFlight) {
+        const parsed = new Date(lastDayFlight);
+        if (!isNaN(parsed.getTime())) endDate = parsed;
+      }
+    }
+    if (!endDate) {
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + Math.max(0, daysLength - 1));
+    }
     
     const saved = await saveTrip({
       destination: destination,
       start_date: startDate.toISOString(),
-      end_date: new Date(startDate.getTime() + 86400000 * daysLength).toISOString(),
+      end_date: endDate.toISOString(),
       itinerary_data: itinerary
     });
     if (saved?.id) {

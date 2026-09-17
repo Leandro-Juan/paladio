@@ -199,7 +199,25 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'EVALUATING_ROUTES':
         if ((payload.status === 'completed' || payload.status === 'recovered') && payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          setItinerary(payload.data as unknown as OptimizationResult);
+          let incoming = payload.data as unknown as OptimizationResult;
+          if (typeof window !== 'undefined') {
+            try {
+              const cached = sessionStorage.getItem('paladio_itinerary');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed?.is_upgraded) {
+                  incoming = {
+                    ...incoming,
+                    is_upgraded: true,
+                    metadata: { ...incoming.metadata, transit_upgraded: true }
+                  };
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+          setItinerary(incoming);
           notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
             actionLink: '/vault',
             actionLabel: 'View Itinerary',
@@ -208,7 +226,25 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...`);
         } else if (payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          setItinerary(payload.data as unknown as OptimizationResult);
+          let incoming = payload.data as unknown as OptimizationResult;
+          if (typeof window !== 'undefined') {
+            try {
+              const cached = sessionStorage.getItem('paladio_itinerary');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed?.is_upgraded) {
+                  incoming = {
+                    ...incoming,
+                    is_upgraded: true,
+                    metadata: { ...incoming.metadata, transit_upgraded: true }
+                  };
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+          setItinerary(incoming);
           notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
             actionLink: '/vault',
             actionLabel: 'View Itinerary',
@@ -317,18 +353,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const sendMessage = useCallback((message: string, payloadExtras?: Record<string, unknown>) => {
     addLog(`> [USER] ${message}`);
 
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      addLog('> [ERROR] CANNOT SEND. UPLINK OFFLINE.');
-      return;
-    }
-    
-    const payload = {
-      action: 'chat',
-      message,
-      thread_id: threadIdRef.current,
-      ...(payloadExtras || {})
+    const sendPayload = (ws: WebSocket) => {
+      const payload = {
+        action: 'chat',
+        message,
+        thread_id: threadIdRef.current,
+        ...(payloadExtras || {})
+      };
+      ws.send(JSON.stringify(payload));
     };
-    wsRef.current.send(JSON.stringify(payload));
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      sendPayload(wsRef.current);
+    } else if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+      const socket = wsRef.current;
+      socket.addEventListener('open', () => {
+        sendPayload(socket);
+      }, { once: true });
+    } else {
+      addLog('> [ERROR] CANNOT SEND. UPLINK OFFLINE.');
+    }
   }, [addLog]);
 
   const sendFeedback = useCallback((poi: Partial<Poi>, targetScore: number, userId: string = 'default_user') => {

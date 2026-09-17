@@ -145,6 +145,21 @@ class UpgradeTripTransitUseCase:
                 path_items[k]["scheduled_start"] = minutes_to_time_str(arrival_mins)
 
                 departure_mins = arrival_mins + poi_dwell
+
+                flight_info = day_obj.get("flight_info") or {}
+                is_departure_flight = (
+                    flight_info.get("direction") == "departure"
+                    or day_idx == len(days) - 1
+                )
+                if is_departure_flight and curr_poi.get("category") == "AIRPORT":
+                    flight_dep_str = flight_info.get("departure_time")
+                    if flight_dep_str:
+                        f_dep_mins = parse_time_to_minutes(flight_dep_str)
+                        if f_dep_mins > arrival_mins:
+                            departure_mins = f_dep_mins
+                        else:
+                            departure_mins = arrival_mins + 30
+
                 path_items[k]["scheduled_end"] = minutes_to_time_str(departure_mins)
                 current_clock_mins = departure_mins
 
@@ -156,6 +171,11 @@ class UpgradeTripTransitUseCase:
             )
             day_itin["transit_recommendation"] = transit_rec.model_dump(mode="json")
             day_obj["transit_recommendation"] = transit_rec.model_dump(mode="json")
+
+        if "metadata" not in itinerary or not isinstance(itinerary["metadata"], dict):
+            itinerary["metadata"] = {}
+        itinerary["metadata"]["transit_upgraded"] = True
+        itinerary["is_upgraded"] = True
 
         trip.itinerary_data = itinerary
         await self.session.commit()

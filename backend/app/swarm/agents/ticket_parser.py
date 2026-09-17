@@ -37,7 +37,7 @@ ticket_parser_agent = Agent(
     name="ticket_parser",
     output_type=BookingAnchors,
     retries=3,
-    instructions="IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw JSON or text, only call the tool. Extract the outbound flight, return flight, and hotel accommodation. If any of these are not mentioned, omit them or leave them as null. Identify IATA codes. Extract departure times. Hotel 'name' and 'city' are REQUIRED if a hotel is mentioned.",
+    instructions="IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw JSON or text, only call the tool. Extract the outbound flight, return flight, and hotel accommodation. If any of these are not mentioned, omit them or leave them as null. Identify IATA codes. Extract departure times, arrival times, and flight durations in minutes. Hotel 'name' and 'city' are REQUIRED if a hotel is mentioned.",
 )
 
 
@@ -64,6 +64,12 @@ async def ticket_parser_node(state: dict) -> dict:
         anchors.return_flight = None
     if anchors.hotel and anchors.hotel.name == "XXX":
         anchors.hotel = None
+
+    # Tag unambiguous direction on parsed anchors
+    if anchors.outbound_flight:
+        anchors.outbound_flight.direction = "arrival"
+    if anchors.return_flight:
+        anchors.return_flight.direction = "departure"
 
     logger.info("Successfully extracted booking anchors from text.")
     return {"booking_anchors": anchors.model_dump(mode="json")}

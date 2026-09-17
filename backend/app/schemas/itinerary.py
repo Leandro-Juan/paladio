@@ -22,11 +22,49 @@ class FlightSegment(BaseModel):
     flight_number: str | None = None
     airline: str | None = None
 
+    direction: str | None = Field(
+        None,
+        description="'arrival' for trip inbound arrival flight, 'departure' for trip outbound return flight",
+    )
+
     @model_validator(mode="after")
-    def check_arrival_or_duration(self) -> "FlightSegment":
-        if self.arrival_time is None and self.flight_duration_minutes is None:
-            raise ValueError(
-                "Either arrival_time or flight_duration_minutes must be provided."
+    def resolve_arrival_and_duration(self) -> "FlightSegment":
+        from app.utils.timezone_utils import (
+            calculate_timezone_aware_arrival,
+            get_timezone_for_iata,
+            parse_flexible_datetime,
+        )
+
+        if self.arrival_time is None and self.flight_duration_minutes is not None:
+            self.arrival_time = calculate_timezone_aware_arrival(
+                self.departure_time,
+                self.flight_duration_minutes,
+                self.origin_iata,
+                self.destination_iata,
+            )
+        elif self.flight_duration_minutes is None and self.arrival_time is not None:
+            try:
+                dep_dt, _ = parse_flexible_datetime(self.departure_time)
+                arr_dt, _ = parse_flexible_datetime(self.arrival_time)
+                orig_tz = get_timezone_for_iata(self.origin_iata)
+                dest_tz = get_timezone_for_iata(self.destination_iata)
+                dep_aware = dep_dt.replace(tzinfo=orig_tz)
+                arr_aware = arr_dt.replace(tzinfo=dest_tz)
+                dur = int((arr_aware - dep_aware).total_seconds() // 60)
+                if dur > 0:
+                    self.flight_duration_minutes = dur
+                else:
+                    self.flight_duration_minutes = 120
+            except Exception:
+                self.flight_duration_minutes = 120
+        elif self.arrival_time is None and self.flight_duration_minutes is None:
+            # Default reasonable estimate if neither provided
+            self.flight_duration_minutes = 120
+            self.arrival_time = calculate_timezone_aware_arrival(
+                self.departure_time,
+                self.flight_duration_minutes,
+                self.origin_iata,
+                self.destination_iata,
             )
         return self
 

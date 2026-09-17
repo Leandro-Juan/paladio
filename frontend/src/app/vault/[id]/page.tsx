@@ -197,17 +197,42 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
     tickets.push(...itinerary.tickets);
   }
   if (Array.isArray(itinerary?.days)) {
+    const seenTickets = new Set<string>();
     itinerary.days.forEach(day => {
-      if (day.flight_info) {
-        const origin = day.flight_info.origin_iata || 'DEP';
-        const dest = day.flight_info.destination_iata || 'ARR';
-        const dep = day.flight_info.departure_time || '--:--';
-        const arr = day.flight_info.arrival_time || '--:--';
-        tickets.push({
-          title: `${origin} → ${dest} Transit Flight`,
-          subtitle: `Dep: ${dep} | Arr: ${arr}`
-        });
-      }
+      const dayFlights = [
+        day.flight_info,
+        (day as any).inbound_flight,
+        (day as any).outbound_flight,
+      ].filter(Boolean);
+
+      dayFlights.forEach((f: any) => {
+        if (!f) return;
+        const origin = f.origin_iata || 'DEP';
+        const dest = f.destination_iata || 'ARR';
+        const dep = f.departure_time || '--:--';
+        let arr = f.arrival_time;
+
+        if (!arr && f.departure_time && f.flight_duration_minutes) {
+          try {
+            const d = new Date(f.departure_time);
+            if (!isNaN(d.getTime())) {
+              const a = new Date(d.getTime() + f.flight_duration_minutes * 60000);
+              arr = a.toISOString();
+            }
+          } catch {
+            arr = '--:--';
+          }
+        }
+
+        const key = `${origin}-${dest}-${dep}`;
+        if (!seenTickets.has(key)) {
+          seenTickets.add(key);
+          tickets.push({
+            title: `${origin} → ${dest} Transit Flight`,
+            subtitle: `Dep: ${dep} | Arr: ${arr || '--:--'}`
+          });
+        }
+      });
     });
   }
 
