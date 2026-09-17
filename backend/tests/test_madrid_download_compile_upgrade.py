@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
@@ -8,6 +9,34 @@ from app.db.models import TransitCacheModel, TransitCacheStatus, TripModel
 from app.services.osm_map_service import OSMMapService
 from app.tasks import CITY_GTFS_MAP
 from app.use_cases.upgrade_trip_transit import UpgradeTripTransitUseCase
+
+VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
+
+
+def is_valhalla_online() -> bool:
+    env_url = os.getenv("VALHALLA_URL")
+    if env_url:
+        urls = [env_url.rstrip("/")]
+    else:
+        urls = [
+            "http://127.0.0.1:8002",
+            "http://localhost:8002",
+            "http://valhalla:8002",
+        ]
+    for url in urls:
+        try:
+            resp = httpx.get(f"{url}/status", timeout=2.0)
+            if resp.status_code == 200:
+                return True
+        except (httpx.HTTPError, OSError):
+            continue
+    return False
+
+
+valhalla_required = pytest.mark.skipif(
+    not is_valhalla_online(),
+    reason=f"Valhalla server is not reachable at {VALHALLA_URL}",
+)
 
 
 @pytest.mark.asyncio
@@ -79,6 +108,7 @@ async def test_madrid_compilation_and_cache_state(db_session, monkeypatch, tmp_p
 
 
 @pytest.mark.asyncio
+@valhalla_required
 async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     """
     3. Upgrading phase verification:

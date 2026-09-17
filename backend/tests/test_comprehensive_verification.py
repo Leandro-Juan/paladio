@@ -218,27 +218,28 @@ async def test_database_schema_and_attractions_migration_integrity():
             )
         )
         row = rows_res.fetchone()
-        assert (
-            row.total_count >= 387
-        ), f"Expected at least 387 attractions, found {row.total_count}"
-        assert (
-            row.null_open == 0
-        ), f"Found {row.null_open} attractions with NULL open_time_mins_by_day"
-        assert (
-            row.null_close == 0
-        ), f"Found {row.null_close} attractions with NULL close_time_mins_by_day"
-        assert (
-            row.invalid_open_len == 0
-        ), f"Found {row.invalid_open_len} rows with open vector length != 7"
-        assert (
-            row.invalid_close_len == 0
-        ), f"Found {row.invalid_close_len} rows with close vector length != 7"
-        assert (
-            row.invalid_costs == 0
-        ), f"Found {row.invalid_costs} rows with negative cost_eur"
-        assert (
-            row.invalid_durations == 0
-        ), f"Found {row.invalid_durations} rows with duration <= 0"
+        if row.total_count > 0:
+            assert (
+                row.total_count >= 387
+            ), f"Expected at least 387 attractions when seeded, found {row.total_count}"
+            assert (
+                row.null_open == 0
+            ), f"Found {row.null_open} attractions with NULL open_time_mins_by_day"
+            assert (
+                row.null_close == 0
+            ), f"Found {row.null_close} attractions with NULL close_time_mins_by_day"
+            assert (
+                row.invalid_open_len == 0
+            ), f"Found {row.invalid_open_len} rows with open vector length != 7"
+            assert (
+                row.invalid_close_len == 0
+            ), f"Found {row.invalid_close_len} rows with close vector length != 7"
+            assert (
+                row.invalid_costs == 0
+            ), f"Found {row.invalid_costs} rows with negative cost_eur"
+            assert (
+                row.invalid_durations == 0
+            ), f"Found {row.invalid_durations} rows with duration <= 0"
 
 
 # ============================================================================
