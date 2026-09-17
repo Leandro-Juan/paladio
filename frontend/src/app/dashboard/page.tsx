@@ -6,10 +6,10 @@ import { ActiveTripTicket } from '@/components/ActiveTripTicket';
 import { countWaypoints } from '@/utils/tripParser';
 
 export default function DashboardPage() {
-  const { trips, loading } = useTrips();
+  const { upcomingTrips, loading } = useTrips();
   const latestDeltas: string[] = [];
 
-  const nextTrip = trips.length > 0 ? trips[0] : null;
+  const nextTrip = upcomingTrips.length > 0 ? upcomingTrips[0] : null;
 
   return (
     <div>

@@ -59,10 +59,10 @@ function getTripCoordinates(t: { destination?: string; lat?: number; lng?: numbe
 }
 
 export default function VaultPage() {
-  const { trips, loading } = useTrips();
+  const { completedTrips, loading } = useTrips();
   
-  // Extract lat/lng from itinerary_data or fallback to city mapping
-  const mappedTrips = trips.map((t) => {
+  // Extract lat/lng from itinerary_data or fallback to city mapping for ALREADY completed trips only
+  const mappedTrips = completedTrips.map((t) => {
     const coords = getTripCoordinates(t);
     return {
       id: t.id,
@@ -80,6 +80,25 @@ export default function VaultPage() {
       <div style={{ position: 'absolute', top: '2rem', left: '2rem', zIndex: 1000, pointerEvents: 'none' }}>
         <h2 className="font-display" style={{ textShadow: '0 2px 4px rgba(255,255,255,0.8)' }}>ITINERARY VAULT</h2>
         <p className="font-mono text-muted text-sm mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}>{'// GLOBAL MISSIONS DASHBOARD'}</p>
+        {completedTrips.length === 0 && (
+          <div style={{ marginTop: '0.5rem' }}>
+            <span
+              className="font-mono"
+              style={{
+                fontSize: '11px',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+                display: 'inline-block',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              }}
+            >
+              [ NO COMPLETED MISSIONS ARCHIVED ]
+            </span>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>

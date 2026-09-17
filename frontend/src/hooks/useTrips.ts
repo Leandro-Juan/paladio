@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
+import { isTripCompleted } from '@/utils/tripParser';
 
 export { getApiBaseUrl };
 
@@ -86,5 +87,8 @@ export function useTrips() {
     return false;
   };
 
-  return { trips, loading, saveTrip, deleteTrip, fetchTrips, getTrip };
+  const completedTrips = useMemo(() => trips.filter(t => isTripCompleted(t)), [trips]);
+  const upcomingTrips = useMemo(() => trips.filter(t => !isTripCompleted(t)), [trips]);
+
+  return { trips, completedTrips, upcomingTrips, loading, saveTrip, deleteTrip, fetchTrips, getTrip };
 }

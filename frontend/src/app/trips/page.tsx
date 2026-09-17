@@ -6,7 +6,7 @@ import { Modal } from '@/components/Modal';
 import { countWaypoints } from '@/utils/tripParser';
 
 export default function TripsPage() {
-  const { trips, loading, deleteTrip } = useTrips();
+  const { upcomingTrips, loading, deleteTrip } = useTrips();
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
 
   return (
@@ -19,13 +19,13 @@ export default function TripsPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
           <p className="font-mono text-muted">LOADING DATA...</p>
-        ) : trips.length === 0 ? (
+        ) : upcomingTrips.length === 0 ? (
           <div className="bg-surface border-subtle" style={{ padding: '3rem', textAlign: 'center', borderRadius: '8px' }}>
             <p className="font-mono text-muted">NO UPCOMING TRIPS FOUND.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {trips.map((trip: any, idx: number) => (
+            {upcomingTrips.map((trip: any, idx: number) => (
               <div key={idx} className="bg-surface border-subtle" style={{ borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ background: 'var(--color-accent-primary)', color: '#FFF', padding: '1rem' }}>
                   <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>{trip.destination}</h3>

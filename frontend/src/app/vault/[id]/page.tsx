@@ -6,6 +6,7 @@ import MapLoader from '@/components/MapLoader';
 import { TripTimeline } from '@/components/TripTimeline';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { OptimizationResult, TransitLeg, TransitRecommendation } from '@/types/domain';
+import { isTripCompleted } from '@/utils/tripParser';
 
 interface RouteItineraryData {
   metadata?: {
@@ -281,6 +282,12 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
               <div>
                 <span className="font-mono text-xs text-muted">DESTINATION</span>
                 <p className="font-display text-base mt-0.5">{trip.destination}</p>
+              </div>
+              <div>
+                <span className="font-mono text-xs text-muted">STATUS</span>
+                <p className="font-mono text-xs mt-0.5" style={{ color: isTripCompleted(trip) ? '#10B981' : 'var(--color-accent-primary)', fontWeight: 600 }}>
+                  {isTripCompleted(trip) ? 'COMPLETED (ARCHIVED)' : 'CONFIRMED (UPCOMING)'}
+                </p>
               </div>
               <div>
                 <span className="font-mono text-xs text-muted">DEPARTURE</span>
