@@ -37,6 +37,7 @@ def build_cpp_pois(
     scored_pois: list[ScoredPoi],
     day_start_mins: int,
     mandatory_names: list[str] | None = None,
+    day_weekday: int = 0,
 ) -> list[Any]:
     if not paladio_core:
         return []
@@ -49,8 +50,22 @@ def build_cpp_pois(
 
         node_type = map_category_to_node_type(poi.category)
 
-        earliest = max(poi.open_time_mins, day_start_mins)
-        latest = poi.close_time_mins
+        open_vec = getattr(poi, "open_time_mins_by_day", None)
+        close_vec = getattr(poi, "close_time_mins_by_day", None)
+        if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
+            o_min = open_vec[day_weekday]
+            c_min = close_vec[day_weekday]
+            if o_min == -1 or c_min == -1:
+                o_min, c_min = poi.open_time_mins, poi.close_time_mins
+        else:
+            o_min, c_min = poi.open_time_mins, poi.close_time_mins
+
+        earliest = max(o_min, day_start_mins)
+        latest = c_min
+
+        # Guardrail 3: Midnight-crossing normalization
+        if latest < earliest:
+            latest += 1440
 
         is_mandatory = (
             is_poi_mandatory(poi.name, mandatory_names) if mandatory_names else False

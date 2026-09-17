@@ -19,14 +19,20 @@ export interface PoiScoring {
 }
 
 export interface Poi {
+    id?: string;
     name: string;
     city: string;
     category: string;
     cost_eur: number;
     duration_mins: number;
+    cost_is_estimated?: boolean;
+    cost_source?: string | null;
+    open_time_mins_by_day?: number[];
+    close_time_mins_by_day?: number[];
+    open_time_mins?: number;
+    close_time_mins?: number;
+    osm_opening_hours?: string | null;
     location: PoiLocation;
-    schedule: PoiSchedule;
-    financials: PoiFinancials;
     scoring?: PoiScoring;
 }
 

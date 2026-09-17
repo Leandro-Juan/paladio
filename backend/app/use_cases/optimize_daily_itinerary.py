@@ -211,26 +211,41 @@ class OptimizeDailyItineraryUseCase:
             (p for p in unvisited_pois if p.get("category") == "AIRPORT"), None
         )
 
+        # Determine exact day weekday (0 = Monday, ..., 6 = Sunday)
+        day_offset = timedelta(days=day)
+        current_date = (
+            constraints.start_date + day_offset if constraints.start_date else None
+        )
+        day_weekday = current_date.weekday() if current_date else (day % 7)
+
         day_pois = []
+        name_to_full_idx = {p.get("name"): idx for idx, p in enumerate(unvisited_pois)}
+
+        for p in unvisited_pois:
+            cat = p.get("category")
+            if cat in ("HOTEL", "AIRPORT"):
+                if selected_hotel and p is selected_hotel:
+                    day_pois.append(p)
+                continue
+
+            # Pre-filter closed POIs for day_weekday (e.g. museums closed on Mondays/Tuesdays)
+            open_vec = p.get("open_time_mins_by_day")
+            if open_vec and len(open_vec) == 7 and open_vec[day_weekday] == -1:
+                logger.info(
+                    f"POI '{p.get('name')}' is closed on weekday {day_weekday}. Excluding from Day {day + 1}."
+                )
+                continue
+
+            day_pois.append(p)
+
         matrix_dict = []
-
-        for i, p in enumerate(unvisited_pois):
-            if p.get("category") not in ("HOTEL", "AIRPORT") or (
-                selected_hotel and p is selected_hotel
-            ):
-                day_pois.append(p)
-
-        for i, p1 in enumerate(unvisited_pois):
-            if p1.get("category") not in ("HOTEL", "AIRPORT") or (
-                selected_hotel and p1 is selected_hotel
-            ):
-                row = []
-                for j, p2 in enumerate(unvisited_pois):
-                    if p2.get("category") not in ("HOTEL", "AIRPORT") or (
-                        selected_hotel and p2 is selected_hotel
-                    ):
-                        row.append(matrix_dict_full[i][j])
-                matrix_dict.append(row)
+        for p1 in day_pois:
+            row = []
+            idx1 = name_to_full_idx[p1.get("name")]
+            for p2 in day_pois:
+                idx2 = name_to_full_idx[p2.get("name")]
+                row.append(matrix_dict_full[idx1][idx2])
+            matrix_dict.append(row)
 
         if (
             len(day_pois) <= 1
@@ -291,6 +306,7 @@ class OptimizeDailyItineraryUseCase:
                     mandatory_names=mandatory_names,
                     start_node_index=start_idx if start_idx != -1 else None,
                     end_node_index=end_idx if end_idx != -1 else None,
+                    day_weekday=day_weekday,
                 )
             except (RuntimeError, ValueError, TypeError) as e:
                 logger.error(f"C++ optimization engine failed: {e}")

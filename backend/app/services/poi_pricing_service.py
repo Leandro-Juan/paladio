@@ -327,3 +327,155 @@ class PoiPricingService:
 
         cost = 0.0 if is_free else benchmark_cost
         return cost, True, "category_benchmark_estimate"
+
+    @classmethod
+    async def batch_resolve_unindexed_pois(
+        cls, pois: list[dict], city: str
+    ) -> list[dict]:
+        """
+        Enriches a batch of candidate POI dictionaries with verified prices and 7-day opening vectors.
+        1. Fast path: Verified catalog and OSM tags.
+        2. Web grounding: Queries DuckDuckGo / Wikivoyage search snippets in parallel and
+           calls Ollama in a single structured batch prompt to extract official prices and opening hours.
+        3. Strict fallback: Category benchmark estimates with cost_is_estimated=True if ungrounded.
+        """
+        import asyncio
+        import json
+
+        import httpx
+        from app.utils.opening_hours_parser import parse_osm_opening_hours
+
+        unindexed_indices = []
+
+        for idx, p in enumerate(pois):
+            name = p.get("name", "")
+            cat = p.get("category", "generic")
+            raw_cost = p.get("cost_eur")
+            osm_fee = p.get("osm_fee")
+            osm_charge = p.get("osm_charge")
+            osm_h = p.get("osm_opening_hours") or (
+                p.get("schedule", {}).get("osm_opening_hours")
+                if isinstance(p.get("schedule"), dict)
+                else None
+            )
+
+            # Resolve price via catalog / OSM tags
+            cost, is_est, src = cls.resolve_poi_price(
+                poi_name=name,
+                city=city,
+                category=cat,
+                osm_fee=osm_fee,
+                osm_charge=osm_charge,
+                existing_cost=raw_cost,
+                existing_is_estimated=p.get("cost_is_estimated"),
+                existing_source=p.get("cost_source"),
+            )
+            p["cost_eur"] = cost
+            p["cost_is_estimated"] = is_est
+            p["cost_source"] = src
+
+            # Resolve opening hours vectors
+            if p.get("open_time_mins_by_day") and len(p["open_time_mins_by_day"]) == 7:
+                pass  # already populated
+            else:
+                parsed = parse_osm_opening_hours(osm_h)
+                p["open_time_mins_by_day"] = parsed.open_time_mins_by_day
+                p["close_time_mins_by_day"] = parsed.close_time_mins_by_day
+                p["osm_opening_hours"] = osm_h
+
+            if is_est:
+                unindexed_indices.append(idx)
+
+        # If unindexed POIs exist, attempt parallel web grounding and single Ollama batch extraction
+        if unindexed_indices:
+            unindexed_pois = [
+                pois[i] for i in unindexed_indices[:10]
+            ]  # limit to top 10 candidates
+            try:
+                # 1. Fetch search snippets in parallel
+                async def fetch_snippet(poi_item: dict) -> tuple[str, str]:
+                    poi_n = poi_item.get("name", "")
+                    query = f"{poi_n} {city} admission ticket price opening hours"
+                    try:
+                        async with httpx.AsyncClient(timeout=3.0) as client:
+                            url = f"https://html.duckduckgo.com/html/?q={httpx.URL(query)}"
+                            headers = {
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                            }
+                            resp = await client.get(url, headers=headers)
+                            if resp.status_code == 200:
+                                text = re.sub(r"<[^>]+>", " ", resp.text)[:600]
+                                return poi_n, text
+                    except (httpx.HTTPError, asyncio.TimeoutError) as e:
+                        logger.debug("Snippet fetch failed for '%s': %s", poi_n, e)
+                    return poi_n, ""
+
+                snippet_tasks = [fetch_snippet(p) for p in unindexed_pois]
+                snippets = await asyncio.gather(*snippet_tasks)
+
+                combined_context = "\n".join(
+                    f"POI: {name}\nSnippet: {text}" for name, text in snippets if text
+                )
+
+                if combined_context:
+                    # 2. Query Ollama in a single batch prompt
+                    prompt = (
+                        f"Extract admission price in EUR and opening hours for these attractions in {city}.\n"
+                        f"Context:\n{combined_context}\n\n"
+                        "Respond ONLY in valid JSON matching this schema:\n"
+                        '{"results": [{"name": "POI Name", "price_eur": 12.0, "is_free": false, "hours_raw": "09:00-18:00"}]}'
+                    )
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        ollama_resp = await client.post(
+                            "http://localhost:11434/api/generate",
+                            json={
+                                "model": "qwen2.5:3b",
+                                "prompt": prompt,
+                                "format": "json",
+                                "stream": False,
+                            },
+                        )
+                        if ollama_resp.status_code == 200:
+                            res_json = json.loads(
+                                ollama_resp.json().get("response", "{}")
+                            )
+                            extracted_list = res_json.get("results", [])
+                            for ext in extracted_list:
+                                e_name = ext.get("name", "").lower()
+                                e_price = ext.get("price_eur")
+                                e_hours = ext.get("hours_raw")
+                                for u_idx in unindexed_indices:
+                                    target = pois[u_idx]
+                                    if (
+                                        target.get("name", "").lower() in e_name
+                                        or e_name in target.get("name", "").lower()
+                                    ):
+                                        if (
+                                            e_price is not None
+                                            and float(e_price) >= 0.0
+                                        ):
+                                            target["cost_eur"] = float(e_price)
+                                            target["cost_is_estimated"] = False
+                                            target["cost_source"] = (
+                                                "official_web_grounding"
+                                            )
+                                        if e_hours:
+                                            p_hours = parse_osm_opening_hours(e_hours)
+                                            target["open_time_mins_by_day"] = (
+                                                p_hours.open_time_mins_by_day
+                                            )
+                                            target["close_time_mins_by_day"] = (
+                                                p_hours.close_time_mins_by_day
+                                            )
+                                            target["osm_opening_hours"] = e_hours
+            except (
+                httpx.HTTPError,
+                asyncio.TimeoutError,
+                json.JSONDecodeError,
+                KeyError,
+                ValueError,
+                TypeError,
+            ) as e:
+                logger.warning("Batch web grounding failed gracefully: %s", e)
+
+        return pois

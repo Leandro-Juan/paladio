@@ -46,6 +46,17 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
     );
   }, [days]);
 
+  // Check if any day or leg contains public transit
+  const hasTransit = React.useMemo(() => {
+    return days.some((d) =>
+      Boolean(d.itinerary?.transit_recommendation) ||
+      d.itinerary?.path?.some((p) => {
+        const t = p.transit_from_previous;
+        return Boolean(t && (t.mode === 'transit' || (t.steps && t.steps.length > 0) || (t.cost_eur && t.cost_eur > 0)));
+      })
+    );
+  }, [days]);
+
   const handleUpgrade = async () => {
     if (upgrading) return;
     setUpgrading(true);
@@ -308,6 +319,31 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
           </div>
         );
       })}
+
+      {/* Subtle disclaimer for public transit fares */}
+      {hasTransit && (
+        <div
+          data-testid="timeline-transit-disclaimer"
+          style={{
+            marginTop: '1.5rem',
+            padding: '0.6rem 0.85rem',
+            borderRadius: '6px',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-card)',
+            fontSize: '0.7rem',
+            color: 'var(--color-text-muted)',
+            fontFamily: 'var(--font-mono)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>ℹ️</span>
+          <span>
+            Notice: Public transit fares are fetched automatically and may not be 100% accurate. Please verify with local transit operators.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

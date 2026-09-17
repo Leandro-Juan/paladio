@@ -129,6 +129,16 @@ test.describe('Transit Steps & Public Transit Routing', () => {
     await expect(lineChips.nth(0)).toHaveText('LINE 1');
     await expect(lineChips.nth(1)).toHaveText('LINE 10');
 
+    // Verify Transit Fare Disclaimer in Transit Recommendation Card
+    const fareDisclaimer = page.getByTestId('transit-fare-disclaimer');
+    await expect(fareDisclaimer).toBeVisible();
+    await expect(fareDisclaimer).toContainText(/fares are fetched automatically and may not be 100% accurate/i);
+
+    // Verify Timeline Bottom Transit Disclaimer
+    const timelineDisclaimer = page.getByTestId('timeline-transit-disclaimer');
+    await expect(timelineDisclaimer).toBeVisible();
+    await expect(timelineDisclaimer).toContainText(/may not be 100% accurate/i);
+
     // 4. Test Toggle Turn-by-Turn Steps
     const toggleBtn = transitLeg.getByTestId('toggle-transit-steps-btn');
     await expect(toggleBtn).toHaveText(/DIRECTIONS \(5 STEPS\) ▼/);
@@ -147,6 +157,10 @@ test.describe('Transit Steps & Public Transit Routing', () => {
     await expect(page.getByText('Transfer at TRIBUNAL Station')).toBeVisible();
     await expect(page.getByText('Take Line 10 toward TRES OLIVOS (3 stops)')).toBeVisible();
     await expect(page.getByText('Exit at NUEVOS MINISTERIOS Station · Walk 300m to Santiago Bernabéu')).toBeVisible();
+
+    // Verify steps disclaimer
+    await expect(page.getByTestId('transit-steps-disclaimer')).toBeVisible();
+    await expect(page.getByTestId('transit-steps-disclaimer')).toContainText(/fares and schedules are fetched automatically and may not be 100% accurate/i);
 
     // Capture visual screenshot of the expanded transit directions
     await page.screenshot({ path: 'test-results/transit_steps_rendered.png', fullPage: true });

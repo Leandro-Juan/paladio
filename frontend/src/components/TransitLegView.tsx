@@ -117,7 +117,10 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
           {/* Fare / Cost Badge */}
           <span style={{ color: 'var(--color-text-muted)' }}>·</span>
           {cost_eur > 0 ? (
-            <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+            <span
+              title="Public transit fares are fetched automatically and may not be 100% accurate"
+              style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}
+            >
               {cost_eur.toFixed(2)} €
             </span>
           ) : (
@@ -255,6 +258,20 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
               </div>
             );
           })}
+          <div
+            data-testid="transit-steps-disclaimer"
+            style={{
+              marginTop: '0.4rem',
+              paddingTop: '0.4rem',
+              borderTop: '1px dashed var(--color-border)',
+              fontSize: '0.675rem',
+              color: 'var(--color-text-muted)',
+              fontStyle: 'italic',
+              opacity: 0.85,
+            }}
+          >
+            * Notice: Public transit fares and schedules are fetched automatically and may not be 100% accurate.
+          </div>
         </div>
       )}
     </div>
@@ -322,6 +339,21 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
             Estimated Savings: +{recommendation.savings_eur.toFixed(2)}€
           </span>
         )}
+      </div>
+
+      <div
+        data-testid="transit-fare-disclaimer"
+        style={{
+          marginTop: '0.5rem',
+          paddingTop: '0.4rem',
+          borderTop: isPassRecommended ? '1px dashed #BFDBFE' : '1px dashed var(--color-border)',
+          fontSize: '0.675rem',
+          color: 'var(--color-text-muted)',
+          fontStyle: 'italic',
+          opacity: 0.85,
+        }}
+      >
+        * Notice: Public transit fares are fetched automatically and may not be 100% accurate. Please verify with local transit authorities.
       </div>
     </div>
   );

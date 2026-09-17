@@ -48,6 +48,7 @@ class CppOptimizationAdapter(IOptimizationEngine):
         user_id: str = "default_user",
         start_node_index: int | None = None,
         end_node_index: int | None = None,
+        day_weekday: int = 0,
     ) -> Itinerary:
         if not paladio_core:
             raise OptimizationError("C++ optimization engine is not available.")
@@ -61,7 +62,9 @@ class CppOptimizationAdapter(IOptimizationEngine):
             scored_pois = [ScoredPoi(poi=p, score=1.0) for p in pois]
 
         # 2. Map structures
-        cpp_pois = build_cpp_pois(scored_pois, day_start_mins, mandatory_names)
+        cpp_pois = build_cpp_pois(
+            scored_pois, day_start_mins, mandatory_names, day_weekday
+        )
         durations, costs = flatten_transit_matrix(transit_matrix)
         config = build_optimization_config(
             constraints,

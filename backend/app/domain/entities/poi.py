@@ -30,38 +30,6 @@ class PoiMetadata(BaseModel):
         return getattr(self, item, default)
 
 
-class PoiSchedule(BaseModel):
-    osm_opening_hours: str | None = None
-    opening_time_local: str | None = None
-    closing_time_local: str | None = None
-    recommended_duration_minutes: int | None = None
-
-    model_config = ConfigDict(extra="allow")
-
-    def __getitem__(self, item: str) -> Any:
-        return getattr(self, item)
-
-    def get(self, item: str, default: Any = None) -> Any:
-        return getattr(self, item, default)
-
-
-class PoiFinancials(BaseModel):
-    is_free: bool | None = None
-    estimated_cost: float | None = None
-    currency: str | None = None
-    price_tier: str | None = None
-    is_estimated: bool = True
-    price_source: str | None = None
-
-    model_config = ConfigDict(extra="allow")
-
-    def __getitem__(self, item: str) -> Any:
-        return getattr(self, item)
-
-    def get(self, item: str, default: Any = None) -> Any:
-        return getattr(self, item, default)
-
-
 class PoiScoring(BaseModel):
     rating: float | None = None
     reviews: int | None = None
@@ -81,16 +49,15 @@ class Poi(BaseModel):
     name: str
     category: str
     location: PoiLocation = Field(default_factory=PoiLocation)
-    schedule: PoiSchedule = Field(default_factory=PoiSchedule)
-    financials: PoiFinancials = Field(default_factory=PoiFinancials)
     scoring: PoiScoring = Field(default_factory=PoiScoring)
     metadata: PoiMetadata = Field(default_factory=PoiMetadata)
+    open_time_mins_by_day: list[int] = Field(default_factory=lambda: [480] * 7)
+    close_time_mins_by_day: list[int] = Field(default_factory=lambda: [1320] * 7)
     duration_mins: int = 60
     cost_eur: float = 0.0
     cost_is_estimated: bool = True
     cost_source: str | None = None
-    open_time_mins: int = 480
-    close_time_mins: int = 1320
+    osm_opening_hours: str | None = None
     embedding: list[float] | None = None
 
     model_config = ConfigDict(extra="allow")
@@ -100,6 +67,83 @@ class Poi(BaseModel):
 
     def get(self, item: str, default: Any = None) -> Any:
         return getattr(self, item, default)
+
+    @property
+    def open_time_mins(self) -> int:
+        """
+        Safe legacy property fallback: returns the first day with a valid opening minute
+        (protecting callers if closed on Mondays). Falls back to 480 if closed all week.
+        """
+        for val in self.open_time_mins_by_day:
+            if val != -1:
+                return val
+        return 480
+
+    @property
+    def close_time_mins(self) -> int:
+        """
+        Safe legacy property fallback: returns the first day with a valid closing minute.
+        Falls back to 1320 if closed all week.
+        """
+        for val in self.close_time_mins_by_day:
+            if val != -1:
+                return val
+        return 1320
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_inputs(cls, data: Any) -> Any:
+        """
+        Parses legacy dictionaries containing 'schedule' or 'financials' into canonical
+        scalars and 7-day vectors, and drops the redundant sub-models.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        d = dict(data)
+        from app.utils.opening_hours_parser import parse_osm_opening_hours
+
+        if "schedule" in d and isinstance(d["schedule"], dict):
+            sched = d.pop("schedule")
+            osm_h = sched.get("osm_opening_hours")
+            if osm_h and not d.get("open_time_mins_by_day"):
+                parsed = parse_osm_opening_hours(osm_h)
+                d["open_time_mins_by_day"] = parsed.open_time_mins_by_day
+                d["close_time_mins_by_day"] = parsed.close_time_mins_by_day
+                d["osm_opening_hours"] = osm_h
+            if "open_time_mins" in sched and "open_time_mins" not in d:
+                d["open_time_mins"] = sched["open_time_mins"]
+            if "close_time_mins" in sched and "close_time_mins" not in d:
+                d["close_time_mins"] = sched["close_time_mins"]
+            if "recommended_duration_minutes" in sched and "duration_mins" not in d:
+                d["duration_mins"] = sched["recommended_duration_minutes"]
+
+        if "financials" in d and isinstance(d["financials"], dict):
+            fin = d.pop("financials")
+            if (
+                "estimated_cost" in fin
+                and fin["estimated_cost"] is not None
+                and "cost_eur" not in d
+            ):
+                d["cost_eur"] = fin["estimated_cost"]
+            elif "price" in fin and fin["price"] is not None and "cost_eur" not in d:
+                d["cost_eur"] = fin["price"]
+            if "is_estimated" in fin and "cost_is_estimated" not in d:
+                d["cost_is_estimated"] = fin["is_estimated"]
+            if "price_source" in fin and "cost_source" not in d:
+                d["cost_source"] = fin["price_source"]
+
+        if "open_time_mins" in d:
+            val = d.pop("open_time_mins")
+            if "open_time_mins_by_day" not in d:
+                d["open_time_mins_by_day"] = [int(val)] * 7
+
+        if "close_time_mins" in d:
+            val = d.pop("close_time_mins")
+            if "close_time_mins_by_day" not in d:
+                d["close_time_mins_by_day"] = [int(val)] * 7
+
+        return d
 
     @field_validator("duration_mins")
     def check_duration(cls, v: int) -> int:
@@ -114,9 +158,17 @@ class Poi(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def check_time_bounds(self) -> "Poi":
-        if self.open_time_mins >= self.close_time_mins:
-            raise ValueError("open_time_mins must be before close_time_mins")
+    def validate_vectors(self) -> "Poi":
+        if (
+            len(self.open_time_mins_by_day) != 7
+            or len(self.close_time_mins_by_day) != 7
+        ):
+            raise ValueError(
+                "open_time_mins_by_day and close_time_mins_by_day must have length 7"
+            )
+        for o, c in zip(self.open_time_mins_by_day, self.close_time_mins_by_day):
+            if o != -1 and c != -1 and o >= c:
+                raise ValueError("open_time_mins must be before close_time_mins")
         return self
 
 

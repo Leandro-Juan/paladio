@@ -298,30 +298,40 @@ class FetchTravelContextUseCase:
                     "city": city,
                     "category": "HOTEL",
                     "cost_eur": 0.0,
+                    "cost_is_estimated": False,
+                    "cost_source": "hotel_booking",
                     "duration_mins": 60,
+                    "open_time_mins_by_day": [0] * 7,
+                    "close_time_mins_by_day": [1440] * 7,
                     "location": {"latitude": hotel_lat, "longitude": hotel_lon},
-                    "schedule": {"open_time_mins": 0, "close_time_mins": 1440},
-                    "financials": {},
                 }
             )
 
             for p in daily_clusters[day]:
-                raw_cost = p.get("financials", {}).get("estimated_cost", 0.0)
+                raw_cost = p.get("cost_eur")
+                if raw_cost is None and isinstance(p.get("financials"), dict):
+                    raw_cost = p["financials"].get("estimated_cost", 0.0)
                 cost = float(raw_cost) if raw_cost is not None else 0.0
                 p_lat = p.get("location", {}).get("latitude", hotel_lat)
                 p_lon = p.get("location", {}).get("longitude", hotel_lon)
+                open_vec = p.get("open_time_mins_by_day") or [480] * 7
+                close_vec = p.get("close_time_mins_by_day") or [1320] * 7
+                dur = p.get("duration_mins") or p.get("schedule", {}).get(
+                    "recommended_duration_minutes", 60
+                )
                 day_pois.append(
                     {
                         "name": p.get("name", "Unknown"),
                         "city": city,
                         "category": p.get("category", "ATTRACTION"),
                         "cost_eur": cost,
-                        "duration_mins": p.get("schedule", {}).get(
-                            "recommended_duration_minutes", 60
-                        ),
+                        "cost_is_estimated": p.get("cost_is_estimated", True),
+                        "cost_source": p.get("cost_source"),
+                        "open_time_mins_by_day": open_vec,
+                        "close_time_mins_by_day": close_vec,
+                        "osm_opening_hours": p.get("osm_opening_hours"),
+                        "duration_mins": int(dur) if dur else 60,
                         "location": {"latitude": p_lat, "longitude": p_lon},
-                        "schedule": p.get("schedule", {}),
-                        "financials": p.get("financials", {}),
                         "scoring": p.get("scoring")
                         or {"google_rating": 4.5, "reviews": 100},
                         "ml_affinity_score": p.get("ml_affinity_score"),
@@ -335,10 +345,12 @@ class FetchTravelContextUseCase:
                         "city": city,
                         "category": "AIRPORT",
                         "cost_eur": 0.0,
+                        "cost_is_estimated": False,
+                        "cost_source": "official_airport_free_entry",
                         "duration_mins": 120,
+                        "open_time_mins_by_day": [0] * 7,
+                        "close_time_mins_by_day": [1440] * 7,
                         "location": {"latitude": airport_lat, "longitude": airport_lon},
-                        "schedule": {"open_time_mins": 0, "close_time_mins": 1440},
-                        "financials": {},
                         "scoring": {"google_rating": 4.5, "reviews": 500},
                     }
                 )
@@ -355,24 +367,43 @@ class FetchTravelContextUseCase:
                 r_loc = r.get("location", {})
                 r_lat = r_loc.get("latitude", hotel_lat)
                 r_lon = r_loc.get("longitude", hotel_lon)
-
-                sched = r.get("schedule") or {
-                    "open_time_mins": 480,
-                    "close_time_mins": 1320,
-                }
-                fin = r.get("financials") or {"estimated_cost": 20.0}
                 scoring = r.get("scoring") or {"google_rating": 4.2, "reviews": 150}
+
+                # Meal-specific windows: Breakfast (0), Lunch (1), Dinner (2)
+                if i == 0:
+                    r_name = r.get("name", f"Breakfast Spot {day}")
+                    r_cat = "CAFE"
+                    r_open = [480] * 7  # 08:00
+                    r_close = [630] * 7  # 10:30
+                    r_dur = 45
+                    r_cost = 8.0
+                elif i == 1:
+                    r_name = r.get("name", f"Lunch Bistro {day}")
+                    r_cat = "RESTAURANT"
+                    r_open = [750] * 7  # 12:30
+                    r_close = [930] * 7  # 15:30
+                    r_dur = 75
+                    r_cost = 18.0
+                else:
+                    r_name = r.get("name", f"Dinner Restaurant {day}")
+                    r_cat = "RESTAURANT"
+                    r_open = [1170] * 7  # 19:30
+                    r_close = [1380] * 7  # 23:00
+                    r_dur = 90
+                    r_cost = 25.0
 
                 day_pois.append(
                     {
-                        "name": r.get("name", f"Restaurant {day}-{i}"),
+                        "name": r_name,
                         "city": city,
-                        "category": "RESTAURANT",
-                        "cost_eur": 20.0,
-                        "duration_mins": 60,
+                        "category": r_cat,
+                        "cost_eur": r_cost,
+                        "cost_is_estimated": True,
+                        "cost_source": "meal_service_benchmark_estimate",
+                        "duration_mins": r_dur,
+                        "open_time_mins_by_day": r_open,
+                        "close_time_mins_by_day": r_close,
                         "location": {"latitude": r_lat, "longitude": r_lon},
-                        "schedule": sched,
-                        "financials": fin,
                         "scoring": scoring,
                     }
                 )

@@ -1,7 +1,18 @@
 import enum
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, String, func
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import synonym
 
@@ -20,10 +31,21 @@ class AttractionModel(Base):
     # 768D semantic embedding for pgvector cosine retrieval
     embedding = Column(Vector(768), nullable=True)
 
-    # Flexible JSONB fields for deep nesting and schema evolution
+    # Core operational & financial fields (normalized 7-day vectors & scalars)
+    open_time_mins_by_day = Column(
+        ARRAY(Integer), default=lambda: [480] * 7, nullable=False
+    )
+    close_time_mins_by_day = Column(
+        ARRAY(Integer), default=lambda: [1320] * 7, nullable=False
+    )
+    duration_mins = Column(Integer, default=60, nullable=False)
+    cost_eur = Column(Float, default=0.0, nullable=False)
+    cost_is_estimated = Column(Boolean, default=True, nullable=False)
+    cost_source = Column(String, nullable=True)
+    osm_opening_hours = Column(String, nullable=True)
+
+    # Relational JSONB fields
     location = Column(JSONB, nullable=False)
-    schedule = Column(JSONB, nullable=False)
-    financials = Column(JSONB, nullable=False)
     scoring = Column(JSONB, nullable=False)
     metadata_field = Column(
         "metadata", JSONB, nullable=False
