@@ -34,6 +34,87 @@ KNOWN_GEOFABRIK_MAP: dict[str, str] = {
     "new york": "north-america/us/new-york-latest.osm.pbf",
 }
 
+# Regional aliases for unhardcoded world destination cities whose extracts reside under their parent state or province
+CITY_REGION_ALIASES: dict[str, str] = {
+    # Spain
+    "sevilla": "europe/spain/andalucia-latest.osm.pbf",
+    "seville": "europe/spain/andalucia-latest.osm.pbf",
+    "malaga": "europe/spain/andalucia-latest.osm.pbf",
+    "granada": "europe/spain/andalucia-latest.osm.pbf",
+    "bilbao": "europe/spain/pais-vasco-latest.osm.pbf",
+    "sansebastian": "europe/spain/pais-vasco-latest.osm.pbf",
+    "zaragoza": "europe/spain/aragon-latest.osm.pbf",
+    "santiagodecompostela": "europe/spain/galicia-latest.osm.pbf",
+    "palma": "europe/spain/islas-baleares-latest.osm.pbf",
+    "mallorca": "europe/spain/islas-baleares-latest.osm.pbf",
+    "ibiza": "europe/spain/islas-baleares-latest.osm.pbf",
+    # Germany
+    "munich": "europe/germany/bayern-latest.osm.pbf",
+    "muenchen": "europe/germany/bayern-latest.osm.pbf",
+    "münchen": "europe/germany/bayern-latest.osm.pbf",
+    "frankfurt": "europe/germany/hessen-latest.osm.pbf",
+    "cologne": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
+    "koln": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
+    "dusseldorf": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
+    "stuttgart": "europe/germany/baden-wuerttemberg-latest.osm.pbf",
+    "dresden": "europe/germany/sachsen-latest.osm.pbf",
+    "leipzig": "europe/germany/sachsen-latest.osm.pbf",
+    # Italy
+    "florence": "europe/italy/centro-latest.osm.pbf",
+    "firenze": "europe/italy/centro-latest.osm.pbf",
+    "pisa": "europe/italy/centro-latest.osm.pbf",
+    "venice": "europe/italy/nord-est-latest.osm.pbf",
+    "venezia": "europe/italy/nord-est-latest.osm.pbf",
+    "verona": "europe/italy/nord-est-latest.osm.pbf",
+    "naples": "europe/italy/sud-latest.osm.pbf",
+    "napoli": "europe/italy/sud-latest.osm.pbf",
+    "palermo": "europe/italy/isole-latest.osm.pbf",
+    # France
+    "marseille": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
+    "nice": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
+    "cannes": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
+    "lyon": "europe/france/rhone-alpes-latest.osm.pbf",
+    "bordeaux": "europe/france/aquitaine-latest.osm.pbf",
+    "strasbourg": "europe/france/alsace-latest.osm.pbf",
+    "toulouse": "europe/france/midi-pyrenees-latest.osm.pbf",
+    # United Kingdom & Ireland
+    "edinburgh": "europe/united-kingdom/scotland-latest.osm.pbf",
+    "glasgow": "europe/united-kingdom/scotland-latest.osm.pbf",
+    "cardiff": "europe/united-kingdom/wales-latest.osm.pbf",
+    "belfast": "europe/ireland-and-northern-ireland-latest.osm.pbf",
+    "dublin": "europe/ireland-and-northern-ireland-latest.osm.pbf",
+    # Japan
+    "kyoto": "asia/japan/kansai-latest.osm.pbf",
+    "osaka": "asia/japan/kansai-latest.osm.pbf",
+    "kobe": "asia/japan/kansai-latest.osm.pbf",
+    "nara": "asia/japan/kansai-latest.osm.pbf",
+    "sapporo": "asia/japan/hokkaido-latest.osm.pbf",
+    "fukuoka": "asia/japan/kyushu-latest.osm.pbf",
+    "nagoya": "asia/japan/chubu-latest.osm.pbf",
+    # North America
+    "losangeles": "north-america/us/california-latest.osm.pbf",
+    "sanfrancisco": "north-america/us/california-latest.osm.pbf",
+    "sandiego": "north-america/us/california-latest.osm.pbf",
+    "chicago": "north-america/us/illinois-latest.osm.pbf",
+    "miami": "north-america/us/florida-latest.osm.pbf",
+    "orlando": "north-america/us/florida-latest.osm.pbf",
+    "seattle": "north-america/us/washington-latest.osm.pbf",
+    "boston": "north-america/us/massachusetts-latest.osm.pbf",
+    "houston": "north-america/us/texas-latest.osm.pbf",
+    "dallas": "north-america/us/texas-latest.osm.pbf",
+    "austin": "north-america/us/texas-latest.osm.pbf",
+    "denver": "north-america/us/colorado-latest.osm.pbf",
+    "lasvegas": "north-america/us/nevada-latest.osm.pbf",
+    "toronto": "north-america/canada/ontario-latest.osm.pbf",
+    "montreal": "north-america/canada/quebec-latest.osm.pbf",
+    "vancouver": "north-america/canada/british-columbia-latest.osm.pbf",
+    # Australia
+    "sydney": "australia-oceania/australia/new-south-wales-latest.osm.pbf",
+    "melbourne": "australia-oceania/australia/victoria-latest.osm.pbf",
+    "brisbane": "australia-oceania/australia/queensland-latest.osm.pbf",
+    "perth": "australia-oceania/australia/western-australia-latest.osm.pbf",
+}
+
 _geofabrik_index_cache: dict[str, Any] | None = None
 
 
@@ -53,6 +134,12 @@ class OSMMapService:
 
         if city_clean in KNOWN_GEOFABRIK_MAP:
             subpath = KNOWN_GEOFABRIK_MAP[city_clean]
+            url = f"https://download.geofabrik.de/{subpath}"
+            filename = subpath.split("/")[-1]
+            return url, filename
+
+        if city_clean in CITY_REGION_ALIASES:
+            subpath = CITY_REGION_ALIASES[city_clean]
             url = f"https://download.geofabrik.de/{subpath}"
             filename = subpath.split("/")[-1]
             return url, filename

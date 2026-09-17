@@ -158,6 +158,31 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
                                 ],
                             },
                         },
+                        {
+                            "poi": {
+                                "name": "Estación de Atocha",
+                                "category": "STATION",
+                                "city": "Madrid",
+                                "location": {"latitude": 40.4065, "longitude": -3.6908},
+                            },
+                            "scheduled_start": "12:45",
+                            "scheduled_end": "13:30",
+                            "transit_from_previous": {
+                                "mode": "transit",
+                                "cost_eur": 1.5,
+                                "duration_mins": 25,
+                                "cost_is_estimated": True,
+                                "price_source": "estimated_city_transit_fare",
+                                "steps": [
+                                    {
+                                        "type": "transit_board",
+                                        "transit_line": "Transit",
+                                        "instruction": "Board public transit towards Estación de Atocha",
+                                        "duration_mins": 25,
+                                    }
+                                ],
+                            },
+                        },
                     ]
                 },
             }
@@ -190,16 +215,12 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     assert path[0]["scheduled_start"] == "08:00"
     assert path[0]["scheduled_end"] == "09:00"
 
-    # 2. Verify POI 1: Puerta del Sol
+    # 2. Verify POI 1: Puerta del Sol (short distance, ~800m walk)
     assert path[1]["poi"]["name"] == "Puerta del Sol"
     trans1 = path[1]["transit_from_previous"]
     assert trans1 is not None
-    # Dwell at Westin was 60m (08:00 to 09:00).
-    # Arrival at Sol must be 09:00 + duration
     dur1 = trans1["duration_mins"]
     assert dur1 > 0
-    # Original dwell at Sol was 45m (09:15 to 10:00).
-    # Upgraded departure must be arrival + 45m
     from app.use_cases.upgrade_trip_transit import parse_time_to_minutes
 
     start1_m = parse_time_to_minutes(path[1]["scheduled_start"])
@@ -207,27 +228,63 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     assert start1_m == 540 + dur1
     assert end1_m - start1_m == 45  # Dwell time strictly preserved
 
-    # Verify steps contain turn-by-turn maneuvers
-    assert len(trans1["steps"]) > 0
-    for step in trans1["steps"]:
-        assert step.get("instruction")
-
-    # 3. Verify POI 2: Bernabeu
+    # 3. Verify POI 2: Sol -> Bernabéu (FAR APART: ~4.5 km north, forces public transit)
     assert path[2]["poi"]["name"] == "Estadio Santiago Bernabéu"
     trans2 = path[2]["transit_from_previous"]
     assert trans2 is not None
+    assert (
+        trans2["mode"] == "transit"
+    ), f"Expected transit for far-apart leg, got {trans2['mode']}"
+    # Verify exact Metro lines were boarded (Line 1, Line 10)
+    transit_steps_2 = [s for s in trans2["steps"] if s.get("type") == "transit"]
+    assert (
+        len(transit_steps_2) > 0
+    ), "Expected transit boarding steps for Sol -> Bernabéu"
+    metro_lines_2 = [s.get("transit_line") for s in transit_steps_2]
+    assert any(
+        line in ["1", "10"] for line in metro_lines_2
+    ), f"Expected Metro 1 or 10, got {metro_lines_2}"
+    assert trans2["cost_eur"] == 1.5
+    assert not trans2["cost_is_estimated"]
+    assert "crtm" in trans2["price_source"].lower()
+
     dur2 = trans2["duration_mins"]
     start2_m = parse_time_to_minutes(path[2]["scheduled_start"])
     end2_m = parse_time_to_minutes(path[2]["scheduled_end"])
     assert start2_m == end1_m + dur2
-    # Original dwell at Bernabeu was 120m (10:20 to 12:20)
     assert end2_m - start2_m == 120  # Dwell time strictly preserved
 
-    # 4. Verify transit recommendation was computed
+    # 4. Verify POI 3: Bernabéu -> Atocha (FAR APART: ~6.0 km south, forces public transit)
+    assert path[3]["poi"]["name"] == "Estación de Atocha"
+    trans3 = path[3]["transit_from_previous"]
+    assert trans3 is not None
+    assert (
+        trans3["mode"] == "transit"
+    ), f"Expected transit for far-apart leg, got {trans3['mode']}"
+    transit_steps_3 = [s for s in trans3["steps"] if s.get("type") == "transit"]
+    assert (
+        len(transit_steps_3) > 0
+    ), "Expected transit boarding steps for Bernabéu -> Atocha"
+    metro_lines_3 = [s.get("transit_line") for s in transit_steps_3]
+    assert any(
+        line in ["1", "6", "10"] for line in metro_lines_3
+    ), f"Expected Metro 1, 6, or 10, got {metro_lines_3}"
+    assert trans3["cost_eur"] == 4.5
+    assert trans3["airport_surcharge_eur"] == 3.0
+    assert not trans3["cost_is_estimated"]
+    assert "crtm" in trans3["price_source"].lower()
+
+    dur3 = trans3["duration_mins"]
+    start3_m = parse_time_to_minutes(path[3]["scheduled_start"])
+    end3_m = parse_time_to_minutes(path[3]["scheduled_end"])
+    assert start3_m == end2_m + dur3
+    assert end3_m - start3_m == 45  # Dwell time strictly preserved
+
+    # 5. Verify transit recommendation was computed
     assert "transit_recommendation" in day1["itinerary"]
     rec = day1["itinerary"]["transit_recommendation"]
     assert "type" in rec
 
-    # 5. Verify database was updated
+    # 6. Verify database was updated
     refreshed_trip = await db_session.get(TripModel, madrid_trip_id)
     assert refreshed_trip.itinerary_data == upgraded_itin
