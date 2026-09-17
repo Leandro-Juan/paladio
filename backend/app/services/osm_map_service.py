@@ -22,13 +22,15 @@ KNOWN_GEOFABRIK_MAP: dict[str, str] = {
     "rome": "europe/italy/centro-latest.osm.pbf",
     "roma": "europe/italy/centro-latest.osm.pbf",
     "milan": "europe/italy/nord-ovest-latest.osm.pbf",
-    "london": "europe/great-britain/england/greater-london-latest.osm.pbf",
+    "london": "europe/united-kingdom/england/greater-london-latest.osm.pbf",
     "berlin": "europe/germany/berlin-latest.osm.pbf",
     "amsterdam": "europe/netherlands-latest.osm.pbf",
     "vienna": "europe/austria-latest.osm.pbf",
     "prague": "europe/czech-republic-latest.osm.pbf",
     "lisbon": "europe/portugal-latest.osm.pbf",
     "tokyo": "asia/japan/kanto-latest.osm.pbf",
+    "newyork": "north-america/us/new-york-latest.osm.pbf",
+    "new_york": "north-america/us/new-york-latest.osm.pbf",
     "new york": "north-america/us/new-york-latest.osm.pbf",
 }
 
