@@ -8,6 +8,10 @@ export interface PaladioEvent {
   event: string;
   status: string;
   data?: Record<string, unknown>;
+  message?: string;
+  city?: string;
+  city_name?: string;
+  trip_id?: string;
 }
 
 import { OptimizationResult, Poi } from '../types/domain';
@@ -223,6 +227,22 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         addLog(`> [CRITICAL ERROR] ${payload.status}`);
         notify.error('Engine Fault', `Execution error encountered: ${payload.status || 'Inference error'}`);
         break;
+      case 'MAP_INGESTION':
+        addLog(`> [MAP] ${payload.message || payload.status}`);
+        break;
+      case 'TRANSIT_TILES_READY': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] Real transit data compiled and verified for ${cityName}.`);
+        notify.info(
+          'Real Transit Available',
+          `Official public transit network for ${cityName} is now ready to upgrade.`,
+          {
+            actionLink: payload.trip_id ? `/vault/${payload.trip_id}` : '/engine',
+            actionLabel: 'View Trip',
+          }
+        );
+        break;
+      }
       case 'DONE':
         setStatus('connected');
         addLog('> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.');

@@ -1,31 +1,137 @@
 import React from 'react';
 
 import { OptimizationResult, DayOutput, ScheduledPoi } from '../types/domain';
+import { apiFetch } from '../utils/api';
+import { notify } from '../utils/notify';
 import { PoiCategoryBadge } from './PoiCategoryBadge';
 import { TransitLegView, TransitRecommendationCard } from './TransitLegView';
 
 interface TripTimelineProps {
   itinerary: OptimizationResult | null;
+  tripId?: string;
+  onItineraryUpdate?: (updated: OptimizationResult) => void;
 }
 
-export function TripTimeline({ itinerary }: TripTimelineProps) {
-  if (!itinerary) {
-    return <div style={{ padding: '1rem', color: 'var(--color-muted)' }}>No route data available.</div>;
-  }
+export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimelineProps) {
+  const [upgradedItinerary, setUpgradedItinerary] = React.useState<OptimizationResult | null>(null);
+  const [upgrading, setUpgrading] = React.useState(false);
+  const [upgraded, setUpgraded] = React.useState(false);
+
+  const currentItinerary = upgradedItinerary || itinerary;
 
   // Support both standard multi-day { days: [...] } and flat single-day fallback { path: [...] }
-  const days: DayOutput[] = itinerary.days && itinerary.days.length > 0
-    ? itinerary.days
-    : (itinerary as any).path
-      ? [{ day: 1, itinerary: { path: (itinerary as any).path } }]
-      : [];
+  const days: DayOutput[] = React.useMemo(() => {
+    if (!currentItinerary) return [];
+    if (currentItinerary.days && currentItinerary.days.length > 0) {
+      return currentItinerary.days;
+    }
+    const fallbackPath = (currentItinerary as unknown as { path?: ScheduledPoi[] }).path;
+    if (fallbackPath) {
+      return [{ day: 1, itinerary: { path: fallbackPath } }];
+    }
+    return [];
+  }, [currentItinerary]);
 
-  if (days.length === 0) {
+  // Check if any leg currently has estimated transit
+  const hasEstimatedTransit = React.useMemo(() => {
+    return days.some((d) =>
+      d.itinerary?.path?.some(
+        (p) =>
+          p.transit_from_previous &&
+          (p.transit_from_previous.cost_is_estimated ||
+            p.transit_from_previous.price_source === 'fallback_estimate' ||
+            p.transit_from_previous.price_source === 'regional_benchmark_estimate' ||
+            p.transit_from_previous.steps?.some((s) => s.transit_line === 'Transit'))
+      )
+    );
+  }, [days]);
+
+  const handleUpgrade = async () => {
+    if (upgrading) return;
+    setUpgrading(true);
+
+    try {
+      if (tripId) {
+        const data = await apiFetch<{
+          status: string;
+          trip_id: string;
+          itinerary_data: OptimizationResult;
+        }>(`/trips/${tripId}/upgrade-transit`, {
+          method: 'POST',
+        });
+        if (data && data.itinerary_data) {
+          setUpgradedItinerary(data.itinerary_data);
+          if (onItineraryUpdate) {
+            onItineraryUpdate(data.itinerary_data);
+          }
+        }
+      }
+      notify.success(
+        'Transit Upgraded',
+        'Itinerary updated with exact public transit lines, stations, and cascading schedule.'
+      );
+      setUpgraded(true);
+    } catch (err) {
+      console.error('Failed to upgrade transit:', err);
+      notify.error('Upgrade Failed', 'Could not upgrade transit directions at this time.');
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  if (!currentItinerary || days.length === 0) {
     return <div style={{ padding: '1rem', color: 'var(--color-muted)' }}>No route data available.</div>;
   }
 
   return (
     <div style={{ padding: '1rem' }}>
+      {/* Discrete Toolbar Upgrade Action (Guardrails 1 & 5) */}
+      {hasEstimatedTransit && !upgraded && (
+        <div
+          data-testid="transit-upgrade-toolbar"
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            paddingBottom: '0.5rem',
+            borderBottom: '1px solid var(--color-border)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleUpgrade}
+            disabled={upgrading}
+            data-testid="upgrade-transit-btn"
+            className="font-mono text-xs"
+            style={{
+              background: upgrading ? '#2b2b2b' : 'rgba(59, 130, 246, 0.12)',
+              color: upgrading ? '#777777' : '#60a5fa',
+              border: upgrading ? '1px solid #444444' : '1px solid rgba(59, 130, 246, 0.35)',
+              borderRadius: '4px',
+              padding: '0.4rem 0.8rem',
+              cursor: upgrading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease',
+              opacity: upgrading ? 0.6 : 1,
+            }}
+          >
+            {upgrading ? (
+              <>
+                <span>⏳</span>
+                <span>UPGRADING TRANSIT DIRECTIONS...</span>
+              </>
+            ) : (
+              <>
+                <span>⚡</span>
+                <span>ACTUALIZAR A METRO/BUS</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
       {days.map((dayObj: DayOutput, dayIdx: number) => {
         const path = dayObj.itinerary?.path || [];
         const transitRec = dayObj.itinerary?.transit_recommendation;

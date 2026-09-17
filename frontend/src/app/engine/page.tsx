@@ -18,6 +18,7 @@ export default function EnginePage() {
   const [input, setInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [savedTripId, setSavedTripId] = useState<string | null>(null);
   const [clarificationData, setClarificationData] = useState<Record<string, string>>({});
   const endOfLogsRef = useRef<HTMLDivElement>(null);
 
@@ -61,12 +62,15 @@ export default function EnginePage() {
     }
     const daysLength = itinerary?.days?.length || 3;
     
-    await saveTrip({
+    const saved = await saveTrip({
       destination: destination,
       start_date: startDate.toISOString(),
       end_date: new Date(startDate.getTime() + 86400000 * daysLength).toISOString(),
       itinerary_data: itinerary
     });
+    if (saved?.id) {
+      setSavedTripId(saved.id);
+    }
     
     setIsSaving(false);
     setIsModalOpen(true);
@@ -283,7 +287,7 @@ export default function EnginePage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <h3 className="font-display">OPTIMIZED ITINERARY</h3>
-              <TripTimeline itinerary={itinerary} />
+              <TripTimeline itinerary={itinerary} tripId={savedTripId || undefined} />
               
               <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
                 <button 

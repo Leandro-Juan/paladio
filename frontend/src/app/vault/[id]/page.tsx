@@ -250,7 +250,13 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="font-mono text-xs text-accent">{itinerary.days.length} DAYS COMPUTED</span>
               )}
             </div>
-            <TripTimeline itinerary={itinerary as OptimizationResult} />
+            <TripTimeline
+              itinerary={itinerary as OptimizationResult}
+              tripId={id}
+              onItineraryUpdate={(updated) =>
+                setTrip((prev) => (prev ? { ...prev, itinerary_data: updated } : null))
+              }
+            />
           </div>
 
           {/* Photo Vault */}

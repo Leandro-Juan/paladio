@@ -125,3 +125,35 @@ async def delete_trip(
     await session.execute(delete(TripModel).where(TripModel.id == trip_id))
     await session.commit()
     return {"status": "success", "message": "Trip deleted"}
+
+
+@router.post("/{trip_id}/upgrade-transit", response_model=TripResponse)
+async def upgrade_trip_transit(
+    trip_id: str,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    from app.use_cases.upgrade_trip_transit import UpgradeTripTransitUseCase
+
+    use_case = UpgradeTripTransitUseCase(session)
+    try:
+        await use_case.execute(trip_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    return TripResponse(
+        id=trip.id,
+        user_id=trip.user_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        created_at=trip.created_at.isoformat()
+        if trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+    )

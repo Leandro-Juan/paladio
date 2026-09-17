@@ -39,6 +39,21 @@ def _get_task_session_maker():
     ), task_engine
 
 
+def _run_async(coro):
+    """Run an async coroutine safely whether or not an event loop is running in the current thread."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return asyncio.run(coro)
+
+
 @app.task(bind=True, name="app.tasks.refresh_city_pois_task")
 def refresh_city_pois_task(self, city_name: str):
     """
@@ -138,7 +153,9 @@ def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
 
 async def _async_update_transit_cache(
     city_name: str,
-    status: str,
+    status: str | None = None,
+    osm_status: str | None = None,
+    gtfs_status: str | None = None,
     valid_until: datetime | None = None,
     feed_name: str | None = None,
 ):
@@ -155,13 +172,20 @@ async def _async_update_transit_cache(
             if not record:
                 record = TransitCacheModel(
                     city=city_name,
-                    status=status,
+                    status=status or TransitCacheStatus.BUILDING.value,
+                    osm_status=osm_status or "PENDING",
+                    gtfs_status=gtfs_status or "PENDING",
                     valid_until=valid_until,
                     gtfs_feed_name=feed_name,
                 )
                 session.add(record)
             else:
-                record.status = status
+                if status is not None:
+                    record.status = status
+                if osm_status is not None:
+                    record.osm_status = osm_status
+                if gtfs_status is not None:
+                    record.gtfs_status = gtfs_status
                 if valid_until is not None:
                     record.valid_until = valid_until
                 if feed_name is not None:
@@ -178,51 +202,32 @@ async def _async_update_transit_cache(
     retry_backoff=True,
     max_retries=1,
 )
-def build_city_map_task(self, city_name: str):
+def build_city_map_task(self, city_name: str, trip_id: str | None = None):
     """
-    Downloads OSM map data and GTFS public transit data for the city,
-    unpacks feeds, extracts expiry dates, and triggers a Valhalla tile rebuild.
+    Downloads OSM road data for the city and queues the asynchronous GTFS schedule task.
     """
-    logger.info(
-        f"Task {self.request.id}: Starting Valhalla map and GTFS build for {city_name}"
-    )
+    logger.info(f"Task {self.request.id}: Starting OSM road ingestion for {city_name}")
 
     city_lower = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
 
-    # 1. Mark cache status as BUILDING in DB
+    # 1. Mark cache status in DB
     try:
-        asyncio.run(
+        _run_async(
             _async_update_transit_cache(
-                city_name=city_lower, status=TransitCacheStatus.BUILDING.value
+                city_name=city_lower,
+                status=TransitCacheStatus.BUILDING.value,
+                osm_status="BUILDING",
             )
         )
     except (SQLAlchemyError, OSError, RuntimeError) as e:
         logger.warning(f"Could not set transit_cache BUILDING status: {e}")
 
-    # Map cities to their Geofabrik paths
-    geofabrik_map = {
-        "oporto": "europe/portugal-latest.osm.pbf",
-        "porto": "europe/portugal-latest.osm.pbf",
-        "madrid": "europe/spain/madrid-latest.osm.pbf",
-        "paris": "europe/france/ile-de-france-latest.osm.pbf",
-        "barcelona": "europe/spain/cataluna-latest.osm.pbf",
-    }
-
-    path = geofabrik_map.get(city_lower)
-    if not path:
-        logger.error(f"No Geofabrik mapping found for {city_name}.")
-        asyncio.run(
-            _async_update_transit_cache(
-                city_name=city_lower, status=TransitCacheStatus.FAILED.value
-            )
-        )
-        return {"status": "error", "message": f"Unknown city mapping: {city_name}"}
-
-    url = f"http://download.geofabrik.de/{path}"
-    file_name = path.split("/")[-1]
-    dest_path = f"/custom_files/{file_name}"
-
     try:
+        from app.services.osm_map_service import OSMMapService
+
+        url, file_name = _run_async(OSMMapService.resolve_osm_pbf_url(city_lower))
+        dest_path = f"/custom_files/{file_name}"
+
         # Download OSM .pbf if not present
         if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
             logger.info(f"Downloading {url} to {dest_path}...")
@@ -231,18 +236,88 @@ def build_city_map_task(self, city_name: str):
         else:
             logger.info(f"OSM file {file_name} already present at {dest_path}.")
 
-        # Download & extract GTFS feed if available
-        gtfs_url = CITY_GTFS_MAP.get(city_lower)
-        gtfs_dest_dir = f"/gtfs_feeds/{city_lower}"
-        valid_until = datetime.now(timezone.utc) + timedelta(days=90)
+        # Mark OSM road network as READY
+        _run_async(
+            _async_update_transit_cache(
+                city_name=city_lower,
+                osm_status="READY",
+                feed_name=file_name,
+            )
+        )
 
+        # Trigger background GTFS schedule compilation
+        build_city_gtfs_task.delay(city_name=city_lower, trip_id=trip_id)
+
+        return {
+            "status": "success",
+            "city": city_lower,
+            "osm_status": "READY",
+            "file": file_name,
+        }
+
+    except (
+        urllib.error.URLError,
+        OSError,
+        ValueError,
+        httpx.HTTPError,
+        RuntimeError,
+        KeyError,
+    ) as exc:
+        logger.error(f"Failed to ingest OSM map for {city_name}: {exc}")
+        try:
+            asyncio.run(
+                _async_update_transit_cache(
+                    city_name=city_lower,
+                    status=TransitCacheStatus.FAILED.value,
+                    osm_status="FAILED",
+                )
+            )
+        except (SQLAlchemyError, OSError, RuntimeError) as db_err:
+            logger.warning(f"Could not update status to FAILED in DB: {db_err}")
+        raise
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.build_city_gtfs_task",
+    queue="transit_build",
+    autoretry_for=(httpx.RequestError,),
+    retry_backoff=True,
+    max_retries=1,
+)
+def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
+    """
+    Downloads GTFS public transit data in the background, extracts validity,
+    and publishes the TRANSIT_TILES_READY notification to Redis.
+    """
+    logger.info(
+        f"Task {self.request.id}: Starting background GTFS compilation for {city_name}"
+    )
+
+    city_lower = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+
+    try:
+        _run_async(
+            _async_update_transit_cache(
+                city_name=city_lower,
+                gtfs_status="BUILDING",
+            )
+        )
+    except (SQLAlchemyError, OSError, RuntimeError) as e:
+        logger.warning(f"Could not update gtfs_status to BUILDING: {e}")
+
+    gtfs_url = CITY_GTFS_MAP.get(city_lower)
+    gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
+    gtfs_dest_dir = f"{gtfs_base}/{city_lower}"
+    valid_until = datetime.now(timezone.utc) + timedelta(days=90)
+
+    try:
         if gtfs_url:
             os.makedirs(gtfs_dest_dir, exist_ok=True)
             zip_tmp = f"/tmp/{city_lower}_gtfs.zip"
             logger.info(f"Downloading GTFS feed from {gtfs_url} to {zip_tmp}...")
             try:
                 urllib.request.urlretrieve(gtfs_url, zip_tmp)
-
                 with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
                     target_base = os.path.abspath(gtfs_dest_dir)
                     for member in zip_ref.infolist():
@@ -259,12 +334,7 @@ def build_city_map_task(self, city_name: str):
                         zip_ref.extract(member, target_base)
                 if os.path.exists(zip_tmp):
                     os.remove(zip_tmp)
-                logger.info(f"Extracted GTFS feed into {gtfs_dest_dir}.")
-
                 valid_until = extract_gtfs_expiry(gtfs_dest_dir)
-                logger.info(
-                    f"Calculated GTFS schedule validity for {city_name}: {valid_until.isoformat()}"
-                )
             except (
                 urllib.error.URLError,
                 OSError,
@@ -272,40 +342,52 @@ def build_city_map_task(self, city_name: str):
                 ValueError,
             ) as gtfs_err:
                 logger.warning(
-                    f"Could not download/extract GTFS feed for {city_name}: {gtfs_err}. "
-                    "Proceeding without transit schedule overlay."
+                    f"Could not extract GTFS feed for {city_name}: {gtfs_err}"
                 )
-
-        # Trigger Valhalla rebuild webhook
-        logger.info("Triggering Valhalla map rebuild via internal webhook...")
-        try:
-            webhook_url = os.getenv(
-                "VALHALLA_REBUILD_WEBHOOK", "http://host.docker.internal:8080/rebuild"
-            )
-            response = httpx.post(
-                webhook_url, json={"file": file_name, "city": city_lower}, timeout=10.0
-            )
-            response.raise_for_status()
-            logger.info("Webhook triggered successfully.")
-        except httpx.HTTPError as webhook_err:
-            logger.warning(
-                f"Valhalla webhook not reachable ({webhook_err}), relying on container restart or file reload."
-            )
+                _run_async(
+                    _async_update_transit_cache(
+                        city_name=city_lower,
+                        gtfs_status="UNAVAILABLE",
+                        status=TransitCacheStatus.READY.value,
+                    )
+                )
+                return {"status": "unavailable", "city": city_lower}
 
         # Update cache as READY
-        asyncio.run(
+        _run_async(
             _async_update_transit_cache(
                 city_name=city_lower,
                 status=TransitCacheStatus.READY.value,
+                gtfs_status="READY",
                 valid_until=valid_until,
-                feed_name=file_name,
             )
         )
+
+        # Publish notification to Redis
+        try:
+            import json
+
+            import redis
+
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = redis.from_url(redis_url)
+            event_payload = json.dumps(
+                {
+                    "event": "TRANSIT_TILES_READY",
+                    "city": city_lower,
+                    "city_name": city_name,
+                    "trip_id": trip_id,
+                }
+            )
+            r.publish("paladio:events", event_payload)
+            logger.info(f"Published TRANSIT_TILES_READY for {city_name} to Redis.")
+        except (redis.RedisError, OSError, RuntimeError) as r_err:
+            logger.warning(f"Could not publish Redis event: {r_err}")
 
         return {
             "status": "success",
             "city": city_lower,
-            "file": file_name,
+            "gtfs_status": "READY",
             "valid_until": valid_until.isoformat(),
         }
 
@@ -318,13 +400,14 @@ def build_city_map_task(self, city_name: str):
         RuntimeError,
         KeyError,
     ) as exc:
-        logger.error(f"Failed to build map & transit for {city_name}: {exc}")
+        logger.error(f"Failed GTFS compilation for {city_name}: {exc}")
         try:
-            asyncio.run(
+            _run_async(
                 _async_update_transit_cache(
-                    city_name=city_lower, status=TransitCacheStatus.FAILED.value
+                    city_name=city_lower,
+                    gtfs_status="FAILED",
                 )
             )
         except (SQLAlchemyError, OSError, RuntimeError) as db_err:
-            logger.warning(f"Could not update status to FAILED in DB: {db_err}")
+            logger.warning(f"Could not update gtfs_status to FAILED: {db_err}")
         raise

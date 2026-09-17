@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import uuid
 
 from app.core.security import decode_access_token
@@ -83,6 +84,31 @@ async def websocket_endpoint(websocket: WebSocket):
 
     writer = asyncio.create_task(writer_task())
 
+    async def redis_subscriber():
+        try:
+            import redis.asyncio as aioredis
+
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = aioredis.from_url(redis_url)
+            pubsub = r.pubsub()
+            await pubsub.subscribe("paladio:events")
+            async for message in pubsub.listen():
+                if message and message.get("type") == "message":
+                    raw_data = message.get("data")
+                    if isinstance(raw_data, bytes):
+                        raw_data = raw_data.decode("utf-8")
+                    try:
+                        event_dict = json.loads(raw_data)
+                        await outbound_queue.put(event_dict)
+                    except (json.JSONDecodeError, TypeError, KeyError):
+                        pass
+        except asyncio.CancelledError:
+            pass
+        except (OSError, RuntimeError) as err:
+            logger.debug(f"Redis subscriber closed: {err}")
+
+    redis_task = asyncio.create_task(redis_subscriber())
+
     try:
         while True:
             text_data = await websocket.receive_text()
@@ -160,5 +186,6 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
     finally:
         writer.cancel()
+        redis_task.cancel()
         for t in stream_tasks:
             t.cancel()

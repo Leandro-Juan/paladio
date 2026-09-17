@@ -90,6 +90,8 @@ class TransitCacheModel(Base):
 
     city = Column(String, primary_key=True, index=True)
     status = Column(String, default=TransitCacheStatus.BUILDING.value, nullable=False)
+    osm_status = Column(String, default="PENDING", nullable=False)
+    gtfs_status = Column(String, default="PENDING", nullable=False)
     valid_until = Column(DateTime(timezone=True), nullable=True)
     gtfs_feed_name = Column(String, nullable=True)
 
