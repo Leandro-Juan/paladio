@@ -152,6 +152,10 @@ class TravelConstraints(BaseModel):
         default=1,
         description="Target number of meal slots for preferred cuisine.",
     )
+    prompt: str | None = Field(
+        default=None,
+        description="User intent prompt or description.",
+    )
 
     @model_validator(mode="before")
     @classmethod

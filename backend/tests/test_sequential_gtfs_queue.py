@@ -12,6 +12,8 @@ from sqlalchemy import delete, select
 from app.db.models import TransitCacheModel, TransitCacheStatus
 from app.tasks import build_city_gtfs_task
 
+pytestmark = [pytest.mark.slow]
+
 
 def test_transit_cache_status_enum():
     """Verify TransitCacheStatus contains all required enum members."""

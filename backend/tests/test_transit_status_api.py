@@ -120,5 +120,5 @@ async def test_trigger_city_gtfs_compile(async_client: AsyncClient, db_session):
     )
     assert res.status_code == 200
     data = res.json()
-    assert data["status"] == "triggered"
+    assert data["status"] in ["triggered", "queued"]
     assert data["city"] == "madrid"

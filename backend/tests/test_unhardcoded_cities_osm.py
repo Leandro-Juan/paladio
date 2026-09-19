@@ -81,6 +81,8 @@ async def test_all_unhardcoded_cities_absent_from_known_geofabrik_map():
         ), f"City '{city}' (key '{key}') is already in KNOWN_GEOFABRIK_MAP"
 
 
+@pytest.mark.slow
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("city", DYNAMIC_INDEX_CITIES)
 async def test_dynamic_index_cities_resolve_without_aliases(city: str):
@@ -115,6 +117,8 @@ async def test_dynamic_index_cities_resolve_without_aliases(city: str):
         ), f"PBF file for '{city}' is suspiciously small ({size} bytes)"
 
 
+@pytest.mark.slow
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("city", "expected_filename"), REGIONAL_UNHARDCODED_CITIES)
 async def test_regional_unhardcoded_cities_resolve_and_are_live(

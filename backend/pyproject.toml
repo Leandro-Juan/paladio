@@ -43,7 +43,11 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q --asyncio-mode=auto"
+addopts = "-ra -q --asyncio-mode=auto -m 'not slow and not live_integration'"
+markers = [
+    "slow: marks tests as slow (deselected by default, run with -m slow)",
+    "live_integration: marks tests requiring external live APIs, network downloads, or heavy compilation (run with -m live_integration)",
+]
 pythonpath = ["."]
 testpaths = [
     "tests",

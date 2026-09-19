@@ -75,10 +75,6 @@ except ImportError:
     sys.modules["paladio_core"] = mock_paladio_core
 
 
-from app.db.models import Base
-from app.db.session import get_db
-from app.main import app
-
 postgres_host = os.getenv("POSTGRES_HOST", "127.0.0.1")
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -86,6 +82,8 @@ TEST_DATABASE_URL = os.getenv(
 )
 if "DATABASE_URL" not in os.environ:
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+if "REDIS_URL" not in os.environ:
+    os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/0"
 os.environ["ALLOW_PUBLIC_REGISTRATION"] = "true"
 
 
@@ -108,6 +106,8 @@ def event_loop():
 # ---------------------------------------------------------
 @pytest_asyncio.fixture(scope="session")
 async def db_engine():
+    from app.db.models import Base
+
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool, echo=False)
     # Using try/except in case the test database isn't ready
     try:
@@ -115,29 +115,28 @@ async def db_engine():
 
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
     except (SQLAlchemyError, OSError) as e:
         logging.getLogger(__name__).warning(
             f"Could not initialize test DB tables. Ensure test DB exists. {e}"
         )
     yield engine
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-    except (SQLAlchemyError, OSError):
-        pass
     await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+    import app.db.session as app_session_mod
+
     session_maker = async_sessionmaker(
         db_engine, class_=AsyncSession, expire_on_commit=False
     )
+    orig_session = app_session_mod.async_session
+    app_session_mod.async_session = session_maker
     async with session_maker() as session:
         yield session
         await session.rollback()
+    app_session_mod.async_session = orig_session
 
 
 # ---------------------------------------------------------
@@ -148,6 +147,9 @@ async def async_client(
     db_session: AsyncSession, request
 ) -> AsyncGenerator[AsyncClient, None]:
     """Fixture to provide an AsyncClient for FastAPI application testing."""
+    from app.db.session import get_db
+    from app.main import app
+
     app.dependency_overrides[get_db] = lambda: db_session
 
     # If the test is NOT marked as 'ml', we mock the ML model to avoid JAX JIT compilation hanging

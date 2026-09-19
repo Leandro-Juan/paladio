@@ -23,7 +23,7 @@ DEFAULT_TAG_AFFINITIES: dict[str, float] = {
     "architecture": 0.5,
     "food_culinary": 0.5,
     "nightlife": 0.5,
-    "shopping": 0.3,
+    "shopping": 0.5,
     "scenic_views": 0.5,
 }
 

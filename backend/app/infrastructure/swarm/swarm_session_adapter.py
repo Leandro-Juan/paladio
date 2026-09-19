@@ -87,9 +87,11 @@ class SwarmSessionAdapter(ISwarmSession):
         yield {"event": "STARTING_INFERENCE", "status": "running"}
         yield {"event": "PARSING_TICKETS", "status": "running"}
 
+        prompt_val = user_msg or data.get("prompt", "")
         initial_state = {
             "messages": [HumanMessage(content=user_msg)] if user_msg else [],
             "error_count": 0,
+            "prompt": prompt_val,
         }
 
         manual_constraints = {}
@@ -99,6 +101,9 @@ class SwarmSessionAdapter(ISwarmSession):
             manual_constraints.update(data["manual_constraints"])
         elif "constraints" in data and isinstance(data["constraints"], dict):
             manual_constraints.update(data["constraints"])
+
+        if prompt_val:
+            manual_constraints["prompt"] = prompt_val
 
         if "budget_usd" in data:
             manual_constraints["budget_usd"] = data["budget_usd"]

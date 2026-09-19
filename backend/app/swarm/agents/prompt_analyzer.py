@@ -74,10 +74,13 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
         elif isinstance(msg, dict) and "content" in msg:
             user_messages.append(msg["content"])
 
+    validated = state.get("validated_itinerary") or {}
+    state_prompt = state.get("prompt") or validated.get("prompt") or ""
+    if state_prompt and state_prompt not in user_messages:
+        user_messages.append(state_prompt)
+
     full_prompt = "\n".join(user_messages) if user_messages else ""
     logger.debug(f"Combined prompt for analysis: {full_prompt}")
-
-    validated = state.get("validated_itinerary") or {}
 
     # 2. Run LLM Analysis on the prompt
     analysis = RAGPromptAnalysis()
@@ -96,6 +99,10 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
 
     # 3. Update validated_itinerary constraints with extracted mandatory POIs and tastes
     constraints_dict = dict(validated)
+    if full_prompt.strip():
+        constraints_dict["prompt"] = full_prompt.strip()
+    elif state_prompt:
+        constraints_dict["prompt"] = state_prompt
 
     # Existing nodes
     existing_nodes = constraints_dict.get("nodes") or []

@@ -6,6 +6,8 @@ from app.services.osm_map_service import (
     OSMMapService,
 )
 
+pytestmark = [pytest.mark.slow, pytest.mark.live_integration]
+
 
 @pytest.mark.asyncio
 async def test_geofabrik_index_url_is_live():

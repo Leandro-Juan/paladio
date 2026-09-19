@@ -2,14 +2,18 @@ import pytest
 from httpx import AsyncClient
 
 
+import uuid
+
+
 @pytest.mark.asyncio
 async def test_trips_user_isolation(async_client: AsyncClient):
+    uid = uuid.uuid4().hex[:8]
     # Register User A
     res_a = await async_client.post(
         "/api/v1/auth/register",
         json={
-            "email": "usera@paladio.com",
-            "username": "usera",
+            "email": f"usera_{uid}@paladio.com",
+            "username": f"usera_{uid}",
             "password": "passwordA123",
         },
     )
@@ -21,8 +25,8 @@ async def test_trips_user_isolation(async_client: AsyncClient):
     res_b = await async_client.post(
         "/api/v1/auth/register",
         json={
-            "email": "userb@paladio.com",
-            "username": "userb",
+            "email": f"userb_{uid}@paladio.com",
+            "username": f"userb_{uid}",
             "password": "passwordB123",
         },
     )

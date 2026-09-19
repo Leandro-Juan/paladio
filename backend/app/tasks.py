@@ -291,17 +291,15 @@ async def async_trigger_city_gtfs_download_if_needed(
     if not gtfs_override:
         from app.services.gtfs_resolver_service import GTFSResolverService
 
-        feed_info = _run_async(GTFSResolverService.resolve_gtfs_feed(city_clean))
+        feed_info = await GTFSResolverService.resolve_gtfs_feed(city_clean)
         if not feed_info:
             logger.info(
                 f"No open GTFS transit schedule feed found for city: {city_clean}"
             )
-            _run_async(
-                _async_update_transit_cache(
-                    city_name=city_clean,
-                    status=TransitCacheStatus.READY.value,
-                    gtfs_status="UNAVAILABLE",
-                )
+            await _async_update_transit_cache(
+                city_name=city_clean,
+                status=TransitCacheStatus.READY.value,
+                gtfs_status="UNAVAILABLE",
             )
             _publish_transit_event(
                 "TRANSIT_UNAVAILABLE", city_clean, city_name, trip_id

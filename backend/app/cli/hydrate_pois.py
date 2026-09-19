@@ -47,7 +47,10 @@ async def hydrate_attractions(batch_size: int = 24, force_all: bool = False):
                     "city": m.city,
                     "category": m.category,
                     "metadata": m.metadata_field,
-                    "financials": m.financials,
+                    "financials": {
+                        "cost_eur": getattr(m, "cost_eur", 0.0),
+                        "cost_is_estimated": getattr(m, "cost_is_estimated", True),
+                    },
                 }
                 text = PoiNaturalLanguageSynthesizer.synthesize_description(data)
                 synthesized_texts.append(text)

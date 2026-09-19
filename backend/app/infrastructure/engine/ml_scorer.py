@@ -21,9 +21,9 @@ class MLScorer:
 
     def __init__(
         self,
-        ml_model: IScoringModel,
-        ml_params: dict,
-        user_repo: SqlUserRepository,
+        ml_model: IScoringModel | None = None,
+        ml_params: dict | None = None,
+        user_repo: SqlUserRepository | None = None,
         embedding_provider: IEmbeddingProvider | None = None,
     ):
         self.ml_model = ml_model
@@ -134,6 +134,22 @@ class MLScorer:
             norm_pref = normalize_user_preferences(
                 user_pref if isinstance(user_pref, dict) else None
             )
+
+            # If prompt_affinities exist (e.g. LLM extracted explicit signals), blend them with projected
+            if prompt_affinities:
+                alpha = 0.35
+                from app.engine.scoring.features import TAG_KEYS
+
+                for tag in TAG_KEYS:
+                    if tag in prompt_affinities:
+                        p_val = float(np.clip(float(prompt_affinities[tag]), 0.0, 1.0))
+                        projected[tag] = round(
+                            float(
+                                (1.0 - alpha) * projected.get(tag, 0.5) + alpha * p_val
+                            ),
+                            2,
+                        )
+
             norm_pref.tag_affinities = projected
             updated_pref = norm_pref.model_dump(mode="json")
             user_pref = updated_pref

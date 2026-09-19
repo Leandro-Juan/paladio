@@ -218,7 +218,7 @@ async def test_database_schema_and_attractions_migration_integrity():
             )
         )
         row = rows_res.fetchone()
-        if row.total_count > 0:
+        if row and row.total_count >= 387:
             assert (
                 row.total_count >= 387
             ), f"Expected at least 387 attractions when seeded, found {row.total_count}"

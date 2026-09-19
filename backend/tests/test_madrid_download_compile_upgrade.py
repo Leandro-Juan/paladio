@@ -6,9 +6,11 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 from app.db.models import TransitCacheModel, TransitCacheStatus, TripModel
+from app.services.gtfs_resolver_service import GTFSResolverService
 from app.services.osm_map_service import OSMMapService
-from app.tasks import CITY_GTFS_MAP
 from app.use_cases.upgrade_trip_transit import UpgradeTripTransitUseCase
+
+pytestmark = [pytest.mark.slow, pytest.mark.live_integration]
 
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
@@ -60,9 +62,9 @@ async def test_madrid_download_link_and_gtfs_resolution():
         assert content_len > 50_000_000  # Madrid extract is ~84MB
 
     # Verify GTFS feed mapping
-    gtfs_url = CITY_GTFS_MAP.get("madrid")
-    assert gtfs_url is not None
-    assert gtfs_url.startswith("https://")
+    gtfs_feed = await GTFSResolverService.resolve_gtfs_feed("madrid")
+    assert gtfs_feed is not None
+    assert gtfs_feed.download_url.startswith("https://")
 
 
 @pytest.mark.asyncio

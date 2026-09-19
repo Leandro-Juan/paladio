@@ -100,10 +100,8 @@ class FetchTravelContextUseCase:
 
             domain_pois = [Poi(**p) for p in db_pois]
             prompt_affinities = getattr(constraints, "tag_affinities", None) or {}
-            prompt_text = (
-                getattr(constraints, "prompt", None)
-                or getattr(constraints, "user_prompt", None)
-                or getattr(constraints, "booking_text", None)
+            prompt_text = getattr(constraints, "prompt", None) or getattr(
+                constraints, "user_prompt", None
             )
             scored_pois = await self.ml_scorer.score_pois(
                 domain_pois,

@@ -139,7 +139,9 @@ async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict
         raise ValueError("travel_data_provider must be provided in the runnable config")
 
     engine = config["configurable"].get("engine")
-    ml_scorer = engine.ml_scorer if engine else None
+    ml_scorer = config["configurable"].get("ml_scorer") or (
+        getattr(engine, "ml_scorer", None) if engine else None
+    )
     user_id = config["configurable"].get("user_id", "default_user")
 
     test_data = state.get("test_data")

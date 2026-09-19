@@ -8,6 +8,8 @@ from app.schemas.itinerary import TravelConstraints
 from app.services.transit_service import get_detailed_transit_leg
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 
+pytestmark = [pytest.mark.slow, pytest.mark.live_integration]
+
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
 

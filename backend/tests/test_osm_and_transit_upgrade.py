@@ -166,12 +166,19 @@ async def test_upgrade_trip_transit_cascades_schedule():
         assert not path[2]["transit_from_previous"]["cost_is_estimated"]
 
 
+@pytest.mark.slow
 def test_build_city_gtfs_task_publishes_to_redis(monkeypatch, tmp_path):
     from app.tasks import build_city_gtfs_task
 
     monkeypatch.setenv("GTFS_BASE_DIR", str(tmp_path / "gtfs_feeds"))
 
+    mock_container = MagicMock()
+    mock_container.exec_run.return_value = MagicMock(exit_code=0, output=b"OK")
+    mock_docker = MagicMock()
+    mock_docker.containers.get.return_value = mock_container
+
     with (
+        patch("docker.from_env", return_value=mock_docker),
         patch("app.tasks._async_update_transit_cache", new_callable=AsyncMock),
         patch("urllib.request.urlretrieve"),
         patch("zipfile.ZipFile"),

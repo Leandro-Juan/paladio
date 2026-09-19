@@ -140,6 +140,17 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         if parsed_e:
             end_date = parsed_e
 
+    prompt = manual.get("prompt") or state.get("prompt")
+    if not prompt:
+        messages = state.get("messages") or []
+        for msg in messages:
+            content = getattr(msg, "content", None) or (
+                msg.get("content") if isinstance(msg, dict) else None
+            )
+            if content and isinstance(content, str) and content.strip():
+                prompt = content.strip()
+                break
+
     constraints = TravelConstraints(
         origin_city=origin_city,
         destination_city=destination_city,
@@ -149,6 +160,7 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         booking_anchors=booking,
         meals=meals,
         nodes=nodes,
+        prompt=prompt,
     )
 
     logger.info(
