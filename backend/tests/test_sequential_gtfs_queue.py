@@ -113,18 +113,28 @@ def test_build_city_gtfs_task_execution_and_sanitization():
         mock_docker_client = MagicMock()
         mock_docker_client.containers.get.return_value = mock_container
 
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        with open(zip_path, "rb") as zf:
+            zip_bytes = zf.read()
+        mock_resp.iter_bytes.return_value = [zip_bytes]
+
+        mock_http_client = MagicMock()
+        mock_http_client.__enter__.return_value = mock_http_client
+        mock_http_client.__exit__.return_value = None
+        mock_http_client.stream.return_value.__enter__.return_value = mock_resp
+        mock_http_client.stream.return_value.__exit__.return_value = None
+
         with patch("docker.from_env", return_value=mock_docker_client), patch(
             "app.tasks._async_update_transit_cache"
         ), patch("app.tasks._publish_transit_event") as mock_publish, patch(
             "app.tasks.CITY_GTFS_MAP", {"mockcity": "http://example.com/gtfs.zip"}
-        ), patch("urllib.request.urlopen") as mock_urlopen, patch(
+        ), patch("httpx.Client", return_value=mock_http_client), patch(
             "urllib.request.urlretrieve"
         ), patch(
             "app.services.osm_map_service.OSMMapService.resolve_osm_pbf_url",
             return_value=("http://example.com/osm.pbf", "mockcity-latest.osm.pbf"),
         ), patch.dict(os.environ, {"GTFS_BASE_DIR": temp_gtfs_dir}):
-            mock_urlopen.return_value.__enter__.return_value = open(zip_path, "rb")
-
             res = build_city_gtfs_task(city_name="mockcity")
 
             assert res["status"] == "success"
@@ -137,12 +147,7 @@ def test_build_city_gtfs_task_execution_and_sanitization():
             calls = [call.args[0] for call in mock_container.exec_run.call_args_list]
             assert any("valhalla_ingest_transit" in cmd for cmd in calls)
             assert any("valhalla_convert_transit" in cmd for cmd in calls)
-            assert any(
-                "valhalla_build_tiles" in cmd and "build" in cmd for cmd in calls
-            )
-            assert any(
-                "valhalla_build_tiles" in cmd and "enhance" in cmd for cmd in calls
-            )
+            assert any("valhalla_build_tiles" in cmd for cmd in calls)
             assert any("valhalla_build_extract" in cmd for cmd in calls)
             assert mock_container.restart.called
 

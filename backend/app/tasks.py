@@ -3,7 +3,6 @@ import csv
 import logging
 import os
 import re
-import shutil
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -94,14 +93,8 @@ def refresh_city_pois_task(self, city_name: str):
         raise
 
 
-# Open-data GTFS directories for supported cities
-CITY_GTFS_MAP = {
-    "madrid": "https://www.arcgis.com/sharing/rest/content/items/5c7f2951962540d69ffe8f640d94c246/data",
-    "oporto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
-    "porto": "https://opendata.porto.pt/transport/stcp_gtfs.zip",
-    "paris": "https://eu.ftp.opendatasoft.com/sncf/gtfs/transilien-gtfs.zip",
-    "barcelona": "https://opendata-ajuntament.barcelona.cat/data/dataset/844c8789-f538-4e11-bf37-0205be4a1ca2/resource/cfbcbe68-54b0-466d-8692-0b2a3045df6a/download/transit.zip",
-}
+# Optional override map for direct custom GTFS URLs; dynamic resolution handles any world city via GTFSResolverService
+CITY_GTFS_MAP: dict[str, str] = {}
 
 
 def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) -> None:
@@ -292,9 +285,28 @@ async def async_trigger_city_gtfs_download_if_needed(
         return False
 
     city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
-    if city_clean not in CITY_GTFS_MAP:
-        logger.info(f"No GTFS feed configured for city: {city_clean}")
-        return False
+
+    # Check if feed exists dynamically or via override
+    gtfs_override = CITY_GTFS_MAP.get(city_clean)
+    if not gtfs_override:
+        from app.services.gtfs_resolver_service import GTFSResolverService
+
+        feed_info = _run_async(GTFSResolverService.resolve_gtfs_feed(city_clean))
+        if not feed_info:
+            logger.info(
+                f"No open GTFS transit schedule feed found for city: {city_clean}"
+            )
+            _run_async(
+                _async_update_transit_cache(
+                    city_name=city_clean,
+                    status=TransitCacheStatus.READY.value,
+                    gtfs_status="UNAVAILABLE",
+                )
+            )
+            _publish_transit_event(
+                "TRANSIT_UNAVAILABLE", city_clean, city_name, trip_id
+            )
+            return False
 
     from sqlalchemy import select
 
@@ -633,54 +645,18 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             "TRANSIT_DOWNLOAD_STARTED", city_lower, city_name, trip_id
         )
 
-        # 3. Download and unpack GTFS schedule
+        # 3. Resolve GTFS feed URL dynamically (or via override map)
         gtfs_url = CITY_GTFS_MAP.get(city_lower)
-        gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
-        gtfs_dest_dir = f"{gtfs_base}/{city_lower}"
-        valid_until = datetime.now(timezone.utc) + timedelta(days=90)
+        if not gtfs_url:
+            from app.services.gtfs_resolver_service import GTFSResolverService
 
-        if gtfs_url:
-            os.makedirs(gtfs_dest_dir, exist_ok=True)
-            zip_tmp = f"/tmp/{city_lower}_gtfs.zip"
-            logger.info(f"Downloading GTFS feed from {gtfs_url} to {zip_tmp}...")
-            try:
-                req = urllib.request.Request(
-                    gtfs_url,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-                    },
-                )
-                with (
-                    urllib.request.urlopen(req, timeout=120) as resp,
-                    open(zip_tmp, "wb") as out_f,
-                ):
-                    shutil.copyfileobj(resp, out_f)
-
-                with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
-                    target_base = os.path.abspath(gtfs_dest_dir)
-                    for member in zip_ref.infolist():
-                        member_path = os.path.abspath(
-                            os.path.join(target_base, member.filename)
-                        )
-                        if (
-                            os.path.commonpath([target_base, member_path])
-                            != target_base
-                        ):
-                            raise ValueError(
-                                f"Zip Slip attempt detected in member: {member.filename}"
-                            )
-                        zip_ref.extract(member, target_base)
-                if os.path.exists(zip_tmp):
-                    os.remove(zip_tmp)
-                valid_until = extract_gtfs_expiry(gtfs_dest_dir)
-            except (
-                urllib.error.URLError,
-                OSError,
-                zipfile.BadZipFile,
-                ValueError,
-            ) as gtfs_err:
+            feed_info = _run_async(GTFSResolverService.resolve_gtfs_feed(city_lower))
+            if feed_info:
+                gtfs_url = feed_info.download_url
+            else:
                 logger.warning(
-                    f"Could not extract GTFS feed for {city_name}: {gtfs_err}"
+                    f"No open GTFS schedule feed found in global catalog for {city_name}. "
+                    "Skipping GTFS compilation cleanly without mocked fallbacks."
                 )
                 _run_async(
                     _async_update_transit_cache(
@@ -689,7 +665,74 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                         status=TransitCacheStatus.READY.value,
                     )
                 )
+                _publish_transit_event(
+                    "TRANSIT_UNAVAILABLE",
+                    city_lower,
+                    city_name,
+                    trip_id,
+                    message=f"No open public transit GTFS schedule found for {city_name}. Walking and driving routing remain available.",
+                )
                 return {"status": "unavailable", "city": city_lower}
+
+        gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
+        gtfs_dest_dir = f"{gtfs_base}/{city_lower}"
+        valid_until = datetime.now(timezone.utc) + timedelta(days=90)
+
+        os.makedirs(gtfs_dest_dir, exist_ok=True)
+        zip_tmp = f"/tmp/{city_lower}_gtfs.zip"
+        logger.info(f"Downloading GTFS feed from {gtfs_url} to {zip_tmp}...")
+        try:
+            download_headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+                ),
+                "Accept": "application/zip, application/octet-stream, */*",
+            }
+            with httpx.Client(follow_redirects=True, timeout=60.0) as client:
+                with client.stream("GET", gtfs_url, headers=download_headers) as resp:
+                    resp.raise_for_status()
+                    with open(zip_tmp, "wb") as out_f:
+                        for chunk in resp.iter_bytes(chunk_size=65536):
+                            out_f.write(chunk)
+
+            with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
+                target_base = os.path.abspath(gtfs_dest_dir)
+                for member in zip_ref.infolist():
+                    member_path = os.path.abspath(
+                        os.path.join(target_base, member.filename)
+                    )
+                    if os.path.commonpath([target_base, member_path]) != target_base:
+                        raise ValueError(
+                            f"Zip Slip attempt detected in member: {member.filename}"
+                        )
+                    zip_ref.extract(member, target_base)
+            if os.path.exists(zip_tmp):
+                os.remove(zip_tmp)
+            valid_until = extract_gtfs_expiry(gtfs_dest_dir)
+        except (
+            httpx.HTTPError,
+            urllib.error.URLError,
+            OSError,
+            zipfile.BadZipFile,
+            ValueError,
+        ) as gtfs_err:
+            logger.warning(f"Could not extract GTFS feed for {city_name}: {gtfs_err}")
+            _run_async(
+                _async_update_transit_cache(
+                    city_name=city_lower,
+                    gtfs_status="UNAVAILABLE",
+                    status=TransitCacheStatus.READY.value,
+                )
+            )
+            _publish_transit_event(
+                "TRANSIT_UNAVAILABLE",
+                city_lower,
+                city_name,
+                trip_id,
+                message=f"Failed to download or extract GTFS feed for {city_name}: {gtfs_err}",
+            )
+            return {"status": "unavailable", "city": city_lower}
 
         # 4. Auto-Sanitization: dynamically resolve bounds from Geofabrik metadata
         if os.path.exists(gtfs_dest_dir):

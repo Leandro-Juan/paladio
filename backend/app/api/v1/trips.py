@@ -192,21 +192,24 @@ async def get_transit_status_by_trip(
 
 @router.get("/transit/registry", response_model=GtfsRegistryResponse)
 async def get_transit_registry(session: AsyncSession = Depends(get_db)):
-    from app.tasks import CITY_GTFS_MAP
-
     stmt = select(TransitCacheModel).order_by(TransitCacheModel.city.asc())
     res = await session.execute(stmt)
     records = {r.city.lower(): r for r in res.scalars().all()}
 
-    all_city_keys = sorted(set(list(records.keys()) + list(CITY_GTFS_MAP.keys())))
+    all_city_keys = sorted(records.keys())
 
     city_items: list[CityGtfsItem] = []
     active_cities: list[str] = []
 
     for city_key in all_city_keys:
         rec = records.get(city_key)
-        has_feed = city_key in CITY_GTFS_MAP
-        feed_url = CITY_GTFS_MAP.get(city_key)
+        has_feed = bool(
+            rec
+            and (
+                rec.gtfs_status in ("READY", "BUILDING", "QUEUED") or rec.gtfs_feed_name
+            )
+        )
+        feed_url = rec.gtfs_feed_name if rec else None
 
         status_val = rec.status if rec else "PENDING"
         osm_status_val = rec.osm_status if rec else "PENDING"
