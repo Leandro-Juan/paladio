@@ -383,7 +383,7 @@ async def upgrade_trip_transit(
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
-    from app.engine.transit_matrix import TransitRoutingError
+    from app.services.transit_service import TransitRoutingError
     from app.use_cases.upgrade_trip_transit import UpgradeTripTransitUseCase
 
     use_case = UpgradeTripTransitUseCase(session)
