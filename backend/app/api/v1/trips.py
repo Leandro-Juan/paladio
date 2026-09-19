@@ -32,6 +32,7 @@ class CityGtfsItem(BaseModel):
     gtfs_status: str
     is_ready: bool
     is_building: bool
+    is_queued: bool = False
     is_downloaded: bool
     is_compiled: bool
     has_feed: bool
@@ -47,6 +48,7 @@ class GtfsRegistryResponse(BaseModel):
     active_cities: list[str]
     total_cities: int
     compiled_cities: int
+    queued_cities: int = 0
     cities: list[CityGtfsItem]
 
 
@@ -210,7 +212,8 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         osm_status_val = rec.osm_status if rec else "PENDING"
         gtfs_status_val = rec.gtfs_status if rec else "PENDING"
 
-        is_building = (
+        is_queued = bool(gtfs_status_val == "QUEUED" or status_val == "QUEUED")
+        is_building = not is_queued and (
             gtfs_status_val == "BUILDING"
             or status_val == "BUILDING"
             or osm_status_val == "BUILDING"
@@ -223,11 +226,11 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         if city_key == "oporto":
             display_name = "Porto (Oporto)"
 
-        if is_building:
+        if is_building or is_queued:
             active_cities.append(display_name)
 
-        # ONLY list cities that are already compiled OR currently downloading/building
-        if not (is_compiled or is_building):
+        # ONLY list cities that are already compiled OR currently downloading/building OR queued
+        if not (is_compiled or is_building or is_queued):
             continue
 
         valid_until_str = (
@@ -244,6 +247,7 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
                 gtfs_status=gtfs_status_val,
                 is_ready=is_ready,
                 is_building=is_building,
+                is_queued=is_queued,
                 is_downloaded=is_downloaded,
                 is_compiled=is_compiled,
                 has_feed=has_feed,
@@ -255,6 +259,7 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         )
 
     compiled_count = sum(1 for c in city_items if c.is_compiled)
+    queued_count = sum(1 for c in city_items if c.is_queued)
 
     return GtfsRegistryResponse(
         has_active_process=len(active_cities) > 0,
@@ -262,6 +267,7 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         active_cities=active_cities,
         total_cities=len(city_items),
         compiled_cities=compiled_count,
+        queued_cities=queued_count,
         cities=city_items,
     )
 
@@ -274,33 +280,60 @@ async def trigger_city_gtfs_compile(
     city_clean = req.city.strip().lower()
     from app.db.models import TransitCacheStatus
 
+    import os
+    import redis
+
+    # Check if compiler lock is currently held to set initial status
+    is_locked = False
+    try:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        is_locked = r.lock("paladio:transit_compiler_lock", timeout=7200).locked()
+    except (redis.RedisError, OSError):
+        pass
+
+    initial_status = (
+        TransitCacheStatus.QUEUED.value
+        if is_locked
+        else TransitCacheStatus.BUILDING.value
+    )
+    initial_gtfs = "QUEUED" if is_locked else "BUILDING"
+
     stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
     res = await session.execute(stmt)
     record = res.scalar_one_or_none()
     if not record:
         record = TransitCacheModel(
             city=city_clean,
-            status=TransitCacheStatus.BUILDING.value,
+            status=initial_status,
             osm_status="PENDING",
-            gtfs_status="BUILDING",
+            gtfs_status=initial_gtfs,
         )
         session.add(record)
     else:
-        record.status = TransitCacheStatus.BUILDING.value
-        record.gtfs_status = "BUILDING"
+        record.status = initial_status
+        record.gtfs_status = initial_gtfs
     await session.commit()
 
     try:
-        from app.tasks import build_city_gtfs_task
+        from app.tasks import _publish_transit_event, build_city_gtfs_task
 
         build_city_gtfs_task.delay(city_clean)
+        if is_locked:
+            _publish_transit_event("TRANSIT_QUEUED", city_clean, req.city)
+        else:
+            _publish_transit_event("TRANSIT_DOWNLOAD_STARTED", city_clean, req.city)
     except (OSError, RuntimeError) as exc:
         logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
 
     return {
-        "status": "triggered",
+        "status": "queued" if is_locked else "triggered",
         "city": city_clean,
-        "message": f"GTFS download and compilation process initiated for {city_clean}.",
+        "message": (
+            f"GTFS compilation queued for {city_clean}."
+            if is_locked
+            else f"GTFS download and compilation process initiated for {city_clean}."
+        ),
     }
 
 
@@ -350,6 +383,7 @@ async def upgrade_trip_transit(
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
+    from app.engine.transit_matrix import TransitRoutingError
     from app.use_cases.upgrade_trip_transit import UpgradeTripTransitUseCase
 
     use_case = UpgradeTripTransitUseCase(session)
@@ -357,6 +391,8 @@ async def upgrade_trip_transit(
         await use_case.execute(trip_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TransitRoutingError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
     trip = result.scalar_one_or_none()

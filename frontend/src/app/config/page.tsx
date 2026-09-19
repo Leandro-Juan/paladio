@@ -88,6 +88,41 @@ export default function ConfigPage() {
     return () => clearInterval(interval);
   }, [fetchGtfsData, gtfsTelemetry?.has_active_process]);
 
+  // Handle TRANSIT_QUEUED and other WebSocket transit telemetry events
+  useEffect(() => {
+    const onTransitQueued = (e: Event) => {
+      const customEvent = e as CustomEvent<{ city?: string; city_name?: string }>;
+      const cName = customEvent.detail?.city_name || customEvent.detail?.city || 'City';
+      setGtfsMessage({
+        type: 'success',
+        text: `GTFS compilation for ${cName} has been queued behind an active compilation.`,
+      });
+      fetchGtfsData(false);
+    };
+
+    const onTransitUpdate = () => {
+      fetchGtfsData(false);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paladio:transit_queued', onTransitQueued);
+      window.addEventListener('paladio:transit_compile_started', onTransitUpdate);
+      window.addEventListener('paladio:transit_download_started', onTransitUpdate);
+      window.addEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+      window.addEventListener('paladio:transit_compile_failed', onTransitUpdate);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('paladio:transit_queued', onTransitQueued);
+        window.removeEventListener('paladio:transit_compile_started', onTransitUpdate);
+        window.removeEventListener('paladio:transit_download_started', onTransitUpdate);
+        window.removeEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+        window.removeEventListener('paladio:transit_compile_failed', onTransitUpdate);
+      }
+    };
+  }, [fetchGtfsData]);
+
   const handleTriggerCompile = async (city: string) => {
     setCompilingCity(city);
     setGtfsMessage(null);
@@ -633,7 +668,12 @@ export default function ConfigPage() {
             <tbody>
               {(() => {
                 const activeOrCompiledCities = (gtfsTelemetry?.cities || []).filter(
-                  (c) => c.is_compiled || c.is_building || compilingCity === c.city
+                  (c) =>
+                    c.is_compiled ||
+                    c.is_building ||
+                    c.gtfs_status === 'QUEUED' ||
+                    c.is_queued ||
+                    compilingCity === c.city
                 );
                 if (activeOrCompiledCities.length === 0) {
                   return (
@@ -645,11 +685,16 @@ export default function ConfigPage() {
                   );
                 }
                 return activeOrCompiledCities.map((cityItem) => {
-                  const isItemCompiling = cityItem.is_building || compilingCity === cityItem.city;
+                  const isItemQueued = cityItem.gtfs_status === 'QUEUED' || cityItem.is_queued;
+                  const isItemCompiling =
+                    !isItemQueued && (cityItem.is_building || compilingCity === cityItem.city);
                   return (
                     <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border)' }}>
                       <td style={{ padding: '12px', fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {isItemQueued && (
+                            <span style={{ display: 'inline-block', fontSize: '14px' }}>🕒</span>
+                          )}
                           {isItemCompiling && (
                             <span className="animate-spin" style={{ display: 'inline-block', fontSize: '14px' }}>⏳</span>
                           )}
@@ -662,42 +707,66 @@ export default function ConfigPage() {
                         </div>
                       </td>
                       <td style={{ padding: '12px' }}>
-                        <span
-                          className="font-mono"
-                          style={{
-                            fontSize: '10px',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            background:
-                              cityItem.gtfs_status === 'READY'
-                                ? '#DCFCE7'
-                                : isItemCompiling
-                                ? '#FEF3C7'
-                                : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                ? '#FEE2E2'
-                                : '#E2E8F0',
-                            color:
-                              cityItem.gtfs_status === 'READY'
-                                ? '#15803D'
-                                : isItemCompiling
-                                ? '#B45309'
-                                : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                ? '#B91C1C'
-                                : '#475569',
-                            fontWeight: 600,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          {isItemCompiling && <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span>}
-                          {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
-                        </span>
+                        {isItemQueued ? (
+                          <span
+                            className="font-mono"
+                            style={{
+                              fontSize: '10px',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              background: '#FEF3C7',
+                              color: '#B45309',
+                              border: '1px solid #FCD34D',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span style={{ fontSize: '11px' }}>🕒</span> In Queue
+                          </span>
+                        ) : (
+                          <span
+                            className="font-mono"
+                            style={{
+                              fontSize: '10px',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              background:
+                                cityItem.gtfs_status === 'READY'
+                                  ? '#DCFCE7'
+                                  : isItemCompiling
+                                  ? '#FEF3C7'
+                                  : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
+                                  ? '#FEE2E2'
+                                  : '#E2E8F0',
+                              color:
+                                cityItem.gtfs_status === 'READY'
+                                  ? '#15803D'
+                                  : isItemCompiling
+                                  ? '#B45309'
+                                  : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
+                                  ? '#B91C1C'
+                                  : '#475569',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {isItemCompiling && <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span>}
+                            {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '12px' }}>
-                        {cityItem.is_compiled && !isItemCompiling ? (
+                        {cityItem.is_compiled && !isItemCompiling && !isItemQueued ? (
                           <span className="font-mono" style={{ fontSize: '11px', color: '#15803D', fontWeight: 600 }}>
                             ✓ YES (READY)
+                          </span>
+                        ) : isItemQueued ? (
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span>🕒</span> QUEUED
                           </span>
                         ) : (
                           <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -732,20 +801,22 @@ export default function ConfigPage() {
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <button
                           onClick={() => handleTriggerCompile(cityItem.city)}
-                          disabled={isItemCompiling}
+                          disabled={isItemCompiling || isItemQueued}
                           className="font-mono"
                           style={{
                             padding: '5px 10px',
                             fontSize: '11px',
                             borderRadius: '4px',
                             border: '1px solid var(--color-border)',
-                            background: isItemCompiling ? '#F1F5F9' : '#FFF',
-                            color: isItemCompiling ? '#94A3B8' : 'var(--color-accent-primary)',
-                            cursor: isItemCompiling ? 'not-allowed' : 'pointer',
-                            opacity: isItemCompiling ? 0.6 : 1,
+                            background: isItemCompiling || isItemQueued ? '#F1F5F9' : '#FFF',
+                            color: isItemCompiling || isItemQueued ? '#94A3B8' : 'var(--color-accent-primary)',
+                            cursor: isItemCompiling || isItemQueued ? 'not-allowed' : 'pointer',
+                            opacity: isItemCompiling || isItemQueued ? 0.6 : 1,
                           }}
                         >
-                          {isItemCompiling
+                          {isItemQueued
+                            ? 'QUEUED...'
+                            : isItemCompiling
                             ? 'DOWNLOADING...'
                             : cityItem.is_compiled
                             ? 'RECOMPILE'

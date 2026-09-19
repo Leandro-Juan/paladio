@@ -266,6 +266,23 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'MAP_INGESTION':
         addLog(`> [MAP] ${payload.message || payload.status}`);
         break;
+      case 'TRANSIT_QUEUED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] Compilation queued for ${cityName}. Waiting for active compilation lock...`);
+        notify.info(
+          'GTFS Compilation Queued',
+          `Official public transit data compilation for ${cityName} is queued.`,
+          {
+            actionLink: '/config',
+            actionLabel: 'View Queue',
+          }
+        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_queued', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
       case 'TRANSIT_DOWNLOAD_STARTED': {
         const cityName = payload.city_name || payload.city || 'City';
         addLog(`> [TRANSIT] Downloading official GTFS schedule for ${cityName}...`);
@@ -277,6 +294,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             actionLabel: 'View Status',
           }
         );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_download_started', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'TRANSIT_COMPILE_STARTED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] GTFS tile compilation started for ${cityName}...`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_compile_started', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
         break;
       }
       case 'TRANSIT_TILES_READY': {
@@ -290,6 +320,23 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             actionLabel: 'View Trip',
           }
         );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_tiles_ready', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'TRANSIT_COMPILE_FAILED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] Compilation failed for ${cityName}.`);
+        notify.error(
+          'GTFS Compilation Failed',
+          `Compilation for ${cityName} encountered an error.`
+        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_compile_failed', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
         break;
       }
       case 'DONE':

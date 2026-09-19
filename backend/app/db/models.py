@@ -102,6 +102,8 @@ class TripModel(Base):
 
 
 class TransitCacheStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    QUEUED = "QUEUED"
     BUILDING = "BUILDING"
     READY = "READY"
     FAILED = "FAILED"

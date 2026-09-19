@@ -50,10 +50,13 @@ class UpgradeTripTransitUseCase:
         days = itinerary.get("days", [])
         city = trip.destination or ""
 
+        total_upgraded_legs = 0
+        total_legs = 0
+
         for day_idx, day_obj in enumerate(days):
             day_itin = day_obj.get("itinerary", {})
             path_items = day_itin.get("path", [])
-            if len(path_items) < 2:
+            if not path_items or len(path_items) < 2:
                 continue
 
             day_date_str = day_obj.get("date")
@@ -79,6 +82,7 @@ class UpgradeTripTransitUseCase:
             has_airport_transit = False
 
             for k in range(1, len(path_items)):
+                total_legs += 1
                 prev_poi = path_items[k - 1].get("poi", {})
                 curr_poi = path_items[k].get("poi", {})
 
@@ -118,6 +122,7 @@ class UpgradeTripTransitUseCase:
                     transit_leg = None
 
                 if transit_leg:
+                    total_upgraded_legs += 1
                     # Update leg data
                     path_items[k]["transit_from_previous"] = transit_leg.model_dump(
                         mode="json"
@@ -171,6 +176,12 @@ class UpgradeTripTransitUseCase:
             )
             day_itin["transit_recommendation"] = transit_rec.model_dump(mode="json")
             day_obj["transit_recommendation"] = transit_rec.model_dump(mode="json")
+
+        if total_legs > 0 and total_upgraded_legs == 0:
+            raise TransitRoutingError(
+                f"Routing engine could not find real public transit routes for {city}. "
+                "Ensure transit network tiles are compiled."
+            )
 
         if "metadata" not in itinerary or not isinstance(itinerary["metadata"], dict):
             itinerary["metadata"] = {}

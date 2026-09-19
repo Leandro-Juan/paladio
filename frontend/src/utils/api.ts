@@ -136,6 +136,7 @@ export interface CityGtfsItem {
   gtfs_status: string;
   is_ready: boolean;
   is_building: boolean;
+  is_queued?: boolean;
   is_downloaded: boolean;
   is_compiled: boolean;
   has_feed: boolean;
@@ -151,6 +152,7 @@ export interface GtfsRegistryResponse {
   active_cities: string[];
   total_cities: number;
   compiled_cities: number;
+  queued_cities?: number;
   cities: CityGtfsItem[];
 }
 

@@ -164,7 +164,6 @@ class OSMMapService:
         except (httpx.HTTPError, KeyError, ValueError) as exc:
             logger.warning(f"Error querying Geofabrik index for '{city_name}': {exc}")
 
-        # Fallback to standard convention
         filename = f"{city_clean}-latest.osm.pbf"
         url = f"https://download.geofabrik.de/europe/{filename}"
         return url, filename
@@ -184,6 +183,54 @@ class OSMMapService:
         except (httpx.HTTPError, ValueError) as e:
             logger.warning(f"Could not load Geofabrik index: {e}")
             return None
+
+    @classmethod
+    async def get_city_extract_bounds(cls, city_name: str) -> dict[str, float] | None:
+        """
+        Dynamically extracts the geographic bounding box (min_lat, max_lat, min_lon, max_lon)
+        for any city's road network extract from Geofabrik's authoritative index metadata.
+        Completely eliminates the need for hardcoded city boundary maps.
+        """
+        try:
+            _, pbf_filename = await cls.resolve_osm_pbf_url(city_name)
+            index_data = await cls._get_geofabrik_index()
+            if not index_data or "features" not in index_data:
+                return None
+
+            for feature in index_data["features"]:
+                urls = feature.get("properties", {}).get("urls", {})
+                if pbf_filename in urls.get("pbf", ""):
+                    geom = feature.get("geometry", {})
+                    coords = geom.get("coordinates", [])
+                    all_lons: list[float] = []
+                    all_lats: list[float] = []
+
+                    def _extract(c: Any) -> None:
+                        if isinstance(c, (list, tuple)):
+                            if (
+                                len(c) == 2
+                                and isinstance(c[0], (float, int))
+                                and isinstance(c[1], (float, int))
+                            ):
+                                all_lons.append(float(c[0]))
+                                all_lats.append(float(c[1]))
+                            else:
+                                for sub in c:
+                                    _extract(sub)
+
+                    _extract(coords)
+                    if all_lons and all_lats:
+                        return {
+                            "min_lat": min(all_lats),
+                            "max_lat": max(all_lats),
+                            "min_lon": min(all_lons),
+                            "max_lon": max(all_lons),
+                        }
+        except Exception as exc:
+            logger.warning(
+                f"Could not dynamically determine bounds for {city_name}: {exc}"
+            )
+        return None
 
     @classmethod
     async def download_osm_pbf(

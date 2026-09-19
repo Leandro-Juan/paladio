@@ -21,12 +21,17 @@ app.conf.update(
         Queue("celery"),
         Queue("transit_build"),
     ],
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
     # Configure dedicated queues and rate limits to prevent memory exhaustion (Guardrail 4)
     task_routes={
         "app.tasks.build_city_gtfs_task": {"queue": "transit_build"},
     },
     task_annotations={
-        "app.tasks.build_city_gtfs_task": {"rate_limit": "1/m"},
+        "app.tasks.build_city_gtfs_task": {
+            "rate_limit": "1/m",
+            "acks_late": True,
+        },
     },
     # Configure periodic tasks (Celery Beat)
     beat_schedule={},

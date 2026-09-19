@@ -88,6 +88,7 @@ services:
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     restart: unless-stopped
+    shm_size: 4g
     ports:
       - "127.0.0.1:8002:8002"
     volumes:
@@ -110,6 +111,7 @@ services:
       - /app/.venv
       - valhalladata:/custom_files
       - gtfsdata:/gtfs_feeds
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - POSTGRES_HOST=db
@@ -123,7 +125,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery_app worker --loglevel=info -Q celery,transit_build -c 2 --prefetch-multiplier=1
     security_opt:
       - no-new-privileges:true
 
