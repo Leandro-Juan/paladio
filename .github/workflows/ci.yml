@@ -81,7 +81,8 @@ jobs:
         run: alembic upgrade head
         working-directory: backend
       - name: Run Pytest
-        run: pytest backend/tests cpp_core/tests --maxfail=5
+        run: pytest tests --maxfail=5
+        working-directory: backend
 
   frontend-tests:
     name: Frontend Playwright Tests
