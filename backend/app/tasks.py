@@ -812,8 +812,10 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             _async_update_transit_cache(
                 city_name=city_lower,
                 status=TransitCacheStatus.READY.value,
+                osm_status="READY",
                 gtfs_status="READY",
                 valid_until=valid_until,
+                feed_name=city_osm_pbf,
             )
         )
         _publish_transit_event("TRANSIT_TILES_READY", city_lower, city_name, trip_id)
