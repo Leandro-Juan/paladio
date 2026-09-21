@@ -1,0 +1,27 @@
+name: Sync C++ Core to Independent Repo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cpp_core/**'
+  workflow_dispatch: # Permite disparar la sincronización manualmente si lo necesitas
+
+jobs:
+  sync-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Paladio repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push cpp_core to paladio-core
+        uses: s0/git-publish-subdir-action@develop
+        env:
+          REPO: git@github.com:Leandro-Juan/paladio-core.git
+          BRANCH: main
+          FOLDER: cpp_core
+          SSH_PRIVATE_KEY: ${{ secrets.CORE_DEPLOY_KEY }}
+          SKIP_EMPTY_COMMITS: true

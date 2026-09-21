@@ -1,95 +1,120 @@
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# ==========================================
+# Frontend (Node.js & Next.js)
+# ==========================================
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+frontend/playwright-report/
+frontend/test-results/
+frontend/.cache/
 
-# Python
+# ==========================================
+# Python & Backend
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
+develop-eggs/
+eggs/
+.eggs/
+parts/
+sdist/
+wheels/
+share/python-wheels/
+backend/import_times.log
+celerybeat-schedule*
 
-# Testing / Coverage
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-pytestdebug.log
-
-# C/C++ & CMake
+# ==========================================
+# C / C++ & CMake
+# ==========================================
+build/
+bin/
+lib/
+lib64/
+CMakeFiles/
 CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
+CMakeScripts/
+Testing/
 Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
-_deps
+_deps/
+paladio_tests
+*.dylib
+*.dll
 
-# IDEs and OS
-.vscode/
+# ==========================================
+# Virtual Environments & Secrets
+# ==========================================
+.env
+.env*.local
+.venv/
+env/
+venv/
+ENV/
+*.bak/
+
+# ==========================================
+# Testing & Tooling Caches
+# ==========================================
+.coverage
+.coverage.*
+.cache/
+.pytest_cache/
+.ruff_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+pytestdebug.log
+
+# ==========================================
+# IDEs & System Files
+# ==========================================
 .agents/
-.idea/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
-# Temporary & Logs
+# ==========================================
+# Logs, Outputs & Scratchpads
+# ==========================================
 temp/
 tmp/
 *.log
-TODO.txt
-BACKLOG.md
-comprehensive_audit_report.md
-CONTEXT.md
-documento_arquitectura_soberana.pdf
+*.pdf
 future/
+scratch/
+TODO.txt
 prompt.txt
 important.txt
-scratch/
-celerybeat-schedule*
 itinerary_output.json
 real_itinerary_output.json
-
-# Extra
-ROADMAP.md
 skills-lock.json
-docs/NOMENCLATURE.md
-*.pdf
-*.so
-frontend/playwright-report/
-frontend/test-results/
-frontend/.cache/
-backend/import_times.log
-backend/*.so
 
+# ==========================================
+# Private Notes
+# ==========================================
+BACKLOG.md
+ROADMAP.md
+CONTEXT.md
+comprehensive_audit_report.md
+docs/NOMENCLATURE.md
