@@ -9,6 +9,9 @@ services:
     volumes:
       - ./backend:/app
       - /app/.venv
+      - valhalladata:/custom_files
+      - gtfsdata:/gtfs_feeds
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - POSTGRES_HOST=db

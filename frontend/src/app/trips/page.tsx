@@ -70,16 +70,16 @@ export default function TripsPage() {
                       style={{ 
                         padding: '0.5rem 0.75rem', 
                         background: 'transparent', 
-                        border: '1px solid var(--color-accent-secondary)', 
-                        color: 'var(--color-accent-secondary)', 
+                        border: '1px solid var(--color-accent-secondary, #DC2626)', 
+                        color: 'var(--color-accent-secondary, #DC2626)', 
                         borderRadius: '4px', 
                         cursor: 'pointer', 
                         fontFamily: 'var(--font-display)',
                         fontSize: '0.875rem',
                         transition: 'all 0.2s'
                       }}
-                      onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-accent-secondary)'; e.currentTarget.style.color = '#FFF'; }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-accent-secondary)'; }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-accent-secondary, #DC2626)'; e.currentTarget.style.color = '#FFF'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-accent-secondary, #DC2626)'; }}
                     >
                       ABORT
                     </button>

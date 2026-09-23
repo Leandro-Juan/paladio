@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from app.db.models import TransitCacheModel, TransitCacheStatus, TripModel
 
 
@@ -122,3 +122,75 @@ async def test_trigger_city_gtfs_compile(async_client: AsyncClient, db_session):
     data = res.json()
     assert data["status"] in ["triggered", "queued"]
     assert data["city"] == "madrid"
+
+
+@pytest.mark.asyncio
+async def test_delete_compiled_gtfs(
+    async_client: AsyncClient, db_session, monkeypatch, tmp_path
+):
+    temp_gtfs = tmp_path / "gtfs_feeds"
+    city_dir = temp_gtfs / "sevilla"
+    city_dir.mkdir(parents=True, exist_ok=True)
+    dummy_stop = city_dir / "stops.txt"
+    dummy_stop.write_text("stop_id,stop_name\n1,Test Stop\n")
+    monkeypatch.setenv("GTFS_BASE_DIR", str(temp_gtfs))
+
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == "sevilla")
+    )
+    cache_record = TransitCacheModel(
+        city="sevilla",
+        status=TransitCacheStatus.READY.value,
+        osm_status="READY",
+        gtfs_status="READY",
+    )
+    db_session.add(cache_record)
+    await db_session.commit()
+
+    res = await async_client.delete("/api/v1/trips/transit/sevilla")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "deleted"
+    assert data["city"] == "sevilla"
+
+    # Verify database record was deleted
+    stmt = select(TransitCacheModel).where(TransitCacheModel.city == "sevilla")
+    check_db = (await db_session.execute(stmt)).scalar_one_or_none()
+    assert check_db is None
+
+    # Verify GTFS directory was deleted
+    assert not city_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_stop_active_compilation_and_clean(
+    async_client: AsyncClient, db_session, monkeypatch, tmp_path
+):
+    temp_gtfs = tmp_path / "gtfs_feeds"
+    city_dir = temp_gtfs / "bilbao"
+    city_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("GTFS_BASE_DIR", str(temp_gtfs))
+
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == "bilbao")
+    )
+    cache_record = TransitCacheModel(
+        city="bilbao",
+        status=TransitCacheStatus.BUILDING.value,
+        osm_status="READY",
+        gtfs_status="BUILDING",
+    )
+    db_session.add(cache_record)
+    await db_session.commit()
+
+    res = await async_client.delete("/api/v1/trips/transit/bilbao")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "deleted"
+    assert data["city"] == "bilbao"
+
+    # Verify database record deleted
+    stmt = select(TransitCacheModel).where(TransitCacheModel.city == "bilbao")
+    check_db = (await db_session.execute(stmt)).scalar_one_or_none()
+    assert check_db is None
+    assert not city_dir.exists()

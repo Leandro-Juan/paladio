@@ -35,7 +35,7 @@ export function Modal({ isOpen, title, message, confirmText = "OK", cancelText =
         width: '90%',
         boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
       }}>
-        <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: isDanger ? 'var(--color-accent-secondary)' : 'var(--color-text-primary)' }}>
+        <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: isDanger ? 'var(--color-accent-secondary, #DC2626)' : 'var(--color-text-primary)' }}>
           {title}
         </h2>
         <p className="font-mono text-muted text-sm" style={{ marginBottom: children ? '1rem' : '2rem', lineHeight: 1.5 }}>
@@ -67,7 +67,7 @@ export function Modal({ isOpen, title, message, confirmText = "OK", cancelText =
             onClick={onConfirm}
             style={{
               padding: '0.5rem 1rem',
-              background: isDanger ? 'var(--color-accent-secondary)' : 'var(--color-accent-primary)',
+              background: isDanger ? 'var(--color-accent-secondary, #DC2626)' : 'var(--color-accent-primary, #1E3A8A)',
               border: 'none',
               color: '#FFF',
               borderRadius: '4px',

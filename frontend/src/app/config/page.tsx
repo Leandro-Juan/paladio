@@ -9,8 +9,9 @@ import {
   listUsersApi,
   updateUserApi,
   fetchGtfsRegistryApi,
-  triggerGtfsCompileApi,
+  deleteGtfsApi,
   GtfsRegistryResponse,
+  CityGtfsItem,
 } from '@/utils/api';
 
 export default function ConfigPage() {
@@ -27,7 +28,6 @@ export default function ConfigPage() {
   // GTFS Telemetry State
   const [gtfsTelemetry, setGtfsTelemetry] = useState<GtfsRegistryResponse | null>(null);
   const [gtfsLoading, setGtfsLoading] = useState<boolean>(false);
-  const [compilingCity, setCompilingCity] = useState<string | null>(null);
   const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Modal State
@@ -41,6 +41,10 @@ export default function ConfigPage() {
   // Confirm delete state
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Confirm delete GTFS / stop compilation state
+  const [deleteGtfsCandidate, setDeleteGtfsCandidate] = useState<CityGtfsItem | null>(null);
+  const [deletingGtfs, setDeletingGtfs] = useState(false);
 
   const fetchGtfsData = useCallback(async (showLoading: boolean = false) => {
     if (showLoading) {
@@ -110,6 +114,7 @@ export default function ConfigPage() {
       window.addEventListener('paladio:transit_download_started', onTransitUpdate);
       window.addEventListener('paladio:transit_tiles_ready', onTransitUpdate);
       window.addEventListener('paladio:transit_compile_failed', onTransitUpdate);
+      window.addEventListener('paladio:transit_deleted', onTransitUpdate);
     }
 
     return () => {
@@ -119,25 +124,28 @@ export default function ConfigPage() {
         window.removeEventListener('paladio:transit_download_started', onTransitUpdate);
         window.removeEventListener('paladio:transit_tiles_ready', onTransitUpdate);
         window.removeEventListener('paladio:transit_compile_failed', onTransitUpdate);
+        window.removeEventListener('paladio:transit_deleted', onTransitUpdate);
       }
     };
   }, [fetchGtfsData]);
 
-  const handleTriggerCompile = async (city: string) => {
-    setCompilingCity(city);
+  const handleDeleteGtfs = async () => {
+    if (!deleteGtfsCandidate) return;
+    setDeletingGtfs(true);
     setGtfsMessage(null);
     try {
-      const res = await triggerGtfsCompileApi(city);
+      const res = await deleteGtfsApi(deleteGtfsCandidate.city);
       setGtfsMessage({
         type: 'success',
-        text: res.message || `Download & compile started for ${city}.`,
+        text: res.message || `GTFS transit data and tasks for ${deleteGtfsCandidate.display_name} cleaned up successfully.`,
       });
+      setDeleteGtfsCandidate(null);
       await fetchGtfsData(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to trigger GTFS compilation';
+      const msg = err instanceof Error ? err.message : 'Failed to delete GTFS transit data';
       setGtfsMessage({ type: 'error', text: msg });
     } finally {
-      setCompilingCity(null);
+      setDeletingGtfs(false);
     }
   };
 
@@ -672,8 +680,7 @@ export default function ConfigPage() {
                     c.is_compiled ||
                     c.is_building ||
                     c.gtfs_status === 'QUEUED' ||
-                    c.is_queued ||
-                    compilingCity === c.city
+                    c.is_queued
                 );
                 if (activeOrCompiledCities.length === 0) {
                   return (
@@ -686,8 +693,7 @@ export default function ConfigPage() {
                 }
                 return activeOrCompiledCities.map((cityItem) => {
                   const isItemQueued = cityItem.gtfs_status === 'QUEUED' || cityItem.is_queued;
-                  const isItemCompiling =
-                    !isItemQueued && (cityItem.is_building || compilingCity === cityItem.city);
+                  const isItemCompiling = !isItemQueued && cityItem.is_building;
                   return (
                     <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border)' }}>
                       <td style={{ padding: '12px', fontWeight: 600 }}>
@@ -800,27 +806,38 @@ export default function ConfigPage() {
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <button
-                          onClick={() => handleTriggerCompile(cityItem.city)}
-                          disabled={isItemCompiling || isItemQueued}
+                          data-testid={`delete-gtfs-btn-${cityItem.city}`}
+                          onClick={() => setDeleteGtfsCandidate(cityItem)}
+                          disabled={deletingGtfs && deleteGtfsCandidate?.city === cityItem.city}
                           className="font-mono"
                           style={{
                             padding: '5px 10px',
                             fontSize: '11px',
                             borderRadius: '4px',
-                            border: '1px solid var(--color-border)',
-                            background: isItemCompiling || isItemQueued ? '#F1F5F9' : '#FFF',
-                            color: isItemCompiling || isItemQueued ? '#94A3B8' : 'var(--color-accent-primary)',
-                            cursor: isItemCompiling || isItemQueued ? 'not-allowed' : 'pointer',
-                            opacity: isItemCompiling || isItemQueued ? 0.6 : 1,
+                            border: '1px solid #FECACA',
+                            background: '#FFF',
+                            color: '#DC2626',
+                            fontWeight: 600,
+                            cursor:
+                              deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
+                                ? 'not-allowed'
+                                : 'pointer',
+                            opacity:
+                              deletingGtfs && deleteGtfsCandidate?.city === cityItem.city ? 0.6 : 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                           }}
                         >
-                          {isItemQueued
-                            ? 'QUEUED...'
+                          {deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
+                            ? isItemCompiling || isItemQueued
+                              ? 'STOPPING...'
+                              : 'DELETING...'
+                            : isItemQueued
+                            ? 'CANCEL'
                             : isItemCompiling
-                            ? 'DOWNLOADING...'
-                            : cityItem.is_compiled
-                            ? 'RECOMPILE'
-                            : 'DOWNLOAD & COMPILE'}
+                            ? 'STOP'
+                            : 'DELETE'}
                         </button>
                       </td>
                     </tr>
@@ -1101,6 +1118,99 @@ export default function ConfigPage() {
                 }}
               >
                 {deleting ? 'DELETING...' : 'PERMANENTLY DELETE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm GTFS Delete / Stop Dialog */}
+      {deleteGtfsCandidate && (
+        <div
+          data-testid="gtfs-delete-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            backdropFilter: 'blur(2px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '12px',
+              padding: '2rem',
+              width: '100%',
+              maxWidth: '440px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: '#DC2626' }}>
+              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
+                ? 'Stop GTFS Compilation'
+                : 'Delete GTFS Transit Data'}
+            </h3>
+            <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
+              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued ? (
+                <>
+                  Are you sure you want to stop and cancel GTFS compilation for{' '}
+                  <strong>{deleteGtfsCandidate.display_name}</strong>? Active background tasks will be terminated,
+                  locks released, and temporary build files deleted.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to permanently delete compiled GTFS transit data for{' '}
+                  <strong>{deleteGtfsCandidate.display_name}</strong>? This removes downloaded schedules and Valhalla
+                  transit tiles.
+                </>
+              )}
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteGtfsCandidate(null)}
+                disabled={deletingGtfs}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border)',
+                  background: 'transparent',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-delete-gtfs-btn"
+                onClick={handleDeleteGtfs}
+                disabled={deletingGtfs}
+                className="font-display"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#DC2626',
+                  color: '#FFF',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: deletingGtfs ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deletingGtfs
+                  ? deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
+                    ? 'STOPPING...'
+                    : 'DELETING...'
+                  : deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
+                  ? 'STOP & CLEAN UP'
+                  : 'DELETE GTFS'}
               </button>
             </div>
           </div>

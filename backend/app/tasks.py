@@ -3,6 +3,7 @@ import csv
 import logging
 import os
 import re
+import shutil
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -286,6 +287,19 @@ async def async_trigger_city_gtfs_download_if_needed(
 
     city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
 
+    try:
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r_chk = redis.from_url(redis_url)
+        if r_chk.get(f"paladio:transit_cancelled:{city_clean}"):
+            logger.info(
+                f"Skipping GTFS auto-trigger for recently cancelled/deleted city: {city_clean}"
+            )
+            return False
+    except Exception:
+        pass
+
     # Check if feed exists dynamically or via override
     gtfs_override = CITY_GTFS_MAP.get(city_clean)
     if not gtfs_override:
@@ -454,6 +468,22 @@ def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
     return now + timedelta(days=90)
 
 
+async def _city_exists_in_transit_cache(city_name: str) -> bool:
+    from sqlalchemy import select
+    from app.db.models import TransitCacheModel
+
+    session_maker, task_engine = _get_task_session_maker()
+    try:
+        async with session_maker() as session:
+            stmt = select(TransitCacheModel.id).where(
+                TransitCacheModel.city == city_name
+            )
+            res = await session.execute(stmt)
+            return res.scalar_one_or_none() is not None
+    finally:
+        await task_engine.dispose()
+
+
 async def _async_update_transit_cache(
     city_name: str,
     status: str | None = None,
@@ -461,6 +491,7 @@ async def _async_update_transit_cache(
     gtfs_status: str | None = None,
     valid_until: datetime | None = None,
     feed_name: str | None = None,
+    create_if_missing: bool = True,
 ):
     from sqlalchemy import select
 
@@ -473,6 +504,8 @@ async def _async_update_transit_cache(
             res = await session.execute(stmt)
             record = res.scalar_one_or_none()
             if not record:
+                if not create_if_missing:
+                    return
                 record = TransitCacheModel(
                     city=city_name,
                     status=status or TransitCacheStatus.BUILDING.value,
@@ -580,6 +613,74 @@ def build_city_map_task(self, city_name: str, trip_id: str | None = None):
         raise
 
 
+def cleanup_city_gtfs_resources(city_clean: str) -> None:
+    """
+    Cleans up all resources associated with a city's GTFS build:
+    1. Removes extracted GTFS feeds directory and temporary zip files.
+    2. Cleans Valhalla container transit tiles and kills lingering compilation commands.
+    3. Releases compiler locks and deletes cancellation/task tracking keys in Redis.
+    """
+    import redis
+
+    gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
+    gtfs_dest_dir = os.path.join(gtfs_base, city_clean)
+    if os.path.exists(gtfs_dest_dir):
+        shutil.rmtree(gtfs_dest_dir, ignore_errors=True)
+        logger.info(f"Removed GTFS feed directory: {gtfs_dest_dir}")
+
+    zip_tmp = f"/tmp/{city_clean}_gtfs.zip"
+    if os.path.exists(zip_tmp):
+        try:
+            os.remove(zip_tmp)
+        except OSError:
+            pass
+
+    # Valhalla container cleanup
+    try:
+        import docker
+
+        client = docker.from_env()
+        container = client.containers.get("paladio-valhalla-1")
+        container.exec_run("pkill -9 -f valhalla_ || true")
+        container.exec_run(
+            "rm -rf /custom_files/transit_tiles/* /custom_files/valhalla_tiles/* /custom_files/valhalla_tiles.tar"
+        )
+        container.restart()
+        logger.info(f"Reset and restarted Valhalla container for {city_clean}.")
+    except Exception as valhalla_err:
+        logger.debug(
+            f"Docker Valhalla container cleanup note for {city_clean}: {valhalla_err}"
+        )
+
+    # Redis cleanup
+    try:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        # Note: do not delete paladio:transit_cancelled:{city_clean} here so in-flight tasks abort
+        r.delete(f"paladio:transit_task_id:{city_clean}")
+        curr = r.get("paladio:transit_compiler_current_city")
+        if curr and (
+            curr.decode("utf-8", errors="ignore") == city_clean
+            or curr == city_clean.encode()
+        ):
+            r.delete("paladio:transit_compiler_lock")
+            r.delete("paladio:transit_compiler_current_city")
+    except Exception as r_err:
+        logger.debug(f"Redis cleanup note for {city_clean}: {r_err}")
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.cleanup_city_gtfs_task",
+    queue="transit_build",
+)
+def cleanup_city_gtfs_task(self, city_name: str):
+    """Celery task to execute full GTFS cleanup for a city on the worker container."""
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+    cleanup_city_gtfs_resources(city_clean)
+    return {"status": "cleaned", "city": city_clean}
+
+
 @app.task(
     bind=True,
     name="app.tasks.build_city_gtfs_task",
@@ -605,11 +706,39 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     r = redis.from_url(redis_url)
+
+    # 0. Early check: abort if cancelled or if record was deleted from database
+    if r.get(f"paladio:transit_cancelled:{city_lower}"):
+        logger.info(
+            f"Task {self.request.id}: Aborting build for {city_lower} - cancelled flag active."
+        )
+        return {"status": "cancelled", "city": city_lower}
+
+    if not _run_async(_city_exists_in_transit_cache(city_lower)):
+        logger.info(
+            f"Task {self.request.id}: Aborting build for {city_lower} - city not found in transit_cache (deleted)."
+        )
+        return {"status": "cancelled", "city": city_lower}
+
+    try:
+        task_id = getattr(self.request, "id", None)
+        if task_id:
+            r.set(f"paladio:transit_task_id:{city_lower}", task_id, ex=86400)
+    except Exception:
+        pass
     lock = r.lock("paladio:transit_compiler_lock", timeout=7200, blocking_timeout=None)
 
     # 1. Distributed lock handling: check if another compilation holds lock
     acquired = lock.acquire(blocking=False)
     if not acquired:
+        if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
+            _city_exists_in_transit_cache(city_lower)
+        ):
+            logger.info(
+                f"Aborting build for {city_lower} before queueing - cancelled or deleted."
+            )
+            return {"status": "cancelled", "city": city_lower}
+
         logger.info(
             f"Transit compiler lock is held by another process. Marking {city_lower} as QUEUED."
         )
@@ -618,14 +747,43 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 city_name=city_lower,
                 status=TransitCacheStatus.QUEUED.value,
                 gtfs_status="QUEUED",
+                create_if_missing=False,
             )
         )
         _publish_transit_event("TRANSIT_QUEUED", city_lower, city_name, trip_id)
-        # Block until lock is acquired
-        lock.acquire(blocking=True)
-        logger.info(
-            f"Acquired transit compiler lock for {city_lower} after queue wait."
-        )
+
+        # Loop-wait with short timeout so cancellation or deletion aborts promptly
+        while not acquired:
+            if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
+                _city_exists_in_transit_cache(city_lower)
+            ):
+                logger.info(
+                    f"Transit build for {city_lower} was cancelled/deleted while waiting in queue."
+                )
+                return {"status": "cancelled", "city": city_lower}
+            acquired = lock.acquire(blocking=True, blocking_timeout=2)
+            if acquired:
+                logger.info(
+                    f"Acquired transit compiler lock for {city_lower} after queue wait."
+                )
+
+    # Check if compilation was cancelled while waiting in queue
+    try:
+        if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
+            _city_exists_in_transit_cache(city_lower)
+        ):
+            logger.info(
+                f"Transit build for {city_lower} was cancelled/deleted while in queue."
+            )
+            cleanup_city_gtfs_resources(city_lower)
+            try:
+                lock.release()
+            except Exception:
+                pass
+            return {"status": "cancelled", "city": city_lower}
+        r.set("paladio:transit_compiler_current_city", city_lower, ex=7200)
+    except Exception:
+        pass
 
     try:
         # 2. Lock is acquired: update status to BUILDING and publish events
@@ -634,6 +792,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 city_name=city_lower,
                 status=TransitCacheStatus.BUILDING.value,
                 gtfs_status="BUILDING",
+                create_if_missing=False,
             )
         )
         _publish_transit_event(
@@ -661,6 +820,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                         city_name=city_lower,
                         gtfs_status="UNAVAILABLE",
                         status=TransitCacheStatus.READY.value,
+                        create_if_missing=False,
                     )
                 )
                 _publish_transit_event(
@@ -721,6 +881,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                     city_name=city_lower,
                     gtfs_status="UNAVAILABLE",
                     status=TransitCacheStatus.READY.value,
+                    create_if_missing=False,
                 )
             )
             _publish_transit_event(
@@ -780,6 +941,19 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             url, _ = _run_async(OSMMapService.resolve_osm_pbf_url(city_lower))
             logger.info(f"Downloading required OSM extract {url} to {dest_pbf}...")
             urllib.request.urlretrieve(url, dest_pbf)
+
+        # Check cancellation before executing tile compilation commands
+        try:
+            if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
+                _city_exists_in_transit_cache(city_lower)
+            ):
+                logger.info(
+                    f"Transit build for {city_lower} was cancelled/deleted before tile build."
+                )
+                cleanup_city_gtfs_resources(city_lower)
+                return {"status": "cancelled", "city": city_lower}
+        except Exception:
+            pass
 
         # 6. Sequential Valhalla Compilation Commands via docker library
         # Clean previous tiles and stale archives to avoid corrupted intermediate states
@@ -857,6 +1031,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 gtfs_status="READY",
                 valid_until=valid_until,
                 feed_name=city_osm_pbf,
+                create_if_missing=False,
             )
         )
         _publish_transit_event("TRANSIT_TILES_READY", city_lower, city_name, trip_id)
@@ -876,6 +1051,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                     city_name=city_lower,
                     status=TransitCacheStatus.FAILED.value,
                     gtfs_status="FAILED",
+                    create_if_missing=False,
                 )
             )
         except (SQLAlchemyError, OSError, RuntimeError) as db_err:
@@ -885,6 +1061,16 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
         )
         raise
     finally:
+        try:
+            curr = r.get("paladio:transit_compiler_current_city")
+            if curr and (
+                curr.decode("utf-8", errors="ignore") == city_lower
+                or curr == city_lower.encode()
+            ):
+                r.delete("paladio:transit_compiler_current_city")
+            r.delete(f"paladio:transit_task_id:{city_lower}")
+        except Exception:
+            pass
         try:
             lock.release()
             logger.info(f"Cleanly released transit compiler lock for {city_name}.")

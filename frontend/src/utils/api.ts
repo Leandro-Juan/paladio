@@ -167,4 +167,11 @@ export const triggerGtfsCompileApi = (city: string): Promise<{ status: string; c
   });
 };
 
+export const deleteGtfsApi = (city: string): Promise<{ status: string; city: string; message: string }> => {
+  return apiFetch<{ status: string; city: string; message: string }>(`/trips/transit/${encodeURIComponent(city)}`, {
+    method: 'DELETE',
+  });
+};
+
+
 

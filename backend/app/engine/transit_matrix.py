@@ -67,13 +67,31 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 5) -> bool:
 
                 if not cache_entry:
                     if not triggered:
+                        import os
+                        import redis
+
+                        cancelled = False
+                        try:
+                            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+                            r_chk = redis.from_url(redis_url)
+                            cancelled = bool(
+                                r_chk.get(f"paladio:transit_cancelled:{city_clean}")
+                            )
+                        except Exception:
+                            pass
+
+                        if cancelled:
+                            logger.info(
+                                f"Transit compilation for '{city_name}' was recently cancelled/deleted. Skipping auto-trigger."
+                            )
+                            return True
+
                         logger.info(
                             f"Transit cache MISS for '{city_name}'. Triggering background compile..."
                         )
-                        from app.tasks import build_city_gtfs_task, build_city_map_task
+                        from app.tasks import build_city_map_task
 
                         build_city_map_task.delay(city_clean)
-                        build_city_gtfs_task.delay(city_clean)
                         triggered = True
                 elif cache_entry.status == TransitCacheStatus.READY.value:
                     if (
@@ -84,10 +102,9 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 5) -> bool:
                         logger.info(
                             f"Transit cache STALE for '{city_name}'. Triggering background SWR refresh."
                         )
-                        from app.tasks import build_city_gtfs_task, build_city_map_task
+                        from app.tasks import build_city_map_task
 
                         build_city_map_task.delay(city_clean)
-                        build_city_gtfs_task.delay(city_clean)
                         triggered = True
                     return True
                 elif (
@@ -97,13 +114,12 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 5) -> bool:
                     logger.info(
                         f"Transit build previously marked failed/unavailable for '{city_name}'. Retrying compilation..."
                     )
-                    from app.tasks import build_city_gtfs_task, build_city_map_task
+                    from app.tasks import build_city_map_task
 
                     cache_entry.status = TransitCacheStatus.BUILDING.value
                     cache_entry.gtfs_status = "BUILDING"
                     await session.commit()
                     build_city_map_task.delay(city_clean)
-                    build_city_gtfs_task.delay(city_clean)
                     triggered = True
         except PublicTransitCompilationError:
             raise

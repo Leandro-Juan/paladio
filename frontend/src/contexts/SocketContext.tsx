@@ -339,6 +339,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       }
+      case 'TRANSIT_DELETED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] GTFS transit data deleted / stopped for ${cityName}.`);
+        notify.info(
+          'GTFS Data Removed',
+          `Transit schedules and compilation for ${cityName} have been removed and cleaned up.`
+        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_deleted', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
       case 'DONE':
         setStatus('connected');
         addLog('> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.');

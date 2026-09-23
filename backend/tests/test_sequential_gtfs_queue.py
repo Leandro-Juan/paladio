@@ -136,7 +136,9 @@ def test_build_city_gtfs_task_execution_and_sanitization():
         ), patch(
             "app.services.osm_map_service.OSMMapService.resolve_osm_pbf_url",
             return_value=("http://example.com/osm.pbf", "mockcity-latest.osm.pbf"),
-        ), patch.dict(os.environ, {"GTFS_BASE_DIR": temp_gtfs_dir}):
+        ), patch.dict(
+            os.environ, {"GTFS_BASE_DIR": temp_gtfs_dir, "REDIS_URL": redis_url}
+        ):
             res = build_city_gtfs_task(city_name="mockcity")
 
             assert res["status"] == "success"

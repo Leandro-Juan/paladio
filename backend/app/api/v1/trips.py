@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -321,7 +322,11 @@ async def trigger_city_gtfs_compile(
     try:
         from app.tasks import _publish_transit_event, build_city_gtfs_task
 
-        build_city_gtfs_task.delay(city_clean)
+        task = build_city_gtfs_task.delay(city_clean)
+        try:
+            r.set(f"paladio:transit_task_id:{city_clean}", task.id, ex=86400)
+        except Exception:
+            pass
         if is_locked:
             _publish_transit_event("TRANSIT_QUEUED", city_clean, req.city)
         else:
@@ -337,6 +342,156 @@ async def trigger_city_gtfs_compile(
             if is_locked
             else f"GTFS download and compilation process initiated for {city_clean}."
         ),
+    }
+
+
+@router.delete("/transit/{city}")
+async def delete_city_gtfs(
+    city: str,
+    session: AsyncSession = Depends(get_db),
+):
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city.strip().lower())
+    if not city_clean:
+        raise HTTPException(status_code=400, detail="Invalid city name provided")
+
+    import base64
+    import json
+    import os
+    import redis
+    from app.celery_app import app as celery_app
+    from app.tasks import _publish_transit_event, cleanup_city_gtfs_resources
+
+    # 1. Set cancellation flag in Redis with a 10-minute TTL so in-flight/queued workers halt immediately
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    r = None
+    try:
+        r = redis.from_url(redis_url)
+        r.set(f"paladio:transit_cancelled:{city_clean}", "1", ex=600)
+    except Exception as r_err:
+        logger.warning(f"Error setting Redis cancellation for {city_clean}: {r_err}")
+
+    # 2. Revoke Celery task ID if stored in Redis
+    if r:
+        try:
+            task_id = r.get(f"paladio:transit_task_id:{city_clean}")
+            if task_id:
+                task_id_str = (
+                    task_id.decode("utf-8", errors="ignore")
+                    if isinstance(task_id, bytes)
+                    else str(task_id)
+                )
+                celery_app.control.revoke(task_id_str, terminate=True, signal="SIGKILL")
+                r.delete(f"paladio:transit_task_id:{city_clean}")
+        except Exception as t_err:
+            logger.warning(
+                f"Error checking/revoking stored task_id for {city_clean}: {t_err}"
+            )
+
+    # 3. Purge queued tasks from the Redis `transit_build` queue directly
+    if r:
+        try:
+            raw_tasks = r.lrange("transit_build", 0, -1)
+            for raw_t in raw_tasks:
+                try:
+                    payload = json.loads(
+                        raw_t.decode("utf-8") if isinstance(raw_t, bytes) else raw_t
+                    )
+                    headers = payload.get("headers", {})
+                    task_id = headers.get("id")
+                    argsrepr = headers.get("argsrepr", "")
+
+                    is_match = False
+                    if city_clean in argsrepr:
+                        is_match = True
+                    else:
+                        body_raw = payload.get("body", "")
+                        try:
+                            decoded_body = base64.b64decode(body_raw).decode(
+                                "utf-8", errors="ignore"
+                            )
+                            if city_clean in decoded_body:
+                                is_match = True
+                        except Exception:
+                            pass
+
+                    if is_match:
+                        if task_id:
+                            celery_app.control.revoke(
+                                task_id, terminate=True, signal="SIGKILL"
+                            )
+                        r.lrem("transit_build", 0, raw_t)
+                        logger.info(
+                            f"Purged queued task {task_id} for {city_clean} from transit_build queue."
+                        )
+                except Exception as p_err:
+                    logger.debug(
+                        f"Error inspecting task in transit_build queue: {p_err}"
+                    )
+        except Exception as q_err:
+            logger.warning(
+                f"Error purging transit_build queue for {city_clean}: {q_err}"
+            )
+
+    # 4. Inspect active, reserved, and scheduled Celery tasks across all workers and revoke them
+    try:
+        inspect = celery_app.control.inspect()
+        active_tasks = inspect.active() or {}
+        reserved_tasks = inspect.reserved() or {}
+        scheduled_tasks = inspect.scheduled() or {}
+        for worker_tasks in [active_tasks, reserved_tasks, scheduled_tasks]:
+            for _, tasks in worker_tasks.items():
+                for t in tasks:
+                    t_name = t.get("name", "")
+                    if "transit" in t_name or "city" in t_name:
+                        args = t.get("args", [])
+                        if args and str(args[0]).strip().lower() == city_clean:
+                            celery_app.control.revoke(
+                                t.get("id"), terminate=True, signal="SIGKILL"
+                            )
+    except Exception as inspect_err:
+        logger.warning(
+            f"Could not inspect/revoke Celery tasks for {city_clean}: {inspect_err}"
+        )
+
+    # 5. Direct cleanup (filesystem, Valhalla docker container, Redis lock)
+    try:
+        cleanup_city_gtfs_resources(city_clean)
+    except Exception as clean_err:
+        logger.warning(f"Direct cleanup note for {city_clean}: {clean_err}")
+
+    # Force release compiler lock if held for this city or if stale/orphaned
+    if r:
+        try:
+            curr = r.get("paladio:transit_compiler_current_city")
+            curr_str = (
+                curr.decode("utf-8", errors="ignore")
+                if isinstance(curr, bytes)
+                else str(curr or "")
+            )
+            if curr_str == city_clean or not curr_str:
+                r.delete("paladio:transit_compiler_lock")
+                r.delete("paladio:transit_compiler_current_city")
+        except Exception:
+            pass
+
+    # 6. Remove city record from database (TransitCacheModel)
+    stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+    if record:
+        await session.delete(record)
+        await session.commit()
+
+    # 7. Publish real-time telemetry event to Redis
+    try:
+        _publish_transit_event("TRANSIT_DELETED", city_clean, city.title())
+    except Exception as pub_err:
+        logger.warning(f"Could not publish TRANSIT_DELETED event: {pub_err}")
+
+    return {
+        "status": "deleted",
+        "city": city_clean,
+        "message": f"GTFS data for {city_clean} was deleted and compilation stopped.",
     }
 
 
