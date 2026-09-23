@@ -1,11 +1,8 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-horizontal.png">
-  <img src="docs/assets/logo-horizontal.png" width="380" alt="Paladio">
-</picture>
+<img src="docs/assets/logo.png" width="180" alt="Paladio Logo">
 
+# Paladio
 ### Continuous & Sovereign Autonomous Travel Optimization Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](./LICENSE)
