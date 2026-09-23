@@ -20,7 +20,7 @@
 
 **A 100% self-hosted, air-gappable travel intelligence platform bridging stochastic agentic swarms, continuous differentiable machine learning, and sub-millisecond C++20 combinatorial routing.**
 
-[Documentation Portal](https://leandro-juan.github.io/Paladio/) • [Architecture](#-macro-system-architecture) • [LangGraph Swarm](#-spotlight-1-langgraph-multi-agent-swarm) • [ML Taste Learning](#-spotlight-2-continuous-machine-learning--semantic-taste-learning) • [Knowledge Vault](#-spotlight-3-poi-knowledge-vault--transit-database) • [Frontend UI](#-spotlight-4-reactive-nextjs-15-frontend) • [Roadmap](#-strategic-product--technical-roadmap) • [Quickstart](#-3-step-quickstart)
+[Documentation Portal](https://leandro-juan.github.io/paladio/) • [Architecture](#-macro-system-architecture) • [LangGraph Swarm](#-spotlight-1-langgraph-multi-agent-swarm) • [ML Taste Learning](#-spotlight-2-continuous-machine-learning--semantic-taste-learning) • [Knowledge Vault](#-spotlight-3-poi-knowledge-vault--transit-database) • [Frontend UI](#-spotlight-4-reactive-nextjs-15-frontend) • [Roadmap](#-strategic-product--technical-roadmap) • [Quickstart](#-3-step-quickstart)
 
 ---
 
@@ -234,7 +234,7 @@ Once running:
 - **Next.js Web Interface:** [`http://localhost:3000`](http://localhost:3000)
 - **FastAPI Documentation:** [`http://localhost:8000/docs`](http://localhost:8000/docs)
 - **WebSocket Gateway:** `ws://localhost:8000/ws/stream`
-- **Documentation Portal:** [`https://leandro-juan.github.io/Paladio/`](https://leandro-juan.github.io/Paladio/)
+- **Documentation Portal:** [`https://leandro-juan.github.io/paladio/`](https://leandro-juan.github.io/paladio/)
 
 ---
 
