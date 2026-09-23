@@ -1,115 +1,115 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/</loc>
+         <loc>https://leandro-juan.github.io/paladio/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/continuous-to-discrete-harmonics/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/continuous-to-discrete-harmonics/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/langgraph-vs-chains/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/langgraph-vs-chains/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/resilient-scraping-architecture/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/resilient-scraping-architecture/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/roadmap-and-future-horizons/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/roadmap-and-future-horizons/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/sovereign-ml-and-semantic-rag/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/sovereign-ml-and-semantic-rag/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/explanation/system-architecture/</loc>
+         <loc>https://leandro-juan.github.io/paladio/explanation/system-architecture/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/add-custom-langgraph-agent/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/add-custom-langgraph-agent/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/configure-hybrid-scoring-weights/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/configure-hybrid-scoring-weights/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/handle-human-in-the-loop/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/handle-human-in-the-loop/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/hydrate-poi-embeddings/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/hydrate-poi-embeddings/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/modify-engine-constraints/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/modify-engine-constraints/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/run-offline-swarm/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/run-offline-swarm/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/how-to/tune-ml-taste-learning/</loc>
+         <loc>https://leandro-juan.github.io/paladio/how-to/tune-ml-taste-learning/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/core-engine/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/core-engine/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/fastapi-gateway/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/fastapi-gateway/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/frontend-architecture/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/frontend-architecture/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/langgraph-swarm-architecture/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/langgraph-swarm-architecture/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/ml-feature-tensor-16d/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/ml-feature-tensor-16d/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/poi-database-schema/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/poi-database-schema/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/scraper_json_formats/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/scraper_json_formats/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/semantic-learning-engine/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/semantic-learning-engine/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/reference/websocket-gateway-telemetry/</loc>
+         <loc>https://leandro-juan.github.io/paladio/reference/websocket-gateway-telemetry/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/superpowers/specs/2026-09-16-frontend-notifications-design/</loc>
+         <loc>https://leandro-juan.github.io/paladio/superpowers/specs/2026-09-16-frontend-notifications-design/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/superpowers/specs/2026-09-23-paladio-core-showcase-design/</loc>
+         <loc>https://leandro-juan.github.io/paladio/superpowers/specs/2026-09-23-paladio-core-showcase-design/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/superpowers/specs/2026-09-23-paladio-public-showcase-docs-design/</loc>
+         <loc>https://leandro-juan.github.io/paladio/superpowers/specs/2026-09-23-paladio-public-showcase-docs-design/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/tutorials/first-autonomous-swarm-trip/</loc>
+         <loc>https://leandro-juan.github.io/paladio/tutorials/first-autonomous-swarm-trip/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
     <url>
-         <loc>https://leandro-juan.github.io/Paladio/tutorials/quickstart-docker/</loc>
+         <loc>https://leandro-juan.github.io/paladio/tutorials/quickstart-docker/</loc>
          <lastmod>2026-09-23</lastmod>
     </url>
 </urlset>
