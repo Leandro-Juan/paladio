@@ -1508,14 +1508,14 @@
 <td style="text-align: left;"><code>normalized_cost</code></td>
 <td style="text-align: center;"><code>float32</code></td>
 <td style="text-align: center;"><span class="arithmatex">\([0.0, 1.0]\)</span></td>
-<td style="text-align: left;"><span class="arithmatex">\(\min(\max(\text{cost\_eur} / 200.0, 0.0), 1.0)\)</span></td>
+<td style="text-align: left;"><span class="arithmatex">\(\min(\max(\text{cost} / 200.0, 0.0), 1.0)\)</span></td>
 </tr>
 <tr>
 <td style="text-align: center;"><code>[1]</code></td>
 <td style="text-align: left;"><code>normalized_duration</code></td>
 <td style="text-align: center;"><code>float32</code></td>
 <td style="text-align: center;"><span class="arithmatex">\([0.0, 1.0]\)</span></td>
-<td style="text-align: left;"><span class="arithmatex">\(\min(\max(\text{duration\_mins} / 240.0, 0.0), 1.0)\)</span></td>
+<td style="text-align: left;"><span class="arithmatex">\(\min(\max(\text{duration} / 240.0, 0.0), 1.0)\)</span></td>
 </tr>
 <tr>
 <td style="text-align: center;"><code>[2]</code></td>
@@ -1550,7 +1550,7 @@
 <td style="text-align: left;"><code>is_free</code></td>
 <td style="text-align: center;"><code>float32</code></td>
 <td style="text-align: center;"><span class="arithmatex">\(\{0.0, 1.0\}\)</span></td>
-<td style="text-align: left;"><span class="arithmatex">\(1.0\)</span> if <span class="arithmatex">\(\text{cost\_eur} \le 0.0\)</span>, else <span class="arithmatex">\(0.0\)</span></td>
+<td style="text-align: left;"><span class="arithmatex">\(1.0\)</span> if <span class="arithmatex">\(\text{cost} \le 0.0\)</span>, else <span class="arithmatex">\(0.0\)</span></td>
 </tr>
 <tr>
 <td style="text-align: center;"><code>[7]</code></td>
@@ -1705,6 +1705,10 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
       
         <script src="../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid.js"></script>
       
     
   </body>

@@ -1667,22 +1667,22 @@
 <h3 id="32-interactive-system-architecture-mermaid-diagram">3.2. Interactive System Architecture (Mermaid Diagram)<a class="headerlink" href="#32-interactive-system-architecture-mermaid-diagram" title="Permanent link">&para;</a></h3>
 <p>A complete visual diagram displaying the end-to-end flow:
 <pre class="mermaid"><code>graph TD
-    Client[Next.js 15 Frontend\nRadar / Map / Timeline] &lt;--&gt;|WebSocket /ws/stream| Gateway[FastAPI Semantic Gateway]
-    Gateway &lt;--&gt; Session[SwarmSessionManager]
-    Session &lt;--&gt; Graph[LangGraph StateGraph Engine]
+    Client["Next.js 15 Frontend&lt;br/&gt;Radar / Map / Timeline"] &lt;--&gt;|"WebSocket /ws/stream"| Gateway["FastAPI Semantic Gateway"]
+    Gateway &lt;--&gt; Session["SwarmSessionManager"]
+    Session &lt;--&gt; Graph["LangGraph StateGraph Engine"]
 
-    subgraph Swarm[LangGraph Multi-Agent Swarm]
-        TP[Ticket Parser Agent\nPydantic AI + Ollama] --&gt; AC[Constraint Builder Node\nDeterministic Assembly]
-        AC --&gt; CM{Check Missing Fields\ninterrupt() Pause}
-        CM --&gt;|Human Input Resumed| PA[Prompt Analyzer Agent\nPydantic AI + Ollama]
-        PA --&gt; PS[Planner Scrape Node\nContext Ingestion &amp; MLScorer]
-        PS --&gt; PO[Planner Optimize Node\nBridge to C++ Solver]
+    subgraph Swarm["LangGraph Multi-Agent Swarm"]
+        TP["Ticket Parser Agent&lt;br/&gt;Pydantic AI + Ollama"] --&gt; AC["Constraint Builder Node&lt;br/&gt;Deterministic Assembly"]
+        AC --&gt; CM{"Check Missing Fields&lt;br/&gt;interrupt() Pause"}
+        CM --&gt;|"Human Input Resumed"| PA["Prompt Analyzer Agent&lt;br/&gt;Pydantic AI + Ollama"]
+        PA --&gt; PS["Planner Scrape Node&lt;br/&gt;Context Ingestion &amp; MLScorer"]
+        PS --&gt; PO["Planner Optimize Node&lt;br/&gt;Bridge to C++ Solver"]
     end
 
     Graph --&gt; Swarm
-    PS &lt;--&gt; ML[MLScorer &amp; Semantic Learning Engine]
-    ML &lt;--&gt; PG[(PostgreSQL 16\nTimescaleDB + pgvector Vault)]
-    PO &lt;--&gt; Engine[paladio-core C++20\nBranch &amp; Bound TCOPTW]</code></pre></p>
+    PS &lt;--&gt; ML["MLScorer &amp; Semantic Learning Engine"]
+    ML &lt;--&gt; PG[("PostgreSQL 16&lt;br/&gt;TimescaleDB + pgvector Vault")]
+    PO &lt;--&gt; Engine["paladio-core C++20&lt;br/&gt;Branch &amp; Bound TCOPTW"]</code></pre></p>
 <h3 id="33-core-feature-spotlights">3.3. Core Feature Spotlights<a class="headerlink" href="#33-core-feature-spotlights" title="Permanent link">&para;</a></h3>
 <h4 id="spotlight-1-langgraph-multi-agent-swarm">Spotlight 1: LangGraph Multi-Agent Swarm<a class="headerlink" href="#spotlight-1-langgraph-multi-agent-swarm" title="Permanent link">&para;</a></h4>
 <ul>
@@ -1911,6 +1911,10 @@ Verified instructions for accessing the web UI at <code>http://localhost:3000</c
         <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
       
         <script src="../../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../../js/mermaid.js"></script>
       
     
   </body>

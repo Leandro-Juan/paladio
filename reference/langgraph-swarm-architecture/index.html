@@ -1663,14 +1663,14 @@
 <h2 id="2-graph-workflow-logic-backendappswarmgraphpy">2. Graph Workflow Logic (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#2-graph-workflow-logic-backendappswarmgraphpy" title="Permanent link">&para;</a></h2>
 <p>The graph is compiled using <code>StateGraph(SwarmState)</code> with checkpointer persistence:</p>
 <pre class="mermaid"><code>graph TD
-    START --&gt; TP[ticket_parser_node]
-    TP --&gt; AC[assemble_constraints_node]
-    AC --&gt; CM{check_missing_fields_node}
-    CM --&gt;|Missing Data| IN[interrupt() / Pause]
-    IN --&gt;|User Resume| PA[prompt_analyzer_node]
-    CM --&gt;|Valid| PA
-    PA --&gt; PS[planner_scrape_node]
-    PS --&gt; PO[planner_optimize_node]
+    START --&gt; TP["ticket_parser_node"]
+    TP --&gt; AC["assemble_constraints_node"]
+    AC --&gt; CM{"check_missing_fields_node"}
+    CM --&gt;|"Missing Data"| IN["interrupt() / Pause"]
+    IN --&gt;|"User Resume"| PA["prompt_analyzer_node"]
+    CM --&gt;|"Valid"| PA
+    PA --&gt; PS["planner_scrape_node"]
+    PS --&gt; PO["planner_optimize_node"]
     PO --&gt; END</code></pre>
 <hr />
 <h2 id="3-node-specifications">3. Node Specifications<a class="headerlink" href="#3-node-specifications" title="Permanent link">&para;</a></h2>
@@ -1788,6 +1788,10 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
       
         <script src="../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid.js"></script>
       
     
   </body>
