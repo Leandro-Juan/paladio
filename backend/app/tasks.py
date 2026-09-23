@@ -151,14 +151,8 @@ def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) ->
                 try:
                     lat = float(r["stop_lat"])
                     lon = float(r["stop_lon"])
-                    zone = r.get("zone_id", "").strip()
-                    if zone in ("1", "2", "3", "4", "5"):
-                        if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
-                            kept_stops[r["stop_id"]] = r
-                    else:
-                        # Stricter bounds for stops without an official IDF zone (e.g. border stations)
-                        if 48.35 <= lat <= 49.10 and 1.80 <= lon <= 3.20:
-                            kept_stops[r["stop_id"]] = r
+                    if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+                        kept_stops[r["stop_id"]] = r
                 except (ValueError, KeyError):
                     pass
 
@@ -732,6 +726,20 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
     # 1. Distributed lock handling: check if another compilation holds lock
     acquired = lock.acquire(blocking=False)
     if not acquired:
+        current_city = r.get("paladio:transit_compiler_current_city")
+        if current_city and (
+            (
+                hasattr(current_city, "decode")
+                and current_city.decode("utf-8", errors="ignore") == city_lower
+            )
+            or current_city == city_lower
+            or current_city == city_lower.encode()
+        ):
+            logger.info(
+                f"Duplicate task for {city_lower} detected while {city_lower} is already compiling. Cleanly exiting duplicate."
+            )
+            return {"status": "duplicate_aborted", "city": city_lower}
+
         if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
             _city_exists_in_transit_cache(city_lower)
         ):
@@ -959,12 +967,19 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
         # 6. Sequential Valhalla Compilation Commands via docker library
         # Clean previous tiles and stale archives to avoid corrupted intermediate states
         container.exec_run(
-            "rm -rf /custom_files/valhalla_tiles/* /custom_files/transit_tiles/* /custom_files/valhalla_tiles.tar"
+            "rm -rf /custom_files/valhalla_tiles/* /custom_files/transit_tiles/* /custom_files/valhalla_tiles.tar /custom_files/active_transit_feeds"
+        )
+        # Stage only this city's feed into an isolated directory so Valhalla does not re-ingest other cities
+        container.exec_run(
+            f"sh -c 'mkdir -p /custom_files/active_transit_feeds && ln -sf /gtfs_feeds/{city_lower} /custom_files/active_transit_feeds/{city_lower}'"
+        )
+        container.exec_run(
+            "python3 -c \"import json; p = '/custom_files/valhalla.json'; f = open(p, 'r'); c = json.load(f); f.close(); c.setdefault('mjolnir', {})['transit_feeds_dir'] = '/custom_files/active_transit_feeds'; f = open(p, 'w'); json.dump(c, f, indent=2); f.close()\""
         )
 
         logger.info(f"Executing Valhalla transit ingest for {city_lower}...")
         res_ingest = container.exec_run(
-            "valhalla_ingest_transit -c /custom_files/valhalla.json"
+            "valhalla_ingest_transit -c /custom_files/valhalla.json -j 2"
         )
         if res_ingest.exit_code != 0:
             err_msg = (
@@ -978,7 +993,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         logger.info(f"Executing Valhalla transit convert for {city_lower}...")
         res_convert = container.exec_run(
-            "valhalla_convert_transit -c /custom_files/valhalla.json"
+            "valhalla_convert_transit -c /custom_files/valhalla.json -j 2"
         )
         if res_convert.exit_code != 0:
             err_msg = (
@@ -994,7 +1009,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             f"Executing full Valhalla tile build pipeline for {city_osm_pbf}..."
         )
         res_build = container.exec_run(
-            f"valhalla_build_tiles -c /custom_files/valhalla.json /custom_files/{city_osm_pbf}"
+            f"valhalla_build_tiles -c /custom_files/valhalla.json -j 2 /custom_files/{city_osm_pbf}"
         )
         if res_build.exit_code != 0:
             err_msg = (
@@ -1070,6 +1085,13 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             ):
                 r.delete("paladio:transit_compiler_current_city")
             r.delete(f"paladio:transit_task_id:{city_lower}")
+        except Exception:
+            pass
+        try:
+            client = docker.from_env()
+            client.containers.get("paladio-valhalla-1").exec_run(
+                "rm -rf /custom_files/active_transit_feeds"
+            )
         except Exception:
             pass
         try:

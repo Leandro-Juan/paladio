@@ -29,7 +29,6 @@ app.conf.update(
     },
     task_annotations={
         "app.tasks.build_city_gtfs_task": {
-            "rate_limit": "1/m",
             "acks_late": True,
         },
     },

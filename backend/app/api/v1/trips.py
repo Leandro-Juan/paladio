@@ -233,8 +233,11 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         if is_building or is_queued:
             active_cities.append(display_name)
 
-        # ONLY list cities that are already compiled OR currently downloading/building OR queued
-        if not (is_compiled or is_building or is_queued):
+        is_failed = bool(gtfs_status_val == "FAILED" or status_val == "FAILED")
+        is_unavailable = bool(gtfs_status_val == "UNAVAILABLE")
+
+        # List cities that have transit state (compiled, building, queued, failed, or unavailable)
+        if not (is_compiled or is_building or is_queued or is_failed or is_unavailable):
             continue
 
         valid_until_str = (
