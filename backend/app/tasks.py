@@ -345,22 +345,33 @@ async def async_trigger_city_gtfs_download_if_needed(
             logger.info(
                 f"GTFS compilation for {city_clean} is already in progress ({entry.gtfs_status})."
             )
-            return False
+            return False, False
 
-        # Determine if compilation lock is currently held to set appropriate initial status
+        # Determine if compilation lock is currently held or another city is compiling
         initial_status = TransitCacheStatus.BUILDING.value
         initial_gtfs = "BUILDING"
+        is_locked = False
         try:
             import redis
 
             redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
             r = redis.from_url(redis_url)
             compiler_lock = r.lock("paladio:transit_compiler_lock", timeout=7200)
-            if compiler_lock.locked():
-                initial_status = TransitCacheStatus.QUEUED.value
-                initial_gtfs = "QUEUED"
+            is_locked = compiler_lock.locked()
         except (redis.RedisError, OSError):
             pass
+
+        # Also check if any other city is currently BUILDING or QUEUED in DB
+        stmt_active = select(TransitCacheModel).where(
+            TransitCacheModel.city != city_clean,
+            TransitCacheModel.gtfs_status.in_(["BUILDING", "QUEUED"]),
+        )
+        res_active = await db_session.execute(stmt_active)
+        has_active_compilation = res_active.scalars().first() is not None
+
+        if is_locked or has_active_compilation:
+            initial_status = TransitCacheStatus.QUEUED.value
+            initial_gtfs = "QUEUED"
 
         if not entry:
             entry = TransitCacheModel(
@@ -374,16 +385,16 @@ async def async_trigger_city_gtfs_download_if_needed(
             entry.status = initial_status
             entry.gtfs_status = initial_gtfs
         await db_session.commit()
-        return True
+        return True, initial_gtfs == "QUEUED"
 
     try:
         if session is not None:
-            should_trigger = await _do_check_and_trigger(session)
+            should_trigger, is_queued = await _do_check_and_trigger(session)
         else:
             session_maker, task_engine = _get_task_session_maker()
             try:
                 async with session_maker() as new_session:
-                    should_trigger = await _do_check_and_trigger(new_session)
+                    should_trigger, is_queued = await _do_check_and_trigger(new_session)
             finally:
                 await task_engine.dispose()
 
@@ -391,17 +402,7 @@ async def async_trigger_city_gtfs_download_if_needed(
             return False
 
         build_city_gtfs_task.delay(city_name=city_clean, trip_id=trip_id)
-        is_locked = False
-        try:
-            import redis
-
-            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-            r = redis.from_url(redis_url)
-            is_locked = r.lock("paladio:transit_compiler_lock", timeout=7200).locked()
-        except (redis.RedisError, OSError):
-            pass
-
-        if is_locked:
+        if is_queued:
             _publish_transit_event("TRANSIT_QUEUED", city_clean, city_name, trip_id)
         else:
             _publish_transit_started_event(city_clean, city_name, trip_id)
@@ -475,7 +476,7 @@ async def _city_exists_in_transit_cache(city_name: str) -> bool:
     session_maker, task_engine = _get_task_session_maker()
     try:
         async with session_maker() as session:
-            stmt = select(TransitCacheModel.id).where(
+            stmt = select(TransitCacheModel.city).where(
                 TransitCacheModel.city == city_name
             )
             res = await session.execute(stmt)

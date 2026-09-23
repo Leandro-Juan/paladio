@@ -296,12 +296,21 @@ async def trigger_city_gtfs_compile(
     except (redis.RedisError, OSError):
         pass
 
+    stmt_active = select(TransitCacheModel).where(
+        TransitCacheModel.city != city_clean,
+        TransitCacheModel.gtfs_status.in_(["BUILDING", "QUEUED"]),
+    )
+    res_active = await session.execute(stmt_active)
+    has_active_compilation = res_active.scalars().first() is not None
+
+    should_queue = is_locked or has_active_compilation
+
     initial_status = (
         TransitCacheStatus.QUEUED.value
-        if is_locked
+        if should_queue
         else TransitCacheStatus.BUILDING.value
     )
-    initial_gtfs = "QUEUED" if is_locked else "BUILDING"
+    initial_gtfs = "QUEUED" if should_queue else "BUILDING"
 
     stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
     res = await session.execute(stmt)
@@ -327,7 +336,7 @@ async def trigger_city_gtfs_compile(
             r.set(f"paladio:transit_task_id:{city_clean}", task.id, ex=86400)
         except Exception:
             pass
-        if is_locked:
+        if should_queue:
             _publish_transit_event("TRANSIT_QUEUED", city_clean, req.city)
         else:
             _publish_transit_event("TRANSIT_DOWNLOAD_STARTED", city_clean, req.city)
@@ -335,11 +344,11 @@ async def trigger_city_gtfs_compile(
         logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
 
     return {
-        "status": "queued" if is_locked else "triggered",
+        "status": "queued" if should_queue else "triggered",
         "city": city_clean,
         "message": (
             f"GTFS compilation queued for {city_clean}."
-            if is_locked
+            if should_queue
             else f"GTFS download and compilation process initiated for {city_clean}."
         ),
     }

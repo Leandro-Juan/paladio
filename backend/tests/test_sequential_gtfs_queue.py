@@ -88,6 +88,50 @@ async def test_trigger_compile_when_lock_held(async_client: AsyncClient, db_sess
             pass
 
 
+@pytest.mark.asyncio
+async def test_trigger_compile_when_another_city_is_building(
+    async_client: AsyncClient, db_session
+):
+    """When another city is BUILDING in DB, trigger endpoint marks new city as QUEUED even without redis lock."""
+    await db_session.execute(
+        delete(TransitCacheModel).where(
+            TransitCacheModel.city.in_(["testcity1", "testcity2"])
+        )
+    )
+    city1 = TransitCacheModel(
+        city="testcity1",
+        status=TransitCacheStatus.BUILDING.value,
+        osm_status="READY",
+        gtfs_status="BUILDING",
+    )
+    db_session.add(city1)
+    await db_session.commit()
+
+    with patch("app.tasks.build_city_gtfs_task.delay"):
+        res = await async_client.post(
+            "/api/v1/trips/transit/compile",
+            json={"city": "testcity2"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "queued"
+
+        stmt = select(TransitCacheModel).where(TransitCacheModel.city == "testcity2")
+        db_res = await db_session.execute(stmt)
+        record = db_res.scalar_one_or_none()
+        assert record is not None
+        assert record.gtfs_status == "QUEUED"
+        assert record.status == TransitCacheStatus.QUEUED.value
+
+    # Cleanup
+    await db_session.execute(
+        delete(TransitCacheModel).where(
+            TransitCacheModel.city.in_(["testcity1", "testcity2"])
+        )
+    )
+    await db_session.commit()
+
+
 def test_build_city_gtfs_task_execution_and_sanitization():
     """Verify build_city_gtfs_task performs pathways auto-sanitization, timezone check, docker compilation, and releases lock."""
     redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -129,7 +173,9 @@ def test_build_city_gtfs_task_execution_and_sanitization():
 
         with patch("docker.from_env", return_value=mock_docker_client), patch(
             "app.tasks._async_update_transit_cache"
-        ), patch("app.tasks._publish_transit_event") as mock_publish, patch(
+        ), patch("app.tasks._city_exists_in_transit_cache", return_value=True), patch(
+            "app.tasks._publish_transit_event"
+        ) as mock_publish, patch(
             "app.tasks.CITY_GTFS_MAP", {"mockcity": "http://example.com/gtfs.zip"}
         ), patch("httpx.Client", return_value=mock_http_client), patch(
             "urllib.request.urlretrieve"
