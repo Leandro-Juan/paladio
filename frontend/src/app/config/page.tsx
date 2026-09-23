@@ -681,7 +681,10 @@ export default function ConfigPage() {
                     c.is_compiled ||
                     c.is_building ||
                     c.gtfs_status === 'QUEUED' ||
-                    c.is_queued
+                    c.is_queued ||
+                    c.gtfs_status === 'FAILED' ||
+                    c.gtfs_status === 'UNAVAILABLE' ||
+                    c.status === 'FAILED'
                 );
                 if (activeOrCompiledCities.length === 0) {
                   return (
@@ -775,9 +778,13 @@ export default function ConfigPage() {
                           <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <ClockIcon size={12} color="#D97706" /> QUEUED
                           </span>
-                        ) : (
+                        ) : isItemCompiling ? (
                           <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <Spinner size={12} color="#D97706" /> IN PROGRESS
+                          </span>
+                        ) : (
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            NO
                           </span>
                         )}
                       </td>
