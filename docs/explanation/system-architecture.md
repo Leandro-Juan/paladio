@@ -43,8 +43,19 @@ The system does not just plan trips; it monitors the travel market. The architec
 - **Reactive Planning:** The user needs an immediate answer. The system runs the full validation and C++ optimization pipeline synchronously and returns an itinerary.
 - **Proactive Monitoring:** The user wants to wait for a deal (e.g., "Alert me if flights drop below $200"). Instead of running the solver, the system structures the constraints into an **Alert Payload**. This payload is dispatched to the background ingestion workers. As live price data flows into TimescaleDB, the system evaluates empirical CDF arrays using the **1-Wasserstein distance** (Earth Mover's Distance) for rigorous regime shift detection. This approach runs in $O(N \log N + M \log M)$ discrete computation time. Only when a significant distribution shift occurs is the C++ solver spun up to generate the route and push a notification.
 
-## 6. The Deterministic Core Bridge
+## 6. The Deterministic Core Bridge (`paladio-core`)
 
 While Python is exceptional at orchestrating networks, async websockets, and LLMs, it is notoriously slow for NP-Hard combinatorics. 
 
-Paladio pushes the computationally intensive Traveling Salesperson Problem with Time Windows (TSPTW) down into a highly optimized C++20 core (`paladio_core`). By exposing this C++ logic via `pybind11` and explicitly releasing the Python Global Interpreter Lock (GIL), the Python Gateway can concurrently handle thousands of WebSocket connections while the C++ threads max out the CPU cores executing Branch and Bound DFS and Fractional Knapsack heuristics.
+Paladio offloads the computationally intensive Time-Constrained Orienteering Problem with Time Windows (TCOPTW) to an optimized, compiled C++20 core ([`paladio-core`](https://github.com/Leandro-Juan/paladio-core)). By exposing this C++ logic via `pybind11` and explicitly releasing the Python Global Interpreter Lock (`pybind11::gil_scoped_release`), the Python Gateway concurrently handles thousands of WebSocket connections while C++ threads execute Branch and Bound DFS and Fractional Knapsack heuristics.
+
+## 7. Continuous Differentiable Taste Learning
+
+Recommendation in Paladio avoids heavy fine-tuning of neural networks. Instead, the system maintains a 768-dimensional continuous vector space mapped by local Ollama embeddings (`nomic-embed-text`) and stored in PostgreSQL with `pgvector`.
+
+On every conversational turn, the user's permanent latent taste vector is updated via an Exponential Moving Average (EMA):
+
+$$\mathbf{v}_{\text{new}} = \text{Normalize}\Big((1 - \gamma)\,\mathbf{v}_{\text{hist}} + \gamma\,\mathbf{v}_{\text{prompt}}\Big)$$
+
+This continuous hypersphere is then harmonically projected onto 8 canonical categories, driving real-time SVG Radar telemetry on the Next.js frontend and feeding calibrated scores into the C++ combinatorial solver.
+

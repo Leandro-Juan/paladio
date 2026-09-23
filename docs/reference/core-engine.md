@@ -1,5 +1,8 @@
 # Reference: Paladio Core Optimization Engine
 
+> [!NOTE]
+> **Standalone Upstream Repository:** The C++20 engine source code in `cpp_core/` is automatically synchronized to the standalone open-source repository [**`Leandro-Juan/paladio-core`**](https://github.com/Leandro-Juan/paladio-core) via GitHub Actions (`.github/workflows/sync_core.yml`). For complete C++ API documentation, CMake integration guides, and benchmark suites, refer to the [paladio-core documentation](https://leandro-juan.github.io/paladio-core/).
+
 This document provides a technical reference for the `paladio::core` namespace, which encapsulates the C++20 travel itinerary routing solver.
 
 This reference is intended for **C++ Developers** maintaining or extending the core engine. It focuses on the internal data structures, constraints, and algorithmic machinery (specifically the Branch and Bound routing solver).

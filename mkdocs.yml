@@ -1,0 +1,98 @@
+site_name: "Paladio"
+site_description: "100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing."
+site_author: "Leandro Juan"
+site_url: "https://leandro-juan.github.io/Paladio/"
+repo_name: "Leandro-Juan/Paladio"
+repo_url: "https://github.com/Leandro-Juan/Paladio"
+edit_uri: "edit/main/docs/"
+
+copyright: "Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3."
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.snippets
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js
+  - js/katex.js
+
+extra_css:
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - "Quickstart with Docker": tutorials/quickstart-docker.md
+      - "First Autonomous Swarm Trip": tutorials/first-autonomous-swarm-trip.md
+  - How-To Guides:
+      - "Run Offline Swarm": how-to/run-offline-swarm.md
+      - "Add Custom LangGraph Agent": how-to/add-custom-langgraph-agent.md
+      - "Modify Engine Constraints": how-to/modify-engine-constraints.md
+      - "Tune ML Taste Learning": how-to/tune-ml-taste-learning.md
+      - "Configure Hybrid Scoring Weights": how-to/configure-hybrid-scoring-weights.md
+      - "Handle Human-in-the-Loop": how-to/handle-human-in-the-loop.md
+      - "Hydrate POI Embeddings": how-to/hydrate-poi-embeddings.md
+  - Technical Reference:
+      - "LangGraph Swarm Architecture": reference/langgraph-swarm-architecture.md
+      - "16-D Feature Tensor (PoiEncoder)": reference/ml-feature-tensor-16d.md
+      - "Semantic Learning Engine": reference/semantic-learning-engine.md
+      - "POI Database & Vault Schema": reference/poi-database-schema.md
+      - "Next.js Frontend Architecture": reference/frontend-architecture.md
+      - "WebSocket Gateway Telemetry": reference/websocket-gateway-telemetry.md
+      - "FastAPI Gateway": reference/fastapi-gateway.md
+      - "Scraper JSON Formats": reference/scraper_json_formats.md
+      - "C++ Combinatorial Core (paladio-core)": reference/core-engine.md
+  - Architectural Explanation:
+      - "Macro System Architecture": explanation/system-architecture.md
+      - "LangGraph Swarm vs Linear Chains": explanation/langgraph-vs-chains.md
+      - "Sovereign ML & Dense Semantic RAG": explanation/sovereign-ml-and-semantic-rag.md
+      - "Continuous-to-Discrete Harmonics": explanation/continuous-to-discrete-harmonics.md
+      - "Resilient Scraping Architecture": explanation/resilient-scraping-architecture.md
+      - "Strategic Roadmap & Future Horizons": explanation/roadmap-and-future-horizons.md
