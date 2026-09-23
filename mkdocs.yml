@@ -10,6 +10,8 @@ copyright: "Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3."
 
 theme:
   name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
   language: en
   palette:
     - scheme: slate
