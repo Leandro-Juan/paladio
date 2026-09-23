@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { MealRequirement } from '@/types/domain';
+import { PlaneIcon } from './icons';
 
 interface TripPreparationFormProps {
   onSubmit: (prompt: string, extras: Record<string, unknown>) => void;
@@ -240,7 +241,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                     color: 'var(--color-text-primary)',
                   }}
                 />
-                <span className="font-mono text-xs text-muted">➔</span>
+                <span className="font-mono text-xs text-muted">→</span>
                 <input
                   type="time"
                   value={meal.end_time}
@@ -271,7 +272,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   }}
                   title="Remove meal window"
                 >
-                  ✕
+                  ×
                 </button>
               )}
             </div>
@@ -440,8 +441,10 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 paddingTop: '0.5rem',
               }}
             >
-              <span className="text-accent">✈ ROUTE:</span>
-              <span>{originCity.toUpperCase()} ➔ {destinationCity.toUpperCase()}</span>
+              <span className="text-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <PlaneIcon size={13} color="var(--color-accent-primary)" /> ROUTE:
+              </span>
+              <span>{originCity.toUpperCase()} → {destinationCity.toUpperCase()}</span>
               <span style={{ marginLeft: 'auto', opacity: 0.7 }}>5 DAYS NEXT WEEK</span>
             </div>
           </div>
@@ -491,7 +494,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
           transition: 'background 0.2s',
         }}
       >
-        {disabled ? 'OPTIMIZATION IN PROGRESS...' : `INITIALIZE SOLVER [ ${originCity.toUpperCase()} ➔ ${destinationCity.toUpperCase()} ]`}
+        {disabled ? 'OPTIMIZATION IN PROGRESS...' : `INITIALIZE SOLVER [ ${originCity.toUpperCase()} → ${destinationCity.toUpperCase()} ]`}
       </button>
     </form>
   );

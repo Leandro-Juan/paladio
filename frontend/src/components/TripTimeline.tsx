@@ -5,6 +5,7 @@ import { apiFetch } from '../utils/api';
 import { notify } from '../utils/notify';
 import { PoiCategoryBadge } from './PoiCategoryBadge';
 import { TransitLegView, TransitRecommendationCard } from './TransitLegView';
+import { Spinner, LightningIcon, InfoIcon } from './icons';
 
 interface TripTimelineProps {
   itinerary: OptimizationResult | null;
@@ -271,7 +272,7 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
                 transition: 'all 0.2s ease',
               }}
             >
-              ℹ
+              <InfoIcon size={12} />
             </div>
 
             {/* Tooltip */}
@@ -358,12 +359,12 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
           >
             {upgrading ? (
               <>
-                <span>⏳</span>
+                <Spinner size={14} color="#777777" />
                 <span>UPGRADING TO REAL PUBLIC TRANSIT...</span>
               </>
             ) : (
               <>
-                <span>⚡</span>
+                <LightningIcon size={14} color={isGtfsReady ? '#60a5fa' : '#71717a'} />
                 <span>UPGRADE TO REAL PUBLIC TRANSIT</span>
               </>
             )}
@@ -669,7 +670,7 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
             gap: '0.5rem',
           }}
         >
-          <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>ℹ️</span>
+          <InfoIcon size={14} style={{ opacity: 0.7 }} />
           <span>
             Notice: Public transit fares are fetched automatically and may not be 100% accurate. Please verify with local transit operators.
           </span>

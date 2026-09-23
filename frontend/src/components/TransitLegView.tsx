@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
+import {
+  TransitIcon,
+  WalkIcon,
+  TransferIcon,
+  ArrivalIcon,
+  StopwatchIcon,
+  RulerIcon,
+  BulbIcon,
+  TicketIcon,
+} from './icons';
 
 interface TransitLegViewProps {
   transitLeg?: TransitLeg | null;
@@ -39,14 +49,14 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
     switch (type.toLowerCase()) {
       case 'transit':
       case 'transit_board':
-        return '🚇';
+        return <TransitIcon size={14} color="var(--color-accent-primary)" />;
       case 'transit_alight':
-        return '🏁';
+        return <ArrivalIcon size={14} color="#059669" />;
       case 'transfer':
-        return '🔄';
+        return <TransferIcon size={14} color="#D97706" />;
       case 'walk':
       default:
-        return '🚶';
+        return <WalkIcon size={14} color="var(--color-text-muted)" />;
     }
   };
 
@@ -88,7 +98,13 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '1rem' }}>{isTransit ? '🚇' : '🚶'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {isTransit ? (
+              <TransitIcon size={16} color="var(--color-accent-primary)" />
+            ) : (
+              <WalkIcon size={16} color="var(--color-text-muted)" />
+            )}
+          </span>
           <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {isTransit ? 'PUBLIC TRANSIT' : 'WALK'}
           </span>
@@ -229,7 +245,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
                   lineHeight: '1.4',
                 }}
               >
-                <span style={{ fontSize: '0.9rem', marginTop: '1px' }}>{icon}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', marginTop: '3px' }}>{icon}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ color: 'var(--color-text-primary)' }}>
                     <span style={{ fontWeight: 600, marginRight: '6px' }}>{idx + 1}.</span>
@@ -244,8 +260,16 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
                       gap: '0.5rem',
                     }}
                   >
-                    {step.duration_mins > 0 && <span>⏱ {step.duration_mins}m</span>}
-                    {step.distance_km > 0 && <span>📏 {step.distance_km} km</span>}
+                    {step.duration_mins > 0 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <StopwatchIcon size={11} color="var(--color-text-muted)" /> {step.duration_mins}m
+                      </span>
+                    )}
+                    {step.distance_km > 0 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <RulerIcon size={11} color="var(--color-text-muted)" /> {step.distance_km} km
+                      </span>
+                    )}
                     {step.transit_line && (
                       <span style={{ color: 'var(--color-accent-primary)', fontWeight: 600 }}>
                         Line: {step.transit_line}
@@ -301,7 +325,13 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-        <span style={{ fontSize: '1rem' }}>{isPassRecommended ? '💡' : '🎫'}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          {isPassRecommended ? (
+            <BulbIcon size={16} color="#1E40AF" />
+          ) : (
+            <TicketIcon size={16} color="var(--color-accent-primary)" />
+          )}
+        </span>
         <span
           style={{
             fontWeight: 700,

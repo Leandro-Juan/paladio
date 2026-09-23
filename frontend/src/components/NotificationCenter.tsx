@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
+import { BellIcon } from './icons';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -169,7 +170,9 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
               color: 'var(--color-text-muted)',
             }}
           >
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔔</div>
+            <div style={{ marginBottom: '8px' }}>
+              <BellIcon size={28} color="var(--color-text-muted)" />
+            </div>
             <p className="font-display" style={{ fontSize: '13px', margin: 0 }}>
               No notifications yet
             </p>

@@ -13,6 +13,7 @@ import {
   GtfsRegistryResponse,
   CityGtfsItem,
 } from '@/utils/api';
+import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 
 export default function ConfigPage() {
   const { user: currentUser } = useAuth();
@@ -538,7 +539,7 @@ export default function ConfigPage() {
               gap: '6px',
             }}
           >
-            <span>{gtfsLoading ? '⏳' : '↻'}</span> REFRESH STATUS
+            {gtfsLoading ? <Spinner size={13} /> : <RefreshIcon size={13} />} REFRESH STATUS
           </button>
         </div>
 
@@ -576,7 +577,7 @@ export default function ConfigPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '16px' }}>⚡</span>
+              <LightningIcon size={18} color="#D97706" />
               <div>
                 <span
                   className="font-mono"
@@ -699,10 +700,10 @@ export default function ConfigPage() {
                       <td style={{ padding: '12px', fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {isItemQueued && (
-                            <span style={{ display: 'inline-block', fontSize: '14px' }}>🕒</span>
+                            <ClockIcon size={14} color="#D97706" />
                           )}
                           {isItemCompiling && (
-                            <span className="animate-spin" style={{ display: 'inline-block', fontSize: '14px' }}>⏳</span>
+                            <Spinner size={14} color="#D97706" />
                           )}
                           <div>
                             <span>{cityItem.display_name}</span>
@@ -729,7 +730,7 @@ export default function ConfigPage() {
                               gap: '4px',
                             }}
                           >
-                            <span style={{ fontSize: '11px' }}>🕒</span> In Queue
+                            <ClockIcon size={11} color="#B45309" /> In Queue
                           </span>
                         ) : (
                           <span
@@ -760,23 +761,23 @@ export default function ConfigPage() {
                               gap: '4px',
                             }}
                           >
-                            {isItemCompiling && <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span>}
+                            {isItemCompiling && <Spinner size={11} color="#B45309" />}
                             {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
                           </span>
                         )}
                       </td>
                       <td style={{ padding: '12px' }}>
                         {cityItem.is_compiled && !isItemCompiling && !isItemQueued ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#15803D', fontWeight: 600 }}>
-                            ✓ YES (READY)
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#15803D', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckIcon size={12} color="#15803D" /> YES (READY)
                           </span>
                         ) : isItemQueued ? (
                           <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <span>🕒</span> QUEUED
+                            <ClockIcon size={12} color="#D97706" /> QUEUED
                           </span>
                         ) : (
                           <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <span className="animate-spin" style={{ display: 'inline-block' }}>⏳</span> IN PROGRESS
+                            <Spinner size={12} color="#D97706" /> IN PROGRESS
                           </span>
                         )}
                       </td>
