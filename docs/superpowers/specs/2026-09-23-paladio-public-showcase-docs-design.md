@@ -122,11 +122,12 @@ An updated, structured roadmap synthesizing the completed foundation and future 
 | :--- | :--- | :---: | :--- |
 | **Phase 1** | **Deterministic Combinatorial Core** | **Completed** | C++20 TCOPTW Branch & Bound solver, continuous knapsack upper bounding, bitmasks, `pybind11` zero-copy bindings (`paladio-core`). |
 | **Phase 2** | **Reactive Semantic Gateway & Multi-Agent Swarm** | **Completed** | FastAPI WebSocket streaming, LangGraph StateGraph, Pydantic AI local Ollama agents, `interrupt()` human-in-the-loop. |
-| **Phase 3** | **Continuous ML & Semantic Knowledge Vault** | **Completed** | 768-D `pgvector` RAG, online EMA taste evolution, 8-D harmonic projection radar, 16-D `PoiEncoder`, Next.js 15 UI suite. |
-| **Phase 4** | **Distributed Ingestion & Anti-Ban Scraping** | **In Progress** | Celery Beat cron cluster, Playwright stealth scrapers, residential proxy rotation, exponential backoff with jitter. |
-| **Phase 5** | **In-Memory Matching & Anomaly Detection** | **Upcoming** | C++ RAM 2D Interval Tree daemon ($O(\log N + K)$ alert matching without disk I/O), TimescaleDB empirical price CDFs, 1-Wasserstein regime shift detection. |
-| **Phase 6** | **Interactive Re-Planning & Model Context Protocol (MCP)** | **Planned** | Conversational conversational post-plan re-routing (swapping POIs, adjusting pace dynamically), native Paladio MCP Server for external AI agent integration. |
-| **Phase 7** | **Environmental Routing & Sovereign Vault Sync** | **Future** | Micro-climate sun/shade street routing via solar azimuth models, self-hosted Immich/Syncthing photo vault sync, multi-city GTFS global feeds. |
+| **Phase 3** | **Continuous ML & Semantic Knowledge Vault** | **Completed** | 768-D `pgvector` RAG, online EMA taste evolution, 8-D harmonic projection radar, 16-D `PoiEncoder`, POI batch hydration. |
+| **Phase 4** | **Polished Reactive UI & Interactive Frontend Experience** | **Active / In Progress** | Elite Next.js 15 frontend: dynamic `TripTimeline` pacing, real-time WebSocket state streaming, interactive SVG `PreferenceRadar`, geospatial `VaultMap`, and multimodal `TransitLegView`. |
+| **Phase 5** | **Distributed Ingestion & Anti-Ban Scraping** | **Upcoming** | Celery Beat cron cluster, Playwright stealth scrapers, residential proxy rotation, exponential backoff with jitter. |
+| **Phase 6** | **In-Memory Matching & Anomaly Detection** | **Upcoming** | C++ RAM 2D Interval Tree daemon ($O(\log N + K)$ alert matching without disk I/O), TimescaleDB empirical price CDFs, 1-Wasserstein regime shift detection. |
+| **Phase 7** | **Interactive Re-Planning & Model Context Protocol (MCP)** | **Planned** | Conversational post-plan re-routing (swapping POIs, adjusting pace dynamically), native Paladio MCP Server for external AI agent integration. |
+| **Phase 8** | **Environmental Routing & Sovereign Vault Sync** | **Future** | Micro-climate sun/shade street routing via solar azimuth models, self-hosted Immich/Syncthing photo vault sync, multi-city GTFS global feeds. |
 
 ### 3.5. 3-Step Docker Quickstart
 ```bash
