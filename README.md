@@ -1,8 +1,7 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" width="180" alt="Paladio Logo">
+<img src="docs/assets/logo_horizontal_dark.png" width="380" alt="Paladio">
 
-# Paladio
 ### Continuous & Sovereign Autonomous Travel Optimization Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](./LICENSE)
