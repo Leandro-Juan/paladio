@@ -61,15 +61,20 @@ export default function SetupPage() {
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
       }}
     >
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
         <img
-          src="/logo-horizontal.png"
+          src="/logo.png"
           alt="Paladio Logo"
-          style={{ height: '42px', width: 'auto', display: 'block', marginBottom: '8px' }}
+          style={{ width: '42px', height: '42px', objectFit: 'contain' }}
         />
-        <p className="font-mono text-muted" style={{ fontSize: '11px', margin: 0 }}>
-          {'// MASTER ADMINISTRATOR INITIALIZATION'}
-        </p>
+        <div>
+          <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0 }}>
+            PALADIO SETUP
+          </h1>
+          <p className="font-mono text-muted" style={{ fontSize: '11px', margin: 0 }}>
+            {'// MASTER ADMINISTRATOR INITIALIZATION'}
+          </p>
+        </div>
       </div>
 
       <div

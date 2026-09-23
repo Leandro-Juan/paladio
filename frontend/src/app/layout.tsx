@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: 'Paladio Control Center',
   description: 'Continuous Sovereign Travel Optimization Engine',
   icons: {
-    icon: '/logo.jpeg',
+    icon: '/logo.png',
   },
 };
 
