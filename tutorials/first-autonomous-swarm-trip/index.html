@@ -57,6 +57,8 @@
     
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
     
+      <link rel="stylesheet" href="../../css/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -73,7 +75,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="cyan">
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -128,7 +130,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -138,7 +140,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -546,10 +548,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-navigating-to-the-trip-preparation-interface" class="md-nav__link">
+  <a href="#1-navigating-to-the-active-engine-cockpit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Navigating to the Trip Preparation Interface
+        1. Navigating to the Active Engine Cockpit
       
     </span>
   </a>
@@ -557,10 +559,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-submitting-a-unstructured-travel-prompt" class="md-nav__link">
+  <a href="#2-configuring-the-travel-parameters-01-mission-preparation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Submitting a Unstructured Travel Prompt
+        2. Configuring the Travel Parameters (01 // MISSION PREPARATION)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configuring the Travel Parameters (01 // MISSION PREPARATION)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-21-trip-intent-preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.1: Trip Intent &amp; Preferences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-22-financial-budget-ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.2: Financial Budget Ceiling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-23-mandatory-meal-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.3: Mandatory Meal Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-24-travel-anchors-flights-hotel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.4: Travel Anchors (Flights &amp; Hotel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-initializing-the-solver-streaming-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Initializing the Solver &amp; Streaming Telemetry
       
     </span>
   </a>
@@ -568,26 +631,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-observing-the-multi-agent-execution-lifecycle" class="md-nav__link">
+  <a href="#4-inspecting-and-saving-the-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Observing the Multi-Agent Execution Lifecycle
+        4. Inspecting and Saving the Results
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-inspecting-the-interactive-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Inspecting the Interactive Results
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="4. Inspecting the Interactive Results">
+    <nav class="md-nav" aria-label="4. Inspecting and Saving the Results">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -602,21 +654,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-the-real-time-affinity-radar-preferenceradar" class="md-nav__link">
+  <a href="#2-saving-to-vault-upcoming-trips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. The Real-Time Affinity Radar (PreferenceRadar)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-the-geospatial-route-map-vaultmap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. The Geospatial Route Map (VaultMap)
+        2. Saving to Vault &amp; Upcoming Trips
       
     </span>
   </a>
@@ -1475,10 +1516,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-navigating-to-the-trip-preparation-interface" class="md-nav__link">
+  <a href="#1-navigating-to-the-active-engine-cockpit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Navigating to the Trip Preparation Interface
+        1. Navigating to the Active Engine Cockpit
       
     </span>
   </a>
@@ -1486,10 +1527,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-submitting-a-unstructured-travel-prompt" class="md-nav__link">
+  <a href="#2-configuring-the-travel-parameters-01-mission-preparation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Submitting a Unstructured Travel Prompt
+        2. Configuring the Travel Parameters (01 // MISSION PREPARATION)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configuring the Travel Parameters (01 // MISSION PREPARATION)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-21-trip-intent-preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.1: Trip Intent &amp; Preferences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-22-financial-budget-ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.2: Financial Budget Ceiling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-23-mandatory-meal-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.3: Mandatory Meal Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-24-travel-anchors-flights-hotel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2.4: Travel Anchors (Flights &amp; Hotel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-initializing-the-solver-streaming-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Initializing the Solver &amp; Streaming Telemetry
       
     </span>
   </a>
@@ -1497,26 +1599,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-observing-the-multi-agent-execution-lifecycle" class="md-nav__link">
+  <a href="#4-inspecting-and-saving-the-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Observing the Multi-Agent Execution Lifecycle
+        4. Inspecting and Saving the Results
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-inspecting-the-interactive-results" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Inspecting the Interactive Results
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="4. Inspecting the Interactive Results">
+    <nav class="md-nav" aria-label="4. Inspecting and Saving the Results">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1531,21 +1622,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-the-real-time-affinity-radar-preferenceradar" class="md-nav__link">
+  <a href="#2-saving-to-vault-upcoming-trips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. The Real-Time Affinity Radar (PreferenceRadar)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-the-geospatial-route-map-vaultmap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. The Geospatial Route Map (VaultMap)
+        2. Saving to Vault &amp; Upcoming Trips
       
     </span>
   </a>
@@ -1594,65 +1674,88 @@
 
 
 <h1 id="first-autonomous-swarm-trip">First Autonomous Swarm Trip<a class="headerlink" href="#first-autonomous-swarm-trip" title="Permanent link">&para;</a></h1>
-<p>In this tutorial, you will submit a natural language travel prompt to the Paladio multi-agent swarm and observe how the system extracts constraints, queries vector memories, computes ML affinity scores, and produces an optimized multi-day itinerary.</p>
+<p>In this tutorial, you will plan a trip using Paladio's <strong>Active Engine</strong> cockpit (<code>/engine</code>), configure travel constraints and anchors, stream real-time WebSocket telemetry from the multi-agent swarm, and inspect the converged combinatorial itinerary.</p>
 <hr />
-<h2 id="1-navigating-to-the-trip-preparation-interface">1. Navigating to the Trip Preparation Interface<a class="headerlink" href="#1-navigating-to-the-trip-preparation-interface" title="Permanent link">&para;</a></h2>
+<h2 id="1-navigating-to-the-active-engine-cockpit">1. Navigating to the Active Engine Cockpit<a class="headerlink" href="#1-navigating-to-the-active-engine-cockpit" title="Permanent link">&para;</a></h2>
 <p>Open your browser and navigate to:
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>http://localhost:3000/trips
-</span></code></pre></div></p>
-<p>You will see the <strong>Trip Preparation Form</strong>, which supports both structured inputs and conversational text parsing.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>http://localhost:3000/engine
+</span></code></pre></div>
+Or click <strong>Active Engine</strong> in the sidebar navigation.</p>
+<p>The Active Engine interface is structured into two main workspaces:
+- <strong><code>01 // MISSION PREPARATION</code></strong>: Configuration interface for prompt intent, budget, meal windows, and flight/hotel anchors.
+- <strong><code>02 // TELEMETRY CONSOLE</code></strong>: Live streaming terminal and output panel (<code>OUTPUT TELEMETRY</code>) powered by persistent WebSockets.</p>
 <hr />
-<h2 id="2-submitting-a-unstructured-travel-prompt">2. Submitting a Unstructured Travel Prompt<a class="headerlink" href="#2-submitting-a-unstructured-travel-prompt" title="Permanent link">&para;</a></h2>
-<p>Paste the following natural language request into the prompt intake area:</p>
+<h2 id="2-configuring-the-travel-parameters-01-mission-preparation">2. Configuring the Travel Parameters (<code>01 // MISSION PREPARATION</code>)<a class="headerlink" href="#2-configuring-the-travel-parameters-01-mission-preparation" title="Permanent link">&para;</a></h2>
+<p>In the <strong>Mission Preparation</strong> tab, set up your trip parameters:</p>
+<h3 id="step-21-trip-intent-preferences">Step 2.1: Trip Intent &amp; Preferences<a class="headerlink" href="#step-21-trip-intent-preferences" title="Permanent link">&para;</a></h3>
+<p>In the <strong><code>&gt; TRIP INTENT &amp; PREFERENCES</code></strong> textarea, define your qualitative travel goals:</p>
 <blockquote>
-<p><em>"I am traveling from Madrid to Barcelona from October 12 to October 15 with a strict budget of $450. I have booked the Hotel Arts in Barcelona. I absolutely love art galleries and historic cathedrals, but I want to avoid crowded tourist traps. Make sure we have time for authentic tapas dinners each night."</em></p>
+<p><em>"Visit the main cultural landmarks and museums. Love traditional bistros and relaxed cafes."</em></p>
 </blockquote>
-<p>Click <strong>Start Swarm Optimization</strong>.</p>
+<p>This prompt is analyzed by the sovereign local LLM (<code>prompt_analyzer</code>) to update your continuous 768-D taste vector and extract domain category affinities.</p>
+<h3 id="step-22-financial-budget-ceiling">Step 2.2: Financial Budget Ceiling<a class="headerlink" href="#step-22-financial-budget-ceiling" title="Permanent link">&para;</a></h3>
+<p>In <strong><code>&gt; BUDGET CEILING</code></strong>, enter your currency envelope:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>$ 1500 USD
+</span></code></pre></div>
+The C++ solver uses this constraint to enforce a strict upper bound on POI admission fees and transit legs.</p>
+<h3 id="step-23-mandatory-meal-windows">Step 2.3: Mandatory Meal Windows<a class="headerlink" href="#step-23-mandatory-meal-windows" title="Permanent link">&para;</a></h3>
+<p>Under <strong><code>&gt; MEAL CONSTRAINTS</code></strong>, review the culturally calibrated meal windows:
+- <strong>Breakfast:</strong> <code>08:00</code> <span class="arithmatex">\(\rightarrow\)</span> <code>10:00</code>
+- <strong>Lunch:</strong> <code>12:00</code> <span class="arithmatex">\(\rightarrow\)</span> <code>14:30</code>
+- <strong>Dinner:</strong> <code>19:30</code> <span class="arithmatex">\(\rightarrow\)</span> <code>22:00</code></p>
+<p>You can click <strong><code>+ ADD MEAL WINDOW</code></strong> (e.g., for an afternoon snack) or adjust the boundary hours. The solver treats these as hard temporal time windows where food venues must be scheduled.</p>
+<h3 id="step-24-travel-anchors-flights-hotel">Step 2.4: Travel Anchors (Flights &amp; Hotel)<a class="headerlink" href="#step-24-travel-anchors-flights-hotel" title="Permanent link">&para;</a></h3>
+<p>Paladio anchors itineraries around real flight arrival/departure times and lodging locations. Select your mode:</p>
+<ul>
+<li><strong>Simulated Anchors (Test Mode):</strong></li>
+<li><strong>Origin City:</strong> <code>Madrid</code></li>
+<li><strong>Destination City:</strong> <code>Paris</code></li>
+<li><em>Automated Generation:</em> Generates round-trip flight bookings between real IATA airports (<code>MAD</code> <span class="arithmatex">\(\rightarrow\)</span> <code>CDG</code>) and verifies a hotel in the destination city for 5 days.</li>
+<li><strong>Direct Ticket Ingestion (Production Mode):</strong></li>
+<li>Paste raw flight confirmation text, boarding passes, or hotel vouchers directly into the intake box for deterministic parsing by the Pydantic AI <code>ticket_parser</code> agent.</li>
+</ul>
 <hr />
-<h2 id="3-observing-the-multi-agent-execution-lifecycle">3. Observing the Multi-Agent Execution Lifecycle<a class="headerlink" href="#3-observing-the-multi-agent-execution-lifecycle" title="Permanent link">&para;</a></h2>
-<p>As the swarm processes your request, the <strong>FastAPI Semantic Gateway</strong> streams real-time lifecycle events over WebSockets (<code>/ws/stream</code>):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>[PHASE: PARSER]      Extracting booking anchors from text...
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                     -&gt; Hotel: Hotel Arts (Barcelona)
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>                     -&gt; Outbound: Madrid (MAD) -&gt; Barcelona (BCN)
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>[PHASE: CONSTRAINTS] Deterministically assembling temporal &amp; financial bounds...
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>                     -&gt; Budget: $450.00 USD
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                     -&gt; Dates: 2026-10-12 to 2026-10-15
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>[PHASE: ANALYSIS]    Extracting travel tastes &amp; tag affinities via Ollama...
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                     -&gt; Preferred Cuisines: ['tapas']
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                     -&gt; High Affinities: art_culture (0.90), history_heritage (0.85)
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>[PHASE: ML_SCORING]  Batch encoding POIs into 16-D feature tensors...
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>                     -&gt; Computing Bayesian smoothed ratings
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>                     -&gt; Applying user taste EMA vector update
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>[PHASE: SOLVER]      Dispatching to C++ paladio-core branch-and-bound solver...
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>                     -&gt; Evaluated 2,400 graph permutations in 1.42 ms
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>[PHASE: COMPLETED]   Optimal multi-day itinerary converged!
+<h2 id="3-initializing-the-solver-streaming-telemetry">3. Initializing the Solver &amp; Streaming Telemetry<a class="headerlink" href="#3-initializing-the-solver-streaming-telemetry" title="Permanent link">&para;</a></h2>
+<p>Click the blue <strong><code>INITIALIZE SOLVER [MADRID -&gt; PARIS]</code></strong> button at the bottom of the form.</p>
+<p>The interface immediately switches to <strong><code>02 // TELEMETRY CONSOLE</code></strong> and the <strong><code>OUTPUT TELEMETRY</code></strong> panel connects via WebSockets (<code>/api/v1/ws/stream</code>):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>[PHASE: PARSER]      Extracting booking anchors...
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                     -&gt; Origin: Madrid (MAD) | Destination: Paris (CDG)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                     -&gt; Hotel: Hotel Pullman Paris Tour Eiffel
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                     -&gt; Dates: 5-day optimization horizon
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>[PHASE: CONSTRAINTS] Deterministically assembling temporal &amp; financial bounds...
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>                     -&gt; Budget: $1500.00 USD
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                     -&gt; Hard Meal Windows: 3 daily (Breakfast, Lunch, Dinner)
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>[PHASE: ANALYSIS]    Extracting travel tastes &amp; tag affinities via Ollama...
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>                     -&gt; High Affinities: art_culture (0.92), food_culinary (0.88)
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>[PHASE: ML_SCORING]  Batch encoding POIs into 16-D feature tensors...
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>                     -&gt; Computing Bayesian smoothed ratings
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>                     -&gt; Applying user taste EMA vector update
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>[PHASE: SOLVER]      Dispatching to C++ paladio-core branch-and-bound solver...
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>                     -&gt; Evaluated 3,840 graph permutations in 1.86 ms
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>[PHASE: COMPLETED]   Optimal multi-day itinerary converged!
 </span></code></pre></div>
 <hr />
-<h2 id="4-inspecting-the-interactive-results">4. Inspecting the Interactive Results<a class="headerlink" href="#4-inspecting-the-interactive-results" title="Permanent link">&para;</a></h2>
-<p>Once converged, the interface renders three interconnected views:</p>
+<h2 id="4-inspecting-and-saving-the-results">4. Inspecting and Saving the Results<a class="headerlink" href="#4-inspecting-and-saving-the-results" title="Permanent link">&para;</a></h2>
+<p>Once converged, the interface renders the interactive results in the right viewport:</p>
 <h3 id="1-the-daily-trip-timeline-triptimeline">1. The Daily Trip Timeline (<code>TripTimeline</code>)<a class="headerlink" href="#1-the-daily-trip-timeline-triptimeline" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Every day is segmented into chronological cards with visit time windows (<span class="arithmatex">\([09:30, 11:30]\)</span>).</li>
-<li>Dedicated meal slots (e.g., <em>Lunch [13:30 - 15:00]</em>, <em>Dinner [20:30 - 22:30]</em>) are scheduled according to local cultural pacing.</li>
-<li>Real walking and public transit times between venues are factored into the schedule buffer.</li>
+<li><strong>Day-by-Day Tabs:</strong> Navigate through each scheduled day.</li>
+<li><strong>Chronological Time Cards:</strong> Fixed POI visit windows (<span class="arithmatex">\([09:30, 11:30]\)</span>) displaying attraction names, estimated admission costs, and categories.</li>
+<li><strong>Dedicated Meal Blocks:</strong> Culturally scheduled lunch and dinner venues.</li>
+<li><strong>Multimodal Transit Buffers:</strong> Walking and metro transit times with live fare estimates calculated between consecutive POIs.</li>
 </ul>
-<h3 id="2-the-real-time-affinity-radar-preferenceradar">2. The Real-Time Affinity Radar (<code>PreferenceRadar</code>)<a class="headerlink" href="#2-the-real-time-affinity-radar-preferenceradar" title="Permanent link">&para;</a></h3>
-<ul>
-<li>The SVG radar chart reflects the harmonic projection of your taste update.</li>
-<li>Notice how <code>art_culture</code> and <code>food_culinary</code> have expanded outward based on your request.</li>
-</ul>
-<h3 id="3-the-geospatial-route-map-vaultmap">3. The Geospatial Route Map (<code>VaultMap</code>)<a class="headerlink" href="#3-the-geospatial-route-map-vaultmap" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Displays the geographic layout of visited POIs and the daily transit routes computed by the C++ engine.</li>
-</ul>
+<h3 id="2-saving-to-vault-upcoming-trips">2. Saving to Vault &amp; Upcoming Trips<a class="headerlink" href="#2-saving-to-vault-upcoming-trips" title="Permanent link">&para;</a></h3>
+<p>Click the <strong><code>SAVE TRIP TO VAULT</code></strong> button in the header of the converged itinerary:
+- The itinerary is permanently saved to PostgreSQL.
+- You can now view and manage it under <strong>Upcoming Trips</strong> (<code>/trips</code>) and explore historical itineraries in the <strong>Itinerary Vault</strong> (<code>/vault</code>).</p>
 <hr />
 <h2 id="5-what-just-happened-under-the-hood">5. What Just Happened Under the Hood?<a class="headerlink" href="#5-what-just-happened-under-the-hood" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong><code>ticket_parser</code> Agent:</strong> Scanned the text for hotels, flights, and dates using Pydantic AI.</li>
-<li><strong><code>assemble_constraints_node</code>:</strong> Mapped raw inputs into a validated <code>TravelConstraints</code> model.</li>
-<li><strong><code>prompt_analyzer</code> Agent:</strong> Extracted semantic tastes and affinities.</li>
-<li><strong><code>MLScorer</code>:</strong> Calculated multi-attribute utility scores for all Barcelona venues in PostgreSQL.</li>
-<li><strong><code>paladio-core</code> (C++):</strong> Formulated and solved the Time-Constrained Orienteering Problem with Time Windows (TCOPTW).</li>
+<li><strong><code>ticket_parser</code> Agent:</strong> Verified flight timings and hotel check-in/out bounds using Pydantic AI models.</li>
+<li><strong><code>assemble_constraints_node</code>:</strong> Synthesized financial envelopes, meal windows, and spatial anchors into a validated <code>TravelConstraints</code> structure.</li>
+<li><strong><code>prompt_analyzer</code> Agent:</strong> Extracted semantic tastes and executed an Exponential Moving Average (EMA) update on your permanent 768-D latent vector.</li>
+<li><strong><code>MLScorer</code>:</strong> Encoded POIs in the destination city into 16-D tensors, computing Bayesian-smoothed multi-attribute utility scores.</li>
+<li><strong><code>paladio-core</code> (C++):</strong> Formulated and solved the Time-Constrained Orienteering Problem with Time Windows (TCOPTW) via branch-and-bound DFS and Knapsack bounding in sub-millisecond time.</li>
 </ol>
 <p>Congratulations! You have completed your first autonomous swarm-optimized trip with Paladio.</p>
 
