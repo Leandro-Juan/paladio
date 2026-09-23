@@ -43,14 +43,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           gap: '1rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img
-            src="/logo.jpeg"
-            alt="Paladio Logo"
-            style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
-          />
-          <h2 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h2>
-        </div>
+        <img
+          src="/logo-horizontal.png"
+          alt="Paladio Logo"
+          style={{ height: '44px', width: 'auto', display: 'block' }}
+        />
         <p className="font-mono text-muted" style={{ fontSize: '12px' }}>
           {'// VERIFYING SOVEREIGN SECURITY GATE...'}
         </p>

@@ -23,13 +23,12 @@ export function Sidebar() {
     <nav className="sidebar">
       <div className="brand" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <div style={{ marginBottom: '8px' }}>
             <img
-              src="/logo.jpeg"
+              src="/logo-horizontal.png"
               alt="Paladio Logo"
-              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
+              style={{ height: '32px', width: 'auto', display: 'block' }}
             />
-            <h1 className="font-display text-accent" style={{ margin: 0 }}>PALADIO</h1>
           </div>
           <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.0.0 ENGINE'}</p>
         </div>
