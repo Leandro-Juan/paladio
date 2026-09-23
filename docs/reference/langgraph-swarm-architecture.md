@@ -35,14 +35,14 @@ The graph is compiled using `StateGraph(SwarmState)` with checkpointer persisten
 
 ```mermaid
 graph TD
-    START --> TP[ticket_parser_node]
-    TP --> AC[assemble_constraints_node]
-    AC --> CM{check_missing_fields_node}
-    CM -->|Missing Data| IN[interrupt() / Pause]
-    IN -->|User Resume| PA[prompt_analyzer_node]
-    CM -->|Valid| PA
-    PA --> PS[planner_scrape_node]
-    PS --> PO[planner_optimize_node]
+    START --> TP["ticket_parser_node"]
+    TP --> AC["assemble_constraints_node"]
+    AC --> CM{"check_missing_fields_node"}
+    CM -->|"Missing Data"| IN["interrupt() / Pause"]
+    IN -->|"User Resume"| PA["prompt_analyzer_node"]
+    CM -->|"Valid"| PA
+    PA --> PS["planner_scrape_node"]
+    PS --> PO["planner_optimize_node"]
     PO --> END
 ```
 

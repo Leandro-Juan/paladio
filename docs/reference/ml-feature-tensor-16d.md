@@ -16,13 +16,13 @@ This document provides the mathematical specification and index layout of the **
 
 | Index | Field Name | Type | Value Range | Normalization & Extraction Logic |
 | :---: | :--- | :---: | :---: | :--- |
-| `[0]` | `normalized_cost` | `float32` | $[0.0, 1.0]$ | $\min(\max(\text{cost\_eur} / 200.0, 0.0), 1.0)$ |
-| `[1]` | `normalized_duration` | `float32` | $[0.0, 1.0]$ | $\min(\max(\text{duration\_mins} / 240.0, 0.0), 1.0)$ |
+| `[0]` | `normalized_cost` | `float32` | $[0.0, 1.0]$ | $\min(\max(\text{cost} / 200.0, 0.0), 1.0)$ |
+| `[1]` | `normalized_duration` | `float32` | $[0.0, 1.0]$ | $\min(\max(\text{duration} / 240.0, 0.0), 1.0)$ |
 | `[2]` | `normalized_rating` | `float32` | $[0.0, 1.0]$ | $\min(\max(\text{rating} / 5.0, 0.0), 1.0)$ |
 | `[3]` | `normalized_log_reviews` | `float32` | $[0.0, 1.0]$ | $\min(\max(\log_{10}(\text{reviews} + 1) / 5.0, 0.0), 1.0)$ |
 | `[4]` | `raw_rating` | `float32` | $[0.0, 5.0]$ | Unscaled raw Google/OSM rating |
 | `[5]` | `raw_reviews` | `float32` | $[0, \infty)$ | Unscaled total user review count |
-| `[6]` | `is_free` | `float32` | $\{0.0, 1.0\}$ | $1.0$ if $\text{cost\_eur} \le 0.0$, else $0.0$ |
+| `[6]` | `is_free` | `float32` | $\{0.0, 1.0\}$ | $1.0$ if $\text{cost} \le 0.0$, else $0.0$ |
 | `[7]` | `is_outdoor` | `float32` | $\{0.0, 1.0\}$ | $1.0$ if venue is park, trail, or outdoor attraction |
 | `[8]` | `art_culture` | `float32` | $\{0.0, 1.0\}$ | Multi-hot regex & category match for fine arts, museums |
 | `[9]` | `history_heritage` | `float32` | $\{0.0, 1.0\}$ | Multi-hot regex & category match for ruins, castles, churches |

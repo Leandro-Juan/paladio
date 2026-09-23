@@ -39,22 +39,22 @@ Modern AI applications suffer from an architectural tension: **Large Language Mo
 
 ```mermaid
 graph TD
-    Client[Next.js 15 Frontend\nInteractive Timeline / Map / Radar] <-->|WebSocket /ws/stream| Gateway[FastAPI Semantic Gateway]
-    Gateway <--> Session[SwarmSessionManager]
-    Session <--> Graph[LangGraph StateGraph Engine]
+    Client["Next.js 15 Frontend<br/>Interactive Timeline / Map / Radar"] <-->|"WebSocket /ws/stream"| Gateway["FastAPI Semantic Gateway"]
+    Gateway <--> Session["SwarmSessionManager"]
+    Session <--> Graph["LangGraph StateGraph Engine"]
     
-    subgraph Swarm[LangGraph Multi-Agent Swarm]
-        TP[Ticket Parser Agent\nPydantic AI + Ollama] --> AC[Constraint Builder Node\nDeterministic Assembly]
-        AC --> CM{Check Missing Fields\ninterrupt() Pause}
-        CM -->|Human Clarification| PA[Prompt Analyzer Agent\nPydantic AI + Ollama]
-        PA --> PS[Planner Scrape Node\nContext Ingestion & MLScorer]
-        PS --> PO[Planner Optimize Node\nBridge to C++ Solver]
+    subgraph Swarm["LangGraph Multi-Agent Swarm"]
+        TP["Ticket Parser Agent<br/>Pydantic AI + Ollama"] --> AC["Constraint Builder Node<br/>Deterministic Assembly"]
+        AC --> CM{"Check Missing Fields<br/>interrupt() Pause"}
+        CM -->|"Human Clarification"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Ollama"]
+        PA --> PS["Planner Scrape Node<br/>Context Ingestion & MLScorer"]
+        PS --> PO["Planner Optimize Node<br/>Bridge to C++ Solver"]
     end
     
     Graph --> Swarm
-    PS <--> ML[MLScorer & SemanticLearningEngine]
-    ML <--> PG[(PostgreSQL 16\nTimescaleDB + pgvector Vault)]
-    PO <--> Engine[paladio-core C++20\nBranch & Bound TCOPTW]
+    PS <--> ML["MLScorer & SemanticLearningEngine"]
+    ML <--> PG[("PostgreSQL 16<br/>TimescaleDB + pgvector Vault")]
+    PO <--> Engine["paladio-core C++20<br/>Branch & Bound TCOPTW"]
 ```
 
 ---
