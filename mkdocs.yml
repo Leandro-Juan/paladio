@@ -15,14 +15,14 @@ theme:
   language: en
   palette:
     - scheme: slate
-      primary: teal
-      accent: cyan
+      primary: black
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
     - scheme: default
-      primary: teal
-      accent: cyan
+      primary: white
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -74,6 +74,7 @@ extra_javascript:
 
 extra_css:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css
+  - css/extra.css
 
 nav:
   - Home: index.md

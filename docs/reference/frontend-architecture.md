@@ -10,10 +10,11 @@ This document provides a technical reference for Paladio's reactive user interfa
 frontend/src/
 ├── app/                        # Next.js App Router Pages
 │   ├── dashboard/              # User summary, active trips, price drop notifications
-│   ├── trips/                  # Interactive Trip Preparation & Itinerary Viewer
-│   ├── vault/                  # POI Vault & Geospatial Map Explorer
+│   ├── engine/                 # Active Engine Cockpit: Mission Preparation, Constraints & Live Telemetry
+│   ├── trips/                  # Upcoming Trips repository & saved multi-day itineraries
+│   ├── vault/                  # Itinerary Vault & historical trips archive
 │   ├── model/                  # ML preference radar, weights, & EMA inspection
-│   ├── engine/                 # C++ solver telemetry & performance benchmarks
+│   ├── config/                 # Instance configuration, user provisioning & docker telemetry
 │   ├── layout.tsx              # Root shell with persistent Sidebar and NotificationCenter
 │   └── globals.css             # Tailwind theme variables & dark-mode styling
 ├── components/                 # Core UI Components
