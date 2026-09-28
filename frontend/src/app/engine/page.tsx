@@ -304,6 +304,7 @@ export default function EnginePage() {
                     <input 
                       type="date" 
                       value={startDate}
+                      min={today}
                       onChange={(e) => setClarificationData({ ...clarificationData, start_date: e.target.value })}
                       style={{
                         background: 'transparent',
@@ -320,6 +321,7 @@ export default function EnginePage() {
                     <input 
                       type="date" 
                       value={endDate}
+                      min={startDate || today}
                       onChange={(e) => setClarificationData({ ...clarificationData, end_date: e.target.value })}
                       style={{
                         background: 'transparent',
@@ -364,14 +366,43 @@ export default function EnginePage() {
                   </div>
                 )}
 
-                {/* Hard Guardrail Errors */}
+                {/* Hard Guardrail Errors & Quick Fix */}
                 {hardErrors.length > 0 && (
-                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     {hardErrors.map(err => (
                       <div key={err} style={{ color: 'var(--color-accent-secondary, #DC2626)', fontSize: '0.8rem', fontWeight: 600 }}>
                         [ERROR] {err.toUpperCase()}
                       </div>
                     ))}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + 7);
+                          const newStart = d.toISOString().split('T')[0];
+                          d.setDate(d.getDate() + 5);
+                          const newEnd = d.toISOString().split('T')[0];
+                          setClarificationData({
+                            ...clarificationData,
+                            start_date: newStart,
+                            end_date: newEnd,
+                          });
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: '1px dashed var(--color-accent-primary)',
+                          color: 'var(--color-accent-primary)',
+                          padding: '0.3rem 0.6rem',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-mono)',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        ⚡ AUTO-SET VALID FUTURE DATES (NEXT WEEK)
+                      </button>
+                    </div>
                   </div>
                 )}
 
