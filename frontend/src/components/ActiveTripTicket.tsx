@@ -1,5 +1,4 @@
 import React from 'react';
-import Link from 'next/link';
 
 interface ActiveTripTicketProps {
   destination: string;
@@ -12,8 +11,10 @@ export function ActiveTripTicket({ destination, startDate, endDate, poisCount }:
   // Calculate days until trip
   const now = new Date();
   const start = new Date(startDate);
-  const diffTime = Math.abs(start.getTime() - now.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const end = new Date(endDate);
+  const isOngoing = now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
+  const diffTime = start.getTime() - now.getTime();
+  const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
   return (
     <div style={{
@@ -49,8 +50,22 @@ export function ActiveTripTicket({ destination, startDate, endDate, poisCount }:
             <p className="font-mono text-muted text-sm mt-1">{start.toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--color-accent-primary)', fontWeight: 600 }}>T-{diffDays}</span>
-            <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>DAYS OUT</p>
+            {diffDays > 0 ? (
+              <>
+                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--color-accent-primary)', fontWeight: 600 }}>T-{diffDays}</span>
+                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>DAYS OUT</p>
+              </>
+            ) : isOngoing ? (
+              <>
+                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: '#10B981', fontWeight: 600 }}>ACTIVE</span>
+                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>IN PROGRESS</p>
+              </>
+            ) : (
+              <>
+                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--color-accent-primary)', fontWeight: 600 }}>TODAY</span>
+                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>DEPARTURE</p>
+              </>
+            )}
           </div>
         </div>
 

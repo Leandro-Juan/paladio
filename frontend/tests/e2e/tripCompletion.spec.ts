@@ -141,6 +141,22 @@ test.describe('Trip Completion Logic', () => {
       expect(isTripCompleted(trip, nextDayMorning)).toBe(true);
     });
 
+    test('returns true for trip that concluded prior to reference date (e.g. Madrid ended 27/9/2026 evaluated on 28/9/2026)', () => {
+      const madridTrip = {
+        destination: 'Madrid',
+        start_date: '2026-09-24T00:00:00.000Z',
+        end_date: '2026-09-27T17:00:00.000Z',
+        itinerary_data: {
+          days: [
+            { day: 1, flight_info: { arrival_time: '2026-09-24T13:00:00' } },
+            { day: 4, flight_info: { arrival_time: '2026-09-27T17:00:00' } },
+          ],
+        },
+      };
+      const currentDate = new Date('2026-09-28T14:10:53+02:00');
+      expect(isTripCompleted(madridTrip, currentDate)).toBe(true);
+    });
+
     test('handles missing, null, or empty trips gracefully', () => {
       expect(isTripCompleted({} as any, refDate)).toBe(false);
       expect(isTripCompleted({ end_date: '' }, refDate)).toBe(false);
