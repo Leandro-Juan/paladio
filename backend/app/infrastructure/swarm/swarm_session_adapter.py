@@ -120,20 +120,49 @@ class SwarmSessionAdapter(ISwarmSession):
         if "end_date" in data:
             manual_constraints["end_date"] = data["end_date"]
 
-        # Support Test Mode auto-mock tickets using iata_mapping and 5-day next-week duration
+        # Support Test Mode auto-mock tickets using iata_mapping and custom/default dates
         origin = manual_constraints.get("origin_city") or data.get("origin_city")
         dest = manual_constraints.get("destination_city") or data.get(
             "destination_city"
         )
+        start_date_val = manual_constraints.get("start_date") or data.get("start_date")
+        end_date_val = manual_constraints.get("end_date") or data.get("end_date")
+
         is_test_mode = data.get("test_mode") is True or (
             origin and dest and not data.get("booking_text")
         )
 
         if is_test_mode and origin and dest:
+            from datetime import date
             from app.utils.mock_tickets import generate_mock_tickets
 
-            mock_res = generate_mock_tickets(origin, dest)
+            parsed_start: date | None = None
+            duration_days = 5
+
+            if start_date_val:
+                try:
+                    parsed_start = date.fromisoformat(str(start_date_val).split("T")[0])
+                except (ValueError, TypeError):
+                    parsed_start = None
+
+            if start_date_val and end_date_val:
+                try:
+                    s_d = date.fromisoformat(str(start_date_val).split("T")[0])
+                    e_d = date.fromisoformat(str(end_date_val).split("T")[0])
+                    diff = (e_d - s_d).days
+                    if diff > 0:
+                        duration_days = diff
+                except (ValueError, TypeError):
+                    pass
+
+            mock_res = generate_mock_tickets(
+                origin, dest, duration_days=duration_days, start_date=parsed_start
+            )
             initial_state["booking_text"] = mock_res["booking_text"]
+            # Clear cities and dates from manual_constraints so ticket_parser and
+            # assemble_constraints parse and assemble them from booking_text normally
+            for key in ("origin_city", "destination_city", "start_date", "end_date"):
+                manual_constraints.pop(key, None)
         else:
             if "booking_text" in data:
                 initial_state["booking_text"] = data["booking_text"]

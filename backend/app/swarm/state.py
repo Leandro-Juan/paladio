@@ -18,3 +18,6 @@ class SwarmState(TypedDict):
     prompt_analysis: dict | None
     guardrail_status: str | None
     guardrail_errors: list[str] | None
+    verification_completed: bool | None
+    auto_verify: bool | None
+    test_mode: bool | None

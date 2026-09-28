@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MealRequirement } from '@/types/domain';
 import { PlaneIcon } from './icons';
 
@@ -8,6 +8,12 @@ interface TripPreparationFormProps {
   onSubmit: (prompt: string, extras: Record<string, unknown>) => void;
   disabled?: boolean;
 }
+
+const formatDateOffset = (offsetDays: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+};
 
 export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparationFormProps) {
   // 1. Natural Language Intent Prompt
@@ -31,6 +37,16 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
   // Simulated Anchors (Test Mode) fields
   const [originCity, setOriginCity] = useState('Madrid');
   const [destinationCity, setDestinationCity] = useState('Paris');
+  const [startDate, setStartDate] = useState(() => formatDateOffset(7));
+  const [endDate, setEndDate] = useState(() => formatDateOffset(12));
+
+  const tripDurationDays = useMemo(() => {
+    if (!startDate || !endDate) return 5;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 1;
+  }, [startDate, endDate]);
 
   // Direct Ingestion (Production Mode) fields
   const [rawBookingText, setRawBookingText] = useState('');
@@ -86,11 +102,11 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
         test_mode: true,
         origin_city: originCity.trim() || 'Madrid',
         destination_city: destinationCity.trim() || 'Paris',
+        start_date: startDate,
+        end_date: endDate,
         budget_usd: Number(budgetUsd) || 1500,
         meals,
         manual_constraints: {
-          origin_city: originCity.trim() || 'Madrid',
-          destination_city: destinationCity.trim() || 'Paris',
           budget_usd: Number(budgetUsd) || 1500,
           meals,
         },
@@ -381,10 +397,10 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               }}
             >
               <div className="font-mono text-xs text-accent" style={{ fontWeight: 600, marginBottom: '2px' }}>
-                {'// 5-DAY AUTOMATED MOCK GENERATION'}
+                {`// ${tripDurationDays}-DAY AUTOMATED MOCK GENERATION`}
               </div>
               <p className="font-mono text-xs text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
-                Schedules round-trip flights between real IATA airports and verifies a real hotel in the destination city for 5 days next week relative to today&apos;s date.
+                Schedules round-trip flights between real IATA airports and verifies a real hotel in the destination city from {startDate} to {endDate} ({tripDurationDays} {tripDurationDays === 1 ? 'day' : 'days'}).
               </p>
             </div>
 
@@ -431,6 +447,48 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               </div>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span className="font-mono text-xs text-muted">DEPARTURE DATE</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  disabled={disabled}
+                  style={{
+                    background: 'var(--color-bg-main)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '4px',
+                    padding: '0.5rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    color: 'var(--color-text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <span className="font-mono text-xs text-muted">RETURN DATE</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  disabled={disabled}
+                  style={{
+                    background: 'var(--color-bg-main)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '4px',
+                    padding: '0.5rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    color: 'var(--color-text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+
             <div
               className="font-mono text-xs text-muted"
               style={{
@@ -445,7 +503,9 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 <PlaneIcon size={13} color="var(--color-accent-primary)" /> ROUTE:
               </span>
               <span>{originCity.toUpperCase()} → {destinationCity.toUpperCase()}</span>
-              <span style={{ marginLeft: 'auto', opacity: 0.7 }}>5 DAYS NEXT WEEK</span>
+              <span style={{ marginLeft: 'auto', opacity: 0.7 }}>
+                {tripDurationDays} {tripDurationDays === 1 ? 'DAY' : 'DAYS'} ({startDate} → {endDate})
+              </span>
             </div>
           </div>
         ) : (

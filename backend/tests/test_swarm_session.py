@@ -247,3 +247,52 @@ async def test_swarm_session_emits_guardrail_aborted():
     abort_ev = next(e for e in events if e["event"] == "GUARDRAILS_ABORTED")
     assert abort_ev["status"] == "aborted"
     assert "Departure date cannot be in the past." in abort_ev["data"][0]
+
+
+@pytest.mark.asyncio
+async def test_swarm_session_custom_dates_mock_tickets():
+    mock_graph = AsyncMock()
+    captured_initial_state = {}
+
+    async def mock_astream(*args, **kwargs):
+        if args:
+            captured_initial_state.update(args[0])
+        yield {"ticket_parser": {"status": "ok"}}
+
+    mock_graph.astream = mock_astream
+
+    adapter = SwarmSessionAdapter(
+        graph=mock_graph,
+        engine=MagicMock(),
+        ml_model=MagicMock(),
+        ml_params=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
+    )
+
+    data = {
+        "test_mode": True,
+        "origin_city": "Rome",
+        "destination_city": "Tokyo",
+        "start_date": "2026-11-10",
+        "end_date": "2026-11-20",
+        "manual_constraints": {
+            "origin_city": "Rome",
+            "destination_city": "Tokyo",
+            "start_date": "2026-11-10",
+            "end_date": "2026-11-20",
+        },
+    }
+
+    events = []
+    async for event in adapter.process_message(
+        "chat", data, "trip to Tokyo", "thread-custom-dates"
+    ):
+        events.append(event)
+
+    assert "booking_text" in captured_initial_state
+    booking = captured_initial_state["booking_text"]
+    assert "2026-11-10" in booking
+    assert "2026-11-20" in booking
+    assert "start_date" not in captured_initial_state["manual_constraints"]
+    assert "end_date" not in captured_initial_state["manual_constraints"]

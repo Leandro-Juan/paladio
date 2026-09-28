@@ -92,7 +92,14 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
     assert assemble_output.get("validated_itinerary") is not None
     state["validated_itinerary"] = assemble_output["validated_itinerary"]
 
-    # Node 3: Verify Constraints (test mode with complete constraints passes through)
+    # Node 3: Verify Constraints (raises GraphInterrupt for normal Human-In-The-Loop review)
+    from langgraph.errors import GraphInterrupt
+
+    with pytest.raises((GraphInterrupt, RuntimeError)):
+        await verify_constraints_node(state)
+
+    # When auto_verify is true or verification has been completed, it proceeds
+    state["auto_verify"] = True
     verify_output = await verify_constraints_node(state)
     assert verify_output.get("verification_completed") is True
     assert verify_output.get("validated_itinerary") is not None
@@ -209,6 +216,7 @@ async def test_subgraph_execution(mock_ticket_parser):
             ],
         },
         "messages": [],
+        "auto_verify": True,
     }
 
     result = await compiled.ainvoke(state)
