@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions & Questions
+    url: https://github.com/Leandro-Juan/paladio/discussions
+    about: Ask questions, share ideas, or get help with self-hosting Paladio.
+  - name: Paladio Documentation
+    url: https://leandro-juan.github.io/paladio/
+    about: Read our guides, architecture documentation, and tutorials.
+  - name: Security Vulnerability Reporting
+    url: https://github.com/Leandro-Juan/paladio/security/advisories/new
+    about: Privately report a security issue to the core maintainer.

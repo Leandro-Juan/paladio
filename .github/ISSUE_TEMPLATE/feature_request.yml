@@ -1,0 +1,50 @@
+name: Feature Request
+description: Suggest an idea, enhancement, or architectural optimization for Paladio
+title: "[FEATURE]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Paladio is dedicated to sovereign, deterministic, and high-performance travel optimization.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement / Motivation
+      description: Is your feature request related to a problem or limitation? Please describe.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution & Architecture
+      description: A clear and concise description of what you want to happen and how it fits into Paladio's architecture.
+    validations:
+      required: true
+  - type: dropdown
+    id: target_subsystem
+    attributes:
+      label: Target Subsystem
+      options:
+        - "C++20 Core Optimization (TSPTW / Interval Trees / Budget Knapsack)"
+        - "Backend Semantic Gateway (FastAPI / LangGraph Swarm / Pydantic)"
+        - "Frontend UI & Visualizations (Next.js / Leaflet / React Virtuoso)"
+        - "Routing & Map Infrastructure (OSM / Valhalla / GTFS Transit)"
+        - "Local LLM Integration (Ollama / vLLM local pipelines)"
+        - "Developer Experience & Tooling"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you considered.
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Architectural Compliance
+      options:
+        - label: This proposal adheres to the 100% self-hosted and air-gappable architecture (strictly NO cloud LLM APIs).
+          required: true
+        - label: NP-hard combinatorial logic is targeted for the deterministic C++ layer, while LLMs remain strictly for semantic NLP.
+          required: false

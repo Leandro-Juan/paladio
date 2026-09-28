@@ -1,0 +1,80 @@
+name: Bug Report
+description: File a bug report or reproducible defect in Paladio
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please provide detailed information so we can reproduce and fix it.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system is experiencing this issue?
+      options:
+        - "Backend (FastAPI / Gateway / LangGraph Swarm)"
+        - "C++ Core Engine (paladio_core / Solver / TSPTW)"
+        - "Frontend (Next.js / Leaflet / React)"
+        - "Infrastructure (Docker Compose / Postgres / Redis / Valhalla)"
+        - "Documentation / Tutorials"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior.
+      placeholder: |
+        1. Start services with 'docker compose up'
+        2. Perform action '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually occurred, including any error traces or unhandled exceptions.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs & Output
+      description: Relevant terminal output, Docker logs, or browser console errors.
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Info
+      description: Operating system, Docker version, GPU/CPU architecture, Python/Node versions.
+      placeholder: |
+        - OS: Linux (Ubuntu/Debian/Arch) / macOS / Windows WSL2
+        - Docker version: 27.x
+        - Local LLM: Ollama / vLLM
+        - Hardware: CPU / GPU (CUDA)
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate.
+          required: true
+        - label: I confirm this issue does not expose any private credentials, tokens, or security vulnerabilities (see SECURITY.md).
+          required: true
