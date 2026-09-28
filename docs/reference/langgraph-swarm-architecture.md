@@ -43,12 +43,18 @@ graph TD
     VC -->|"Review / Edit"| IN1["interrupt() [Verification Cockpit]"]
     IN1 -->|"User Confirm"| GR["guardrails_node"]
     VC -->|"Valid & Auto-Approved"| GR
+    
+    DB_TRIPS[("PostgreSQL 16<br/>trips table")] <-->|"Check Date Collisions"| GR
+    
     GR -->|"Hard Error"| END_ERR["Abort Execution"]
     GR -->|"Schedule Overlap"| IN2["interrupt() [Amber Warning Modal]"]
     IN2 -->|"Proceed Anyway"| PA["prompt_analyzer_node"]
     IN2 -->|"Abort"| END_ABORT["END"]
     GR -->|"All Clear"| PA
+    
     PA --> PS["planner_scrape_node"]
+    DB_POIS[("PostgreSQL 16<br/>pgvector attractions")] <-->|"Semantic Retrieval"| PS
+    
     PS --> PO["planner_optimize_node"]
     PO --> END
 ```

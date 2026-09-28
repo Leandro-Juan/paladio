@@ -44,15 +44,17 @@ graph TD
     
     subgraph Swarm["LangGraph Multi-Agent Swarm"]
         TP["Ticket Parser Agent<br/>Pydantic AI + Ollama"] --> AC["Constraint Builder Node<br/>Deterministic Assembly"]
-        AC --> CM{"Check Missing Fields<br/>interrupt() Pause"}
-        CM -->|"Human Clarification"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Ollama"]
+        AC --> VC["Verify Constraints Node<br/>Stage 1 HITL interrupt()"]
+        VC --> GR{"Guardrails Node<br/>Deterministic & DB Clash Check"}
+        GR -->|"Proceed"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Ollama"]
         PA --> PS["Planner Scrape Node<br/>Context Ingestion & MLScorer"]
         PS --> PO["Planner Optimize Node<br/>Bridge to C++ Solver"]
     end
     
     Graph --> Swarm
+    GR <-->|"Trip Overlap Query"| PG[("PostgreSQL 16<br/>TimescaleDB + pgvector Vault")]
     PS <--> ML["MLScorer & SemanticLearningEngine"]
-    ML <--> PG[("PostgreSQL 16<br/>TimescaleDB + pgvector Vault")]
+    ML <--> PG
     PO <--> Engine["paladio-core C++20<br/>Branch & Bound TCOPTW"]
 ```
 
@@ -62,14 +64,29 @@ graph TD
 
 The conversational intelligence in Paladio is orchestrated using **LangGraph** (`StateGraph`), enforcing a deterministic finite state machine over conversational LLM interactions.
 
-```text
-[START] ──> ticket_parser ──> assemble_constraints ──> verify_constraints ──> guardrails ──> prompt_analyzer ──> planner_scrape ──> planner_optimize ──> [END]
-                                                             │
-                                                    (Missing Fields?)
-                                                             │
-                                                             ▼
-                                                    interrupt() [PAUSE]
-                                                    (Stream to WebSocket)
+```mermaid
+graph TD
+    START([START]) --> TP["ticket_parser<br/><i>Pydantic AI + Ollama</i>"]
+    TP --> AC["assemble_constraints<br/><i>Deterministic Assembly</i>"]
+    AC --> VC["verify_constraints<br/><i>Stage 1 HITL</i>"]
+    
+    VC -.->|"Missing Fields / Review"| INT1["interrupt(VERIFICATION_REQUIRED)<br/><i>WebSocket Verification Cockpit</i>"]
+    INT1 -.->|"User Input & Confirmation"| GR
+    VC -->|"Valid & Auto-Approved"| GR["guardrails<br/><i>Deterministic Firewall & DB Check</i>"]
+    
+    DB_TRIPS[("PostgreSQL 16<br/><i>trips table (TripModel)</i>")] <-->|"Check Schedule Collision"| GR
+    
+    GR -->|"Hard Violation (e.g. Past Date)"| END_FAIL([END / Aborted])
+    GR -.->|"Schedule Collision Detected"| INT2["interrupt(TRIP_OVERLAP_WARNING)<br/><i>Amber Warning Modal</i>"]
+    INT2 -.->|"User Decision: ABORT"| END_FAIL
+    INT2 -.->|"User Decision: PROCEED ANYWAY"| PA
+    GR -->|"Guardrails Passed (Clear)"| PA["prompt_analyzer<br/><i>Pydantic AI RAG Agent</i>"]
+    
+    PA --> PS["planner_scrape<br/><i>Context Ingestion & MLScorer</i>"]
+    DB_POIS[("PostgreSQL 16<br/><i>pgvector attractions & user tastes</i>")] <-->|"HNSW Vector Cosine Retrieval"| PS
+    
+    PS --> PO["planner_optimize<br/><i>paladio-core C++20 Solver</i>"]
+    PO --> FINISH([END / Final Itinerary])
 ```
 
 ### 1. Cyclical Self-Correction & Pydantic AI Firewall
