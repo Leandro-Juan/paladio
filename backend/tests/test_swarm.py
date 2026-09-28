@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -46,24 +47,29 @@ async def test_reactive_planning_generates_itinerary():
         }
     }
 
+    start_dt = date.today() + timedelta(days=10)
+    end_dt = date.today() + timedelta(days=14)
+    start_str = start_dt.strftime("%Y-%m-%d")
+    end_str = end_dt.strftime("%Y-%m-%d")
+
     booking = BookingAnchors(
         outbound_flight=FlightSegment(
             origin_iata="JFK",
             destination_iata="CDG",
-            departure_time="2026-06-01 10:00",
+            departure_time=f"{start_str} 10:00",
             flight_duration_minutes=420,
         ),
         return_flight=FlightSegment(
             origin_iata="CDG",
             destination_iata="JFK",
-            departure_time="2026-06-04 14:00",
+            departure_time=f"{end_str} 14:00",
             flight_duration_minutes=480,
         ),
         hotel=HotelAnchor(
             name="Paris Luxury Hotel",
             city="Paris",
-            check_in_date="2026-06-01",
-            check_out_date="2026-06-04",
+            check_in_date=start_str,
+            check_out_date=end_str,
         ),
     )
 
@@ -80,6 +86,7 @@ async def test_reactive_planning_generates_itinerary():
         "messages": [
             HumanMessage(content="I want to visit the Louvre and Eiffel Tower")
         ],
+        "auto_verify": True,
     }
 
     with (
