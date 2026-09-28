@@ -1,74 +1,23 @@
 version: 2
 updates:
-  # GitHub Actions Workflows
+  # Automated version bumps are paused (open-pull-requests-limit: 0)
+  # to prevent untested bot PRs from breaking delicate Playwright, Next.js, and C++ toolchains.
+  # Security advisory fixes remain active via GitHub Security Alerts.
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "ci"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "ci"
-    open-pull-requests-limit: 1
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+      interval: "monthly"
+    open-pull-requests-limit: 0
 
-  # Python Backend Dependencies
-  - package-ecosystem: "pip"
-    directory: "/backend"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore"
-      prefix-development: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "backend"
-    open-pull-requests-limit: 1
-    groups:
-      backend-dependencies:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-
-  # Frontend Node/NPM Dependencies
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore"
-      prefix-development: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "frontend"
-    open-pull-requests-limit: 1
-    ignore:
-      # Block unwanted major bumps that break Next.js 16 / React 19 toolchains
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "eslint"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "next"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-    groups:
-      frontend-dependencies:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+      interval: "monthly"
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 0
