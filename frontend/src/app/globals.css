@@ -5,6 +5,9 @@
   --color-surface-card: #F8FAFC;
   --color-accent-primary: #1E3A8A;
   --color-accent-secondary: #DC2626;
+  --color-accent-warning: #D97706;
+  --color-accent-warning-bg: rgba(217, 119, 6, 0.08);
+  --color-accent-warning-border: rgba(217, 119, 6, 0.3);
   --color-text-primary: #0F172A;
   --color-text-muted: #64748B;
   --color-border: #E2E8F0;

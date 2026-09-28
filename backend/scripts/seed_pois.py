@@ -180,7 +180,7 @@ MOCK_POIS = [
 
 
 def main():
-    print(f"Connecting to Postgres at {CONNECTION_STRING}")
+    print(f"Connecting to Postgres at {DB_HOST}:{DB_PORT}/{DB_NAME}")
     print(f"Using Ollama at {OLLAMA_URL}")
 
     embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_URL)

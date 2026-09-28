@@ -63,7 +63,7 @@ graph TD
 The conversational intelligence in Paladio is orchestrated using **LangGraph** (`StateGraph`), enforcing a deterministic finite state machine over conversational LLM interactions.
 
 ```text
-[START] ──> ticket_parser ──> assemble_constraints ──> check_missing ──> prompt_analyzer ──> planner_scrape ──> planner_optimize ──> [END]
+[START] ──> ticket_parser ──> assemble_constraints ──> verify_constraints ──> guardrails ──> prompt_analyzer ──> planner_scrape ──> planner_optimize ──> [END]
                                                              │
                                                     (Missing Fields?)
                                                              │
@@ -77,10 +77,10 @@ The conversational intelligence in Paladio is orchestrated using **LangGraph** (
 - If a model outputs an invalid response, LangGraph cycles back with error feedback, allowing the model to repair its schema automatically without user disruption.
 - Output models like `BookingAnchors` and `TravelConstraints` enforce strict physical limits (positive budgets, validated ISO-8601 timestamps, IATA codes).
 
-### 2. Non-Blocking Human-In-The-Loop (`interrupt()`)
-- When vital parameters are missing (e.g., origin airport, budget, or mandatory meal intervals), the graph halts cleanly using LangGraph's native `interrupt()` function.
-- The session state is captured in persistent checkpointers (`MemorySaver` / Redis). The WebSocket gateway streams a structured questionnaire to the client.
-- Once the user submits their answers, execution resumes at the exact pause point with no duplicate inference or lost conversational context.
+### 2. Two-Stage Human-In-The-Loop & Deterministic Guardrails
+- **Stage 1 (`verify_constraints`)**: Surfaces parsed ticket anchors (cities, dates, flights, hotel) and constraints for human inspection via LangGraph's native `interrupt()`, eliminating LLM hallucinations and gathering missing fields.
+- **Stage 2 (`guardrails`)**: Validates hard rules (past dates, inverted spans, identical cities, duration > 30 days) and evaluates database trip collisions. If a schedule clash is detected in PostgreSQL, an amber warning modal is surfaced over WebSockets allowing the user to **PROCEED ANYWAY** or **ABORT** before expensive scraping or solver operations run.
+- Persistent checkpointers (`MemorySaver` / Redis) guarantee zero state loss during pauses.
 
 ---
 

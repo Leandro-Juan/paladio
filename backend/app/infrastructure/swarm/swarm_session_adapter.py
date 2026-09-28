@@ -141,6 +141,8 @@ class SwarmSessionAdapter(ISwarmSession):
         if manual_constraints:
             initial_state["manual_constraints"] = manual_constraints
 
+        initial_state["test_mode"] = is_test_mode
+
         from app.infrastructure.engine.ml_scorer import MLScorer
 
         config = {
@@ -170,12 +172,39 @@ class SwarmSessionAdapter(ISwarmSession):
                     if interrupt_data
                     else "Please clarify your request."
                 )
-                yield {
-                    "event": "CLARIFICATION_NEEDED",
-                    "status": "completed",
-                    "data": question,
-                    "thread_id": thread_id,
-                }
+                if (
+                    isinstance(question, dict)
+                    and question.get("type") == "TRIP_OVERLAP_WARNING"
+                ):
+                    yield {
+                        "event": "TRIP_OVERLAP_WARNING",
+                        "status": "warning",
+                        "data": question,
+                        "thread_id": thread_id,
+                    }
+                elif (
+                    isinstance(question, dict)
+                    and question.get("type") == "VERIFICATION_REQUIRED"
+                ):
+                    yield {
+                        "event": "VERIFICATION_REQUIRED",
+                        "status": "awaiting_input",
+                        "data": question,
+                        "thread_id": thread_id,
+                    }
+                    yield {
+                        "event": "CLARIFICATION_NEEDED",
+                        "status": "completed",
+                        "data": question,
+                        "thread_id": thread_id,
+                    }
+                else:
+                    yield {
+                        "event": "CLARIFICATION_NEEDED",
+                        "status": "completed",
+                        "data": question,
+                        "thread_id": thread_id,
+                    }
                 break
 
             for node_name, state_update in chunk.items():
@@ -208,13 +237,28 @@ class SwarmSessionAdapter(ISwarmSession):
                         "data": data_val,
                     }
                     yield {
-                        "event": "CHECKING_MISSING_FIELDS",
+                        "event": "VERIFYING_CONSTRAINTS",
                         "status": "running",
                     }
 
-                elif node_name == "check_missing":
+                elif node_name in ["verify_constraints", "check_missing"]:
+                    yield {"event": "VERIFICATION_COMPLETED", "status": "completed"}
                     yield {"event": "CHECKING_MISSING_FIELDS", "status": "completed"}
-                    yield {"event": "ANALYZING_PROMPT", "status": "running"}
+                    yield {"event": "EVALUATING_GUARDRAILS", "status": "running"}
+
+                elif node_name == "guardrails":
+                    g_status = state_update.get("guardrail_status")
+                    if g_status == "ABORT":
+                        yield {
+                            "event": "GUARDRAILS_ABORTED",
+                            "status": "aborted",
+                            "data": state_update.get(
+                                "guardrail_errors", ["Trip aborted by guardrails."]
+                            ),
+                        }
+                    else:
+                        yield {"event": "GUARDRAILS_PASSED", "status": "completed"}
+                        yield {"event": "ANALYZING_PROMPT", "status": "running"}
 
                 elif node_name in ["prompt_analyzer", "prompt_analysis"]:
                     yield {"event": "ANALYZING_PROMPT", "status": "completed"}

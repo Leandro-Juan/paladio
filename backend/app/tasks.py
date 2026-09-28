@@ -617,18 +617,28 @@ def cleanup_city_gtfs_resources(city_clean: str) -> None:
     """
     import redis
 
-    gtfs_base = os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds")
-    gtfs_dest_dir = os.path.join(gtfs_base, city_clean)
-    if os.path.exists(gtfs_dest_dir):
-        shutil.rmtree(gtfs_dest_dir, ignore_errors=True)
-        logger.info(f"Removed GTFS feed directory: {gtfs_dest_dir}")
+    safe_city = re.sub(r"[^a-z0-9_-]", "", os.path.basename(city_clean).strip().lower())
+    if not safe_city:
+        return
 
-    zip_tmp = f"/tmp/{city_clean}_gtfs.zip"
-    if os.path.exists(zip_tmp):
-        try:
-            os.remove(zip_tmp)
-        except OSError:
-            pass
+    gtfs_base = os.path.realpath(os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds"))
+    gtfs_dest_dir = os.path.realpath(os.path.join(gtfs_base, safe_city))
+    if (
+        os.path.commonpath([gtfs_base, gtfs_dest_dir]) == gtfs_base
+        and gtfs_dest_dir != gtfs_base
+    ):
+        if os.path.exists(gtfs_dest_dir):
+            shutil.rmtree(gtfs_dest_dir, ignore_errors=True)
+            logger.info(f"Removed GTFS feed directory: {gtfs_dest_dir}")
+
+    tmp_base = os.path.realpath("/tmp")
+    zip_tmp = os.path.realpath(os.path.join(tmp_base, f"{safe_city}_gtfs.zip"))
+    if os.path.commonpath([tmp_base, zip_tmp]) == tmp_base and zip_tmp != tmp_base:
+        if os.path.exists(zip_tmp):
+            try:
+                os.remove(zip_tmp)
+            except OSError:
+                pass
 
     # Valhalla container cleanup
     try:

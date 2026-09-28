@@ -35,39 +35,69 @@ Emitted as the LangGraph state machine transitions between nodes:
 | :--- | :--- | :--- |
 | `PARSING_TICKETS` | `ticket_parser_node` | Pydantic AI is extracting flight and hotel anchors from raw text. |
 | `EXTRACTING_CONSTRAINTS` | `assemble_constraints_node` | Compiling temporal boundaries and budgets deterministically. |
+| `VERIFYING_CONSTRAINTS` | `verify_constraints_node` | Reviewing extracted anchors and collecting missing fields. |
+| `EVALUATING_GUARDRAILS` | `guardrails_node` | Validating logical boundaries and querying DB schedule overlaps. |
 | `ANALYZING_PROMPT` | `prompt_analyzer_node` | Extracting taste affinities and preferred cuisines via Ollama. |
 | `SCORING_POIS` | `planner_scrape_node` | Batch encoding POIs into 16-D tensors and computing ML scores. |
 | `SOLVING_TSPTW` | `planner_optimize_node` | Executing the C++ branch-and-bound optimization solver. |
 
 ---
 
-### 2.2. `HUMAN_INTERRUPTION`
-Emitted when the state machine pauses due to missing mandatory data:
+### 2.2. Human Interruption Events (`HUMAN_INTERRUPTION` / `CLARIFICATION_NEEDED`)
+
+#### A. Constraints Verification (`type: "VERIFICATION_REQUIRED"`)
+Emitted when user review or missing parameter collection is required:
 
 ```json
 {
-  "type": "HUMAN_INTERRUPTION",
-  "stage": "CHECK_MISSING_FIELDS",
-  "message": "Missing information for: budget_usd, meals",
-  "payload": {
-    "fields": ["budget_usd", "meals"]
+  "event": "VERIFICATION_REQUIRED",
+  "status": "awaiting_input",
+  "data": {
+    "type": "VERIFICATION_REQUIRED",
+    "message": "Review and verify extracted trip constraints.",
+    "fields": ["budget_usd"],
+    "constraints": { ... },
+    "booking_anchors": { ... }
   }
 }
 ```
 
-#### Resume Request (Client to Server):
+Resume Request:
 ```json
 {
-  "action": "RESUME_GRAPH",
+  "action": "resume",
   "answers": {
-    "budget_usd": 400.0,
-    "meals": [
-      {"meal_type": "LUNCH", "window_start_mins": 810, "window_end_mins": 930},
-      {"meal_type": "DINNER", "window_start_mins": 1230, "window_end_mins": 1380}
-    ]
+    "budget_usd": 2000.0,
+    "origin_city": "Madrid",
+    "destination_city": "Paris"
   }
 }
 ```
+
+#### B. Schedule Overlap Warning (`type: "TRIP_OVERLAP_WARNING"`)
+Emitted when trip dates collide with an existing trip in PostgreSQL:
+
+```json
+{
+  "event": "TRIP_OVERLAP_WARNING",
+  "status": "warning",
+  "data": {
+    "type": "TRIP_OVERLAP_WARNING",
+    "message": "Trip schedule overlap detected with existing trip to Paris.",
+    "warning_title": "[WARNING] TRIP SCHEDULE OVERLAP",
+    "overlapping_trip": {
+      "destination": "Paris",
+      "start_date": "2026-10-10",
+      "end_date": "2026-10-15"
+    },
+    "variant": "warning"
+  }
+}
+```
+
+Resume Request:
+- **Proceed**: `{"action": "resume", "approved": true, "proceed": true}`
+- **Abort**: `{"action": "resume", "approved": false, "abort": true}`
 
 ---
 

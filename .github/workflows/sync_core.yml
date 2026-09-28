@@ -8,6 +8,9 @@ on:
       - 'cpp_core/**'
   workflow_dispatch: # Permite disparar la sincronización manualmente si lo necesitas
 
+permissions:
+  contents: read
+
 jobs:
   sync-core:
     runs-on: ubuntu-latest

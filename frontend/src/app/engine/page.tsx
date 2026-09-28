@@ -11,7 +11,17 @@ import { TripPreparationForm } from '@/components/TripPreparationForm';
 
 
 export default function EnginePage() {
-  const { status, itinerary, missingFields, sendMessage, sendFeedback, sendResume } = usePaladioSocket();
+  const {
+    status,
+    itinerary,
+    missingFields,
+    verificationPayload,
+    overlapWarning,
+    clearOverlapWarning,
+    sendMessage,
+    sendFeedback,
+    sendResume,
+  } = usePaladioSocket();
   const { logs, clearLogs } = useLogStore();
   const { saveTrip } = useTrips();
   const [activeTab, setActiveTab] = useState<'prep' | 'telemetry'>('prep');
@@ -21,6 +31,38 @@ export default function EnginePage() {
   const [savedTripId, setSavedTripId] = useState<string | null>(null);
   const [clarificationData, setClarificationData] = useState<Record<string, string>>({});
   const endOfLogsRef = useRef<HTMLDivElement>(null);
+
+  const activeConstraints = (verificationPayload?.constraints || {}) as Record<string, unknown>;
+  const originCity = clarificationData.origin_city ?? (activeConstraints.origin_city as string) ?? '';
+  const destinationCity = clarificationData.destination_city ?? (activeConstraints.destination_city as string) ?? '';
+  const startDate = clarificationData.start_date ?? (activeConstraints.start_date as string) ?? '';
+  const endDate = clarificationData.end_date ?? (activeConstraints.end_date as string) ?? '';
+  const budgetUsd = clarificationData.budget_usd ?? (activeConstraints.budget_usd !== undefined ? String(activeConstraints.budget_usd) : '');
+
+  const hardErrors: string[] = [];
+  const today = new Date().toISOString().split('T')[0];
+  if (startDate && startDate < today) {
+    hardErrors.push('Departure date cannot be in the past.');
+  }
+  if (startDate && endDate && endDate < startDate) {
+    hardErrors.push('Return date cannot be before departure date.');
+  }
+  if (
+    originCity &&
+    destinationCity &&
+    originCity.trim().toLowerCase() === destinationCity.trim().toLowerCase() &&
+    originCity.toLowerCase() !== 'unknown'
+  ) {
+    hardErrors.push('Origin and destination city cannot be identical.');
+  }
+  if (startDate && endDate) {
+    const diffDays = Math.round(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)
+    );
+    if (diffDays > 30) {
+      hardErrors.push(`Trip duration (${diffDays} days) exceeds maximum limit of 30 days.`);
+    }
+  }
 
   const hasClearedRef = useRef(false);
 
@@ -202,45 +244,158 @@ export default function EnginePage() {
               />
             </div>
             
-            {status === 'awaiting_input' && missingFields.length > 0 ? (
+            {status === 'awaiting_input' && (verificationPayload || missingFields.length > 0) ? (
               <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--color-accent-primary)', paddingTop: '1rem' }} className="text-accent font-mono">
-                <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>{'>'} CLARIFICATION REQUIRED:</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '1rem' }}>
-                  {missingFields.map(field => (
-                    <div key={field} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      <label style={{ width: '120px', textTransform: 'uppercase' }}>{field.replace('_', ' ')}:</label>
-                      <input 
-                        type={field.includes('date') ? 'date' : field.includes('budget') ? 'number' : 'text'}
-                        value={clarificationData[field] || ''}
-                        onChange={(e) => setClarificationData({ ...clarificationData, [field]: e.target.value })}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--color-accent-primary)',
-                          color: 'var(--color-accent-primary)',
-                          padding: '0.2rem 0.5rem',
-                          flex: 1,
-                          fontFamily: 'var(--font-mono)'
-                        }}
-                      />
-                    </div>
-                  ))}
+                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>
+                  {'>'} VERIFICATION REQUIRED: REVIEW TRIP PARAMETERS
+                </div>
+                {verificationPayload?.message && (
+                  <div style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    {verificationPayload.message}
+                  </div>
+                )}
+
+                {missingFields.length > 0 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-accent-warning, #D97706)', marginBottom: '0.75rem' }}>
+                    [MISSING FIELDS DETECTED]: {missingFields.join(', ').toUpperCase()}
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Origin City:</label>
+                    <input 
+                      type="text" 
+                      value={originCity}
+                      onChange={(e) => setClarificationData({ ...clarificationData, origin_city: e.target.value })}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        padding: '0.3rem 0.5rem',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Destination City:</label>
+                    <input 
+                      type="text" 
+                      value={destinationCity}
+                      onChange={(e) => setClarificationData({ ...clarificationData, destination_city: e.target.value })}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        padding: '0.3rem 0.5rem',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Departure Date:</label>
+                    <input 
+                      type="date" 
+                      value={startDate}
+                      onChange={(e) => setClarificationData({ ...clarificationData, start_date: e.target.value })}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        padding: '0.3rem 0.5rem',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Return Date:</label>
+                    <input 
+                      type="date" 
+                      value={endDate}
+                      onChange={(e) => setClarificationData({ ...clarificationData, end_date: e.target.value })}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        padding: '0.3rem 0.5rem',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Budget ($ USD):</label>
+                    <input 
+                      type="number" 
+                      value={budgetUsd}
+                      onChange={(e) => setClarificationData({ ...clarificationData, budget_usd: e.target.value })}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        padding: '0.3rem 0.5rem',
+                        fontFamily: 'var(--font-mono)'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Extracted Anchors Preview */}
+                {verificationPayload?.booking_anchors && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: 'var(--color-surface-card)', border: '1px solid var(--color-border)', fontSize: '0.8rem' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>EXTRACTED BOOKING ANCHORS:</div>
+                    {(verificationPayload.booking_anchors as Record<string, any>).hotel?.name && (
+                      <div>Hotel: {(verificationPayload.booking_anchors as Record<string, any>).hotel.name} ({(verificationPayload.booking_anchors as Record<string, any>).hotel.city})</div>
+                    )}
+                    {(verificationPayload.booking_anchors as Record<string, any>).outbound_flight?.origin_iata && (
+                      <div>Outbound: Flight {(verificationPayload.booking_anchors as Record<string, any>).outbound_flight.flight_number || ''} ({(verificationPayload.booking_anchors as Record<string, any>).outbound_flight.origin_iata} &rarr; {(verificationPayload.booking_anchors as Record<string, any>).outbound_flight.destination_iata})</div>
+                    )}
+                    {(verificationPayload.booking_anchors as Record<string, any>).return_flight?.origin_iata && (
+                      <div>Return: Flight {(verificationPayload.booking_anchors as Record<string, any>).return_flight.flight_number || ''} ({(verificationPayload.booking_anchors as Record<string, any>).return_flight.origin_iata} &rarr; {(verificationPayload.booking_anchors as Record<string, any>).return_flight.destination_iata})</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hard Guardrail Errors */}
+                {hardErrors.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    {hardErrors.map(err => (
+                      <div key={err} style={{ color: 'var(--color-accent-secondary, #DC2626)', fontSize: '0.8rem', fontWeight: 600 }}>
+                        [ERROR] {err.toUpperCase()}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                   <button 
+                    disabled={hardErrors.length > 0}
                     onClick={() => {
-                      sendResume(clarificationData);
+                      const payloadToSend: Record<string, unknown> = {
+                        origin_city: originCity,
+                        destination_city: destinationCity,
+                        start_date: startDate,
+                        end_date: endDate,
+                        budget_usd: Number(budgetUsd) || 1500,
+                        ...clarificationData
+                      };
+                      sendResume(payloadToSend);
                       setClarificationData({});
                     }}
                     style={{
-                      background: 'var(--color-accent-primary)',
+                      background: hardErrors.length > 0 ? 'var(--color-border)' : 'var(--color-accent-primary)',
                       color: '#FFF',
                       border: 'none',
-                      padding: '0.5rem',
-                      marginTop: '0.5rem',
-                      cursor: 'pointer',
+                      padding: '0.5rem 1rem',
+                      cursor: hardErrors.length > 0 ? 'not-allowed' : 'pointer',
                       fontFamily: 'var(--font-mono)',
-                      alignSelf: 'flex-start'
+                      fontWeight: 600
                     }}
                   >
-                    SUBMIT CLARIFICATION
+                    CONFIRM &amp; PROCEED
                   </button>
                 </div>
               </div>
@@ -344,6 +499,40 @@ export default function EnginePage() {
         onCancel={() => setIsModalOpen(false)}
         cancelText=""
       />
+
+      <Modal 
+        isOpen={Boolean(overlapWarning)}
+        variant="warning"
+        title={overlapWarning?.warning_title || "[WARNING] TRIP SCHEDULE OVERLAP"}
+        message={overlapWarning?.message || "A scheduling overlap was detected with an existing trip in your database."}
+        confirmText="PROCEED ANYWAY"
+        cancelText="ABORT"
+        onConfirm={() => {
+          sendResume({ approved: true, proceed: true });
+          clearOverlapWarning();
+        }}
+        onCancel={() => {
+          sendResume({ approved: false, abort: true });
+          clearOverlapWarning();
+        }}
+      >
+        {overlapWarning?.overlapping_trip && (
+          <div style={{
+            background: 'var(--color-accent-warning-bg, rgba(217, 119, 6, 0.08))',
+            border: '1px solid var(--color-accent-warning-border, rgba(217, 119, 6, 0.3))',
+            borderRadius: '4px',
+            padding: '0.75rem',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.85rem'
+          }}>
+            <div style={{ fontWeight: 600, color: 'var(--color-accent-warning, #D97706)', marginBottom: '0.25rem' }}>
+              CONFLICTING TRIP DETAILS:
+            </div>
+            <div>Destination: {overlapWarning.overlapping_trip.destination}</div>
+            <div>Dates: {overlapWarning.overlapping_trip.start_date} to {overlapWarning.overlapping_trip.end_date}</div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

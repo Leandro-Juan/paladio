@@ -25,6 +25,8 @@ class SwarmState(TypedDict):
     booking_anchors: dict | None              # Extracted BookingAnchors (hotels, flights)
     manual_constraints: dict | None           # Direct user parameters (budget, meal windows)
     prompt_analysis: dict | None              # Extracted tastes, affinities, and mandatory POIs
+    guardrail_status: str | None              # 'PROCEED' or 'ABORT'
+    guardrail_errors: list[str] | None        # Detailed guardrail error descriptions
 ```
 
 ---
@@ -37,10 +39,15 @@ The graph is compiled using `StateGraph(SwarmState)` with checkpointer persisten
 graph TD
     START --> TP["ticket_parser_node"]
     TP --> AC["assemble_constraints_node"]
-    AC --> CM{"check_missing_fields_node"}
-    CM -->|"Missing Data"| IN["interrupt() / Pause"]
-    IN -->|"User Resume"| PA["prompt_analyzer_node"]
-    CM -->|"Valid"| PA
+    AC --> VC["verify_constraints_node"]
+    VC -->|"Review / Edit"| IN1["interrupt() [Verification Cockpit]"]
+    IN1 -->|"User Confirm"| GR["guardrails_node"]
+    VC -->|"Valid & Auto-Approved"| GR
+    GR -->|"Hard Error"| END_ERR["Abort Execution"]
+    GR -->|"Schedule Overlap"| IN2["interrupt() [Amber Warning Modal]"]
+    IN2 -->|"Proceed Anyway"| PA["prompt_analyzer_node"]
+    IN2 -->|"Abort"| END_ABORT["END"]
+    GR -->|"All Clear"| PA
     PA --> PS["planner_scrape_node"]
     PS --> PO["planner_optimize_node"]
     PO --> END
@@ -65,22 +72,27 @@ graph TD
   - Combines manual financial budget and meal windows.
 - **Output:** Mutates `state["validated_itinerary"]`.
 
-### 3.3. `check_missing_fields_node` (`backend/app/swarm/graph.py`)
-- **Node Type:** Conditional verification and human-in-the-loop pause.
-- **Logic:** Checks whether `origin_city`, `destination_city`, `budget_usd`, `start_date`, `end_date`, or `meals` are null.
-- **Execution:** Invokes `interrupt({"message": ..., "fields": [...]})` if mandatory constraints are absent, preserving thread state in checkpointer.
+### 3.3. `verify_constraints_node` (`backend/app/swarm/nodes/verify_constraints.py`)
+- **Node Type:** Human-in-the-loop review and constraint validator.
+- **Functionality:** Surfaces parsed ticket anchors (origin, destination, calendar dates, flights, hotel) alongside financial budgets and meal windows. Eliminates LLM extraction hallucinations by allowing user inspection and correction.
+- **Execution:** Invokes `interrupt({"type": "VERIFICATION_REQUIRED", ...})` if user review or missing parameters are required. Resumes via `Command(resume=...)`, validates input against Pydantic `TravelConstraints`, and sets `state["verification_completed"] = True`.
 
-### 3.4. `prompt_analyzer_node` (`backend/app/swarm/agents/prompt_analyzer.py`)
+### 3.4. `guardrails_node` (`backend/app/swarm/nodes/guardrails.py`)
+- **Node Type:** Deterministic logic firewall & database schedule collision detector.
+- **Hard Guardrails:** Asserts `start_date >= today`, `end_date >= start_date`, `origin_city != destination_city`, and `duration <= 30`. Violations flag hard errors and cleanly halt execution (`guardrail_status = "ABORT"`).
+- **Soft Overlap Guardrail:** Queries PostgreSQL (`TripModel`) for scheduled trip date overlaps. Clashes trigger `interrupt({"type": "TRIP_OVERLAP_WARNING", ...})` displaying an amber warning modal (`#D97706`, zero emojis). Resumes to downstream optimization if confirmed (`PROCEED`) or cleanly terminates if aborted (`ABORT`).
+
+### 3.5. `prompt_analyzer_node` (`backend/app/swarm/agents/prompt_analyzer.py`)
 - **Agent Type:** Pydantic AI `Agent` running `RAGPromptAnalysis`.
 - **Functionality:** Extracts mandatory POIs (e.g., *"El Prado"*), preferred cuisines, trip pacing, and 8 standard tag affinities:
   `['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']`.
 - **Output:** Enriches `state["validated_itinerary"]` and outputs `state["prompt_analysis"]`.
 
-### 3.5. `planner_scrape_node` (`backend/app/swarm/graph.py`)
+### 3.6. `planner_scrape_node` (`backend/app/swarm/graph.py`)
 - **Execution:** Executes `FetchTravelContextUseCase`. Queries `pgvector` for destination POIs and executes batch scoring via `MLScorer`.
 - **Output:** Mutates `state["daily_pois_data"]`.
 
-### 3.6. `planner_optimize_node` (`backend/app/swarm/graph.py`)
+### 3.7. `planner_optimize_node` (`backend/app/swarm/graph.py`)
 - **Execution:** Executes `OptimizeDailyItineraryUseCase`. Passes validated constraints and candidate POIs to the compiled C++20 engine (`paladio-core`).
 - **Output:** Mutates `state["final_itinerary"]`.
 

@@ -1,91 +1,107 @@
 # How-To: Handle Human-In-The-Loop with LangGraph & WebSockets
 
-When essential trip information (such as budget, origin city, or mandatory meal intervals) is missing, Paladio halts execution using LangGraph's native `interrupt()` function and requests user input over WebSockets without losing conversational state.
-
-This guide details how the client application interacts with the **Human-in-the-Loop** mechanism.
+Paladio uses a robust **Two-Stage Human-in-the-Loop (HITL)** architecture to eliminate LLM hallucinations and protect schedule integrity:
+1. **Stage 1 (`verify_constraints_node`)**: Surfaces parsed booking anchors (flights, hotel, cities, dates) and constraints for user inspection and missing field collection.
+2. **Stage 2 (`guardrails_node`)**: Evaluates hard logic rules and queries PostgreSQL for conflicting trips. If schedule clashes occur, it pauses with an amber warning modal (`[WARNING] TRIP SCHEDULE OVERLAP`) allowing the user to **PROCEED ANYWAY** or **ABORT**.
 
 ---
 
-## 1. The Interruption Contract
+## 1. Interruption Contracts
 
-In `backend/app/swarm/graph.py`, the `check_missing_fields_node` scans the validated constraints:
+### Stage 1: Constraints Verification (`verify_constraints_node`)
+
+In `backend/app/swarm/nodes/verify_constraints.py`:
 
 ```python
-if missing_fields:
-    answers = interrupt({
-        "message": f"Missing information for: {', '.join(missing_fields)}",
-        "fields": missing_fields,
-    })
+payload = {
+    "type": "VERIFICATION_REQUIRED",
+    "message": "Review and verify extracted trip constraints.",
+    "fields": missing_fields,
+    "constraints": constraints.model_dump(mode="json"),
+    "booking_anchors": constraints.booking_anchors.model_dump(mode="json") if constraints.booking_anchors else None,
+}
+answers = interrupt(payload)
 ```
 
-When `interrupt()` is called:
-1. The LangGraph state machine halts immediately.
-2. The entire thread history is serialized into the checkpointer (`MemorySaver` or Redis).
-3. The WebSocket server emits a `HUMAN_INTERRUPTION` event to the client.
+### Stage 2: Schedule Overlap Warning (`guardrails_node`)
+
+In `backend/app/swarm/nodes/guardrails.py`:
+
+```python
+warning_payload = {
+    "type": "TRIP_OVERLAP_WARNING",
+    "message": f"Trip schedule overlap detected with existing trip to {overlapping['destination']}.",
+    "warning_title": "[WARNING] TRIP SCHEDULE OVERLAP",
+    "overlapping_trip": overlapping,
+    "variant": "warning",
+}
+decision = interrupt(warning_payload)
+```
 
 ---
 
 ## 2. WebSocket Protocol Handling (Client-Side)
 
-### Step 1: Listen for the Interruption Event
-In your frontend WebSocket listener (e.g. `frontend/src/components/TripPreparationForm.tsx`):
+### Step 1: Listen for Interruption Events
+
+In your frontend WebSocket listener (`frontend/src/contexts/SocketContext.tsx`):
 
 ```typescript
-socket.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  
-  if (data.type === "HUMAN_INTERRUPTION") {
-    // data.payload contains: { message: "...", fields: ["budget_usd", "meals"] }
-    displayClarificationModal(data.payload.fields);
-  }
-};
+switch (payload.event) {
+  case 'VERIFICATION_REQUIRED':
+    setStatus('awaiting_input');
+    setVerificationPayload(payload.data);
+    break;
+
+  case 'TRIP_OVERLAP_WARNING':
+    setStatus('awaiting_input');
+    setOverlapWarning(payload.data);
+    break;
+}
 ```
 
-### Step 2: Render Interactive Clarification Form
-Display input fields specifically tailored to the missing items:
-- `budget_usd` $\rightarrow$ Currency input field ($ USD)
-- `destination_city` $\rightarrow$ City autocomplete input
-- `meals` $\rightarrow$ Checkboxes for Lunch ($[13:00, 15:30]$) and Dinner ($[20:30, 23:00]$)
+### Step 2: Render Cockpit & Amber Warning Modal
+
+- **Verification Cockpit (`/engine`)**: Renders editable parameters (Origin, Destination, Dates, Budget, Anchors) with real-time hard guardrail validation (`start < today`, `end < start`, `origin == dest`, `duration > 30`).
+- **Amber Warning Modal (`Modal.tsx`)**: Mounted with `variant="warning"` (`#D97706`, zero emojis).
 
 ---
 
 ## 3. Resuming Execution (`Command(resume=...)`)
 
-Once the user fills in the missing details, send a structured resume payload over the WebSocket connection:
+### Resuming Stage 1 (Verified Parameters)
+
+Send the corrected constraints payload:
 
 ```typescript
-const answers = {
-  budget_usd: 500.0,
-  meals: [
-    { meal_type: "LUNCH", window_start_mins: 810, window_end_mins: 930 },
-    { meal_type: "DINNER", window_start_mins: 1230, window_end_mins: 1380 }
-  ]
-};
-
-socket.send(JSON.stringify({
-  action: "RESUME_GRAPH",
-  thread_id: currentThreadId,
-  answers: answers
-}));
+sendResume({
+  origin_city: "Madrid",
+  destination_city: "Paris",
+  start_date: "2026-10-10",
+  end_date: "2026-10-15",
+  budget_usd: 2500,
+});
 ```
 
-On the backend, `SwarmSessionManager` passes the answers directly to the resumed thread:
+### Resuming Stage 2 (Overlap Confirmation)
+
+- **Proceed Anyway**: `sendResume({ approved: true, proceed: true })`
+- **Abort Mission**: `sendResume({ approved: false, abort: true })`
+
+Backend execution resumes via LangGraph `Command(resume=...)`:
 
 ```python
 from langgraph.types import Command
 
-# Resumes graph execution at the exact interrupt node
-await graph.ainvoke(Command(resume={"answers": user_answers}), config=config)
+await graph.ainvoke(Command(resume=resume_data), config=config)
 ```
-
-The graph unblocks, merges the answers into `validated_itinerary`, and proceeds to the prompt analyzer and optimization phases seamlessly.
 
 ---
 
 ## 4. Verification
 
-Test the interruption and resume cycle using the automated test suite:
+Run the automated test suite covering both stages:
 
 ```bash
-pytest backend/tests/test_swarm_interrupt.py
+pytest backend/tests/test_first_three_nodes.py backend/tests/test_swarm_session.py -q
 ```

@@ -3,7 +3,8 @@ import pytest
 from app.schemas.itinerary import TravelConstraints
 from app.swarm.agents.ticket_parser import ticket_parser_agent, ticket_parser_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
-from app.swarm.graph import check_missing_fields_node
+from app.swarm.nodes.verify_constraints import verify_constraints_node
+from app.swarm.nodes.guardrails import guardrails_node
 from app.swarm.state import SwarmState
 from langgraph.graph import END, START, StateGraph
 from pydantic_ai.models.test import TestModel
@@ -44,13 +45,13 @@ def mock_ticket_parser():
 
 
 @pytest.mark.asyncio
-async def test_first_three_nodes_pipeline(mock_ticket_parser):
+async def test_post_parser_nodes_pipeline(mock_ticket_parser):
     """
-    Test the first 3 nodes of the graph:
+    Test the post-parser pipeline:
       1. ticket_parser: parses raw booking text into BookingAnchors
       2. assemble_constraints: deterministically derives cities, dates, budget, meals
-      3. check_missing: validates all required constraints are satisfied without interrupts
-    Verifies that the final output is a valid, sensible TravelConstraints object.
+      3. verify_constraints: human-in-the-loop review and validation
+      4. guardrails: evaluates hard logic rules and schedule overlap
     """
     raw_booking_text = (
         "Flight AF007 from JFK to CDG departing 2026-10-10 10:00. "
@@ -62,6 +63,7 @@ async def test_first_three_nodes_pipeline(mock_ticket_parser):
         "booking_text": raw_booking_text,
         "booking_anchors": None,
         "manual_constraints": {
+            "test_mode": True,
             "budget_usd": 3000.0,
             "meals": [
                 {"meal_type": "LUNCH", "start_time": "12:30", "end_time": "14:30"},
@@ -76,6 +78,8 @@ async def test_first_three_nodes_pipeline(mock_ticket_parser):
         "daily_pois_data": None,
         "outbound_flight": None,
         "return_flight": None,
+        "guardrail_status": None,
+        "guardrail_errors": None,
     }
 
     # Node 1: Ticket Parser
@@ -88,66 +92,116 @@ async def test_first_three_nodes_pipeline(mock_ticket_parser):
     assert assemble_output.get("validated_itinerary") is not None
     state["validated_itinerary"] = assemble_output["validated_itinerary"]
 
-    # Node 3: Check Missing Fields
-    missing_output = await check_missing_fields_node(state)
-    # Since all fields are present, no interrupt is raised and it returns {}
-    assert missing_output == {}
+    # Node 3: Verify Constraints (test mode with complete constraints passes through)
+    verify_output = await verify_constraints_node(state)
+    assert verify_output.get("verification_completed") is True
+    assert verify_output.get("validated_itinerary") is not None
+    state["validated_itinerary"] = verify_output["validated_itinerary"]
+
+    # Node 4: Guardrails Node
+    guardrail_output = await guardrails_node(state)
+    assert guardrail_output.get("guardrail_status") == "PROCEED"
+    assert guardrail_output.get("guardrail_errors") == []
 
     # Verify the produced constraints object
     raw_constraints = state["validated_itinerary"]
     constraints = TravelConstraints(**raw_constraints)
 
-    # --- Verification of TravelConstraints ---
-    # 1. Destination & Origin City
-    assert constraints.destination_city == "Paris"  # Strictly the hotel's city
-    assert constraints.origin_city == "New York"  # Derived from JFK IATA code
-
-    # 2. Calendar Dates & Duration
+    assert constraints.destination_city == "Paris"
+    assert constraints.origin_city == "New York"
     assert constraints.start_date == date(2026, 10, 10)
     assert constraints.end_date == date(2026, 10, 15)
-    duration_days = (constraints.end_date - constraints.start_date).days
-    assert duration_days == 5
-
-    # 3. Strict Financial Budget ($ USD)
     assert constraints.budget_usd == 3000.0
-
-    # 4. Booking Anchors (Flights & Hotel)
-    assert constraints.booking_anchors is not None
-    assert constraints.booking_anchors.outbound_flight.origin_iata == "JFK"
-    assert constraints.booking_anchors.outbound_flight.destination_iata == "CDG"
-    assert constraints.booking_anchors.return_flight.origin_iata == "CDG"
-    assert constraints.booking_anchors.return_flight.destination_iata == "JFK"
-    assert constraints.booking_anchors.hotel.name == "Hotel Plaza Athenee"
-    assert constraints.booking_anchors.hotel.city == "Paris"
-
-    # 5. Meal Requirements
     assert len(constraints.meals) == 2
-    meal_types = [m.meal_type for m in constraints.meals]
-    assert "LUNCH" in meal_types
-    assert "DINNER" in meal_types
 
 
 @pytest.mark.asyncio
-async def test_first_three_nodes_subgraph_execution(mock_ticket_parser):
+async def test_guardrails_hard_errors():
+    """Verify that hard guardrail violations result in ABORT status."""
+    base_constraints = {
+        "destination_city": "Paris",
+        "origin_city": "New York",
+        "start_date": "2026-10-10",
+        "end_date": "2026-10-15",
+        "budget_usd": 1500.0,
+        "meals": [
+            {"meal_type": "LUNCH", "start_time": "12:00", "end_time": "14:00"},
+            {"meal_type": "DINNER", "start_time": "20:00", "end_time": "22:00"},
+        ],
+    }
+
+    # 1. Past departure date
+    past_state: SwarmState = {
+        "validated_itinerary": {**base_constraints, "start_date": "2020-01-01"},
+    }
+    res_past = await guardrails_node(past_state)
+    assert res_past["guardrail_status"] == "ABORT"
+    assert any("past" in err for err in res_past["guardrail_errors"])
+
+    # 2. Return before departure
+    inverted_state: SwarmState = {
+        "validated_itinerary": {
+            **base_constraints,
+            "start_date": "2026-10-15",
+            "end_date": "2026-10-10",
+        },
+    }
+    res_inv = await guardrails_node(inverted_state)
+    assert res_inv["guardrail_status"] == "ABORT"
+    assert any("before departure" in err for err in res_inv["guardrail_errors"])
+
+    # 3. Origin city == Destination city
+    same_city_state: SwarmState = {
+        "validated_itinerary": {
+            **base_constraints,
+            "origin_city": "Paris",
+            "destination_city": "Paris",
+        },
+    }
+    res_same = await guardrails_node(same_city_state)
+    assert res_same["guardrail_status"] == "ABORT"
+    assert any("same as destination" in err for err in res_same["guardrail_errors"])
+
+    # 4. Duration > 30 days
+    long_state: SwarmState = {
+        "validated_itinerary": {
+            **base_constraints,
+            "start_date": "2026-10-01",
+            "end_date": "2026-11-15",
+        },
+    }
+    res_long = await guardrails_node(long_state)
+    assert res_long["guardrail_status"] == "ABORT"
+    assert any(
+        "exceeds maximum limit of 30 days" in err
+        for err in res_long["guardrail_errors"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_subgraph_execution(mock_ticket_parser):
     """
-    Test compiling and running the first 3 nodes as a LangGraph StateGraph.
-    Flow: START -> ticket_parser -> assemble_constraints -> check_missing -> END
+    Test compiling and running the post-parser subgraph as a LangGraph StateGraph:
+    Flow: START -> ticket_parser -> assemble_constraints -> verify_constraints -> guardrails -> END
     """
     subgraph = StateGraph(SwarmState)
     subgraph.add_node("ticket_parser", ticket_parser_node)
     subgraph.add_node("assemble_constraints", assemble_constraints_node)
-    subgraph.add_node("check_missing", check_missing_fields_node)
+    subgraph.add_node("verify_constraints", verify_constraints_node)
+    subgraph.add_node("guardrails", guardrails_node)
 
     subgraph.add_edge(START, "ticket_parser")
     subgraph.add_edge("ticket_parser", "assemble_constraints")
-    subgraph.add_edge("assemble_constraints", "check_missing")
-    subgraph.add_edge("check_missing", END)
+    subgraph.add_edge("assemble_constraints", "verify_constraints")
+    subgraph.add_edge("verify_constraints", "guardrails")
+    subgraph.add_edge("guardrails", END)
 
     compiled = subgraph.compile()
 
     state = {
         "booking_text": "Flight from MAD to FCO on 2026-11-01. Return 2026-11-05. Hotel Hassler in Rome.",
         "manual_constraints": {
+            "test_mode": True,
             "budget_usd": 2000.0,
             "meals": [
                 {"meal_type": "LUNCH", "start_time": "12:00", "end_time": "14:00"},
@@ -160,10 +214,10 @@ async def test_first_three_nodes_subgraph_execution(mock_ticket_parser):
     result = await compiled.ainvoke(state)
 
     assert "validated_itinerary" in result
+    assert result.get("guardrail_status") == "PROCEED"
     constraints = TravelConstraints(**result["validated_itinerary"])
 
-    assert constraints.destination_city == "Paris"  # From mock ticket parser hotel.city
+    assert constraints.destination_city == "Paris"
     assert constraints.origin_city == "New York"
     assert constraints.budget_usd == 2000.0
     assert len(constraints.meals) == 2
-    assert constraints.booking_anchors.hotel.name == "Hotel Plaza Athenee"

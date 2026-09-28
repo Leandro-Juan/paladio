@@ -141,3 +141,109 @@ async def test_swarm_session_feedback_routes_8d_and_synthesizes_768d():
     assert save_uid == "test_user_42"
     assert len(save_emb) == 768
     assert all(isinstance(x, float) for x in save_emb)
+
+
+@pytest.mark.asyncio
+async def test_swarm_session_emits_verification_and_guardrail_events():
+    mock_graph = AsyncMock()
+
+    async def mock_astream(*args, **kwargs):
+        yield {"verify_constraints": {"verification_completed": True}}
+        yield {"guardrails": {"guardrail_status": "PROCEED"}}
+
+    mock_graph.astream = mock_astream
+
+    adapter = SwarmSessionAdapter(
+        graph=mock_graph,
+        engine=MagicMock(),
+        ml_model=MagicMock(),
+        ml_params=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
+    )
+
+    events = []
+    async for event in adapter.process_message("chat", {}, "trip to Rome", "thread-v1"):
+        events.append(event)
+
+    event_names = [e["event"] for e in events]
+    assert "VERIFICATION_COMPLETED" in event_names
+    assert "EVALUATING_GUARDRAILS" in event_names
+    assert "GUARDRAILS_PASSED" in event_names
+
+
+@pytest.mark.asyncio
+async def test_swarm_session_emits_trip_overlap_warning():
+    mock_graph = AsyncMock()
+
+    interrupt_obj = MagicMock()
+    interrupt_obj.value = {
+        "type": "TRIP_OVERLAP_WARNING",
+        "message": "Trip schedule overlap detected with existing trip.",
+        "overlapping_trip": {
+            "destination": "Barcelona",
+            "start_date": "2026-10-10",
+            "end_date": "2026-10-15",
+        },
+        "variant": "warning",
+    }
+
+    async def mock_astream(*args, **kwargs):
+        yield {"__interrupt__": [interrupt_obj]}
+
+    mock_graph.astream = mock_astream
+
+    adapter = SwarmSessionAdapter(
+        graph=mock_graph,
+        engine=MagicMock(),
+        ml_model=MagicMock(),
+        ml_params=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
+    )
+
+    events = []
+    async for event in adapter.process_message(
+        "chat", {}, "trip to Paris", "thread-overlap"
+    ):
+        events.append(event)
+
+    assert any(e["event"] == "TRIP_OVERLAP_WARNING" for e in events)
+    overlap_ev = next(e for e in events if e["event"] == "TRIP_OVERLAP_WARNING")
+    assert overlap_ev["status"] == "warning"
+    assert overlap_ev["data"]["overlapping_trip"]["destination"] == "Barcelona"
+
+
+@pytest.mark.asyncio
+async def test_swarm_session_emits_guardrail_aborted():
+    mock_graph = AsyncMock()
+
+    async def mock_astream(*args, **kwargs):
+        yield {
+            "guardrails": {
+                "guardrail_status": "ABORT",
+                "guardrail_errors": ["Departure date cannot be in the past."],
+            }
+        }
+
+    mock_graph.astream = mock_astream
+
+    adapter = SwarmSessionAdapter(
+        graph=mock_graph,
+        engine=MagicMock(),
+        ml_model=MagicMock(),
+        ml_params=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
+    )
+
+    events = []
+    async for event in adapter.process_message(
+        "chat", {}, "trip to Paris", "thread-abort"
+    ):
+        events.append(event)
+
+    assert any(e["event"] == "GUARDRAILS_ABORTED" for e in events)
+    abort_ev = next(e for e in events if e["event"] == "GUARDRAILS_ABORTED")
+    assert abort_ev["status"] == "aborted"
+    assert "Departure date cannot be in the past." in abort_ev["data"][0]

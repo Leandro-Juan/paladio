@@ -16,3 +16,5 @@ class SwarmState(TypedDict):
     booking_anchors: dict | None
     manual_constraints: dict | None
     prompt_analysis: dict | None
+    guardrail_status: str | None
+    guardrail_errors: list[str] | None

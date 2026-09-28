@@ -66,13 +66,35 @@ export const useLogStore = create<LogStore>((set) => ({
     }
   }
 }));
+export interface VerificationPayload {
+  message?: string;
+  fields?: string[];
+  constraints?: Record<string, unknown>;
+  booking_anchors?: Record<string, unknown>;
+}
+
+export interface OverlapWarningPayload {
+  message?: string;
+  warning_title?: string;
+  overlapping_trip?: {
+    id?: string;
+    destination?: string;
+    start_date?: string;
+    end_date?: string;
+  };
+  variant?: string;
+}
+
 export interface SocketContextProps {
   status: SocketStatus;
   itinerary: OptimizationResult | null;
   missingFields: string[];
+  verificationPayload: VerificationPayload | null;
+  overlapWarning: OverlapWarningPayload | null;
+  clearOverlapWarning: () => void;
   sendMessage: (msg: string, payloadExtras?: Record<string, unknown>) => void;
   sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
-  sendResume: (data: Record<string, string>) => void;
+  sendResume: (data: Record<string, unknown>) => void;
   connect: () => void;
   disconnect: () => void;
 }
@@ -123,6 +145,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
     return [];
   });
+
+  const [verificationPayload, setVerificationPayload] = useState<VerificationPayload | null>(null);
+  const [overlapWarning, setOverlapWarning] = useState<OverlapWarningPayload | null>(null);
+  const clearOverlapWarning = useCallback(() => setOverlapWarning(null), []);
   
   const wsRef = useRef<WebSocket | null>(null);
   const threadIdRef = useRef<string>('');
@@ -156,10 +182,62 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'STARTING_INFERENCE':
         setStatus('inferencing');
         setItinerary(null);
+        setVerificationPayload(null);
+        setOverlapWarning(null);
         addLog('> [ENGINE] INITIALIZING LANGGRAPH SWARM...');
         break;
       case 'PARSING_TICKETS':
         addLog(`> [PARSER] BOOKING ANCHORS PROCESSED.`);
+        break;
+      case 'VERIFYING_CONSTRAINTS':
+        addLog(`> [VERIFY] REVIEWING TRIP CONSTRAINTS & ANCHORS...`);
+        break;
+      case 'VERIFICATION_REQUIRED':
+        setStatus('awaiting_input');
+        if (payload.data) {
+          setVerificationPayload(payload.data as unknown as VerificationPayload);
+          if (payload.data.fields) {
+            setMissingFields(payload.data.fields as string[]);
+          }
+          addLog(`> [VERIFY] ${payload.data.message || 'REVIEW REQUIRED'}`);
+          notify.warning('Review Required', (payload.data.message as string) || 'Please verify parsed trip constraints.', {
+            actionLink: '/engine',
+            actionLabel: 'Review',
+          });
+        }
+        break;
+      case 'VERIFICATION_COMPLETED':
+        addLog(`> [VERIFY] CONSTRAINTS CONFIRMED.`);
+        setVerificationPayload(null);
+        setMissingFields([]);
+        break;
+      case 'EVALUATING_GUARDRAILS':
+        addLog(`> [GUARDRAILS] EVALUATING DETERMINISTIC RULES & SCHEDULE OVERLAP...`);
+        break;
+      case 'GUARDRAILS_PASSED':
+        addLog(`> [GUARDRAILS] ALL GUARDRAILS PASSED.`);
+        break;
+      case 'GUARDRAILS_ABORTED':
+        setStatus('error');
+        {
+          const errList = Array.isArray(payload.data) ? payload.data.join(', ') : payload.data || 'Trip aborted by guardrails.';
+          addLog(`> [GUARDRAILS] ABORTED: ${errList}`);
+          notify.error('Guardrail Abort', String(errList), {
+            actionLink: '/engine',
+            actionLabel: 'View Error',
+          });
+        }
+        break;
+      case 'TRIP_OVERLAP_WARNING':
+        setStatus('awaiting_input');
+        if (payload.data) {
+          setOverlapWarning(payload.data as unknown as OverlapWarningPayload);
+          addLog(`> [GUARDRAILS] [WARNING] TRIP SCHEDULE OVERLAP: ${payload.data.message || ''}`);
+          notify.warning('Schedule Overlap', (payload.data.message as string) || 'Trip clashes with existing itinerary.', {
+            actionLink: '/engine',
+            actionLabel: 'View Warning',
+          });
+        }
         break;
       case 'CHECKING_MISSING_FIELDS':
         addLog(`> [VALIDATOR] VALIDATING TRIP CONSTRAINTS...`);
@@ -466,8 +544,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     wsRef.current.send(JSON.stringify(payload));
   }, [addLog]);
 
-  const sendResume = useCallback((data: Record<string, string>) => {
-    addLog(`> [USER] SUBMITTING REQUIRED FIELDS...`);
+  const sendResume = useCallback((data: Record<string, unknown>) => {
+    addLog(`> [USER] SUBMITTING REQUIRED FIELDS / CONFIRMATION...`);
     
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       addLog('> [ERROR] CANNOT RESUME. UPLINK OFFLINE.');
@@ -476,10 +554,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     
     setStatus('inferencing');
     setMissingFields([]);
+    setVerificationPayload(null);
+    setOverlapWarning(null);
     
     const payload = {
       action: 'resume',
       answers: data,
+      ...data,
       message: JSON.stringify(data),
       thread_id: threadIdRef.current
     };
@@ -488,7 +569,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SocketContext.Provider value={{
-      status, itinerary, missingFields, sendMessage, sendFeedback, sendResume, connect, disconnect
+      status,
+      itinerary,
+      missingFields,
+      verificationPayload,
+      overlapWarning,
+      clearOverlapWarning,
+      sendMessage,
+      sendFeedback,
+      sendResume,
+      connect,
+      disconnect
     }}>
       {children}
     </SocketContext.Provider>
