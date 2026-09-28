@@ -296,3 +296,57 @@ async def test_swarm_session_custom_dates_mock_tickets():
     assert "2026-11-20" in booking
     assert "start_date" not in captured_initial_state["manual_constraints"]
     assert "end_date" not in captured_initial_state["manual_constraints"]
+
+
+@pytest.mark.asyncio
+async def test_swarm_session_resets_state_and_enforces_verification_on_each_run():
+    mock_graph = AsyncMock()
+    captured_initial_state = {}
+
+    interrupt_obj = MagicMock()
+    interrupt_obj.value = {
+        "type": "VERIFICATION_REQUIRED",
+        "message": "Review and verify extracted trip constraints.",
+        "fields": [],
+        "constraints": {},
+    }
+
+    async def mock_astream(input_data, *args, **kwargs):
+        nonlocal captured_initial_state
+        if isinstance(input_data, dict):
+            captured_initial_state.update(input_data)
+        # First yield the interrupt
+        yield {"__interrupt__": [interrupt_obj]}
+
+    mock_graph.astream = mock_astream
+
+    adapter = SwarmSessionAdapter(
+        graph=mock_graph,
+        engine=MagicMock(),
+        ml_model=MagicMock(),
+        ml_params=MagicMock(),
+        user_repo=MagicMock(),
+        travel_data_provider=MagicMock(),
+    )
+
+    data = {
+        "test_mode": True,
+        "origin_city": "Madrid",
+        "destination_city": "Paris",
+    }
+
+    events = []
+    async for event in adapter.process_message(
+        "chat", data, "Visit Paris", "thread-reset-verif"
+    ):
+        events.append(event)
+
+    # Initial state must explicitly reset verification_completed and guardrail_status
+    assert captured_initial_state.get("verification_completed") is False
+    assert captured_initial_state.get("guardrail_status") is None
+    assert captured_initial_state.get("validated_itinerary") is None
+
+    # Must emit VERIFICATION_REQUIRED and pause (guardrails must not have executed yet)
+    event_names = [e["event"] for e in events]
+    assert "VERIFICATION_REQUIRED" in event_names
+    assert "EVALUATING_GUARDRAILS" not in event_names

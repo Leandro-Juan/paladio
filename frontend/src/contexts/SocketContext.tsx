@@ -505,6 +505,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     addLog(`> [USER] ${message}`);
 
     const sendPayload = (ws: WebSocket) => {
+      if (payloadExtras?.thread_id && typeof payloadExtras.thread_id === 'string') {
+        threadIdRef.current = payloadExtras.thread_id;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('paladio_thread_id', payloadExtras.thread_id);
+        }
+      }
       const payload = {
         action: 'chat',
         message,

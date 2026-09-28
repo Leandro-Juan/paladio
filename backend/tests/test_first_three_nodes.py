@@ -98,7 +98,13 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
     with pytest.raises((GraphInterrupt, RuntimeError)):
         await verify_constraints_node(state)
 
-    # When auto_verify is true or verification has been completed, it proceeds
+    # Ensure verification_completed alone does NOT bypass confirmation (human review is always mandatory)
+    state_with_old_verif = dict(state)
+    state_with_old_verif["verification_completed"] = True
+    with pytest.raises((GraphInterrupt, RuntimeError)):
+        await verify_constraints_node(state_with_old_verif)
+
+    # Only when auto_verify is explicitly True for headless test harnesses, it proceeds
     state["auto_verify"] = True
     verify_output = await verify_constraints_node(state)
     assert verify_output.get("verification_completed") is True

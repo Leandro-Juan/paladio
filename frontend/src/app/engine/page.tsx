@@ -82,14 +82,19 @@ export default function EnginePage() {
 
 
   const handlePrepSubmit = (prompt: string, extras: Record<string, unknown>) => {
-    sendMessage(prompt, extras);
+    const newThreadId = 'paladio_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+    sendMessage(prompt, { ...extras, thread_id: newThreadId });
     setActiveTab('telemetry');
   };
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    sendMessage(input);
+    const extras: Record<string, unknown> = {};
+    if (status === 'error' || status === 'connected' || status === 'disconnected') {
+      extras.thread_id = 'paladio_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+    }
+    sendMessage(input, extras);
     setInput('');
   };
 

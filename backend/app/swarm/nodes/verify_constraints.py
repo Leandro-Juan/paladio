@@ -68,13 +68,11 @@ async def verify_constraints_node(state: SwarmState) -> dict:
     constraints = TravelConstraints(**constraints_dict)
     missing_fields = _extract_missing_fields(constraints)
 
-    already_verified = (
-        state.get("verification_completed") is True or state.get("auto_verify") is True
-    )
-
-    # If already verified (or auto_verify set for headless automated test harnesses), proceed cleanly
-    if already_verified:
-        logger.info("[VERIFY] Already verified; proceeding without interruption.")
+    # If auto_verify is explicitly set for headless automated test harnesses, proceed cleanly
+    if state.get("auto_verify") is True:
+        logger.info(
+            "[VERIFY] auto_verify is True (headless test harness); proceeding without interruption."
+        )
         return {
             "validated_itinerary": constraints.model_dump(mode="json"),
             "verification_completed": True,

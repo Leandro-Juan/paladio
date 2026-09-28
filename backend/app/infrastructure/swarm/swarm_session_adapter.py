@@ -92,6 +92,16 @@ class SwarmSessionAdapter(ISwarmSession):
             "messages": [HumanMessage(content=user_msg)] if user_msg else [],
             "error_count": 0,
             "prompt": prompt_val,
+            "verification_completed": False,
+            "guardrail_status": None,
+            "guardrail_errors": None,
+            "validated_itinerary": None,
+            "booking_anchors": None,
+            "booking_text": None,
+            "final_itinerary": None,
+            "daily_pois_data": None,
+            "outbound_flight": None,
+            "return_flight": None,
         }
 
         manual_constraints = {}
