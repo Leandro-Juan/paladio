@@ -946,10 +946,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#33-check_missing_fields_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#33-verify_constraints_node-backendappswarmnodesverify_constraintspy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3. check_missing_fields_node (backend/app/swarm/graph.py)
+        3.3. verify_constraints_node (backend/app/swarm/nodes/verify_constraints.py)
       
     </span>
   </a>
@@ -957,10 +957,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" class="md-nav__link">
+  <a href="#34-guardrails_node-backendappswarmnodesguardrailspy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4. prompt_analyzer_node (backend/app/swarm/agents/prompt_analyzer.py)
+        3.4. guardrails_node (backend/app/swarm/nodes/guardrails.py)
       
     </span>
   </a>
@@ -968,10 +968,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#35-planner_scrape_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.5. planner_scrape_node (backend/app/swarm/graph.py)
+        3.5. prompt_analyzer_node (backend/app/swarm/agents/prompt_analyzer.py)
       
     </span>
   </a>
@@ -979,10 +979,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#36-planner_optimize_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#36-planner_scrape_node-backendappswarmgraphpy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.6. planner_optimize_node (backend/app/swarm/graph.py)
+        3.6. planner_scrape_node (backend/app/swarm/graph.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-planner_optimize_node-backendappswarmgraphpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7. planner_optimize_node (backend/app/swarm/graph.py)
       
     </span>
   </a>
@@ -1555,10 +1566,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#33-check_missing_fields_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#33-verify_constraints_node-backendappswarmnodesverify_constraintspy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3. check_missing_fields_node (backend/app/swarm/graph.py)
+        3.3. verify_constraints_node (backend/app/swarm/nodes/verify_constraints.py)
       
     </span>
   </a>
@@ -1566,10 +1577,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" class="md-nav__link">
+  <a href="#34-guardrails_node-backendappswarmnodesguardrailspy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4. prompt_analyzer_node (backend/app/swarm/agents/prompt_analyzer.py)
+        3.4. guardrails_node (backend/app/swarm/nodes/guardrails.py)
       
     </span>
   </a>
@@ -1577,10 +1588,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#35-planner_scrape_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.5. planner_scrape_node (backend/app/swarm/graph.py)
+        3.5. prompt_analyzer_node (backend/app/swarm/agents/prompt_analyzer.py)
       
     </span>
   </a>
@@ -1588,10 +1599,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#36-planner_optimize_node-backendappswarmgraphpy" class="md-nav__link">
+  <a href="#36-planner_scrape_node-backendappswarmgraphpy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.6. planner_optimize_node (backend/app/swarm/graph.py)
+        3.6. planner_scrape_node (backend/app/swarm/graph.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-planner_optimize_node-backendappswarmgraphpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7. planner_optimize_node (backend/app/swarm/graph.py)
       
     </span>
   </a>
@@ -1660,6 +1682,8 @@
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">booking_anchors</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>              <span class="c1"># Extracted BookingAnchors (hotels, flights)</span>
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">manual_constraints</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>           <span class="c1"># Direct user parameters (budget, meal windows)</span>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">prompt_analysis</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>              <span class="c1"># Extracted tastes, affinities, and mandatory POIs</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="n">guardrail_status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>              <span class="c1"># 'PROCEED' or 'ABORT'</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="n">guardrail_errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>        <span class="c1"># Detailed guardrail error descriptions</span>
 </span></code></pre></div>
 <hr />
 <h2 id="2-graph-workflow-logic-backendappswarmgraphpy">2. Graph Workflow Logic (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#2-graph-workflow-logic-backendappswarmgraphpy" title="Permanent link">&para;</a></h2>
@@ -1667,11 +1691,22 @@
 <pre class="mermaid"><code>graph TD
     START --&gt; TP["ticket_parser_node"]
     TP --&gt; AC["assemble_constraints_node"]
-    AC --&gt; CM{"check_missing_fields_node"}
-    CM --&gt;|"Missing Data"| IN["interrupt() / Pause"]
-    IN --&gt;|"User Resume"| PA["prompt_analyzer_node"]
-    CM --&gt;|"Valid"| PA
+    AC --&gt; VC["verify_constraints_node"]
+    VC --&gt;|"Review / Edit"| IN1["interrupt() [Verification Cockpit]"]
+    IN1 --&gt;|"User Confirm"| GR["guardrails_node"]
+    VC --&gt;|"Valid &amp; Auto-Approved"| GR
+
+    DB_TRIPS[("PostgreSQL 16&lt;br/&gt;trips table")] &lt;--&gt;|"Check Date Collisions"| GR
+
+    GR --&gt;|"Hard Error"| END_ERR["Abort Execution"]
+    GR --&gt;|"Schedule Overlap"| IN2["interrupt() [Amber Warning Modal]"]
+    IN2 --&gt;|"Proceed Anyway"| PA["prompt_analyzer_node"]
+    IN2 --&gt;|"Abort"| END_ABORT["END"]
+    GR --&gt;|"All Clear"| PA
+
     PA --&gt; PS["planner_scrape_node"]
+    DB_POIS[("PostgreSQL 16&lt;br/&gt;pgvector attractions")] &lt;--&gt;|"Semantic Retrieval"| PS
+
     PS --&gt; PO["planner_optimize_node"]
     PO --&gt; END</code></pre>
 <hr />
@@ -1693,25 +1728,31 @@
 <li>Combines manual financial budget and meal windows.</li>
 <li><strong>Output:</strong> Mutates <code>state["validated_itinerary"]</code>.</li>
 </ul>
-<h3 id="33-check_missing_fields_node-backendappswarmgraphpy">3.3. <code>check_missing_fields_node</code> (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#33-check_missing_fields_node-backendappswarmgraphpy" title="Permanent link">&para;</a></h3>
+<h3 id="33-verify_constraints_node-backendappswarmnodesverify_constraintspy">3.3. <code>verify_constraints_node</code> (<code>backend/app/swarm/nodes/verify_constraints.py</code>)<a class="headerlink" href="#33-verify_constraints_node-backendappswarmnodesverify_constraintspy" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Node Type:</strong> Conditional verification and human-in-the-loop pause.</li>
-<li><strong>Logic:</strong> Checks whether <code>origin_city</code>, <code>destination_city</code>, <code>budget_usd</code>, <code>start_date</code>, <code>end_date</code>, or <code>meals</code> are null.</li>
-<li><strong>Execution:</strong> Invokes <code>interrupt({"message": ..., "fields": [...]})</code> if mandatory constraints are absent, preserving thread state in checkpointer.</li>
+<li><strong>Node Type:</strong> Human-in-the-loop review and constraint validator.</li>
+<li><strong>Functionality:</strong> Surfaces parsed ticket anchors (origin, destination, calendar dates, flights, hotel) alongside financial budgets and meal windows. Eliminates LLM extraction hallucinations by allowing user inspection and correction.</li>
+<li><strong>Execution:</strong> Invokes <code>interrupt({"type": "VERIFICATION_REQUIRED", ...})</code> if user review or missing parameters are required. Resumes via <code>Command(resume=...)</code>, validates input against Pydantic <code>TravelConstraints</code>, and sets <code>state["verification_completed"] = True</code>.</li>
 </ul>
-<h3 id="34-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy">3.4. <code>prompt_analyzer_node</code> (<code>backend/app/swarm/agents/prompt_analyzer.py</code>)<a class="headerlink" href="#34-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" title="Permanent link">&para;</a></h3>
+<h3 id="34-guardrails_node-backendappswarmnodesguardrailspy">3.4. <code>guardrails_node</code> (<code>backend/app/swarm/nodes/guardrails.py</code>)<a class="headerlink" href="#34-guardrails_node-backendappswarmnodesguardrailspy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Node Type:</strong> Deterministic logic firewall &amp; database schedule collision detector.</li>
+<li><strong>Hard Guardrails:</strong> Asserts <code>start_date &gt;= today</code>, <code>end_date &gt;= start_date</code>, <code>origin_city != destination_city</code>, and <code>duration &lt;= 30</code>. Violations flag hard errors and cleanly halt execution (<code>guardrail_status = "ABORT"</code>).</li>
+<li><strong>Soft Overlap Guardrail:</strong> Queries PostgreSQL (<code>TripModel</code>) for scheduled trip date overlaps. Clashes trigger <code>interrupt({"type": "TRIP_OVERLAP_WARNING", ...})</code> displaying an amber warning modal (<code>#D97706</code>, zero emojis). Resumes to downstream optimization if confirmed (<code>PROCEED</code>) or cleanly terminates if aborted (<code>ABORT</code>).</li>
+</ul>
+<h3 id="35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy">3.5. <code>prompt_analyzer_node</code> (<code>backend/app/swarm/agents/prompt_analyzer.py</code>)<a class="headerlink" href="#35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Agent Type:</strong> Pydantic AI <code>Agent</code> running <code>RAGPromptAnalysis</code>.</li>
 <li><strong>Functionality:</strong> Extracts mandatory POIs (e.g., <em>"El Prado"</em>), preferred cuisines, trip pacing, and 8 standard tag affinities:
   <code>['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']</code>.</li>
 <li><strong>Output:</strong> Enriches <code>state["validated_itinerary"]</code> and outputs <code>state["prompt_analysis"]</code>.</li>
 </ul>
-<h3 id="35-planner_scrape_node-backendappswarmgraphpy">3.5. <code>planner_scrape_node</code> (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#35-planner_scrape_node-backendappswarmgraphpy" title="Permanent link">&para;</a></h3>
+<h3 id="36-planner_scrape_node-backendappswarmgraphpy">3.6. <code>planner_scrape_node</code> (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#36-planner_scrape_node-backendappswarmgraphpy" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Execution:</strong> Executes <code>FetchTravelContextUseCase</code>. Queries <code>pgvector</code> for destination POIs and executes batch scoring via <code>MLScorer</code>.</li>
 <li><strong>Output:</strong> Mutates <code>state["daily_pois_data"]</code>.</li>
 </ul>
-<h3 id="36-planner_optimize_node-backendappswarmgraphpy">3.6. <code>planner_optimize_node</code> (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#36-planner_optimize_node-backendappswarmgraphpy" title="Permanent link">&para;</a></h3>
+<h3 id="37-planner_optimize_node-backendappswarmgraphpy">3.7. <code>planner_optimize_node</code> (<code>backend/app/swarm/graph.py</code>)<a class="headerlink" href="#37-planner_optimize_node-backendappswarmgraphpy" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Execution:</strong> Executes <code>OptimizeDailyItineraryUseCase</code>. Passes validated constraints and candidate POIs to the compiled C++20 engine (<code>paladio-core</code>).</li>
 <li><strong>Output:</strong> Mutates <code>state["final_itinerary"]</code>.</li>
