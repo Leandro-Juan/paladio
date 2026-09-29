@@ -263,5 +263,5 @@ This software is released under the **[GNU Affero General Public License v3.0 (A
 ---
 
 <div align="center">
-  <sub>Engineered with mathematical rigor and sovereignty by Leandro Juan • Madrid, Spain</sub>
+  <sub>Engineered with mathematical rigor and sovereignty by Leandro Juan • Murcia, Spain</sub>
 </div>

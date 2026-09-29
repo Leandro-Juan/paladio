@@ -85,6 +85,11 @@ export interface OverlapWarningPayload {
   variant?: string;
 }
 
+export interface GuardrailAbortPayload {
+  title?: string;
+  errors: string[];
+}
+
 export interface SocketContextProps {
   status: SocketStatus;
   itinerary: OptimizationResult | null;
@@ -92,6 +97,8 @@ export interface SocketContextProps {
   verificationPayload: VerificationPayload | null;
   overlapWarning: OverlapWarningPayload | null;
   clearOverlapWarning: () => void;
+  guardrailAbort: GuardrailAbortPayload | null;
+  clearGuardrailAbort: () => void;
   sendMessage: (msg: string, payloadExtras?: Record<string, unknown>) => void;
   sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
   sendResume: (data: Record<string, unknown>) => void;
@@ -149,6 +156,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [verificationPayload, setVerificationPayload] = useState<VerificationPayload | null>(null);
   const [overlapWarning, setOverlapWarning] = useState<OverlapWarningPayload | null>(null);
   const clearOverlapWarning = useCallback(() => setOverlapWarning(null), []);
+  const [guardrailAbort, setGuardrailAbort] = useState<GuardrailAbortPayload | null>(null);
+  const clearGuardrailAbort = useCallback(() => setGuardrailAbort(null), []);
   
   const wsRef = useRef<WebSocket | null>(null);
   const threadIdRef = useRef<string>('');
@@ -184,6 +193,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setItinerary(null);
         setVerificationPayload(null);
         setOverlapWarning(null);
+        setGuardrailAbort(null);
         addLog('> [ENGINE] INITIALIZING LANGGRAPH SWARM...');
         break;
       case 'PARSING_TICKETS':
@@ -220,9 +230,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'GUARDRAILS_ABORTED':
         setStatus('error');
         {
-          const errList = Array.isArray(payload.data) ? payload.data.join(', ') : payload.data || 'Trip aborted by guardrails.';
-          addLog(`> [GUARDRAILS] ABORTED: ${errList}`);
-          notify.error('Guardrail Abort', String(errList), {
+          const rawErrors = Array.isArray(payload.data)
+            ? payload.data
+            : [payload.data || 'Trip aborted by guardrails.'];
+          const errList = rawErrors.map(String);
+          setGuardrailAbort({
+            title: '[GUARDRAILS ABORTED] TRIP REJECTED',
+            errors: errList,
+          });
+          addLog(`> [GUARDRAILS] ABORTED: ${errList.join(', ')}`);
+          notify.error('Guardrail Abort', errList.join(', '), {
             actionLink: '/engine',
             actionLabel: 'View Error',
           });
@@ -502,6 +519,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, [connect, disconnect]);
 
   const sendMessage = useCallback((message: string, payloadExtras?: Record<string, unknown>) => {
+    setGuardrailAbort(null);
     addLog(`> [USER] ${message}`);
 
     const sendPayload = (ws: WebSocket) => {
@@ -562,6 +580,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     setMissingFields([]);
     setVerificationPayload(null);
     setOverlapWarning(null);
+    setGuardrailAbort(null);
     
     const payload = {
       action: 'resume',
@@ -581,6 +600,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       verificationPayload,
       overlapWarning,
       clearOverlapWarning,
+      guardrailAbort,
+      clearGuardrailAbort,
       sendMessage,
       sendFeedback,
       sendResume,

@@ -18,6 +18,8 @@ export default function EnginePage() {
     verificationPayload,
     overlapWarning,
     clearOverlapWarning,
+    guardrailAbort,
+    clearGuardrailAbort,
     sendMessage,
     sendFeedback,
     sendResume,
@@ -498,6 +500,42 @@ export default function EnginePage() {
             </div>
             <div>Destination: {overlapWarning.overlapping_trip.destination}</div>
             <div>Dates: {overlapWarning.overlapping_trip.start_date} to {overlapWarning.overlapping_trip.end_date}</div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal 
+        isOpen={Boolean(guardrailAbort)}
+        variant="danger"
+        title={guardrailAbort?.title || "[GUARDRAILS ABORTED] TRIP REJECTED"}
+        message="The optimization swarm rejected the mission constraints based on deterministic guardrails:"
+        confirmText="DISMISS & EDIT"
+        cancelText=""
+        onConfirm={() => {
+          clearGuardrailAbort();
+          setActiveTab('prep');
+        }}
+        onCancel={() => {
+          clearGuardrailAbort();
+        }}
+      >
+        {guardrailAbort?.errors && guardrailAbort.errors.length > 0 && (
+          <div style={{
+            background: 'rgba(220, 38, 38, 0.08)',
+            border: '1px solid var(--color-accent-secondary, #DC2626)',
+            borderRadius: '4px',
+            padding: '0.75rem',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.85rem'
+          }}>
+            <div style={{ fontWeight: 600, color: 'var(--color-accent-secondary, #DC2626)', marginBottom: '0.5rem' }}>
+              CRITICAL VIOLATIONS:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--color-text-primary)' }}>
+              {guardrailAbort.errors.map((err, idx) => (
+                <li key={idx} style={{ marginBottom: '0.25rem' }}>{err}</li>
+              ))}
+            </ul>
           </div>
         )}
       </Modal>

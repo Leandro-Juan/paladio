@@ -54,12 +54,20 @@ export function Modal({
     }}>
       <div style={{
         background: 'var(--color-bg-main)',
-        border: '1px solid var(--color-border)',
+        border: isDangerMode 
+          ? '1px solid var(--color-accent-secondary, #DC2626)' 
+          : isWarningMode
+          ? '1px solid var(--color-accent-warning, #D97706)'
+          : '1px solid var(--color-border)',
         borderRadius: '8px',
         padding: '2rem',
-        maxWidth: '400px',
+        maxWidth: '480px',
         width: '90%',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+        boxShadow: isDangerMode 
+          ? '0 12px 36px rgba(220, 38, 38, 0.25)' 
+          : isWarningMode
+          ? '0 12px 36px rgba(217, 119, 6, 0.2)'
+          : '0 10px 25px rgba(0,0,0,0.1)'
       }}>
         <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: headerColor }}>
           {title}
@@ -75,35 +83,39 @@ export function Modal({
         )}
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-          <button 
-            onClick={onCancel}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'transparent',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              borderRadius: '4px',
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer'
-            }}
-          >
-            {cancelText}
-          </button>
-          <button 
-            onClick={onConfirm}
-            style={{
-              padding: '0.5rem 1rem',
-              background: confirmBg,
-              border: 'none',
-              color: '#FFF',
-              borderRadius: '4px',
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            {confirmText}
-          </button>
+          {Boolean(cancelText) && (
+            <button 
+              onClick={onCancel}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                borderRadius: '4px',
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer'
+              }}
+            >
+              {cancelText}
+            </button>
+          )}
+          {Boolean(confirmText) && (
+            <button 
+              onClick={onConfirm}
+              style={{
+                padding: '0.5rem 1rem',
+                background: confirmBg,
+                border: 'none',
+                color: '#FFF',
+                borderRadius: '4px',
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              {confirmText}
+            </button>
+          )}
         </div>
       </div>
     </div>
