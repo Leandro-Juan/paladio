@@ -231,12 +231,6 @@ class SwarmSessionAdapter(ISwarmSession):
                         "data": question,
                         "thread_id": thread_id,
                     }
-                    yield {
-                        "event": "CLARIFICATION_NEEDED",
-                        "status": "completed",
-                        "data": question,
-                        "thread_id": thread_id,
-                    }
                 else:
                     yield {
                         "event": "CLARIFICATION_NEEDED",

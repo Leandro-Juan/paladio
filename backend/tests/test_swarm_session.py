@@ -349,4 +349,5 @@ async def test_swarm_session_resets_state_and_enforces_verification_on_each_run(
     # Must emit VERIFICATION_REQUIRED and pause (guardrails must not have executed yet)
     event_names = [e["event"] for e in events]
     assert "VERIFICATION_REQUIRED" in event_names
+    assert "CLARIFICATION_NEEDED" not in event_names
     assert "EVALUATING_GUARDRAILS" not in event_names
