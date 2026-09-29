@@ -349,8 +349,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       case 'FEEDBACK_PROCESSED':
         addLog(`> [MODEL] PREFERENCE WEIGHTS UPDATED FROM FEEDBACK.`);
         notify.info('Preferences Updated', 'Preference weights calibrated from feedback.', {
-          actionLink: '/model',
-          actionLabel: 'View Model',
+          actionLink: '/dashboard',
+          actionLabel: 'View Control Center',
         });
         break;
       case 'ERROR':

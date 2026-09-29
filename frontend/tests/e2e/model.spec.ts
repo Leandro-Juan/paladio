@@ -82,8 +82,8 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       }
     });
 
-    // Navigate to /model
-    await page.goto('/model');
+    // Navigate to /dashboard (where preference model telemetry now lives)
+    await page.goto('/dashboard');
 
     // Verify Header and Subtitle
     await expect(page.getByRole('heading', { name: /PREFERENCE MODEL/i })).toBeVisible();

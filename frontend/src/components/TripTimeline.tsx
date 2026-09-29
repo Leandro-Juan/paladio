@@ -11,9 +11,15 @@ interface TripTimelineProps {
   itinerary: OptimizationResult | null;
   tripId?: string;
   onItineraryUpdate?: (updated: OptimizationResult) => void;
+  selectedDay?: number | 'all';
 }
 
-export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimelineProps) {
+export function TripTimeline({
+  itinerary,
+  tripId,
+  onItineraryUpdate,
+  selectedDay,
+}: TripTimelineProps) {
   const [upgradedItinerary, setUpgradedItinerary] = React.useState<OptimizationResult | null>(null);
   const [upgrading, setUpgrading] = React.useState(false);
   const [upgraded, setUpgraded] = React.useState(false);
@@ -34,6 +40,14 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
     }
     return [];
   }, [currentItinerary]);
+
+  // Filter days based on selectedDay: if 'all' or undefined, show all days; otherwise show only the selected day
+  const displayedDays: DayOutput[] = React.useMemo(() => {
+    if (selectedDay === undefined || selectedDay === 'all') {
+      return days;
+    }
+    return days.filter((d) => d.day === selectedDay);
+  }, [days, selectedDay]);
 
   // Extract destination city from itinerary constraints or first POI
   const destinationCity = React.useMemo(() => {
@@ -371,7 +385,7 @@ export function TripTimeline({ itinerary, tripId, onItineraryUpdate }: TripTimel
           </button>
         </div>
       )}
-      {days.map((dayObj: DayOutput, dayIdx: number) => {
+      {displayedDays.map((dayObj: DayOutput, dayIdx: number) => {
         const path = dayObj.itinerary?.path || [];
         const transitRec = dayObj.itinerary?.transit_recommendation;
 

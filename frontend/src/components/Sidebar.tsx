@@ -15,7 +15,6 @@ export function Sidebar() {
     { href: '/engine', label: 'Active Engine' },
     { href: '/trips', label: 'Upcoming Trips' },
     { href: '/vault', label: 'Itinerary Vault' },
-    { href: '/model', label: 'Preference Model' },
     { href: '/config', label: 'Configuration', badge: user?.role === 'admin' ? 'ADMIN' : undefined },
   ];
 

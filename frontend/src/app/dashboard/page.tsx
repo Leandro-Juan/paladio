@@ -1,24 +1,66 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTrips } from '@/hooks/useTrips';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
+import { Calendar } from '@/components/Calendar';
+import { PreferenceModelSection } from '@/components/PreferenceModelSection';
 import { countWaypoints } from '@/utils/tripParser';
 
 export default function DashboardPage() {
-  const { upcomingTrips, loading } = useTrips();
-  const latestDeltas: string[] = [];
+  const router = useRouter();
+  const { trips, upcomingTrips, loading } = useTrips();
 
   const nextTrip = upcomingTrips.length > 0 ? upcomingTrips[0] : null;
 
   return (
-    <div>
-      <h2 className="font-display">Welcome to Paladio Control Center</h2>
-      <p className="font-mono text-muted text-sm mt-2">{'// SYSTEM OVERVIEW'}</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem' }}>
+      {/* Header bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 className="font-display">Welcome to Paladio Control Center</h2>
+          <p className="font-mono text-muted text-sm mt-1">{'// SOVEREIGN MISSION CONTROL & TEMPORAL DISPATCH'}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <span
+            className="font-mono text-xs"
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              background: 'rgba(34, 197, 94, 0.1)',
+              color: '#16A34A',
+              border: '1px solid rgba(34, 197, 94, 0.25)',
+              fontWeight: 600,
+            }}
+          >
+            ● TELEMETRY ONLINE
+          </span>
+          <Link
+            href="/engine"
+            style={{
+              padding: '6px 14px',
+              background: 'var(--color-accent-primary)',
+              color: '#FFF',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.85rem',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>+</span> NEW MISSION
+          </Link>
+        </div>
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginTop: '2rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 className="font-display">UPCOMING MISSION</h3>
+      {/* Upcoming Mission Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 2fr) minmax(240px, 1fr)', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h3 className="font-display" style={{ fontSize: '1.1rem' }}>UPCOMING MISSION</h3>
           
           {loading ? (
             <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: '8px' }}>
@@ -45,15 +87,79 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: '8px' }}>
-          <h3 className="font-display">ML TUNING DELTAS</h3>
-          <ul className="font-mono text-sm text-muted" style={{ marginTop: '1rem', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {latestDeltas.length > 0 ? latestDeltas.map((d, i) => (
-              <li key={i}>&gt; [INFO] {d}</li>
-            )) : <li>[ NO RECENT DELTAS ]</li>}
-          </ul>
+        {/* Quick Operations Dispatch */}
+        <div className="bg-surface border-subtle" style={{ padding: '1.5rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.1rem' }}>OPERATIONS DISPATCH</h3>
+            <p className="font-mono text-muted text-xs mt-1">{'// QUICK ACCESS SHORTCUTS'}</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginTop: '1rem' }}>
+            <Link
+              href="/engine"
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>SOLVER ENGINE</span>
+              <span className="text-accent">→</span>
+            </Link>
+            <Link
+              href="/trips"
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>ALL TRIPS</span>
+              <span className="text-accent">→</span>
+            </Link>
+            <Link
+              href="/vault"
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>ITINERARY VAULT</span>
+              <span className="text-accent">→</span>
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* Calendar Section */}
+      <Calendar
+        trips={trips}
+        onSelectDate={(_, dateString) => router.push(`/engine?start_date=${dateString}`)}
+      />
+
+      {/* Preference Model Section */}
+      <PreferenceModelSection />
     </div>
   );
 }

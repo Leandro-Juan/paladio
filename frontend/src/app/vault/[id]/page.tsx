@@ -70,6 +70,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | 'all'>(1);
 
   useEffect(() => {
     let isMounted = true;
@@ -322,7 +323,14 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
               <span className="font-mono text-xs text-muted">{pois.length} WAYPOINT{pois.length !== 1 ? 'S' : ''} MAPPED</span>
             </div>
             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-              <MapLoader days={daysData} pois={pois} hotel={hotelAnchor} airport={airportAnchor} />
+              <MapLoader
+                days={daysData}
+                pois={pois}
+                hotel={hotelAnchor}
+                airport={airportAnchor}
+                activeDay={selectedDay}
+                onDayChange={setSelectedDay}
+              />
             </div>
           </div>
 
@@ -331,12 +339,17 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
               <h4 className="font-mono text-muted text-sm">{'// DAY ROUTES & WAYPOINTS'}</h4>
               {itinerary?.days && (
-                <span className="font-mono text-xs text-accent">{itinerary.days.length} DAYS COMPUTED</span>
+                <span className="font-mono text-xs text-accent">
+                  {selectedDay === 'all'
+                    ? `${itinerary.days.length} DAYS COMPUTED`
+                    : `DAY ${selectedDay} OF ${itinerary.days.length}`}
+                </span>
               )}
             </div>
             <TripTimeline
               itinerary={itinerary as OptimizationResult}
               tripId={id}
+              selectedDay={selectedDay}
               onItineraryUpdate={(updated) =>
                 setTrip((prev) => (prev ? { ...prev, itinerary_data: updated } : null))
               }
