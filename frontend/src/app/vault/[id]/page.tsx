@@ -156,23 +156,81 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
 
   const itinerary = trip.itinerary_data as RouteItineraryData | null | undefined;
 
-  // Extract waypoint markers from itinerary_data
+  // Extract waypoint markers and structured day clusters from itinerary_data
   const pois: { name: string; lat: number; lng: number; category?: string }[] = [];
+  const daysData: Array<{
+    dayNumber: number;
+    label?: string;
+    pois: Array<{
+      name: string;
+      lat: number;
+      lng: number;
+      category?: string;
+      arrivalTime?: string;
+      departureTime?: string;
+      durationMins?: number;
+      costEur?: number;
+    }>;
+  }> = [];
+
+  let hotelAnchor: { name: string; lat: number; lng: number } | undefined;
+  let airportAnchor: { name: string; lat: number; lng: number } | undefined;
+
   if (Array.isArray(itinerary?.days)) {
-    itinerary.days.forEach(day => {
+    itinerary.days.forEach((day, dayIdx) => {
+      const dayNumber = day.day ?? (dayIdx + 1);
+      const dayPois: Array<{
+        name: string;
+        lat: number;
+        lng: number;
+        category?: string;
+        arrivalTime?: string;
+        departureTime?: string;
+        durationMins?: number;
+        costEur?: number;
+      }> = [];
+
       if (Array.isArray(day?.itinerary?.path)) {
         day.itinerary.path.forEach(scheduledPoi => {
           const p = scheduledPoi?.poi;
           const lat = p?.location?.latitude;
           const lng = p?.location?.longitude;
           if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
+            const item = {
+              name: p?.name || 'Waypoint',
+              lat,
+              lng,
+              category: p?.category,
+              arrivalTime: scheduledPoi.arrival_time,
+              departureTime: scheduledPoi.departure_time,
+              durationMins: p?.duration_mins,
+              costEur: p?.cost_eur,
+            };
+            dayPois.push(item);
             pois.push({
               name: p?.name || 'Waypoint',
               lat,
               lng,
               category: p?.category
             });
+
+            const catUpper = (p?.category || '').toUpperCase();
+            const nameLower = (p?.name || '').toLowerCase();
+            if ((catUpper === 'HOTEL' || nameLower.includes('hotel')) && !hotelAnchor) {
+              hotelAnchor = { name: p?.name || 'Hotel Base Camp', lat, lng };
+            }
+            if ((catUpper === 'AIRPORT' || catUpper === 'FLIGHT' || nameLower.includes('airport')) && !airportAnchor) {
+              airportAnchor = { name: p?.name || 'Transit Airport', lat, lng };
+            }
           }
+        });
+      }
+
+      if (dayPois.length > 0) {
+        daysData.push({
+          dayNumber,
+          label: `DAY ${dayNumber}`,
+          pois: dayPois,
         });
       }
     });
@@ -258,13 +316,13 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
         {/* Left Column: Interactive Map & Day Routes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Map Container */}
-          <div className="bg-surface border-subtle" style={{ height: '400px', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+          <div className="bg-surface border-subtle" style={{ height: '480px', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h4 className="font-mono text-muted text-sm">{'// GLOBAL INTERACTIVE MAP'}</h4>
               <span className="font-mono text-xs text-muted">{pois.length} WAYPOINT{pois.length !== 1 ? 'S' : ''} MAPPED</span>
             </div>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <MapLoader pois={pois} />
+            <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+              <MapLoader days={daysData} pois={pois} hotel={hotelAnchor} airport={airportAnchor} />
             </div>
           </div>
 
