@@ -453,7 +453,6 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 <input
                   type="date"
                   value={startDate}
-                  min={formatDateOffset(0)}
                   onChange={(e) => setStartDate(e.target.value)}
                   disabled={disabled}
                   style={{
@@ -473,7 +472,6 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 <input
                   type="date"
                   value={endDate}
-                  min={startDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   disabled={disabled}
                   style={{

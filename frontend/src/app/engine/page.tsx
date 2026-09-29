@@ -39,31 +39,6 @@ export default function EnginePage() {
   const endDate = clarificationData.end_date ?? (activeConstraints.end_date as string) ?? '';
   const budgetUsd = clarificationData.budget_usd ?? (activeConstraints.budget_usd !== undefined ? String(activeConstraints.budget_usd) : '');
 
-  const hardErrors: string[] = [];
-  const today = new Date().toISOString().split('T')[0];
-  if (startDate && startDate < today) {
-    hardErrors.push('Departure date cannot be in the past.');
-  }
-  if (startDate && endDate && endDate < startDate) {
-    hardErrors.push('Return date cannot be before departure date.');
-  }
-  if (
-    originCity &&
-    destinationCity &&
-    originCity.trim().toLowerCase() === destinationCity.trim().toLowerCase() &&
-    originCity.toLowerCase() !== 'unknown'
-  ) {
-    hardErrors.push('Origin and destination city cannot be identical.');
-  }
-  if (startDate && endDate) {
-    const diffDays = Math.round(
-      (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24)
-    );
-    if (diffDays > 30) {
-      hardErrors.push(`Trip duration (${diffDays} days) exceeds maximum limit of 30 days.`);
-    }
-  }
-
   const hasClearedRef = useRef(false);
 
   // Clear logs when entering page if idle and no itinerary is present
@@ -304,7 +279,6 @@ export default function EnginePage() {
                     <input 
                       type="date" 
                       value={startDate}
-                      min={today}
                       onChange={(e) => setClarificationData({ ...clarificationData, start_date: e.target.value })}
                       style={{
                         background: 'transparent',
@@ -321,7 +295,6 @@ export default function EnginePage() {
                     <input 
                       type="date" 
                       value={endDate}
-                      min={startDate || today}
                       onChange={(e) => setClarificationData({ ...clarificationData, end_date: e.target.value })}
                       style={{
                         background: 'transparent',
@@ -366,49 +339,8 @@ export default function EnginePage() {
                   </div>
                 )}
 
-                {/* Hard Guardrail Errors & Quick Fix */}
-                {hardErrors.length > 0 && (
-                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {hardErrors.map(err => (
-                      <div key={err} style={{ color: 'var(--color-accent-secondary, #DC2626)', fontSize: '0.8rem', fontWeight: 600 }}>
-                        [ERROR] {err.toUpperCase()}
-                      </div>
-                    ))}
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const d = new Date();
-                          d.setDate(d.getDate() + 7);
-                          const newStart = d.toISOString().split('T')[0];
-                          d.setDate(d.getDate() + 5);
-                          const newEnd = d.toISOString().split('T')[0];
-                          setClarificationData({
-                            ...clarificationData,
-                            start_date: newStart,
-                            end_date: newEnd,
-                          });
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: '1px dashed var(--color-accent-primary)',
-                          color: 'var(--color-accent-primary)',
-                          padding: '0.3rem 0.6rem',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          fontFamily: 'var(--font-mono)',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        ⚡ AUTO-SET VALID FUTURE DATES (NEXT WEEK)
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                   <button 
-                    disabled={hardErrors.length > 0}
                     onClick={() => {
                       const payloadToSend: Record<string, unknown> = {
                         origin_city: originCity,
@@ -422,11 +354,11 @@ export default function EnginePage() {
                       setClarificationData({});
                     }}
                     style={{
-                      background: hardErrors.length > 0 ? 'var(--color-border)' : 'var(--color-accent-primary)',
+                      background: 'var(--color-accent-primary)',
                       color: '#FFF',
                       border: 'none',
                       padding: '0.5rem 1rem',
-                      cursor: hardErrors.length > 0 ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 600
                     }}
