@@ -4,11 +4,12 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import MapLoader from '@/components/MapLoader';
 import { TripTimeline } from '@/components/TripTimeline';
+import { TripBudgetWallet } from '@/components/TripBudgetWallet';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { OptimizationResult, TransitLeg, TransitRecommendation } from '@/types/domain';
 import { isTripCompleted } from '@/utils/tripParser';
 
-interface RouteItineraryData {
+export interface RouteItineraryData {
   metadata?: {
     engine?: string;
     version?: string;
@@ -430,6 +431,24 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
           </div>
+
+          {/* Mission Budget Dissection & Tricount Engine */}
+          <TripBudgetWallet
+            trip={trip}
+            itinerary={itinerary}
+            onTripUpdated={async () => {
+              try {
+                const apiUrl = getApiBaseUrl();
+                const res = await fetch(`${apiUrl}/trips/${id}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  setTrip(data);
+                }
+              } catch (e) {
+                console.error("Failed to refresh trip", e);
+              }
+            }}
+          />
         </div>
       </div>
     </div>

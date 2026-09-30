@@ -2,7 +2,7 @@ import uuid
 from typing import Any
 
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
-from app.api.deps import get_current_admin_user, get_current_user
+from app.api.deps import get_current_admin_user, get_current_user, get_optional_user
 from app.core.security import hash_password
 from app.db.models import UserModel
 from app.db.session import get_db
@@ -16,11 +16,42 @@ from app.schemas.user import (
     get_default_user_preferences,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
 DEFAULT_INITIAL_EMBEDDING = SemanticLearningEngine.get_neutral_768d_prior(768)
+
+
+class CollaboratorOption(BaseModel):
+    id: str
+    username: str
+    email: str
+
+
+@router.get("/collaborators/options", response_model=list[CollaboratorOption])
+async def list_collaborator_options(
+    session: AsyncSession = Depends(get_db),
+    _current_user: UserModel | None = Depends(get_optional_user),
+) -> Any:
+    """List registered users available to be added as collaborators on trips."""
+    stmt = (
+        select(UserModel)
+        .where(UserModel.is_active.is_(True))
+        .order_by(UserModel.username.asc())
+    )
+    res = await session.execute(stmt)
+    users = res.scalars().all()
+    return [
+        CollaboratorOption(
+            id=u.id,
+            username=u.username or "Anonymous",
+            email=u.email or "",
+        )
+        for u in users
+    ]
 
 
 def _user_to_response(u: UserModel) -> UserResponse:

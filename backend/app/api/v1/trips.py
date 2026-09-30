@@ -5,7 +5,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
-from app.db.models import TransitCacheModel, TripModel, UserModel
+from app.db.models import (
+    TransitCacheModel,
+    TripExpenseModel,
+    TripModel,
+    TripParticipantModel,
+    UserModel,
+)
 from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -57,6 +63,92 @@ class CompileCityRequest(BaseModel):
     city: str
 
 
+class TripParticipantCreate(BaseModel):
+    name: str
+    user_id: str | None = None
+    email: str | None = None
+    role: str = "traveler"
+
+
+class TripParticipantResponse(BaseModel):
+    id: str
+    trip_id: str
+    user_id: str | None = None
+    name: str
+    email: str | None = None
+    role: str = "traveler"
+    created_at: str
+
+
+class TripExpenseSplit(BaseModel):
+    participant_id: str
+    amount: float
+
+
+class TripExpenseCreate(BaseModel):
+    payer_id: str
+    description: str
+    amount: float
+    currency: str = "EUR"
+    category: str = "other"  # transport, accommodation, activities, food, other
+    split_type: str = "equal"  # equal, custom
+    splits: list[TripExpenseSplit] = []
+    expense_date: str | None = None
+
+
+class TripExpenseResponse(BaseModel):
+    id: str
+    trip_id: str
+    payer_id: str
+    payer_name: str | None = None
+    description: str
+    amount: float
+    currency: str = "EUR"
+    category: str = "other"
+    split_type: str = "equal"
+    splits: list[TripExpenseSplit] = []
+    expense_date: str | None = None
+    created_at: str
+
+
+class SettlementTransfer(BaseModel):
+    sender_id: str
+    sender_name: str
+    receiver_id: str
+    receiver_name: str
+    amount: float
+
+
+class ParticipantBalance(BaseModel):
+    participant_id: str
+    name: str
+    total_paid: float
+    total_share: float
+    net_balance: float
+
+
+class TripSettlementResponse(BaseModel):
+    trip_id: str
+    total_expenses: float
+    currency: str = "EUR"
+    balances: list[ParticipantBalance]
+    transfers: list[SettlementTransfer]
+
+
+def _participant_to_response(p: TripParticipantModel) -> TripParticipantResponse:
+    return TripParticipantResponse(
+        id=p.id,
+        trip_id=p.trip_id,
+        user_id=p.user_id,
+        name=p.name,
+        email=p.email,
+        role=p.role,
+        created_at=p.created_at.isoformat()
+        if p.created_at
+        else datetime.now(timezone.utc).isoformat(),
+    )
+
+
 class TripCreate(BaseModel):
     destination: str
     start_date: str
@@ -68,6 +160,7 @@ class TripResponse(TripCreate):
     id: str
     user_id: str | None = None
     created_at: str
+    participants: list[TripParticipantResponse] = []
 
 
 @router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
@@ -86,6 +179,24 @@ async def create_trip(
         itinerary_data=trip.itinerary_data,
     )
     session.add(db_trip)
+    await session.commit()
+    await session.refresh(db_trip)
+
+    # Seed initial participant (organizer)
+    organizer_name = (
+        current_user.username
+        if (current_user and current_user.username)
+        else "Traveler 1"
+    )
+    first_p = TripParticipantModel(
+        id=str(uuid.uuid4()),
+        trip_id=db_trip.id,
+        user_id=current_user.id if current_user else None,
+        name=organizer_name,
+        email=current_user.email if current_user else None,
+        role="organizer",
+    )
+    session.add(first_p)
     await session.commit()
     await session.refresh(db_trip)
 
@@ -114,6 +225,7 @@ async def create_trip(
         created_at=db_trip.created_at.isoformat()
         if db_trip.created_at
         else datetime.now(timezone.utc).isoformat(),
+        participants=[_participant_to_response(first_p)],
     )
 
 
@@ -129,6 +241,7 @@ async def get_trips(
 
     response = []
     for t in trips:
+        parts = [_participant_to_response(p) for p in (t.participants or [])]
         response.append(
             TripResponse(
                 id=t.id,
@@ -140,6 +253,7 @@ async def get_trips(
                 created_at=t.created_at.isoformat()
                 if t.created_at
                 else datetime.now(timezone.utc).isoformat(),
+                participants=parts,
             )
         )
     return response
@@ -518,6 +632,8 @@ async def get_trip(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
+    parts = [_participant_to_response(p) for p in (trip.participants or [])]
+
     return TripResponse(
         id=trip.id,
         user_id=trip.user_id,
@@ -528,6 +644,350 @@ async def get_trip(
         created_at=trip.created_at.isoformat()
         if trip.created_at
         else datetime.now(timezone.utc).isoformat(),
+        participants=parts,
+    )
+
+
+@router.get("/{trip_id}/participants", response_model=list[TripParticipantResponse])
+async def list_trip_participants(
+    trip_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    trip = res.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    stmt_p = (
+        select(TripParticipantModel)
+        .where(TripParticipantModel.trip_id == trip_id)
+        .order_by(TripParticipantModel.created_at.asc())
+    )
+    res_p = await session.execute(stmt_p)
+    participants = res_p.scalars().all()
+    if not participants:
+        p = TripParticipantModel(
+            id=str(uuid.uuid4()),
+            trip_id=trip.id,
+            user_id=trip.user_id,
+            name="Traveler 1",
+            role="organizer",
+        )
+        session.add(p)
+        await session.commit()
+        await session.refresh(p)
+        return [_participant_to_response(p)]
+
+    return [_participant_to_response(p) for p in participants]
+
+
+@router.post(
+    "/{trip_id}/participants",
+    response_model=TripParticipantResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_trip_participant(
+    trip_id: str,
+    participant_in: TripParticipantCreate,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    trip = res.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    name = participant_in.name.strip()
+    email = participant_in.email
+    if participant_in.user_id:
+        user_res = await session.execute(
+            select(UserModel).where(UserModel.id == participant_in.user_id)
+        )
+        user = user_res.scalar_one_or_none()
+        if user:
+            if not name:
+                name = user.username or "Collaborator"
+            if not email:
+                email = user.email
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Participant name cannot be empty")
+
+    new_p = TripParticipantModel(
+        id=str(uuid.uuid4()),
+        trip_id=trip_id,
+        user_id=participant_in.user_id,
+        name=name,
+        email=email,
+        role=participant_in.role or "traveler",
+    )
+    session.add(new_p)
+    await session.commit()
+    await session.refresh(new_p)
+    return _participant_to_response(new_p)
+
+
+@router.delete("/{trip_id}/participants/{participant_id}")
+async def remove_trip_participant(
+    trip_id: str,
+    participant_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripParticipantModel).where(
+        TripParticipantModel.trip_id == trip_id,
+        TripParticipantModel.id == participant_id,
+    )
+    res = await session.execute(stmt)
+    p = res.scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    await session.delete(p)
+    await session.commit()
+    return {"status": "success", "message": "Participant removed"}
+
+
+@router.get("/{trip_id}/expenses", response_model=list[TripExpenseResponse])
+async def list_trip_expenses(
+    trip_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    stmt_exp = (
+        select(TripExpenseModel)
+        .where(TripExpenseModel.trip_id == trip_id)
+        .order_by(TripExpenseModel.created_at.desc())
+    )
+    res_exp = await session.execute(stmt_exp)
+    expenses = res_exp.scalars().all()
+
+    stmt_p = select(TripParticipantModel).where(TripParticipantModel.trip_id == trip_id)
+    res_p = await session.execute(stmt_p)
+    p_map = {p.id: p.name for p in res_p.scalars().all()}
+
+    return [
+        TripExpenseResponse(
+            id=e.id,
+            trip_id=e.trip_id,
+            payer_id=e.payer_id,
+            payer_name=p_map.get(e.payer_id, "Unknown"),
+            description=e.description,
+            amount=e.amount,
+            currency=e.currency,
+            category=e.category,
+            split_type=e.split_type,
+            splits=[TripExpenseSplit(**s) for s in (e.splits or [])],
+            expense_date=e.expense_date,
+            created_at=e.created_at.isoformat()
+            if e.created_at
+            else datetime.now(timezone.utc).isoformat(),
+        )
+        for e in expenses
+    ]
+
+
+@router.post(
+    "/{trip_id}/expenses",
+    response_model=TripExpenseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_trip_expense(
+    trip_id: str,
+    expense_in: TripExpenseCreate,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    p_res = await session.execute(
+        select(TripParticipantModel).where(
+            TripParticipantModel.trip_id == trip_id,
+            TripParticipantModel.id == expense_in.payer_id,
+        )
+    )
+    payer = p_res.scalar_one_or_none()
+    if not payer:
+        raise HTTPException(
+            status_code=400, detail="Payer participant not found in this trip"
+        )
+
+    splits_data = [s.model_dump() for s in expense_in.splits]
+    if not splits_data:
+        all_p = (
+            (
+                await session.execute(
+                    select(TripParticipantModel).where(
+                        TripParticipantModel.trip_id == trip_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if all_p:
+            per_p = round(expense_in.amount / len(all_p), 2)
+            splits_data = [{"participant_id": p.id, "amount": per_p} for p in all_p]
+
+    new_expense = TripExpenseModel(
+        id=str(uuid.uuid4()),
+        trip_id=trip_id,
+        payer_id=expense_in.payer_id,
+        description=expense_in.description.strip(),
+        amount=round(expense_in.amount, 2),
+        currency=expense_in.currency or "EUR",
+        category=expense_in.category or "other",
+        split_type=expense_in.split_type or "equal",
+        splits=splits_data,
+        expense_date=expense_in.expense_date
+        or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    )
+    session.add(new_expense)
+    await session.commit()
+    await session.refresh(new_expense)
+
+    return TripExpenseResponse(
+        id=new_expense.id,
+        trip_id=new_expense.trip_id,
+        payer_id=new_expense.payer_id,
+        payer_name=payer.name,
+        description=new_expense.description,
+        amount=new_expense.amount,
+        currency=new_expense.currency,
+        category=new_expense.category,
+        split_type=new_expense.split_type,
+        splits=[TripExpenseSplit(**s) for s in (new_expense.splits or [])],
+        expense_date=new_expense.expense_date,
+        created_at=new_expense.created_at.isoformat()
+        if new_expense.created_at
+        else datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@router.delete("/{trip_id}/expenses/{expense_id}")
+async def delete_trip_expense(
+    trip_id: str,
+    expense_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripExpenseModel).where(
+        TripExpenseModel.trip_id == trip_id,
+        TripExpenseModel.id == expense_id,
+    )
+    res = await session.execute(stmt)
+    e = res.scalar_one_or_none()
+    if not e:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    await session.delete(e)
+    await session.commit()
+    return {"status": "success", "message": "Expense deleted"}
+
+
+@router.get("/{trip_id}/settlement", response_model=TripSettlementResponse)
+async def get_trip_settlement(
+    trip_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).where(TripModel.id == trip_id)
+    res = await session.execute(stmt)
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    participants_res = await session.execute(
+        select(TripParticipantModel).where(TripParticipantModel.trip_id == trip_id)
+    )
+    participants = participants_res.scalars().all()
+    p_names = {p.id: p.name for p in participants}
+
+    expenses_res = await session.execute(
+        select(TripExpenseModel).where(TripExpenseModel.trip_id == trip_id)
+    )
+    expenses = expenses_res.scalars().all()
+
+    total_expenses = sum(e.amount for e in expenses)
+
+    paid_map = {p.id: 0.0 for p in participants}
+    share_map = {p.id: 0.0 for p in participants}
+
+    for e in expenses:
+        if e.payer_id in paid_map:
+            paid_map[e.payer_id] += e.amount
+        splits = e.splits or []
+        if splits:
+            for s in splits:
+                pid = s.get("participant_id")
+                if pid in share_map:
+                    share_map[pid] += float(s.get("amount", 0.0))
+        elif participants:
+            per_p = e.amount / len(participants)
+            for p in participants:
+                share_map[p.id] += per_p
+
+    balances: list[ParticipantBalance] = []
+    net_balances: dict[str, float] = {}
+    for p in participants:
+        total_p = round(paid_map.get(p.id, 0.0), 2)
+        total_s = round(share_map.get(p.id, 0.0), 2)
+        net_b = round(total_p - total_s, 2)
+        net_balances[p.id] = net_b
+        balances.append(
+            ParticipantBalance(
+                participant_id=p.id,
+                name=p.name,
+                total_paid=total_p,
+                total_share=total_s,
+                net_balance=net_b,
+            )
+        )
+
+    # Debt simplification algorithm (greedy minimal cash transfers)
+    debtors = [[pid, -val] for pid, val in net_balances.items() if val < -0.01]
+    creditors = [[pid, val] for pid, val in net_balances.items() if val > 0.01]
+
+    debtors.sort(key=lambda x: x[1], reverse=True)
+    creditors.sort(key=lambda x: x[1], reverse=True)
+
+    transfers: list[SettlementTransfer] = []
+    d_idx = 0
+    c_idx = 0
+
+    while d_idx < len(debtors) and c_idx < len(creditors):
+        debtor_id, debt_amt = debtors[d_idx]
+        creditor_id, cred_amt = creditors[c_idx]
+
+        settle_amt = min(debt_amt, cred_amt)
+        if settle_amt > 0.009:
+            transfers.append(
+                SettlementTransfer(
+                    sender_id=debtor_id,
+                    sender_name=p_names.get(debtor_id, "Unknown"),
+                    receiver_id=creditor_id,
+                    receiver_name=p_names.get(creditor_id, "Unknown"),
+                    amount=round(settle_amt, 2),
+                )
+            )
+
+        debtors[d_idx][1] -= settle_amt
+        creditors[c_idx][1] -= settle_amt
+
+        if debtors[d_idx][1] < 0.01:
+            d_idx += 1
+        if creditors[c_idx][1] < 0.01:
+            c_idx += 1
+
+    return TripSettlementResponse(
+        trip_id=trip_id,
+        total_expenses=round(total_expenses, 2),
+        currency="EUR",
+        balances=balances,
+        transfers=transfers,
     )
 
 

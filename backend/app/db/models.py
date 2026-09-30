@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import relationship, synonym
 
 from app.db.session import Base
 
@@ -99,6 +99,68 @@ class TripModel(Base):
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
     )
+
+    participants = relationship(
+        "TripParticipantModel",
+        back_populates="trip",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    expenses = relationship(
+        "TripExpenseModel",
+        back_populates="trip",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class TripParticipantModel(Base):
+    __tablename__ = "trip_participants"
+
+    id = Column(String, primary_key=True, index=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    role = Column(String, default="traveler", nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    trip = relationship("TripModel", back_populates="participants")
+    user = relationship("UserModel")
+
+
+class TripExpenseModel(Base):
+    __tablename__ = "trip_expenses"
+
+    id = Column(String, primary_key=True, index=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    payer_id = Column(
+        String,
+        ForeignKey("trip_participants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    description = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="EUR", nullable=False)
+    category = Column(String, default="other", nullable=False)
+    split_type = Column(String, default="equal", nullable=False)
+    splits = Column(JSONB, default=list, nullable=False)
+    expense_date = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+    trip = relationship("TripModel", back_populates="expenses")
+    payer = relationship("TripParticipantModel")
 
 
 class TransitCacheStatus(str, enum.Enum):
