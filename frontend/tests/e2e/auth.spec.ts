@@ -126,7 +126,7 @@ test.describe('Authentication & User Management Flow', () => {
     await expect(page).toHaveURL(/.*\/dashboard/);
 
     // Sidebar should display user info and role
-    await expect(page.getByText('masteradmin')).toBeVisible();
+    await expect(page.getByText('masteradmin', { exact: true })).toBeVisible();
     await expect(page.getByText('ADMIN').first()).toBeVisible();
 
     // 3. Navigate to Configuration tab
