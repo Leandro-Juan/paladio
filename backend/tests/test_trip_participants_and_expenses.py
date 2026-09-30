@@ -174,3 +174,49 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
     assert bal_map_2[alice_p_id]["net_balance"] == 0.0
     assert bal_map_2[bob_p_id]["net_balance"] == 15.0
     assert bal_map_2[charlie_p_id]["net_balance"] == -15.0
+
+    # Test duplicate participant prevention: user_id duplicate
+    dup_user_res = await async_client.post(
+        f"/api/v1/trips/{trip_id}/participants",
+        json={"name": "Bob Clone", "user_id": user_b_id, "role": "traveler"},
+        headers=headers_a,
+    )
+    assert dup_user_res.status_code == 400
+    assert "already a participant" in dup_user_res.text
+
+    # Test duplicate participant prevention: case-insensitive name duplicate
+    dup_name_res = await async_client.post(
+        f"/api/v1/trips/{trip_id}/participants",
+        json={"name": "  cHArLiE  ", "role": "traveler"},
+        headers=headers_a,
+    )
+    assert dup_name_res.status_code == 400
+    assert "already in this trip" in dup_name_res.text
+
+    # Test minimum 1 participant requirement:
+    # Delete Charlie (now 2 remain: Alice, Bob) -> OK
+    del_c_res = await async_client.delete(
+        f"/api/v1/trips/{trip_id}/participants/{charlie_p_id}", headers=headers_a
+    )
+    assert del_c_res.status_code == 200
+
+    # Delete Bob (now 1 remains: Alice) -> OK
+    del_b_res = await async_client.delete(
+        f"/api/v1/trips/{trip_id}/participants/{bob_p_id}", headers=headers_a
+    )
+    assert del_b_res.status_code == 200
+
+    # Attempt to delete Alice (the only participant left) -> 400 Bad Request
+    del_last_res = await async_client.delete(
+        f"/api/v1/trips/{trip_id}/participants/{alice_p_id}", headers=headers_a
+    )
+    assert del_last_res.status_code == 400
+    assert "at least one participant" in del_last_res.text
+
+    # Verify Alice is still in participants
+    remaining_res = await async_client.get(
+        f"/api/v1/trips/{trip_id}/participants", headers=headers_a
+    )
+    assert remaining_res.status_code == 200
+    assert len(remaining_res.json()) == 1
+    assert remaining_res.json()[0]["id"] == alice_p_id

@@ -15,7 +15,7 @@ from app.db.models import (
 from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -149,6 +149,45 @@ def _participant_to_response(p: TripParticipantModel) -> TripParticipantResponse
     )
 
 
+async def _ensure_trip_participants(
+    trip: TripModel, session: AsyncSession
+) -> list[TripParticipantModel]:
+    stmt_p = (
+        select(TripParticipantModel)
+        .where(TripParticipantModel.trip_id == trip.id)
+        .order_by(TripParticipantModel.created_at.asc())
+    )
+    res_p = await session.execute(stmt_p)
+    participants = list(res_p.scalars().all())
+
+    if not participants:
+        creator_name = "Traveler 1"
+        creator_email = None
+        if trip.user_id:
+            user_res = await session.execute(
+                select(UserModel).where(UserModel.id == trip.user_id)
+            )
+            user = user_res.scalar_one_or_none()
+            if user:
+                creator_name = user.username or "Traveler 1"
+                creator_email = user.email
+
+        first_p = TripParticipantModel(
+            id=str(uuid.uuid4()),
+            trip_id=trip.id,
+            user_id=trip.user_id,
+            name=creator_name,
+            email=creator_email,
+            role="organizer",
+        )
+        session.add(first_p)
+        await session.commit()
+        await session.refresh(first_p)
+        participants = [first_p]
+
+    return participants
+
+
 class TripCreate(BaseModel):
     destination: str
     start_date: str
@@ -182,7 +221,7 @@ async def create_trip(
     await session.commit()
     await session.refresh(db_trip)
 
-    # Seed initial participant (organizer)
+    # Seed initial participant (organizer) - creator is always initial participant
     organizer_name = (
         current_user.username
         if (current_user and current_user.username)
@@ -241,7 +280,8 @@ async def get_trips(
 
     response = []
     for t in trips:
-        parts = [_participant_to_response(p) for p in (t.participants or [])]
+        part_models = await _ensure_trip_participants(t, session)
+        parts = [_participant_to_response(p) for p in part_models]
         response.append(
             TripResponse(
                 id=t.id,
@@ -632,7 +672,8 @@ async def get_trip(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    parts = [_participant_to_response(p) for p in (trip.participants or [])]
+    parts_models = await _ensure_trip_participants(trip, session)
+    parts = [_participant_to_response(p) for p in parts_models]
 
     return TripResponse(
         id=trip.id,
@@ -659,26 +700,7 @@ async def list_trip_participants(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    stmt_p = (
-        select(TripParticipantModel)
-        .where(TripParticipantModel.trip_id == trip_id)
-        .order_by(TripParticipantModel.created_at.asc())
-    )
-    res_p = await session.execute(stmt_p)
-    participants = res_p.scalars().all()
-    if not participants:
-        p = TripParticipantModel(
-            id=str(uuid.uuid4()),
-            trip_id=trip.id,
-            user_id=trip.user_id,
-            name="Traveler 1",
-            role="organizer",
-        )
-        session.add(p)
-        await session.commit()
-        await session.refresh(p)
-        return [_participant_to_response(p)]
-
+    participants = await _ensure_trip_participants(trip, session)
     return [_participant_to_response(p) for p in participants]
 
 
@@ -714,6 +736,27 @@ async def add_trip_participant(
     if not name:
         raise HTTPException(status_code=400, detail="Participant name cannot be empty")
 
+    # Prevent duplicate participants on this trip
+    stmt_existing = select(TripParticipantModel).where(
+        TripParticipantModel.trip_id == trip_id
+    )
+    existing_p = (await session.execute(stmt_existing)).scalars().all()
+
+    if participant_in.user_id:
+        for ep in existing_p:
+            if ep.user_id and ep.user_id == participant_in.user_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"User is already a participant in this trip as '{ep.name}'.",
+                )
+
+    for ep in existing_p:
+        if ep.name.strip().lower() == name.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"A participant with the name '{ep.name}' is already in this trip.",
+            )
+
     new_p = TripParticipantModel(
         id=str(uuid.uuid4()),
         trip_id=trip_id,
@@ -742,6 +785,16 @@ async def remove_trip_participant(
     p = res.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="Participant not found")
+
+    count_stmt = select(func.count(TripParticipantModel.id)).where(
+        TripParticipantModel.trip_id == trip_id
+    )
+    count = (await session.execute(count_stmt)).scalar() or 0
+    if count <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="A trip must have at least one participant. You cannot remove the only remaining participant.",
+        )
 
     await session.delete(p)
     await session.commit()

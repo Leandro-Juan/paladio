@@ -23,10 +23,12 @@ export default function TripsPage() {
   }, [getCollaboratorOptions]);
 
   const activeTripForCrew = upcomingTrips.find(t => t.id === activeTripIdForCrew) || null;
+  const [crewError, setCrewError] = useState<string | null>(null);
 
   const handleAddTraveler = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeTripForCrew?.id) return;
+    setCrewError(null);
     setIsAddingTraveler(true);
 
     let name = newTravelerName.trim();
@@ -43,24 +45,52 @@ export default function TripsPage() {
     }
 
     if (!name) {
+      setCrewError("Please enter a traveler name or select a registered user.");
       setIsAddingTraveler(false);
       return;
     }
 
-    await addParticipant(activeTripForCrew.id, {
+    // Check duplicate user ID
+    const existingParts = activeTripForCrew.participants || [];
+    if (userId && existingParts.some(p => p.user_id === userId)) {
+      setCrewError("This user is already a traveler in this trip.");
+      setIsAddingTraveler(false);
+      return;
+    }
+
+    // Check duplicate name (case-insensitive)
+    if (existingParts.some(p => p.name.trim().toLowerCase() === name.toLowerCase())) {
+      setCrewError(`A traveler with the name "${name}" is already in this trip.`);
+      setIsAddingTraveler(false);
+      return;
+    }
+
+    const res = await addParticipant(activeTripForCrew.id, {
       name,
       user_id: userId,
       email,
       role: 'traveler',
     });
 
-    setNewTravelerName('');
-    setSelectedUserId('');
+    if (!res) {
+      setCrewError("Failed to add traveler. Duplicate or invalid participant.");
+    } else {
+      setNewTravelerName('');
+      setSelectedUserId('');
+    }
     setIsAddingTraveler(false);
   };
 
   const handleRemoveTraveler = async (participantId: string) => {
     if (!activeTripForCrew?.id) return;
+    setCrewError(null);
+
+    const existingParts = activeTripForCrew.participants || [];
+    if (existingParts.length <= 1) {
+      setCrewError("A trip must have at least one participant. You cannot remove the only remaining participant.");
+      return;
+    }
+
     await removeParticipant(activeTripForCrew.id, participantId);
   };
 
@@ -112,7 +142,12 @@ export default function TripsPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <span className="font-mono text-xs text-muted">{'// CREW'}</span>
                         <button
-                          onClick={() => setActiveTripIdForCrew(trip.id || null)}
+                          onClick={() => {
+                            setActiveTripIdForCrew(trip.id || null);
+                            setCrewError(null);
+                            setNewTravelerName('');
+                            setSelectedUserId('');
+                          }}
                           style={{
                             background: 'transparent',
                             border: '1px solid var(--color-border)',
@@ -266,6 +301,22 @@ export default function TripsPage() {
               </button>
             </div>
 
+            {crewError && (
+              <div
+                style={{
+                  padding: '0.6rem 0.8rem',
+                  borderRadius: '4px',
+                  border: '1px solid var(--color-accent-secondary, #DC2626)',
+                  background: 'rgba(220, 38, 38, 0.08)',
+                  color: 'var(--color-accent-secondary, #DC2626)',
+                  fontSize: '0.75rem',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                [ERROR] {crewError}
+              </div>
+            )}
+
             {/* Existing Crew List */}
             <div>
               <span className="font-mono text-xs text-muted">CURRENT TRAVELERS</span>
@@ -303,19 +354,29 @@ export default function TripsPage() {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleRemoveTraveler(p.id)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--color-accent-secondary, #DC2626)',
-                          cursor: 'pointer',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        REMOVE
-                      </button>
+                      {(activeTripForCrew.participants || []).length <= 1 ? (
+                        <span
+                          className="font-mono text-xs text-muted"
+                          style={{ opacity: 0.5, fontStyle: 'italic', cursor: 'not-allowed' }}
+                          title="A trip must have at least one participant."
+                        >
+                          [LOCKED]
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveTraveler(p.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--color-accent-secondary, #DC2626)',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          REMOVE
+                        </button>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -328,38 +389,45 @@ export default function TripsPage() {
             <form onSubmit={handleAddTraveler} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
               <span className="font-mono text-xs text-muted">ADD TRAVELER TO TRIP</span>
               
-              {collaborators.length > 0 && (
-                <div>
-                  <label className="font-mono text-xs text-muted block mb-1">SELECT REGISTERED USER</label>
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => {
-                      setSelectedUserId(e.target.value);
-                      if (e.target.value) {
-                        const sel = collaborators.find(c => c.id === e.target.value);
-                        if (sel) setNewTravelerName(sel.username);
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      borderRadius: '4px',
-                      border: '1px solid var(--color-border)',
-                      background: 'var(--color-bg-main)',
-                      color: 'var(--color-text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <option value="">-- Choose registered user or enter custom name below --</option>
-                    {collaborators.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.username} {c.email ? `(${c.email})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {(() => {
+                const existingUserIds = new Set(
+                  (activeTripForCrew.participants || []).map((p) => p.user_id).filter(Boolean)
+                );
+                const availableCollaborators = collaborators.filter((c) => !existingUserIds.has(c.id));
+                if (availableCollaborators.length === 0) return null;
+                return (
+                  <div>
+                    <label className="font-mono text-xs text-muted block mb-1">SELECT REGISTERED USER</label>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => {
+                        setSelectedUserId(e.target.value);
+                        if (e.target.value) {
+                          const sel = availableCollaborators.find((c) => c.id === e.target.value);
+                          if (sel) setNewTravelerName(sel.username);
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-bg-main)',
+                        color: 'var(--color-text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <option value="">-- Choose registered user or enter custom name below --</option>
+                      {availableCollaborators.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.username} {c.email ? `(${c.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="font-mono text-xs text-muted block mb-1">OR ENTER TRAVELER NAME</label>
