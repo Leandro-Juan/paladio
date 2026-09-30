@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,13 +42,15 @@ async def test_reactive_planning_generates_itinerary():
     config = {
         "configurable": {
             "thread_id": "test_2",
+            "user_id": "test_isolated_user_1",
             "engine": MagicMock(),
             "travel_data_provider": MagicMock(),
         }
     }
 
-    start_dt = date.today() + timedelta(days=10)
-    end_dt = date.today() + timedelta(days=14)
+    today = datetime.now(timezone.utc).date()
+    start_dt = today + timedelta(days=10)
+    end_dt = today + timedelta(days=14)
     start_str = start_dt.strftime("%Y-%m-%d")
     end_str = end_dt.strftime("%Y-%m-%d")
 

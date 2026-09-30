@@ -68,10 +68,6 @@ with open("backend/app/utils/iata_mapping.py", "w") as f:
     f.write("    clean_city = city_name.lower().strip()\n")
     f.write("    if clean_city in mapping:\n")
     f.write("        return mapping[clean_city]\n\n")
-    f.write("    from langgraph.types import interrupt\n")
-    f.write(
-        '    iata_input = interrupt(f"I don\'t know the IATA airport code for {city_name}. Please provide the 3-letter IATA code:")\n'
-    )
-    f.write("    return str(iata_input).upper().strip()\n")
+    f.write('    return "XXX"\n')
 
 print("Mapping generated in backend/app/utils/iata_mapping.py")

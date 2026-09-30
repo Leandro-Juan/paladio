@@ -1,3 +1,5 @@
+import unicodedata
+
 MAPPING = {
     # United Arab Emirates
     "DHF": "abu dhabi",
@@ -7502,24 +7504,67 @@ MAPPING = {
 }
 
 
+# Common multilingual / English aliases for world travel destinations
+CITY_ALIASES: dict[str, str] = {
+    "seville": "SVQ",
+    "sevilla": "SVQ",
+    "milano": "LIN",
+    "milan": "LIN",
+    "lisboa": "LIS",
+    "lisbon": "LIS",
+    "roma": "FCO",
+    "rome": "FCO",
+    "kyoto": "ITM",
+    "tokyo": "HND",
+    "munich": "MUC",
+    "muenchen": "MUC",
+    "münchen": "MUC",
+    "vienna": "VIE",
+    "wien": "VIE",
+    "prague": "PRG",
+    "praha": "PRG",
+    "florence": "FLR",
+    "firenze": "FLR",
+    "venice": "VCE",
+    "venezia": "VCE",
+    "warsaw": "WAW",
+    "warszawa": "WAW",
+    "athens": "ATH",
+    "athenes": "ATH",
+    "new york": "JFK",
+    "new york city": "JFK",
+    "nyc": "JFK",
+}
+
+
+def _normalize_city_name(city_name: str) -> str:
+    """Strips accents, punctuation, and leading/trailing whitespace."""
+    nfkd = unicodedata.normalize("NFKD", city_name)
+    ascii_city = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return ascii_city.lower().strip()
+
+
 def get_iata_code(city_name: str) -> str:
     """
     Returns the IATA code for a given city name.
+    Falls back to 'XXX' if no IATA code is mapped.
     """
     if not city_name:
         return "XXX"
 
-    clean_city = city_name.lower().strip()
+    norm_city = _normalize_city_name(city_name)
+
+    # 1. Check known aliases first
+    if norm_city in CITY_ALIASES:
+        return CITY_ALIASES[norm_city]
+
+    # 2. Check exact or accent-stripped match in MAPPING
     for iata, city in MAPPING.items():
-        if city.lower() == clean_city:
+        if city.lower() == norm_city or _normalize_city_name(city) == norm_city:
             return iata
 
-    from langgraph.types import interrupt
-
-    iata_input = interrupt(
-        f"I don't know the IATA airport code for {city_name}. Please provide the 3-letter IATA code:"
-    )
-    return str(iata_input).upper().strip()
+    # 3. Safe fallback when code is unknown
+    return "XXX"
 
 
 def get_city_from_iata(iata_code: str) -> str:
