@@ -131,7 +131,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
     assert expenses_res.status_code == 200
     assert len(expenses_res.json()) == 2
 
-    # Check Tricount settlement calculation:
+    # Check peer settlement calculation:
     # Alice: paid 90, share 30 -> net balance = +60
     # Bob: paid 30, share 30 + 15 = 45 -> net balance = -15
     # Charlie: paid 0, share 30 + 15 = 45 -> net balance = -45

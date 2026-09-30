@@ -432,7 +432,7 @@ export default function VaultDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Mission Budget Dissection & Tricount Engine */}
+          {/* Mission Budget Dissection & Shared Expense Splitter */}
           <TripBudgetWallet
             trip={trip}
             itinerary={itinerary}

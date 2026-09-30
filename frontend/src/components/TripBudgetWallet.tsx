@@ -12,6 +12,19 @@ interface TripBudgetWalletProps {
 
 type TabType = 'dissection' | 'expenses' | 'settlement';
 
+export interface ItemizedCost {
+  id: string;
+  source: 'itinerary' | 'manual';
+  category: 'transit' | 'lodging' | 'activities' | 'dining' | 'other';
+  title: string;
+  location?: string;
+  dateTime: string;
+  amount: number;
+  isEstimated?: boolean;
+  transitLine?: string;
+  expenseId?: string;
+}
+
 export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetWalletProps) {
   const {
     getTripExpenses,
@@ -23,6 +36,10 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
   const [activeTab, setActiveTab] = useState<TabType>('dissection');
   const [expenses, setExpenses] = useState<TripExpense[]>([]);
   const [settlement, setSettlement] = useState<TripSettlement | null>(null);
+
+  // Excluded itinerary cost tracking and amber warning modal state
+  const [excludedCostIds, setExcludedCostIds] = useState<string[]>([]);
+  const [costToExclude, setCostToExclude] = useState<ItemizedCost | null>(null);
 
   // Modal / Form state for Add Expense
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -76,72 +93,167 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
     };
   }, [trip.id, getTripExpenses, getTripSettlement]);
 
-  // Compute Itinerary-based planned baseline costs
-  const itineraryCosts = useMemo(() => {
-    const transit = 0;
-    let activities = 0;
-    let lodging = 0;
+  // Extract all individual planned itinerary costs (transit legs, POIs, lodging)
+  const allItineraryCosts = useMemo<ItemizedCost[]>(() => {
+    const items: ItemizedCost[] = [];
+    if (!Array.isArray(itinerary?.days)) return items;
 
-    if (Array.isArray(itinerary?.days)) {
-      itinerary.days.forEach(day => {
-        // Daily total or transit
-        if (day.itinerary?.path) {
-          day.itinerary.path.forEach(step => {
-            const cost = step.poi?.cost_eur || 0;
-            const cat = (step.poi?.category || '').toLowerCase();
-            if (cat.includes('hotel') || cat.includes('lodging')) {
-              lodging += cost;
-            } else if (cost > 0) {
-              activities += cost;
-            }
+    itinerary.days.forEach((day, dayIdx) => {
+      const dayNum = day.day || (dayIdx + 1);
+      const path = day.itinerary?.path || [];
+
+      path.forEach((step, stepIdx) => {
+        // 1. Scheduled Public Transit Leg from previous POI
+        const transit = step.transit_from_previous;
+        const transitCost = transit?.cost_eur ?? 0;
+        if (transitCost > 0 && stepIdx > 0) {
+          const prevName = path[stepIdx - 1]?.poi?.name || 'Previous Location';
+          const destName = step.poi?.name || 'Destination';
+          const lines = (transit?.steps || [])
+            .map(s => s.transit_line)
+            .filter((l): l is string => Boolean(l && l.trim().length > 0));
+          const lineStr = lines.length > 0 ? lines.join(', ') : (transit?.mode || 'Public Transit');
+
+          items.push({
+            id: `itinerary-transit-${dayIdx}-${stepIdx}`,
+            source: 'itinerary',
+            category: 'transit',
+            title: `${prevName} -> ${destName}`,
+            location: `${destName}`,
+            dateTime: `Day ${dayNum} • ${step.scheduled_start || step.arrival_time || '--:--'}`,
+            amount: transitCost,
+            isEstimated: transit?.cost_is_estimated ?? true,
+            transitLine: lineStr,
+          });
+        }
+
+        // 2. Scheduled POI Activity or Lodging Cost
+        const poiCost = step.poi?.cost_eur || 0;
+        if (poiCost > 0) {
+          const catStr = (step.poi?.category || '').toLowerCase();
+          const isLodging = catStr.includes('hotel') || catStr.includes('lodging') || catStr.includes('hostel');
+          const category = isLodging ? 'lodging' : 'activities';
+
+          items.push({
+            id: `itinerary-poi-${dayIdx}-${stepIdx}`,
+            source: 'itinerary',
+            category,
+            title: step.poi?.name || 'Scheduled Activity',
+            location: step.poi?.city || step.poi?.name || '',
+            dateTime: `Day ${dayNum} • ${step.scheduled_start || step.arrival_time || '--:--'}`,
+            amount: poiCost,
+            isEstimated: false,
           });
         }
       });
-    }
+    });
 
-    return { transit, activities, lodging };
+    return items;
   }, [itinerary]);
 
-  // Compute Category breakdown combining logged shared expenses + itinerary
+  const activeItineraryCosts = useMemo(
+    () => allItineraryCosts.filter(c => !excludedCostIds.includes(c.id)),
+    [allItineraryCosts, excludedCostIds]
+  );
+
+  const excludedItineraryCosts = useMemo(
+    () => allItineraryCosts.filter(c => excludedCostIds.includes(c.id)),
+    [allItineraryCosts, excludedCostIds]
+  );
+
+  // Map logged manual shared expenses into itemized list items
+  const manualExpenseCosts = useMemo<ItemizedCost[]>(() => {
+    return expenses.map(e => {
+      let cat: ItemizedCost['category'] = 'other';
+      const c = e.category.toLowerCase();
+      if (c === 'transport' || c === 'transit' || c === 'flight') cat = 'transit';
+      else if (c === 'accommodation' || c === 'lodging' || c === 'hotel') cat = 'lodging';
+      else if (c === 'activities' || c === 'attraction' || c === 'poi') cat = 'activities';
+      else if (c === 'food' || c === 'dining' || c === 'meals') cat = 'dining';
+
+      return {
+        id: `manual-exp-${e.id}`,
+        source: 'manual',
+        category: cat,
+        title: e.description,
+        location: e.payer_name ? `Paid by ${e.payer_name}` : undefined,
+        dateTime: e.expense_date || 'Logged Expense',
+        amount: e.amount,
+        isEstimated: false,
+        expenseId: e.id,
+      };
+    });
+  }, [expenses]);
+
+  // Combined itemized cost list (active itinerary costs + manual shared expenses)
+  const allActiveItemizedCosts = useMemo(() => {
+    return [...activeItineraryCosts, ...manualExpenseCosts];
+  }, [activeItineraryCosts, manualExpenseCosts]);
+
+  // Compute Category breakdown combining non-excluded planned items + logged shared expenses
   const categoryBreakdown = useMemo(() => {
-    let transitExp = 0;
-    let lodgingExp = 0;
-    let activitiesExp = 0;
-    let diningExp = 0;
-    let otherExp = 0;
+    let transitTotal = 0;
+    let lodgingTotal = 0;
+    let activitiesTotal = 0;
+    let diningTotal = 0;
+    let otherTotal = 0;
+
+    activeItineraryCosts.forEach(item => {
+      if (item.category === 'transit') transitTotal += item.amount;
+      else if (item.category === 'lodging') lodgingTotal += item.amount;
+      else if (item.category === 'activities') activitiesTotal += item.amount;
+      else if (item.category === 'dining') diningTotal += item.amount;
+      else otherTotal += item.amount;
+    });
 
     expenses.forEach(e => {
       const c = e.category.toLowerCase();
       if (c === 'transport' || c === 'transit' || c === 'flight') {
-        transitExp += e.amount;
+        transitTotal += e.amount;
       } else if (c === 'accommodation' || c === 'lodging' || c === 'hotel') {
-        lodgingExp += e.amount;
+        lodgingTotal += e.amount;
       } else if (c === 'activities' || c === 'attraction' || c === 'poi') {
-        activitiesExp += e.amount;
+        activitiesTotal += e.amount;
       } else if (c === 'food' || c === 'dining' || c === 'meals') {
-        diningExp += e.amount;
+        diningTotal += e.amount;
       } else {
-        otherExp += e.amount;
+        otherTotal += e.amount;
       }
     });
 
-    const totalTransit = transitExp + itineraryCosts.transit;
-    const totalLodging = lodgingExp + itineraryCosts.lodging;
-    const totalActivities = activitiesExp + itineraryCosts.activities;
-    const totalDining = diningExp;
-    const totalOther = otherExp;
-
-    const grandTotal = totalTransit + totalLodging + totalActivities + totalDining + totalOther;
+    const grandTotal = transitTotal + lodgingTotal + activitiesTotal + diningTotal + otherTotal;
 
     return {
-      transit: totalTransit,
-      lodging: totalLodging,
-      activities: totalActivities,
-      dining: totalDining,
-      other: totalOther,
+      transit: transitTotal,
+      lodging: lodgingTotal,
+      activities: activitiesTotal,
+      dining: diningTotal,
+      other: otherTotal,
       grandTotal,
     };
-  }, [expenses, itineraryCosts]);
+  }, [activeItineraryCosts, expenses]);
+
+  const handleRequestRemoveCost = (item: ItemizedCost) => {
+    if (item.source === 'itinerary') {
+      setCostToExclude(item);
+    } else if (item.expenseId) {
+      handleDeleteExpense(item.expenseId);
+    }
+  };
+
+  const handleConfirmExclude = () => {
+    if (!costToExclude) return;
+    setExcludedCostIds(prev => [...prev, costToExclude.id]);
+    setCostToExclude(null);
+  };
+
+  const handleRestoreCost = (id: string) => {
+    setExcludedCostIds(prev => prev.filter(x => x !== id));
+  };
+
+  const handleRestoreAllCosts = () => {
+    setExcludedCostIds([]);
+  };
 
   const crewCount = Math.max(participants.length, 1);
   const costPerPerson = categoryBreakdown.grandTotal > 0
@@ -261,7 +373,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h4 className="font-mono text-muted text-sm">{'// MISSION BUDGET & EXPENSE DISSECTION'}</h4>
-          <p className="font-mono text-xs text-muted mt-0.5">{'// TRICOUNT LEDGER & DYNAMIC DEBT SETTLEMENT'}</p>
+          <p className="font-mono text-xs text-muted mt-0.5">{'// PEER EXPENSE LEDGER & DYNAMIC DEBT SETTLEMENT'}</p>
         </div>
         <button
           onClick={handleOpenAddExpense}
@@ -298,7 +410,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
           <span className="font-mono text-sm font-bold mt-1 block">{participants.length} TRAVELER{participants.length !== 1 ? 'S' : ''}</span>
         </div>
         <div style={{ padding: '0.75rem', background: 'var(--color-surface-card)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-          <span className="font-mono text-xs text-muted block">TRICOUNT STATUS</span>
+          <span className="font-mono text-xs text-muted block">SETTLEMENT STATUS</span>
           <span className="font-mono text-xs font-semibold mt-1 block" style={{ color: (settlement?.transfers.length || 0) === 0 ? '#10B981' : '#D97706' }}>
             {(settlement?.transfers.length || 0) === 0 ? 'SETTLED' : `${settlement?.transfers.length} PENDING`}
           </span>
@@ -461,6 +573,253 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
               );
             })}
           </div>
+
+          {/* Itinerary Desynchronization Notice Banner */}
+          {excludedItineraryCosts.length > 0 && (
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '6px',
+                border: '1px solid #D97706',
+                background: 'rgba(217, 119, 6, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div>
+                <span className="font-mono text-xs" style={{ color: '#D97706', fontWeight: 700 }}>
+                  [!] ITINERARY BUDGET DESYNCHRONIZED
+                </span>
+                <p className="font-mono text-xs text-muted" style={{ margin: '2px 0 0 0' }}>
+                  {excludedItineraryCosts.length} scheduled cost(s) excluded totaling €{excludedItineraryCosts.reduce((s, c) => s + c.amount, 0).toFixed(2)}. The budget does not match the active travel timeline.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRestoreAllCosts}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #D97706',
+                  color: '#D97706',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                RESTORE ALL COSTS
+              </button>
+            </div>
+          )}
+
+          {/* Itemized Planned & Shared Costs Section */}
+          <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span className="font-mono text-xs text-muted">
+                ITEMIZED PLANNED & SHARED COSTS ({allActiveItemizedCosts.length})
+              </span>
+              <span className="font-mono text-xs text-muted">
+                [ REMOVE ANY COST TO EXCLUDE FROM BUDGET ]
+              </span>
+            </div>
+
+            {allActiveItemizedCosts.length === 0 ? (
+              <p className="font-mono text-xs text-muted" style={{ padding: '0.75rem', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: '4px' }}>
+                [ NO ACTIVE COSTS INCLUDED IN BUDGET ]
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '320px', overflowY: 'auto' }}>
+                {allActiveItemizedCosts.map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.6rem 0.75rem',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '4px',
+                      background: 'var(--color-surface-card)',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span
+                          className="font-mono text-xs"
+                          style={{
+                            background:
+                              item.category === 'transit' ? 'rgba(79, 70, 229, 0.12)' :
+                              item.category === 'lodging' ? 'rgba(37, 99, 235, 0.12)' :
+                              item.category === 'activities' ? 'rgba(5, 150, 105, 0.12)' :
+                              item.category === 'dining' ? 'rgba(217, 119, 6, 0.12)' :
+                              'rgba(100, 116, 139, 0.12)',
+                            color:
+                              item.category === 'transit' ? '#4F46E5' :
+                              item.category === 'lodging' ? '#2563EB' :
+                              item.category === 'activities' ? '#059669' :
+                              item.category === 'dining' ? '#D97706' :
+                              '#64748B',
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            fontWeight: 700,
+                            letterSpacing: '0.3px',
+                          }}
+                        >
+                          [{item.category.toUpperCase()}]
+                        </span>
+                        <span className="font-mono text-sm" style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.title}
+                        </span>
+                        {item.transitLine && (
+                          <span className="font-mono text-xs text-muted">
+                            ({item.transitLine})
+                          </span>
+                        )}
+                        {item.isEstimated && (
+                          <span
+                            className="font-mono text-xs"
+                            style={{
+                              padding: '1px 4px',
+                              borderRadius: '2px',
+                              background: '#FEF3C7',
+                              color: '#92400E',
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            ESTIMATED
+                          </span>
+                        )}
+                        {item.source === 'manual' && (
+                          <span
+                            className="font-mono text-xs"
+                            style={{
+                              padding: '1px 4px',
+                              borderRadius: '2px',
+                              background: 'rgba(30, 58, 138, 0.08)',
+                              color: 'var(--color-accent-primary)',
+                              fontSize: '0.65rem',
+                            }}
+                          >
+                            LOGGED
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-mono text-xs text-muted" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span>{item.dateTime}</span>
+                        {item.location && <span>• {item.location}</span>}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                      <span className="font-mono text-sm font-bold text-accent">€{item.amount.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRequestRemoveCost(item)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-border)',
+                          color: 'var(--color-accent-secondary, #DC2626)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.7rem',
+                          cursor: 'pointer',
+                          padding: '3px 6px',
+                          borderRadius: '3px',
+                        }}
+                        title={item.source === 'itinerary' ? 'Exclude planned cost from budget' : 'Delete logged expense'}
+                      >
+                        REMOVE
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Excluded Itinerary Costs Section */}
+          {excludedItineraryCosts.length > 0 && (
+            <div style={{ marginTop: '0.5rem', borderTop: '1px dashed var(--color-border)', paddingTop: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span className="font-mono text-xs" style={{ color: '#D97706', fontWeight: 600 }}>
+                  EXCLUDED FROM BUDGET ({excludedItineraryCosts.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRestoreAllCosts}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#D97706',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  RESTORE ALL
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxHeight: '180px', overflowY: 'auto' }}>
+                {excludedItineraryCosts.map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.4rem 0.6rem',
+                      border: '1px dashed #D97706',
+                      borderRadius: '4px',
+                      background: 'rgba(217, 119, 6, 0.04)',
+                      opacity: 0.85,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span className="font-mono text-xs" style={{ color: '#D97706', fontWeight: 600 }}>
+                        [{item.category.toUpperCase()}]
+                      </span>
+                      <span className="font-mono text-xs" style={{ textDecoration: 'line-through' }}>
+                        {item.title}
+                      </span>
+                      <span className="font-mono text-xs text-muted">
+                        ({item.dateTime})
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="font-mono text-xs font-semibold" style={{ color: '#D97706' }}>
+                        €{item.amount.toFixed(2)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreCost(item.id)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid #D97706',
+                          color: '#D97706',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.65rem',
+                          cursor: 'pointer',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        + RESTORE
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -539,7 +898,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
         </div>
       )}
 
-      {/* Tab 3: Debt Settlement View (Tricount Engine) */}
+      {/* Tab 3: Debt Settlement View (Settlement Engine) */}
       {activeTab === 'settlement' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Individual Balances */}
@@ -672,7 +1031,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>LOG SHARED EXPENSE</h3>
-                <p className="font-mono text-muted text-xs mt-1">{'// TRICOUNT COST ALLOCATION'}</p>
+                <p className="font-mono text-muted text-xs mt-1">{'// SHARED COST ALLOCATION'}</p>
               </div>
               <button
                 onClick={() => setShowAddExpense(false)}
@@ -957,6 +1316,159 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
           </div>
         </div>
       )}
+
+      {/* Amber Consistency Warning Modal */}
+      {costToExclude && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="bg-surface"
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              borderRadius: '8px',
+              border: '2px solid #D97706',
+              boxShadow: '0 8px 30px rgba(217, 119, 6, 0.2)',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span
+                  className="font-mono text-xs"
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(217, 119, 6, 0.15)',
+                    color: '#D97706',
+                    border: '1px solid #D97706',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  [!] ITINERARY BUDGET DESYNCHRONIZATION
+                </span>
+                <h3 className="font-display" style={{ margin: '0.5rem 0 0 0', fontSize: '1.2rem', color: '#D97706' }}>
+                  CONSISTENCY WARNING
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCostToExclude(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                [X]
+              </button>
+            </div>
+
+            {/* Warning Message in Amber */}
+            <div
+              style={{
+                background: 'rgba(217, 119, 6, 0.08)',
+                border: '1px solid rgba(217, 119, 6, 0.3)',
+                borderRadius: '6px',
+                padding: '0.85rem',
+              }}
+            >
+              <p className="font-mono text-xs" style={{ margin: 0, lineHeight: 1.5, color: '#D97706', fontWeight: 600 }}>
+                WARNING: Removing this cost causes your budget to diverge from the active scheduled itinerary.
+              </p>
+              <p className="font-mono text-xs text-muted" style={{ margin: '0.5rem 0 0 0', lineHeight: 1.4 }}>
+                This expense is required by a scheduled event or transit route in your timeline. Omitting it will reduce the budget total, but the activity or transit leg will still remain scheduled in your daily timeline.
+              </p>
+            </div>
+
+            {/* Target Item Details Box */}
+            <div
+              style={{
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                padding: '0.85rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="font-mono text-xs" style={{ fontWeight: 700 }}>
+                  [{costToExclude.category.toUpperCase()}] {costToExclude.title}
+                </span>
+                <span className="font-mono text-sm font-bold" style={{ color: '#D97706' }}>
+                  €{costToExclude.amount.toFixed(2)}
+                </span>
+              </div>
+              <div className="font-mono text-xs text-muted" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span>SCHEDULED: {costToExclude.dateTime}</span>
+                {costToExclude.location && <span>LOCATION: {costToExclude.location}</span>}
+                {costToExclude.transitLine && <span>LINE / ROUTE: {costToExclude.transitLine}</span>}
+                {costToExclude.isEstimated && <span style={{ color: '#D97706' }}>STATUS: ESTIMATED ITINERARY FARE</span>}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setCostToExclude(null)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                KEEP IN BUDGET
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExclude}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#D97706',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                [!] EXCLUDE FROM BUDGET
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
