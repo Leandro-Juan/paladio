@@ -43,10 +43,14 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
 
     // Verify error messages appear inside the modal
     await expect(
-      page.getByText('Departure date 2020-01-01 is in the past. Real-world trips cannot begin in the past.')
+      page.getByRole('listitem').filter({
+        hasText: 'Departure date 2020-01-01 is in the past. Real-world trips cannot begin in the past.',
+      })
     ).toBeVisible();
     await expect(
-      page.getByText('Trip duration of 45 days exceeds maximum limit of 30 days.')
+      page.getByRole('listitem').filter({
+        hasText: 'Trip duration of 45 days exceeds maximum limit of 30 days.',
+      })
     ).toBeVisible();
 
     // Verify the confirm button has red danger color (#DC2626 -> rgb(220, 38, 38))
