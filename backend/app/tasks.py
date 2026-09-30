@@ -622,18 +622,25 @@ def cleanup_city_gtfs_resources(city_clean: str) -> None:
         return
 
     gtfs_base = os.path.realpath(os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds"))
+    gtfs_base_prefix = os.path.join(gtfs_base, "")
     gtfs_dest_dir = os.path.realpath(os.path.join(gtfs_base, safe_city))
     if (
-        os.path.commonpath([gtfs_base, gtfs_dest_dir]) == gtfs_base
+        gtfs_dest_dir.startswith(gtfs_base_prefix)
         and gtfs_dest_dir != gtfs_base
+        and os.path.commonpath([gtfs_base, gtfs_dest_dir]) == gtfs_base
     ):
         if os.path.exists(gtfs_dest_dir):
             shutil.rmtree(gtfs_dest_dir, ignore_errors=True)
             logger.info(f"Removed GTFS feed directory: {gtfs_dest_dir}")
 
     tmp_base = os.path.realpath("/tmp")
+    tmp_base_prefix = os.path.join(tmp_base, "")
     zip_tmp = os.path.realpath(os.path.join(tmp_base, f"{safe_city}_gtfs.zip"))
-    if os.path.commonpath([tmp_base, zip_tmp]) == tmp_base and zip_tmp != tmp_base:
+    if (
+        zip_tmp.startswith(tmp_base_prefix)
+        and zip_tmp != tmp_base
+        and os.path.commonpath([tmp_base, zip_tmp]) == tmp_base
+    ):
         if os.path.exists(zip_tmp):
             try:
                 os.remove(zip_tmp)
