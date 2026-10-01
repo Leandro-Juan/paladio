@@ -7,7 +7,7 @@ packages = ["app"]
 
 [project]
 name = "paladio-gateway"
-version = "1.1.0"
+version = "1.1.0" # x-release-please-version
 description = "Semantic Gateway for the Continuous Sovereign Travel Optimization Engine"
 requires-python = ">=3.10"
 dependencies = [

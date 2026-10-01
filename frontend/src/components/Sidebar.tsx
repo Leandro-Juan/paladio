@@ -29,7 +29,7 @@ export function Sidebar() {
               style={{ height: '32px', width: 'auto', display: 'block' }}
             />
           </div>
-          <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.1.0 ENGINE'}</p>
+          <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>{'// v1.1.0 ENGINE'} {/* x-release-please-version */}</p>
         </div>
         <NotificationBell />
       </div>
