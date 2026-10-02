@@ -123,7 +123,7 @@ export function Sidebar() {
               />
             </div>
             <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
-              {'// v1.1.0 ENGINE'} {/* x-release-please-version */}
+              {'// v1.2.0 ENGINE'} {/* x-release-please-version */}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
