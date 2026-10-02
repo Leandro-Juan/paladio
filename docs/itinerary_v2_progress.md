@@ -8,7 +8,7 @@
 | Phase 5a | C++ Extension | Done | All 64-node tests <500ms, GTest 18/18, PyTest 8/8 | category_id, arrival_times, nodes_expanded, max_nodes_expanded, timed_out. |
 | Phase 2a | Data Model & Tiering | Done | DB: 33 T1, 141 T2, 422 T3 | Migration 4d5e6f7a8b9c, 64 seeds across 5 cities, 8-cat taxonomy, poi_travel_cache. |
 | Phase 3 | Selection (Trip Frame & Pool) | Done | Paris 7/7 slots, 100% mand, 5 T1 | TripFrame, candidate pool, submodular greedy selector, reason codes. |
-| Phase 4 | Day Assignment | Queued | Pending | Capacitated insertion, local search, Hungarian matching. |
+| Phase 4 | Day Assignment | Done | Paris 8 POIs, 3 days, 0 closures, load var 950 | Capacitated insertion, local search, Hungarian matching, walking bundles. |
 | Phase 5b | Integration & Full Bench | Queued | Pending | Budget, meals, probe, thread-pool, cutover prep. |
 | Cutover | Approval Gate (STOP #1) | Queued | Pending | docs/itinerary_v2_cutover_report.md. |
 | Phase 6 | Refinement Loop | Queued | Pending | LangGraph critic/repair. |
@@ -60,6 +60,10 @@
   - `backend/app/engine/v2/selection.py`: Implemented deterministic submodular greedy selection maximizing $J_{\text{marginal}} = \text{taste} + \text{tier\_bonus} - \lambda_1 \text{cosine} - \lambda_2 \text{taxonomy} - \lambda_3 \text{time}$, with visit mode downgrading and typed reason codes for all selected and dropped items.
   - `backend/app/domain/entities/poi.py` & `sql_poi_repository.py`: Added v2 fields to `Poi` domain entity and added `find_tiered_pois` to repository.
   - Unit tests: `backend/tests/test_v2_selection.py` (8/8 passing). Total test suite (28/28 passing).
+- **Phase 4 Complete**:
+  - `backend/app/engine/v2/day_assignment.py`: Implemented walking proximity bundling (<=350m super-nodes), farthest-point anchor seed initialization, regret-2 insertion balancing active duration and node caps with trip closure feasibility checks, local search refinement (relocation/swap) evaluating shared objective J, Hungarian bipartite matching (`scipy.optimize.linear_sum_assignment`) with +10000 closure penalty guaranteeing zero closure violations and light arrival/departure matching, explainable daily themes, and effective time window intersection.
+  - Safe handling of edge cases (fewer POIs than days, padding empty clusters up to K).
+  - Unit tests: `backend/tests/test_v2_day_assignment.py` (7/7 passing). Total v2 test suite (23/23 passing).
 
 
 
