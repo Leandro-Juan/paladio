@@ -23,6 +23,14 @@ class IPoiRepository(ABC):
         """
 
     @abstractmethod
+    async def find_tiered_pois(self, city_name: str, max_tier: int = 2) -> list[Poi]:
+        """
+        Retrieves candidate attractions in the specified city up to max_tier (e.g. 1 and 2),
+        ordered by tier and iconicity.
+        """
+        pass
+
+    @abstractmethod
     async def save_all_for_city(self, city_name: str, pois: list[Poi]) -> None:
         pass
 

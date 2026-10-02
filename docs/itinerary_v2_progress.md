@@ -7,7 +7,7 @@
 | Phase 1 | Baseline & Bench CLI | Done | T1: 31.1%, Mand: 53.3%, Zigzag: 1.48/1.56, Closures: 72 | 135 scenarios evaluated across as_is & no_monotony. Fixtures saved. |
 | Phase 5a | C++ Extension | Done | All 64-node tests <500ms, GTest 18/18, PyTest 8/8 | category_id, arrival_times, nodes_expanded, max_nodes_expanded, timed_out. |
 | Phase 2a | Data Model & Tiering | Done | DB: 33 T1, 141 T2, 422 T3 | Migration 4d5e6f7a8b9c, 64 seeds across 5 cities, 8-cat taxonomy, poi_travel_cache. |
-| Phase 3 | Selection (Trip Frame & Pool) | Queued | Pending | Submodular selector, reason codes. |
+| Phase 3 | Selection (Trip Frame & Pool) | Done | Paris 7/7 slots, 100% mand, 5 T1 | TripFrame, candidate pool, submodular greedy selector, reason codes. |
 | Phase 4 | Day Assignment | Queued | Pending | Capacitated insertion, local search, Hungarian matching. |
 | Phase 5b | Integration & Full Bench | Queued | Pending | Budget, meals, probe, thread-pool, cutover prep. |
 | Cutover | Approval Gate (STOP #1) | Queued | Pending | docs/itinerary_v2_cutover_report.md. |
@@ -52,7 +52,14 @@
   - `backend/app/engine/v2/taxonomy.py`: Implemented canonical 8-category mapping matching C++ category IDs (0-7).
   - `backend/app/engine/v2/tiering.py`: Implemented `CitySeedStore`, curated lookup, and bounded heuristic fallback.
   - `backend/app/adapters/repositories/sql_poi_travel_cache_repository.py`: Implemented batch fetch and upsert for pairwise travel times.
-  - `backend/app/cli/tier_pois.py`: Hydrated all 596 DB attractions (33 Tier 1, 141 Tier 2, 422 Tier 3).
+  - `backend/cli/tier_pois.py`: Hydrated all 596 DB attractions (33 Tier 1, 141 Tier 2, 422 Tier 3).
   - Unit tests: `backend/tests/test_v2_tiering_taxonomy.py` (8/8 passing). Total test suite (20/20 passing).
+- **Phase 3 Complete**:
+  - `backend/app/engine/v2/trip_frame.py`: Implemented `DayFrame` and `TripFrame` with pace utilization targets, arrival (+120m) and departure (-180m) flight window buffers, daily budget pro-rata share, and standard FX conversion.
+  - `backend/app/engine/v2/candidate_pool.py`: Implemented `build_candidate_pool` guaranteeing 100% of Tier 1 & 2 POIs, expanding with semantic pgvector matches, and tagging explicit user-mandatories and meal spots.
+  - `backend/app/engine/v2/selection.py`: Implemented deterministic submodular greedy selection maximizing $J_{\text{marginal}} = \text{taste} + \text{tier\_bonus} - \lambda_1 \text{cosine} - \lambda_2 \text{taxonomy} - \lambda_3 \text{time}$, with visit mode downgrading and typed reason codes for all selected and dropped items.
+  - `backend/app/domain/entities/poi.py` & `sql_poi_repository.py`: Added v2 fields to `Poi` domain entity and added `find_tiered_pois` to repository.
+  - Unit tests: `backend/tests/test_v2_selection.py` (8/8 passing). Total test suite (28/28 passing).
+
 
 

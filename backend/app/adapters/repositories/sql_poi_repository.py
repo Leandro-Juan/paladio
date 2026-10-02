@@ -78,6 +78,13 @@ def model_to_poi(model: AttractionModel) -> Poi:
         cost_source=model.cost_source,
         osm_opening_hours=model.osm_opening_hours,
         embedding=emb,
+        tier=getattr(model, "tier", 3),
+        tier_confidence=getattr(model, "tier_confidence", "low"),
+        tier_source=getattr(model, "tier_source", "heuristic"),
+        iconicity_score=getattr(model, "iconicity_score", 0.0),
+        taxonomy_category=getattr(model, "taxonomy_category", "art_culture"),
+        category_id=getattr(model, "category_id", 0),
+        visit_mode=getattr(model, "visit_mode", "full"),
     )
 
 
@@ -242,6 +249,20 @@ class SqlPoiRepository(IPoiRepository):
     async def find_by_city(self, city_name: str) -> list[Poi]:
         stmt = select(AttractionModel).where(
             func.lower(AttractionModel.city) == city_name.strip().lower()
+        )
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [model_to_poi(model) for model in models]
+
+    async def find_tiered_pois(self, city_name: str, max_tier: int = 2) -> list[Poi]:
+        stmt = (
+            select(AttractionModel)
+            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
+            .where(AttractionModel.tier <= max_tier)
+            .order_by(
+                AttractionModel.tier.asc(),
+                AttractionModel.iconicity_score.desc(),
+            )
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
