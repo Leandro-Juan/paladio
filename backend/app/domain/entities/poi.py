@@ -230,3 +230,5 @@ class Itinerary(BaseModel):
     total_time_mins: int
     path: list[ScheduledPoi]
     transit_recommendation: TransitRecommendation | None = None
+    nodes_expanded: int = 0
+    timed_out: bool = False

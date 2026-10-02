@@ -76,6 +76,10 @@ def build_cpp_pois(
         node_score = 0.0 if is_hotel else score
         node_dur = 0 if is_hotel else poi.duration_mins
 
+        cat_id = getattr(poi, "category_id", 255)
+        if cat_id is None:
+            cat_id = 255
+
         cpp_poi = paladio_core.POI(
             node_type,
             node_cost,
@@ -84,6 +88,7 @@ def build_cpp_pois(
             latest,
             node_dur,
             is_mandatory,
+            cat_id,
         )
 
         cat = poi.category.upper()
@@ -149,6 +154,7 @@ def build_optimization_config(
     cpp_pois: list[Any] | None = None,
     monotony_threshold: int = 2,
     monotony_multiplier: float = 0.5,
+    max_nodes_expanded: int = 0,
 ) -> Any:
     if not paladio_core:
         return None
@@ -215,5 +221,6 @@ def build_optimization_config(
         dinner_deadline=dinner_deadline,
         monotony_threshold=monotony_threshold,
         monotony_multiplier=monotony_multiplier,
+        max_nodes_expanded=max_nodes_expanded,
     )
     return config

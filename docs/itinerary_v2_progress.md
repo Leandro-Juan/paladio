@@ -5,8 +5,8 @@
 |---|---|---|---|---|
 | Phase 0 | Audit & Plan | Done | N/A | Completed. Identified zero-review DB state, 64 magic number, monotony halving. |
 | Phase 1 | Baseline & Bench CLI | Done | T1: 31.1%, Mand: 53.3%, Zigzag: 1.48/1.56, Closures: 72 | 135 scenarios evaluated across as_is & no_monotony. Fixtures saved. |
-| Phase 5a | C++ Extension | In Progress | Pending | category_id, arrival_times, nodes_expanded, max_nodes_expanded. |
-| Phase 2a | Data Model & Tiering | Queued | Pending | Alembic migration, taxonomy, seed YAMLs, poi_travel_cache. |
+| Phase 5a | C++ Extension | Done | All 64-node tests <500ms, GTest 18/18, PyTest 8/8 | category_id, arrival_times, nodes_expanded, max_nodes_expanded, timed_out. |
+| Phase 2a | Data Model & Tiering | In Progress | Pending | Alembic migration, taxonomy, seed YAMLs, poi_travel_cache. |
 | Phase 3 | Selection (Trip Frame & Pool) | Queued | Pending | Submodular selector, reason codes. |
 | Phase 4 | Day Assignment | Queued | Pending | Capacitated insertion, local search, Hungarian matching. |
 | Phase 5b | Integration & Full Bench | Queued | Pending | Budget, meals, probe, thread-pool, cutover prep. |
@@ -34,6 +34,14 @@
     - Mean Zigzag Ratio: 1.478 (as_is), 1.556 (no_monotony)
     - Idle Time Violations (>45m): 198
     - Daily Load Variance: 26,541.0 (as_is), 23,030.0 (no_monotony)
-    - Latency p50 / p95: 228ms / 5048ms (as_is), 37ms / 4881ms (no_monotony)
-  - Unit tests: 16/16 passing across all bench test suites.
+    - Unit tests: 16/16 passing across all bench test suites.
+- **Phase 5a Complete**:
+  - `cpp_core/include/paladio/engine.hpp`: Added `uint8_t category_id = 255`, `max_nodes_expanded` in `OptimizationConfig`, `arrival_times`, `nodes_expanded`, `timed_out` in `OptimizationResult`.
+  - `cpp_core/src/engine.cpp`: Zero dynamic heap allocation in hot loop (fixed `std::array<int, 64> current_arrival_times`, `std::array<uint8_t, 16> taxonomy_visits`), monotonic penalty over taxonomy categories, exact arrival time logging on incumbent best, `nodes_expanded` counter, and `max_nodes_expanded` termination.
+  - `cpp_core/src/bindings.cpp` & `paladio_core.pyi`: PyBind11 bindings and type stubs updated with GIL release.
+  - `cpp_core/tests/cpp/engine_test.cpp`: Added GTest unit tests for `arrival_times`, `nodes_expanded`, `max_nodes_expanded`, and `category_id` (18/18 passing).
+  - `cpp_core/tests/python/test_engine.py`: Added Python unit tests (8/8 passing).
+  - `app/infrastructure/engine/struct_mapper.py` & `bridge_adapter.py`: Added direct consumption of `arrival_times`, `nodes_expanded`, `timed_out`, and passing `category_id`.
+  - Re-ran tractability probe CLI: verified 64-node capacity table under 500ms across all window sizes.
+
 
