@@ -32,9 +32,17 @@ class CppOptimizationAdapter(IOptimizationEngine):
     Implements IOptimizationEngine interface.
     """
 
-    def __init__(self, ml_scorer: MLScorer, exchange_rate: float = 0.92):
+    def __init__(
+        self,
+        ml_scorer: MLScorer,
+        exchange_rate: float = 0.92,
+        monotony_threshold: int = 2,
+        monotony_multiplier: float = 0.5,
+    ):
         self.ml_scorer = ml_scorer
         self.exchange_rate = exchange_rate
+        self.monotony_threshold = monotony_threshold
+        self.monotony_multiplier = monotony_multiplier
 
     async def run_optimization(
         self,
@@ -74,6 +82,8 @@ class CppOptimizationAdapter(IOptimizationEngine):
             end_node_index,
             self.exchange_rate,
             cpp_pois=cpp_pois,
+            monotony_threshold=self.monotony_threshold,
+            monotony_multiplier=self.monotony_multiplier,
         )
 
         # 3. Call C++ Engine

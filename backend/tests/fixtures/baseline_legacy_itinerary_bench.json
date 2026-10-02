@@ -1,0 +1,94 @@
+{
+  "results": {
+    "as_is": [
+      {
+        "scenario_id": "madrid_2d_balanced_culture",
+        "city": "Madrid",
+        "duration": 2,
+        "pace": "BALANCED",
+        "profile": "culture",
+        "baseline_mode": "as_is",
+        "monotony_threshold": 2,
+        "monotony_multiplier": 0.5,
+        "tier_1_recall": 0.0,
+        "user_mandatory_satisfaction": 0.0,
+        "closure_violations": 0,
+        "node_cap_violations": 0,
+        "zigzag_ratio": 1.0,
+        "travel_minutes_per_day": 0.0,
+        "load_variance": 0.0,
+        "bundle_splits": 0,
+        "category_entropy": 0.0,
+        "budget_overrun": 0.0,
+        "candidate_pool_exhausted": false,
+        "meal_spacing_violations": 0,
+        "idle_time_violations": 0,
+        "latency_ms": 19.1,
+        "scheduled_poi_count": 0,
+        "total_cost": 103.0
+      }
+    ],
+    "no_monotony": [
+      {
+        "scenario_id": "madrid_2d_balanced_culture",
+        "city": "Madrid",
+        "duration": 2,
+        "pace": "BALANCED",
+        "profile": "culture",
+        "baseline_mode": "no_monotony",
+        "monotony_threshold": 50,
+        "monotony_multiplier": 1.0,
+        "tier_1_recall": 0.0,
+        "user_mandatory_satisfaction": 0.0,
+        "closure_violations": 0,
+        "node_cap_violations": 0,
+        "zigzag_ratio": 1.0,
+        "travel_minutes_per_day": 0.0,
+        "load_variance": 0.0,
+        "bundle_splits": 0,
+        "category_entropy": 0.0,
+        "budget_overrun": 0.0,
+        "candidate_pool_exhausted": false,
+        "meal_spacing_violations": 0,
+        "idle_time_violations": 0,
+        "latency_ms": 15.8,
+        "scheduled_poi_count": 0,
+        "total_cost": 103.0
+      }
+    ]
+  },
+  "summaries": {
+    "as_is": {
+      "total_scenarios": 1,
+      "mean_tier_1_recall": 0.0,
+      "mean_user_mandatory_satisfaction": 0.0,
+      "total_closure_violations": 0,
+      "total_node_cap_violations": 0,
+      "mean_zigzag_ratio": 1.0,
+      "mean_travel_minutes_per_day": 0.0,
+      "mean_load_variance": 0.0,
+      "mean_category_entropy": 0.0,
+      "total_budget_overruns": 0,
+      "total_meal_spacing_violations": 0,
+      "total_idle_time_violations": 0,
+      "latency_p50_ms": 19.1,
+      "latency_p95_ms": 19.1
+    },
+    "no_monotony": {
+      "total_scenarios": 1,
+      "mean_tier_1_recall": 0.0,
+      "mean_user_mandatory_satisfaction": 0.0,
+      "total_closure_violations": 0,
+      "total_node_cap_violations": 0,
+      "mean_zigzag_ratio": 1.0,
+      "mean_travel_minutes_per_day": 0.0,
+      "mean_load_variance": 0.0,
+      "mean_category_entropy": 0.0,
+      "total_budget_overruns": 0,
+      "total_meal_spacing_violations": 0,
+      "total_idle_time_violations": 0,
+      "latency_p50_ms": 15.8,
+      "latency_p95_ms": 15.8
+    }
+  }
+}

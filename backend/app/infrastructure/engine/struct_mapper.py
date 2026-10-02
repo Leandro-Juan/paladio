@@ -147,6 +147,8 @@ def build_optimization_config(
     end_node_index: int | None,
     exchange_rate: float = 0.92,
     cpp_pois: list[Any] | None = None,
+    monotony_threshold: int = 2,
+    monotony_multiplier: float = 0.5,
 ) -> Any:
     if not paladio_core:
         return None
@@ -211,5 +213,7 @@ def build_optimization_config(
         breakfast_deadline=breakfast_deadline,
         lunch_deadline=lunch_deadline,
         dinner_deadline=dinner_deadline,
+        monotony_threshold=monotony_threshold,
+        monotony_multiplier=monotony_multiplier,
     )
     return config
