@@ -113,6 +113,18 @@ _MOCK_TRANSIT_LEG = TransitLeg(
 )
 
 
+def _parse_time_mins(t_val: Any) -> int | None:
+    if isinstance(t_val, int):
+        return t_val
+    if not isinstance(t_val, str) or ":" not in t_val:
+        return None
+    try:
+        parts = t_val.split(":")
+        return int(parts[0]) * 60 + int(parts[1])
+    except Exception:
+        return None
+
+
 async def run_single_scenario_benchmark(
     scenario: dict[str, Any],
     baseline_mode: str = "as_is",
@@ -242,15 +254,35 @@ async def run_single_scenario_benchmark(
     node_cap_violations = 0
 
     for d_idx, day_data in enumerate(days):
-        day_pois = day_data.get("pois", [])
-        if len(day_pois) > 64:
+        itin_data = day_data.get("itinerary", day_data)
+        path_items = (
+            itin_data.get("path", [])
+            if isinstance(itin_data, dict)
+            else getattr(itin_data, "path", [])
+        )
+        if not path_items and "pois" in day_data:
+            path_items = [{"poi": p} for p in day_data.get("pois", [])]
+
+        if len(path_items) > 64:
             node_cap_violations += 1
 
         day_coords = []
         day_active_mins = 0
-        for p in day_pois:
+        day_transit_mins = 0
+        day_idle = 0
+        prev_end_mins = None
+
+        for item in path_items:
+            p = (
+                item.get("poi", item)
+                if isinstance(item, dict)
+                else getattr(item, "poi", item)
+            )
             name = p.get("name", "")
-            scheduled_poi_names.add(name)
+            is_depot = p.get("category") in ("HOTEL", "AIRPORT")
+            if not is_depot:
+                scheduled_poi_names.add(name)
+
             loc = p.get("location", {})
             lat = loc.get("latitude", loc.get("lat", 0.0))
             lon = loc.get("longitude", loc.get("lon", 0.0))
@@ -258,11 +290,45 @@ async def run_single_scenario_benchmark(
                 day_coords.append((lat, lon))
 
             cat = p.get("category", "")
-            if cat:
+            if cat and not is_depot:
                 categories.append(cat)
 
             dur = p.get("duration_mins", 60)
-            day_active_mins += dur
+            if not is_depot:
+                day_active_mins += dur
+
+            # Extract start and end times
+            s_start = item.get("scheduled_start") if isinstance(item, dict) else None
+            s_end = item.get("scheduled_end") if isinstance(item, dict) else None
+            arr_time = (
+                _parse_time_mins(s_start)
+                if s_start is not None
+                else p.get("arrival_time_mins")
+            )
+            dep_time = (
+                _parse_time_mins(s_end)
+                if s_end is not None
+                else p.get("departure_time_mins")
+            )
+
+            # Transit leg from previous
+            transit_info = (
+                item.get("transit_from_previous", {}) if isinstance(item, dict) else {}
+            )
+            leg_dur = (
+                transit_info.get("duration_mins", 0)
+                if isinstance(transit_info, dict)
+                else getattr(transit_info, "duration_mins", 0)
+            )
+            day_transit_mins += leg_dur
+
+            # Idle time between previous departure and current arrival
+            if prev_end_mins is not None and arr_time is not None:
+                gap = arr_time - prev_end_mins - leg_dur
+                if gap > 0:
+                    day_idle += gap
+            if dep_time is not None:
+                prev_end_mins = dep_time
 
             scheduled_nodes.append(
                 {
@@ -273,14 +339,14 @@ async def run_single_scenario_benchmark(
                     or p.get("is_dinner_spot"),
                     "open_time_mins_by_day": p.get("open_time_mins_by_day"),
                     "close_time_mins_by_day": p.get("close_time_mins_by_day"),
-                    "arrival_time_mins": p.get("arrival_time_mins"),
-                    "departure_time_mins": p.get("departure_time_mins"),
+                    "arrival_time_mins": arr_time,
+                    "departure_time_mins": dep_time,
                 }
             )
 
         daily_loads.append(day_active_mins)
-        daily_idle_mins.append(day_data.get("total_idle_time", 0))
-        total_travel_mins += day_data.get("total_transit_time", 0)
+        daily_idle_mins.append(day_idle)
+        total_travel_mins += day_transit_mins
 
         if len(day_coords) >= 3:
             zigzag_ratios.append(calculate_zigzag_ratio(day_coords))
@@ -357,11 +423,20 @@ async def run_baseline_benchmark_matrix(
     results: dict[str, list[dict[str, Any]]] = {m: [] for m in baseline_modes}
 
     for mode in baseline_modes:
-        for sc in scenarios:
+        print(
+            f"Starting baseline mode: {mode} ({len(scenarios)} scenarios)...",
+            flush=True,
+        )
+        for idx, sc in enumerate(scenarios):
             res = await run_single_scenario_benchmark(
                 sc, baseline_mode=mode, travel_fixtures=fixtures
             )
             results[mode].append(res)
+            if (idx + 1) % 25 == 0 or idx == len(scenarios) - 1:
+                print(
+                    f"  [{mode}] Completed {idx + 1}/{len(scenarios)} scenarios...",
+                    flush=True,
+                )
 
     # Compute summary aggregates per baseline mode
     summaries = {}

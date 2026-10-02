@@ -27,6 +27,7 @@ async def test_run_single_scenario_benchmark():
     assert "latency_ms" in res_as_is
     assert res_as_is["latency_ms"] > 0
     assert res_as_is["node_cap_violations"] == 0
+    assert res_as_is["scheduled_poi_count"] > 0
 
     # Run no_monotony
     res_no_mono = await run_single_scenario_benchmark(
@@ -36,3 +37,4 @@ async def test_run_single_scenario_benchmark():
     )
     assert res_no_mono["scenario_id"] == "madrid_2d_balanced_culture"
     assert res_no_mono["node_cap_violations"] == 0
+    assert res_no_mono["scheduled_poi_count"] > 0

@@ -4,8 +4,8 @@
 | Phase | Title | Status | Bench Results | Notes / Deviations |
 |---|---|---|---|---|
 | Phase 0 | Audit & Plan | Done | N/A | Completed. Identified zero-review DB state, 64 magic number, monotony halving. |
-| Phase 1 | Baseline & Bench CLI | In Progress | Harness Complete | CLI & runner implemented, 16/16 tests green, tractability capacity table generated. |
-| Phase 5a | C++ Extension | Queued | Pending | category_id, arrival_times, nodes_expanded, max_nodes_expanded. |
+| Phase 1 | Baseline & Bench CLI | Done | T1: 31.1%, Mand: 53.3%, Zigzag: 1.48/1.56, Closures: 72 | 135 scenarios evaluated across as_is & no_monotony. Fixtures saved. |
+| Phase 5a | C++ Extension | In Progress | Pending | category_id, arrival_times, nodes_expanded, max_nodes_expanded. |
 | Phase 2a | Data Model & Tiering | Queued | Pending | Alembic migration, taxonomy, seed YAMLs, poi_travel_cache. |
 | Phase 3 | Selection (Trip Frame & Pool) | Queued | Pending | Submodular selector, reason codes. |
 | Phase 4 | Day Assignment | Queued | Pending | Capacitated insertion, local search, Hungarian matching. |
@@ -18,13 +18,22 @@
 ## Running Notes & Deviations
 - **Phase 0**: Confirmed all attractions in Paris, Tokyo, Lisbon, Madrid, Porto have `reviews: 0` and `rating: 0.0`. Tier 1/2 must rely on curated YAML seeds + fallback heuristic (duration, centrality, OSM tags).
 - **Amendment A4**: Phase 5a C++ extension prioritized right after Phase 1.
-- **Phase 1 Progress**:
+- **Phase 1 Complete**:
   - `app/bench/metrics.py`: Zigzag ratio (2-opt), Tier 1 recall, closures, meal spacing, idle time, category entropy, load variance.
   - `app/bench/tractability.py`: Synthetic solver probe and capacity table generator (`tests/fixtures/tractability_capacity_table.json`).
   - `app/bench/scenarios.py`: Scenario matrix generator and constraint builder.
-  - `app/bench/runner.py`: Single scenario and matrix runner supporting both `as_is` and `no_monotony` baselines with hermetic network mocks.
+  - `app/bench/runner.py`: Single scenario and matrix runner supporting both `as_is` and `no_monotony` baselines with hermetic network mocks. Fixed path items extraction to inspect `itinerary.path`.
   - `app/cli/itinerary_bench.py`: CLI runnable with `--mode baseline`, `--mode tractability`, `--mode compare`.
   - `app/infrastructure/engine/struct_mapper.py` & `bridge_adapter.py`: Added backward-compatible `monotony_threshold` and `monotony_multiplier` parameters.
   - `tests/fixtures/bench_pois.json`: 123 real DB POIs across Paris, Madrid, Lisbon with 18 Tier 1 seeds and meal slots.
+  - `tests/fixtures/baseline_legacy_itinerary_bench.json`: Populated with 135 scenarios across both modes.
+  - Baseline Summary:
+    - Tier 1 Recall: 31.11% (as_is and no_monotony)
+    - User Mandatory Satisfaction: 53.33%
+    - Closure Violations: 72
+    - Mean Zigzag Ratio: 1.478 (as_is), 1.556 (no_monotony)
+    - Idle Time Violations (>45m): 198
+    - Daily Load Variance: 26,541.0 (as_is), 23,030.0 (no_monotony)
+    - Latency p50 / p95: 228ms / 5048ms (as_is), 37ms / 4881ms (no_monotony)
   - Unit tests: 16/16 passing across all bench test suites.
 
