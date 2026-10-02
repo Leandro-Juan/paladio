@@ -89,6 +89,7 @@ pytestdebug.log
 # ==========================================
 .vscode/
 .agents/
+repomix.config.json
 *.swp
 *.swo
 *~
