@@ -1,0 +1,105 @@
+city: Tokyo
+seeds:
+  - name: "Watch Shibuya Crossing"
+    tier: 1
+    iconicity_score: 0.98
+    taxonomy_category: "scenic_views"
+    category_id: 7
+    visit_mode: "quick"
+    notes: "The world's busiest pedestrian scramble intersection and quintessential Tokyo experience"
+
+  - name: "Meiji Jingū Forest"
+    tier: 1
+    iconicity_score: 0.95
+    taxonomy_category: "nature_outdoors"
+    category_id: 2
+    visit_mode: "full"
+    notes: "Sacred evergreen forest encompassing Meiji Shrine, planted with 100,000 trees from all over Japan"
+
+  - name: "MIYASHITA PARK North"
+    tier: 1
+    iconicity_score: 0.88
+    taxonomy_category: "shopping"
+    category_id: 6
+    visit_mode: "quick"
+    notes: "Rooftop urban park complex in Shibuya blending retail, recreation, and city views"
+
+  - name: "Carrot Tower 26F"
+    tier: 1
+    iconicity_score: 0.86
+    taxonomy_category: "scenic_views"
+    category_id: 7
+    visit_mode: "quick"
+    notes: "Panoramic observation deck offering sweeping views of Tokyo, Shinjuku, and Mt. Fuji"
+
+  - name: "刀剣博物館"
+    tier: 1
+    iconicity_score: 0.92
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Japanese Sword Museum preserving historic masterwork katana and samurai armor"
+
+  - name: "太田記念美術館"
+    tier: 1
+    iconicity_score: 0.90
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Ota Memorial Museum of Art specializing in world-renowned Japanese ukiyo-e woodblock prints"
+
+  - name: "日本民藝館"
+    tier: 2
+    iconicity_score: 0.82
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Japan Folk Crafts Museum founded by Soetsu Yanagi showcasing traditional handmade crafts"
+
+  - name: "Parco Museum Tokyo"
+    tier: 2
+    iconicity_score: 0.80
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Leading contemporary art, pop culture, and design exhibition venue in Shibuya PARCO"
+
+  - name: "SOMPO美術館"
+    tier: 2
+    iconicity_score: 0.82
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Sompo Museum of Art in Shinjuku home to Vincent van Gogh's Sunflowers"
+
+  - name: "古賀政男音楽博物館"
+    tier: 2
+    iconicity_score: 0.78
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Koga Masao Music Museum celebrating modern Japanese popular music and composers"
+
+  - name: "Samurai Museum Tokyo Ticket Centre"
+    tier: 2
+    iconicity_score: 0.84
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "quick"
+    notes: "Historical hub celebrating Japan's warrior heritage and katana culture in Shinjuku"
+
+  - name: "MIYASHITA PARK South"
+    tier: 2
+    iconicity_score: 0.80
+    taxonomy_category: "shopping"
+    category_id: 6
+    visit_mode: "quick"
+    notes: "Southern wing of Shibuya's revitalized multi-level park and shopping promenade"
+
+  - name: "Karasuyama Teramachi (temple town)"
+    tier: 2
+    iconicity_score: 0.76
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Historic cluster of 26 Buddhist temples relocated following the Great Kanto Earthquake"

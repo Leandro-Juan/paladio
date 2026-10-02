@@ -6,7 +6,7 @@
 | Phase 0 | Audit & Plan | Done | N/A | Completed. Identified zero-review DB state, 64 magic number, monotony halving. |
 | Phase 1 | Baseline & Bench CLI | Done | T1: 31.1%, Mand: 53.3%, Zigzag: 1.48/1.56, Closures: 72 | 135 scenarios evaluated across as_is & no_monotony. Fixtures saved. |
 | Phase 5a | C++ Extension | Done | All 64-node tests <500ms, GTest 18/18, PyTest 8/8 | category_id, arrival_times, nodes_expanded, max_nodes_expanded, timed_out. |
-| Phase 2a | Data Model & Tiering | In Progress | Pending | Alembic migration, taxonomy, seed YAMLs, poi_travel_cache. |
+| Phase 2a | Data Model & Tiering | Done | DB: 33 T1, 141 T2, 422 T3 | Migration 4d5e6f7a8b9c, 64 seeds across 5 cities, 8-cat taxonomy, poi_travel_cache. |
 | Phase 3 | Selection (Trip Frame & Pool) | Queued | Pending | Submodular selector, reason codes. |
 | Phase 4 | Day Assignment | Queued | Pending | Capacitated insertion, local search, Hungarian matching. |
 | Phase 5b | Integration & Full Bench | Queued | Pending | Budget, meals, probe, thread-pool, cutover prep. |
@@ -43,5 +43,16 @@
   - `cpp_core/tests/python/test_engine.py`: Added Python unit tests (8/8 passing).
   - `app/infrastructure/engine/struct_mapper.py` & `bridge_adapter.py`: Added direct consumption of `arrival_times`, `nodes_expanded`, `timed_out`, and passing `category_id`.
   - Re-ran tractability probe CLI: verified 64-node capacity table under 500ms across all window sizes.
+- **Phase 2a Complete**:
+  - `backend/migrations/versions/4d5e6f7a8b9c_add_itinerary_v2_tiering_and_travel_cache.py`: Applied migration adding `tier`, `tier_confidence`, `tier_source`, `iconicity_score`, `taxonomy_category`, `category_id`, `visit_mode`, `(city, tier)` index, and `poi_travel_cache` table.
+  - `backend/app/db/models.py`: Updated `AttractionModel` and added `PoiTravelCacheModel`.
+  - `backend/app/schemas/itinerary.py`: Added `pace: PacePreference = PacePreference.BALANCED` to `TravelConstraints`.
+  - `backend/app/data/city_seeds/`: Created curated seed YAMLs for Paris (15 seeds), Madrid (13 seeds), Lisbon (12 seeds), Porto (11 seeds), Tokyo (13 seeds) with 100% real DB POI match.
+  - `docs/itinerary_v2_seed_review.md`: Documented seed vetting and coverage statistics.
+  - `backend/app/engine/v2/taxonomy.py`: Implemented canonical 8-category mapping matching C++ category IDs (0-7).
+  - `backend/app/engine/v2/tiering.py`: Implemented `CitySeedStore`, curated lookup, and bounded heuristic fallback.
+  - `backend/app/adapters/repositories/sql_poi_travel_cache_repository.py`: Implemented batch fetch and upsert for pairwise travel times.
+  - `backend/app/cli/tier_pois.py`: Hydrated all 596 DB attractions (33 Tier 1, 141 Tier 2, 422 Tier 3).
+  - Unit tests: `backend/tests/test_v2_tiering_taxonomy.py` (8/8 passing). Total test suite (20/20 passing).
 
 

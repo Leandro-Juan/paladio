@@ -1,0 +1,121 @@
+city: Paris
+seeds:
+  - name: "Catacombes de Paris"
+    tier: 1
+    iconicity_score: 0.95
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Iconic underground ossuary and historic underground network"
+
+  - name: "Pont Alexandre III"
+    tier: 1
+    iconicity_score: 0.90
+    taxonomy_category: "architecture"
+    category_id: 3
+    visit_mode: "quick"
+    notes: "Famous Beaux-Arts bridge over the Seine with grand sculptures"
+
+  - name: "Conciergerie"
+    tier: 1
+    iconicity_score: 0.92
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Former royal palace and Revolutionary prison on Île de la Cité"
+
+  - name: "Maison de Victor Hugo"
+    tier: 1
+    iconicity_score: 0.85
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Historic residence of Victor Hugo on Place des Vosges"
+
+  - name: "Bibliothèque-Musée de l'Opéra"
+    tier: 1
+    iconicity_score: 0.88
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Historical opera museum and library within Palais Garnier"
+
+  - name: "Musée de la Musique"
+    tier: 1
+    iconicity_score: 0.85
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Major musical instruments museum at Philharmonie de Paris"
+
+  - name: "Musée des Arts et Métiers"
+    tier: 2
+    iconicity_score: 0.78
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Historic industrial design and scientific instruments museum"
+
+  - name: "Musée de l'Armée"
+    tier: 2
+    iconicity_score: 0.82
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "National military museum at Les Invalides"
+
+  - name: "Musée des Arts Décoratifs"
+    tier: 2
+    iconicity_score: 0.80
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Decorative arts and design collection adjacent to Louvre"
+
+  - name: "Musée Grévin"
+    tier: 2
+    iconicity_score: 0.75
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Historical wax museum on Grands Boulevards"
+
+  - name: "Champs Élysées"
+    tier: 2
+    iconicity_score: 0.82
+    taxonomy_category: "architecture"
+    category_id: 3
+    visit_mode: "quick"
+    notes: "World-famous boulevard connecting Concorde and Arc de Triomphe"
+
+  - name: "Espace Dali"
+    tier: 2
+    iconicity_score: 0.72
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Surrealist exhibition space dedicated to Salvador Dali in Montmartre"
+
+  - name: "Cité de l'architecture et du patrimoine"
+    tier: 2
+    iconicity_score: 0.75
+    taxonomy_category: "architecture"
+    category_id: 3
+    visit_mode: "full"
+    notes: "Architecture museum in Palais de Chaillot facing Eiffel Tower"
+
+  - name: "Musée de l'Homme"
+    tier: 2
+    iconicity_score: 0.74
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Anthropology and human evolution museum at Trocadéro"
+
+  - name: "Belvédère de la Sibylle"
+    tier: 2
+    iconicity_score: 0.70
+    taxonomy_category: "scenic_views"
+    category_id: 7
+    visit_mode: "quick"
+    notes: "Scenic temple viewpoint on cliff island in Parc des Buttes-Chaumont"

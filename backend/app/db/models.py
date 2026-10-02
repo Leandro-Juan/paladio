@@ -44,6 +44,21 @@ class AttractionModel(Base):
     cost_source = Column(String, nullable=True)
     osm_opening_hours = Column(String, nullable=True)
 
+    # Itinerary v2 tiering and taxonomy fields
+    tier = Column(Integer, default=3, server_default="3", nullable=False)
+    tier_confidence = Column(
+        String, default="low", server_default="low", nullable=False
+    )
+    tier_source = Column(
+        String, default="heuristic", server_default="heuristic", nullable=False
+    )
+    iconicity_score = Column(Float, default=0.0, server_default="0.0", nullable=False)
+    taxonomy_category = Column(
+        String, default="art_culture", server_default="art_culture", nullable=False
+    )
+    category_id = Column(Integer, default=0, server_default="0", nullable=False)
+    visit_mode = Column(String, default="full", server_default="full", nullable=False)
+
     # Relational JSONB fields
     location = Column(JSONB, nullable=False)
     scoring = Column(JSONB, nullable=False)
@@ -57,8 +72,11 @@ class AttractionModel(Base):
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
     )
 
-    # Compound index for common query pattern
-    __table_args__ = (Index("idx_city_category", "city", "category"),)
+    # Compound indices for common query patterns
+    __table_args__ = (
+        Index("idx_city_category", "city", "category"),
+        Index("ix_attractions_city_tier", "city", "tier"),
+    )
 
 
 class UserModel(Base):
@@ -281,4 +299,26 @@ class CityTransitFareModel(Base):
 
     source_url = synonym(
         "source", descriptor=property(source_url.fget, source_url.fset)
+    )
+
+
+class PoiTravelCacheModel(Base):
+    __tablename__ = "poi_travel_cache"
+
+    origin_id = Column(
+        String, ForeignKey("attractions.id", ondelete="CASCADE"), primary_key=True
+    )
+    destination_id = Column(
+        String, ForeignKey("attractions.id", ondelete="CASCADE"), primary_key=True
+    )
+    mode = Column(String, primary_key=True, default="transit", server_default="transit")
+    duration_mins = Column(Float, nullable=False)
+    cost_eur = Column(Float, nullable=False, default=0.0, server_default="0.0")
+    distance_km = Column(Float, nullable=False, default=0.0, server_default="0.0")
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_poi_travel_cache_pair", "origin_id", "destination_id"),
     )
