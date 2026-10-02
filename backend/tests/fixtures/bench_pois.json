@@ -1,0 +1,5187 @@
+{
+  "Paris": [
+    {
+      "id": "OSM-node-5304864568",
+      "city": "Paris",
+      "name": "Mus\u00e9e de la Musique",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8901928,
+        "longitude": 2.393712
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281733Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        720,
+        720,
+        720,
+        720,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-254033221",
+      "city": "Paris",
+      "name": "Maison de Victor Hugo",
+      "category": "museum",
+      "location": {
+        "latitude": 48.854799,
+        "longitude": 2.3661358
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279215Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-493870538",
+      "city": "Paris",
+      "name": "Catacombes de Paris",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8337439,
+        "longitude": 2.3322925
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279315Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        585,
+        585,
+        585,
+        585,
+        585,
+        585
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1230,
+        1230,
+        1230,
+        1230,
+        1230,
+        1230
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5164114322",
+      "city": "Paris",
+      "name": "Pont Alexandre III",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8637333,
+        "longitude": 2.3135623
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281703Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-910390736",
+      "city": "Paris",
+      "name": "Conciergerie",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8559492,
+        "longitude": 2.3460263
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279377Z"
+      },
+      "open_time_mins_by_day": [
+        570,
+        570,
+        570,
+        570,
+        570,
+        570,
+        570
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1426281644",
+      "city": "Paris",
+      "name": "Biblioth\u00e8que-Mus\u00e9e de l'Op\u00e9ra",
+      "category": "museum",
+      "location": {
+        "latitude": 48.871882,
+        "longitude": 2.331212
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281074Z"
+      },
+      "open_time_mins_by_day": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        1020,
+        1020,
+        1020,
+        1020,
+        1020,
+        1020,
+        1020
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4784086421",
+      "city": "Paris",
+      "name": "pont pisserot",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8440867,
+        "longitude": 2.4175448
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281635Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4679984492",
+      "city": "Paris",
+      "name": "Les Cormailles",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8167038,
+        "longitude": 2.3866914
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-07T21:19:55.721601"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-299730585",
+      "city": "Paris",
+      "name": "Vedettes de Paris",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8588633,
+        "longitude": 2.2918544
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279231Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-321830153",
+      "city": "Paris",
+      "name": "Belv\u00e9d\u00e8re de la Sibylle",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8810863,
+        "longitude": 2.3830748
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279250Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-428054194",
+      "city": "Paris",
+      "name": "Folie Titon",
+      "category": "monument",
+      "location": {
+        "latitude": 48.8505273,
+        "longitude": 2.3858439
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279301Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-530585154",
+      "city": "Paris",
+      "name": "Fontaine Cuvier",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8439963,
+        "longitude": 2.3550311
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279328Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4816418121",
+      "city": "Paris",
+      "name": "Sortie des Catacombes",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8295257,
+        "longitude": 2.3345327
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281651Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1230,
+        1230,
+        1230,
+        1230,
+        1230,
+        1230
+      ],
+      "duration_mins": 45,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4844461628",
+      "city": "Paris",
+      "name": "Montparnasse",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8424217,
+        "longitude": 2.3286868
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281662Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4893981921",
+      "city": "Paris",
+      "name": "Terrass'' H\u00f4tel",
+      "category": "restaurant",
+      "location": {
+        "latitude": 48.8865996,
+        "longitude": 2.3328662
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281672Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 60,
+      "cost_eur": 25.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4908819676",
+      "city": "Paris",
+      "name": "Mus\u00e9e National de l'Histoire de l'Immigration",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8351424,
+        "longitude": 2.4093613
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281684Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1050,
+        1050,
+        1050,
+        1050,
+        1140,
+        1140
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5192389258",
+      "city": "Paris",
+      "name": "Plaque comm\u00e9morant la premi\u00e8re frappe du canon allemand \u00ab\u00a0Pariser Kanonen\u00a0\u00bb, le 23 mars 1918",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8847546,
+        "longitude": 2.3708845
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.281713Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-323911913",
+      "city": "Paris",
+      "name": "Maison europ\u00e9enne de la Photographie",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8551205,
+        "longitude": 2.3589562
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279267Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        -1,
+        660,
+        660,
+        660,
+        660,
+        660
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        -1,
+        1200,
+        1200,
+        1200,
+        1200,
+        1200
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-326372977",
+      "city": "Paris",
+      "name": "Robinier du square Ren\u00e9 Viviani",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.852191,
+        "longitude": 2.3472869
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279284Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-681283199",
+      "city": "Paris",
+      "name": "Le Petit Bouillon Pharamond",
+      "category": "restaurant",
+      "location": {
+        "latitude": 48.8630061,
+        "longitude": 2.3485109
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279347Z"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        1440,
+        1440,
+        1440,
+        1440,
+        1440,
+        1440,
+        1440
+      ],
+      "duration_mins": 60,
+      "cost_eur": 25.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-237003117",
+      "city": "Paris",
+      "name": "Mus\u00e9e de l'Assistance Publique H\u00f4pitaux de Paris",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8091747,
+        "longitude": 2.3524371
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-07T21:19:55.717942"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-782601793",
+      "city": "Paris",
+      "name": "Fontaine M\u00e9dicis",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8480587,
+        "longitude": 2.3392944
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279361Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-968153548",
+      "city": "Paris",
+      "name": "Brasserie Bofinger",
+      "category": "restaurant",
+      "location": {
+        "latitude": 48.8539095,
+        "longitude": 2.3680433
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279393Z"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        900,
+        900,
+        900,
+        900,
+        900,
+        900,
+        900
+      ],
+      "duration_mins": 60,
+      "cost_eur": 25.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-975987576",
+      "city": "Paris",
+      "name": "Mus\u00e9e du Vin",
+      "category": "museum",
+      "location": {
+        "latitude": 48.8575222,
+        "longitude": 2.284569
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279409Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193507",
+      "city": "Paris",
+      "name": "Renard des Steppes",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8453955,
+        "longitude": 2.3614522
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279423Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193689",
+      "city": "Paris",
+      "name": "Takin",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8449433,
+        "longitude": 2.3611035
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279438Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193735",
+      "city": "Paris",
+      "name": "Markhor",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8455992,
+        "longitude": 2.3601919
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279451Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193908",
+      "city": "Paris",
+      "name": "Cheval de Przewalski",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8455987,
+        "longitude": 2.3610025
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279467Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193930",
+      "city": "Paris",
+      "name": "Tapir malais",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8460274,
+        "longitude": 2.36141
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279483Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193947",
+      "city": "Paris",
+      "name": "Ch\u00e8vres des montagnes rocheuses",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.845395,
+        "longitude": 2.3600837
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279497Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977193965",
+      "city": "Paris",
+      "name": "Flamant des Cara\u00efbes",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8451325,
+        "longitude": 2.3585787
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.279515Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977194054",
+      "city": "Paris",
+      "name": "Vigognes",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8448648,
+        "longitude": 2.3615333
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.280413Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977194140",
+      "city": "Paris",
+      "name": "Casoars \u00e0 casque",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8461195,
+        "longitude": 2.360275
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.280427Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977194246",
+      "city": "Paris",
+      "name": "Oryx d'Arabie",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8449788,
+        "longitude": 2.3620536
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.280436Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-977194454",
+      "city": "Paris",
+      "name": "Pademelons",
+      "category": "attraction",
+      "location": {
+        "latitude": 48.8450246,
+        "longitude": 2.3589585
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-19T18:51:26.280462Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Breakfast_Cafe_A",
+      "city": "Paris",
+      "name": "Paris Breakfast Cafe A",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 48.8596,
+        "longitude": 2.3541999999999996
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 8.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Breakfast_Cafe_B",
+      "city": "Paris",
+      "name": "Paris Breakfast Cafe B",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 48.8546,
+        "longitude": 2.3552
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Lunch_Bistro_A",
+      "city": "Paris",
+      "name": "Paris Lunch Bistro A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 48.8616,
+        "longitude": 2.3482
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 18.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Lunch_Bistro_B",
+      "city": "Paris",
+      "name": "Paris Lunch Bistro B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 48.8526,
+        "longitude": 2.3491999999999997
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 22.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Dinner_Restaurant_A",
+      "city": "Paris",
+      "name": "Paris Dinner Restaurant A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 48.8586,
+        "longitude": 2.3571999999999997
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 30.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    },
+    {
+      "id": "meal_Paris_Paris_Dinner_Restaurant_B",
+      "city": "Paris",
+      "name": "Paris Dinner Restaurant B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 48.8536,
+        "longitude": 2.3562
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 35.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    }
+  ],
+  "Madrid": [
+    {
+      "id": "OSM-node-158849464",
+      "city": "Madrid",
+      "name": "Museo Casa de la Moneda",
+      "category": "museum",
+      "location": {
+        "latitude": 40.422598,
+        "longitude": -3.6691465
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846294Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-255288522",
+      "city": "Madrid",
+      "name": "Museo Arqueol\u00f3gico Nacional",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4234289,
+        "longitude": -3.6888894
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846330Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2449728815",
+      "city": "Madrid",
+      "name": "Casa Museo del Rat\u00f3n P\u00e9rez",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4171984,
+        "longitude": -3.7054947
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846716Z"
+      },
+      "open_time_mins_by_day": [
+        1020,
+        660,
+        660,
+        660,
+        660,
+        660,
+        720
+      ],
+      "close_time_mins_by_day": [
+        1200,
+        840,
+        840,
+        840,
+        840,
+        900,
+        900
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3524628677",
+      "city": "Madrid",
+      "name": "Mirador del Templo de Debod",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4238861,
+        "longitude": -3.7187434
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846821Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5774110605",
+      "city": "Madrid",
+      "name": "Casa de Cervantes",
+      "category": "museum",
+      "location": {
+        "latitude": 40.414297,
+        "longitude": -3.6985628
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847556Z"
+      },
+      "open_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        720,
+        -1
+      ],
+      "close_time_mins_by_day": [
+        1050,
+        1050,
+        1050,
+        1050,
+        1050,
+        1020,
+        -1
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-936505939",
+      "city": "Madrid",
+      "name": "And\u00e9n Cero - Estaci\u00f3n de Chamber\u00ed",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4322594,
+        "longitude": -3.6977299
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846485Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        -1,
+        -1,
+        -1,
+        960,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        -1,
+        -1,
+        -1,
+        1200,
+        840,
+        840
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-316810700",
+      "city": "Madrid",
+      "name": "La Atalaya",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.377684,
+        "longitude": -3.6865826
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846350Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-324812377",
+      "city": "Madrid",
+      "name": "Puerta de Felipe IV",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4152748,
+        "longitude": -3.6886925
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846402Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-324814372",
+      "city": "Madrid",
+      "name": "Mirador Este Parque Enrique Tierno Galv\u00e1n",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.3885923,
+        "longitude": -3.6828679
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846417Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-325076341",
+      "city": "Madrid",
+      "name": "Monumento a los Ca\u00eddos por Espa\u00f1a",
+      "category": "monument",
+      "location": {
+        "latitude": 40.416387,
+        "longitude": -3.6928847
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846432Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-902327030",
+      "city": "Madrid",
+      "name": "Francisco de Quevedo y Villegas",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4336329,
+        "longitude": -3.704246
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846447Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-926197364",
+      "city": "Madrid",
+      "name": "Monumento a Goya",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4248513,
+        "longitude": -3.6753031
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846458Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-958170258",
+      "city": "Madrid",
+      "name": "Cubos",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4251002,
+        "longitude": -3.7131106
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846553Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1052390712",
+      "city": "Madrid",
+      "name": "Mirador de la Sart\u00e9n",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.42257,
+        "longitude": -3.7352661
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846567Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1175067767",
+      "city": "Madrid",
+      "name": "Mirador Glorieta Perdida",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4197388,
+        "longitude": -3.7435594
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846579Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1427507331",
+      "city": "Madrid",
+      "name": "Cerro de Garabitas",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4344943,
+        "longitude": -3.7564977
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846594Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2045974223",
+      "city": "Madrid",
+      "name": "Estatua de Goya",
+      "category": "monument",
+      "location": {
+        "latitude": 40.414983,
+        "longitude": -3.6925365
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846677Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2402463674",
+      "city": "Madrid",
+      "name": "Mirador Huerta de la Partida",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4179381,
+        "longitude": -3.7262978
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846700Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2669198766",
+      "city": "Madrid",
+      "name": "Museo ABC",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4276832,
+        "longitude": -3.7096739
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846741Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2671594325",
+      "city": "Madrid",
+      "name": "Estatua de Emilio Castelar",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4352161,
+        "longitude": -3.6887808
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846754Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3150477729",
+      "city": "Madrid",
+      "name": "Ruinas de la Fuente del Pr\u00edncipe",
+      "category": "monument",
+      "location": {
+        "latitude": 40.418537,
+        "longitude": -3.7384145
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846765Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3262147397",
+      "city": "Madrid",
+      "name": "Monumento a la Reina Mar\u00eda Cristina de Borb\u00f3n",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4152434,
+        "longitude": -3.6904183
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846781Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3500454030",
+      "city": "Madrid",
+      "name": "Yacimiento Paleontol\u00f3gico de la Carpetana. Estaci\u00f3n de Carpetana Metro Madrid",
+      "category": "museum",
+      "location": {
+        "latitude": 40.3928135,
+        "longitude": -3.741293
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846794Z"
+      },
+      "open_time_mins_by_day": [
+        360,
+        360,
+        360,
+        360,
+        360,
+        360,
+        360
+      ],
+      "close_time_mins_by_day": [
+        1530,
+        1530,
+        1530,
+        1530,
+        1530,
+        1530,
+        1530
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3508344484",
+      "city": "Madrid",
+      "name": "Mirador de la Monta\u00f1a",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4234376,
+        "longitude": -3.7185524
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846808Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3656041430",
+      "city": "Madrid",
+      "name": "Vel\u00e1zquez Tech",
+      "category": "museum",
+      "location": {
+        "latitude": 40.41439,
+        "longitude": -3.7045899
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846834Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3781953225",
+      "city": "Madrid",
+      "name": "Puerta del Carmen de Zaragoza",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.413831,
+        "longitude": -3.7332694
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.846844Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3985866076",
+      "city": "Madrid",
+      "name": "Los \u00c1ngeles de la Paz",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4430486,
+        "longitude": -3.664153
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847070Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4011219772",
+      "city": "Madrid",
+      "name": "Telef\u00e9rico de Madrid",
+      "category": "attraction",
+      "location": {
+        "latitude": 40.4195202,
+        "longitude": -3.7484609
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847097Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4173744335",
+      "city": "Madrid",
+      "name": "Museo de Arte Contempor\u00e1neo",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4276017,
+        "longitude": -3.7105347
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847121Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4213142633",
+      "city": "Madrid",
+      "name": "Museo de Cera",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4248066,
+        "longitude": -3.6914067
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847141Z"
+      },
+      "open_time_mins_by_day": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        870,
+        870,
+        870,
+        870,
+        870,
+        1230,
+        1230
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4249911692",
+      "city": "Madrid",
+      "name": "Museo de la Biblioteca Nacional de Espa\u00f1a",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4240287,
+        "longitude": -3.6894979
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847162Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1200,
+        1200,
+        1200,
+        1200,
+        1200,
+        840
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4340472835",
+      "city": "Madrid",
+      "name": "Casa del Guarda",
+      "category": "monument",
+      "location": {
+        "latitude": 40.4369402,
+        "longitude": -3.7451254
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847170Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4401067438",
+      "city": "Madrid",
+      "name": "Espacio Fundaci\u00f3n Telef\u00f3nica",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4204119,
+        "longitude": -3.7016001
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847182Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 0.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4401067439",
+      "city": "Madrid",
+      "name": "Museo del Reloj Grassy",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4191077,
+        "longitude": -3.6978657
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847193Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4401135968",
+      "city": "Madrid",
+      "name": "Museo de la Catedral de la Almudena",
+      "category": "museum",
+      "location": {
+        "latitude": 40.4161029,
+        "longitude": -3.7150957
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-17T15:15:06.847200Z"
+      },
+      "open_time_mins_by_day": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        -1
+      ],
+      "close_time_mins_by_day": [
+        870,
+        870,
+        870,
+        870,
+        870,
+        870,
+        -1
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Breakfast_Cafe_A",
+      "city": "Madrid",
+      "name": "Madrid Breakfast Cafe A",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 40.4198,
+        "longitude": -3.7018000000000004
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 8.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Breakfast_Cafe_B",
+      "city": "Madrid",
+      "name": "Madrid Breakfast Cafe B",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 40.4148,
+        "longitude": -3.7008
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Lunch_Bistro_A",
+      "city": "Madrid",
+      "name": "Madrid Lunch Bistro A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 40.421800000000005,
+        "longitude": -3.7078
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 18.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Lunch_Bistro_B",
+      "city": "Madrid",
+      "name": "Madrid Lunch Bistro B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 40.412800000000004,
+        "longitude": -3.7068000000000003
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 22.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Dinner_Restaurant_A",
+      "city": "Madrid",
+      "name": "Madrid Dinner Restaurant A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 40.418800000000005,
+        "longitude": -3.6988000000000003
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 30.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    },
+    {
+      "id": "meal_Madrid_Madrid_Dinner_Restaurant_B",
+      "city": "Madrid",
+      "name": "Madrid Dinner Restaurant B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 40.4138,
+        "longitude": -3.6998
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 35.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    }
+  ],
+  "Lisbon": [
+    {
+      "id": "OSM-node-1623055925",
+      "city": "Lisbon",
+      "name": "Museu Geol\u00f3gico",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7131073,
+        "longitude": -9.1497546
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680831Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1801653047",
+      "city": "Lisbon",
+      "name": "Miradouro do Castelo de S\u00e3o Jorge",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7121155,
+        "longitude": -9.133735
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680876Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 15.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2503411074",
+      "city": "Lisbon",
+      "name": "Lisboa Story Center",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7077328,
+        "longitude": -9.1352861
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681013Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4419041593",
+      "city": "Lisbon",
+      "name": "Museu do Aljube - Resist\u00eancia e Liberdade",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7101798,
+        "longitude": -9.1325527
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681308Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5088757633",
+      "city": "Lisbon",
+      "name": "Casa Fernando Pessoa",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7166447,
+        "longitude": -9.1624508
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682487Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5446794769",
+      "city": "Lisbon",
+      "name": "Miradouro do Castelo de S\u00e3o Jorge",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.712991,
+        "longitude": -9.13421
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682601Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 15.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-9802143812",
+      "city": "Lisbon",
+      "name": "Aqueduto das \u00c1guas Livres",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7292923,
+        "longitude": -9.1697824
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682990Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4416333692",
+      "city": "Lisbon",
+      "name": "Aqueduto das \u00c1guas Livres",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7293161,
+        "longitude": -9.1697424
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681292Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-887113336",
+      "city": "Lisbon",
+      "name": "Comboio do Zoo",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7432354,
+        "longitude": -9.1707117
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680753Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-970768059",
+      "city": "Lisbon",
+      "name": "Torre de S\u00e3o Louren\u00e7o",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7145962,
+        "longitude": -9.1342613
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680773Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1668354051",
+      "city": "Lisbon",
+      "name": "Alto da Serafina",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7333914,
+        "longitude": -9.1756878
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680849Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1802199762",
+      "city": "Lisbon",
+      "name": "Casa da Achada",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7134343,
+        "longitude": -9.1352649
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680891Z"
+      },
+      "open_time_mins_by_day": [
+        900,
+        -1,
+        -1,
+        -1,
+        900,
+        -1,
+        -1
+      ],
+      "close_time_mins_by_day": [
+        1200,
+        -1,
+        -1,
+        -1,
+        1200,
+        -1,
+        -1
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2146523275",
+      "city": "Lisbon",
+      "name": "Miradouro da Casa da Cerca",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.6843246,
+        "longitude": -9.1588905
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680912Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2228801394",
+      "city": "Lisbon",
+      "name": "Os Persegu\u00eddos",
+      "category": "monument",
+      "location": {
+        "latitude": 38.6802208,
+        "longitude": -9.1558164
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680928Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2361431799",
+      "city": "Lisbon",
+      "name": "N\u00facleo Medieval Moderno",
+      "category": "museum",
+      "location": {
+        "latitude": 38.6837229,
+        "longitude": -9.1573143
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680942Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2455728197",
+      "city": "Lisbon",
+      "name": "Cruz Alta",
+      "category": "monument",
+      "location": {
+        "latitude": 38.6792284,
+        "longitude": -9.1713427
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680961Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2472195924",
+      "city": "Lisbon",
+      "name": "Chafariz de Cacilhas",
+      "category": "monument",
+      "location": {
+        "latitude": 38.6871694,
+        "longitude": -9.1479881
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680995Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-2505381525",
+      "city": "Lisbon",
+      "name": "Miradouro do Mercado do Ch\u00e3o do Loureiro",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7120969,
+        "longitude": -9.1352429
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681030Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3319024907",
+      "city": "Lisbon",
+      "name": "Semin\u00e1rio Maior de S\u00e3o Paulo",
+      "category": "monument",
+      "location": {
+        "latitude": 38.6812395,
+        "longitude": -9.1625846
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681190Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1120633222",
+      "city": "Lisbon",
+      "name": "Pelourinho de Lisboa",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7080357,
+        "longitude": -9.139196
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680790Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-1309960937",
+      "city": "Lisbon",
+      "name": "Antiga Fabrica de Polvora",
+      "category": "monument",
+      "location": {
+        "latitude": 38.7394098,
+        "longitude": -9.1151359
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.680805Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-3898489141",
+      "city": "Lisbon",
+      "name": "Quinta de S\u00e3o Jo\u00e3o da Ramalha",
+      "category": "monument",
+      "location": {
+        "latitude": 38.6705662,
+        "longitude": -9.167415
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681204Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4116837071",
+      "city": "Lisbon",
+      "name": "Miradouro da Escarpa",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7230532,
+        "longitude": -9.1852356
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681221Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4340743360",
+      "city": "Lisbon",
+      "name": "Museu do Campo Pequeno",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7424034,
+        "longitude": -9.1452303
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681240Z"
+      },
+      "open_time_mins_by_day": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        1140,
+        1140,
+        1140,
+        1140,
+        1140,
+        1140,
+        1140
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4361897289",
+      "city": "Lisbon",
+      "name": "N\u00facleo Arqueol\u00f3gico da Rua dos Correeiros (BCP)",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7099747,
+        "longitude": -9.1370415
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681255Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4419064452",
+      "city": "Lisbon",
+      "name": "Casa de Pasto Estrela da S\u00e9",
+      "category": "restaurant",
+      "location": {
+        "latitude": 38.7099463,
+        "longitude": -9.1342384
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.681323Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 60,
+      "cost_eur": 25.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4472023285",
+      "city": "Lisbon",
+      "name": "Miradouro do Largo Trindade Coelho",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.6875313,
+        "longitude": -9.1495105
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682210Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4688777792",
+      "city": "Lisbon",
+      "name": "Museu Arpad Szenes - Vieira da Silva",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7222374,
+        "longitude": -9.1557697
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682349Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4693994869",
+      "city": "Lisbon",
+      "name": "Museu Jo\u00e3o de Deus",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7158484,
+        "longitude": -9.1582997
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682362Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4771391278",
+      "city": "Lisbon",
+      "name": "Miradouro do Torel",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7187379,
+        "longitude": -9.1414103
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682372Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4771408880",
+      "city": "Lisbon",
+      "name": "Miradouro do Carmo",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.712165,
+        "longitude": -9.1397278
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682380Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4771414433",
+      "city": "Lisbon",
+      "name": "Miradouro da Academia das Belas Artes",
+      "category": "attraction",
+      "location": {
+        "latitude": 38.7088933,
+        "longitude": -9.1398053
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682392Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 45,
+      "cost_eur": 5.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4785254923",
+      "city": "Lisbon",
+      "name": "Hospital de Bonecas",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7141997,
+        "longitude": -9.1378357
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682400Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4788155560",
+      "city": "Lisbon",
+      "name": "Museu do Centro Cient\u00edfico e Cultural de Macau",
+      "category": "museum",
+      "location": {
+        "latitude": 38.700849,
+        "longitude": -9.1824432
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682408Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1020,
+        1020,
+        1020,
+        1020,
+        1020,
+        1020
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-4804718021",
+      "city": "Lisbon",
+      "name": "Museu do Dinheiro",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7086234,
+        "longitude": -9.1387855
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682419Z"
+      },
+      "open_time_mins_by_day": [
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5068486973",
+      "city": "Lisbon",
+      "name": "Museu de S\u00e3o Vicente de Fora",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7148171,
+        "longitude": -9.1278805
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682468Z"
+      },
+      "open_time_mins_by_day": [
+        -1,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "close_time_mins_by_day": [
+        -1,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "OSM-node-5073093222",
+      "city": "Lisbon",
+      "name": "Museu da Guarda Nacional Republicana",
+      "category": "museum",
+      "location": {
+        "latitude": 38.7122726,
+        "longitude": -9.1407119
+      },
+      "scoring": {
+        "rating": 0.0,
+        "reviews": 0
+      },
+      "metadata": {
+        "source": "openstreetmap",
+        "scraped_at": "2026-09-10T07:30:27.682478Z"
+      },
+      "open_time_mins_by_day": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        -1
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        -1
+      ],
+      "duration_mins": 120,
+      "cost_eur": 14.0,
+      "cost_is_estimated": true,
+      "cost_source": "osm",
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Breakfast_Cafe_A",
+      "city": "Lisbon",
+      "name": "Lisbon Breakfast Cafe A",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 38.7253,
+        "longitude": -9.1373
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 8.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Breakfast_Cafe_B",
+      "city": "Lisbon",
+      "name": "Lisbon Breakfast Cafe B",
+      "category": "CAFE",
+      "type": "RESTAURANT_BREAKFAST",
+      "location": {
+        "latitude": 38.720299999999995,
+        "longitude": -9.1363
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        420,
+        420,
+        420,
+        420,
+        420,
+        420,
+        420
+      ],
+      "close_time_mins_by_day": [
+        630,
+        630,
+        630,
+        630,
+        630,
+        630,
+        630
+      ],
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": true,
+      "is_lunch_spot": false,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Lunch_Bistro_A",
+      "city": "Lisbon",
+      "name": "Lisbon Lunch Bistro A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 38.7273,
+        "longitude": -9.1433
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 18.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Lunch_Bistro_B",
+      "city": "Lisbon",
+      "name": "Lisbon Lunch Bistro B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_LUNCH",
+      "location": {
+        "latitude": 38.7183,
+        "longitude": -9.1423
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        720,
+        720,
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "close_time_mins_by_day": [
+        960,
+        960,
+        960,
+        960,
+        960,
+        960,
+        960
+      ],
+      "duration_mins": 60,
+      "cost_eur": 22.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": true,
+      "is_dinner_spot": false,
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Dinner_Restaurant_A",
+      "city": "Lisbon",
+      "name": "Lisbon Dinner Restaurant A",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 38.7243,
+        "longitude": -9.1343
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 30.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    },
+    {
+      "id": "meal_Lisbon_Lisbon_Dinner_Restaurant_B",
+      "city": "Lisbon",
+      "name": "Lisbon Dinner Restaurant B",
+      "category": "RESTAURANT",
+      "type": "RESTAURANT_DINNER",
+      "location": {
+        "latitude": 38.7193,
+        "longitude": -9.1353
+      },
+      "scoring": {
+        "rating": 4.3,
+        "reviews": 50
+      },
+      "metadata": {
+        "source": "synthetic_meal_benchmark"
+      },
+      "open_time_mins_by_day": [
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110,
+        1110
+      ],
+      "close_time_mins_by_day": [
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410,
+        1410
+      ],
+      "duration_mins": 75,
+      "cost_eur": 35.0,
+      "cost_is_estimated": true,
+      "cost_source": "meal_fixture",
+      "is_breakfast_spot": false,
+      "is_lunch_spot": false,
+      "is_dinner_spot": true,
+      "embedding": null
+    }
+  ]
+}
