@@ -7,6 +7,8 @@ from app.swarm.nodes.guardrails import guardrails_node
 from app.swarm.nodes.prompt_analyzer import prompt_analyzer_node
 from app.swarm.nodes.verify_constraints import verify_constraints_node
 from app.swarm.state import SwarmState
+from app.swarm.critic import planner_critic_node
+from app.swarm.repair import planner_repair_node
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 from langchain_core.runnables.config import RunnableConfig
@@ -78,6 +80,14 @@ def route_guardrails(state: SwarmState) -> str:
     return END
 
 
+def route_critic(state: SwarmState) -> str:
+    issues = state.get("critic_issues", [])
+    iteration = state.get("refinement_iteration", 0) or 0
+    if issues and iteration < 3:
+        return "planner_repair"
+    return END
+
+
 def create_swarm():
     workflow = StateGraph(SwarmState)
     workflow.add_node("ticket_parser", ticket_parser_node)
@@ -87,6 +97,8 @@ def create_swarm():
     workflow.add_node("prompt_analyzer", prompt_analyzer_node)
     workflow.add_node("planner_scrape", planner_scrape_node)
     workflow.add_node("planner_optimize", planner_optimize_node)
+    workflow.add_node("planner_critic", planner_critic_node)
+    workflow.add_node("planner_repair", planner_repair_node)
 
     workflow.add_edge(START, "ticket_parser")
     workflow.add_edge("ticket_parser", "assemble_constraints")
@@ -102,7 +114,16 @@ def create_swarm():
     )
     workflow.add_edge("prompt_analyzer", "planner_scrape")
     workflow.add_edge("planner_scrape", "planner_optimize")
-    workflow.add_edge("planner_optimize", END)
+    workflow.add_edge("planner_optimize", "planner_critic")
+    workflow.add_conditional_edges(
+        "planner_critic",
+        route_critic,
+        {
+            "planner_repair": "planner_repair",
+            END: END,
+        },
+    )
+    workflow.add_edge("planner_repair", "planner_optimize")
 
     from langgraph.checkpoint.memory import MemorySaver
 
