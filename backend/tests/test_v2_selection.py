@@ -308,3 +308,59 @@ async def test_candidate_pool_builder_unit():
 
     s1_item = next(p for p in pool if p.id == "s1")
     assert s1_item.taste_score == 88.0
+
+
+def test_submodular_selection_drops_poi_closed_on_trip_dates():
+    """Verify non-mandatory POI closed on all trip days is dropped."""
+    # 2-day trip on Mon (0) and Tue (1)
+    day0 = DayFrame(
+        day_index=0,
+        calendar_date=date(2026, 6, 1),
+        max_anchors=2,
+        target_active_mins=360,
+    )
+    day1 = DayFrame(
+        day_index=1,
+        calendar_date=date(2026, 6, 2),
+        max_anchors=2,
+        target_active_mins=360,
+    )
+    tf = TripFrame(
+        city="Madrid",
+        days=[day0, day1],
+        total_anchor_slots=4,
+        max_tier1_slots=2,
+    )
+
+    cands = [
+        # Closed Mon (0) and Tue (1), open only Fri-Sun (4, 5, 6)
+        CandidatePoi(
+            id="cero",
+            name="Andén Cero",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.9,
+            open_time_mins_by_day=[-1, -1, -1, -1, 960, 600, 600],
+            close_time_mins_by_day=[-1, -1, -1, -1, 1200, 840, 840],
+            duration_mins=60,
+            taste_score=85.0,
+        ),
+        CandidatePoi(
+            id="prado",
+            name="Museo del Prado",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.98,
+            open_time_mins_by_day=[600] * 7,
+            close_time_mins_by_day=[1200] * 7,
+            duration_mins=120,
+            taste_score=95.0,
+        ),
+    ]
+
+    res = select_trip_pois(cands, tf)
+    selected_ids = [s.poi.id for s in res.selected_pois]
+    assert "prado" in selected_ids
+    assert "cero" not in selected_ids
+    dropped_cero = next(d for d in res.dropped_pois if d.poi.id == "cero")
+    assert dropped_cero.reason_code == SelectionReasonCode.DROPPED_CLOSED_ON_TRIP_DATES

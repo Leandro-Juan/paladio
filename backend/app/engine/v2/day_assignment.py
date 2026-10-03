@@ -351,15 +351,17 @@ def get_effective_time_window(
     day_end_mins: int,
 ) -> tuple[int, int]:
     """Intersects POI open/close hours with the day's active start and end time."""
-    open_vec = poi.poi.open_time_mins_by_day
-    close_vec = poi.poi.close_time_mins_by_day
+    open_vec = getattr(poi.poi, "open_time_mins_by_day", None)
+    close_vec = getattr(poi.poi, "close_time_mins_by_day", None)
     if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
         o_min = open_vec[day_weekday]
         c_min = close_vec[day_weekday]
         if o_min == -1 or c_min == -1:
-            o_min, c_min = poi.poi.open_time_mins, poi.poi.close_time_mins
+            o_min = getattr(poi.poi, "open_time_mins", 480)
+            c_min = getattr(poi.poi, "close_time_mins", 1320)
     else:
-        o_min, c_min = poi.poi.open_time_mins, poi.poi.close_time_mins
+        o_min = getattr(poi.poi, "open_time_mins", 480)
+        c_min = getattr(poi.poi, "close_time_mins", 1320)
 
     earliest = max(o_min, day_start_mins)
     latest = min(c_min, day_end_mins)

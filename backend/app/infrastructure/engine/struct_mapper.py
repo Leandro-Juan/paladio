@@ -155,6 +155,9 @@ def build_optimization_config(
     monotony_threshold: int = 2,
     monotony_multiplier: float = 0.5,
     max_nodes_expanded: int = 0,
+    max_budget: float | None = None,
+    enforce_default_meal_deadlines: bool = False,
+    max_idle_time: int = 60,
 ) -> Any:
     if not paladio_core:
         return None
@@ -164,9 +167,9 @@ def build_optimization_config(
     dinner_deadline = -1
 
     if not constraints.meals:
-        # Default to ensure realism if none provided
-        lunch_deadline = 15 * 60
-        dinner_deadline = 22 * 60 + 30
+        if enforce_default_meal_deadlines:
+            lunch_deadline = 15 * 60
+            dinner_deadline = 22 * 60 + 30
     else:
         for meal in constraints.meals:
             m_type = meal.meal_type.upper()
@@ -209,7 +212,12 @@ def build_optimization_config(
         if not has_d:
             dinner_deadline = -1
 
-    budget_eur = constraints.budget_usd * exchange_rate
+    if max_budget is not None and max_budget > 0:
+        budget_eur = max_budget
+    elif constraints.budget_usd and constraints.budget_usd > 0:
+        budget_eur = constraints.budget_usd * exchange_rate
+    else:
+        budget_eur = 100000.0
 
     config = paladio_core.OptimizationConfig(
         max_budget=budget_eur,
@@ -222,5 +230,6 @@ def build_optimization_config(
         monotony_threshold=monotony_threshold,
         monotony_multiplier=monotony_multiplier,
         max_nodes_expanded=max_nodes_expanded,
+        max_idle_time=max_idle_time,
     )
     return config

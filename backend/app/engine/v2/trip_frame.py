@@ -7,10 +7,9 @@ pace preferences, arrival/departure flight buffers, meal windows, and budget sha
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
+from pydantic import BaseModel, Field
 
 # Standard FX rate (Amendment A6: Single conversion function, no online calls)
 USD_TO_EUR_RATE = 0.92
@@ -89,9 +88,17 @@ def _parse_flight_time_to_minutes(flight_time_str: str | None) -> int | None:
     return None
 
 
-def build_trip_frame(constraints: TravelConstraints) -> TripFrame:
+def build_trip_frame(
+    constraints: TravelConstraints,
+    outbound_flight: Any = None,
+    return_flight: Any = None,
+) -> TripFrame:
     """Builds a deterministic TripFrame from user TravelConstraints."""
-    city = (constraints.destination_city or "Paris").strip()
+    city = (
+        getattr(constraints, "destination_city", None)
+        or getattr(constraints, "city", None)
+        or "Paris"
+    ).strip()
     pace = constraints.pace or PacePreference.BALANCED
 
     # Calculate number of days
@@ -100,6 +107,8 @@ def build_trip_frame(constraints: TravelConstraints) -> TripFrame:
     if constraints.start_date and constraints.end_date:
         delta = (constraints.end_date - constraints.start_date).days + 1
         num_days = max(1, delta)
+    elif hasattr(constraints, "days") and getattr(constraints, "days", None):
+        num_days = max(1, int(getattr(constraints, "days")))
 
     total_budget_usd = float(constraints.budget_usd or 0.0)
     total_budget_eur = usd_to_eur(total_budget_usd)
@@ -125,6 +134,22 @@ def build_trip_frame(constraints: TravelConstraints) -> TripFrame:
             departure_flight_mins = _parse_flight_time_to_minutes(
                 anchors.return_flight.departure_time
             )
+    if outbound_flight and arrival_flight_mins is None:
+        arr_t = (
+            outbound_flight.get("arrival_time")
+            if isinstance(outbound_flight, dict)
+            else getattr(outbound_flight, "arrival_time", None)
+        )
+        if arr_t:
+            arrival_flight_mins = _parse_flight_time_to_minutes(arr_t)
+    if return_flight and departure_flight_mins is None:
+        dep_t = (
+            return_flight.get("departure_time")
+            if isinstance(return_flight, dict)
+            else getattr(return_flight, "departure_time", None)
+        )
+        if dep_t:
+            departure_flight_mins = _parse_flight_time_to_minutes(dep_t)
 
     days: list[DayFrame] = []
     total_anchors = 0

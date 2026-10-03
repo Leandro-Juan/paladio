@@ -18,8 +18,11 @@ from app.bench.scenarios import (
     build_scenario_constraints,
     load_bench_fixtures,
 )
-from app.domain.entities.poi import TransitLeg, TransitStep
+from app.domain.entities.poi import Poi, PoiLocation, TransitLeg, TransitStep
+from app.domain.interfaces.poi_repository import IPoiRepository
 from app.engine.transit_matrix import haversine_distance
+from app.engine.v2.pipeline import run_itinerary_v2_pipeline
+from app.engine.v2.tiering import classify_poi_tier
 from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
 from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
@@ -51,6 +54,95 @@ TIER1_SEEDS = {
         "Museu do Aljube - Resistência e Liberdade",
     ],
 }
+
+
+class BenchPoiRepository(IPoiRepository):
+    """In-memory hermetic repository backed by benchmark fixtures."""
+
+    def __init__(
+        self,
+        attractions: list[dict[str, Any]],
+        restaurants: list[dict[str, Any]],
+        city: str,
+    ):
+        self.city = city
+        self.pois: list[Poi] = []
+        for a in attractions:
+            tier_info = classify_poi_tier(a, city)
+            loc = a.get("location", {})
+            lat = loc.get("latitude", a.get("lat", 0.0))
+            lon = loc.get("longitude", a.get("lon", 0.0))
+            self.pois.append(
+                Poi(
+                    id=str(a.get("id") or a.get("name")),
+                    name=a.get("name", "Attraction"),
+                    city=city,
+                    category=a.get("category", "attraction"),
+                    location=PoiLocation(latitude=lat, longitude=lon),
+                    open_time_mins_by_day=a.get("open_time_mins_by_day", [480] * 7),
+                    close_time_mins_by_day=a.get("close_time_mins_by_day", [1320] * 7),
+                    duration_mins=int(a.get("duration_mins", 60)),
+                    cost_eur=float(a.get("cost_eur", 0.0)),
+                    tier=tier_info["tier"],
+                    tier_confidence=tier_info["tier_confidence"],
+                    tier_source=tier_info["tier_source"],
+                    iconicity_score=tier_info["iconicity_score"],
+                    taxonomy_category=tier_info["taxonomy_category"],
+                    category_id=tier_info["category_id"],
+                    visit_mode=tier_info["visit_mode"],
+                )
+            )
+        for r in restaurants:
+            loc = r.get("location", {})
+            lat = loc.get("latitude", r.get("lat", 0.0))
+            lon = loc.get("longitude", r.get("lon", 0.0))
+            self.pois.append(
+                Poi(
+                    id=str(r.get("id") or r.get("name")),
+                    name=r.get("name", "Restaurant"),
+                    city=city,
+                    category="RESTAURANT",
+                    location=PoiLocation(latitude=lat, longitude=lon),
+                    open_time_mins_by_day=r.get("open_time_mins_by_day", [660] * 7),
+                    close_time_mins_by_day=r.get("close_time_mins_by_day", [1380] * 7),
+                    duration_mins=int(r.get("duration_mins", 60)),
+                    cost_eur=float(r.get("cost_eur", 18.0)),
+                    tier=3,
+                    iconicity_score=0.5,
+                    taxonomy_category="food_culinary",
+                    category_id=5,
+                )
+            )
+
+    async def find_by_city(self, city_name: str) -> list[Poi]:
+        return [p for p in self.pois if p.city.lower() == city_name.lower()]
+
+    async def find_tiered_pois(self, city: str, max_tier: int = 2) -> list[Poi]:
+        return [
+            p
+            for p in self.pois
+            if p.city.lower() == city.lower() and p.tier <= max_tier
+        ]
+
+    async def find_semantic_candidates(
+        self, city_name: str, user_vector: list[float] | None = None, limit: int = 150
+    ) -> list[tuple[Poi, float]]:
+        matching = [p for p in self.pois if p.city.lower() == city_name.lower()]
+        return [(p, 0.85) for p in matching[:limit]]
+
+    async def get_by_name(self, name: str, city: str | None = None) -> Poi | None:
+        for p in self.pois:
+            if p.name.lower() == name.lower():
+                return p
+        return None
+
+    async def save_all_for_city(self, city_name: str, pois: list[Poi]) -> None:
+        pass
+
+    async def update_poi_embeddings(
+        self, updates: list[tuple[str, list[float]]]
+    ) -> None:
+        pass
 
 
 def _fast_transit_matrix(pois, city, departure_dt=None):
@@ -171,76 +263,96 @@ async def run_single_scenario_benchmark(
     needed_pois = duration * 3
     candidate_pool_exhausted = len(attractions) < needed_pois
 
-    # Configure monotony parameters according to baseline mode
-    if baseline_mode == "no_monotony":
-        mono_threshold = 50
-        mono_multiplier = 1.0
-    else:  # as_is
-        mono_threshold = 2
-        mono_multiplier = 0.5
+    mono_threshold = 2
+    mono_multiplier = 0.5
 
-    data_provider = DefaultTravelDataProvider(
-        test_data={"pois": attractions, "restaurants": restaurants}
-    )
-    fetch_uc = FetchTravelContextUseCase(data_provider=data_provider, ml_scorer=None)
-
-    adapter = CppOptimizationAdapter(
-        ml_scorer=None,
-        monotony_threshold=mono_threshold,
-        monotony_multiplier=mono_multiplier,
-    )
-    opt_uc = OptimizeDailyItineraryUseCase(engine=adapter)
-
-    c_info = CITY_CENTERS.get(city, CITY_CENTERS["Madrid"])
-    mock_city_centers = {city.lower(): (c_info["lat"], c_info["lon"])}
-
-    from unittest.mock import MagicMock
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = [
-        {"lat": str(c_info["lat"]), "lon": str(c_info["lon"])}
-    ]
-
-    t0 = time.perf_counter()
-    with (
-        patch(
-            "app.use_cases.fetch_travel_context.KNOWN_CITY_CENTERS",
-            mock_city_centers,
-        ),
-        patch(
-            "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-            side_effect=_fast_transit_matrix,
-        ),
-        patch(
-            "app.services.transit_service.get_detailed_transit_leg",
-            new_callable=AsyncMock,
-            return_value=_MOCK_TRANSIT_LEG,
-        ),
-        patch(
-            "httpx.AsyncClient.get",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ),
-        patch(
-            "app.tasks.async_trigger_city_gtfs_download_if_needed",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "app.engine.transit_matrix.ensure_transit_ready",
-            new_callable=AsyncMock,
-            return_value=True,
-        ),
-    ):
-        context = await fetch_uc.execute(constraints)
-        daily_pois = context.get("daily_pois_data", [])
-        outbound = context.get("outbound_flight")
-        return_flight = context.get("return_flight")
-
-        itinerary = await opt_uc.execute(
-            constraints, daily_pois, outbound, return_flight
+    if baseline_mode == "v2":
+        bench_repo = BenchPoiRepository(attractions, restaurants, city)
+        t0 = time.perf_counter()
+        v2_res = await run_itinerary_v2_pipeline(
+            city=city,
+            constraints=constraints,
+            poi_repo=bench_repo,
+            transit_matrix_fn=_fast_transit_matrix,
         )
-    latency_ms = (time.perf_counter() - t0) * 1000.0
+        latency_ms = (time.perf_counter() - t0) * 1000.0
+        itinerary = {
+            "days": v2_res.days,
+            "total_trip_cost": v2_res.summary.total_cost_eur,
+        }
+    else:
+        # Configure monotony parameters according to baseline mode
+        if baseline_mode == "no_monotony":
+            mono_threshold = 50
+            mono_multiplier = 1.0
+        else:  # as_is
+            mono_threshold = 2
+            mono_multiplier = 0.5
+
+        data_provider = DefaultTravelDataProvider(
+            test_data={"pois": attractions, "restaurants": restaurants}
+        )
+        fetch_uc = FetchTravelContextUseCase(
+            data_provider=data_provider, ml_scorer=None
+        )
+
+        adapter = CppOptimizationAdapter(
+            ml_scorer=None,
+            monotony_threshold=mono_threshold,
+            monotony_multiplier=mono_multiplier,
+        )
+        opt_uc = OptimizeDailyItineraryUseCase(engine=adapter)
+
+        c_info = CITY_CENTERS.get(city, CITY_CENTERS["Madrid"])
+        mock_city_centers = {city.lower(): (c_info["lat"], c_info["lon"])}
+
+        from unittest.mock import MagicMock
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [
+            {"lat": str(c_info["lat"]), "lon": str(c_info["lon"])}
+        ]
+
+        t0 = time.perf_counter()
+        with (
+            patch(
+                "app.use_cases.fetch_travel_context.KNOWN_CITY_CENTERS",
+                mock_city_centers,
+            ),
+            patch(
+                "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
+                side_effect=_fast_transit_matrix,
+            ),
+            patch(
+                "app.services.transit_service.get_detailed_transit_leg",
+                new_callable=AsyncMock,
+                return_value=_MOCK_TRANSIT_LEG,
+            ),
+            patch(
+                "httpx.AsyncClient.get",
+                new_callable=AsyncMock,
+                return_value=mock_resp,
+            ),
+            patch(
+                "app.tasks.async_trigger_city_gtfs_download_if_needed",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.engine.transit_matrix.ensure_transit_ready",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+        ):
+            context = await fetch_uc.execute(constraints)
+            daily_pois = context.get("daily_pois_data", [])
+            outbound = context.get("outbound_flight")
+            return_flight = context.get("return_flight")
+
+            itinerary = await opt_uc.execute(
+                constraints, daily_pois, outbound, return_flight
+            )
+        latency_ms = (time.perf_counter() - t0) * 1000.0
 
     # Extract results and evaluate metrics
     days = itinerary.get("days", [])
@@ -273,10 +385,16 @@ async def run_single_scenario_benchmark(
         prev_end_mins = None
 
         for item in path_items:
+            item_dict = (
+                item.model_dump()
+                if hasattr(item, "model_dump")
+                else (item if isinstance(item, dict) else {"poi": item})
+            )
+            p_raw = item_dict.get("poi", item_dict)
             p = (
-                item.get("poi", item)
-                if isinstance(item, dict)
-                else getattr(item, "poi", item)
+                p_raw.model_dump()
+                if hasattr(p_raw, "model_dump")
+                else (p_raw if isinstance(p_raw, dict) else {})
             )
             name = p.get("name", "")
             is_depot = p.get("category") in ("HOTEL", "AIRPORT")
@@ -298,8 +416,8 @@ async def run_single_scenario_benchmark(
                 day_active_mins += dur
 
             # Extract start and end times
-            s_start = item.get("scheduled_start") if isinstance(item, dict) else None
-            s_end = item.get("scheduled_end") if isinstance(item, dict) else None
+            s_start = item_dict.get("scheduled_start")
+            s_end = item_dict.get("scheduled_end")
             arr_time = (
                 _parse_time_mins(s_start)
                 if s_start is not None
@@ -312,9 +430,7 @@ async def run_single_scenario_benchmark(
             )
 
             # Transit leg from previous
-            transit_info = (
-                item.get("transit_from_previous", {}) if isinstance(item, dict) else {}
-            )
+            transit_info = item_dict.get("transit_from_previous") or {}
             leg_dur = (
                 transit_info.get("duration_mins", 0)
                 if isinstance(transit_info, dict)

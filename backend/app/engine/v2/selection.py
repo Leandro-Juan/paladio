@@ -10,10 +10,9 @@ Selects the global set of POIs for the entire trip before day assignment:
 import math
 from enum import Enum
 
-from pydantic import BaseModel
-
 from app.engine.v2.candidate_pool import CandidatePoi
 from app.engine.v2.trip_frame import TripFrame
+from pydantic import BaseModel
 
 
 class SelectionReasonCode(str, Enum):
@@ -26,6 +25,7 @@ class SelectionReasonCode(str, Enum):
     DROPPED_REDUNDANT_CONTENT = "DROPPED_REDUNDANT_CONTENT"
     DROPPED_TIME_BUDGET_EXCEEDED = "DROPPED_TIME_BUDGET_EXCEEDED"
     DROPPED_LOW_TASTE_AND_TIER = "DROPPED_LOW_TASTE_AND_TIER"
+    DROPPED_CLOSED_ON_TRIP_DATES = "DROPPED_CLOSED_ON_TRIP_DATES"
 
 
 class SelectedPoi(BaseModel):
@@ -57,6 +57,16 @@ def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     return dot / (norm1 * norm2) if (norm1 > 0 and norm2 > 0) else 0.0
 
 
+def is_poi_open_any_trip_day(cand: CandidatePoi, trip_weekdays: list[int]) -> bool:
+    """Checks whether the candidate is open on at least one day of the trip."""
+    if not cand.open_time_mins_by_day or not trip_weekdays:
+        return True
+    return any(
+        w < len(cand.open_time_mins_by_day) and cand.open_time_mins_by_day[w] != -1
+        for w in trip_weekdays
+    )
+
+
 def select_trip_pois(
     candidate_pool: list[CandidatePoi],
     trip_frame: TripFrame,
@@ -71,6 +81,10 @@ def select_trip_pois(
     max_anchor_slots = trip_frame.total_anchor_slots
     max_tier1_slots = trip_frame.max_tier1_slots
     max_active_time = sum(d.target_active_mins for d in trip_frame.days)
+    trip_weekdays = [
+        d.calendar_date.weekday() if d.calendar_date else d.day_index % 7
+        for d in trip_frame.days
+    ]
 
     # 1. Forced Set: User Mandatories
     for cand in candidate_pool:
@@ -95,7 +109,10 @@ def select_trip_pois(
         [
             c
             for c in candidate_pool
-            if c.tier == 1 and c.id not in selected_ids and not c.is_meal_spot
+            if c.tier == 1
+            and c.id not in selected_ids
+            and not c.is_meal_spot
+            and is_poi_open_any_trip_day(c, trip_weekdays)
         ],
         key=lambda x: x.iconicity_score,
         reverse=True,
@@ -127,6 +144,10 @@ def select_trip_pois(
 
         for cand in candidate_pool:
             if cand.id in selected_ids or cand.is_meal_spot:
+                continue
+            if not cand.is_mandatory and not is_poi_open_any_trip_day(
+                cand, trip_weekdays
+            ):
                 continue
 
             # A. Base taste & quality
@@ -219,7 +240,10 @@ def select_trip_pois(
         same_cat_count = sum(
             1 for s in selected if s.poi.category_id == cand.category_id
         )
-        if cand.tier == 4 or cand.taste_score < 30:
+        if not cand.is_mandatory and not is_poi_open_any_trip_day(cand, trip_weekdays):
+            code = SelectionReasonCode.DROPPED_CLOSED_ON_TRIP_DATES
+            exp = f"POI is closed on all trip days (weekdays: {trip_weekdays})."
+        elif cand.tier == 4 or cand.taste_score < 30:
             code = SelectionReasonCode.DROPPED_LOW_TASTE_AND_TIER
             exp = f"Low taste score ({cand.taste_score:.1f}) and low priority tier ({cand.tier})."
         elif same_cat_count >= 3:

@@ -9,11 +9,10 @@ Constructs an exhaustive candidate pool combining:
 
 import logging
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.domain.entities.poi import Poi
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.schemas.itinerary import TravelConstraints
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 

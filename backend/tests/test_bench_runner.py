@@ -38,3 +38,16 @@ async def test_run_single_scenario_benchmark():
     assert res_no_mono["scenario_id"] == "madrid_2d_balanced_culture"
     assert res_no_mono["node_cap_violations"] == 0
     assert res_no_mono["scheduled_poi_count"] > 0
+
+    # Run v2
+    res_v2 = await run_single_scenario_benchmark(
+        scenario,
+        baseline_mode="v2",
+        travel_fixtures=fixtures,
+    )
+    assert res_v2["scenario_id"] == "madrid_2d_balanced_culture"
+    assert res_v2["node_cap_violations"] == 0
+    assert res_v2["closure_violations"] == 0
+    assert res_v2["user_mandatory_satisfaction"] == 1.0
+    assert res_v2["scheduled_poi_count"] > 0
+    assert res_v2["latency_ms"] > 0

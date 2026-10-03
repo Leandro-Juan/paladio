@@ -124,10 +124,13 @@ PYBIND11_MODULE(paladio_core, m) {
         int *d_ptr = static_cast<int *>(dur_buf.ptr);
         double *c_ptr = static_cast<double *>(cost_buf.ptr);
 
-        // Release GIL for the core C++ loop to allow Python concurrent
-        // execution
-        py::gil_scoped_release release;
-        return optimize_itinerary(pois, d_ptr, c_ptr, config);
+        // Release GIL for the core C++ loop to allow Python concurrent execution
+        OptimizationResult result;
+        {
+          py::gil_scoped_release release;
+          result = optimize_itinerary(pois, d_ptr, c_ptr, config);
+        }
+        return result;
       },
       "Optimize travel constraints (TSPTW + Knapsack). Releases GIL during "
       "computation.");

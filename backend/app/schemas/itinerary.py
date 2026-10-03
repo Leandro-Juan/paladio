@@ -113,6 +113,10 @@ class TravelConstraints(BaseModel):
     destination_city: str | None = Field(
         default="Unknown", description="The city where the trip takes place."
     )
+    city: str | None = Field(default=None, description="Alias for destination_city.")
+    days: int | None = Field(
+        default=None, description="Number of trip days if start/end dates are omitted."
+    )
     budget_usd: float = Field(
         default=0.0, description="Maximum budget for the entire trip in USD.", ge=0
     )

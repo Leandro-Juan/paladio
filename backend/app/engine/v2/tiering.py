@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from app.engine.v2.taxonomy import classify_poi_taxonomy
 
 SEEDS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "city_seeds"

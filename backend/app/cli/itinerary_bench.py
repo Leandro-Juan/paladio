@@ -26,6 +26,12 @@ DEFAULT_CAPACITY_OUTPUT = (
     / "fixtures"
     / "tractability_capacity_table.json"
 )
+DEFAULT_COMPARISON_OUTPUT = (
+    Path(__file__).resolve().parent.parent.parent
+    / "tests"
+    / "fixtures"
+    / "v2_comparison_bench.json"
+)
 
 
 def _print_table(title: str, headers: list[str], rows: list[list[Any]]):
@@ -78,8 +84,8 @@ async def main_async() -> int:
     parser.add_argument(
         "--output",
         type=str,
-        default=str(DEFAULT_BASELINE_OUTPUT),
-        help="Path to save baseline results JSON",
+        default=None,
+        help="Path to save results JSON (defaults to mode-specific fixture path)",
     )
     parser.add_argument(
         "--quick",
@@ -184,11 +190,152 @@ async def main_async() -> int:
             table_rows,
         )
 
-        out_path = Path(args.output)
+        out_path = Path(args.output or DEFAULT_BASELINE_OUTPUT)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(bench_data, f, indent=2)
         logger.info(f"Baseline benchmark saved to {out_path}")
+        return 0
+
+    elif args.mode == "compare":
+        cities = [c.strip() for c in args.cities.split(",") if c.strip()]
+        durations = [int(d.strip()) for d in args.durations.split(",") if d.strip()]
+        paces = [p.strip() for p in args.paces.split(",") if p.strip()]
+        profiles = [pr.strip() for pr in args.profiles.split(",") if pr.strip()]
+
+        if args.quick:
+            cities = cities[:1]
+            durations = [2]
+            paces = ["BALANCED"]
+            profiles = ["culture"]
+
+        scenarios = get_scenario_matrix(
+            cities=cities,
+            durations=durations,
+            paces=paces,
+            profiles=profiles,
+        )
+        logger.info(f"Running Itinerary v2 Comparison on {len(scenarios)} scenarios...")
+
+        # 1. Run v2 benchmark
+        v2_data = await run_baseline_benchmark_matrix(
+            scenarios=scenarios,
+            baseline_modes=["v2"],
+        )
+
+        # 2. Load existing baseline summaries if available
+        baseline_path = DEFAULT_BASELINE_OUTPUT
+        legacy_summaries: dict[str, Any] = {}
+        if baseline_path.exists():
+            try:
+                with open(baseline_path, "r", encoding="utf-8") as f:
+                    legacy_data = json.load(f)
+                    legacy_summaries = legacy_data.get("summaries", {})
+            except Exception as e:
+                logger.warning(
+                    f"Could not load legacy baseline from {baseline_path}: {e}"
+                )
+
+        # Combine results
+        combined_summaries = {
+            "as_is": legacy_summaries.get("as_is", {}),
+            "no_monotony": legacy_summaries.get("no_monotony", {}),
+            "v2": v2_data.get("summaries", {}).get("v2", {}),
+        }
+
+        metrics_keys = [
+            ("total_scenarios", "Total Scenarios", "{:.0f}"),
+            ("mean_tier_1_recall", "Tier 1 Recall", "{:.1%}"),
+            ("mean_user_mandatory_satisfaction", "Mandatory Satisfaction", "{:.1%}"),
+            ("total_closure_violations", "Closure Violations", "{:.0f}"),
+            ("total_node_cap_violations", "Node Cap Violations", "{:.0f}"),
+            ("mean_zigzag_ratio", "Zigzag Ratio", "{:.3f}"),
+            ("mean_travel_minutes_per_day", "Travel Mins/Day", "{:.1f}"),
+            ("mean_load_variance", "Load Variance", "{:.1f}"),
+            ("mean_category_entropy", "Category Entropy", "{:.3f}"),
+            ("total_budget_overruns", "Budget Overruns", "{:.0f}"),
+            ("total_meal_spacing_violations", "Meal Spacing Violations", "{:.0f}"),
+            ("total_idle_time_violations", "Idle Time Violations (>45m)", "{:.0f}"),
+            ("latency_p50_ms", "Latency p50 (ms)", "{:.1f}"),
+            ("latency_p95_ms", "Latency p95 (ms)", "{:.1f}"),
+        ]
+
+        table_rows = []
+        for key, label, fmt in metrics_keys:
+            val_as_is = combined_summaries["as_is"].get(key, "-")
+            val_no_mono = combined_summaries["no_monotony"].get(key, "-")
+            val_v2 = combined_summaries["v2"].get(key, "-")
+
+            s_as_is = (
+                fmt.format(val_as_is)
+                if isinstance(val_as_is, (int, float))
+                else str(val_as_is)
+            )
+            s_no_mono = (
+                fmt.format(val_no_mono)
+                if isinstance(val_no_mono, (int, float))
+                else str(val_no_mono)
+            )
+            s_v2 = (
+                fmt.format(val_v2) if isinstance(val_v2, (int, float)) else str(val_v2)
+            )
+
+            # Calculate improvement vs as_is
+            impr_str = "-"
+            if isinstance(val_as_is, (int, float)) and isinstance(val_v2, (int, float)):
+                if key in ("mean_tier_1_recall", "mean_user_mandatory_satisfaction"):
+                    diff = val_v2 - val_as_is
+                    impr_str = f"+{diff:.1%}" if diff >= 0 else f"{diff:.1%}"
+                elif key in (
+                    "total_closure_violations",
+                    "total_idle_time_violations",
+                    "total_meal_spacing_violations",
+                    "total_node_cap_violations",
+                ):
+                    diff = val_as_is - val_v2
+                    impr_str = (
+                        f"-{diff:.0f} (fixed)"
+                        if diff > 0
+                        else ("0" if diff == 0 else f"+{-diff:.0f}")
+                    )
+                elif key in ("mean_zigzag_ratio", "mean_load_variance"):
+                    pct = (
+                        ((val_as_is - val_v2) / val_as_is * 100.0)
+                        if val_as_is > 0
+                        else 0.0
+                    )
+                    impr_str = f"-{pct:.1f}%" if pct > 0 else f"+{-pct:.1f}%"
+                elif key in ("latency_p50_ms", "latency_p95_ms"):
+                    pct = (
+                        ((val_as_is - val_v2) / val_as_is * 100.0)
+                        if val_as_is > 0
+                        else 0.0
+                    )
+                    impr_str = f"-{pct:.1f}% faster" if pct > 0 else f"+{-pct:.1f}%"
+
+            table_rows.append([label, s_as_is, s_no_mono, s_v2, impr_str])
+
+        _print_table(
+            "Itinerary Pipeline Benchmark: Legacy vs V2 Architecture",
+            [
+                "Metric",
+                "As-Is (Legacy)",
+                "No Monotony",
+                "Itinerary v2",
+                "Improvement vs As-Is",
+            ],
+            table_rows,
+        )
+
+        out_path = Path(args.output or DEFAULT_COMPARISON_OUTPUT)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        comparison_data = {
+            "summaries": combined_summaries,
+            "v2_results": v2_data.get("results", {}).get("v2", []),
+        }
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(comparison_data, f, indent=2)
+        logger.info(f"Comparison benchmark saved to {out_path}")
         return 0
 
     return 0
