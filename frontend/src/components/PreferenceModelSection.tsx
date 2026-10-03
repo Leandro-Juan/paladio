@@ -91,6 +91,7 @@ export function PreferenceModelSection() {
 
   return (
     <div
+      data-testid="preference-model-section"
       className="bg-surface border-subtle"
       style={{
         borderRadius: '12px',

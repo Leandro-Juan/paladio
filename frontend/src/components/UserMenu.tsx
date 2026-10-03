@@ -448,7 +448,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
               }}
             >
               <span style={{ fontWeight: 700, color: '#334155' }}>paladio</span>
-              <span style={{ color: '#64748B' }}>v1.2.0</span> {/* x-release-please-version */}
+              <span style={{ color: '#64748B' }}>v2.0.0</span> {/* x-release-please-version */}
             </div>
           </div>
         </div>

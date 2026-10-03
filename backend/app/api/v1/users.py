@@ -160,7 +160,7 @@ async def update_user_me(
             updates["email"] = None
 
     if profile_in.password:
-        updates["hashed_password"] = hash_password(profile_in.password)
+        await repo.update_password(current_user.id, hash_password(profile_in.password))
 
     if profile_in.avatar_url is not None or profile_in.preferences is not None:
         current_prefs = dict(current_user.preferences or {})
@@ -234,7 +234,7 @@ async def update_user_by_admin(
     if update_in.is_active is not None:
         updates["is_active"] = update_in.is_active
     if update_in.password:
-        updates["hashed_password"] = hash_password(update_in.password)
+        await repo.update_password(user_id, hash_password(update_in.password))
 
     if update_in.avatar_url is not None or update_in.preferences is not None:
         current_prefs = dict(target_user.preferences or {})

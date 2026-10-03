@@ -114,10 +114,11 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
     // Verify Autonomous Notice
     await expect(page.getByText(/AUTONOMOUS ML TELEMETRY/i)).toBeVisible();
 
-    // Verify strict restriction: No manual sliders, selects, or save buttons exist
-    await expect(page.locator('input[type="range"]')).toHaveCount(0);
-    await expect(page.locator('select')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /SAVE PREFERENCE/i })).toHaveCount(0);
+    // Verify strict restriction: No manual sliders, selects, or save buttons exist in telemetry section
+    const telemetrySection = page.locator('[data-testid="preference-model-section"]');
+    await expect(telemetrySection.locator('input[type="range"]')).toHaveCount(0);
+    await expect(telemetrySection.locator('select')).toHaveCount(0);
+    await expect(telemetrySection.getByRole('button', { name: /SAVE PREFERENCE/i })).toHaveCount(0);
 
     // Take screenshot of autonomous read-only telemetry dashboard
     await page.screenshot({

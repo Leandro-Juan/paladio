@@ -19,7 +19,7 @@ def mock_constraints():
         budget_usd=1000.0,
         start_date="2026-08-18",
         end_date="2026-08-18",
-        pace="medium",
+        pace="balanced",
         interests=["history"],
         meals=[
             MealRequirement(

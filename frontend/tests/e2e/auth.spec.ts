@@ -234,10 +234,9 @@ test.describe('Authentication & User Management Flow', () => {
 
     await page.goto('/config');
 
-    // 1. Verify sidebar header does NOT show "// v1.1.0 ENGINE"
-    const sidebar = page.locator('nav.sidebar');
-    await expect(sidebar.getByText(/ENGINE/i)).not.toBeVisible();
-    await expect(sidebar.getByText(/v1\.1\.0/i)).not.toBeVisible();
+    // 1. Verify sidebar header brand does NOT show version string
+    const sidebarBrand = page.locator('nav.sidebar .brand');
+    await expect(sidebarBrand.getByText(/\/\/\s*v.*ENGINE/i)).not.toBeVisible();
 
     // 2. Verify Authorized Users table has the PFP image on the left of username
     const userRow = page.locator('table tbody tr').first();

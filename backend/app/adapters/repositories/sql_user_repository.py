@@ -18,7 +18,6 @@ ALLOWED_USER_ADMIN_UPDATE_FIELDS = frozenset(
         "is_active",
         "email",
         "username",
-        "hashed_password",
     }
 )
 
@@ -153,6 +152,20 @@ class SqlUserRepository:
                         setattr(user, key, None)
                     elif val is not None:
                         setattr(user, key, val)
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+    async def update_password(
+        self, user_id: str, hashed_password: str
+    ) -> UserModel | None:
+        async with self._get_session() as session:
+            stmt = select(UserModel).where(UserModel.id == user_id)
+            result = await session.execute(stmt)
+            user = result.scalar_one_or_none()
+            if not user:
+                return None
+            user.hashed_password = hashed_password
             await session.commit()
             await session.refresh(user)
             return user

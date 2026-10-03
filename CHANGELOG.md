@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/Leandro-Juan/paladio/compare/paladio-v1.2.0...v2.0.0) (2026-10-04)
+
+### Features
+
+* **itinerary:** Itinerary v2 combinatorial optimization engine with universal city readiness across arbitrary global destinations
+* **itinerary:** 3-tier hierarchical attraction architecture, submodular diversity selection, and Hungarian day assignment
+* **itinerary:** real-time Overpass OSM geocoding and live POI ingestion with multi-mirror failover
+* **itinerary:** critic-repair refinement loop with pace calibration and meal scheduling
+* **cpp_core:** C++20 TSPTW solver extension with dynamic arrival times, taxonomy categories, and expansion limiters
+* **auth:** user administration flow, profile management, and collapsible sidebar UserMenu
+
 ## [1.2.0](https://github.com/Leandro-Juan/paladio/compare/paladio-v1.1.0...paladio-v1.2.0) (2026-10-02)
 
 
