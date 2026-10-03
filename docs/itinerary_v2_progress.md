@@ -10,7 +10,7 @@
 | Phase 3 | Selection (Trip Frame & Pool) | Done | Paris 7/7 slots, 100% mand, 5 T1 | TripFrame, candidate pool, submodular greedy selector, reason codes. |
 | Phase 4 | Day Assignment | Done | Paris 8 POIs, 3 days, 0 closures, load var 950 | Capacitated insertion, local search, Hungarian matching, walking bundles. |
 | Phase 5b | Integration & Full Bench | Done | 135 scen: T1 72.2% (vs 31.1), Mand 86.7% (vs 53.3), Closures 0 (vs 72), LoadVar 5732 (vs 26541), Idle>45m 189 (vs 198), p50 8.7ms (vs 228) | Sequential solve (pybind11 numpy-guard deadlock under threads), slack roll-forward, TransitLeg attach, closed-on-trip-dates prefilter. Open: idle violations, mandatory sat. on 1-day flight-shrunk trips, zigzag 1.79. |
-| Cutover | Approval Gate (STOP #1) | Delivered | Ready for Review | docs/itinerary_v2_cutover_report.md delivered with 135-scenario comparison, 6 side-by-side itineraries, realism audit. |
+| Cutover | Single Cutover | Done | Tests 36/36 passing | Rewired FetchTravelContextUseCase to v2 pipeline, deleted ClusterSelector. |
 | Phase 6 | Refinement Loop | Queued | Pending | LangGraph critic/repair. |
 | Phase 7 | Explainable Output | Queued | Pending | Themes, reason codes, dropped list. |
 | Phase 2b | Progressive Enrichment | Queued | Pending | Offline Wikidata/OSM/LLM enrichment. |

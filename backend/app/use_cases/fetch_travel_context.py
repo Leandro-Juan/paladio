@@ -273,16 +273,101 @@ class FetchTravelContextUseCase:
             target_frequency=calculated_target,
         )
 
-        # Apply Spatial-Affinity Clustering to filter POIs
-        from app.engine.cluster_selector import ClusterSelector
+        # Stage 1-4: V2 Selection and Day Assignment (Agency-Grade Pipeline)
+        from app.engine.v2.candidate_pool import CandidatePoi
+        from app.engine.v2.day_assignment import assign_pois_to_days
+        from app.engine.v2.selection import select_trip_pois
+        from app.engine.v2.tiering import classify_poi_tier
+        from app.engine.v2.trip_frame import build_trip_frame
+        from app.utils.text import is_poi_mandatory
 
-        selector = ClusterSelector(
-            max_pois=30
-        )  # leave room for hotels/restaurants (max 64)
+        candidate_pool: list[CandidatePoi] = []
+        for p in db_pois:
+            tier_info = classify_poi_tier(p, city)
+            p_name = p.get("name", "Attraction")
+            p_id = str(p.get("id") or p_name)
+            p_loc = p.get("location") or {
+                "latitude": hotel_lat,
+                "longitude": hotel_lon,
+            }
+            p_lat = p_loc.get("latitude", hotel_lat)
+            p_lon = p_loc.get("longitude", hotel_lon)
+            is_mand = is_poi_mandatory(p_name, mandatory_names)
+            open_v = p.get("open_time_mins_by_day") or [480] * 7
+            close_v = p.get("close_time_mins_by_day") or [1320] * 7
+            dur = p.get("duration_mins") or 60
+            raw_c = p.get("cost_eur", 0.0)
+            c_cand = CandidatePoi(
+                id=p_id,
+                name=p_name,
+                city=city,
+                tier=tier_info["tier"],
+                tier_confidence=tier_info["tier_confidence"],
+                tier_source=tier_info["tier_source"],
+                iconicity_score=tier_info["iconicity_score"],
+                taxonomy_category=tier_info["taxonomy_category"],
+                category_id=tier_info["category_id"],
+                visit_mode=tier_info["visit_mode"],
+                duration_mins=int(dur),
+                cost_eur=float(raw_c) if raw_c is not None else 0.0,
+                location={"latitude": p_lat, "longitude": p_lon},
+                open_time_mins_by_day=open_v,
+                close_time_mins_by_day=close_v,
+                taste_score=float(p.get("ml_affinity_score", 50.0)),
+                is_mandatory=is_mand,
+                is_meal_spot=False,
+                raw_dict=p,
+            )
+            candidate_pool.append(c_cand)
 
-        daily_clusters = selector.select_n_clusters(
-            db_pois, hotel_lat, hotel_lon, mandatory_names, num_days
+        trip_frame = build_trip_frame(
+            constraints=constraints,
+            outbound_flight=outbound_flight.model_dump() if outbound_flight else None,
+            return_flight=return_flight.model_dump() if return_flight else None,
+            city_center=(hotel_lat, hotel_lon),
         )
+
+        selection_res = select_trip_pois(
+            candidate_pool=candidate_pool,
+            trip_frame=trip_frame,
+        )
+
+        assignment_res = assign_pois_to_days(
+            selected_pois=selection_res.selected_pois,
+            trip_frame=trip_frame,
+        )
+
+        daily_clusters = []
+        for d_idx in range(num_days):
+            day_match = next(
+                (d for d in assignment_res.assigned_days if d.day_index == d_idx), None
+            )
+            if day_match and day_match.pois:
+                day_cluster = []
+                for sp in day_match.pois:
+                    orig_p = getattr(sp.poi, "raw_dict", None)
+                    if orig_p is not None:
+                        day_cluster.append(orig_p)
+                    else:
+                        day_cluster.append(
+                            {
+                                "id": sp.poi.id,
+                                "name": sp.poi.name,
+                                "city": city,
+                                "category": "ATTRACTION",
+                                "cost_eur": sp.poi.cost_eur,
+                                "open_time_mins_by_day": sp.poi.open_time_mins_by_day,
+                                "close_time_mins_by_day": sp.poi.close_time_mins_by_day,
+                                "duration_mins": sp.poi.duration_mins,
+                                "location": sp.poi.location,
+                                "tier": sp.poi.tier,
+                                "category_id": sp.poi.category_id,
+                                "ml_affinity_score": sp.poi.taste_score,
+                            }
+                        )
+                daily_clusters.append(day_cluster)
+            else:
+                daily_clusters.append([])
 
         # 4. Build combined POIs data per day
         daily_pois_data = []
