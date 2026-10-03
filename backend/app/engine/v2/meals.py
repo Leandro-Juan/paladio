@@ -72,8 +72,13 @@ def select_daily_meal_candidates(
         return haversine_distance(anchor_lat, anchor_lon, lat, lon)
 
     # A real agency never sends travellers across town for lunch: keep walkable/near spots.
-    meal_pois = [p for p in meal_pois if dist_to_anchor(p) <= MAX_MEAL_RADIUS_KM]
-    meal_pois.sort(key=dist_to_anchor)
+    near_meals = [p for p in meal_pois if dist_to_anchor(p) <= MAX_MEAL_RADIUS_KM]
+    if not near_meals:
+        # In larger sprawling cities (e.g. Tokyo), fall back to nearest available dining venues
+        near_meals = sorted(meal_pois, key=dist_to_anchor)[:15]
+    else:
+        near_meals.sort(key=dist_to_anchor)
+    meal_pois = near_meals
 
     selected: list[Poi] = []
     # Pick nearest unique spots for requested slots

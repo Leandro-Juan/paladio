@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://overpass.osm.ch/api/interpreter",
 ]
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "PaladioItineraryEngine/1.0 (https://github.com/Leandro-Juan/Paladio; contact@paladio.local)"
@@ -157,16 +158,15 @@ def build_sights_query(
     around = f"(around:{radius_m},{lat},{lon})"
     filters = _SIGNAL_FILTERS if high_signal else _SIGHT_TYPE_FILTERS
     body = "\n".join(f'  nwr{f}["name"]{around};' for f in filters)
-    return f"[out:json][timeout:60];\n(\n{body}\n);\nout center tags {limit};"
+    return f"[out:json][timeout:45];\n(\n{body}\n);\nout center tags {limit};"
 
 
 def build_dining_query(lat: float, lon: float, radius_m: int, limit: int) -> str:
     around = f"(around:{radius_m},{lat},{lon})"
     return (
-        "[out:json][timeout:60];\n(\n"
-        f'  nwr["amenity"="restaurant"]["name"]{around};\n'
-        f'  nwr["amenity"="cafe"]["name"]["cuisine"]{around};\n'
-        f");\nout center tags {limit};"
+        "[out:json][timeout:25];\n(\n"
+        f'  node["amenity"~"^(restaurant|cafe)$"]["name"]{around};\n'
+        f");\nout {limit};"
     )
 
 
@@ -179,7 +179,7 @@ async def _overpass(
         for endpoint in OVERPASS_ENDPOINTS:
             try:
                 resp = await client.post(
-                    endpoint, data={"data": query}, headers=headers, timeout=90.0
+                    endpoint, data={"data": query}, headers=headers, timeout=50.0
                 )
                 resp.raise_for_status()
                 return resp.json().get("elements", [])
@@ -316,15 +316,27 @@ async def fetch_city_records(
     client = client or httpx.AsyncClient()
     radius_m = int(geo.radius_km * 1000)
     try:
-        high = await _overpass(
-            build_sights_query(geo.lat, geo.lon, radius_m, True, 1500), client
+        high = (
+            await _overpass(
+                build_sights_query(geo.lat, geo.lon, radius_m, True, 1500), client
+            )
+            if max_sights > 0
+            else []
         )
-        low = await _overpass(
-            build_sights_query(geo.lat, geo.lon, radius_m, False, 800), client
+        low = (
+            await _overpass(
+                build_sights_query(geo.lat, geo.lon, radius_m, False, 800), client
+            )
+            if max_sights > 0
+            else []
         )
         dining_radius = int(min(geo.radius_km, 3.5) * 1000)
-        dining = await _overpass(
-            build_dining_query(geo.lat, geo.lon, dining_radius, 600), client
+        dining = (
+            await _overpass(
+                build_dining_query(geo.lat, geo.lon, dining_radius, 600), client
+            )
+            if max_dining > 0
+            else []
         )
     finally:
         if own_client:
@@ -352,7 +364,7 @@ async def fetch_city_records(
         f"Fetched {len(sights)} sights and {len(meals)} dining venues for {geo.name} "
         f"(radius {geo.radius_km} km)."
     )
-    if not sights:
+    if max_sights > 0 and not sights:
         raise CityIngestError(
             f"No sights found around {geo.name} ({geo.lat:.4f},{geo.lon:.4f})."
         )

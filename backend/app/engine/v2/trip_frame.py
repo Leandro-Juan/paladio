@@ -179,7 +179,6 @@ def build_trip_frame(
             buffered_end = departure_flight_mins - 180
             end_time = min(1260, max(start_time + 120, buffered_end))
 
-        # Pace-based capacity targets
         if pace == PacePreference.LEISURELY:
             max_a = 1 if (is_arr or is_dep) else 2
             target_mins = 240 if (is_arr or is_dep) else 300

@@ -60,8 +60,14 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
         logger.info(
             f"City '{name}' not ready (T1={t1} T2={t2} dining={dining}); ingesting."
         )
+        need_sights = (t1 + t2) < MIN_TIERED_SIGHTS
+        need_dining = dining < MIN_DINING_VENUES
         geo = await geocode_city(city)
-        records = await fetch_city_records(geo)
+        records = await fetch_city_records(
+            geo,
+            max_sights=220 if need_sights else 0,
+            max_dining=200 if need_dining else 0,
+        )
         tiered = tier_city_attractions(records, name)
         await poi_repo.save_tiered_for_city(name, tiered)
 

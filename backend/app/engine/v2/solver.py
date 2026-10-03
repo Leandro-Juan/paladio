@@ -142,13 +142,16 @@ async def solve_day_v2(
             else getattr(loc, "longitude", anchor_lon)
         )
 
+    slots = (
+        [m.lower() for m in constraints.meals]
+        if constraints.meals
+        else (assigned_day.requested_meals or ["lunch"])
+    )
     meal_candidates = select_daily_meal_candidates(
         anchor_lat=anchor_lat,
         anchor_lon=anchor_lon,
         candidate_pool=candidate_pool,
-        requested_slots=("lunch", "dinner")
-        if not constraints.meals
-        else [m.lower() for m in constraints.meals],
+        requested_slots=slots,
         candidates_per_slot=3,
     )
 
@@ -222,9 +225,12 @@ async def solve_day_v2(
         max_nodes_expanded=max_nodes_expanded,
         max_budget=assigned_day.daily_budget_eur,
         enforce_default_meal_deadlines=bool(
-            constraints.meals or assigned_day.requested_meals
+            constraints.meals
+            or assigned_day.requested_meals
+            or len(committed_entities) >= 3
+            or (assigned_day.end_time_mins - assigned_day.start_time_mins >= 360)
         ),
-        max_idle_time=90,
+        max_idle_time=120,
     )
 
     # 6. Execute C++ solve in thread pool (C++ releases GIL)

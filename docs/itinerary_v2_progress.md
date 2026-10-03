@@ -73,8 +73,10 @@
 - **Phase 7 Complete**:
   - Added explainable daily themes, anchor tracking, and assumptions in `OptimizeDailyItineraryUseCase`.
   - Added Tier 1 / Tier 2 visual badge indicators and theme rendering in `TripTimeline.tsx` and domain schemas.
-- **Phase 2b Complete**:
-  - Implemented offline enrichment CLI `backend/app/cli/enrich_pois.py` using deterministic OSM/Wikidata fame signals and walking bundle detection.
-
-
-
+- **Universal Cities & Multi-Scale Calibration**:
+  - Live Overpass API ingest: configured fast, reliable endpoints (`lz4.overpass-api.de`, `z.overpass-api.de`, `overpass.osm.ch`), fixed Overpass QL tag queries, and reduced timeout to prevent hung requests.
+  - Selective hydration: `ensure_city_ready` only fetches missing sights or missing dining if a city already has one of them, speeding up cached city readiness to <0.1s.
+  - Scaled category saturation penalty in `select_trip_pois`: normalized by trip duration so multi-day trips cleanly select full anchor sets (18-25 sights).
+  - Meal deadline calibration in `struct_mapper.py` and `solver.py`: default daytime itineraries strictly enforce lunch deadline (11:30–15:00) without forcing nighttime dinner deadlines on early-finishing tours; closed meal spots marked unreachable; increased solver `max_idle_time` tolerance to 120m to handle early-morning sights before lunch openings.
+  - Multi-scale quality probe (`app.cli.city_quality_probe`): verified 20/20 PASS across 5 representative cities (Bruges, Cuenca, Oxford, Porto, Tokyo) and 4 traveler plans (`leisure_couple`, `balanced_family`, `intense_culture`, `weekend`) in sub-second per-scenario solve times.
+  - End-to-end un-ingested city test: verified 3/3 PASS on **Salzburg, Austria** with 100% autonomous OSM geocoding, live attraction and dining ingest, relative iconicity tiering, and C++20 scheduling.

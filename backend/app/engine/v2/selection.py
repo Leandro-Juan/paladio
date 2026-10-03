@@ -157,11 +157,14 @@ def select_trip_pois(
             tier_weights = {1: 40.0, 2: 25.0, 3: 5.0, 4: -15.0}
             tier_bonus = tier_weights.get(cand.tier, 0.0)
 
-            # C. Category saturation penalty
+            # C. Category saturation penalty (scaled by trip duration)
+            n_days = max(1, len(trip_frame.days))
             same_cat_count = sum(
                 1 for s in selected if s.poi.category_id == cand.category_id
             )
-            cat_penalty = same_cat_count * 18.0
+            cat_allowance = max(1, n_days)
+            excess = max(0, same_cat_count - cat_allowance)
+            cat_penalty = excess * 15.0 + (same_cat_count / cat_allowance) * 4.0
 
             # D. Cosine redundancy penalty
             redundancy_penalty = 0.0

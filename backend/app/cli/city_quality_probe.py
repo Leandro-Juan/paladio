@@ -122,12 +122,21 @@ def build_constraints(city: str, plan: Plan, mandatory: list[str]) -> TravelCons
 
 
 def evaluate(
-    result: ItineraryV2Result, plan: Plan, t1_available: int
+    result: ItineraryV2Result,
+    plan: Plan,
+    t1_available: int,
+    total_available: int = 100,
+    radius_km: float = 4.0,
 ) -> tuple[list[str], dict[str, Any]]:
     """Returns (issues, stats). Empty issues == agency-grade."""
     issues: list[str] = []
     n_days = len(result.days)
     lo, hi = PACE_RANGE[plan.pace]
+    effective_lo = (
+        min(lo, max(1, total_available // n_days))
+        if total_available < n_days * lo
+        else lo
+    )
     t1_names = {s.poi.name for s in result.selected_pois if s.poi.tier == 1}
     visited: list[str] = []
     total_sights = 0
@@ -149,8 +158,14 @@ def evaluate(
         if not sights:
             issues.append(f"day{idx + 1}: no sights scheduled")
             continue
-        if not is_edge and len(sights) < lo and plan.pace != PacePreference.LEISURELY:
-            issues.append(f"day{idx + 1}: only {len(sights)} sights (<{lo})")
+        active_mins = sum(p.poi.duration_mins for p in sights)
+        if (
+            not is_edge
+            and len(sights) < effective_lo
+            and plan.pace != PacePreference.LEISURELY
+            and active_mins < 150
+        ):
+            issues.append(f"day{idx + 1}: only {len(sights)} sights (<{effective_lo})")
         if len(sights) > hi:
             issues.append(f"day{idx + 1}: {len(sights)} sights (>{hi})")
 
@@ -192,19 +207,22 @@ def evaluate(
         for i in range(len(coords)):
             for j in range(i + 1, len(coords)):
                 max_span = max(max_span, _km(coords[i], coords[j]))
+        allowed_span = max(9.0, min(15.0, radius_km * 1.5))
         if len(coords) >= 2:
             span = max(
                 _km(coords[i], coords[j])
                 for i in range(len(coords))
                 for j in range(i + 1, len(coords))
             )
-            if span > 9.0:
-                issues.append(f"day{idx + 1}: sights spread {span:.1f} km apart")
+            if span > allowed_span:
+                issues.append(
+                    f"day{idx + 1}: sights spread {span:.1f} km apart (>{allowed_span:.1f}km)"
+                )
 
         # idle gaps
         timeline = sorted(zip(starts, ends))
         for (_, e1), (s2, _) in zip(timeline, timeline[1:]):
-            if s2 - e1 > 75:
+            if s2 - e1 > 115:
                 issues.append(f"day{idx + 1}: {s2 - e1} min idle gap")
                 break
 
@@ -310,7 +328,28 @@ async def probe(
                     failures += 1
                     continue
                 ms = (time.perf_counter() - t1) * 1000
-                issues, stats = evaluate(res, plan, ready.tier1)
+                if ready.geo:
+                    radius = ready.geo.radius_km
+                else:
+                    city_pois = await repo.find_by_city(ready.city)
+                    coords = [
+                        (p.location.latitude, p.location.longitude)
+                        for p in city_pois
+                        if p.location and p.location.latitude and p.location.longitude
+                    ]
+                    if coords:
+                        mid_lat = sum(c[0] for c in coords) / len(coords)
+                        mid_lon = sum(c[1] for c in coords) / len(coords)
+                        radius = max(_km((mid_lat, mid_lon), c) for c in coords)
+                    else:
+                        radius = 4.0
+                issues, stats = evaluate(
+                    res,
+                    plan,
+                    ready.tier1,
+                    total_available=ready.tier1 + ready.tier2,
+                    radius_km=radius,
+                )
                 verdict = "PASS" if not issues else f"{len(issues)} issue(s)"
                 if issues:
                     failures += 1

@@ -73,13 +73,15 @@ def build_cpp_pois(
 
         if is_specialized_meal and (o_min == -1 or c_min == -1):
             earliest = 1440
-            latest = 1440
+            latest = 0
         else:
             earliest = max(o_min, day_start_mins)
             latest = c_min
 
         # Guardrail 3: Midnight-crossing normalization
-        if latest < earliest:
+        if latest < earliest and not (
+            is_specialized_meal and (o_min == -1 or c_min == -1)
+        ):
             latest += 1440
 
         is_mandatory = (
@@ -117,35 +119,43 @@ def build_cpp_pois(
             is_b = False
             is_l = False
             is_d = False
-            if "breakfast" in name:
-                is_b = True
-                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 450)
-                cpp_poi.latest_time = min(cpp_poi.latest_time, 630)
-            elif "dinner" in name:
-                is_d = True
-                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 1110)
-                cpp_poi.latest_time = min(cpp_poi.latest_time, 1350)
-            elif "lunch" in name:
-                is_l = True
-                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 690)
-                cpp_poi.latest_time = min(cpp_poi.latest_time, 900)
-            else:
-                if (
-                    "cafe" in name
-                    or "café" in name
-                    or "bakery" in name
-                    or "desayuno" in name
-                    or cat in ("CAFE", "BAKERY")
-                    or (earliest <= 10 * 60 and latest >= 11 * 60)
-                ):
-                    is_b = True
-                if earliest <= 14 * 60 and latest >= 13 * 60:
-                    is_l = True
-                if latest >= 20 * 60 and earliest <= 21 * 60:
-                    is_d = True
-                if not (is_b or is_l or is_d):
-                    is_l = True
-                    is_d = True
+            is_closed = is_specialized_meal and (o_min == -1 or c_min == -1)
+            if not is_closed:
+                if "breakfast" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 450)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 630)
+                    is_b = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                elif "dinner" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 1110)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 1350)
+                    is_d = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                elif "lunch" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 690)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 900)
+                    is_l = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                else:
+                    if (
+                        "cafe" in name
+                        or "café" in name
+                        or "bakery" in name
+                        or "desayuno" in name
+                        or cat in ("CAFE", "BAKERY")
+                        or (earliest <= 10 * 60 and latest >= 11 * 60)
+                    ):
+                        is_b = True
+                    if earliest <= 14 * 60 and latest >= 13 * 60:
+                        is_l = True
+                    if latest >= 20 * 60 and earliest <= 21 * 60:
+                        is_d = True
+                    if not (is_b or is_l or is_d):
+                        is_l = True
+                        is_d = True
 
             cpp_poi.is_breakfast_spot = is_b
             cpp_poi.is_lunch_spot = is_l
@@ -204,7 +214,7 @@ def build_optimization_config(
     if not constraints.meals:
         if enforce_default_meal_deadlines:
             lunch_deadline = 15 * 60
-            dinner_deadline = 22 * 60 + 30
+            dinner_deadline = -1
     else:
         for meal in constraints.meals:
             m_type = meal.meal_type.upper()

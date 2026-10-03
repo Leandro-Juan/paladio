@@ -172,7 +172,8 @@ def _calculate_insertion_cost(
     else:
         b_c = _bundle_centroid(bundle)
         c_c = _bundle_centroid(cluster)
-        dist_cost = haversine_distance(b_c[0], b_c[1], c_c[0], c_c[1]) * 10.0
+        b_dist = haversine_distance(b_c[0], b_c[1], c_c[0], c_c[1])
+        dist_cost = (b_dist**1.5) * 8.0
 
     # 2. Capacity overload penalties
     cap_penalty = 0.0
@@ -277,7 +278,8 @@ def _local_search_refinement(
                 c_c = _bundle_centroid(cl)
                 for p in cl:
                     p_lat, p_lon = _get_poi_coord(p)
-                    total_obj += haversine_distance(p_lat, p_lon, c_c[0], c_c[1]) * 10.0
+                    d = haversine_distance(p_lat, p_lon, c_c[0], c_c[1])
+                    total_obj += (d**1.5) * 8.0
             # Target diff
             target = trip_frame.days[c_idx].target_active_mins
             total_obj += ((d_dur - target) / 60.0) ** 2 * 20.0
