@@ -31,6 +31,19 @@ class IPoiRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
+        """
+        Retrieves dining venues (restaurants, cafes) known for the city.
+        Returns an empty list when the city has no ingested dining venues.
+        """
+        pass
+
+    @abstractmethod
+    async def save_tiered_for_city(self, city_name: str, records: list[dict]) -> None:
+        """Upserts freshly ingested POI records including v2 tier/taxonomy fields."""
+        pass
+
+    @abstractmethod
     async def save_all_for_city(self, city_name: str, pois: list[Poi]) -> None:
         pass
 

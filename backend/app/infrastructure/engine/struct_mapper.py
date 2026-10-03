@@ -11,11 +11,19 @@ except ImportError:
     paladio_core = None
 
 
-def map_category_to_node_type(category: str):
+def map_category_to_node_type(category: str, name: str = ""):
     """Maps string categories to paladio_core.NodeType enum."""
     category = category.upper()
+    name_lower = name.lower()
     if not paladio_core:
         return None
+
+    if "dinner" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_DINNER
+    if "breakfast" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_BREAKFAST
+    if "lunch" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_LUNCH
 
     mapping = {
         "HOTEL": paladio_core.NodeType.HOTEL,
@@ -48,20 +56,27 @@ def build_cpp_pois(
         poi = sp.poi
         score = sp.score
 
-        node_type = map_category_to_node_type(poi.category)
+        node_type = map_category_to_node_type(poi.category, poi.name)
 
+        is_specialized_meal = any(
+            s in poi.name.lower() for s in ("(lunch)", "(dinner)", "(breakfast)")
+        )
         open_vec = getattr(poi, "open_time_mins_by_day", None)
         close_vec = getattr(poi, "close_time_mins_by_day", None)
         if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
             o_min = open_vec[day_weekday]
             c_min = close_vec[day_weekday]
-            if o_min == -1 or c_min == -1:
+            if (o_min == -1 or c_min == -1) and not is_specialized_meal:
                 o_min, c_min = poi.open_time_mins, poi.close_time_mins
         else:
             o_min, c_min = poi.open_time_mins, poi.close_time_mins
 
-        earliest = max(o_min, day_start_mins)
-        latest = c_min
+        if is_specialized_meal and (o_min == -1 or c_min == -1):
+            earliest = 1440
+            latest = 1440
+        else:
+            earliest = max(o_min, day_start_mins)
+            latest = c_min
 
         # Guardrail 3: Midnight-crossing normalization
         if latest < earliest:
@@ -93,28 +108,48 @@ def build_cpp_pois(
 
         cat = poi.category.upper()
         name = poi.name.lower()
-        if cat in ("RESTAURANT", "CAFE", "BAKERY"):
-            if (
-                "breakfast" in name
-                or "cafe" in name
-                or "café" in name
-                or "bakery" in name
-                or "desayuno" in name
-                or cat in ("CAFE", "BAKERY")
-                or (earliest <= 10 * 60 and latest >= 11 * 60)
-            ):
-                cpp_poi.is_breakfast_spot = True
-            if "lunch" in name or (earliest <= 14 * 60 and latest >= 13 * 60):
-                cpp_poi.is_lunch_spot = True
-            if "dinner" in name or (latest >= 20 * 60 and earliest <= 21 * 60):
-                cpp_poi.is_dinner_spot = True
-            if not (
-                cpp_poi.is_breakfast_spot
-                or cpp_poi.is_lunch_spot
-                or cpp_poi.is_dinner_spot
-            ):
-                cpp_poi.is_lunch_spot = True
-                cpp_poi.is_dinner_spot = True
+        if (
+            cat in ("RESTAURANT", "CAFE", "BAKERY")
+            or "(lunch)" in name
+            or "(dinner)" in name
+            or "(breakfast)" in name
+        ):
+            is_b = False
+            is_l = False
+            is_d = False
+            if "breakfast" in name:
+                is_b = True
+                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 450)
+                cpp_poi.latest_time = min(cpp_poi.latest_time, 630)
+            elif "dinner" in name:
+                is_d = True
+                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 1110)
+                cpp_poi.latest_time = min(cpp_poi.latest_time, 1350)
+            elif "lunch" in name:
+                is_l = True
+                cpp_poi.earliest_time = max(cpp_poi.earliest_time, 690)
+                cpp_poi.latest_time = min(cpp_poi.latest_time, 900)
+            else:
+                if (
+                    "cafe" in name
+                    or "café" in name
+                    or "bakery" in name
+                    or "desayuno" in name
+                    or cat in ("CAFE", "BAKERY")
+                    or (earliest <= 10 * 60 and latest >= 11 * 60)
+                ):
+                    is_b = True
+                if earliest <= 14 * 60 and latest >= 13 * 60:
+                    is_l = True
+                if latest >= 20 * 60 and earliest <= 21 * 60:
+                    is_d = True
+                if not (is_b or is_l or is_d):
+                    is_l = True
+                    is_d = True
+
+            cpp_poi.is_breakfast_spot = is_b
+            cpp_poi.is_lunch_spot = is_l
+            cpp_poi.is_dinner_spot = is_d
 
         cpp_pois.append(cpp_poi)
 

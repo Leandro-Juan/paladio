@@ -41,6 +41,10 @@ except ImportError:
     paladio_core = None
 
 
+class V2SolveError(RuntimeError):
+    """Raised when the per-day C++ solve fails. Never masked by an empty itinerary."""
+
+
 class DaySolveResult(BaseModel):
     """Result of solving a single day with the C++ engine."""
 
@@ -217,7 +221,9 @@ async def solve_day_v2(
         monotony_multiplier=0.5,
         max_nodes_expanded=max_nodes_expanded,
         max_budget=assigned_day.daily_budget_eur,
-        enforce_default_meal_deadlines=bool(constraints.meals),
+        enforce_default_meal_deadlines=bool(
+            constraints.meals or assigned_day.requested_meals
+        ),
         max_idle_time=90,
     )
 
@@ -238,23 +244,9 @@ async def solve_day_v2(
         AttributeError,
         OSError,
     ) as e:
-        logger.error(
-            f"Error during C++ itinerary solve for day {assigned_day.day_index}: {e}"
-        )
-        # Graceful empty fallback
-        empty_itin = Itinerary(
-            total_score=0.0,
-            total_cost_eur=0.0,
-            total_time_mins=0,
-            path=[],
-        )
-        return DaySolveResult(
-            day_index=assigned_day.day_index,
-            itinerary=empty_itin,
-            theme=assigned_day.theme,
-            committed_pois=[p.name for p in committed_entities],
-            unspent_budget_eur=assigned_day.daily_budget_eur,
-        )
+        raise V2SolveError(
+            f"C++ solve failed for day {assigned_day.day_index} in {city}: {e}"
+        ) from e
 
     # 7. Map back using direct arrival times from C++ result
     path_nodes = opt_res.path

@@ -92,8 +92,12 @@ def build_trip_frame(
     constraints: TravelConstraints,
     outbound_flight: Any = None,
     return_flight: Any = None,
+    city_center: tuple[float, float] | None = None,
 ) -> TripFrame:
-    """Builds a deterministic TripFrame from user TravelConstraints."""
+    """Builds a deterministic TripFrame from user TravelConstraints.
+
+    `city_center` supplies the default depot for cities outside the built-in table.
+    """
     city = (
         getattr(constraints, "destination_city", None)
         or getattr(constraints, "city", None)
@@ -114,7 +118,11 @@ def build_trip_frame(
     total_budget_eur = usd_to_eur(total_budget_usd)
     daily_budget_eur = round(total_budget_eur / num_days, 2) if num_days > 0 else 0.0
 
-    depot_coord = CITY_DEPOT_COORDINATES.get(city.lower(), (48.8566, 2.3522))
+    depot_coord = city_center or CITY_DEPOT_COORDINATES.get(city.lower())
+    if depot_coord is None:
+        raise ValueError(
+            f"No depot coordinates for '{city}': pass city_center (derived from its POIs)."
+        )
     default_depot = {
         "name": f"{city} Center Base",
         "latitude": depot_coord[0],

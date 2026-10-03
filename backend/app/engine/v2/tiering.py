@@ -153,3 +153,115 @@ def classify_poi_tier(
         "category_id": cat_id,
         "visit_mode": visit_mode,
     }
+
+
+# --- Relative (per-city) tiering for cities without curated seeds ---------------
+
+_MEAL_CATEGORIES = {"restaurant", "cafe", "food", "bistrot"}
+
+
+def _osm_tag_words(sig: dict[str, Any]) -> list[str]:
+    keys = (
+        "tourism",
+        "historic",
+        "building",
+        "amenity",
+        "leisure",
+        "natural",
+        "man_made",
+    )
+    return [str(sig[k]) for k in keys if sig.get(k)]
+
+
+def tier_city_attractions(
+    records: list[dict[str, Any]],
+    city: str,
+    seed_store: CitySeedStore | None = None,
+) -> list[dict[str, Any]]:
+    """Assign tiers relative to the city itself from OSM importance signals.
+
+    A town of 3 sights and a megacity both get a handful of Tier-1 must-sees, because
+    ranking is by percentile of the importance score, not by absolute thresholds.
+    Curated seeds always win over the heuristic. Deterministic; ties broken by name.
+    """
+    store = seed_store or get_seed_store()
+    out: list[dict[str, Any]] = []
+
+    sights: list[dict[str, Any]] = []
+    for rec in records:
+        if str(rec.get("category", "")).lower() in _MEAL_CATEGORIES:
+            rec.update(
+                {
+                    "tier": 3,
+                    "tier_confidence": "low",
+                    "tier_source": "osm_signals",
+                    "iconicity_score": 0.0,
+                    "taxonomy_category": "food_culinary",
+                    "category_id": 5,
+                    "visit_mode": "full",
+                }
+            )
+            out.append(rec)
+        else:
+            sights.append(rec)
+
+    def raw(rec: dict[str, Any]) -> float:
+        return float(
+            (rec.get("metadata", {}).get("osm") or {}).get("importance_raw", 0.0)
+        )
+
+    ranked = sorted(sights, key=lambda r: (-raw(r), r.get("name", "")))
+    n = len(ranked)
+    t1_cap = max(3, min(12, round(0.04 * n)))
+    t2_cap = max(5, min(30, round(0.15 * n)))
+
+    t1_count = 0
+    t2_count = 0
+    for idx, rec in enumerate(ranked):
+        sig = rec.get("metadata", {}).get("osm") or {}
+        seed = store.get_seed(city, rec.get("name", ""))
+        if seed:
+            rec.update(classify_poi_tier(rec, city, store))
+            out.append(rec)
+            continue
+
+        r = raw(rec)
+        tax_cat, cat_id = classify_poi_taxonomy(
+            rec.get("name", ""),
+            rec.get("category", ""),
+            {"tags": _osm_tag_words(sig)},
+        )
+        strong = bool(sig.get("wikidata") or sig.get("wikipedia") or sig.get("unesco"))
+
+        if t1_count < t1_cap and (r >= 4.0 or (t1_count < 3 and r > 0.0)):
+            tier = 1
+            t1_count += 1
+            iconicity = round(
+                max(0.70, 0.98 - 0.28 * (t1_count - 1) / max(1, t1_cap - 1)), 3
+            )
+        elif t2_count < t2_cap and r >= 1.0:
+            tier = 2
+            t2_count += 1
+            iconicity = round(
+                max(0.45, 0.66 - 0.21 * (t2_count - 1) / max(1, t2_cap - 1)), 3
+            )
+        elif r <= 0.3:
+            tier = 4
+            iconicity = 0.10
+        else:
+            tier = 3
+            iconicity = round(min(0.40, 0.20 + 0.05 * r), 3)
+
+        rec.update(
+            {
+                "tier": tier,
+                "tier_confidence": "high" if strong and tier <= 2 else "low",
+                "tier_source": "osm_signals",
+                "iconicity_score": iconicity,
+                "taxonomy_category": tax_cat,
+                "category_id": cat_id,
+                "visit_mode": rec.get("visit_mode", "full"),
+            }
+        )
+        out.append(rec)
+    return out

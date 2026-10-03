@@ -11,6 +11,15 @@ from app.engine.transit_matrix import haversine_distance
 from app.engine.v2.candidate_pool import CandidatePoi
 
 
+MAX_MEAL_RADIUS_KM = 2.5
+
+MEAL_TIME_WINDOWS: dict[str, tuple[int, int]] = {
+    "breakfast": (450, 630),  # 07:30 - 10:30
+    "lunch": (690, 900),  # 11:30 - 15:00
+    "dinner": (1110, 1350),  # 18:30 - 22:30
+}
+
+
 def select_daily_meal_candidates(
     anchor_lat: float,
     anchor_lon: float,
@@ -52,8 +61,9 @@ def select_daily_meal_candidates(
                 meal_pois.append(cand)
 
     if not meal_pois:
-        # If pool has no meal candidates, generate synthetic local dining spots near anchor
-        return _generate_fallback_dining_spots(anchor_lat, anchor_lon, requested_slots)
+        # No real dining venue is known for this city: never synthesize one.
+        # The day simply carries no meal stop and the shortfall is reported upstream.
+        return []
 
     # Sort meal spots by proximity to anchor
     def dist_to_anchor(p: Poi) -> float:
@@ -61,11 +71,15 @@ def select_daily_meal_candidates(
         lon = p.location.longitude or 0.0
         return haversine_distance(anchor_lat, anchor_lon, lat, lon)
 
+    # A real agency never sends travellers across town for lunch: keep walkable/near spots.
+    meal_pois = [p for p in meal_pois if dist_to_anchor(p) <= MAX_MEAL_RADIUS_KM]
     meal_pois.sort(key=dist_to_anchor)
 
     selected: list[Poi] = []
     # Pick nearest unique spots for requested slots
     for slot in requested_slots:
+        slot_lower = slot.lower()
+        slot_window = MEAL_TIME_WINDOWS.get(slot_lower)
         slot_candidates = 0
         for p in meal_pois:
             if slot_candidates >= candidates_per_slot:
@@ -73,47 +87,31 @@ def select_daily_meal_candidates(
             if p not in selected:
                 # Clone and specialize for slot
                 slot_p = p.model_copy(deep=True)
-                slot_p.id = f"{slot}_{p.id}"
+                slot_p.id = f"{slot_lower}_{p.id}"
                 slot_p.name = f"{p.name} ({slot.title()})"
+                if slot_window:
+                    w_start, w_end = slot_window
+                    open_by_day = list(slot_p.open_time_mins_by_day)
+                    close_by_day = list(slot_p.close_time_mins_by_day)
+                    for w in range(7):
+                        o = open_by_day[w] if w < len(open_by_day) else 480
+                        c = close_by_day[w] if w < len(close_by_day) else 1320
+                        if o == -1 or c == -1:
+                            open_by_day[w] = -1
+                            close_by_day[w] = -1
+                        else:
+                            no = max(o, w_start)
+                            nc = min(c, w_end)
+                            if nc - no >= 45:
+                                open_by_day[w] = no
+                                close_by_day[w] = nc
+                            else:
+                                open_by_day[w] = -1
+                                close_by_day[w] = -1
+                    slot_p.open_time_mins_by_day = open_by_day
+                    slot_p.close_time_mins_by_day = close_by_day
+
                 selected.append(slot_p)
                 slot_candidates += 1
 
     return selected
-
-
-def _generate_fallback_dining_spots(
-    anchor_lat: float,
-    anchor_lon: float,
-    requested_slots: Sequence[str],
-) -> list[Poi]:
-    """Generates localized fallback dining options near the anchor."""
-    spots: list[Poi] = []
-    offsets = [(0.001, 0.001), (-0.001, 0.002), (0.002, -0.001)]
-
-    for slot in requested_slots:
-        is_lunch = slot == "lunch"
-        open_mins = 720 if is_lunch else 1170
-        close_mins = 900 if is_lunch else 1350
-
-        for i, (dlat, dlon) in enumerate(offsets):
-            spots.append(
-                Poi(
-                    id=f"fallback_{slot}_{i}",
-                    name=f"Local {slot.title()} Bistro {i + 1}",
-                    city="Destination",
-                    category="RESTAURANT",
-                    location=PoiLocation(
-                        latitude=anchor_lat + dlat,
-                        longitude=anchor_lon + dlon,
-                    ),
-                    open_time_mins_by_day=[open_mins] * 7,
-                    close_time_mins_by_day=[close_mins] * 7,
-                    duration_mins=60,
-                    cost_eur=18.0,
-                    tier=3,
-                    iconicity_score=0.5,
-                    taxonomy_category="food_culinary",
-                    category_id=5,
-                )
-            )
-    return spots

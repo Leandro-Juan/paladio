@@ -268,6 +268,20 @@ class SqlPoiRepository(IPoiRepository):
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
 
+    async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
+        stmt = (
+            select(AttractionModel)
+            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
+            .where(
+                func.lower(AttractionModel.category).in_(
+                    ("restaurant", "cafe", "food", "bistrot")
+                )
+            )
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return [model_to_poi(model) for model in result.scalars().all()]
+
     async def find_semantic_candidates(
         self, city_name: str, user_vector: list[float], limit: int = 150
     ) -> list[tuple[Poi, float]]:
@@ -322,6 +336,82 @@ class SqlPoiRepository(IPoiRepository):
             await self.session.execute(stmt)
         await self.session.commit()
         logger.info(f"Updated embeddings for {len(updates)} attractions in database.")
+
+    async def save_tiered_for_city(
+        self, city_name: str, records: list[dict[str, Any]]
+    ) -> None:
+        """Upserts ingested POI records together with their v2 tier/taxonomy fields."""
+        if not records:
+            return
+        values = []
+        for r in records:
+            open_vec = r.get("open_time_mins_by_day")
+            close_vec = r.get("close_time_mins_by_day")
+            if not open_vec or len(open_vec) != 7:
+                parsed = parse_osm_opening_hours(r.get("osm_opening_hours"))
+                open_vec = parsed.open_time_mins_by_day
+                close_vec = parsed.close_time_mins_by_day
+            values.append(
+                {
+                    "id": r["id"],
+                    "city": city_name,
+                    "name": r["name"],
+                    "category": r["category"],
+                    "location": r["location"],
+                    "open_time_mins_by_day": open_vec,
+                    "close_time_mins_by_day": close_vec,
+                    "duration_mins": int(r["duration_mins"]),
+                    "cost_eur": float(r["cost_eur"]),
+                    "cost_is_estimated": bool(r.get("cost_is_estimated", True)),
+                    "cost_source": r.get("cost_source"),
+                    "osm_opening_hours": r.get("osm_opening_hours"),
+                    "scoring": r.get("scoring", {"rating": 0.0, "reviews": 0}),
+                    "metadata_field": r.get("metadata", {}),
+                    "tier": int(r["tier"]),
+                    "tier_confidence": r["tier_confidence"],
+                    "tier_source": r["tier_source"],
+                    "iconicity_score": float(r["iconicity_score"]),
+                    "taxonomy_category": r["taxonomy_category"],
+                    "category_id": int(r["category_id"]),
+                    "visit_mode": r["visit_mode"],
+                }
+            )
+
+        from sqlalchemy.dialects.postgresql import insert
+
+        for start in range(0, len(values), 200):
+            chunk = values[start : start + 200]
+            stmt = insert(AttractionModel).values(chunk)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    col: getattr(stmt.excluded, col)
+                    for col in (
+                        "name",
+                        "category",
+                        "location",
+                        "open_time_mins_by_day",
+                        "close_time_mins_by_day",
+                        "duration_mins",
+                        "cost_eur",
+                        "cost_is_estimated",
+                        "cost_source",
+                        "osm_opening_hours",
+                        "scoring",
+                        "tier",
+                        "tier_confidence",
+                        "tier_source",
+                        "iconicity_score",
+                        "taxonomy_category",
+                        "category_id",
+                        "visit_mode",
+                    )
+                }
+                | {"metadata": stmt.excluded.metadata},
+            )
+            await self.session.execute(stmt)
+        await self.session.commit()
+        logger.info(f"Saved {len(values)} tiered POIs for {city_name}.")
 
     async def save_all_for_city(self, city_name: str, pois: list[Any]) -> None:
         if not pois:

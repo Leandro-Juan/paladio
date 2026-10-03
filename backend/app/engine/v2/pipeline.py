@@ -18,7 +18,7 @@ from typing import Any
 from app.domain.entities.poi import Poi, PoiLocation
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.engine.v2.budget import allocate_trip_budget
-from app.engine.v2.candidate_pool import build_candidate_pool
+from app.engine.v2.candidate_pool import CandidatePoi, build_candidate_pool
 from app.engine.v2.day_assignment import DayAssignmentResult, assign_pois_to_days
 from app.engine.v2.selection import DroppedPoi, SelectedPoi, select_trip_pois
 from app.engine.v2.solver import DaySolveResult, solve_trip_v2
@@ -50,6 +50,25 @@ class ItineraryV2Result(BaseModel):
     summary: TripV2Summary
 
 
+def derive_city_center(candidate_pool: list[CandidatePoi]) -> tuple[float, float]:
+    """Coordinate-wise median of Tier-1/2 sights (falls back to all sights)."""
+    sights = [c for c in candidate_pool if not c.is_meal_spot]
+    core = [c for c in sights if c.tier <= 2] or sights
+    pts = [
+        (c.location["latitude"], c.location["longitude"])
+        for c in core
+        if c.location.get("latitude") and c.location.get("longitude")
+    ]
+    if not pts:
+        raise ValueError(
+            "Cannot derive a city centre: candidate pool has no located sights."
+        )
+    lats = sorted(p[0] for p in pts)
+    lons = sorted(p[1] for p in pts)
+    mid = len(pts) // 2
+    return lats[mid], lons[mid]
+
+
 async def run_itinerary_v2_pipeline(
     city: str,
     constraints: TravelConstraints,
@@ -59,20 +78,24 @@ async def run_itinerary_v2_pipeline(
     outbound_flight: dict[str, Any] | None = None,
     return_flight: dict[str, Any] | None = None,
     max_nodes_expanded: int = 50000,
+    user_vector: list[float] | None = None,
 ) -> ItineraryV2Result:
     """Executes the complete v2 itinerary pipeline autonomously."""
+    # Stage 2 (first): Candidate Pool - also yields the city centre used as default depot
+    candidate_pool = await build_candidate_pool(
+        city=city,
+        poi_repo=poi_repo,
+        user_vector=user_vector,
+        constraints=constraints,
+    )
+    city_center = derive_city_center(candidate_pool)
+
     # Stage 1: Trip Frame
     trip_frame = build_trip_frame(
         constraints=constraints,
         outbound_flight=outbound_flight,
         return_flight=return_flight,
-    )
-
-    # Stage 2: Candidate Pool
-    candidate_pool = await build_candidate_pool(
-        city=city,
-        poi_repo=poi_repo,
-        constraints=constraints,
+        city_center=city_center,
     )
 
     # Stage 3: Submodular Selection
@@ -95,30 +118,14 @@ async def run_itinerary_v2_pipeline(
         total_budget_usd=constraints.budget_usd,
     )
 
-    # Depot fallback if None provided
+    # Depot fallback: the city's tourist centre (median of its Tier-1/2 sights)
     if not depot_poi:
-        # Default depot to city center or first POI location
-        first_loc = (
-            selected_pois[0].poi.location
-            if selected_pois
-            else {"latitude": 48.8566, "longitude": 2.3522}
-        )
-        lat = (
-            first_loc.get("latitude", 48.8566)
-            if isinstance(first_loc, dict)
-            else 48.8566
-        )
-        lon = (
-            first_loc.get("longitude", 2.3522)
-            if isinstance(first_loc, dict)
-            else 2.3522
-        )
         depot_poi = Poi(
             id="default_hotel_depot",
             name="Accommodations / Hotel Depot",
             city=city,
             category="HOTEL",
-            location=PoiLocation(latitude=lat, longitude=lon),
+            location=PoiLocation(latitude=city_center[0], longitude=city_center[1]),
             open_time_mins_by_day=[0] * 7,
             close_time_mins_by_day=[1440] * 7,
             duration_mins=1,

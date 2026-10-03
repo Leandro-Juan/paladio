@@ -33,6 +33,7 @@ class AssignedDay(BaseModel):
     total_active_mins: int = 0
     total_cost_eur: float = 0.0
     daily_budget_eur: float = 0.0
+    requested_meals: list[str] = Field(default_factory=list)
     theme: str = "City Exploration"
 
 
@@ -412,6 +413,7 @@ def assign_pois_to_days(
                 start_time_mins=d.start_time_mins,
                 end_time_mins=d.end_time_mins,
                 daily_budget_eur=d.daily_budget_eur,
+                requested_meals=d.requested_meals,
             )
             for d in trip_frame.days
         ]
@@ -513,6 +515,7 @@ def assign_pois_to_days(
                 total_active_mins=total_dur,
                 total_cost_eur=round(total_cost, 2),
                 daily_budget_eur=day_f.daily_budget_eur,
+                requested_meals=day_f.requested_meals,
                 theme=_derive_day_theme(day_pois),
             )
         )

@@ -124,6 +124,14 @@ class BenchPoiRepository(IPoiRepository):
             if p.city.lower() == city.lower() and p.tier <= max_tier
         ]
 
+    async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
+        return [
+            p
+            for p in self.pois
+            if p.city.lower() == city_name.lower()
+            and p.category.upper() == "RESTAURANT"
+        ][:limit]
+
     async def find_semantic_candidates(
         self, city_name: str, user_vector: list[float] | None = None, limit: int = 150
     ) -> list[tuple[Poi, float]]:
@@ -137,6 +145,9 @@ class BenchPoiRepository(IPoiRepository):
         return None
 
     async def save_all_for_city(self, city_name: str, pois: list[Poi]) -> None:
+        pass
+
+    async def save_tiered_for_city(self, city_name: str, records: list[dict]) -> None:
         pass
 
     async def update_poi_embeddings(

@@ -44,6 +44,13 @@ class CandidatePoi(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+def _is_meal_poi(poi: Poi) -> bool:
+    return (
+        poi.category.lower() in ("restaurant", "food", "cafe", "bistrot")
+        or poi.taxonomy_category == "food_culinary"
+    )
+
+
 def _poi_to_candidate(
     poi: Poi,
     taste_score: float | None = None,
@@ -66,10 +73,7 @@ def _poi_to_candidate(
         # Default baseline calibrated against iconicity (Amendment A3)
         t_score = round(float(poi.iconicity_score) * 75.0, 2)
 
-    is_meal = (
-        poi.category.lower() in ("restaurant", "food", "cafe", "bistrot")
-        or poi.taxonomy_category == "food_culinary"
-    )
+    is_meal = _is_meal_poi(poi)
 
     return CandidatePoi(
         id=str(poi.id or poi.name),
@@ -116,6 +120,7 @@ async def build_candidate_pool(
         logger.warning(f"Could not load tiered POIs for {city}: {e}")
 
     # 2. Semantic pgvector taste candidates
+    semantic_hits = 0
     if user_vector and len(user_vector) == 768:
         try:
             semantic_candidates = await poi_repo.find_semantic_candidates(
@@ -123,6 +128,7 @@ async def build_candidate_pool(
                 user_vector=user_vector,
                 limit=semantic_limit,
             )
+            semantic_hits = len(semantic_candidates)
             for poi, sim in semantic_candidates:
                 # Map similarity [0.0, 1.0] to taste score [0.0, 100.0]
                 taste = round(float(sim) * 100.0, 2)
@@ -133,10 +139,32 @@ async def build_candidate_pool(
                 else:
                     pool[p_id] = _poi_to_candidate(poi, taste_score=taste)
             logger.info(
-                f"Candidate pool expanded with {len(semantic_candidates)} semantic candidates."
+                f"Candidate pool expanded with {semantic_hits} semantic candidates."
             )
         except Exception as e:
             logger.warning(f"Semantic candidate retrieval skipped for {city}: {e}")
+
+    # 2b. Deterministic Tier-3 fill (iconicity-ranked) when taste retrieval yields
+    # nothing (no user vector or city not yet embedded). Taste is then pure iconicity.
+    if semantic_hits == 0:
+        city_pois = await poi_repo.find_by_city(city)
+        fill = sorted(
+            (
+                p
+                for p in city_pois
+                if (p.id or p.name) not in pool and not _is_meal_poi(p)
+            ),
+            key=lambda p: (-float(p.iconicity_score), p.name),
+        )[:semantic_limit]
+        for p in fill:
+            pool[p.id or p.name] = _poi_to_candidate(p)
+        logger.info(f"Candidate pool filled with {len(fill)} iconicity-ranked POIs.")
+
+    # 2c. Real dining venues (never synthesized)
+    meal_spots = await poi_repo.find_meal_spots(city)
+    for p in meal_spots:
+        pool.setdefault(p.id or p.name, _poi_to_candidate(p))
+    logger.info(f"Candidate pool carries {len(meal_spots)} dining venues for {city}.")
 
     # 3. Explicit user-mandatory POIs
     if constraints and constraints.nodes:
