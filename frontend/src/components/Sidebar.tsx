@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NotificationBell } from './NotificationBell';
+import { UserMenu } from './UserMenu';
 
 interface NavItem {
   href: string;
@@ -16,7 +17,7 @@ interface NavItem {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
 
   // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
@@ -74,17 +75,6 @@ export function Sidebar() {
         </svg>
       ),
     },
-    {
-      href: '/config',
-      label: 'Configuration',
-      badge: user?.role === 'admin' ? 'ADMIN' : undefined,
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      ),
-    },
   ];
 
   return (
@@ -113,18 +103,15 @@ export function Sidebar() {
           <NotificationBell />
         </div>
       ) : (
-        <div className="brand" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <div>
-            <div style={{ marginBottom: '8px' }}>
+            <Link href="/dashboard" title="Paladio Control Center">
               <img
                 src="/logo-horizontal.png"
                 alt="Paladio Logo"
                 style={{ height: '32px', width: 'auto', display: 'block' }}
               />
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
-              {'// v1.2.0 ENGINE'} {/* x-release-please-version */}
-            </p>
+            </Link>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <NotificationBell />
@@ -219,152 +206,23 @@ export function Sidebar() {
         })}
       </ul>
 
-      {/* Footer */}
+      {/* Footer User Menu */}
       {user && (
-        isCollapsed ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              paddingTop: '8px',
-              borderTop: '1px solid var(--color-border)',
-            }}
-          >
-            <div
-              title={`${user.username} (${user.role.toUpperCase()}) - ${user.email}`}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: user.role === 'admin' ? '#1E3A8A' : '#64748B',
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                cursor: 'default',
-              }}
-            >
-              {user.username.charAt(0)}
-            </div>
-            <button
-              onClick={logout}
-              title="Disconnect / Sign Out"
-              aria-label="Disconnect / Sign Out"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--color-text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = '#DC2626';
-                e.currentTarget.style.color = '#DC2626';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-                e.currentTarget.style.color = 'var(--color-text-muted)';
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <div
-            className="sidebar-footer border-subtle"
-            style={{
-              padding: '12px',
-              borderRadius: '8px',
-              background: 'var(--color-bg-main)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ overflow: 'hidden' }}>
-                <div
-                  className="font-display"
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {user.username}
-                </div>
-                <div
-                  className="font-mono text-muted"
-                  style={{
-                    fontSize: '10px',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {user.email}
-                </div>
-              </div>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '9px',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  background: user.role === 'admin' ? '#1E3A8A' : '#64748B',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                }}
-              >
-                {user.role.toUpperCase()}
-              </span>
-            </div>
-
-            <button
-              onClick={logout}
-              className="font-mono"
-              style={{
-                width: '100%',
-                padding: '6px',
-                fontSize: '11px',
-                background: 'transparent',
-                border: '1px solid var(--color-border)',
-                borderRadius: '4px',
-                color: 'var(--color-text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = '#DC2626';
-                e.currentTarget.style.color = '#DC2626';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-                e.currentTarget.style.color = 'var(--color-text-muted)';
-              }}
-            >
-              {'[ DISCONNECT / SIGN OUT ]'}
-            </button>
-          </div>
-        )
+        <div
+          className="sidebar-footer"
+          style={{
+            marginTop: 'auto',
+            width: '100%',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            position: 'relative',
+          }}
+        >
+          <UserMenu isCollapsed={isCollapsed} />
+        </div>
       )}
     </nav>
   );

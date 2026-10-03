@@ -397,8 +397,13 @@ export function TripTimeline({
                 className="font-display text-accent"
                 style={{ fontSize: '1.2rem', letterSpacing: '1px' }}
               >
-                DAY {dayObj.day}
+                DAY {dayObj.day}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
               </h4>
+              {dayObj.anchor && (
+                <span className="font-mono text-xs text-muted" style={{ display: 'block', marginTop: '0.2rem' }}>
+                  Anchor: {dayObj.anchor}
+                </span>
+              )}
             </div>
 
             {/* Daily Transit Pass Advisory Banner */}
@@ -576,6 +581,20 @@ export function TripTimeline({
                           <span className="font-mono" style={{ fontWeight: 600 }}>
                             {name}
                           </span>
+                          {scheduledPoi.poi?.tier && (
+                            <span
+                              style={{
+                                fontSize: '0.65rem',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                background: scheduledPoi.poi.tier === 1 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(100, 116, 139, 0.2)',
+                                color: scheduledPoi.poi.tier === 1 ? '#eab308' : '#94a3b8',
+                                fontWeight: 700,
+                              }}
+                            >
+                              T{scheduledPoi.poi.tier}
+                            </span>
+                          )}
                           <PoiCategoryBadge category={category} name={name} size="xs" />
                         </div>
                         <span className="font-mono text-muted text-sm">{time}</span>

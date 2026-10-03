@@ -1,0 +1,97 @@
+city: Lisbon
+seeds:
+  - name: "Aqueduto das Águas Livres"
+    tier: 1
+    iconicity_score: 0.92
+    taxonomy_category: "architecture"
+    category_id: 3
+    visit_mode: "full"
+    notes: "Magnificent 18th-century stone aqueduct crossing the Alcântara valley"
+
+  - name: "Miradouro do Castelo de São Jorge"
+    tier: 1
+    iconicity_score: 0.96
+    taxonomy_category: "scenic_views"
+    category_id: 7
+    visit_mode: "quick"
+    notes: "Historic castle esplanade view overlooking Lisbon's historic rooftops and Tagus"
+
+  - name: "Casa Fernando Pessoa"
+    tier: 1
+    iconicity_score: 0.88
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Final home and museum of Portugal's greatest modern poet in Campo de Ourique"
+
+  - name: "Lisboa Story Center"
+    tier: 1
+    iconicity_score: 0.86
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Interactive multimedia history museum on Praça do Comércio"
+
+  - name: "Museu Geológico"
+    tier: 1
+    iconicity_score: 0.85
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Historic 19th-century geological science museum in Convento de Jesus"
+
+  - name: "Museu do Aljube - Resistência e Liberdade"
+    tier: 1
+    iconicity_score: 0.87
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Former political prison turned museum dedicated to the fight against dictatorship"
+
+  - name: "Museu Nacional de Arte Contemporânea (MNAC)"
+    tier: 2
+    iconicity_score: 0.82
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "National contemporary art museum in Chiado"
+
+  - name: "Museu Arqueológico do Carmo"
+    tier: 2
+    iconicity_score: 0.84
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Gothic convent ruins left roofless by the 1755 earthquake, housing archaeological treasures"
+
+  - name: "Centro Interpretativo da História do Bacalhau"
+    tier: 2
+    iconicity_score: 0.78
+    taxonomy_category: "food_culinary"
+    category_id: 4
+    visit_mode: "full"
+    notes: "Interpretive center celebrating Portugal's maritime cod heritage on Praça do Comércio"
+
+  - name: "Museu da Marioneta"
+    tier: 2
+    iconicity_score: 0.76
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Puppet museum located in the historic Convento das Bernardas"
+
+  - name: "Museu da Farmácia Lisboa"
+    tier: 2
+    iconicity_score: 0.74
+    taxonomy_category: "history_heritage"
+    category_id: 1
+    visit_mode: "full"
+    notes: "Fascinating history of global medicine and pharmacy located near Santa Catarina miradouro"
+
+  - name: "Ah Amália Living Experience"
+    tier: 2
+    iconicity_score: 0.72
+    taxonomy_category: "art_culture"
+    category_id: 0
+    visit_mode: "full"
+    notes: "Immersive exhibition dedicated to fado legend Amália Rodrigues"

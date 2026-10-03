@@ -89,6 +89,7 @@ pytestdebug.log
 # ==========================================
 .vscode/
 .agents/
+docs/itinerary_v2_see_review.md
 repomix.config.json
 *.swp
 *.swo

@@ -11,11 +11,19 @@ except ImportError:
     paladio_core = None
 
 
-def map_category_to_node_type(category: str):
+def map_category_to_node_type(category: str, name: str = ""):
     """Maps string categories to paladio_core.NodeType enum."""
     category = category.upper()
+    name_lower = name.lower()
     if not paladio_core:
         return None
+
+    if "dinner" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_DINNER
+    if "breakfast" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_BREAKFAST
+    if "lunch" in name_lower:
+        return paladio_core.NodeType.RESTAURANT_LUNCH
 
     mapping = {
         "HOTEL": paladio_core.NodeType.HOTEL,
@@ -48,23 +56,32 @@ def build_cpp_pois(
         poi = sp.poi
         score = sp.score
 
-        node_type = map_category_to_node_type(poi.category)
+        node_type = map_category_to_node_type(poi.category, poi.name)
 
+        is_specialized_meal = any(
+            s in poi.name.lower() for s in ("(lunch)", "(dinner)", "(breakfast)")
+        )
         open_vec = getattr(poi, "open_time_mins_by_day", None)
         close_vec = getattr(poi, "close_time_mins_by_day", None)
         if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
             o_min = open_vec[day_weekday]
             c_min = close_vec[day_weekday]
-            if o_min == -1 or c_min == -1:
+            if (o_min == -1 or c_min == -1) and not is_specialized_meal:
                 o_min, c_min = poi.open_time_mins, poi.close_time_mins
         else:
             o_min, c_min = poi.open_time_mins, poi.close_time_mins
 
-        earliest = max(o_min, day_start_mins)
-        latest = c_min
+        if is_specialized_meal and (o_min == -1 or c_min == -1):
+            earliest = 1440
+            latest = 0
+        else:
+            earliest = max(o_min, day_start_mins)
+            latest = c_min
 
         # Guardrail 3: Midnight-crossing normalization
-        if latest < earliest:
+        if latest < earliest and not (
+            is_specialized_meal and (o_min == -1 or c_min == -1)
+        ):
             latest += 1440
 
         is_mandatory = (
@@ -76,6 +93,10 @@ def build_cpp_pois(
         node_score = 0.0 if is_hotel else score
         node_dur = 0 if is_hotel else poi.duration_mins
 
+        cat_id = getattr(poi, "category_id", 255)
+        if cat_id is None:
+            cat_id = 255
+
         cpp_poi = paladio_core.POI(
             node_type,
             node_cost,
@@ -84,32 +105,61 @@ def build_cpp_pois(
             latest,
             node_dur,
             is_mandatory,
+            cat_id,
         )
 
         cat = poi.category.upper()
         name = poi.name.lower()
-        if cat in ("RESTAURANT", "CAFE", "BAKERY"):
-            if (
-                "breakfast" in name
-                or "cafe" in name
-                or "café" in name
-                or "bakery" in name
-                or "desayuno" in name
-                or cat in ("CAFE", "BAKERY")
-                or (earliest <= 10 * 60 and latest >= 11 * 60)
-            ):
-                cpp_poi.is_breakfast_spot = True
-            if "lunch" in name or (earliest <= 14 * 60 and latest >= 13 * 60):
-                cpp_poi.is_lunch_spot = True
-            if "dinner" in name or (latest >= 20 * 60 and earliest <= 21 * 60):
-                cpp_poi.is_dinner_spot = True
-            if not (
-                cpp_poi.is_breakfast_spot
-                or cpp_poi.is_lunch_spot
-                or cpp_poi.is_dinner_spot
-            ):
-                cpp_poi.is_lunch_spot = True
-                cpp_poi.is_dinner_spot = True
+        if (
+            cat in ("RESTAURANT", "CAFE", "BAKERY")
+            or "(lunch)" in name
+            or "(dinner)" in name
+            or "(breakfast)" in name
+        ):
+            is_b = False
+            is_l = False
+            is_d = False
+            is_closed = is_specialized_meal and (o_min == -1 or c_min == -1)
+            if not is_closed:
+                if "breakfast" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 450)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 630)
+                    is_b = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                elif "dinner" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 1110)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 1350)
+                    is_d = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                elif "lunch" in name:
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 690)
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, 900)
+                    is_l = (
+                        cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
+                    )
+                else:
+                    if (
+                        "cafe" in name
+                        or "café" in name
+                        or "bakery" in name
+                        or "desayuno" in name
+                        or cat in ("CAFE", "BAKERY")
+                        or (earliest <= 10 * 60 and latest >= 11 * 60)
+                    ):
+                        is_b = True
+                    if earliest <= 14 * 60 and latest >= 13 * 60:
+                        is_l = True
+                    if latest >= 20 * 60 and earliest <= 21 * 60:
+                        is_d = True
+                    if not (is_b or is_l or is_d):
+                        is_l = True
+                        is_d = True
+
+            cpp_poi.is_breakfast_spot = is_b
+            cpp_poi.is_lunch_spot = is_l
+            cpp_poi.is_dinner_spot = is_d
 
         cpp_pois.append(cpp_poi)
 
@@ -147,6 +197,12 @@ def build_optimization_config(
     end_node_index: int | None,
     exchange_rate: float = 0.92,
     cpp_pois: list[Any] | None = None,
+    monotony_threshold: int = 2,
+    monotony_multiplier: float = 0.5,
+    max_nodes_expanded: int = 0,
+    max_budget: float | None = None,
+    enforce_default_meal_deadlines: bool = False,
+    max_idle_time: int = 60,
 ) -> Any:
     if not paladio_core:
         return None
@@ -156,9 +212,9 @@ def build_optimization_config(
     dinner_deadline = -1
 
     if not constraints.meals:
-        # Default to ensure realism if none provided
-        lunch_deadline = 15 * 60
-        dinner_deadline = 22 * 60 + 30
+        if enforce_default_meal_deadlines:
+            lunch_deadline = 15 * 60
+            dinner_deadline = -1
     else:
         for meal in constraints.meals:
             m_type = meal.meal_type.upper()
@@ -201,7 +257,12 @@ def build_optimization_config(
         if not has_d:
             dinner_deadline = -1
 
-    budget_eur = constraints.budget_usd * exchange_rate
+    if max_budget is not None and max_budget > 0:
+        budget_eur = max_budget
+    elif constraints.budget_usd and constraints.budget_usd > 0:
+        budget_eur = constraints.budget_usd * exchange_rate
+    else:
+        budget_eur = 100000.0
 
     config = paladio_core.OptimizationConfig(
         max_budget=budget_eur,
@@ -211,5 +272,9 @@ def build_optimization_config(
         breakfast_deadline=breakfast_deadline,
         lunch_deadline=lunch_deadline,
         dinner_deadline=dinner_deadline,
+        monotony_threshold=monotony_threshold,
+        monotony_multiplier=monotony_multiplier,
+        max_nodes_expanded=max_nodes_expanded,
+        max_idle_time=max_idle_time,
     )
     return config

@@ -3,6 +3,8 @@ from datetime import date, time
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.user import PacePreference
+
 
 class FlightSegment(BaseModel):
     origin_iata: str = Field(..., description="3-letter IATA code of origin airport")
@@ -111,8 +113,16 @@ class TravelConstraints(BaseModel):
     destination_city: str | None = Field(
         default="Unknown", description="The city where the trip takes place."
     )
+    city: str | None = Field(default=None, description="Alias for destination_city.")
+    days: int | None = Field(
+        default=None, description="Number of trip days if start/end dates are omitted."
+    )
     budget_usd: float = Field(
         default=0.0, description="Maximum budget for the entire trip in USD.", ge=0
+    )
+    pace: PacePreference = Field(
+        default=PacePreference.BALANCED,
+        description="Travel pace preference (leisurely, balanced, intense).",
     )
     flight_cost: float = Field(default=0.0, description="Cost of the flight.")
     start_date: date | None = Field(

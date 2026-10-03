@@ -131,13 +131,54 @@ async def test_user_admin_bootstrap_and_management(
     )
     assert deactivated_login.status_code == 403
 
-    # 11. Admin deletes traveler
-    del_res = await async_client.delete(
-        f"/api/v1/users/{traveler_id}",
+    # 11. Admin provisions a user without email (optional email)
+    no_email_user = await async_client.post(
+        "/api/v1/users/",
+        json={
+            "username": "noemailguy",
+            "password": "Password123!",
+            "role": "user",
+        },
         headers=admin_headers,
     )
-    assert del_res.status_code == 200
-    assert del_res.json()["status"] == "deleted"
+    assert no_email_user.status_code == 201, no_email_user.text
+    no_email_data = no_email_user.json()
+    assert no_email_data["username"] == "noemailguy"
+    assert no_email_data["email"] == ""
+    no_email_id = no_email_data["id"]
+
+    # 12. Modify profile with avatar_url, new name, and email
+    update_res = await async_client.patch(
+        f"/api/v1/users/{no_email_id}",
+        json={
+            "username": "updatedguy",
+            "email": "updatedguy@paladio.internal",
+            "avatar_url": "https://example.com/avatar.png",
+        },
+        headers=admin_headers,
+    )
+    assert update_res.status_code == 200, update_res.text
+    updated_data = update_res.json()
+    assert updated_data["username"] == "updatedguy"
+    assert updated_data["email"] == "updatedguy@paladio.internal"
+    assert updated_data["preferences"]["avatar_url"] == "https://example.com/avatar.png"
+
+    # 13. Admin updates own profile via /me
+    me_update = await async_client.patch(
+        "/api/v1/users/me",
+        json={
+            "avatar_url": "https://example.com/admin.png",
+        },
+        headers=admin_headers,
+    )
+    assert me_update.status_code == 200, me_update.text
+    assert (
+        me_update.json()["preferences"]["avatar_url"] == "https://example.com/admin.png"
+    )
+
+    # 14. Admin deletes traveler and noemailguy
+    await async_client.delete(f"/api/v1/users/{traveler_id}", headers=admin_headers)
+    await async_client.delete(f"/api/v1/users/{no_email_id}", headers=admin_headers)
 
     # Verify user list only has admin again
     final_list = await async_client.get("/api/v1/users/", headers=admin_headers)

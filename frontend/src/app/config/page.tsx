@@ -8,6 +8,7 @@ import {
   deleteUserApi,
   listUsersApi,
   updateUserApi,
+  updateProfileApi,
   fetchGtfsRegistryApi,
   deleteGtfsApi,
   GtfsRegistryResponse,
@@ -16,7 +17,7 @@ import {
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 
 export default function ConfigPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState<User[]>([]);
@@ -31,13 +32,22 @@ export default function ConfigPage() {
   const [gtfsLoading, setGtfsLoading] = useState<boolean>(false);
   const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Modal State
+  // Provision Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('user');
   const [creating, setCreating] = useState(false);
+
+  // Edit User / Profile Modal State
+  const [editCandidate, setEditCandidate] = useState<User | null>(null);
+  const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('user');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Confirm delete state
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
@@ -193,8 +203,8 @@ export default function ConfigPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUsername.trim() || !newEmail.trim() || !newPassword) {
-      setActionError('All user fields are required.');
+    if (!newUsername.trim() || !newPassword) {
+      setActionError('Username and password are required.');
       return;
     }
     if (newPassword.length < 6) {
@@ -209,7 +219,7 @@ export default function ConfigPage() {
     try {
       await createUserApi({
         username: newUsername.trim(),
-        email: newEmail.trim(),
+        email: newEmail.trim() || undefined,
         password: newPassword,
         role: newRole,
       });
@@ -225,6 +235,117 @@ export default function ConfigPage() {
       setActionError(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const openEditModal = (target: User) => {
+    setActionError(null);
+    setActionSuccess(null);
+    setEditCandidate(target);
+    setEditUsername(target.username || '');
+    setEditEmail(target.email || '');
+    setEditPassword('');
+    setEditRole(target.role || 'user');
+    const existingAvatar = (target.preferences?.avatar_url || target.preferences?.pfp) as string | undefined;
+    setEditAvatarUrl(existingAvatar || '');
+  };
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setActionError('Please select a valid image file (PNG, JPG, SVG, WebP).');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setActionError('Image size must be less than 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxSize = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setEditAvatarUrl(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCandidate) return;
+    if (!editUsername.trim()) {
+      setActionError('Username cannot be empty.');
+      return;
+    }
+    if (editPassword && editPassword.length < 6) {
+      setActionError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setSavingEdit(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    const isSelf = editCandidate.id === currentUser?.id;
+    const trimmedEmail = editEmail.trim() || null;
+
+    try {
+      if (isSelf) {
+        await updateProfileApi({
+          username: editUsername.trim(),
+          email: trimmedEmail,
+          password: editPassword || undefined,
+          avatar_url: editAvatarUrl || undefined,
+        });
+        await refreshUser();
+      } else {
+        await updateUserApi(editCandidate.id, {
+          username: editUsername.trim(),
+          email: trimmedEmail,
+          password: editPassword || undefined,
+          role: editRole,
+          avatar_url: editAvatarUrl || undefined,
+        });
+      }
+      setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
+      setEditCandidate(null);
+      if (isAdmin) {
+        await fetchUsers();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update user profile';
+      setActionError(msg);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -377,6 +498,9 @@ export default function ConfigPage() {
               <tbody>
                 {users.map((u) => {
                   const isSelf = u.id === currentUser?.id;
+                  const avatar = (u.preferences?.avatar_url || u.preferences?.pfp) as string | undefined;
+                  const initial = (u.username || 'U').charAt(0).toUpperCase();
+
                   return (
                     <tr
                       key={u.id}
@@ -386,25 +510,56 @@ export default function ConfigPage() {
                       }}
                     >
                       <td style={{ padding: '12px', fontWeight: 600 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span>{u.username}</span>
-                          {isSelf && (
-                            <span
-                              className="font-mono"
-                              style={{
-                                fontSize: '9px',
-                                background: '#E0E7FF',
-                                color: '#1E3A8A',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              YOU
-                            </span>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: '#0F172A',
+                              color: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              flexShrink: 0,
+                              overflow: 'hidden',
+                              border: '1px solid rgba(0, 0, 0, 0.08)',
+                            }}
+                          >
+                            {avatar ? (
+                              <img
+                                src={avatar}
+                                alt={u.username}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              initial
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{u.username}</span>
+                            {isSelf && (
+                              <span
+                                className="font-mono"
+                                style={{
+                                  fontSize: '9px',
+                                  background: '#E0E7FF',
+                                  color: '#1E3A8A',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                YOU
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="text-muted" style={{ padding: '12px' }}>{u.email}</td>
+                      <td className="text-muted font-mono" style={{ padding: '12px', fontSize: '12px' }}>
+                        {u.email || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>None</span>}
+                      </td>
                       <td style={{ padding: '12px' }}>
                         <span
                           className="font-mono"
@@ -440,6 +595,21 @@ export default function ConfigPage() {
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => openEditModal(u)}
+                            className="font-mono"
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: '11px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--color-border)',
+                              background: '#FFF',
+                              color: 'var(--color-text-main, #0F172A)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => handleToggleActive(u)}
                             disabled={isSelf}
@@ -483,25 +653,101 @@ export default function ConfigPage() {
             </table>
           </div>
         ) : (
-          <div style={{ padding: '1rem', background: '#FFF', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-              <div>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>USERNAME</span>
-                <p style={{ fontWeight: 600, marginTop: '2px' }}>{currentUser?.username}</p>
+          <div style={{ padding: '1.5rem', background: '#FFF', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                <div
+                  style={{
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '50%',
+                    background: '#0F172A',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                  }}
+                >
+                  {(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) ? (
+                    <img
+                      src={(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) as string}
+                      alt={currentUser?.username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    (currentUser?.username || 'U').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-display" style={{ margin: 0, fontSize: '1.1rem' }}>
+                    {currentUser?.username}
+                  </h4>
+                  <p className="font-mono text-muted" style={{ margin: '4px 0 0', fontSize: '12px' }}>
+                    {currentUser?.email || 'No email associated'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>EMAIL</span>
-                <p style={{ fontWeight: 600, marginTop: '2px' }}>{currentUser?.email}</p>
-              </div>
-              <div>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>ROLE</span>
-                <p style={{ fontWeight: 600, marginTop: '2px' }}>{currentUser?.role.toUpperCase()}</p>
-              </div>
-              <div>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>STATUS</span>
-                <p style={{ fontWeight: 600, marginTop: '2px', color: currentUser?.is_active ? '#15803D' : '#B91C1C' }}>
-                  {currentUser?.is_active ? 'ACTIVE' : 'SUSPENDED'}
-                </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div>
+                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>ROLE</span>
+                  <div style={{ marginTop: '2px' }}>
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: '10px',
+                        padding: '3px 7px',
+                        borderRadius: '4px',
+                        background: '#E2E8F0',
+                        color: '#334155',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {currentUser?.role.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>STATUS</span>
+                  <div style={{ marginTop: '2px' }}>
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: '10px',
+                        padding: '3px 7px',
+                        borderRadius: '4px',
+                        background: currentUser?.is_active ? '#DCFCE7' : '#FEE2E2',
+                        color: currentUser?.is_active ? '#15803D' : '#B91C1C',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {currentUser?.is_active ? 'ACTIVE' : 'SUSPENDED'}
+                    </span>
+                  </div>
+                </div>
+                {currentUser && (
+                  <button
+                    onClick={() => openEditModal(currentUser)}
+                    className="font-display"
+                    style={{
+                      padding: '8px 16px',
+                      background: 'var(--color-accent-primary)',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    EDIT PROFILE
+                  </button>
+                )}
               </div>
             </div>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '1.5rem' }}>
@@ -962,14 +1208,13 @@ export default function ConfigPage() {
 
               <div>
                 <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  EMAIL
+                  EMAIL (OPTIONAL)
                 </label>
                 <input
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="navigator@paladio.internal"
-                  required
+                  placeholder="e.g. navigator@paladio.internal (optional)"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -1053,6 +1298,255 @@ export default function ConfigPage() {
                   }}
                 >
                   {creating ? 'PROVISIONING...' : 'CREATE ACCOUNT'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User / Profile Modal */}
+      {editCandidate && (
+        <div
+          data-testid="edit-user-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            backdropFilter: 'blur(2px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '12px',
+              padding: '2rem',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+              border: '1px solid var(--color-border)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
+              {editCandidate.id === currentUser?.id ? 'Edit Your Profile' : `Edit User: ${editCandidate.username}`}
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', marginBottom: '1.5rem' }}>
+              {'// UPDATE ACCOUNT DETAILS, AVATAR & CREDENTIALS'}
+            </p>
+
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              {/* Avatar Preview & Upload */}
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '8px' }}>
+                  PROFILE PICTURE (PFP)
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      background: '#0F172A',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      fontWeight: 700,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '2px solid var(--color-border)',
+                    }}
+                  >
+                    {editAvatarUrl ? (
+                      <img
+                        src={editAvatarUrl}
+                        alt={editUsername || 'Avatar'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      (editUsername || 'U').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <label
+                        className="font-mono"
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border)',
+                          background: '#F8FAFC',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          color: 'var(--color-text-main, #0F172A)',
+                        }}
+                      >
+                        Upload Image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarFileChange}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                      {editAvatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditAvatarUrl('')}
+                          className="font-mono"
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #FECACA',
+                            background: '#FFF',
+                            color: '#DC2626',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={editAvatarUrl.startsWith('data:image') ? '' : editAvatarUrl}
+                      onChange={(e) => setEditAvatarUrl(e.target.value)}
+                      placeholder={editAvatarUrl.startsWith('data:image') ? 'Uploaded image attached' : 'Or paste image URL (https://...)'}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '11px',
+                        background: '#FFF',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  USERNAME
+                </label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="e.g. navigator"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  EMAIL (OPTIONAL)
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="navigator@paladio.internal (optional)"
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  NEW PASSWORD (OPTIONAL)
+                </label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Leave blank to keep unchanged"
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+
+              {isAdmin && editCandidate.id !== currentUser?.id && (
+                <div>
+                  <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                    ROLE
+                  </label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as UserRole)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border)',
+                      fontSize: '13px',
+                      background: '#FFF',
+                    }}
+                  >
+                    <option value="user">Standard User</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditCandidate(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    background: 'transparent',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="font-display"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'var(--color-accent-primary)',
+                    color: '#FFF',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: savingEdit ? 'not-allowed' : 'pointer',
+                    opacity: savingEdit ? 0.7 : 1,
+                  }}
+                >
+                  {savingEdit ? 'SAVING...' : 'SAVE CHANGES'}
                 </button>
               </div>
             </form>

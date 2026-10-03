@@ -59,6 +59,13 @@ class Poi(BaseModel):
     cost_source: str | None = None
     osm_opening_hours: str | None = None
     embedding: list[float] | None = None
+    tier: int = 3
+    tier_confidence: str = "low"
+    tier_source: str = "heuristic"
+    iconicity_score: float = 0.0
+    taxonomy_category: str = "art_culture"
+    category_id: int = 0
+    visit_mode: str = "full"
 
     model_config = ConfigDict(extra="allow")
 
@@ -230,3 +237,5 @@ class Itinerary(BaseModel):
     total_time_mins: int
     path: list[ScheduledPoi]
     transit_recommendation: TransitRecommendation | None = None
+    nodes_expanded: int = 0
+    timed_out: bool = False

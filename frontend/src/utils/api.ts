@@ -1,4 +1,4 @@
-import { AuthTokenResponse, CreateUserData, SetupStatusResponse, UpdateUserData, User } from '@/types/auth';
+import { AuthTokenResponse, CreateUserData, SetupStatusResponse, UpdateProfileData, UpdateUserData, User } from '@/types/auth';
 
 export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -102,6 +102,13 @@ export const createUserApi = (data: CreateUserData): Promise<User> => {
 
 export const updateUserApi = (userId: string, data: UpdateUserData): Promise<User> => {
   return apiFetch<User>(`/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateProfileApi = (data: UpdateProfileData): Promise<User> => {
+  return apiFetch<User>('/users/me', {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

@@ -110,7 +110,7 @@ class MasterAdminSetup(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6, max_length=128)
     role: str | None = "user"
@@ -118,9 +118,21 @@ class UserCreate(BaseModel):
 
 
 class UserAdminUpdate(BaseModel):
+    username: str | None = Field(None, min_length=3, max_length=50)
+    email: EmailStr | None = None
     role: str | None = None
     is_active: bool | None = None
     password: str | None = Field(None, min_length=6, max_length=128)
+    avatar_url: str | None = None
+    preferences: dict[str, Any] | None = None
+
+
+class UserProfileUpdate(BaseModel):
+    username: str | None = Field(None, min_length=3, max_length=50)
+    email: EmailStr | None = None
+    password: str | None = Field(None, min_length=6, max_length=128)
+    avatar_url: str | None = None
+    preferences: dict[str, Any] | None = None
 
 
 class UserLogin(BaseModel):
@@ -138,7 +150,7 @@ class UserEmbeddingUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    email: str
+    email: str | None = None
     username: str
     role: str = "user"
     is_active: bool

@@ -21,3 +21,6 @@ class SwarmState(TypedDict):
     verification_completed: bool | None
     auto_verify: bool | None
     test_mode: bool | None
+    refinement_iteration: int | None
+    critic_issues: list[dict] | None
+    current_objective_j: float | None

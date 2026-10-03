@@ -32,9 +32,17 @@ class CppOptimizationAdapter(IOptimizationEngine):
     Implements IOptimizationEngine interface.
     """
 
-    def __init__(self, ml_scorer: MLScorer, exchange_rate: float = 0.92):
+    def __init__(
+        self,
+        ml_scorer: MLScorer,
+        exchange_rate: float = 0.92,
+        monotony_threshold: int = 2,
+        monotony_multiplier: float = 0.5,
+    ):
         self.ml_scorer = ml_scorer
         self.exchange_rate = exchange_rate
+        self.monotony_threshold = monotony_threshold
+        self.monotony_multiplier = monotony_multiplier
 
     async def run_optimization(
         self,
@@ -74,6 +82,8 @@ class CppOptimizationAdapter(IOptimizationEngine):
             end_node_index,
             self.exchange_rate,
             cpp_pois=cpp_pois,
+            monotony_threshold=self.monotony_threshold,
+            monotony_multiplier=self.monotony_multiplier,
         )
 
         # 3. Call C++ Engine
@@ -90,24 +100,33 @@ class CppOptimizationAdapter(IOptimizationEngine):
             prev_idx = -1
             n = len(pois)
 
-            for idx in result.path:
-                if prev_idx != -1:
-                    transit_time = int(durations[prev_idx * n + idx])
-                    current_time += transit_time
+            has_arrival_times = hasattr(result, "arrival_times") and len(
+                result.arrival_times
+            ) == len(result.path)
 
-                # Enforce venue opening hours and dwell time
-                earliest_open = getattr(pois[idx], "open_time_mins", 0) or 0
-                current_time = max(current_time, earliest_open)
-
-                start_h = current_time // 60
-                start_m = current_time % 60
-
+            for k, idx in enumerate(result.path):
                 is_hotel = getattr(pois[idx], "category", "").upper() == "HOTEL"
                 duration = 0 if is_hotel else int(pois[idx].duration_mins)
-                current_time += duration
 
-                end_h = current_time // 60
-                end_m = current_time % 60
+                if has_arrival_times:
+                    arr_m = result.arrival_times[k]
+                    dep_m = arr_m + duration
+                    start_h, start_m = arr_m // 60, arr_m % 60
+                    end_h, end_m = dep_m // 60, dep_m % 60
+                else:
+                    if prev_idx != -1:
+                        transit_time = int(durations[prev_idx * n + idx])
+                        current_time += transit_time
+
+                    # Enforce venue opening hours and dwell time
+                    earliest_open = getattr(pois[idx], "open_time_mins", 0) or 0
+                    current_time = max(current_time, earliest_open)
+
+                    start_h = current_time // 60
+                    start_m = current_time % 60
+                    current_time += duration
+                    end_h = current_time // 60
+                    end_m = current_time % 60
 
                 path_details.append(
                     ScheduledPoi(
@@ -123,6 +142,8 @@ class CppOptimizationAdapter(IOptimizationEngine):
                 total_cost_eur=float(result.total_cost),
                 total_time_mins=int(result.total_time),
                 path=path_details,
+                nodes_expanded=int(getattr(result, "nodes_expanded", 0)),
+                timed_out=bool(getattr(result, "timed_out", False)),
             )
         except (RuntimeError, ValueError, TypeError, KeyError, AttributeError) as e:
             raise OptimizationError(f"C++ engine failed: {e!s}") from e

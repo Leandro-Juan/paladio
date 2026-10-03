@@ -1,0 +1,140 @@
+{
+  "records": [
+    {
+      "node_count": 8,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.09,
+      "p95_ms": 0.09,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 8,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.08,
+      "p95_ms": 0.08,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 16,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.09,
+      "p95_ms": 0.09,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 16,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.07,
+      "p95_ms": 0.07,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 24,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.07,
+      "p95_ms": 0.07,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 24,
+      "window_mins": 240,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.08,
+      "p95_ms": 0.08,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 8,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.06,
+      "p95_ms": 0.06,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 8,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.07,
+      "p95_ms": 0.07,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 16,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.06,
+      "p95_ms": 0.06,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 16,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.07,
+      "p95_ms": 0.07,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 24,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": true,
+      "p50_ms": 0.06,
+      "p95_ms": 0.06,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    },
+    {
+      "node_count": 24,
+      "window_mins": 480,
+      "pace": "BALANCED",
+      "with_realism": false,
+      "p50_ms": 0.07,
+      "p95_ms": 0.07,
+      "timed_out": false,
+      "timeout_count": 0,
+      "repeats": 1
+    }
+  ],
+  "capacity_table": {
+    "240": 24,
+    "480": 24
+  }
+}

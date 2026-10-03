@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'user';
 
 export interface User {
   id: string;
-  email: string;
+  email?: string | null;
   username: string;
   role: UserRole;
   is_active: boolean;
@@ -23,14 +23,26 @@ export interface SetupStatusResponse {
 }
 
 export interface CreateUserData {
-  email: string;
+  email?: string;
   username: string;
   password: string;
   role?: UserRole;
 }
 
 export interface UpdateUserData {
+  username?: string;
+  email?: string | null;
   role?: UserRole;
   is_active?: boolean;
   password?: string;
+  avatar_url?: string;
+  preferences?: Record<string, unknown>;
+}
+
+export interface UpdateProfileData {
+  username?: string;
+  email?: string | null;
+  password?: string;
+  avatar_url?: string;
+  preferences?: Record<string, unknown>;
 }
