@@ -239,13 +239,62 @@ class OptimizeDailyItineraryUseCase:
                 if not any(m in vn.lower() for vn in visited_names)
             ]
 
+        # Derive daily themes and explainability fields
+        from app.engine.v2.day_assignment import THEME_MAP
+
+        assumptions = [
+            "Accommodations: default hotel depot located at city center median coordinates.",
+            "Flight buffers: 120m post-touchdown arrival buffer, 180m pre-takeoff departure buffer.",
+            "Walking proximity: contracted nearby POIs (<=350m) into walking bundles.",
+            "Opening hours: calendar weekday opening constraints strictly enforced.",
+        ]
+
         total_trip_cost = 0.0
-        for day_dict in multi_day_itinerary:
+        themes = []
+        for i, day_dict in enumerate(multi_day_itinerary):
             itin = day_dict.get("itinerary", {})
             if isinstance(itin, dict):
                 total_trip_cost += float(itin.get("total_cost_eur", 0.0))
             elif hasattr(itin, "total_cost_eur"):
                 total_trip_cost += float(itin.total_cost_eur)
+
+            path = (
+                itin.get("path", [])
+                if isinstance(itin, dict)
+                else getattr(itin, "path", [])
+            )
+            sights = [
+                p
+                for p in path
+                if (
+                    (
+                        p.get("poi", {}).get("category")
+                        if isinstance(p, dict)
+                        else getattr(p.poi, "category", "")
+                    )
+                    or ""
+                ).upper()
+                not in ("HOTEL", "AIRPORT", "RESTAURANT", "CAFE")
+            ]
+            cats = [
+                (
+                    p.get("poi", {}).get("taxonomy_category")
+                    if isinstance(p, dict)
+                    else getattr(p.poi, "taxonomy_category", None)
+                )
+                or "art_culture"
+                for p in sights
+            ]
+            dominant_cat = max(set(cats), key=cats.count) if cats else "art_culture"
+            theme = THEME_MAP.get(dominant_cat, "City Exploration")
+            anchor_name = (
+                sights[0].get("poi", {}).get("name", "")
+                if sights and isinstance(sights[0], dict)
+                else (getattr(sights[0].poi, "name", "") if sights else "")
+            )
+            day_dict["theme"] = theme
+            day_dict["anchor"] = anchor_name
+            themes.append(theme)
 
         return {
             "metadata": {
@@ -257,6 +306,8 @@ class OptimizeDailyItineraryUseCase:
                 ),
             },
             "travel_constraints": constraints.model_dump(mode="json"),
+            "themes": themes,
+            "assumptions": assumptions,
             "days": multi_day_itinerary,
             "total_trip_cost": round(total_trip_cost, 2),
         }

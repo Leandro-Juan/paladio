@@ -372,6 +372,19 @@ def get_effective_time_window(
     return earliest, latest
 
 
+THEME_NAMES: dict[str, str] = {
+    "art_culture": "Art & Masterpieces",
+    "history_heritage": "Historic Echoes & Monuments",
+    "scenic_views": "Iconic Vistas & Cityscape",
+    "architecture": "Architectural Landmarks",
+    "nature_outdoors": "Parks & Promenade",
+    "food_culinary": "Culinary Flavors & Markets",
+    "shopping": "Fashion & Boutiques",
+    "nightlife": "Evening Vibrance",
+}
+THEME_MAP = THEME_NAMES
+
+
 def _derive_day_theme(pois: list[SelectedPoi]) -> str:
     """Assigns an explainable daily theme based on dominant taxonomy categories."""
     if not pois:
@@ -381,17 +394,7 @@ def _derive_day_theme(pois: list[SelectedPoi]) -> str:
         c = p.poi.taxonomy_category
         cat_counts[c] = cat_counts.get(c, 0) + 1
     top_cat = max(cat_counts.items(), key=lambda x: x[1])[0]
-    theme_names = {
-        "art_culture": "Art & Masterpieces",
-        "history_heritage": "Historic Echoes & Monuments",
-        "scenic_views": "Iconic Vistas & Cityscape",
-        "architecture": "Architectural Landmarks",
-        "nature_outdoors": "Parks & Promenade",
-        "food_culinary": "Culinary Flavors & Markets",
-        "shopping": "Fashion & Boutiques",
-        "nightlife": "Evening Vibrance",
-    }
-    return theme_names.get(top_cat, "City Highlights")
+    return THEME_NAMES.get(top_cat, "City Highlights")
 
 
 def assign_pois_to_days(

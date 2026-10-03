@@ -34,6 +34,8 @@ export interface Poi {
     osm_opening_hours?: string | null;
     location: PoiLocation;
     scoring?: PoiScoring;
+    tier?: number;
+    reason_code?: string;
 }
 
 export interface TransitStep {
@@ -108,6 +110,8 @@ export interface DayOutput {
     flight_info?: FlightInfo;
     inbound_flight?: FlightInfo;
     outbound_flight?: FlightInfo;
+    theme?: string;
+    anchor?: string;
 }
 
 export interface OptimizationResult {
