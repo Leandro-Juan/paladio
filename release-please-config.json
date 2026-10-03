@@ -33,7 +33,7 @@
           "jsonpath": "$.packages[\"\"].version"
         },
         "backend/pyproject.toml",
-        "frontend/src/components/Sidebar.tsx",
+        "frontend/src/components/UserMenu.tsx",
         "cpp_core/CMakeLists.txt"
       ]
     }

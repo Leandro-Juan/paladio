@@ -10,7 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 ALLOWED_USER_ADMIN_UPDATE_FIELDS = frozenset(
-    {"name", "bio", "preferences", "role", "is_active", "email", "username"}
+    {
+        "name",
+        "bio",
+        "preferences",
+        "role",
+        "is_active",
+        "email",
+        "username",
+        "hashed_password",
+    }
 )
 
 
@@ -97,9 +106,9 @@ class SqlUserRepository:
     async def create_user(
         self,
         user_id: str,
-        email: str,
         username: str,
         hashed_password: str,
+        email: str | None = None,
         role: str = "user",
         embedding: list[float] | None = None,
         preferences: dict[str, Any] | None = None,
@@ -139,12 +148,11 @@ class SqlUserRepository:
             if not user:
                 return None
             for key, val in updates.items():
-                if (
-                    key in ALLOWED_USER_ADMIN_UPDATE_FIELDS
-                    and hasattr(user, key)
-                    and val is not None
-                ):
-                    setattr(user, key, val)
+                if key in ALLOWED_USER_ADMIN_UPDATE_FIELDS and hasattr(user, key):
+                    if key == "email" and (val is None or val == ""):
+                        setattr(user, key, None)
+                    elif val is not None:
+                        setattr(user, key, val)
             await session.commit()
             await session.refresh(user)
             return user

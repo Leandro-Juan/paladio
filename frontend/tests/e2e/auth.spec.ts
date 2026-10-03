@@ -129,10 +129,17 @@ test.describe('Authentication & User Management Flow', () => {
     await expect(page.getByText('masteradmin', { exact: true })).toBeVisible();
     await expect(page.getByText('ADMIN').first()).toBeVisible();
 
-    // 3. Navigate to Configuration tab
-    const configLink = page.getByRole('link', { name: /Configuration/i });
-    await expect(configLink).toBeVisible();
-    await configLink.click();
+    // Verify Configuration link is removed from sidebar navigation
+    await expect(page.locator('nav.sidebar').getByRole('link', { name: /Configuration/i })).not.toBeVisible();
+
+    // 3. Navigate to Configuration tab via User Menu Settings
+    const userMenuBtn = page.getByRole('button', { name: /User menu/i });
+    await expect(userMenuBtn).toBeVisible();
+    await userMenuBtn.click();
+
+    const settingsBtn = page.getByRole('menuitem', { name: /Settings/i });
+    await expect(settingsBtn).toBeVisible();
+    await settingsBtn.click();
     await expect(page).toHaveURL(/.*\/config/);
 
     // 4. Verify Configuration components
@@ -154,12 +161,109 @@ test.describe('Authentication & User Management Flow', () => {
     await expect(page.getByText('traveler2', { exact: true })).toBeVisible();
     await expect(page.getByText('traveler2@paladio.internal')).toBeVisible();
 
-    // 8. Sign Out
-    const signoutBtn = page.getByRole('button', { name: /DISCONNECT \/ SIGN OUT/i });
+    // 8. Sign Out via User Menu
+    await userMenuBtn.click();
+    const signoutBtn = page.getByRole('menuitem', { name: /Log out/i });
     await expect(signoutBtn).toBeVisible();
     await signoutBtn.click();
 
     // Should return to /login
     await expect(page).toHaveURL(/.*\/login/);
+  });
+
+  test('displays PFP on config page, allows profile editing, and removes version label from sidebar header', async ({ page }) => {
+    let currentUser = {
+      id: 'admin-id-01',
+      username: 'masteradmin',
+      email: 'admin@paladio.internal',
+      role: 'admin',
+      is_active: true,
+      preferences: { avatar_url: 'https://example.com/avatar.png' },
+      created_at: new Date().toISOString(),
+    };
+
+    await page.addInitScript(() => {
+      localStorage.setItem('paladio_token', 'mock-valid-token');
+    });
+
+    await page.route('**/api/v1/auth/setup-status', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ setup_required: false, user_count: 1 }),
+      });
+    });
+
+    await page.route('**/api/v1/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(currentUser),
+      });
+    });
+
+    await page.route('**/api/v1/users/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([currentUser]),
+      });
+    });
+
+    await page.route('**/api/v1/users/me', async (route) => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      currentUser = {
+        ...currentUser,
+        username: body.username || currentUser.username,
+        email: body.email !== undefined ? body.email : currentUser.email,
+        preferences: {
+          ...currentUser.preferences,
+          avatar_url: body.avatar_url || currentUser.preferences?.avatar_url,
+        },
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(currentUser),
+      });
+    });
+
+    await page.route('**/api/v1/trips/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.goto('/config');
+
+    // 1. Verify sidebar header does NOT show "// v1.1.0 ENGINE"
+    const sidebar = page.locator('nav.sidebar');
+    await expect(sidebar.getByText(/ENGINE/i)).not.toBeVisible();
+    await expect(sidebar.getByText(/v1\.1\.0/i)).not.toBeVisible();
+
+    // 2. Verify Authorized Users table has the PFP image on the left of username
+    const userRow = page.locator('table tbody tr').first();
+    const avatarImg = userRow.locator('img[alt="masteradmin"]');
+    await expect(avatarImg).toBeVisible();
+    await expect(avatarImg).toHaveAttribute('src', 'https://example.com/avatar.png');
+
+    // 3. Open Edit Modal via Edit button
+    const editBtn = userRow.getByRole('button', { name: 'Edit' });
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+
+    // 4. Verify edit modal is open
+    const modal = page.locator('[data-testid="edit-user-modal"]');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole('heading', { name: /Edit Your Profile/i })).toBeVisible();
+
+    // 5. Change username and clear email (making it optional)
+    await page.fill('input[placeholder="e.g. navigator"]', 'updatedadmin');
+    await page.fill('input[placeholder="navigator@paladio.internal (optional)"]', '');
+    await page.click('button:has-text("SAVE CHANGES")');
+
+    // 6. Modal closes and update is reflected
+    await expect(modal).not.toBeVisible();
+    await expect(page.getByText('User updatedadmin profile updated successfully.')).toBeVisible();
+    await expect(userRow.getByText('updatedadmin', { exact: true })).toBeVisible();
+    await expect(userRow.getByText('None')).toBeVisible();
   });
 });
