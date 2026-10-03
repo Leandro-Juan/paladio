@@ -13,7 +13,7 @@
 | Cutover | Single Cutover | Done | Tests 36/36 passing | Rewired FetchTravelContextUseCase to v2 pipeline, deleted ClusterSelector. |
 | Phase 6 | Refinement Loop | Done | Tests 35/35 passing | LangGraph critic/repair wired: evaluate_itinerary_quality, apply_repairs, route_critic (<=3 iterations). |
 | Phase 7 | Explainable Output | Done | Tests 41/41 passing | Daily themes, anchor tracking, assumptions, Tier badges in TripTimeline frontend. |
-| Phase 2b | Progressive Enrichment | Queued | Pending | Offline Wikidata/OSM/LLM enrichment. |
+| Phase 2b | Progressive Enrichment | Done | CLI verified on DB | Offline OSM/Wikidata fame signals extraction and walking bundle detection CLI (`app.cli.enrich_pois`). |
 
 ## Running Notes & Deviations
 - **Phase 0**: Confirmed all attractions in Paris, Tokyo, Lisbon, Madrid, Porto have `reviews: 0` and `rating: 0.0`. Tier 1/2 must rely on curated YAML seeds + fallback heuristic (duration, centrality, OSM tags).
@@ -64,6 +64,17 @@
   - `backend/app/engine/v2/day_assignment.py`: Implemented walking proximity bundling (<=350m super-nodes), farthest-point anchor seed initialization, regret-2 insertion balancing active duration and node caps with trip closure feasibility checks, local search refinement (relocation/swap) evaluating shared objective J, Hungarian bipartite matching (`scipy.optimize.linear_sum_assignment`) with +10000 closure penalty guaranteeing zero closure violations and light arrival/departure matching, explainable daily themes, and effective time window intersection.
   - Safe handling of edge cases (fewer POIs than days, padding empty clusters up to K).
   - Unit tests: `backend/tests/test_v2_day_assignment.py` (7/7 passing). Total v2 test suite (23/23 passing).
+- **Cutover Complete**:
+  - Rewired `FetchTravelContextUseCase` to execute Itinerary v2 (`select_trip_pois` + `assign_pois_to_days`).
+  - Safely eliminated legacy `ClusterSelector`.
+- **Phase 6 Complete**:
+  - Implemented `planner_critic_node`, `planner_repair_node`, and `route_critic` loop (<=3 iterations) in LangGraph engine.
+  - Deterministically evaluates pacing, meal gaps, excessive transit, and applies targeted meal insertions or relocations.
+- **Phase 7 Complete**:
+  - Added explainable daily themes, anchor tracking, and assumptions in `OptimizeDailyItineraryUseCase`.
+  - Added Tier 1 / Tier 2 visual badge indicators and theme rendering in `TripTimeline.tsx` and domain schemas.
+- **Phase 2b Complete**:
+  - Implemented offline enrichment CLI `backend/app/cli/enrich_pois.py` using deterministic OSM/Wikidata fame signals and walking bundle detection.
 
 
 
