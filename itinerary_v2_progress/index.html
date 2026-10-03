@@ -1,0 +1,1611 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+      
+      
+        <meta name="author" content="Leandro Juan">
+      
+      
+        <link rel="canonical" href="https://leandro-juan.github.io/paladio/itinerary_v2_progress/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Paladio Itinerary v2: Progress Log - Paladio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#paladio-itinerary-v2-progress-log" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Paladio" class="md-header__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Paladio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Paladio Itinerary v2: Progress Log
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorials/quickstart-docker/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../how-to/run-offline-swarm/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/langgraph-swarm-architecture/" class="md-tabs__link">
+          
+  
+  
+  Technical Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architectural Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Paladio" class="md-nav__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../assets/logo.png" alt="logo">
+
+    </a>
+    Paladio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/quickstart-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart with Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Autonomous Swarm Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/run-offline-swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Offline Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Custom LangGraph Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/modify-engine-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify Engine Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/tune-ml-taste-learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tune ML Taste Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Hybrid Scoring Weights
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/handle-human-in-the-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Handle Human-in-the-Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydrate POI Embeddings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/langgraph-swarm-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ml-feature-tensor-16d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16-D Feature Tensor (PoiEncoder)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/semantic-learning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Learning Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/poi-database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POI Database & Vault Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/frontend-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Frontend Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/websocket-gateway-telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Gateway Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/fastapi-gateway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Gateway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/scraper_json_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scraper JSON Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/core-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Combinatorial Core (paladio-core)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architectural Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architectural Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macro System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/langgraph-vs-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm vs Linear Chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/sovereign-ml-and-semantic-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sovereign ML & Dense Semantic RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/continuous-to-discrete-harmonics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Continuous-to-Discrete Harmonics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/resilient-scraping-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resilient Scraping Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/roadmap-and-future-horizons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategic Roadmap & Future Horizons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-notes-deviations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Notes &amp; Deviations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Leandro-Juan/Paladio/edit/main/docs/itinerary_v2_progress.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="paladio-itinerary-v2-progress-log">Paladio Itinerary v2: Progress Log<a class="headerlink" href="#paladio-itinerary-v2-progress-log" title="Permanent link">&para;</a></h1>
+<h2 id="status-overview">Status Overview<a class="headerlink" href="#status-overview" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Title</th>
+<th>Status</th>
+<th>Bench Results</th>
+<th>Notes / Deviations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase 0</td>
+<td>Audit &amp; Plan</td>
+<td>Done</td>
+<td>N/A</td>
+<td>Completed. Identified zero-review DB state, 64 magic number, monotony halving.</td>
+</tr>
+<tr>
+<td>Phase 1</td>
+<td>Baseline &amp; Bench CLI</td>
+<td>Done</td>
+<td>T1: 31.1%, Mand: 53.3%, Zigzag: 1.48/1.56, Closures: 72</td>
+<td>135 scenarios evaluated across as_is &amp; no_monotony. Fixtures saved.</td>
+</tr>
+<tr>
+<td>Phase 5a</td>
+<td>C++ Extension</td>
+<td>Done</td>
+<td>All 64-node tests &lt;500ms, GTest 18/18, PyTest 8/8</td>
+<td>category_id, arrival_times, nodes_expanded, max_nodes_expanded, timed_out.</td>
+</tr>
+<tr>
+<td>Phase 2a</td>
+<td>Data Model &amp; Tiering</td>
+<td>Done</td>
+<td>DB: 33 T1, 141 T2, 422 T3</td>
+<td>Migration 4d5e6f7a8b9c, 64 seeds across 5 cities, 8-cat taxonomy, poi_travel_cache.</td>
+</tr>
+<tr>
+<td>Phase 3</td>
+<td>Selection (Trip Frame &amp; Pool)</td>
+<td>Done</td>
+<td>Paris 7/7 slots, 100% mand, 5 T1</td>
+<td>TripFrame, candidate pool, submodular greedy selector, reason codes.</td>
+</tr>
+<tr>
+<td>Phase 4</td>
+<td>Day Assignment</td>
+<td>Done</td>
+<td>Paris 8 POIs, 3 days, 0 closures, load var 950</td>
+<td>Capacitated insertion, local search, Hungarian matching, walking bundles.</td>
+</tr>
+<tr>
+<td>Phase 5b</td>
+<td>Integration &amp; Full Bench</td>
+<td>Done</td>
+<td>135 scen: T1 72.2% (vs 31.1), Mand 86.7% (vs 53.3), Closures 0 (vs 72), LoadVar 5732 (vs 26541), Idle&gt;45m 189 (vs 198), p50 8.7ms (vs 228)</td>
+<td>Sequential solve (pybind11 numpy-guard deadlock under threads), slack roll-forward, TransitLeg attach, closed-on-trip-dates prefilter. Open: idle violations, mandatory sat. on 1-day flight-shrunk trips, zigzag 1.79.</td>
+</tr>
+<tr>
+<td>Cutover</td>
+<td>Single Cutover</td>
+<td>Done</td>
+<td>Tests 36/36 passing</td>
+<td>Rewired FetchTravelContextUseCase to v2 pipeline, deleted ClusterSelector.</td>
+</tr>
+<tr>
+<td>Phase 6</td>
+<td>Refinement Loop</td>
+<td>Done</td>
+<td>Tests 35/35 passing</td>
+<td>LangGraph critic/repair wired: evaluate_itinerary_quality, apply_repairs, route_critic (&lt;=3 iterations).</td>
+</tr>
+<tr>
+<td>Phase 7</td>
+<td>Explainable Output</td>
+<td>Done</td>
+<td>Tests 41/41 passing</td>
+<td>Daily themes, anchor tracking, assumptions, Tier badges in TripTimeline frontend.</td>
+</tr>
+<tr>
+<td>Phase 2b</td>
+<td>Progressive Enrichment</td>
+<td>Done</td>
+<td>CLI verified on DB</td>
+<td>Offline OSM/Wikidata fame signals extraction and walking bundle detection CLI (<code>app.cli.enrich_pois</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="running-notes-deviations">Running Notes &amp; Deviations<a class="headerlink" href="#running-notes-deviations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Phase 0</strong>: Confirmed all attractions in Paris, Tokyo, Lisbon, Madrid, Porto have <code>reviews: 0</code> and <code>rating: 0.0</code>. Tier 1/2 must rely on curated YAML seeds + fallback heuristic (duration, centrality, OSM tags).</li>
+<li><strong>Amendment A4</strong>: Phase 5a C++ extension prioritized right after Phase 1.</li>
+<li><strong>Phase 1 Complete</strong>:</li>
+<li><code>app/bench/metrics.py</code>: Zigzag ratio (2-opt), Tier 1 recall, closures, meal spacing, idle time, category entropy, load variance.</li>
+<li><code>app/bench/tractability.py</code>: Synthetic solver probe and capacity table generator (<code>tests/fixtures/tractability_capacity_table.json</code>).</li>
+<li><code>app/bench/scenarios.py</code>: Scenario matrix generator and constraint builder.</li>
+<li><code>app/bench/runner.py</code>: Single scenario and matrix runner supporting both <code>as_is</code> and <code>no_monotony</code> baselines with hermetic network mocks. Fixed path items extraction to inspect <code>itinerary.path</code>.</li>
+<li><code>app/cli/itinerary_bench.py</code>: CLI runnable with <code>--mode baseline</code>, <code>--mode tractability</code>, <code>--mode compare</code>.</li>
+<li><code>app/infrastructure/engine/struct_mapper.py</code> &amp; <code>bridge_adapter.py</code>: Added backward-compatible <code>monotony_threshold</code> and <code>monotony_multiplier</code> parameters.</li>
+<li><code>tests/fixtures/bench_pois.json</code>: 123 real DB POIs across Paris, Madrid, Lisbon with 18 Tier 1 seeds and meal slots.</li>
+<li><code>tests/fixtures/baseline_legacy_itinerary_bench.json</code>: Populated with 135 scenarios across both modes.</li>
+<li>Baseline Summary:<ul>
+<li>Tier 1 Recall: 31.11% (as_is and no_monotony)</li>
+<li>User Mandatory Satisfaction: 53.33%</li>
+<li>Closure Violations: 72</li>
+<li>Mean Zigzag Ratio: 1.478 (as_is), 1.556 (no_monotony)</li>
+<li>Idle Time Violations (&gt;45m): 198</li>
+<li>Daily Load Variance: 26,541.0 (as_is), 23,030.0 (no_monotony)</li>
+<li>Unit tests: 16/16 passing across all bench test suites.</li>
+</ul>
+</li>
+<li><strong>Phase 5a Complete</strong>:</li>
+<li><code>cpp_core/include/paladio/engine.hpp</code>: Added <code>uint8_t category_id = 255</code>, <code>max_nodes_expanded</code> in <code>OptimizationConfig</code>, <code>arrival_times</code>, <code>nodes_expanded</code>, <code>timed_out</code> in <code>OptimizationResult</code>.</li>
+<li><code>cpp_core/src/engine.cpp</code>: Zero dynamic heap allocation in hot loop (fixed <code>std::array&lt;int, 64&gt; current_arrival_times</code>, <code>std::array&lt;uint8_t, 16&gt; taxonomy_visits</code>), monotonic penalty over taxonomy categories, exact arrival time logging on incumbent best, <code>nodes_expanded</code> counter, and <code>max_nodes_expanded</code> termination.</li>
+<li><code>cpp_core/src/bindings.cpp</code> &amp; <code>paladio_core.pyi</code>: PyBind11 bindings and type stubs updated with GIL release.</li>
+<li><code>cpp_core/tests/cpp/engine_test.cpp</code>: Added GTest unit tests for <code>arrival_times</code>, <code>nodes_expanded</code>, <code>max_nodes_expanded</code>, and <code>category_id</code> (18/18 passing).</li>
+<li><code>cpp_core/tests/python/test_engine.py</code>: Added Python unit tests (8/8 passing).</li>
+<li><code>app/infrastructure/engine/struct_mapper.py</code> &amp; <code>bridge_adapter.py</code>: Added direct consumption of <code>arrival_times</code>, <code>nodes_expanded</code>, <code>timed_out</code>, and passing <code>category_id</code>.</li>
+<li>Re-ran tractability probe CLI: verified 64-node capacity table under 500ms across all window sizes.</li>
+<li><strong>Phase 2a Complete</strong>:</li>
+<li><code>backend/migrations/versions/4d5e6f7a8b9c_add_itinerary_v2_tiering_and_travel_cache.py</code>: Applied migration adding <code>tier</code>, <code>tier_confidence</code>, <code>tier_source</code>, <code>iconicity_score</code>, <code>taxonomy_category</code>, <code>category_id</code>, <code>visit_mode</code>, <code>(city, tier)</code> index, and <code>poi_travel_cache</code> table.</li>
+<li><code>backend/app/db/models.py</code>: Updated <code>AttractionModel</code> and added <code>PoiTravelCacheModel</code>.</li>
+<li><code>backend/app/schemas/itinerary.py</code>: Added <code>pace: PacePreference = PacePreference.BALANCED</code> to <code>TravelConstraints</code>.</li>
+<li><code>backend/app/data/city_seeds/</code>: Created curated seed YAMLs for Paris (15 seeds), Madrid (13 seeds), Lisbon (12 seeds), Porto (11 seeds), Tokyo (13 seeds) with 100% real DB POI match.</li>
+<li><code>docs/itinerary_v2_seed_review.md</code>: Documented seed vetting and coverage statistics.</li>
+<li><code>backend/app/engine/v2/taxonomy.py</code>: Implemented canonical 8-category mapping matching C++ category IDs (0-7).</li>
+<li><code>backend/app/engine/v2/tiering.py</code>: Implemented <code>CitySeedStore</code>, curated lookup, and bounded heuristic fallback.</li>
+<li><code>backend/app/adapters/repositories/sql_poi_travel_cache_repository.py</code>: Implemented batch fetch and upsert for pairwise travel times.</li>
+<li><code>backend/cli/tier_pois.py</code>: Hydrated all 596 DB attractions (33 Tier 1, 141 Tier 2, 422 Tier 3).</li>
+<li>Unit tests: <code>backend/tests/test_v2_tiering_taxonomy.py</code> (8/8 passing). Total test suite (20/20 passing).</li>
+<li><strong>Phase 3 Complete</strong>:</li>
+<li><code>backend/app/engine/v2/trip_frame.py</code>: Implemented <code>DayFrame</code> and <code>TripFrame</code> with pace utilization targets, arrival (+120m) and departure (-180m) flight window buffers, daily budget pro-rata share, and standard FX conversion.</li>
+<li><code>backend/app/engine/v2/candidate_pool.py</code>: Implemented <code>build_candidate_pool</code> guaranteeing 100% of Tier 1 &amp; 2 POIs, expanding with semantic pgvector matches, and tagging explicit user-mandatories and meal spots.</li>
+<li><code>backend/app/engine/v2/selection.py</code>: Implemented deterministic submodular greedy selection maximizing <span class="arithmatex">\(J_{\text{marginal}} = \text{taste} + \text{tier\_bonus} - \lambda_1 \text{cosine} - \lambda_2 \text{taxonomy} - \lambda_3 \text{time}\)</span>, with visit mode downgrading and typed reason codes for all selected and dropped items.</li>
+<li><code>backend/app/domain/entities/poi.py</code> &amp; <code>sql_poi_repository.py</code>: Added v2 fields to <code>Poi</code> domain entity and added <code>find_tiered_pois</code> to repository.</li>
+<li>Unit tests: <code>backend/tests/test_v2_selection.py</code> (8/8 passing). Total test suite (28/28 passing).</li>
+<li><strong>Phase 4 Complete</strong>:</li>
+<li><code>backend/app/engine/v2/day_assignment.py</code>: Implemented walking proximity bundling (&lt;=350m super-nodes), farthest-point anchor seed initialization, regret-2 insertion balancing active duration and node caps with trip closure feasibility checks, local search refinement (relocation/swap) evaluating shared objective J, Hungarian bipartite matching (<code>scipy.optimize.linear_sum_assignment</code>) with +10000 closure penalty guaranteeing zero closure violations and light arrival/departure matching, explainable daily themes, and effective time window intersection.</li>
+<li>Safe handling of edge cases (fewer POIs than days, padding empty clusters up to K).</li>
+<li>Unit tests: <code>backend/tests/test_v2_day_assignment.py</code> (7/7 passing). Total v2 test suite (23/23 passing).</li>
+<li><strong>Cutover Complete</strong>:</li>
+<li>Rewired <code>FetchTravelContextUseCase</code> to execute Itinerary v2 (<code>select_trip_pois</code> + <code>assign_pois_to_days</code>).</li>
+<li>Safely eliminated legacy <code>ClusterSelector</code>.</li>
+<li><strong>Phase 6 Complete</strong>:</li>
+<li>Implemented <code>planner_critic_node</code>, <code>planner_repair_node</code>, and <code>route_critic</code> loop (&lt;=3 iterations) in LangGraph engine.</li>
+<li>Deterministically evaluates pacing, meal gaps, excessive transit, and applies targeted meal insertions or relocations.</li>
+<li><strong>Phase 7 Complete</strong>:</li>
+<li>Added explainable daily themes, anchor tracking, and assumptions in <code>OptimizeDailyItineraryUseCase</code>.</li>
+<li>Added Tier 1 / Tier 2 visual badge indicators and theme rendering in <code>TripTimeline.tsx</code> and domain schemas.</li>
+<li><strong>Universal Cities &amp; Multi-Scale Calibration</strong>:</li>
+<li>Live Overpass API ingest: configured fast, reliable endpoints (<code>lz4.overpass-api.de</code>, <code>z.overpass-api.de</code>, <code>overpass.osm.ch</code>), fixed Overpass QL tag queries, and reduced timeout to prevent hung requests.</li>
+<li>Selective hydration: <code>ensure_city_ready</code> only fetches missing sights or missing dining if a city already has one of them, speeding up cached city readiness to &lt;0.1s.</li>
+<li>Scaled category saturation penalty in <code>select_trip_pois</code>: normalized by trip duration so multi-day trips cleanly select full anchor sets (18-25 sights).</li>
+<li>Meal deadline calibration in <code>struct_mapper.py</code> and <code>solver.py</code>: default daytime itineraries strictly enforce lunch deadline (11:30–15:00) without forcing nighttime dinner deadlines on early-finishing tours; closed meal spots marked unreachable; increased solver <code>max_idle_time</code> tolerance to 120m to handle early-morning sights before lunch openings.</li>
+<li>Multi-scale quality probe (<code>app.cli.city_quality_probe</code>): verified 20/20 PASS across 5 representative cities (Bruges, Cuenca, Oxford, Porto, Tokyo) and 4 traveler plans (<code>leisure_couple</code>, <code>balanced_family</code>, <code>intense_culture</code>, <code>weekend</code>) in sub-second per-scenario solve times.</li>
+<li>End-to-end un-ingested city test: verified 3/3 PASS on <strong>Salzburg, Austria</strong> with 100% autonomous OSM geocoding, live attraction and dining ingest, relative iconicity tiering, and C++20 scheduling.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+      
+        <script src="../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../js/mermaid.js"></script>
+      
+    
+  </body>
+</html>
