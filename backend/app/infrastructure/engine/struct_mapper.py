@@ -224,6 +224,8 @@ def build_optimization_config(
                 breakfast_deadline = end_mins
             elif "LUNCH" in m_type:
                 lunch_deadline = end_mins
+            elif "DINNER" in m_type:
+                dinner_deadline = end_mins
 
     if day_end_mins - day_start_mins < 240:
         breakfast_deadline = -1

@@ -450,7 +450,7 @@ class OptimizeDailyItineraryUseCase:
             result["total_cost_eur"] = float(result["total_cost"])
 
         if day == 0 and selected_airport:
-            arr_mins = flight_arrival_mins
+            arr_mins = min(flight_arrival_mins, max(0, hotel_arrival_time - 120))
             airport_node = {
                 "poi": selected_airport,
                 "scheduled_start": f"{arr_mins // 60:02d}:{arr_mins % 60:02d}",
