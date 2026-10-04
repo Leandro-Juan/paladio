@@ -161,6 +161,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   
   const wsRef = useRef<WebSocket | null>(null);
   const threadIdRef = useRef<string>('');
+  const hasNotifiedItineraryRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -189,6 +190,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const handleEvent = useCallback((payload: PaladioEvent) => {
     switch (payload.event) {
       case 'STARTING_INFERENCE':
+        hasNotifiedItineraryRef.current = false;
         setStatus('inferencing');
         setItinerary(null);
         setVerificationPayload(null);
@@ -313,10 +315,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             }
           }
           setItinerary(incoming);
-          notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
-            actionLink: '/vault',
-            actionLabel: 'View Itinerary',
-          });
+          if (!hasNotifiedItineraryRef.current) {
+            hasNotifiedItineraryRef.current = true;
+            notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
+              actionLink: '/vault',
+              actionLabel: 'View Itinerary',
+            });
+          }
         } else if (payload.status === 'running') {
           addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...`);
         } else if (payload.data) {
@@ -340,10 +345,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             }
           }
           setItinerary(incoming);
-          notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
-            actionLink: '/vault',
-            actionLabel: 'View Itinerary',
-          });
+          if (!hasNotifiedItineraryRef.current) {
+            hasNotifiedItineraryRef.current = true;
+            notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
+              actionLink: '/vault',
+              actionLabel: 'View Itinerary',
+            });
+          }
         }
         break;
       case 'FEEDBACK_PROCESSED':

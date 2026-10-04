@@ -201,6 +201,7 @@ class SwarmSessionAdapter(ISwarmSession):
         else:
             stream_input = initial_state
 
+        latest_itinerary = None
         async for chunk in self.graph.astream(
             stream_input, config=config, stream_mode="updates"
         ):
@@ -315,11 +316,25 @@ class SwarmSessionAdapter(ISwarmSession):
                     if "error" in final_itinerary:
                         yield {"event": "ERROR", "status": final_itinerary["error"]}
                     else:
+                        latest_itinerary = final_itinerary
                         yield {
                             "event": "EVALUATING_ROUTES",
-                            "status": "completed",
-                            "data": final_itinerary,
+                            "status": "running",
+                            "data": "Evaluating optimal routes and realism...",
                         }
 
+                elif node_name == "planner_repair":
+                    yield {
+                        "event": "EVALUATING_ROUTES",
+                        "status": "running",
+                        "data": "Refining schedule for pacing and meal balance...",
+                    }
+
         else:
+            if latest_itinerary:
+                yield {
+                    "event": "EVALUATING_ROUTES",
+                    "status": "completed",
+                    "data": latest_itinerary,
+                }
             yield {"event": "DONE", "status": "completed"}

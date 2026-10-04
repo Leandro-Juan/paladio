@@ -463,8 +463,8 @@ class FetchTravelContextUseCase:
                 elif i == 1:
                     r_name = r.get("name", f"Lunch Bistro {day}")
                     r_cat = "RESTAURANT"
-                    r_open = [750] * 7  # 12:30
-                    r_close = [930] * 7  # 15:30
+                    r_open = [690] * 7  # 11:30
+                    r_close = [960] * 7  # 16:00
                     r_dur = 75
                     r_cost = 18.0
                 else:

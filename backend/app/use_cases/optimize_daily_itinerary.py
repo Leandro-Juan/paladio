@@ -8,6 +8,7 @@ from app.domain.entities.poi import Poi
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.engine.transit_matrix import get_transit_matrix, inject_slack_time
 from app.schemas.itinerary import TravelConstraints
+from app.utils.text import is_poi_mandatory
 from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
@@ -236,7 +237,7 @@ class OptimizeDailyItineraryUseCase:
             mandatory_names = [
                 m
                 for m in mandatory_names
-                if not any(m in vn.lower() for vn in visited_names)
+                if not any(is_poi_mandatory(vn, [m]) for vn in visited_names)
             ]
 
         # Derive daily themes and explainability fields

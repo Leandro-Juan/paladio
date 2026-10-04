@@ -202,19 +202,20 @@ def build_optimization_config(
     max_nodes_expanded: int = 0,
     max_budget: float | None = None,
     enforce_default_meal_deadlines: bool = False,
-    max_idle_time: int = 60,
+    max_idle_time: int = 120,
 ) -> Any:
     if not paladio_core:
         return None
 
     breakfast_deadline = -1
     lunch_deadline = -1
+    # Dinner deadline remains -1 in single-day continuous touring so that daytime tours
+    # concluding at the hotel depot in late afternoon are not invalidated by evening dinner hours.
     dinner_deadline = -1
 
     if not constraints.meals:
         if enforce_default_meal_deadlines:
             lunch_deadline = 15 * 60
-            dinner_deadline = -1
     else:
         for meal in constraints.meals:
             m_type = meal.meal_type.upper()
@@ -223,8 +224,6 @@ def build_optimization_config(
                 breakfast_deadline = end_mins
             elif "LUNCH" in m_type:
                 lunch_deadline = end_mins
-            elif "DINNER" in m_type:
-                dinner_deadline = end_mins
 
     if day_end_mins - day_start_mins < 240:
         breakfast_deadline = -1
