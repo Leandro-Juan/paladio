@@ -140,6 +140,35 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         if parsed_e:
             end_date = parsed_e
 
+    # Re-anchor booking if destination city was changed/overridden and contradicts the hotel anchor
+    if booking and destination_city and destination_city != "Unknown":
+        hotel_city = (
+            booking.hotel.city if (booking.hotel and booking.hotel.city) else ""
+        )
+        if (
+            hotel_city
+            and hotel_city.strip().lower() != destination_city.strip().lower()
+        ):
+            logger.info(
+                f"Booking anchor hotel city '{hotel_city}' mismatches destination '{destination_city}'. Re-anchoring to {destination_city}."
+            )
+            from app.utils.mock_tickets import generate_mock_tickets
+
+            diff_days = 5
+            if start_date and end_date:
+                diff = (end_date - start_date).days
+                if diff > 0:
+                    diff_days = diff
+
+            orig = origin_city if origin_city != "Unknown" else "Madrid"
+            mock_res = generate_mock_tickets(
+                orig,
+                destination_city,
+                duration_days=diff_days,
+                start_date=start_date,
+            )
+            booking = mock_res["booking_anchors"]
+
     prompt = manual.get("prompt") or state.get("prompt")
     if not prompt:
         messages = state.get("messages") or []
@@ -168,4 +197,12 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         f"Dates={start_date} to {end_date}, Budget=${budget_usd}, Meals={len(meals)} ---"
     )
 
-    return {"validated_itinerary": constraints.model_dump(mode="json")}
+    booking_dict = (
+        booking.model_dump(mode="json")
+        if (booking and hasattr(booking, "model_dump"))
+        else (booking if isinstance(booking, dict) else None)
+    )
+    return {
+        "validated_itinerary": constraints.model_dump(mode="json"),
+        "booking_anchors": booking_dict,
+    }

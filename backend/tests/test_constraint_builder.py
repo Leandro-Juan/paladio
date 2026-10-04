@@ -135,3 +135,53 @@ async def test_destination_city_strictly_from_hotel():
 
     assert validated["destination_city"] == "Rome"
     assert validated["origin_city"] == "Madrid"
+
+
+@pytest.mark.asyncio
+async def test_assemble_constraints_reanchors_on_destination_mismatch():
+    """
+    Verifies that when manual_constraints overrides destination_city to a different city,
+    booking_anchors is regenerated/re-anchored to match the destination city.
+    """
+    paris_booking = BookingAnchors(
+        outbound_flight=FlightSegment(
+            origin_iata="MAD",
+            destination_iata="CDG",
+            departure_time="2026-10-11 10:00",
+            flight_duration_minutes=120,
+        ),
+        return_flight=FlightSegment(
+            origin_iata="CDG",
+            destination_iata="MAD",
+            departure_time="2026-10-16 16:00",
+            flight_duration_minutes=120,
+        ),
+        hotel=HotelAnchor(
+            name="InterContinental Paris",
+            city="Paris",
+            check_in_date="2026-10-11",
+            check_out_date="2026-10-16",
+        ),
+    )
+
+    state = {
+        "booking_anchors": paris_booking.model_dump(mode="json"),
+        "manual_constraints": {
+            "origin_city": "Madrid",
+            "destination_city": "Madrid",
+            "start_date": "2026-10-11",
+            "end_date": "2026-10-16",
+            "budget_usd": 1500.0,
+        },
+        "messages": [],
+    }
+
+    result = await assemble_constraints_node(state)
+    validated = result.get("validated_itinerary")
+    booking = result.get("booking_anchors")
+
+    assert validated is not None
+    assert validated["destination_city"] == "Madrid"
+    assert booking is not None
+    assert booking["hotel"]["city"].lower() == "madrid"
+    assert validated["booking_anchors"]["hotel"]["city"].lower() == "madrid"

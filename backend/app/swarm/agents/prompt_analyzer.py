@@ -44,7 +44,11 @@ prompt_analysis_agent = Agent(
         "You analyze user travel requests to extract mandatory POIs, preferred cuisines, travel tastes, and tag affinities. "
         "IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw text. "
         "Extract: "
-        "- `mandatory_pois`: Specific landmarks, museums, or places the user explicitly says they MUST or NEED to visit (e.g. 'El Prado', 'Louvre'). "
+        "- `mandatory_pois`: Specific landmarks, museums, or places the user EXPLICITLY named in their request that they MUST or NEED to visit located in the Destination City. "
+        "CRITICAL RULES FOR MANDATORY POIS: "
+        "1. NEVER invent or infer specific attractions from general interests (e.g. 'we love modern art' does NOT mean 'MoMA' or any other specific museum; it only sets 'art_culture' affinity). "
+        "2. NEVER extract famous international attractions located outside the destination city (e.g. do NOT extract MoMA or Louvre unless the trip destination is explicitly New York or Paris). "
+        "3. If no specific real attraction name in the destination city was explicitly requested by the user, return an empty list [] for mandatory_pois. "
         "- `preferred_cuisines`: Cuisines or food types mentioned (e.g. 'indian', 'italian', 'tapas'). "
         "- `travel_tastes`: Desired atmospheres, trip styles, or activities (e.g. 'bar', 'relaxed', 'cultural', 'art'). "
         "- `tag_affinities`: Dictionary with estimated affinity weights (0.0 to 1.0) for any relevant standard tags from: "
@@ -82,13 +86,49 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
     full_prompt = "\n".join(user_messages) if user_messages else ""
     logger.debug(f"Combined prompt for analysis: {full_prompt}")
 
+    dest_city = (
+        validated.get("destination_city") or state.get("destination_city") or "Unknown"
+    )
+    agent_input = (
+        f"Destination City: {dest_city}\nUser Request: {full_prompt}"
+        if dest_city != "Unknown"
+        else full_prompt
+    )
+
     # 2. Run LLM Analysis on the prompt
     analysis = RAGPromptAnalysis()
     if full_prompt.strip():
         model = get_prompt_model()
         try:
-            res = await prompt_analysis_agent.run(full_prompt, model=model)
+            res = await prompt_analysis_agent.run(agent_input, model=model)
             analysis = res.output
+
+            # Filter out obvious cross-city hallucinations when destination is known
+            known_cross_city = {
+                "moma": "new york",
+                "museum of modern art": "new york",
+                "louvre": "paris",
+                "louvre museum": "paris",
+                "eiffel tower": "paris",
+                "colosseum": "rome",
+                "sagrada familia": "barcelona",
+                "statue of liberty": "new york",
+                "british museum": "london",
+                "tower of london": "london",
+            }
+            if dest_city.lower() != "unknown":
+                clean_mand = []
+                for p_name in analysis.mandatory_pois:
+                    norm = p_name.lower().strip()
+                    exp_city = known_cross_city.get(norm)
+                    if exp_city and exp_city != dest_city.lower():
+                        logger.warning(
+                            f"Filtered out cross-city hallucinated POI '{p_name}' (exclusive to {exp_city.title()}) for destination '{dest_city}'."
+                        )
+                        continue
+                    clean_mand.append(p_name)
+                analysis.mandatory_pois = clean_mand
+
             logger.info(
                 f"LLM Prompt Analysis result: mandatory_pois={analysis.mandatory_pois}, "
                 f"preferred_cuisines={analysis.preferred_cuisines}, travel_tastes={analysis.travel_tastes}, "

@@ -170,8 +170,18 @@ class FetchTravelContextUseCase:
         hotel_name = "Hotel"
 
         if hotel_anchor:
-            hotel_name = hotel_anchor.name
-            query = f"{hotel_anchor.name}, {hotel_anchor.address or ''}, {hotel_anchor.city}"
+            if (
+                hotel_anchor.city
+                and hotel_anchor.city.strip().lower() != city.strip().lower()
+            ):
+                logger.warning(
+                    f"Hotel anchor city '{hotel_anchor.city}' mismatches destination city '{city}'. Snapping hotel to destination city center."
+                )
+                hotel_lat, hotel_lon = center_lat, center_lon
+                hotel_name = f"Hotel in {city.title()}"
+            else:
+                hotel_name = hotel_anchor.name
+                query = f"{hotel_anchor.name}, {hotel_anchor.address or ''}, {hotel_anchor.city}"
             try:
                 import urllib.parse
 
@@ -212,46 +222,60 @@ class FetchTravelContextUseCase:
 
         if outbound_flight:
             iata = outbound_flight.destination_iata
-            airport_name = f"{iata} Airport"
-            iata_clean = iata.strip().lower()
-            if iata_clean in KNOWN_AIRPORT_COORDINATES:
-                airport_lat, airport_lon = KNOWN_AIRPORT_COORDINATES[iata_clean]
-                logger.info(
-                    f"Resolved airport {iata} from known coordinates: {airport_lat}, {airport_lon}"
+            from app.utils.iata_mapping import get_city_from_iata
+
+            airport_city = get_city_from_iata(iata.upper())
+            if (
+                airport_city
+                and airport_city.lower() != "unknown"
+                and airport_city.lower() != city.strip().lower()
+            ):
+                logger.warning(
+                    f"Outbound flight destination airport '{iata}' ({airport_city}) mismatches destination city '{city}'. Ignoring misaligned airport."
                 )
+                outbound_flight = None
+                return_flight = None
             else:
-                query = f"{iata} airport"
-                try:
-                    import urllib.parse
+                airport_name = f"{iata} Airport"
+                iata_clean = iata.strip().lower()
+                if iata_clean in KNOWN_AIRPORT_COORDINATES:
+                    airport_lat, airport_lon = KNOWN_AIRPORT_COORDINATES[iata_clean]
+                    logger.info(
+                        f"Resolved airport {iata} from known coordinates: {airport_lat}, {airport_lon}"
+                    )
+                else:
+                    query = f"{iata} airport"
+                    try:
+                        import urllib.parse
 
-                    import httpx
+                        import httpx
 
-                    q = urllib.parse.quote(query)
-                    url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(
-                            url, headers={"User-Agent": "PaladioApp/1.0"}
-                        )
-                        if resp.status_code == 200 and resp.json():
-                            data = resp.json()[0]
-                            airport_lat = float(data["lat"])
-                            airport_lon = float(data["lon"])
-                            logger.info(
-                                f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
+                        q = urllib.parse.quote(query)
+                        url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            resp = await client.get(
+                                url, headers={"User-Agent": "PaladioApp/1.0"}
                             )
-                        else:
-                            logger.warning(
-                                f"Nominatim returned no results for airport: {query}"
-                            )
-                except (
-                    httpx.HTTPError,
-                    TimeoutError,
-                    ValueError,
-                    KeyError,
-                    RuntimeError,
-                    OSError,
-                ) as e:
-                    logger.warning(f"Failed to geocode airport {iata}: {e}")
+                            if resp.status_code == 200 and resp.json():
+                                data = resp.json()[0]
+                                airport_lat = float(data["lat"])
+                                airport_lon = float(data["lon"])
+                                logger.info(
+                                    f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Nominatim returned no results for airport: {query}"
+                                )
+                    except (
+                        httpx.HTTPError,
+                        TimeoutError,
+                        ValueError,
+                        KeyError,
+                        RuntimeError,
+                        OSError,
+                    ) as e:
+                        logger.warning(f"Failed to geocode airport {iata}: {e}")
 
         # Calculate trip duration strictly from real dates
         if not constraints.start_date or not constraints.end_date:
