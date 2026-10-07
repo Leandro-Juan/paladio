@@ -355,10 +355,11 @@ async def test_graceful_fallback_behavior_on_network_error():
             "atlantis_unindexed_city"
         )
         assert fare.is_estimated is True
-        assert fare.source == "regional_benchmark_estimate"
-        assert fare.single_fare == 2.00
-        assert fare.pass_24h_price == 8.00
-        assert fare.airport_surcharge == 3.00
+        assert fare.source == "fare_unknown"
+        assert fare.single_fare == 0.0
+        assert fare.pass_24h_price is None
+        assert fare.airport_surcharge == 0.0
+        assert fare.fare_unknown is True
 
 
 @pytest.mark.asyncio

@@ -116,9 +116,9 @@ async def test_get_detailed_transit_leg_unindexed_city_estimate():
         leg = await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")
 
         assert leg.mode == "transit"
-        assert leg.cost_eur == 2.00
+        assert leg.cost_eur == 0.0
         assert leg.cost_is_estimated is True
-        assert leg.price_source == "regional_benchmark_estimate"
+        assert leg.price_source == "fare_unknown"
 
 
 @pytest.mark.asyncio
