@@ -23,14 +23,18 @@ from app.infrastructure.providers.osm_city_ingest import (
 )
 from app.utils.timezone_utils import cache_city_timezone
 from sqlalchemy import text
-from timezonefinder import TimezoneFinder
 
 logger = logging.getLogger(__name__)
 
 MIN_TIERED_SIGHTS = 8
 MIN_DINING_VENUES = 6
 
-_tf = TimezoneFinder()
+try:
+    from timezonefinder import TimezoneFinder
+
+    _tf = TimezoneFinder()
+except Exception:
+    _tf = None
 
 
 _local_city_locks: dict[str, asyncio.Lock] = {}
@@ -140,7 +144,7 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
         geo = await geocode_city(city)
 
         country = (geo.country_code or "XX").upper()
-        tz = _tf.timezone_at(lat=geo.lat, lng=geo.lon) or "UTC"
+        tz = (_tf.timezone_at(lat=geo.lat, lng=geo.lon) if _tf else None) or "UTC"
         currency = get_country_currency(country)
         canon_id = f"{city_lower}_{country.lower()}"
 

@@ -2,11 +2,8 @@ import re
 
 import httpx
 import pytest
-from app.services.osm_map_service import (
-    CITY_REGION_ALIASES,
-    KNOWN_GEOFABRIK_MAP,
-    OSMMapService,
-)
+import app.services.osm_map_service as osm_mod
+from app.services.osm_map_service import OSMMapService
 
 DYNAMIC_INDEX_CITIES: list[str] = [
     "Valencia",
@@ -68,17 +65,13 @@ def _clean_city_key(name: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_all_unhardcoded_cities_absent_from_known_geofabrik_map():
+async def test_no_hardcoded_city_dictionaries_in_osm_service():
     """
-    Verify that none of the tested cities exist in KNOWN_GEOFABRIK_MAP.
-    This guarantees that we are genuinely exercising dynamic and alias resolution pathways.
+    Verify that no hardcoded city lookup tables or alias dictionaries exist.
+    Guarantees that all cities are dynamically and spatially resolved.
     """
-    all_cities = DYNAMIC_INDEX_CITIES + [c[0] for c in REGIONAL_UNHARDCODED_CITIES]
-    for city in all_cities:
-        key = _clean_city_key(city)
-        assert (
-            key not in KNOWN_GEOFABRIK_MAP
-        ), f"City '{city}' (key '{key}') is already in KNOWN_GEOFABRIK_MAP"
+    assert not hasattr(osm_mod, "KNOWN_GEOFABRIK_MAP")
+    assert not hasattr(osm_mod, "CITY_REGION_ALIASES")
 
 
 @pytest.mark.slow
@@ -87,16 +80,9 @@ async def test_all_unhardcoded_cities_absent_from_known_geofabrik_map():
 @pytest.mark.parametrize("city", DYNAMIC_INDEX_CITIES)
 async def test_dynamic_index_cities_resolve_without_aliases(city: str):
     """
-    Verify cities that are neither in KNOWN_GEOFABRIK_MAP nor in CITY_REGION_ALIASES
-    resolve dynamically via the official Geofabrik GeoJSON index.
+    Verify cities resolve dynamically via the official Geofabrik GeoJSON index.
     """
     key = _clean_city_key(city)
-    assert (
-        key not in KNOWN_GEOFABRIK_MAP
-    ), f"City '{city}' unexpectedly found in KNOWN_GEOFABRIK_MAP"
-    assert (
-        key not in CITY_REGION_ALIASES
-    ), f"City '{city}' unexpectedly found in CITY_REGION_ALIASES"
 
     url, filename = await OSMMapService.resolve_osm_pbf_url(city)
     assert url.startswith("https://download.geofabrik.de/")
