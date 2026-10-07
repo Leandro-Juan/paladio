@@ -89,6 +89,7 @@ pytestdebug.log
 # ==========================================
 .vscode/
 .agents/
+AGENTS.md
 docs/itinerary_v2_see_review.md
 repomix.config.json
 *.swp
@@ -118,6 +119,7 @@ site/
 # Private Notes
 # ==========================================
 BACKLOG.md
+AGENCY_ITINERARY_PLAN_AND_CHECKPOINT.md
 ROADMAP.md
 CONTEXT.md
 comprehensive_audit_report.md
