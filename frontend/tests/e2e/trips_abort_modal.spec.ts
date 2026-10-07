@@ -5,8 +5,11 @@ test.describe('Trips Page - Abort Mission Modal', () => {
   test.beforeEach(async ({ page }) => {
     await mockAuthenticatedUser(page);
   });
-
   test('clicking ABORT opens modal with visible CONFIRM ABORT button', async ({ page }) => {
+    const now = new Date();
+    const startDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
     await page.route(/.*\/api\/v1\/trips\/?(\?.*)?$/, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -16,8 +19,8 @@ test.describe('Trips Page - Abort Mission Modal', () => {
             {
               id: 'trip-madrid-1',
               destination: 'Madrid',
-              start_date: '2026-10-01T00:00:00Z',
-              end_date: '2026-10-05T00:00:00Z',
+              start_date: startDate,
+              end_date: endDate,
               itinerary_data: { days: [] },
             },
           ]),
