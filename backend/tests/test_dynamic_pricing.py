@@ -163,8 +163,9 @@ def test_unindexed_arbitrary_city_estimation():
     # Transit
     fare = TransitFareService.get_city_transit_fare("Reykjavik")
     assert fare.is_estimated is True
-    assert fare.source == "regional_benchmark_estimate"
-    assert fare.single_fare == 2.00
+    assert fare.source == "fare_unknown"
+    assert fare.single_fare == 0.0
+    assert fare.fare_unknown is True
 
     # POI
     cost, is_est, source = PoiPricingService.resolve_poi_price(

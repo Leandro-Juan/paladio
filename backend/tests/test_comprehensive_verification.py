@@ -2,7 +2,6 @@ from datetime import date, datetime, timezone
 
 import pytest
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-from app.db.session import async_session
 from app.domain.entities.poi import Poi, PoiLocation, ScoredPoi, TransitLeg, TransitStep
 from app.infrastructure.engine.struct_mapper import build_cpp_pois
 from app.schemas.itinerary import TravelConstraints
@@ -159,87 +158,87 @@ def test_poi_entity_architecture_and_guardrails():
 # 3. PostgreSQL Database Schema & Migration Row Integrity
 # ============================================================================
 @pytest.mark.asyncio
-async def test_database_schema_and_attractions_migration_integrity():
+async def test_database_schema_and_attractions_migration_integrity(db_session):
     """Verifies that the PostgreSQL attractions table:
     - Has dropped legacy 'schedule' and 'financials' columns
     - Has added typed array and scalar columns
     - All existing records (387+) are valid with 7-element vectors and valid numeric costs
     """
-    async with async_session() as session:
-        # Check column existence in information_schema
-        col_query = await session.execute(
-            text(
-                """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'attractions';
-                """
-            )
+    session = db_session
+    # Check column existence in information_schema
+    col_query = await session.execute(
+        text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'attractions';
+            """
         )
-        existing_columns = {row[0] for row in col_query.fetchall()}
+    )
+    existing_columns = {row[0] for row in col_query.fetchall()}
 
-        # 1. Assert legacy columns are completely removed
+    # 1. Assert legacy columns are completely removed
+    assert (
+        "schedule" not in existing_columns
+    ), "Legacy 'schedule' column was not dropped!"
+    assert (
+        "financials" not in existing_columns
+    ), "Legacy 'financials' column was not dropped!"
+
+    # 2. Assert new canonical columns exist
+    required_columns = {
+        "open_time_mins_by_day",
+        "close_time_mins_by_day",
+        "duration_mins",
+        "cost_eur",
+        "cost_is_estimated",
+        "cost_source",
+        "osm_opening_hours",
+    }
+    for col in required_columns:
         assert (
-            "schedule" not in existing_columns
-        ), "Legacy 'schedule' column was not dropped!"
-        assert (
-            "financials" not in existing_columns
-        ), "Legacy 'financials' column was not dropped!"
+            col in existing_columns
+        ), f"Missing required column '{col}' in attractions table!"
 
-        # 2. Assert new canonical columns exist
-        required_columns = {
-            "open_time_mins_by_day",
-            "close_time_mins_by_day",
-            "duration_mins",
-            "cost_eur",
-            "cost_is_estimated",
-            "cost_source",
-            "osm_opening_hours",
-        }
-        for col in required_columns:
-            assert (
-                col in existing_columns
-            ), f"Missing required column '{col}' in attractions table!"
-
-        # 3. Assert row count and vector integrity across all attractions
-        rows_res = await session.execute(
-            text(
-                """
-                SELECT
-                    count(*) as total_count,
-                    count(*) FILTER (WHERE open_time_mins_by_day IS NULL) as null_open,
-                    count(*) FILTER (WHERE close_time_mins_by_day IS NULL) as null_close,
-                    count(*) FILTER (WHERE array_length(open_time_mins_by_day, 1) != 7) as invalid_open_len,
-                    count(*) FILTER (WHERE array_length(close_time_mins_by_day, 1) != 7) as invalid_close_len,
-                    count(*) FILTER (WHERE cost_eur < 0) as invalid_costs,
-                    count(*) FILTER (WHERE duration_mins <= 0) as invalid_durations
-                FROM attractions;
-                """
-            )
+    # 3. Assert row count and vector integrity across all attractions
+    rows_res = await session.execute(
+        text(
+            """
+            SELECT
+                count(*) as total_count,
+                count(*) FILTER (WHERE open_time_mins_by_day IS NULL) as null_open,
+                count(*) FILTER (WHERE close_time_mins_by_day IS NULL) as null_close,
+                count(*) FILTER (WHERE array_length(open_time_mins_by_day, 1) != 7) as invalid_open_len,
+                count(*) FILTER (WHERE array_length(close_time_mins_by_day, 1) != 7) as invalid_close_len,
+                count(*) FILTER (WHERE cost_eur < 0) as invalid_costs,
+                count(*) FILTER (WHERE duration_mins <= 0) as invalid_durations
+            FROM attractions;
+            """
         )
-        row = rows_res.fetchone()
-        if row and row.total_count >= 387:
-            assert (
-                row.total_count >= 387
-            ), f"Expected at least 387 attractions when seeded, found {row.total_count}"
-            assert (
-                row.null_open == 0
-            ), f"Found {row.null_open} attractions with NULL open_time_mins_by_day"
-            assert (
-                row.null_close == 0
-            ), f"Found {row.null_close} attractions with NULL close_time_mins_by_day"
-            assert (
-                row.invalid_open_len == 0
-            ), f"Found {row.invalid_open_len} rows with open vector length != 7"
-            assert (
-                row.invalid_close_len == 0
-            ), f"Found {row.invalid_close_len} rows with close vector length != 7"
-            assert (
-                row.invalid_costs == 0
-            ), f"Found {row.invalid_costs} rows with negative cost_eur"
-            assert (
-                row.invalid_durations == 0
-            ), f"Found {row.invalid_durations} rows with duration <= 0"
+    )
+    row = rows_res.fetchone()
+    if row and row.total_count >= 387:
+        assert (
+            row.total_count >= 387
+        ), f"Expected at least 387 attractions when seeded, found {row.total_count}"
+        assert (
+            row.null_open == 0
+        ), f"Found {row.null_open} attractions with NULL open_time_mins_by_day"
+        assert (
+            row.null_close == 0
+        ), f"Found {row.null_close} attractions with NULL close_time_mins_by_day"
+        assert (
+            row.invalid_open_len == 0
+        ), f"Found {row.invalid_open_len} rows with open vector length != 7"
+        assert (
+            row.invalid_close_len == 0
+        ), f"Found {row.invalid_close_len} rows with close vector length != 7"
+        assert (
+            row.invalid_costs == 0
+        ), f"Found {row.invalid_costs} rows with negative cost_eur"
+        assert (
+            row.invalid_durations == 0
+        ), f"Found {row.invalid_durations} rows with duration <= 0"
 
 
 # ============================================================================

@@ -67,6 +67,26 @@ class OptimizeDailyItineraryUseCase:
             if not ret_flight and anchors.return_flight:
                 ret_flight = anchors.return_flight.model_dump()
 
+        if outbound and isinstance(outbound, dict) and "arrival_time" not in outbound:
+            try:
+                from app.schemas.itinerary import FlightSegment
+
+                outbound = FlightSegment.model_validate(outbound).model_dump()
+            except Exception:
+                pass
+
+        if (
+            ret_flight
+            and isinstance(ret_flight, dict)
+            and "arrival_time" not in ret_flight
+        ):
+            try:
+                from app.schemas.itinerary import FlightSegment
+
+                ret_flight = FlightSegment.model_validate(ret_flight).model_dump()
+            except Exception:
+                pass
+
         # Resolve Hotel Depot
         depot_poi: Poi | None = None
         hotel_anchor = anchors.hotel if anchors else None

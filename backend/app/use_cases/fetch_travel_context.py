@@ -414,15 +414,18 @@ class FetchTravelContextUseCase:
                 r
                 for r in restaurants_data
                 if str(r.get("category", "")).lower() in ("cafe", "bakery")
+                or "cafe" in str(r.get("name", "")).lower()
+                or "bakery" in str(r.get("name", "")).lower()
             ]
-            dining_places = [
-                r
-                for r in restaurants_data
-                if str(r.get("category", "")).lower() not in ("cafe", "bakery")
-            ]
-            if not cafes:
-                cafes = restaurants_data
-            if not dining_places:
+            dining_places = [r for r in restaurants_data if r not in cafes]
+            if not cafes and restaurants_data:
+                cafes = [restaurants_data[0]]
+                dining_places = (
+                    restaurants_data[1:]
+                    if len(restaurants_data) > 1
+                    else restaurants_data
+                )
+            elif not dining_places and restaurants_data:
                 dining_places = restaurants_data
 
             b_spot = cafes[day % max(1, len(cafes))] if cafes else None

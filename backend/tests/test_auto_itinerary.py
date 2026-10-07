@@ -93,18 +93,8 @@ def mock_inject_slack(matrix, slack_factor):
 
 
 @pytest.mark.asyncio
-@patch(
-    "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-    side_effect=mock_get_transit_matrix,
-)
-@patch(
-    "app.use_cases.optimize_daily_itinerary.inject_slack_time",
-    side_effect=mock_inject_slack,
-)
 @patch("httpx.AsyncClient.get")
-async def test_calculate_itinerary_auto(
-    mock_http_get, mock_inject, mock_matrix, mock_engine
-):
+async def test_calculate_itinerary_auto(mock_http_get, mock_engine):
     city = "Paris"
     budget = 1000.0
 
@@ -218,7 +208,9 @@ async def test_calculate_itinerary_auto(
     daily_pois = context.get("daily_pois_data", [])
 
     # 2. Optimize Itinerary
-    optimize_use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
+    optimize_use_case = OptimizeDailyItineraryUseCase(
+        engine=mock_engine, transit_matrix_fn=mock_get_transit_matrix
+    )
 
     final_itinerary = await optimize_use_case.execute(
         constraints,

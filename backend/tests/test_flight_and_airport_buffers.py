@@ -113,7 +113,15 @@ async def test_optimize_daily_itinerary_buffer_and_direction():
         },
     ]
 
-    use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
+    def _mock_matrix(pois, city):
+        n = len(pois)
+        return [
+            [{"duration_mins": 10, "cost_eur": 2.0} for _ in range(n)] for _ in range(n)
+        ]
+
+    use_case = OptimizeDailyItineraryUseCase(
+        engine=mock_engine, transit_matrix_fn=_mock_matrix
+    )
     result = await use_case.execute(
         constraints=constraints,
         daily_pois_data=[day_pois] * 6,
