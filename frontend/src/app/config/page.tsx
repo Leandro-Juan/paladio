@@ -20,9 +20,10 @@ import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/com
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
  * Accepts only http(s) protocols, valid base64 image data URLs, or safe relative paths.
  */
-function getSafeAvatarUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
+function getSafeAvatarUrl(url: unknown): string | null {
+  if (typeof url !== 'string' || !url) return null;
   const trimmed = url.trim();
+  if (!trimmed) return null;
   if (trimmed.startsWith('data:image/')) {
     // Only permit standard image base64 data URLs (disallow svg script vectors)
     return /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)
@@ -707,15 +708,18 @@ export default function ConfigPage() {
                     border: '1px solid rgba(0, 0, 0, 0.08)',
                   }}
                 >
-                  {getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) ? (
-                    <img
-                      src={getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp)!}
-                      alt={currentUser?.username}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    (currentUser?.username || 'U').charAt(0).toUpperCase()
-                  )}
+                  {(() => {
+                    const safeCurrentAvatar = getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp);
+                    return safeCurrentAvatar ? (
+                      <img
+                        src={safeCurrentAvatar}
+                        alt={currentUser?.username}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      (currentUser?.username || 'U').charAt(0).toUpperCase()
+                    );
+                  })()}
                 </div>
                 <div>
                   <h4 className="font-display" style={{ margin: 0, fontSize: '1.1rem' }}>
