@@ -66,15 +66,16 @@ def build_cpp_pois(
         )
         open_vec = getattr(poi, "open_time_mins_by_day", None)
         close_vec = getattr(poi, "close_time_mins_by_day", None)
+        is_closed = False
         if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
             o_min = open_vec[day_weekday]
             c_min = close_vec[day_weekday]
-            if (o_min == -1 or c_min == -1) and not is_specialized_meal:
-                o_min, c_min = poi.open_time_mins, poi.close_time_mins
+            if o_min == -1 or c_min == -1:
+                is_closed = True
         else:
             o_min, c_min = poi.open_time_mins, poi.close_time_mins
 
-        if is_specialized_meal and (o_min == -1 or c_min == -1):
+        if is_closed or (is_specialized_meal and (o_min == -1 or c_min == -1)):
             earliest = 1440
             latest = 0
         else:
@@ -82,8 +83,10 @@ def build_cpp_pois(
             latest = c_min
 
         # Guardrail 3: Midnight-crossing normalization
-        if latest < earliest and not (
-            is_specialized_meal and (o_min == -1 or c_min == -1)
+        if (
+            latest < earliest
+            and not is_closed
+            and not (is_specialized_meal and (o_min == -1 or c_min == -1))
         ):
             latest += 1440
 

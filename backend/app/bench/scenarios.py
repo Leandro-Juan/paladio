@@ -18,35 +18,35 @@ FIXTURES_PATH = (
     / "bench_pois.json"
 )
 
-CITY_CENTERS = {
-    "Paris": {
-        "lat": 48.8566,
-        "lon": 2.3522,
-        "airport": "CDG",
-        "airport_lat": 49.0097,
-        "airport_lon": 2.5479,
-    },
-    "Madrid": {
-        "lat": 40.4168,
-        "lon": -3.7038,
-        "airport": "MAD",
-        "airport_lat": 40.4839,
-        "airport_lon": -3.5679,
-    },
-    "Lisbon": {
-        "lat": 38.7223,
-        "lon": -9.1393,
-        "airport": "LIS",
-        "airport_lat": 38.7756,
-        "airport_lon": -9.1354,
-    },
-}
 
-MANDATORY_POIS = {
-    "Paris": "Catacombes de Paris",
-    "Madrid": "Museo Arqueológico Nacional",
-    "Lisbon": "Aqueduto das Águas Livres",
-}
+def get_scenario_mandatory_poi(city: str) -> str:
+    """Dynamically resolves a top iconic landmark for any city from benchmark fixtures."""
+    if FIXTURES_PATH.exists():
+        try:
+            with open(FIXTURES_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            pois = data.get(city, [])
+            attractions = [
+                p
+                for p in pois
+                if not p.get("is_breakfast_spot")
+                and not p.get("is_lunch_spot")
+                and not p.get("is_dinner_spot")
+            ]
+            if attractions:
+                best = max(
+                    attractions,
+                    key=lambda x: (
+                        x.get("iconicity_score", 0.0),
+                        x.get("wikipedia_sitelinks", 0),
+                    ),
+                )
+                if best.get("name"):
+                    return best["name"]
+        except (KeyError, ValueError, OSError, json.JSONDecodeError):
+            return f"{city} Historic Center"
+    return f"{city} Historic Center"
+
 
 TASTE_PROFILES = {
     "culture": ["art_culture", "history_heritage"],
@@ -108,9 +108,10 @@ def build_scenario_constraints(
         base_date = date(2026, 6, 1)
 
     end_d = base_date + timedelta(days=max(0, duration - 1))
-    c_info = CITY_CENTERS.get(city, CITY_CENTERS["Madrid"])
-    mand_poi = MANDATORY_POIS.get(city, "Central Landmark")
+    mand_poi = get_scenario_mandatory_poi(city)
     tastes = TASTE_PROFILES.get(profile, ["general"])
+    clean_city = "".join(c for c in city if c.isalpha()).upper()
+    airport_code = clean_city[:3] if len(clean_city) >= 3 else "AAA"
 
     # Base budget: 150 USD per day + 100 USD buffer
     budget = 100.0 + (150.0 * duration)
@@ -135,14 +136,14 @@ def build_scenario_constraints(
             ),
             outbound_flight=FlightSegment(
                 origin_iata="JFK",
-                destination_iata=c_info["airport"],
+                destination_iata=airport_code,
                 departure_time=f"{base_date} 08:00",
                 arrival_time=f"{base_date} 11:00",
                 flight_number="AA100",
                 airline="American Airlines",
             ),
             return_flight=FlightSegment(
-                origin_iata=c_info["airport"],
+                origin_iata=airport_code,
                 destination_iata="JFK",
                 departure_time=f"{end_d} 18:00",
                 arrival_time=f"{end_d} 21:00",

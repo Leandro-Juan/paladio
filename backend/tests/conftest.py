@@ -68,27 +68,73 @@ except ImportError:
         if len(pois) > 64:
             raise ValueError("Exceeds maximum POIs")
         result = MagicMock()
-        if len(pois) <= 2:
-            result.path = list(range(len(pois)))
+        n = len(pois)
+        curr_time = getattr(config, "day_start_mins", 540)
+        if n <= 2:
+            result.path = list(range(n))
+            result.arrival_times = [curr_time] * n
         else:
-            attractions = [
+            open_attractions = [
                 i
-                for i in range(1, len(pois) - 1)
+                for i in range(1, n - 1)
                 if not getattr(pois[i], "is_lunch_spot", False)
                 and not getattr(pois[i], "is_dinner_spot", False)
-            ][:4]
-            meals = [
+                and getattr(pois[i], "latest_time", 1440)
+                > getattr(pois[i], "earliest_time", 0)
+                and getattr(pois[i], "latest_time", 1440) > curr_time
+            ]
+            open_meals = [
                 i
-                for i in range(1, len(pois) - 1)
-                if getattr(pois[i], "is_lunch_spot", False)
-                or getattr(pois[i], "is_dinner_spot", False)
-            ][:2]
-            middle = (
-                sorted(attractions + meals)
-                if (attractions or meals)
-                else list(range(1, min(len(pois) - 1, 6)))
+                for i in range(1, n - 1)
+                if (
+                    getattr(pois[i], "is_lunch_spot", False)
+                    or getattr(pois[i], "is_dinner_spot", False)
+                )
+                and getattr(pois[i], "latest_time", 1440)
+                > getattr(pois[i], "earliest_time", 0)
+            ]
+            mand_attractions = [
+                i for i in open_attractions if getattr(pois[i], "is_mandatory", False)
+            ]
+            other_attractions = [
+                i
+                for i in open_attractions
+                if not getattr(pois[i], "is_mandatory", False)
+            ]
+            chosen_attractions = (mand_attractions + other_attractions)[:4]
+            chosen_meals = open_meals[:2]
+
+            all_chosen = sorted(
+                chosen_attractions + chosen_meals,
+                key=lambda idx: getattr(pois[idx], "earliest_time", 0),
             )
-            result.path = [0] + middle + [len(pois) - 1]
+            path = [0]
+            arr_times = [curr_time]
+            for idx in all_chosen:
+                p = pois[idx]
+                e_time = getattr(p, "earliest_time", 0)
+                l_time = getattr(p, "latest_time", 1440)
+                dur = getattr(p, "duration", 60)
+                t_dur = (
+                    int(durs[path[-1] * n + idx])
+                    if durs is not None and len(durs) == n * n
+                    else 10
+                )
+                arr = max(curr_time + t_dur, e_time)
+                if arr + dur <= l_time:
+                    path.append(idx)
+                    arr_times.append(arr)
+                    curr_time = arr + dur
+            path.append(n - 1)
+            t_back = (
+                int(durs[path[-2] * n + (n - 1)])
+                if durs is not None and len(durs) == n * n
+                else 10
+            )
+            arr_times.append(curr_time + t_back)
+
+            result.path = path
+            result.arrival_times = arr_times
         result.total_score = 100.0 * len(result.path)
         result.total_cost = 50.0
         result.total_time = 60 * len(result.path)

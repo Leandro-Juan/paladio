@@ -53,7 +53,7 @@ class OptimizeDailyItineraryUseCase:
             from app.tasks import async_trigger_city_gtfs_download_if_needed
 
             await async_trigger_city_gtfs_download_if_needed(city_name=city)
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.debug(f"GTFS background trigger skipped for {city}: {e}")
 
         # Resolve Flights
@@ -71,27 +71,8 @@ class OptimizeDailyItineraryUseCase:
         depot_poi: Poi | None = None
         hotel_anchor = anchors.hotel if anchors else None
 
-        if hotel_anchor:
-            hotel_lat = getattr(hotel_anchor, "latitude", None) or 0.0
-            hotel_lon = getattr(hotel_anchor, "longitude", None) or 0.0
-            depot_poi = Poi(
-                id=f"hotel_{hotel_anchor.name.lower().replace(' ', '_')}",
-                name=hotel_anchor.name,
-                city=city,
-                category="HOTEL",
-                location=PoiLocation(
-                    latitude=float(hotel_lat), longitude=float(hotel_lon)
-                ),
-                open_time_mins_by_day=[0] * 7,
-                close_time_mins_by_day=[1440] * 7,
-                duration_mins=1,
-                cost_eur=0.0,
-                tier=3,
-                iconicity_score=0.0,
-                taxonomy_category="art_culture",
-                category_id=255,
-            )
-        elif daily_pois_data:
+        hotel_dict = None
+        if daily_pois_data:
             hotel_dict = next(
                 (
                     p
@@ -101,10 +82,42 @@ class OptimizeDailyItineraryUseCase:
                 ),
                 None,
             )
-            if hotel_dict:
+
+        if hotel_anchor:
+            hotel_lat = getattr(hotel_anchor, "latitude", None)
+            hotel_lon = getattr(hotel_anchor, "longitude", None)
+            if (hotel_lat is None or float(hotel_lat) == 0.0) and hotel_dict:
                 loc = hotel_dict.get("location", {})
-                h_lat = loc.get("latitude", hotel_dict.get("lat", 0.0))
-                h_lon = loc.get("longitude", hotel_dict.get("lon", 0.0))
+                hotel_lat = loc.get("latitude", hotel_dict.get("lat"))
+                hotel_lon = loc.get("longitude", hotel_dict.get("lon"))
+
+            if (
+                hotel_lat is not None
+                and hotel_lon is not None
+                and (float(hotel_lat) != 0.0 or float(hotel_lon) != 0.0)
+            ):
+                depot_poi = Poi(
+                    id=f"hotel_{hotel_anchor.name.lower().replace(' ', '_')}",
+                    name=hotel_anchor.name,
+                    city=city,
+                    category="HOTEL",
+                    location=PoiLocation(
+                        latitude=float(hotel_lat), longitude=float(hotel_lon)
+                    ),
+                    open_time_mins_by_day=[0] * 7,
+                    close_time_mins_by_day=[1440] * 7,
+                    duration_mins=1,
+                    cost_eur=0.0,
+                    tier=3,
+                    iconicity_score=0.0,
+                    taxonomy_category="art_culture",
+                    category_id=255,
+                )
+        elif hotel_dict:
+            loc = hotel_dict.get("location", {})
+            h_lat = loc.get("latitude", hotel_dict.get("lat", 0.0))
+            h_lon = loc.get("longitude", hotel_dict.get("lon", 0.0))
+            if float(h_lat) != 0.0 or float(h_lon) != 0.0:
                 depot_poi = Poi(
                     id=str(
                         hotel_dict.get("id")
@@ -223,6 +236,10 @@ class OptimizeDailyItineraryUseCase:
                 if "T" in arr_t:
                     dt = datetime.fromisoformat(arr_t)
                     arr_mins = dt.hour * 60 + dt.minute
+                elif " " in arr_t:
+                    time_part = arr_t.split(" ")[-1]
+                    arr_parts = time_part.split(":")
+                    arr_mins = int(arr_parts[0]) * 60 + int(arr_parts[1])
                 else:
                     arr_parts = arr_t.split(":")
                     arr_mins = int(arr_parts[0]) * 60 + int(arr_parts[1])
@@ -245,6 +262,10 @@ class OptimizeDailyItineraryUseCase:
                 if "T" in dep_t:
                     dt = datetime.fromisoformat(dep_t)
                     dep_mins = dt.hour * 60 + dt.minute
+                elif " " in dep_t:
+                    time_part = dep_t.split(" ")[-1]
+                    dep_parts = time_part.split(":")
+                    dep_mins = int(dep_parts[0]) * 60 + int(dep_parts[1])
                 else:
                     dep_parts = dep_t.split(":")
                     dep_mins = int(dep_parts[0]) * 60 + int(dep_parts[1])

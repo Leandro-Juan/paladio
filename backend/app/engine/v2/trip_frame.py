@@ -7,11 +7,19 @@ pace preferences, arrival/departure flight buffers, meal windows, and budget sha
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from app.engine.v2.currency import usd_to_eur
+from app.engine.v2.currency import eur_to_usd, usd_to_eur
 from app.engine.v2.rhythm import RhythmProfile
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field
+
+__all__ = [
+    "DayFrame",
+    "TripFrame",
+    "build_trip_frame",
+    "eur_to_usd",
+    "usd_to_eur",
+]
 
 
 class DayFrame(BaseModel):
@@ -68,7 +76,7 @@ def _parse_flight_time_to_minutes(flight_time_str: str | None) -> int | None:
         if ":" in clean:
             h, m = map(int, clean.split(":")[:2])
             return h * 60 + m
-    except Exception:
+    except (ValueError, IndexError):
         return None
     return None
 

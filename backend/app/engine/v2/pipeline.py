@@ -147,6 +147,10 @@ async def run_itinerary_v2_pipeline(
             taxonomy_category="art_culture",
             category_id=255,
         )
+    elif not depot_poi.location or not depot_poi.location.latitude:
+        depot_poi.location = PoiLocation(
+            latitude=city_center[0], longitude=city_center[1]
+        )
 
     # Stage 6 & 7: Multi-Day Parallel C++ Solve with Slack Redistribution
     solve_results: list[DaySolveResult] = await solve_trip_v2(

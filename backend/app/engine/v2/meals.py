@@ -374,13 +374,11 @@ def snap_corridor_meals(
                 c_time = close_by_day[day_weekday]
                 if o_time == -1 or c_time == -1:
                     continue  # Closed today
-                if not (o_time == 0 and c_time in (0, 1440)):
-                    # Check arrival and departure within window (-15/+15 min tolerance)
-                    if (
-                        target_arr < o_time - 15
-                        or (target_arr + meal_duration) > c_time + 15
-                    ):
-                        continue  # Closed during meal time
+                if not (o_time == 0 and c_time in (0, 1440)) and (
+                    target_arr < o_time - 15
+                    or (target_arr + meal_duration) > c_time + 15
+                ):
+                    continue  # Closed during meal time
 
             d_from_prev = haversine_distance(lat_prev, lon_prev, c_lat, c_lon)
             d_to_next = haversine_distance(c_lat, c_lon, lat_next, lon_next)
@@ -618,14 +616,21 @@ def verify_day_schedule(
                         step.poi = step.backup_poi
                         step.backup_poi = None
                 else:
-                    is_mand = getattr(step.poi, "is_user_mandatory", False) or getattr(
-                        step.poi, "is_mandatory", False
-                    )
-                    if is_mand:
-                        raise ItineraryInfeasible(
-                            f"Mandatory sight '{step.poi.name}' closes at {_mins_to_time_str(c_time)} "
-                            f"but scheduled visit ends at {_mins_to_time_str(dep)}."
-                        )
+                    # If venue is still open during arrival, clamp duration to remaining time if viable
+                    avail_dur = c_time - arr
+                    min_dur = 20 if dur >= 30 else dur
+                    if avail_dur >= min_dur and not is_depot:
+                        dur = avail_dur
+                        dep = arr + dur
+                    else:
+                        is_mand = getattr(
+                            step.poi, "is_user_mandatory", False
+                        ) or getattr(step.poi, "is_mandatory", False)
+                        if is_mand:
+                            raise ItineraryInfeasible(
+                                f"Mandatory sight '{step.poi.name}' closes at {_mins_to_time_str(c_time)} "
+                                f"but scheduled visit ends at {_mins_to_time_str(dep)}."
+                            )
 
             step.scheduled_start = _mins_to_time_str(arr)
             step.scheduled_end = _mins_to_time_str(dep)

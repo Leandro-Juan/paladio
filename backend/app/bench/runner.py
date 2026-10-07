@@ -13,8 +13,6 @@ from app.bench.metrics import (
     evaluate_tier1_recall,
 )
 from app.bench.scenarios import (
-    CITY_CENTERS,
-    MANDATORY_POIS,
     build_scenario_constraints,
     load_bench_fixtures,
 )
@@ -27,33 +25,6 @@ from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
 from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
-
-TIER1_SEEDS = {
-    "Paris": [
-        "Catacombes de Paris",
-        "Pont Alexandre III",
-        "Conciergerie",
-        "Maison de Victor Hugo",
-        "Bibliothèque-Musée de l'Opéra",
-        "Musée de la Musique",
-    ],
-    "Madrid": [
-        "Museo Arqueológico Nacional",
-        "Andén Cero - Estación de Chamberí",
-        "Casa Museo del Ratón Pérez",
-        "Casa de Cervantes",
-        "Mirador del Templo de Debod",
-        "Museo Casa de la Moneda",
-    ],
-    "Lisbon": [
-        "Aqueduto das Águas Livres",
-        "Miradouro do Castelo de São Jorge",
-        "Casa Fernando Pessoa",
-        "Lisboa Story Center",
-        "Museu Geológico",
-        "Museu do Aljube - Resistência e Liberdade",
-    ],
-}
 
 
 class BenchPoiRepository(IPoiRepository):
@@ -224,7 +195,7 @@ def _parse_time_mins(t_val: Any) -> int | None:
     try:
         parts = t_val.split(":")
         return int(parts[0]) * 60 + int(parts[1])
-    except Exception:
+    except (ValueError, IndexError):
         return None
 
 
@@ -312,24 +283,32 @@ async def run_single_scenario_benchmark(
             monotony_threshold=mono_threshold,
             monotony_multiplier=mono_multiplier,
         )
-        opt_uc = OptimizeDailyItineraryUseCase(engine=adapter)
+        opt_uc = OptimizeDailyItineraryUseCase(
+            engine=adapter,
+            transit_matrix_fn=_fast_transit_matrix,
+        )
 
-        c_info = CITY_CENTERS.get(city, CITY_CENTERS["Madrid"])
+        lats = [
+            float(a.get("location", {}).get("latitude", a.get("lat")))
+            for a in attractions
+            if a.get("location", {}).get("latitude", a.get("lat")) is not None
+        ]
+        lons = [
+            float(a.get("location", {}).get("longitude", a.get("lon")))
+            for a in attractions
+            if a.get("location", {}).get("longitude", a.get("lon")) is not None
+        ]
+        c_lat = float(sum(lats) / len(lats)) if lats else 0.0
+        c_lon = float(sum(lons) / len(lons)) if lons else 0.0
 
         from unittest.mock import MagicMock
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = [
-            {"lat": str(c_info["lat"]), "lon": str(c_info["lon"])}
-        ]
+        mock_resp.json.return_value = [{"lat": str(c_lat), "lon": str(c_lon)}]
 
         t0 = time.perf_counter()
         with (
-            patch(
-                "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-                side_effect=_fast_transit_matrix,
-            ),
             patch(
                 "app.services.transit_service.get_detailed_transit_leg",
                 new_callable=AsyncMock,
@@ -476,19 +455,27 @@ async def run_single_scenario_benchmark(
             zigzag_ratios.append(1.0)
 
     # User mandatory satisfaction
-    mand_poi = MANDATORY_POIS.get(city)
-    user_mandatory_satisfied = bool(
-        mand_poi
-        and any(
-            mand_poi.lower() in name.lower() or name.lower() in mand_poi.lower()
-            for name in scheduled_poi_names
+    mand_nodes = [
+        n.poi_id for n in (constraints.nodes or []) if getattr(n, "mandatory", False)
+    ]
+    if mand_nodes:
+        user_mandatory_satisfied = any(
+            any(
+                m.lower() in name.lower() or name.lower() in m.lower()
+                for name in scheduled_poi_names
+            )
+            for m in mand_nodes
         )
-    )
+    else:
+        user_mandatory_satisfied = True
 
     # Tier 1 recall
-    tier1_list = TIER1_SEEDS.get(city, [])
+    tier1_list = [
+        a.get("name")
+        for a in attractions
+        if classify_poi_tier(a, city).get("tier") == 1
+    ]
     t1_recall = evaluate_tier1_recall(list(scheduled_poi_names), tier1_list)
-
     # Realism & violation metrics
     closure_viols = detect_closure_violations(scheduled_nodes)
     meal_viols = detect_meal_spacing_violations(scheduled_nodes)
