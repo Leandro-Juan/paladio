@@ -807,14 +807,15 @@ class TransitFareService:
             city=city_key,
             country="Unknown",
             currency="EUR",
-            single_fare=2.00,
-            pass_24h_price=8.00,
-            pass_24h_name="Estimated 24h Transit Pass",
+            single_fare=0.0,
+            pass_24h_price=None,
+            pass_24h_name=None,
             pass_24h_includes_airport=False,
-            airport_surcharge=3.00,
+            airport_surcharge=0.0,
             airport_station_keywords=list(GENERIC_AIRPORT_KEYWORDS),
             is_estimated=True,
-            source="regional_benchmark_estimate",
+            source="fare_unknown",
+            fare_unknown=True,
         )
         cache.set(city_key, fallback_fare)
         return fallback_fare

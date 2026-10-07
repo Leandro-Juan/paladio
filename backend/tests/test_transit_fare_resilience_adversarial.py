@@ -130,10 +130,10 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
 
         assert fare is not None
         assert fare.is_estimated is True
-        assert fare.single_fare == 2.00
-        assert fare.pass_24h_price == 8.00
-        assert fare.airport_surcharge == 3.00
-        assert fare.source == "regional_benchmark_estimate"
+        assert fare.single_fare == 0.0
+        assert fare.pass_24h_price is None
+        assert fare.airport_surcharge == 0.0
+        assert fare.source == "fare_unknown"
 
         # Verify calculate_transit_leg_fare propagation
         steps = [
@@ -142,7 +142,7 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
         leg_res = TransitFareService.calculate_transit_leg_fare(city, steps, fare=fare)
         assert leg_res.cost_is_estimated is True
         assert leg_res.is_estimated is True
-        assert leg_res.total_cost == 2.00
+        assert leg_res.total_cost == 0.0
         assert leg_res.airport_surcharge_eur == 0.0
 
         # Verify airport leg calculation with fallback fare
@@ -154,8 +154,8 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
         )
         assert airport_res.cost_is_estimated is True
         assert airport_res.is_estimated is True
-        assert airport_res.total_cost == 5.00  # 2.00 + 3.00
-        assert airport_res.airport_surcharge_eur == 3.00
+        assert airport_res.total_cost == 0.0
+        assert airport_res.airport_surcharge_eur == 0.0
 
 
 @pytest.mark.parametrize(
@@ -191,10 +191,10 @@ async def test_fallback_on_ollama_extraction_failures(ollama_outcome):
 
         assert fare is not None
         assert fare.is_estimated is True
-        assert fare.single_fare == 2.00
-        assert fare.pass_24h_price == 8.00
-        assert fare.airport_surcharge == 3.00
-        assert fare.source == "regional_benchmark_estimate"
+        assert fare.single_fare == 0.0
+        assert fare.pass_24h_price is None
+        assert fare.airport_surcharge == 0.0
+        assert fare.source == "fare_unknown"
 
 
 # ============================================================================
@@ -359,7 +359,7 @@ async def test_adversarial_inputs_safety():
             fare = await TransitFareService.resolve_city_transit_fare(raw_city)
             assert fare is not None
             assert isinstance(fare.single_fare, (int, float))
-            assert fare.single_fare > 0
+            assert fare.single_fare >= 0
 
 
 @pytest.mark.asyncio
@@ -387,4 +387,5 @@ async def test_concurrent_resolution_stress():
                 res, Exception
             ), f"Concurrent task raised exception: {res}"
             assert res.is_estimated is True
-            assert res.single_fare == 2.00
+            assert res.single_fare == 0.0
+            assert res.fare_unknown is True

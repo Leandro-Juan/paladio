@@ -148,18 +148,18 @@ def test_non_airport_legs_verified_cities(city, expected_fare):
 
 
 def test_non_airport_unindexed_city_fallback():
-    """Non-airport transit leg in an unindexed city falls back to 2.00 EUR baseline with is_estimated=True."""
+    """Non-airport transit leg in an unindexed city falls back to honest fare_unknown with is_estimated=True."""
     steps = [
         TransitStep(type="transit", instruction="Tram 1", duration_mins=10),
     ]
     res = TransitFareService.calculate_transit_leg_fare(
         "Helsinki", steps, is_airport_leg=False
     )
-    assert res.total_cost == 2.00
+    assert res.total_cost == 0.0
     assert res.airport_surcharge_eur == 0.0
     assert res.has_airport is False
     assert res.cost_is_estimated is True
-    assert res.price_source == "regional_benchmark_estimate"
+    assert res.price_source == "fare_unknown"
 
 
 # ============================================================================
@@ -342,7 +342,7 @@ def test_airport_surcharges_across_all_cities():
     assert rome_res.total_cost == 14.00
     assert rome_res.airport_surcharge_eur == 12.50
 
-    # Unindexed city airport leg: 2.00 + 3.00 = 5.00, is_estimated=True
+    # Unindexed city airport leg: honest fare_unknown (0.00 EUR total, 0.00 EUR surcharge, is_estimated=True)
     unknown_res = TransitFareService.calculate_transit_leg_fare(
         "Munich",
         [
@@ -355,8 +355,8 @@ def test_airport_surcharges_across_all_cities():
         ],
     )
     assert unknown_res.has_airport is True
-    assert unknown_res.total_cost == 5.00
-    assert unknown_res.airport_surcharge_eur == 3.00
+    assert unknown_res.total_cost == 0.00
+    assert unknown_res.airport_surcharge_eur == 0.00
     assert unknown_res.cost_is_estimated is True
 
 
