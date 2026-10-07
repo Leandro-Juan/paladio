@@ -53,6 +53,9 @@ except ImportError:
             self.is_mandatory = (
                 args[6] if len(args) > 6 else kwargs.get("is_mandatory", False)
             )
+            self.category_id = (
+                args[7] if len(args) > 7 else kwargs.get("category_id", 255)
+            )
             self.is_breakfast_spot = self.type == MockNodeType.RESTAURANT_BREAKFAST
             self.is_lunch_spot = self.type == MockNodeType.RESTAURANT_LUNCH
             self.is_dinner_spot = self.type == MockNodeType.RESTAURANT_DINNER
@@ -65,10 +68,30 @@ except ImportError:
         if len(pois) > 64:
             raise ValueError("Exceeds maximum POIs")
         result = MagicMock()
-        result.path = [0, 1] if len(pois) > 1 else [0]
-        result.total_score = 100.0
+        if len(pois) <= 2:
+            result.path = list(range(len(pois)))
+        else:
+            attractions = [
+                i
+                for i in range(1, len(pois) - 1)
+                if not getattr(pois[i], "is_lunch_spot", False)
+                and not getattr(pois[i], "is_dinner_spot", False)
+            ][:4]
+            meals = [
+                i
+                for i in range(1, len(pois) - 1)
+                if getattr(pois[i], "is_lunch_spot", False)
+                or getattr(pois[i], "is_dinner_spot", False)
+            ][:2]
+            middle = (
+                sorted(attractions + meals)
+                if (attractions or meals)
+                else list(range(1, min(len(pois) - 1, 6)))
+            )
+            result.path = [0] + middle + [len(pois) - 1]
+        result.total_score = 100.0 * len(result.path)
         result.total_cost = 50.0
-        result.total_time = 120
+        result.total_time = 60 * len(result.path)
         return result
 
     mock_paladio_core.optimize_itinerary = mock_optimize_itinerary

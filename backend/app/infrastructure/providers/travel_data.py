@@ -44,6 +44,7 @@ class DefaultTravelDataProvider(TravelDataProvider):
         try:
             from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
             from app.db.session import async_session
+            from app.engine.v2.city_readiness import ensure_city_ready
             from app.infrastructure.providers.overpass_provider import (
                 OverpassProviderAdapter,
             )
@@ -51,6 +52,13 @@ class DefaultTravelDataProvider(TravelDataProvider):
 
             async with async_session() as session:
                 repo = SqlPoiRepository(session)
+                try:
+                    await ensure_city_ready(city, repo)
+                except Exception as e:
+                    logger.warning(
+                        f"Automatic city readiness check for {city} failed: {e}"
+                    )
+
                 provider = OverpassProviderAdapter()
                 return await get_attractions_for_city(
                     city,
@@ -71,14 +79,31 @@ class DefaultTravelDataProvider(TravelDataProvider):
         if "restaurants" in self.test_data:
             return self.test_data["restaurants"]
 
+        from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+        from app.db.session import async_session
+        from app.engine.v2.city_readiness import ensure_city_ready
         from app.services.travel_data_service import fetch_restaurants
 
-        return await fetch_restaurants(
-            city,
-            test_data=self.test_data,
-            preferred_cuisines=preferred_cuisines,
-            target_frequency=target_frequency,
-        )
+        try:
+            async with async_session() as session:
+                repo = SqlPoiRepository(session)
+                try:
+                    await ensure_city_ready(city, repo)
+                except Exception as e:
+                    logger.warning(
+                        f"Automatic city readiness check for restaurants in {city} failed: {e}"
+                    )
+
+                return await fetch_restaurants(
+                    city,
+                    poi_repo=repo,
+                    test_data=self.test_data,
+                    preferred_cuisines=preferred_cuisines,
+                    target_frequency=target_frequency,
+                )
+        except Exception as e:
+            logger.error(f"Error fetching restaurants for {city}: {e}")
+            raise RuntimeError(f"Could not load restaurants for {city}: {e}") from e
 
 
 # Backward-compatible alias

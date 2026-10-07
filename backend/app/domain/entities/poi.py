@@ -229,6 +229,8 @@ class ScheduledPoi(BaseModel):
     scheduled_start: str
     scheduled_end: str
     transit_from_previous: TransitLeg | None = None
+    backup_poi: Poi | None = None
+    shortfall_notice: str | None = None
 
 
 class Itinerary(BaseModel):

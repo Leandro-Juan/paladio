@@ -113,7 +113,8 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
     # For any days that were not specified in an open schedule:
     # If some days matched, unspecified days might be closed (if explicit days were listed like Tu-Su)
     # or should retain default if all are -1
-    if all(v == -1 for v in open_vec):
-        return ParsedWeeklySchedule(default_open, default_close)
+    for d in range(7):
+        if open_vec[d] != -1 and close_vec[d] != -1 and open_vec[d] >= close_vec[d]:
+            close_vec[d] = open_vec[d] + 60
 
     return ParsedWeeklySchedule(open_vec, close_vec)

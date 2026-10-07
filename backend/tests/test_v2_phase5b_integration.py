@@ -297,3 +297,148 @@ async def test_run_itinerary_v2_pipeline_paris():
     for day in result.days:
         assert "theme" in day
         assert "itinerary" in day
+
+
+@pytest.mark.asyncio
+async def test_solve_day_v2_schedules_surplus_and_virtual_meals():
+    """Verify solve_day_v2 orienteers surplus zone candidates and schedules virtual meals."""
+    depot = Poi(
+        id="hotel_depot",
+        name="Hotel Depot",
+        city="Paris",
+        category="HOTEL",
+        location=PoiLocation(latitude=48.86, longitude=2.33),
+        open_time_mins_by_day=[0] * 7,
+        close_time_mins_by_day=[1440] * 7,
+        duration_mins=1,
+    )
+
+    # 1 Primary committed POI
+    c_primary = _make_candidate("Louvre", 48.8606, 2.3376, duration=120)
+    sel_primary = SelectedPoi(
+        poi=c_primary,
+        reason_code=SelectionReasonCode.SELECTED_TIER_1_MUST_SEE,
+        visit_mode="full",
+        effective_duration_mins=120,
+        marginal_gain=50.0,
+    )
+
+    # 5 Surplus zone candidates nearby
+    surplus_cands = [
+        _make_candidate(
+            f"Sight_{i}", 48.861 + i * 0.002, 2.338 + i * 0.002, duration=60
+        )
+        for i in range(5)
+    ]
+    surplus_sels = [
+        SelectedPoi(
+            poi=sc,
+            reason_code=SelectionReasonCode.SELECTED_DIVERSE_ANCHOR,
+            visit_mode="full",
+            effective_duration_mins=60,
+            marginal_gain=40.0,
+        )
+        for sc in surplus_cands
+    ]
+
+    assigned_day = AssignedDay(
+        day_index=0,
+        weekday=0,
+        start_time_mins=540,  # 09:00
+        end_time_mins=1380,  # 23:00 (full day)
+        anchor_poi=sel_primary,
+        pois=[sel_primary],
+        zone_candidates=surplus_sels,
+        daily_budget_eur=150.0,
+        requested_meals=["lunch", "dinner"],
+    )
+
+    def mock_transit(pois, city):
+        n = len(pois)
+        return [
+            [{"duration_mins": 5, "cost_eur": 0.0} for _ in range(n)] for _ in range(n)
+        ]
+
+    constraints = TravelConstraints(pace=PacePreference.BALANCED)
+
+    res = await solve_day_v2(
+        assigned_day=assigned_day,
+        city="Paris",
+        constraints=constraints,
+        depot_poi=depot,
+        candidate_pool=[],
+        transit_matrix_fn=mock_transit,
+    )
+
+    # Path must contain more than just primary POI + depots: it must schedule surplus sights!
+    path_names = [step.poi.name for step in res.itinerary.path]
+    assert len(res.itinerary.path) >= 4
+    # Must include primary
+    assert any("Louvre" in n for n in path_names)
+    # Must schedule at least 1 surplus sight
+    assert any("Sight_" in n for n in path_names)
+    # Must schedule virtual lunch or dinner
+    assert any("Virtual" in n or "Lunch" in n or "Dinner" in n for n in path_names)
+
+
+@pytest.mark.asyncio
+async def test_solve_day_v2_fail_fast_on_infeasible_mandatory():
+    """Verify solve_day_v2 raises ItineraryInfeasible if user mandatory is impossible."""
+    from app.engine.v2.exceptions import ItineraryInfeasible
+
+    depot = Poi(
+        id="hotel",
+        name="Hotel",
+        city="Paris",
+        category="HOTEL",
+        location=PoiLocation(latitude=48.86, longitude=2.33),
+        open_time_mins_by_day=[0] * 7,
+        close_time_mins_by_day=[1440] * 7,
+        duration_mins=1,
+    )
+
+    # POI closed on Monday (weekday=0)
+    c_closed = _make_candidate("Closed Louvre", 48.86, 2.33, duration=120)
+    c_closed.open_time_mins_by_day[0] = -1
+    c_closed.close_time_mins_by_day[0] = -1
+    c_closed.is_user_mandatory = True
+    c_closed.is_mandatory = True
+
+    sel_mand = SelectedPoi(
+        poi=c_closed,
+        reason_code=SelectionReasonCode.SELECTED_USER_MANDATORY,
+        visit_mode="full",
+        effective_duration_mins=120,
+        marginal_gain=100.0,
+    )
+
+    assigned_day = AssignedDay(
+        day_index=0,
+        weekday=0,  # Monday
+        start_time_mins=540,
+        end_time_mins=1080,
+        anchor_poi=sel_mand,
+        pois=[sel_mand],
+    )
+
+    def mock_transit(pois, city):
+        n = len(pois)
+        return [
+            [{"duration_mins": 5, "cost_eur": 0.0} for _ in range(n)] for _ in range(n)
+        ]
+
+    constraints = TravelConstraints()
+
+    with pytest.raises(ItineraryInfeasible) as exc_info:
+        await solve_day_v2(
+            assigned_day=assigned_day,
+            city="Paris",
+            constraints=constraints,
+            depot_poi=depot,
+            candidate_pool=[],
+            transit_matrix_fn=mock_transit,
+        )
+
+    assert "Mandatory attraction 'Closed Louvre' cannot be scheduled" in str(
+        exc_info.value
+    )

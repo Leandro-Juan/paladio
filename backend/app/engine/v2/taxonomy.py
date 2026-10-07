@@ -24,7 +24,11 @@ CANONICAL_CATEGORIES: dict[str, int] = {
     "scenic_views": 7,
 }
 
+UNKNOWN_CATEGORY: str = "unknown"
+UNKNOWN_CATEGORY_ID: int = 255
+
 CATEGORY_ID_TO_NAME: dict[int, str] = {v: k for k, v in CANONICAL_CATEGORIES.items()}
+CATEGORY_ID_TO_NAME[UNKNOWN_CATEGORY_ID] = UNKNOWN_CATEGORY
 
 # Ordered rules: earlier matches take priority
 _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
@@ -37,15 +41,14 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "viewpoint",
             "observation",
             "rooftop",
-            "crossing view",
+            "lookout",
+            "panorama",
             "crossing",
-            "shibuya crossing",
             "tower",
             "torre",
             "bridge",
             "pont ",
             "ponte ",
-            "barcos rabelo",
         ],
     ),
     (
@@ -58,12 +61,14 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "cafe",
             "food",
             "culinary",
-            "bacalhau",
             "gastro",
             "tasting",
-            "wine",
-            "bodega",
             "dining",
+            "eatery",
+            "trattoria",
+            "tavern",
+            "taberna",
+            "bodega",
         ],
     ),
     (
@@ -77,6 +82,8 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "lounge",
             "speakeasy",
             "disco",
+            "brewery",
+            "cantina",
         ],
     ),
     (
@@ -86,12 +93,12 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "mall",
             "market",
             "mercado",
+            "marche",
             "boutique",
             "store",
             "bazaar",
             "bazaars",
             "commercial",
-            "parco",
         ],
     ),
     (
@@ -104,7 +111,6 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "jardim",
             "garden",
             "forest",
-            "biodiversidade",
             "zoo",
             "botanical",
             "botânico",
@@ -112,6 +118,7 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "lake",
             "beach",
             "praia",
+            "playa",
         ],
     ),
     (
@@ -128,23 +135,18 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "château",
             "castle",
             "castelo",
+            "castillo",
             "convento",
-            "cervantes",
-            "chamberí",
-            "moneda",
-            "aljube",
-            "milit",
-            "armée",
-            "futebol clube do porto",
-            "samurai",
-            "katana",
-            "刀剣",
+            "monastery",
+            "fortress",
+            "fort",
             "temple",
             "shrine",
             "ruins",
             "ruines",
             "ruínas",
             "monument",
+            "memorial",
         ],
     ),
     (
@@ -153,13 +155,13 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "aqueduc",
             "aqueduto",
             "architecture",
-            "patrimoine",
-            "champs élysées",
+            "landmark",
             "building",
             "edifício",
             "palacio",
             "palácio",
             "palais",
+            "palace",
             "cathedral",
             "cathédrale",
             "catedral",
@@ -168,6 +170,7 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "igreja",
             "church",
             "chapelle",
+            "chapel",
         ],
     ),
     (
@@ -180,13 +183,6 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "art",
             "arte",
             "arts",
-            "dali",
-            "sorolla",
-            "goya",
-            "victor hugo",
-            "pessoa",
-            "amália",
-            "marionet",
             "theatre",
             "théâtre",
             "teatro",
@@ -200,12 +196,11 @@ _TAXONOMY_KEYWORD_PATTERNS: list[tuple[str, list[str]]] = [
             "musique",
             "música",
             "exhibition",
+            "exposition",
             "sculpture",
             "paint",
             "peinture",
-            "ukiyo-e",
-            "美術館",
-            "民藝館",
+            "cultural",
         ],
     ),
 ]
@@ -216,11 +211,84 @@ def classify_poi_taxonomy(
     category: str = "",
     metadata: dict[str, Any] | None = None,
 ) -> tuple[str, int]:
-    """Classify a POI into one of the 8 canonical categories.
+    """Classify a POI into one of the 8 canonical categories (or unknown).
+
+    Tag-first deterministic hierarchy:
+    1. Structured OSM tags (amenity, tourism, historic, leisure, building, shop)
+    2. Explicit category string
+    3. Name and keyword patterns
+    4. Fallback to ('unknown', 255)
 
     Returns:
-        tuple[str, int]: (taxonomy_category_name, category_id in 0..7)
+        tuple[str, int]: (taxonomy_category_name, category_id in 0..7 or 255)
     """
+    # 1. Structured OSM tags check (highest confidence)
+    tags_dict: dict[str, Any] = {}
+    if metadata and isinstance(metadata, dict):
+        if isinstance(metadata.get("tags"), dict):
+            tags_dict.update(metadata["tags"])
+        if isinstance(metadata.get("osm"), dict) and isinstance(
+            metadata["osm"].get("tags"), dict
+        ):
+            tags_dict.update(metadata["osm"]["tags"])
+        for k in ("amenity", "tourism", "historic", "leisure", "building", "shop"):
+            if k in metadata and isinstance(metadata[k], str):
+                tags_dict[k] = metadata[k]
+
+    amenity = str(tags_dict.get("amenity", "")).lower().strip()
+    tourism = str(tags_dict.get("tourism", "")).lower().strip()
+    historic = str(tags_dict.get("historic", "")).lower().strip()
+    leisure = str(tags_dict.get("leisure", "")).lower().strip()
+    building = str(tags_dict.get("building", "")).lower().strip()
+    shop = str(tags_dict.get("shop", "")).lower().strip()
+
+    if amenity in ("bar", "pub", "nightclub", "biergarten", "lounge"):
+        return "nightlife", CANONICAL_CATEGORIES["nightlife"]
+    if amenity in (
+        "restaurant",
+        "cafe",
+        "fast_food",
+        "food_court",
+        "bistrot",
+        "bistro",
+        "ice_cream",
+    ):
+        return "food_culinary", CANONICAL_CATEGORIES["food_culinary"]
+    if tourism == "viewpoint":
+        return "scenic_views", CANONICAL_CATEGORIES["scenic_views"]
+    if tourism in ("museum", "gallery", "arts_centre"):
+        return "art_culture", CANONICAL_CATEGORIES["art_culture"]
+    if tourism in ("theme_park", "zoo", "aquarium"):
+        return "nature_outdoors", CANONICAL_CATEGORIES["nature_outdoors"]
+    if historic == "aqueduct":
+        return "architecture", CANONICAL_CATEGORIES["architecture"]
+    if historic in (
+        "monument",
+        "memorial",
+        "castle",
+        "ruins",
+        "archaeological_site",
+        "fort",
+        "city_gate",
+    ):
+        return "history_heritage", CANONICAL_CATEGORIES["history_heritage"]
+    if building in (
+        "cathedral",
+        "church",
+        "temple",
+        "basilica",
+        "chapel",
+        "mosque",
+        "synagogue",
+        "palace",
+    ):
+        return "architecture", CANONICAL_CATEGORIES["architecture"]
+    if leisure in ("park", "garden", "nature_reserve"):
+        return "nature_outdoors", CANONICAL_CATEGORIES["nature_outdoors"]
+    if shop and shop not in ("no", "none", "false", ""):
+        return "shopping", CANONICAL_CATEGORIES["shopping"]
+
+    # 2. Name and keyword patterns (e.g. 'Cathedral', 'Aqueduto' refine broad 'monument' category)
     text_corpus = f"{name} {category}".lower()
     if metadata and isinstance(metadata, dict):
         tags = metadata.get("tags") or metadata.get("amenity") or ""
@@ -241,18 +309,22 @@ def classify_poi_taxonomy(
         if any(pat in text_corpus for pat in patterns):
             return cat_name, CANONICAL_CATEGORIES[cat_name]
 
-    # Category fallback
-    cat_lower = category.lower()
+    # 3. Broad category input string fallback
+    cat_lower = category.lower().strip()
     if cat_lower in ("museum", "art_gallery"):
         return "art_culture", CANONICAL_CATEGORIES["art_culture"]
-    if cat_lower in ("monument", "historic", "ruins"):
+    if cat_lower in ("monument", "historic", "ruins", "heritage"):
         return "history_heritage", CANONICAL_CATEGORIES["history_heritage"]
-    if cat_lower in ("restaurant", "food"):
+    if cat_lower in ("restaurant", "food", "cafe", "bistrot", "bistro"):
         return "food_culinary", CANONICAL_CATEGORIES["food_culinary"]
-    if cat_lower in ("bar", "pub"):
+    if cat_lower in ("bar", "pub", "nightlife", "club"):
         return "nightlife", CANONICAL_CATEGORIES["nightlife"]
-    if cat_lower in ("viewpoint",):
+    if cat_lower in ("viewpoint", "lookout", "mirador", "miradouro"):
         return "scenic_views", CANONICAL_CATEGORIES["scenic_views"]
+    if cat_lower in ("park", "garden", "nature"):
+        return "nature_outdoors", CANONICAL_CATEGORIES["nature_outdoors"]
+    if cat_lower in ("shopping", "mall", "market"):
+        return "shopping", CANONICAL_CATEGORIES["shopping"]
 
-    # Default fallback
-    return "art_culture", CANONICAL_CATEGORIES["art_culture"]
+    # 4. Fallback for unclassified venues
+    return UNKNOWN_CATEGORY, UNKNOWN_CATEGORY_ID

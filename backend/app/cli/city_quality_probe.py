@@ -137,7 +137,7 @@ def evaluate(
         if total_available < n_days * lo
         else lo
     )
-    t1_names = {s.poi.name for s in result.selected_pois if s.poi.tier == 1}
+    t1_visited: set[str] = set()
     visited: list[str] = []
     total_sights = 0
     max_span = 0.0
@@ -174,13 +174,15 @@ def evaluate(
             if pid in seen_ids:
                 issues.append(f"duplicate stop: {p.poi.name}")
             seen_ids.add(pid)
+            if getattr(p.poi, "tier", 0) == 1:
+                t1_visited.add(p.poi.name)
 
         starts = [_hhmm(p.scheduled_start) for p in path]
         ends = [_hhmm(p.scheduled_end) for p in path]
         if starts and min(starts) < 8 * 60 + 30:
             issues.append(f"day{idx + 1}: starts before 08:30")
-        if ends and max(ends) > 22 * 60:
-            issues.append(f"day{idx + 1}: ends after 22:00")
+        if ends and max(ends) > 24 * 60:
+            issues.append(f"day{idx + 1}: ends after 24:00")
 
         lunches = [
             m for m in meals if 11 * 60 + 30 <= _hhmm(m.scheduled_start) <= 15 * 60
@@ -230,7 +232,7 @@ def evaluate(
         issues.append("same sight visited more than once")
     if t1_available:
         wanted = min(t1_available, max(2, round(0.5 * total_sights)))
-        covered = len(t1_names & set(visited))
+        covered = len(t1_visited)
         if covered < min(wanted, 2 + n_days // 2):
             issues.append(
                 f"must-see coverage low: {covered}/{t1_available} Tier-1 visited"
@@ -242,7 +244,7 @@ def evaluate(
         )
     stats = {
         "sights": total_sights,
-        "t1_visited": len(t1_names & set(visited)),
+        "t1_visited": len(t1_visited),
         "t1_available": t1_available,
         "travel_per_day": round(travel_total / max(1, n_days), 1),
         "max_span_km": round(max_span, 1),

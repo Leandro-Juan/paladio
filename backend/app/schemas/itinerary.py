@@ -166,6 +166,10 @@ class TravelConstraints(BaseModel):
         default=None,
         description="User intent prompt or description.",
     )
+    plan_mode: str = Field(
+        default="real",
+        description="Routing mode: 'real' (strict Valhalla) or 'estimated' (offline transit calculation).",
+    )
 
     @model_validator(mode="before")
     @classmethod

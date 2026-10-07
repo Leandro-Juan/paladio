@@ -7,62 +7,13 @@ from app.utils.iata_mapping import get_iata_code
 
 logger = logging.getLogger(__name__)
 
-REAL_CITY_HOTELS: dict[str, dict[str, str]] = {
-    "paris": {
-        "name": "InterContinental Paris Le Grand",
-        "address": "Rue Scribe, Paris",
-    },
-    "madrid": {
-        "name": "The Westin Palace Madrid",
-        "address": "Plaza de las Cortes 7, Madrid",
-    },
-    "london": {
-        "name": "The Savoy London",
-        "address": "Strand, London",
-    },
-    "rome": {
-        "name": "Hotel de Russie Rome",
-        "address": "Via del Babuino 9, Rome",
-    },
-    "berlin": {
-        "name": "Hotel Adlon Kempinski",
-        "address": "Unter den Linden 77, Berlin",
-    },
-    "barcelona": {
-        "name": "Hotel Arts Barcelona",
-        "address": "Marina 19-21, Barcelona",
-    },
-    "tokyo": {
-        "name": "Park Hyatt Tokyo",
-        "address": "3-7-1-2 Nishi-Shinjuku, Shinjuku, Tokyo",
-    },
-    "new york": {
-        "name": "The Plaza Hotel",
-        "address": "768 5th Ave, New York",
-    },
-    "amsterdam": {
-        "name": "Grand Hotel Amrâth Amsterdam",
-        "address": "Prins Hendrikkade 108, Amsterdam",
-    },
-    "vienna": {
-        "name": "Hotel Sacher Wien",
-        "address": "Philharmoniker Str. 4, Vienna",
-    },
-    "zurich": {
-        "name": "Baur au Lac Zurich",
-        "address": "Talstrasse 1, Zurich",
-    },
-}
-
 
 def get_real_hotel_for_city(city: str) -> dict[str, str]:
-    clean_city = city.lower().strip()
-    for known_city, info in REAL_CITY_HOTELS.items():
-        if known_city in clean_city or clean_city in known_city:
-            return info
+    """Generates standard hotel anchor info for destination city without hardcoded city tables."""
+    clean_city = city.strip().title()
     return {
-        "name": f"Grand Central Hotel {city.title()}",
-        "address": f"Central District, {city.title()}",
+        "name": f"Hotel {clean_city} Center",
+        "address": f"Center District, {clean_city}",
     }
 
 

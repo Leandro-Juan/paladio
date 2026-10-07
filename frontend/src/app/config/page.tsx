@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, UserRole } from '@/types/auth';
 import {
@@ -15,6 +15,33 @@ import {
   CityGtfsItem,
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
+
+/**
+ * Validates and sanitizes avatar URLs to prevent XSS / script injection.
+ * Accepts only http(s) protocols, valid base64 image data URLs, or safe relative paths.
+ */
+function getSafeAvatarUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('data:image/')) {
+    // Only permit standard image base64 data URLs (disallow svg script vectors)
+    return /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)
+      ? trimmed
+      : null;
+  }
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 export default function ConfigPage() {
   const { user: currentUser, refreshUser } = useAuth();
@@ -47,6 +74,7 @@ export default function ConfigPage() {
   const [editPassword, setEditPassword] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('user');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const safePreviewAvatarUrl = useMemo(() => getSafeAvatarUrl(editAvatarUrl), [editAvatarUrl]);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Confirm delete state
@@ -311,6 +339,12 @@ export default function ConfigPage() {
       return;
     }
 
+    const validatedAvatar = editAvatarUrl ? getSafeAvatarUrl(editAvatarUrl) : null;
+    if (editAvatarUrl && !validatedAvatar) {
+      setActionError('Please provide a valid image URL (http/https) or upload an image file.');
+      return;
+    }
+
     setSavingEdit(true);
     setActionError(null);
     setActionSuccess(null);
@@ -324,7 +358,7 @@ export default function ConfigPage() {
           username: editUsername.trim(),
           email: trimmedEmail,
           password: editPassword || undefined,
-          avatar_url: editAvatarUrl || undefined,
+          avatar_url: validatedAvatar || undefined,
         });
         await refreshUser();
       } else {
@@ -333,7 +367,7 @@ export default function ConfigPage() {
           email: trimmedEmail,
           password: editPassword || undefined,
           role: editRole,
-          avatar_url: editAvatarUrl || undefined,
+          avatar_url: validatedAvatar || undefined,
         });
       }
       setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
@@ -528,9 +562,9 @@ export default function ConfigPage() {
                               border: '1px solid rgba(0, 0, 0, 0.08)',
                             }}
                           >
-                            {avatar ? (
+                            {getSafeAvatarUrl(avatar) ? (
                               <img
-                                src={avatar}
+                                src={getSafeAvatarUrl(avatar)!}
                                 alt={u.username}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
@@ -673,9 +707,9 @@ export default function ConfigPage() {
                     border: '1px solid rgba(0, 0, 0, 0.08)',
                   }}
                 >
-                  {(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) ? (
+                  {getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) ? (
                     <img
-                      src={(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp) as string}
+                      src={getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp)!}
                       alt={currentUser?.username}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
@@ -1364,9 +1398,9 @@ export default function ConfigPage() {
                       border: '2px solid var(--color-border)',
                     }}
                   >
-                    {editAvatarUrl ? (
+                    {safePreviewAvatarUrl ? (
                       <img
-                        src={editAvatarUrl}
+                        src={safePreviewAvatarUrl}
                         alt={editUsername || 'Avatar'}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />

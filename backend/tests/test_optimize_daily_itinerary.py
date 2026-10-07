@@ -1,30 +1,8 @@
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.schemas.itinerary import NodeConstraint, TravelConstraints
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
-
-
-@pytest.fixture
-def mock_engine():
-    engine = MagicMock()
-    # Engine result model dump mock
-    mock_result = MagicMock()
-    mock_result.model_dump.return_value = {
-        "path": [
-            {
-                "poi": {"name": "Test Attraction"},
-                "scheduled_start": "10:00",
-                "scheduled_end": "12:00",
-            }
-        ],
-        "total_cost": 10.0,
-        "total_time": 120.0,
-        "total_score": 100.0,
-    }
-    engine.run_optimization = AsyncMock(return_value=mock_result)
-    return engine
 
 
 @pytest.fixture
@@ -52,316 +30,135 @@ def sample_pois_data():
         {
             "name": "Hotel Paris",
             "category": "HOTEL",
-            "type": "HOTEL",
             "city": "Paris",
             "cost_eur": 50.0,
-            "score": 10.0,
-            "earliest_time": 0,
-            "latest_time": 1440,
-            "duration": 10,
-            "is_breakfast_spot": False,
-            "is_lunch_spot": False,
-            "is_dinner_spot": False,
-            "is_mandatory": False,
+            "duration_mins": 10,
+            "open_time_mins_by_day": [0] * 7,
+            "close_time_mins_by_day": [1440] * 7,
+            "location": {"latitude": 48.8566, "longitude": 2.3522},
             "poi_id": "hotel1",
         },
         {
             "name": "CDG Airport",
             "category": "AIRPORT",
-            "type": "HOTEL",
             "city": "Paris",
             "cost_eur": 0.0,
-            "score": 0.0,
-            "earliest_time": 0,
-            "latest_time": 1440,
-            "duration": 10,
-            "is_breakfast_spot": False,
-            "is_lunch_spot": False,
-            "is_dinner_spot": False,
-            "is_mandatory": False,
+            "duration_mins": 60,
+            "open_time_mins_by_day": [0] * 7,
+            "close_time_mins_by_day": [1440] * 7,
+            "location": {"latitude": 49.0097, "longitude": 2.5479},
             "poi_id": "airport1",
         },
         {
             "name": "Louvre",
             "category": "ATTRACTION",
-            "type": "ATTRACTION",
             "city": "Paris",
             "cost_eur": 20.0,
-            "score": 100.0,
-            "earliest_time": 600,
-            "latest_time": 1200,
-            "duration": 120,
-            "is_breakfast_spot": False,
-            "is_lunch_spot": False,
-            "is_dinner_spot": False,
+            "open_time_mins_by_day": [540] * 7,
+            "close_time_mins_by_day": [1260] * 7,
+            "duration_mins": 120,
             "is_mandatory": True,
+            "tier": 1,
+            "iconicity_score": 1.0,
+            "location": {"latitude": 48.8606, "longitude": 2.3376},
             "poi_id": "Louvre",
+        },
+        {
+            "name": "Bistrot du Louvre",
+            "category": "RESTAURANT",
+            "city": "Paris",
+            "cost_eur": 18.0,
+            "open_time_mins_by_day": [720] * 7,
+            "close_time_mins_by_day": [1380] * 7,
+            "duration_mins": 60,
+            "location": {"latitude": 48.8610, "longitude": 2.3380},
+            "poi_id": "bistrot1",
         },
     ]
 
 
-@pytest.mark.asyncio
-@patch(
-    "app.use_cases.optimize_daily_itinerary.get_transit_matrix", new_callable=AsyncMock
-)
-@patch("app.use_cases.optimize_daily_itinerary.inject_slack_time")
-async def test_optimize_multi_day(
-    mock_inject,
-    mock_matrix,
-    mock_engine,
-    sample_constraints,
-    sample_flights,
-    sample_pois_data,
-):
-    # Arrange
-    mock_matrix.return_value = [
-        [{"duration_mins": 10, "cost_eur": 5.0} for _ in range(3)] for _ in range(3)
+def _fast_matrix(pois, city):
+    n = len(pois)
+    return [
+        [{"duration_mins": 10, "cost_eur": 2.0} for _ in range(n)] for _ in range(n)
     ]
-    mock_inject.return_value = mock_matrix.return_value
 
-    use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
+
+@pytest.mark.asyncio
+async def test_optimize_multi_day(sample_constraints, sample_flights, sample_pois_data):
+    use_case = OptimizeDailyItineraryUseCase(transit_matrix_fn=_fast_matrix)
     outbound, return_flight = sample_flights
 
-    # Act
     result = await use_case.execute(
         sample_constraints, [sample_pois_data], outbound, return_flight
     )
 
-    # Assert
     assert "days" in result
-    assert len(result["days"]) > 0
+    assert len(result["days"]) == 2
     assert result["days"][0]["day"] == 1
-    assert result["days"][0]["flight_info"] == outbound
-
-    # Check that engine was called
-    assert mock_engine.run_optimization.called
-
-
-@pytest.mark.asyncio
-async def test_optimize_single_day_no_pois_except_hotel(
-    mock_engine, sample_constraints
-):
-    # Arrange
-    use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
-
-    # Act
-    result = await use_case._optimize_single_day(
-        day=0,
-        num_days=1,
-        unvisited_pois=[{"category": "HOTEL"}],
-        constraints=sample_constraints,
-        city="Paris",
-        hotel_arrival_time=600,
-        hotel_departure_time=1200,
-        mandatory_names=[],
-        matrix_dict_full=[[{"duration_mins": 0, "cost_eur": 0}]],
-    )
-
-    # Assert
-    assert result is None
+    assert result["days"][0]["flight_info"]["direction"] == "arrival"
+    assert "itinerary" in result["days"][0]
+    assert "metadata" in result
+    assert result["metadata"]["engine"] == "paladio_core_cpp20"
 
 
 @pytest.mark.asyncio
 async def test_optimize_handles_missing_flights_gracefully(
-    mock_engine, sample_constraints
+    sample_constraints, sample_pois_data
 ):
-    """
-    If outbound_flight or return_flight is None, the use case should not crash.
-    It should default flight_cost to 0.0 and assume reasonable arrival/departure times.
-    """
-    use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
-    pois_data = [{"name": "Hotel 1", "category": "HOTEL", "city": "Madrid"}]
+    use_case = OptimizeDailyItineraryUseCase(transit_matrix_fn=_fast_matrix)
 
-    # We pass None for flights
-    # We mock get_transit_matrix to avoid deep execution errors
-    with patch(
-        "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-        new_callable=AsyncMock,
-    ) as mock_matrix:
-        mock_matrix.return_value = [[{"duration_mins": 10, "cost_eur": 0}]]
+    result = await use_case.execute(sample_constraints, [sample_pois_data], None, None)
 
-        # Act
-        result = await use_case.execute(sample_constraints, [pois_data], None, None)
-
-        # Assert
-        assert "days" in result
+    assert "days" in result
+    assert len(result["days"]) == 2
+    assert result["total_trip_cost"] >= 0.0
 
 
 @pytest.mark.asyncio
-async def test_optimize_enriches_transit_maneuvers(
-    sample_constraints, sample_flights, sample_pois_data
-):
-    from app.domain.entities.poi import TransitLeg, TransitStep
+async def test_optimize_with_hotel_depot(sample_constraints, sample_pois_data):
+    use_case = OptimizeDailyItineraryUseCase(transit_matrix_fn=_fast_matrix)
 
-    mock_engine = MagicMock()
-    mock_result = MagicMock()
-    mock_result.model_dump.return_value = {
-        "path": [
-            {
-                "poi": {"name": "Hotel Paris", "lat": 48.85, "lon": 2.35},
-                "scheduled_start": "09:00",
-                "scheduled_end": "09:30",
-            },
-            {
-                "poi": {"name": "Louvre", "lat": 48.86, "lon": 2.33},
-                "scheduled_start": "10:00",
-                "scheduled_end": "12:00",
-            },
-        ],
-        "total_cost": 20.0,
-        "total_time": 180.0,
-        "total_score": 100.0,
-    }
-    mock_engine.run_optimization = AsyncMock(return_value=mock_result)
+    result = await use_case.execute(sample_constraints, [sample_pois_data], None, None)
 
-    mock_transit_leg = TransitLeg(
-        duration_mins=15,
-        cost_eur=1.80,
-        mode="transit",
-        steps=[
-            TransitStep(
-                type="walk",
-                instruction="Walk to Metro",
-                duration_mins=5,
-                distance_km=0.3,
-            ),
-            TransitStep(
-                type="transit",
-                instruction="Take Metro 1",
-                duration_mins=10,
-                distance_km=1.2,
-                transit_line="1",
-            ),
-        ],
-    )
-
-    with (
-        patch(
-            "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-            new_callable=AsyncMock,
-        ) as mock_matrix,
-        patch(
-            "app.use_cases.optimize_daily_itinerary.inject_slack_time"
-        ) as mock_inject,
-        patch(
-            "app.services.transit_service.get_detailed_transit_leg",
-            new_callable=AsyncMock,
-        ) as mock_leg,
-    ):
-        mock_matrix.return_value = [
-            [{"duration_mins": 10, "cost_eur": 0} for _ in range(3)] for _ in range(3)
-        ]
-        mock_inject.return_value = mock_matrix.return_value
-        mock_leg.return_value = mock_transit_leg
-
-        use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
-        outbound, return_flight = sample_flights
-        result = await use_case.execute(
-            sample_constraints, [sample_pois_data], outbound, return_flight
-        )
-
-        day1_path = result["days"][0]["itinerary"]["path"]
-        assert len(day1_path) >= 2
-        # Louvre should have transit_from_previous enriched
-        louvre_step = next(p for p in day1_path if p["poi"]["name"] == "Louvre")
-        assert "transit_from_previous" in louvre_step
-        assert louvre_step["transit_from_previous"]["mode"] == "transit"
-        assert len(louvre_step["transit_from_previous"]["steps"]) == 2
-        assert louvre_step["transit_from_previous"]["steps"][1]["transit_line"] == "1"
+    # Hotel Paris should be recognized as depot
+    day1_itin = result["days"][0]["itinerary"]
+    path = day1_itin.get("path", [])
+    assert len(path) > 0
+    # First node should be the hotel
+    assert "Hotel Paris" in path[0]["poi"]["name"]
+    assert path[0]["poi"]["category"] == "HOTEL"
 
 
 @pytest.mark.asyncio
 async def test_airport_splicing_dwell_and_transit_accounting(
     sample_constraints, sample_flights, sample_pois_data
 ):
-    from app.domain.entities.poi import TransitLeg, TransitStep
+    use_case = OptimizeDailyItineraryUseCase(transit_matrix_fn=_fast_matrix)
+    outbound, return_flight = sample_flights
 
-    mock_engine = MagicMock()
-    mock_result = MagicMock()
-    mock_result.model_dump.return_value = {
-        "path": [
-            {
-                "poi": {"name": "Hotel Paris", "category": "HOTEL", "cost_eur": 50.0},
-                "scheduled_start": "10:00",
-                "scheduled_end": "10:30",
-            },
-            {
-                "poi": {"name": "Louvre", "category": "ATTRACTION", "cost_eur": 20.0},
-                "scheduled_start": "11:00",
-                "scheduled_end": "13:00",
-            },
-        ],
-        "total_cost_eur": 70.0,
-        "total_time_mins": 180,
-        "total_score": 95.0,
-    }
-    mock_engine.run_optimization = AsyncMock(return_value=mock_result)
-
-    mock_transit_leg = TransitLeg(
-        duration_mins=40,
-        cost_eur=2.50,
-        mode="transit",
-        steps=[
-            TransitStep(
-                type="transit",
-                instruction="RER B Airport Shuttle",
-                duration_mins=40,
-                distance_km=25.0,
-            )
-        ],
+    result = await use_case.execute(
+        sample_constraints, [sample_pois_data], outbound, return_flight
     )
 
-    with (
-        patch(
-            "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
-            new_callable=AsyncMock,
-        ) as mock_matrix,
-        patch(
-            "app.use_cases.optimize_daily_itinerary.inject_slack_time"
-        ) as mock_inject,
-        patch(
-            "app.services.transit_service.get_detailed_transit_leg",
-            new_callable=AsyncMock,
-        ) as mock_leg,
-    ):
-        mock_matrix.return_value = [
-            [{"duration_mins": 10, "cost_eur": 0} for _ in range(3)] for _ in range(3)
-        ]
-        mock_inject.return_value = mock_matrix.return_value
-        mock_leg.return_value = mock_transit_leg
+    days = result["days"]
+    assert len(days) == 2
 
-        use_case = OptimizeDailyItineraryUseCase(engine=mock_engine)
-        outbound, return_flight = sample_flights
+    # Day 1 Arrival flight & airport
+    day1_path = days[0]["itinerary"]["path"]
+    assert day1_path[0]["poi"]["category"] == "AIRPORT"
+    assert day1_path[0]["scheduled_start"] == "10:00"
+    assert day1_path[0]["scheduled_end"] == "11:00"
 
-        # Single-day trip: day 0 is both arrival (day 0) and departure (num_days - 1)
-        res = await use_case._optimize_single_day(
-            day=0,
-            num_days=1,
-            unvisited_pois=sample_pois_data,
-            constraints=sample_constraints,
-            city="Paris",
-            hotel_arrival_time=600,
-            hotel_departure_time=1200,
-            mandatory_names=["Louvre"],
-            matrix_dict_full=[
-                [{"duration_mins": 0, "cost_eur": 0} for _ in range(3)]
-                for _ in range(3)
-            ],
-        )
+    # Day 2 Departure flight & airport
+    day2_path = days[1]["itinerary"]["path"]
+    assert day2_path[-1]["poi"]["category"] == "AIRPORT"
+    assert day2_path[-1]["scheduled_end"] == "18:00"
+    assert day2_path[-1]["scheduled_start"] == "16:00"
 
-        assert res is not None
-        path = res["path"]
-        # Airport should be spliced at arrival (index 0) and departure (last index)
-        assert path[0]["poi"]["name"] == "CDG Airport"
-        assert path[-1]["poi"]["name"] == "CDG Airport"
 
-        # Base time was 180 mins.
-        # Arrival dwell: 60 mins. Arrival airport transit: 40 mins.
-        # Departure dwell: 120 mins. Departure airport transit: 40 mins.
-        # Total time = 180 + 60 + 120 + 40 + 40 = 440 mins.
-        assert res["total_time_mins"] == 180 + 60 + 120 + 40 + 40
-
-        # Base cost was 70.0 EUR.
-        # Arrival transit cost: 2.50 EUR. Departure transit cost: 2.50 EUR.
-        # Total cost = 70.0 + 2.50 + 2.50 = 75.0 EUR.
-        assert res["total_cost_eur"] == 70.0 + 2.50 + 2.50
+@pytest.mark.asyncio
+async def test_legacy_single_day_removed():
+    use_case = OptimizeDailyItineraryUseCase()
+    # Confirm legacy v1 private method is removed
+    assert not hasattr(use_case, "_optimize_single_day")

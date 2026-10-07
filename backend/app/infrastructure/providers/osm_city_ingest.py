@@ -10,7 +10,7 @@ import asyncio
 import logging
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -64,6 +64,7 @@ class CityGeo:
     lon: float
     radius_km: float
     country_code: str | None
+    bbox: list[float] = field(default_factory=list)
 
 
 def compute_search_radius_km(
@@ -129,6 +130,14 @@ async def geocode_city(city: str, client: httpx.AsyncClient | None = None) -> Ci
         lon=float(best["lon"]),
         radius_km=round(radius, 2),
         country_code=addr.get("country_code"),
+        bbox=bbox
+        if len(bbox) == 4
+        else [
+            float(best["lat"]) - 0.1,
+            float(best["lon"]) - 0.1,
+            float(best["lat"]) + 0.1,
+            float(best["lon"]) + 0.1,
+        ],
     )
 
 
@@ -236,12 +245,23 @@ def parse_element(el: dict[str, Any]) -> dict[str, Any] | None:
     sig = extract_osm_signals(tags)
     cost, is_est, cost_src = _parse_fee(tags, category)
     opening = tags.get("opening_hours")
-    open_vec: list[int] | None = None
-    close_vec: list[int] | None = None
+    open_vec: list[int]
+    close_vec: list[int]
     hours_source = "osm"
-    if not opening:
-        open_vec, close_vec = default_hours(category, tags)
+    if opening:
+        from app.utils.opening_hours_parser import parse_osm_opening_hours
+
+        sched = parse_osm_opening_hours(opening)
+        open_vec = list(sched.open_time_mins_by_day)
+        close_vec = list(sched.close_time_mins_by_day)
+    else:
+        d_open, d_close = default_hours(category, tags)
+        open_vec, close_vec = list(d_open), list(d_close)
         hours_source = "assumed_default"
+
+    for i in range(7):
+        if open_vec[i] != -1 and close_vec[i] != -1 and open_vec[i] >= close_vec[i]:
+            close_vec[i] = open_vec[i] + 60
 
     record: dict[str, Any] = {
         "id": f"OSM-{el.get('type', 'node')}-{el.get('id')}",

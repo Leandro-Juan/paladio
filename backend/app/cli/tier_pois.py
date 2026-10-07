@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.db.models import AttractionModel
 from app.db.session import async_session
-from app.engine.v2.tiering import classify_poi_tier, get_seed_store
+from app.engine.v2.tiering import classify_poi_tier
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 async def tier_attractions(city: str | None = None, batch_size: int = 100):
-    seed_store = get_seed_store()
     async with async_session() as session:
         stmt = select(AttractionModel)
         if city:
-            stmt = stmt.where(AttractionModel.city == city)
+            from sqlalchemy import func
+
+            stmt = stmt.where(func.lower(AttractionModel.city) == city.strip().lower())
 
         result = await session.execute(stmt)
         attractions = list(result.scalars().all())
@@ -41,8 +42,10 @@ async def tier_attractions(city: str | None = None, batch_size: int = 100):
         source_counts: dict[str, int] = {"seed": 0, "heuristic": 0}
         tax_counts: dict[str, int] = {}
 
-        for i, m in enumerate(attractions):
-            poi_dict = {
+        from app.engine.v2.tiering import tier_city_attractions
+
+        records = [
+            {
                 "id": m.id,
                 "name": m.name,
                 "category": m.category,
@@ -50,7 +53,16 @@ async def tier_attractions(city: str | None = None, batch_size: int = 100):
                 "cost_eur": m.cost_eur,
                 "metadata": m.metadata_field,
             }
-            res = classify_poi_tier(poi_dict, m.city, seed_store)
+            for m in attractions
+        ]
+        tiered = tier_city_attractions(records, city or "global")
+        tiered_by_id = {r["id"]: r for r in tiered}
+
+        for i, m in enumerate(attractions):
+            res = tiered_by_id.get(m.id) or classify_poi_tier(
+                records[i],
+                m.city,
+            )
 
             m.tier = res["tier"]
             m.tier_confidence = res["tier_confidence"]

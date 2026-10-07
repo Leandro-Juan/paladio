@@ -19,14 +19,49 @@ from sqlalchemy.orm import relationship, synonym
 from app.db.session import Base
 
 
+class CityModel(Base):
+    __tablename__ = "cities"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    aliases = Column(ARRAY(String), default=list, nullable=False)
+    country_code = Column(String(2), nullable=False, index=True)
+    center_lat = Column(Float, nullable=False)
+    center_lon = Column(Float, nullable=False)
+    bbox = Column(ARRAY(Float), nullable=False)  # [south, west, north, east]
+    radius_km = Column(Float, default=15.0, nullable=False)
+    timezone = Column(String, default="UTC", nullable=False)
+    currency = Column(String(3), default="EUR", nullable=False)
+    profile = Column(JSONB, default=dict, nullable=False)
+    ingested_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+    attractions = relationship(
+        "AttractionModel",
+        back_populates="city_rel",
+        foreign_keys="[AttractionModel.city_id]",
+    )
+
+
 class AttractionModel(Base):
     __tablename__ = "attractions"
 
     # Core relational fields for fast querying
     id = Column(String, primary_key=True, index=True)
     city = Column(String, index=True, nullable=False)
+    city_id = Column(
+        String, ForeignKey("cities.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
+
+    city_rel = relationship(
+        "CityModel", back_populates="attractions", foreign_keys=[city_id]
+    )
 
     # 768D semantic embedding for pgvector cosine retrieval
     embedding = Column(Vector(768), nullable=True)

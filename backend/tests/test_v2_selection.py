@@ -3,7 +3,6 @@
 from datetime import date
 
 import pytest
-
 from app.engine.v2.candidate_pool import CandidatePoi, build_candidate_pool
 from app.engine.v2.selection import (
     SelectionReasonCode,
@@ -26,9 +25,12 @@ from app.schemas.user import PacePreference
 
 
 def test_currency_conversion():
-    """Verify standard FX conversion rates."""
-    assert usd_to_eur(100.0) == 92.0
-    assert eur_to_usd(92.0) == 100.0
+    """Verify FX conversion with custom rate and dynamic live rate."""
+    assert usd_to_eur(100.0, rate=0.92) == 92.0
+    assert eur_to_usd(92.0, rate=1.0 / 0.92) == 100.0
+    # Test dynamic live rate
+    live_eur = usd_to_eur(100.0)
+    assert 50.0 < live_eur < 150.0
 
 
 def test_build_trip_frame_balanced():
@@ -40,13 +42,13 @@ def test_build_trip_frame_balanced():
         start_date=date(2026, 10, 1),
         end_date=date(2026, 10, 3),
     )
-    tf = build_trip_frame(tc)
+    tf = build_trip_frame(tc, city_center=(48.8566, 2.3522))
     assert tf.city == "Paris"
     assert len(tf.days) == 3
     # Arrival: 2, Middle: 3, Departure: 2 -> Total = 7
     assert tf.total_anchor_slots == 7
     assert tf.max_tier1_slots == 3
-    assert tf.total_budget_eur == 1104.0
+    assert tf.total_budget_eur == usd_to_eur(1200.0)
     assert tf.days[0].is_arrival_day is True
     assert tf.days[1].is_arrival_day is False
     assert tf.days[2].is_departure_day is True
@@ -73,7 +75,7 @@ def test_build_trip_frame_flight_shrinkage():
         end_date=date(2026, 10, 3),
         booking_anchors=anchors,
     )
-    tf = build_trip_frame(tc)
+    tf = build_trip_frame(tc, city_center=(48.8566, 2.3522))
     # Arrival: 780m + 120m buffer = 900m (15:00)
     assert tf.days[0].start_time_mins == 900
     # Departure: 1020m - 180m buffer = 840m (14:00)
@@ -257,6 +259,7 @@ def test_submodular_selection_dropped_reasons():
 async def test_candidate_pool_builder_unit():
     """Verify build_candidate_pool combines tiered POIs, semantics, and mandatories."""
     from unittest.mock import AsyncMock
+
     from app.domain.entities.poi import Poi
     from app.domain.interfaces.poi_repository import IPoiRepository
 
@@ -364,3 +367,130 @@ def test_submodular_selection_drops_poi_closed_on_trip_dates():
     assert "cero" not in selected_ids
     dropped_cero = next(d for d in res.dropped_pois if d.poi.id == "cero")
     assert dropped_cero.reason_code == SelectionReasonCode.DROPPED_CLOSED_ON_TRIP_DATES
+
+
+def test_submodular_selection_prompt_taste_driven_nightlife_and_views():
+    """Verify that when user dislikes museums and requests nightlife/views,
+
+    Tier 1 museum with low taste score is omitted in favor of bars and viewpoints.
+    """
+    day0 = DayFrame(day_index=0, max_anchors=2, target_active_mins=300)
+    day1 = DayFrame(day_index=1, max_anchors=2, target_active_mins=300)
+    tf = TripFrame(
+        city="Madrid",
+        days=[day0, day1],
+        total_anchor_slots=4,
+        max_tier1_slots=2,
+        tag_affinities={"nightlife": 0.95, "scenic_views": 0.90, "art_culture": 0.1},
+        travel_tastes=["rooftop", "views", "cocktails"],
+    )
+
+    cands = [
+        CandidatePoi(
+            id="prado_museum",
+            name="Museo del Prado",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.99,
+            category_id=0,
+            taxonomy_category="art_culture",
+            taste_score=32.0,  # Clashes with user's low art_culture affinity
+            duration_mins=90,
+        ),
+        CandidatePoi(
+            id="circulo_rooftop",
+            name="Círculo de Bellas Artes Rooftop",
+            city="Madrid",
+            tier=2,
+            iconicity_score=0.75,
+            category_id=7,
+            taxonomy_category="scenic_views",
+            taste_score=95.0,
+            duration_mins=60,
+        ),
+        CandidatePoi(
+            id="salmon_guru",
+            name="Salmon Guru Cocktail Bar",
+            city="Madrid",
+            tier=2,
+            iconicity_score=0.70,
+            category_id=5,
+            taxonomy_category="nightlife",
+            taste_score=92.0,
+            duration_mins=60,
+        ),
+        CandidatePoi(
+            id="mirador_palacio",
+            name="Mirador del Palacio de Cibeles",
+            city="Madrid",
+            tier=2,
+            iconicity_score=0.68,
+            category_id=7,
+            taxonomy_category="scenic_views",
+            taste_score=90.0,
+            duration_mins=45,
+        ),
+        CandidatePoi(
+            id="teatro_kapital",
+            name="Teatro Kapital Nightclub",
+            city="Madrid",
+            tier=3,
+            iconicity_score=0.55,
+            category_id=5,
+            taxonomy_category="nightlife",
+            taste_score=85.0,
+            duration_mins=60,
+        ),
+    ]
+
+    res = select_trip_pois(cands, tf)
+    selected_ids = [s.poi.id for s in res.selected_pois]
+
+    # The museum MUST NOT be selected despite being Tier 1
+    assert "prado_museum" not in selected_ids
+    # Selected items must be the nightlife and viewpoints
+    assert "circulo_rooftop" in selected_ids
+    assert "salmon_guru" in selected_ids
+    assert "mirador_palacio" in selected_ids
+
+    # Dropped reason for Prado must explain low taste match
+    prado_drop = next(d for d in res.dropped_pois if d.poi.id == "prado_museum")
+    assert prado_drop.reason_code == SelectionReasonCode.DROPPED_LOW_TASTE_AND_TIER
+    assert "low taste match" in prado_drop.explanation.lower()
+
+
+def test_compute_taste_score_from_constraints():
+    """Verify that compute_taste_score dynamically adjusts scores based on constraints."""
+    from app.domain.entities.poi import Poi
+    from app.engine.v2.candidate_pool import compute_taste_score
+
+    poi_museum = Poi(
+        name="Classical Art Museum",
+        city="Paris",
+        category="museum",
+        tier=1,
+        iconicity_score=0.9,
+    )
+    # Default without constraints
+    score_default = compute_taste_score(poi_museum)
+    assert score_default > 60.0
+
+    # With low art_culture affinity and high nightlife/views
+    tc_nightlife = TravelConstraints(
+        destination_city="Paris",
+        tag_affinities={"art_culture": 0.1, "nightlife": 0.95, "scenic_views": 0.90},
+        travel_tastes=["rooftop", "cocktails"],
+    )
+    score_low = compute_taste_score(poi_museum, constraints=tc_nightlife)
+    assert score_low < 35.0
+
+    # Rooftop bar with nightlife affinity and keyword match
+    poi_bar = Poi(
+        name="Skyline Rooftop Bar",
+        city="Paris",
+        category="bar",
+        tier=2,
+        iconicity_score=0.5,
+    )
+    score_bar = compute_taste_score(poi_bar, constraints=tc_nightlife)
+    assert score_bar > 80.0

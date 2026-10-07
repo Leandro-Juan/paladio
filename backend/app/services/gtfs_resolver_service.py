@@ -66,57 +66,6 @@ GEOFABRIK_COUNTRY_TO_ISO = {
     "croatia": "HR",
 }
 
-CITY_COUNTRY_MAP: dict[str, str] = {
-    "madrid": "ES",
-    "barcelona": "ES",
-    "sevilla": "ES",
-    "valencia": "ES",
-    "malaga": "ES",
-    "bilbao": "ES",
-    "paris": "FR",
-    "lyon": "FR",
-    "marseille": "FR",
-    "nice": "FR",
-    "toulouse": "FR",
-    "porto": "PT",
-    "oporto": "PT",
-    "lisbon": "PT",
-    "lisboa": "PT",
-    "rome": "IT",
-    "roma": "IT",
-    "milan": "IT",
-    "milano": "IT",
-    "florence": "IT",
-    "firenze": "IT",
-    "venice": "IT",
-    "venezia": "IT",
-    "berlin": "DE",
-    "munich": "DE",
-    "muenchen": "DE",
-    "münchen": "DE",
-    "frankfurt": "DE",
-    "hamburg": "DE",
-    "cologne": "DE",
-    "koeln": "DE",
-    "vienna": "AT",
-    "wien": "AT",
-    "prague": "CZ",
-    "praha": "CZ",
-    "london": "GB",
-    "edinburgh": "GB",
-    "manchester": "GB",
-    "amsterdam": "NL",
-    "rotterdam": "NL",
-    "brussels": "BE",
-    "tokyo": "JP",
-    "kyoto": "JP",
-    "osaka": "JP",
-    "newyork": "US",
-    "new york": "US",
-    "chicago": "US",
-    "sanfrancisco": "US",
-}
-
 
 @dataclass(slots=True)
 class GTFSFeedInfo:
@@ -385,35 +334,44 @@ class GTFSResolverService:
             )
             return None
 
-        # 1. Determine city country code
-        city_country = CITY_COUNTRY_MAP.get(city_clean)
-        if not city_country:
+        # 1. Determine city country code and center coordinates dynamically
+        city_country: str | None = None
+        center_lat: float | None = None
+        center_lon: float | None = None
+
+        try:
+            from app.adapters.repositories.sql_city_repository import SqlCityRepository
+            from app.db.session import async_session
+
+            async with async_session() as s:
+                c_repo = SqlCityRepository(s)
+                c_ent = await c_repo.find_by_name_or_alias(city_clean)
+                if c_ent:
+                    city_country = c_ent.country_code
+                    center_lat, center_lon = c_ent.center_lat, c_ent.center_lon
+        except Exception as exc:
+            logger.debug(f"City repo lookup for {city_clean} skipped: {exc}")
+
+        if not city_country or center_lat is None:
             try:
-                osm_url, _ = await OSMMapService.resolve_osm_pbf_url(city_clean)
-                for part in osm_url.lower().split("/"):
-                    clean_part = part.replace("-latest.osm.pbf", "")
-                    if clean_part in GEOFABRIK_COUNTRY_TO_ISO:
-                        city_country = GEOFABRIK_COUNTRY_TO_ISO[clean_part]
-                        break
+                from app.infrastructure.providers.osm_city_ingest import geocode_city
+
+                geo = await geocode_city(city_clean)
+                city_country = geo.country_code.upper() if geo.country_code else None
+                center_lat, center_lon = geo.lat, geo.lon
             except Exception:
-                pass
+                bounds = await OSMMapService.get_city_extract_bounds(city_clean)
+                if bounds:
+                    center_lat = (bounds["min_lat"] + bounds["max_lat"]) / 2.0
+                    center_lon = (bounds["min_lon"] + bounds["max_lon"]) / 2.0
 
-        # 2. Obtain geographic center for city
-        known_lat, known_lon = cls._get_fallback_coords(city_clean)
-        bounds = await OSMMapService.get_city_extract_bounds(city_clean)
-
-        if known_lat is not None and known_lon is not None:
-            center_lat, center_lon = known_lat, known_lon
-        elif bounds:
-            center_lat = (bounds["min_lat"] + bounds["max_lat"]) / 2.0
-            center_lon = (bounds["min_lon"] + bounds["max_lon"]) / 2.0
-        else:
+        if center_lat is None or center_lon is None:
             logger.info(
                 f"Could not determine geographic center for {city_name}; no GTFS matched."
             )
             return None
 
-        # 3. In-memory candidate evaluation & scoring
+        # 2. In-memory candidate evaluation & scoring
         best_feed: GTFSFeedInfo | None = None
         best_score = 0.0
 
@@ -440,27 +398,3 @@ class GTFSResolverService:
             f"No valid open GTFS schedule feed found in global catalog for {city_name}."
         )
         return None
-
-    @staticmethod
-    def _get_fallback_coords(city_lower: str) -> tuple[float | None, float | None]:
-        """Known anchor coordinates for key destination cities if extract bounds are unavailable."""
-        known_coords: dict[str, tuple[float, float]] = {
-            "madrid": (40.4168, -3.7038),
-            "paris": (48.8566, 2.3522),
-            "porto": (41.1579, -8.6291),
-            "oporto": (41.1579, -8.6291),
-            "barcelona": (41.3874, 2.1686),
-            "rome": (41.9028, 12.4964),
-            "roma": (41.9028, 12.4964),
-            "milan": (45.4642, 9.1900),
-            "london": (51.5074, -0.1278),
-            "berlin": (52.5200, 13.4050),
-            "vienna": (48.2082, 16.3738),
-            "prague": (50.0755, 14.4378),
-            "amsterdam": (52.3676, 4.9041),
-            "lisbon": (38.7223, -9.1393),
-            "tokyo": (35.6762, 139.6503),
-            "newyork": (40.7128, -74.0060),
-            "new york": (40.7128, -74.0060),
-        }
-        return known_coords.get(city_lower, (None, None))

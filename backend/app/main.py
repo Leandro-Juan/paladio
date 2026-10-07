@@ -2,7 +2,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,24 +25,22 @@ async def lifespan(app: FastAPI):
     app.state.ml_model = HybridSovereignScorer()
     app.state.ml_params = app.state.ml_model.init_params()
 
-    # Fetch currency exchange rate
-    app.state.exchange_rate_usd_eur = 0.92
+    # Dynamically fetch live currency exchange rates
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(
-                "https://api.frankfurter.app/latest?from=USD&to=EUR"
-            )
-            if resp.status_code == 200:
-                app.state.exchange_rate_usd_eur = resp.json()["rates"]["EUR"]
-                logger.info(
-                    f"Fetched USD to EUR rate: {app.state.exchange_rate_usd_eur}"
-                )
+        from app.engine.v2.currency import fetch_live_rates
+
+        rates = await fetch_live_rates("USD")
+        app.state.exchange_rate_usd_eur = rates.get("EUR", 1.0)
+        logger.info(
+            f"Dynamically initialized USD to EUR rate: {app.state.exchange_rate_usd_eur}"
+        )
     except Exception as e:
         import asyncio
 
         if isinstance(e, asyncio.CancelledError):
             raise
-        logger.error(f"Failed to fetch exchange rate, using default 0.92. Error: {e}")
+        logger.error(f"Failed to fetch live exchange rate: {e}")
+        app.state.exchange_rate_usd_eur = 1.0
 
     yield
     # Cleanup here

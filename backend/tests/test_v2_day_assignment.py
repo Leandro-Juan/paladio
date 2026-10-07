@@ -282,3 +282,163 @@ def test_integrated_day_assignment_paris():
         assert d.anchor_poi is not None
         assert d.theme != ""
         assert len(d.effective_time_windows) == len(d.pois)
+
+
+def test_dynamic_bundling_threshold_scales():
+    """Verify dynamic bundling threshold adapts to spatial dispersion."""
+    from app.engine.v2.day_assignment import compute_dynamic_bundling_threshold
+
+    # Dense historic center POIs (100-200m apart)
+    dense_pois = [
+        _make_poi("D1", 48.8600, 2.3300),
+        _make_poi("D2", 48.8610, 2.3310),
+        _make_poi("D3", 48.8605, 2.3305),
+        _make_poi("D4", 48.8615, 2.3320),
+    ]
+    t_dense = compute_dynamic_bundling_threshold(dense_pois)
+    assert 0.20 <= t_dense <= 0.25
+
+    # Sparse metropolitan POIs (3-5km apart)
+    sparse_pois = [
+        _make_poi("S1", 48.8500, 2.2900),
+        _make_poi("S2", 48.8800, 2.3400),
+        _make_poi("S3", 48.8300, 2.3800),
+        _make_poi("S4", 48.8100, 2.2500),
+    ]
+    t_sparse = compute_dynamic_bundling_threshold(sparse_pois)
+    assert t_sparse == 0.60  # Upper clamp
+
+
+def test_taste_aware_anchor_seed_selection():
+    """Verify anchor seed 0 incorporates user taste score above generic tier."""
+    p_museum = _make_poi("Classical Museum", 48.860, 2.330, tier=1, iconicity=0.95)
+    p_museum.poi.taste_score = 15.0  # Disliked by user prompt
+
+    p_view = _make_poi("Rooftop View", 48.850, 2.290, tier=2, iconicity=0.75)
+    p_view.poi.taste_score = 98.0  # Highly aligned with user prompt
+
+    bundles = [[p_museum], [p_view]]
+    seeds = _select_anchor_seeds(bundles, k=2)
+
+    # p_view should be seed 0 because user taste score (98 vs 15) overrides lower tier
+    assert seeds[0] == 1
+    assert seeds[1] == 0
+
+
+def test_zone_sprawl_penalty_prevents_distant_bundle_merging():
+    """Verify _calculate_insertion_cost strongly penalizes sprawling distant bundles (>2.8km)."""
+    from app.engine.v2.day_assignment import _calculate_insertion_cost
+
+    df = DayFrame(day_index=0, target_active_mins=360, max_anchors=4)
+
+    # Base cluster around Notre-Dame
+    cluster = [_make_poi("Notre-Dame", 48.8530, 2.3499)]
+
+    # Nearby bundle: Sainte-Chapelle (~400m away)
+    near_bundle = [_make_poi("Sainte-Chapelle", 48.8554, 2.3450)]
+    cost_near = _calculate_insertion_cost(near_bundle, cluster, df)
+
+    # Distant bundle: Sacré-Cœur (~4.2km away in Montmartre)
+    far_bundle = [_make_poi("Sacre-Coeur", 48.8867, 2.3431)]
+    cost_far = _calculate_insertion_cost(far_bundle, cluster, df)
+
+    # Distant bundle should incur heavy sprawl penalty (> 4x nearby cost)
+    assert cost_far > cost_near * 4.0
+
+
+def test_hotel_proximity_matches_arrival_day():
+    """Verify arrival day (Day 0) is matched to the zone closest to hotel/city center."""
+    # Zone A: Near hotel (48.855, 2.350)
+    p_near1 = _make_poi("Near Hotel 1", 48.856, 2.351)
+    p_near2 = _make_poi("Near Hotel 2", 48.857, 2.352)
+
+    # Zone B: Far from hotel (48.890, 2.320 - Montmartre)
+    p_far1 = _make_poi("Far 1", 48.890, 2.320)
+    p_far2 = _make_poi("Far 2", 48.891, 2.321)
+
+    constraints = TravelConstraints(pace=PacePreference.BALANCED)
+    trip_frame = TripFrame(
+        city="Paris",
+        city_center=(48.855, 2.350),  # Hotel is at city center
+        days=[
+            DayFrame(
+                day_index=0,
+                calendar_date=date(2026, 10, 5),
+                is_arrival_day=True,
+                target_active_mins=240,
+                max_anchors=2,
+            ),
+            DayFrame(
+                day_index=1,
+                calendar_date=date(2026, 10, 6),
+                is_arrival_day=False,
+                target_active_mins=360,
+                max_anchors=3,
+            ),
+        ],
+        constraints=constraints,
+    )
+
+    result = assign_pois_to_days([p_near1, p_near2, p_far1, p_far2], trip_frame)
+
+    assert len(result.assigned_days) == 2
+    # Day 0 (arrival) must contain the Near Hotel POIs
+    day0_names = {p.poi.name for p in result.assigned_days[0].pois}
+    assert "Near Hotel 1" in day0_names
+    assert "Near Hotel 2" in day0_names
+
+
+def test_zone_surplus_candidates_populated():
+    """Verify assign_pois_to_days populates zone_candidates from candidate_pool for full-day solver."""
+    from app.engine.v2.candidate_pool import CandidatePoi
+
+    # 1 primary POI per day
+    p1 = _make_poi("Louvre", 48.8606, 2.3376)
+    p2 = _make_poi("Eiffel Tower", 48.8584, 2.2945)
+
+    # Wider candidate pool containing surplus neighborhood options
+    pool = [
+        CandidatePoi(
+            id="tuileries",
+            name="Tuileries Garden",
+            city="Paris",
+            location={"latitude": 48.8635, "longitude": 2.3270},
+            taste_score=80.0,
+            tier=2,
+        ),
+        CandidatePoi(
+            id="orsay",
+            name="Musee d'Orsay",
+            city="Paris",
+            location={"latitude": 48.8599, "longitude": 2.3265},
+            taste_score=75.0,
+            tier=1,
+        ),
+        CandidatePoi(
+            id="champ_mars",
+            name="Champ de Mars",
+            city="Paris",
+            location={"latitude": 48.8556, "longitude": 2.2986},
+            taste_score=85.0,
+            tier=2,
+        ),
+    ]
+
+    trip_frame = TripFrame(
+        city="Paris",
+        days=[
+            DayFrame(
+                day_index=0, calendar_date=date(2026, 10, 5), target_active_mins=300
+            ),
+            DayFrame(
+                day_index=1, calendar_date=date(2026, 10, 6), target_active_mins=300
+            ),
+        ],
+    )
+
+    result = assign_pois_to_days([p1, p2], trip_frame, candidate_pool=pool)
+
+    assert len(result.assigned_days) == 2
+    # Both days should have zone_candidates attached
+    total_surplus = sum(len(d.zone_candidates) for d in result.assigned_days)
+    assert total_surplus > 0

@@ -1,142 +1,115 @@
 import logging
+from typing import Any
+
+from app.domain.interfaces.poi_repository import IPoiRepository
 
 logger = logging.getLogger(__name__)
-
-FALLBACK_RESTAURANT_TEMPLATES = [
-    ("Café Central", "CAFE", "$", 480, 720, 10.0),
-    ("Bistró de la Plaza", "RESTAURANT", "$$", 720, 960, 22.0),
-    ("Taberna Tradicional", "RESTAURANT", "$$", 780, 1020, 20.0),
-    ("Restaurante El Jardín", "RESTAURANT", "$$$", 1140, 1380, 35.0),
-    ("Mesón del Sol", "RESTAURANT", "$$", 1170, 1410, 25.0),
-    ("Pastelería Artesanal", "BAKERY", "$", 450, 750, 8.0),
-    ("Mercado Gourmet", "RESTAURANT", "$$", 660, 1320, 18.0),
-    ("Bodega & Tapas", "BAR", "$$", 1140, 1440, 22.0),
-    ("Trattoria del Centro", "RESTAURANT", "$$", 720, 1380, 24.0),
-]
-
-
-def _build_fallback_restaurants(city: str, lat: float, lon: float) -> list[dict]:
-    offsets = [
-        (0.002, 0.003),
-        (-0.003, 0.002),
-        (0.001, -0.004),
-        (-0.002, -0.003),
-        (0.004, -0.001),
-        (-0.001, 0.005),
-        (0.003, -0.002),
-        (-0.004, 0.001),
-        (0.002, 0.002),
-    ]
-    results = []
-    for i, (name, cat, tier, o_min, c_min, cost) in enumerate(
-        FALLBACK_RESTAURANT_TEMPLATES
-    ):
-        d_lat, d_lon = offsets[i % len(offsets)]
-        results.append(
-            {
-                "name": f"{name} ({city})",
-                "city": city,
-                "category": cat,
-                "price_tier": tier,
-                "cost_eur": cost,
-                "schedule": {
-                    "open_time_mins": o_min,
-                    "close_time_mins": c_min,
-                },
-                "financials": {"estimated_cost": cost},
-                "scoring": {"google_rating": 4.5, "reviews": 200 + i * 25},
-                "location": {
-                    "latitude": round(lat + d_lat, 6),
-                    "longitude": round(lon + d_lon, 6),
-                },
-            }
-        )
-    return results
 
 
 async def fetch_restaurants(
     city: str,
-    test_data=None,
+    poi_repo: IPoiRepository | None = None,
+    test_data: dict[str, Any] | None = None,
     preferred_cuisines: list[str] | None = None,
     target_frequency: int = 1,
-):
+) -> list[dict[str, Any]]:
+    """Fetches authentic local dining venues for any city from PostgreSQL or live OSM."""
     if test_data and "restaurants" in test_data:
-        return test_data["restaurants"][:15]
+        return test_data["restaurants"]
 
-    from app.infrastructure.providers.overpass_provider import (
-        OverpassProviderAdapter,
-    )
+    result: list[dict[str, Any]] = []
 
-    provider = OverpassProviderAdapter()
-    preferred_restaurants = []
-    general_restaurants = []
-
-    try:
-        # 1. Fetch targeted preferred cuisine restaurants if specified
-        if preferred_cuisines:
-            for cuisine in preferred_cuisines:
-                try:
-                    c_pois = await provider.fetch_restaurants(
-                        city, limit=target_frequency + 1, cuisine=cuisine
-                    )
-                    for p in c_pois:
-                        preferred_restaurants.append(
-                            {
-                                "name": p.name,
-                                "city": city,
-                                "location": {
-                                    "latitude": p.location.latitude,
-                                    "longitude": p.location.longitude,
-                                },
-                                "category": p.category,
-                                "cuisine": cuisine,
-                                "price_tier": "$$",
-                            }
-                        )
-                except Exception as e:
-                    logger.warning(f"Overpass fetch for cuisine {cuisine} failed: {e}")
-
-        # 2. Fetch general local restaurants
+    # 1. Fetch real dining venues from PostgreSQL repository
+    db_meals = []
+    if poi_repo:
         try:
-            general_pois = await provider.fetch_restaurants(city, limit=15)
-            for p in general_pois:
-                general_restaurants.append(
-                    {
-                        "name": p.name,
-                        "city": city,
-                        "location": {
-                            "latitude": p.location.latitude,
-                            "longitude": p.location.longitude,
-                        },
-                        "category": p.category,
-                        "price_tier": "$$",
-                    }
-                )
+            db_meals = await poi_repo.find_meal_spots(city, limit=200)
         except Exception as e:
-            logger.warning(f"Overpass general restaurants fetch failed: {e}")
-
-    except Exception as fallback_e:
-        logger.warning(f"Overpass restaurant adapter failed: {fallback_e}")
-
-    # Combine preferred (capped at target_frequency per cuisine) + general restaurants
-    result = []
-    if preferred_restaurants:
-        result.extend(preferred_restaurants[: max(1, target_frequency)])
-
-    for r in general_restaurants:
-        if not any(r["name"] == res["name"] for res in result):
-            result.append(r)
-
-    # If Overpass is unavailable or returned insufficient restaurants, supply realistic fallback spots
-    if len(result) < 6:
+            logger.warning(f"Failed to find meal spots from repository for {city}: {e}")
+    else:
         try:
-            coords = await provider._get_city_coordinates(city)
-        except Exception:
-            coords = None
-        lat, lon = coords if coords else (40.4168, -3.7038)
-        fallback_spots = _build_fallback_restaurants(city, lat, lon)
-        for fb in fallback_spots:
-            if not any(fb["name"] == r["name"] for r in result):
-                result.append(fb)
+            from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+            from app.db.session import async_session
 
-    return result[:15]
+            async with async_session() as session:
+                repo = SqlPoiRepository(session)
+                db_meals = await repo.find_meal_spots(city, limit=200)
+        except Exception as e:
+            logger.warning(f"Failed to query database for meal spots: {e}")
+
+    for m in db_meals:
+        loc = (
+            m.location
+            if isinstance(m.location, dict)
+            else {
+                "latitude": getattr(m.location, "latitude", 0.0),
+                "longitude": getattr(m.location, "longitude", 0.0),
+            }
+        )
+        meta = m.metadata if isinstance(m.metadata, dict) else {}
+        result.append(
+            {
+                "id": m.id,
+                "name": m.name,
+                "city": city,
+                "category": m.category,
+                "cuisine": meta.get("cuisine"),
+                "location": loc,
+                "duration_mins": m.duration_mins or 60,
+                "cost_eur": m.cost_eur or 18.0,
+                "open_time_mins_by_day": m.open_time_mins_by_day,
+                "close_time_mins_by_day": m.close_time_mins_by_day,
+                "price_tier": "$$" if (m.cost_eur or 18.0) >= 20 else "$",
+                "scoring": (
+                    m.scoring
+                    if isinstance(m.scoring, dict)
+                    else {"rating": 4.5, "reviews": 150}
+                ),
+                "financials": {"estimated_cost": m.cost_eur or 18.0},
+            }
+        )
+
+    # 2. If DB has few dining venues, supplement with live Overpass query
+    if len(result) < 12:
+        from app.infrastructure.providers.overpass_provider import (
+            OverpassProviderAdapter,
+        )
+
+        provider = OverpassProviderAdapter()
+        try:
+            extra = await provider.fetch_restaurants(city, limit=30)
+            for p in extra:
+                if not any(p.name == r["name"] for r in result):
+                    result.append(
+                        {
+                            "id": p.id,
+                            "name": p.name,
+                            "city": city,
+                            "category": p.category,
+                            "location": {
+                                "latitude": p.location.latitude,
+                                "longitude": p.location.longitude,
+                            },
+                            "price_tier": "$$",
+                            "cost_eur": 18.0,
+                            "duration_mins": 60,
+                            "scoring": {"rating": 4.5, "reviews": 100},
+                            "financials": {"estimated_cost": 18.0},
+                        }
+                    )
+        except Exception as e:
+            logger.warning(f"Overpass live restaurant fetch failed for {city}: {e}")
+
+    # Prioritize preferred cuisines if specified
+    if preferred_cuisines:
+        pref = []
+        rest = []
+        for r in result:
+            c = str(r.get("cuisine") or "").lower()
+            if any(pc.lower() in c for pc in preferred_cuisines):
+                pref.append(r)
+            else:
+                rest.append(r)
+        result = pref + rest
+
+    return result

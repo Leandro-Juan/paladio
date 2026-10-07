@@ -34,6 +34,7 @@ class CityTransitFare:
     source: str = "verified_official_tariff"
     agency_name: str | None = None
     source_url: str | None = None
+    fare_unknown: bool = False
 
     def __init__(
         self,
@@ -55,6 +56,7 @@ class CityTransitFare:
         day_pass_fare_eur: float | None = None,
         day_pass_name: str | None = None,
         airport_surcharge_eur: float | None = None,
+        fare_unknown: bool = False,
     ):
         self.city = city or (city_name or "")
         self.country = country
@@ -83,6 +85,7 @@ class CityTransitFare:
         self.source = source
         self.agency_name = agency_name
         self.source_url = source_url
+        self.fare_unknown = fare_unknown
 
     @property
     def city_name(self) -> str:
@@ -405,22 +408,23 @@ class TransitFareService:
             cache.set(city_key, fare)
             return fare
 
-        # Automatic fallback estimation for any unindexed city
+        # Automatic honest unindexed city handling: never invent arbitrary 2.00 EUR tariffs
         logger.info(
-            f"City '{city}' not in transit tariff cache. Using regional benchmark estimate."
+            f"City '{city}' not in transit tariff cache. Labeling fare as unknown."
         )
         fallback = CityTransitFare(
             city=city_key,
             country="Unknown",
             currency="EUR",
-            single_fare=2.00,
-            pass_24h_price=8.00,
-            pass_24h_name="Estimated 24h Transit Pass",
+            single_fare=0.0,
+            pass_24h_price=None,
+            pass_24h_name=None,
             pass_24h_includes_airport=False,
-            airport_surcharge=3.00,
+            airport_surcharge=0.0,
             airport_station_keywords=list(GENERIC_AIRPORT_KEYWORDS),
             is_estimated=True,
-            source="regional_benchmark_estimate",
+            source="fare_unknown",
+            fare_unknown=True,
         )
         cache.set(city_key, fallback)
         return fallback

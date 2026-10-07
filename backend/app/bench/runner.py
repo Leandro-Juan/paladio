@@ -315,7 +315,6 @@ async def run_single_scenario_benchmark(
         opt_uc = OptimizeDailyItineraryUseCase(engine=adapter)
 
         c_info = CITY_CENTERS.get(city, CITY_CENTERS["Madrid"])
-        mock_city_centers = {city.lower(): (c_info["lat"], c_info["lon"])}
 
         from unittest.mock import MagicMock
 
@@ -327,10 +326,6 @@ async def run_single_scenario_benchmark(
 
         t0 = time.perf_counter()
         with (
-            patch(
-                "app.use_cases.fetch_travel_context.KNOWN_CITY_CENTERS",
-                mock_city_centers,
-            ),
             patch(
                 "app.use_cases.optimize_daily_itinerary.get_transit_matrix",
                 side_effect=_fast_transit_matrix,

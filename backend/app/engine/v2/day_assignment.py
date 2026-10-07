@@ -9,10 +9,13 @@ Assigns globally selected POIs to calendar days:
    guaranteeing zero closure violations and matching light days to arrival/departure.
 """
 
+from typing import Any
+
 import numpy as np
 from app.engine.transit_matrix import haversine_distance
 from app.engine.v2.selection import SelectedPoi
 from app.engine.v2.trip_frame import DayFrame, TripFrame
+from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field
 from scipy.optimize import linear_sum_assignment
 
@@ -29,6 +32,7 @@ class AssignedDay(BaseModel):
     end_time_mins: int = 1260
     anchor_poi: SelectedPoi | None = None
     pois: list[SelectedPoi] = Field(default_factory=list)
+    zone_candidates: list[SelectedPoi] = Field(default_factory=list)
     effective_time_windows: dict[str, tuple[int, int]] = Field(default_factory=dict)
     total_active_mins: int = 0
     total_cost_eur: float = 0.0
@@ -70,14 +74,39 @@ def _bundle_centroid(bundle: list[SelectedPoi]) -> tuple[float, float]:
     )
 
 
+def compute_dynamic_bundling_threshold(pois: list[SelectedPoi]) -> float:
+    """Computes dynamic, city-scale bundling threshold from intra-candidate distance distribution."""
+    if len(pois) < 4:
+        return 0.35
+    coords = [_get_poi_coord(p) for p in pois]
+    dists = []
+    for i in range(len(coords)):
+        for j in range(i + 1, len(coords)):
+            d = haversine_distance(
+                coords[i][0], coords[i][1], coords[j][0], coords[j][1]
+            )
+            if d > 0.01:
+                dists.append(d)
+    if not dists:
+        return 0.35
+    p15 = float(np.percentile(dists, 15))
+    return float(np.clip(p15, 0.20, 0.60))
+
+
 def bundle_nearby_pois(
     selected_pois: list[SelectedPoi],
-    threshold_km: float = 0.35,
+    threshold_km: float | None = None,
 ) -> list[list[SelectedPoi]]:
     """Groups POIs within walking proximity into super-node bundles."""
     n = len(selected_pois)
     if n <= 1:
         return [[p] for p in selected_pois]
+
+    effective_threshold = (
+        threshold_km
+        if threshold_km is not None
+        else compute_dynamic_bundling_threshold(selected_pois)
+    )
 
     visited = [False] * n
     bundles: list[list[SelectedPoi]] = []
@@ -93,7 +122,7 @@ def bundle_nearby_pois(
             if visited[j]:
                 continue
             j_lat, j_lon = _get_poi_coord(selected_pois[j])
-            if haversine_distance(c_lat, c_lon, j_lat, j_lon) <= threshold_km:
+            if haversine_distance(c_lat, c_lon, j_lat, j_lon) <= effective_threshold:
                 current_bundle.append(selected_pois[j])
                 visited[j] = True
 
@@ -106,20 +135,34 @@ def _select_anchor_seeds(
     bundles: list[list[SelectedPoi]],
     k: int,
 ) -> list[int]:
-    """Selects k bundle indices as daily anchor seeds via farthest-point sampling."""
+    """Selects k bundle indices as daily anchor seeds via taste-weighted farthest-point sampling."""
     n = len(bundles)
     if n <= k:
-        return list(range(n))
+        priorities = []
+        for idx, b in enumerate(bundles):
+            p_max = max(
+                (
+                    1000.0
+                    if p.poi.is_mandatory
+                    else (40.0 * (5 - p.poi.tier) + p.poi.iconicity_score * 20.0)
+                    * (0.5 + 0.5 * getattr(p.poi, "taste_score", 50.0) / 50.0)
+                )
+                for p in b
+            )
+            priorities.append((p_max, idx))
+        priorities.sort(key=lambda x: x[0], reverse=True)
+        return [idx for _, idx in priorities]
 
-    # Seed 0: highest priority POI (User Mandatory or highest Tier 1)
+    # Seed 0: highest priority POI (User Mandatory or highest blended Tier/Iconicity/Taste)
     best_idx = 0
     best_priority = -1.0
     for idx, b in enumerate(bundles):
         p_max = max(
             (
-                100.0
+                1000.0
                 if p.poi.is_mandatory
-                else 50.0 * (5 - p.poi.tier) + p.poi.iconicity_score * 20.0
+                else (40.0 * (5 - p.poi.tier) + p.poi.iconicity_score * 20.0)
+                * (0.5 + 0.5 * getattr(p.poi, "taste_score", 50.0) / 50.0)
             )
             for p in b
         )
@@ -129,9 +172,12 @@ def _select_anchor_seeds(
 
     seeds = [best_idx]
     centroids = [_bundle_centroid(b) for b in bundles]
+    bundle_tastes = [
+        max(getattr(p.poi, "taste_score", 50.0) for p in b) for b in bundles
+    ]
 
     while len(seeds) < k:
-        max_min_dist = -1.0
+        max_cand_score = -1.0
         best_candidate = -1
 
         for i in range(n):
@@ -143,8 +189,10 @@ def _select_anchor_seeds(
                 )
                 for s in seeds
             )
-            if min_dist_to_seed > max_min_dist:
-                max_min_dist = min_dist_to_seed
+            # Distance weighted by taste score so distant, preferred POIs are chosen over uninteresting ones
+            cand_score = min_dist_to_seed * (0.6 + 0.4 * (bundle_tastes[i] / 100.0))
+            if cand_score > max_cand_score:
+                max_cand_score = cand_score
                 best_candidate = i
 
         if best_candidate != -1:
@@ -153,6 +201,17 @@ def _select_anchor_seeds(
             break
 
     return seeds
+
+
+def _is_intensive_museum(p: SelectedPoi) -> bool:
+    name_l = p.poi.name.lower()
+    cat_l = getattr(p.poi, "category", "").lower()
+    tax = getattr(p.poi, "taxonomy_category", "")
+    is_museum_cat = (
+        cat_l in ("museum", "gallery", "art_gallery") or tax == "art_culture"
+    )
+    has_museum_name = "museo" in name_l or "museum" in name_l or "musée" in name_l
+    return (is_museum_cat or has_museum_name) and p.effective_duration_mins >= 60
 
 
 def _calculate_insertion_cost(
@@ -166,7 +225,7 @@ def _calculate_insertion_cost(
     curr_dur = sum(p.effective_duration_mins for p in cluster)
     curr_nodes = len(cluster)
 
-    # 1. Spatial distance cost
+    # 1. Spatial distance cost and cluster diameter / sprawl penalty
     if not cluster:
         dist_cost = 0.0
     else:
@@ -174,6 +233,17 @@ def _calculate_insertion_cost(
         c_c = _bundle_centroid(cluster)
         b_dist = haversine_distance(b_c[0], b_c[1], c_c[0], c_c[1])
         dist_cost = (b_dist**1.5) * 8.0
+
+        # Cluster diameter / sprawl penalty:
+        max_pair_dist = 0.0
+        for p in cluster:
+            p_lat, p_lon = _get_poi_coord(p)
+            for b_p in bundle:
+                b_lat, b_lon = _get_poi_coord(b_p)
+                d = haversine_distance(p_lat, p_lon, b_lat, b_lon)
+                max_pair_dist = max(max_pair_dist, d)
+        if max_pair_dist > 2.8:
+            dist_cost += ((max_pair_dist - 2.8) ** 2) * 15.0
 
     # 2. Capacity overload penalties
     cap_penalty = 0.0
@@ -200,7 +270,27 @@ def _calculate_insertion_cost(
         if feasible_days == 0:
             cap_penalty += 5000.0
 
-    return dist_cost + cap_penalty
+    # 4. Cognitive fatigue & museum spacing penalty
+    # 1 museum per day is engaging; 2 is demanding (+35); 3+ causes museum fatigue (+185+)
+    existing_museums = sum(1 for p in cluster if _is_intensive_museum(p))
+    bundle_museums = sum(1 for p in bundle if _is_intensive_museum(p))
+    total_museums = existing_museums + bundle_museums
+    fatigue_penalty = 0.0
+    if total_museums == 2:
+        fatigue_penalty += 35.0
+    elif total_museums >= 3:
+        fatigue_penalty += 150.0 * (total_museums - 2) + 35.0
+
+    # 5. Theme / taxonomy coherence bonus
+    coherence_bonus = 0.0
+    if cluster:
+        cluster_cats = {p.poi.taxonomy_category for p in cluster}
+        bundle_cats = {p.poi.taxonomy_category for p in bundle}
+        shared_cats = cluster_cats.intersection(bundle_cats)
+        if shared_cats:
+            coherence_bonus = -5.0 * len(shared_cats)
+
+    return dist_cost + cap_penalty + fatigue_penalty + coherence_bonus
 
 
 def _regret_insertion(
@@ -402,6 +492,8 @@ def _derive_day_theme(pois: list[SelectedPoi]) -> str:
 def assign_pois_to_days(
     selected_pois: list[SelectedPoi],
     trip_frame: TripFrame,
+    candidate_pool: list[Any] | None = None,
+    bundling_threshold_km: float | None = None,
 ) -> DayAssignmentResult:
     """Main entry point: assigns selected POIs to optimal calendar days."""
     k = len(trip_frame.days)
@@ -425,7 +517,7 @@ def assign_pois_to_days(
         return DayAssignmentResult(assigned_days=empty_days)
 
     # 1. Spatial bundling (super-nodes)
-    bundles = bundle_nearby_pois(selected_pois, threshold_km=0.35)
+    bundles = bundle_nearby_pois(selected_pois, threshold_km=bundling_threshold_km)
 
     # 2. Regret-2 Insertion into K clusters
     clusters = _regret_insertion(bundles, trip_frame)
@@ -461,7 +553,19 @@ def assign_pois_to_days(
             ) and cl_nodes > day_f.max_anchors:
                 capacity_cost += (cl_nodes - day_f.max_anchors) * 500.0
 
-            cost_matrix[c_idx, d_idx] = closure_cost + capacity_cost
+            # D. Hotel / Depot proximity for arrival / departure days
+            hotel_cost = 0.0
+            if (
+                (day_f.is_arrival_day or day_f.is_departure_day)
+                and getattr(trip_frame, "city_center", None)
+                and cl
+            ):
+                c_c = _bundle_centroid(cl)
+                h_lat, h_lon = trip_frame.city_center
+                h_dist = haversine_distance(c_c[0], c_c[1], h_lat, h_lon)
+                hotel_cost = h_dist * 15.0
+
+            cost_matrix[c_idx, d_idx] = closure_cost + capacity_cost + hotel_cost
 
     row_ind, col_ind = linear_sum_assignment(cost_matrix)
 
@@ -524,6 +628,89 @@ def assign_pois_to_days(
                 theme=_derive_day_theme(day_pois),
             )
         )
+
+    # 5. Populate zone surplus candidates (for full-day solver orienteering)
+    if candidate_pool:
+        from app.engine.v2.selection import SelectionReasonCode
+
+        scheduled_ids = {p.poi.id for p in selected_pois}
+        scheduled_names = {p.poi.name.strip().lower() for p in selected_pois}
+        claimed_surplus_ids: set[str] = set()
+        claimed_surplus_names: set[str] = set()
+
+        for a_day in assigned_days:
+            if a_day.pois:
+                day_coords = [_get_poi_coord(p) for p in a_day.pois]
+                d_lat = float(np.mean([c[0] for c in day_coords]))
+                d_lon = float(np.mean([c[1] for c in day_coords]))
+            elif getattr(trip_frame, "city_center", None):
+                d_lat, d_lon = trip_frame.city_center
+            else:
+                d_lat, d_lon = 0.0, 0.0
+
+            nearby_candidates: list[tuple[float, Any]] = []
+            for cp in candidate_pool:
+                cand_id = getattr(cp, "id", None) or getattr(cp, "name", "")
+                cand_name = getattr(cp, "name", "").strip().lower()
+                if (
+                    cand_id in scheduled_ids
+                    or cand_name in scheduled_names
+                    or cand_id in claimed_surplus_ids
+                    or cand_name in claimed_surplus_names
+                ):
+                    continue
+                if getattr(cp, "is_meal_spot", False):
+                    continue
+
+                loc = getattr(cp, "location", {})
+                lat = (
+                    loc.get("latitude", 0.0)
+                    if isinstance(loc, dict)
+                    else getattr(loc, "latitude", 0.0)
+                )
+                lon = (
+                    loc.get("longitude", 0.0)
+                    if isinstance(loc, dict)
+                    else getattr(loc, "longitude", 0.0)
+                )
+                dist = haversine_distance(d_lat, d_lon, lat, lon)
+                if dist <= 3.5:
+                    taste = getattr(cp, "taste_score", 50.0)
+                    icon = getattr(cp, "iconicity_score", 0.0)
+                    tier = getattr(cp, "tier", 3)
+                    score = (
+                        (taste * 0.5)
+                        + (icon * 30.0)
+                        + (5 - tier) * 15.0
+                        - (dist * 10.0)
+                    )
+                    nearby_candidates.append((score, cp))
+
+            nearby_candidates.sort(key=lambda x: x[0], reverse=True)
+            pace = getattr(trip_frame, "pace", PacePreference.BALANCED)
+            if pace == PacePreference.LEISURELY:
+                target_surplus = max(1, 4 - len(a_day.pois))
+            elif pace == PacePreference.INTENSE:
+                target_surplus = 15
+            else:  # BALANCED
+                target_surplus = max(1, 5 - len(a_day.pois))
+            top_surplus = nearby_candidates[:target_surplus]
+            surplus_selected: list[SelectedPoi] = []
+            for _, cand in top_surplus:
+                cand_id = getattr(cand, "id", None) or getattr(cand, "name", "")
+                cand_name = getattr(cand, "name", "").strip().lower()
+                claimed_surplus_ids.add(cand_id)
+                claimed_surplus_names.add(cand_name)
+                surplus_selected.append(
+                    SelectedPoi(
+                        poi=cand,
+                        reason_code=SelectionReasonCode.SELECTED_DIVERSE_ANCHOR,
+                        visit_mode="full",
+                        effective_duration_mins=getattr(cand, "duration_mins", 60),
+                        marginal_gain=getattr(cand, "taste_score", 50.0),
+                    )
+                )
+            a_day.zone_candidates = surplus_selected
 
     load_var = float(np.var(daily_durations)) if len(daily_durations) > 1 else 0.0
 

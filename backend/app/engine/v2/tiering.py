@@ -7,56 +7,24 @@ with high confidence, and applies deterministic heuristic scoring for unseeded P
 from pathlib import Path
 from typing import Any
 
-import yaml
-from app.engine.v2.taxonomy import classify_poi_taxonomy
+from app.engine.v2.taxonomy import CANONICAL_CATEGORIES, classify_poi_taxonomy
 
 SEEDS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "city_seeds"
 
 
 class CitySeedStore:
-    """In-memory cache for curated city seeds loaded from YAML."""
+    """Deprecated: Seed store kept for backward-compatibility only.
+    All POI tiering and ingestion is 100% automatic and dynamic across all cities.
+    """
 
-    def __init__(self, seeds_dir: Path = SEEDS_DIR):
-        self.seeds_dir = seeds_dir
+    def __init__(self, seeds_dir: Path | None = None):
         self._cache: dict[str, dict[str, dict[str, Any]]] = {}
-        self._load_seeds()
-
-    def _load_seeds(self) -> None:
-        if not self.seeds_dir.exists():
-            return
-
-        for yaml_path in self.seeds_dir.glob("*.yaml"):
-            try:
-                with open(yaml_path, encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
-                if not data or "city" not in data or "seeds" not in data:
-                    continue
-                city_key = data["city"].strip().lower()
-                if city_key not in self._cache:
-                    self._cache[city_key] = {}
-                for seed in data["seeds"]:
-                    name_key = seed["name"].strip().lower()
-                    self._cache[city_key][name_key] = seed
-            except Exception as e:
-                # Log or ignore corrupted files gracefully
-                print(f"Warning: Failed to load seed file {yaml_path}: {e}")
 
     def get_seed(self, city: str, name: str) -> dict[str, Any] | None:
-        city_dict = self._cache.get(city.strip().lower(), {})
-        # Exact lowercase match
-        clean_name = name.strip().lower()
-        if clean_name in city_dict:
-            return city_dict[clean_name]
-
-        # Substring / partial match fallback for minor naming variations
-        for seed_name, seed_data in city_dict.items():
-            if clean_name in seed_name or seed_name in clean_name:
-                return seed_data
-
         return None
 
 
-# Global singleton instance
+# Global singleton instance (deprecated stub)
 _GLOBAL_SEED_STORE: CitySeedStore | None = None
 
 
@@ -72,71 +40,75 @@ def classify_poi_tier(
     city: str,
     seed_store: CitySeedStore | None = None,
 ) -> dict[str, Any]:
-    """Compute tier, taxonomy, iconicity, and visit mode for a POI.
+    """Compute tier, taxonomy, iconicity, and visit mode for a POI automatically.
 
-    Returns:
-        dict with keys:
-          - tier: int (1, 2, 3, or 4)
-          - tier_confidence: str ("high" or "low")
-          - tier_source: str ("seed" or "heuristic")
-          - iconicity_score: float (0.0 .. 1.0)
-          - taxonomy_category: str
-          - category_id: int (0 .. 7)
-          - visit_mode: str ("full", "quick", "exterior_only")
+    Always dynamic and algorithmic for every city worldwide.
     """
-    store = seed_store or get_seed_store()
-    name = poi.get("name", "")
-    seed = store.get_seed(city, name)
-
-    if seed:
+    # 1. Fast path: if the POI already has persisted tier and iconicity_score from
+    # automatic OSM relative tiering, preserve them directly.
+    existing_tier = poi.get("tier")
+    existing_iconicity = poi.get("iconicity_score")
+    if (
+        existing_tier is not None
+        and existing_tier in (1, 2, 3, 4)
+        and existing_iconicity is not None
+        and float(existing_iconicity) > 0.0
+    ):
         return {
-            "tier": int(seed.get("tier", 1)),
-            "tier_confidence": "high",
-            "tier_source": "seed",
-            "iconicity_score": round(float(seed.get("iconicity_score", 0.90)), 3),
-            "taxonomy_category": seed.get("taxonomy_category", "art_culture"),
-            "category_id": int(seed.get("category_id", 0)),
-            "visit_mode": seed.get("visit_mode", "full"),
+            "tier": int(existing_tier),
+            "tier_confidence": poi.get("tier_confidence", "high"),
+            "tier_source": poi.get("tier_source", "osm_signals"),
+            "iconicity_score": round(float(existing_iconicity), 3),
+            "taxonomy_category": poi.get("taxonomy_category", "art_culture"),
+            "category_id": int(poi.get("category_id", 0)),
+            "visit_mode": poi.get("visit_mode", "full"),
         }
 
-    # Unseeded: heuristic classification
+    # Dynamic signal / heuristic classification
+    name = poi.get("name", "")
     category = poi.get("category", "")
     metadata = poi.get("metadata") if isinstance(poi.get("metadata"), dict) else {}
     tax_cat, cat_id = classify_poi_taxonomy(name, category, metadata)
+    sig = metadata.get("osm") if isinstance(metadata.get("osm"), dict) else {}
+    r = float(sig.get("importance_raw", 0.0))
 
-    # Calculate heuristic iconicity score
     duration = poi.get("duration_mins", 60)
     cost = poi.get("cost_eur", 0.0)
 
-    score = 0.20
-
-    # Duration signal
-    if duration >= 120:
-        score += 0.15
-    elif duration >= 60:
-        score += 0.08
-
-    # Financial / admission signal
-    if cost >= 10.0:
-        score += 0.12
-    elif cost > 0.0:
-        score += 0.06
-
-    # Category signal
-    if tax_cat in ("art_culture", "history_heritage"):
-        score += 0.08
-    elif tax_cat in ("scenic_views", "architecture"):
-        score += 0.06
-
-    # Cap heuristic iconicity to [0.10, 0.65] to preserve distinction with curated seeds
-    iconicity = max(0.10, min(0.65, score))
-
-    if iconicity >= 0.50:
+    if r >= 3.5:
+        tier = 1
+        iconicity = round(min(0.99, 0.85 + 0.03 * (r - 3.5)), 3)
+        confidence = "high"
+    elif r >= 1.2:
         tier = 2
-    elif iconicity < 0.25:
-        tier = 4
+        iconicity = round(min(0.84, 0.60 + 0.08 * (r - 1.2)), 3)
+        confidence = "high"
     else:
-        tier = 3
+        # Calculate heuristic iconicity score
+        score = 0.25
+        if duration >= 120:
+            score += 0.20
+        elif duration >= 60:
+            score += 0.10
+
+        if cost >= 10.0:
+            score += 0.15
+        elif cost > 0.0:
+            score += 0.08
+
+        if tax_cat in ("art_culture", "history_heritage"):
+            score += 0.12
+        elif tax_cat in ("scenic_views", "architecture"):
+            score += 0.08
+
+        iconicity = max(0.10, min(0.80, score))
+        if iconicity >= 0.65:
+            tier = 2
+        elif iconicity < 0.25:
+            tier = 4
+        else:
+            tier = 3
+        confidence = "low"
 
     # Visit mode heuristic
     if tax_cat == "scenic_views" or duration <= 45:
@@ -146,8 +118,8 @@ def classify_poi_tier(
 
     return {
         "tier": tier,
-        "tier_confidence": "low",
-        "tier_source": "heuristic",
+        "tier_confidence": confidence,
+        "tier_source": "osm_signals" if r > 0 else "heuristic",
         "iconicity_score": round(iconicity, 3),
         "taxonomy_category": tax_cat,
         "category_id": cat_id,
@@ -155,7 +127,7 @@ def classify_poi_tier(
     }
 
 
-# --- Relative (per-city) tiering for cities without curated seeds ---------------
+# --- Relative (per-city) tiering for any city on Earth ------------------------
 
 _MEAL_CATEGORIES = {"restaurant", "cafe", "food", "bistrot"}
 
@@ -182,12 +154,11 @@ def tier_city_attractions(
 
     A town of 3 sights and a megacity both get a handful of Tier-1 must-sees, because
     ranking is by percentile of the importance score, not by absolute thresholds.
-    Curated seeds always win over the heuristic. Deterministic; ties broken by name.
+    100% dynamic and algorithmic for every city. Ties broken deterministically by name.
     """
-    store = seed_store or get_seed_store()
     out: list[dict[str, Any]] = []
-
     sights: list[dict[str, Any]] = []
+
     for rec in records:
         if str(rec.get("category", "")).lower() in _MEAL_CATEGORIES:
             rec.update(
@@ -197,7 +168,7 @@ def tier_city_attractions(
                     "tier_source": "osm_signals",
                     "iconicity_score": 0.0,
                     "taxonomy_category": "food_culinary",
-                    "category_id": 5,
+                    "category_id": CANONICAL_CATEGORIES["food_culinary"],
                     "visit_mode": "full",
                 }
             )
@@ -212,19 +183,13 @@ def tier_city_attractions(
 
     ranked = sorted(sights, key=lambda r: (-raw(r), r.get("name", "")))
     n = len(ranked)
-    t1_cap = max(3, min(12, round(0.04 * n)))
-    t2_cap = max(5, min(30, round(0.15 * n)))
+    t1_cap = max(4, min(14, round(0.08 * n)))
+    t2_cap = max(8, min(35, round(0.22 * n)))
 
     t1_count = 0
     t2_count = 0
     for idx, rec in enumerate(ranked):
         sig = rec.get("metadata", {}).get("osm") or {}
-        seed = store.get_seed(city, rec.get("name", ""))
-        if seed:
-            rec.update(classify_poi_tier(rec, city, store))
-            out.append(rec)
-            continue
-
         r = raw(rec)
         tax_cat, cat_id = classify_poi_taxonomy(
             rec.get("name", ""),
@@ -233,24 +198,24 @@ def tier_city_attractions(
         )
         strong = bool(sig.get("wikidata") or sig.get("wikipedia") or sig.get("unesco"))
 
-        if t1_count < t1_cap and (r >= 4.0 or (t1_count < 3 and r > 0.0)):
+        if t1_count < t1_cap and (r >= 3.5 or (t1_count < 3 and r > 0.0)):
             tier = 1
             t1_count += 1
             iconicity = round(
-                max(0.70, 0.98 - 0.28 * (t1_count - 1) / max(1, t1_cap - 1)), 3
+                max(0.85, 0.99 - 0.14 * (t1_count - 1) / max(1, t1_cap - 1)), 3
             )
-        elif t2_count < t2_cap and r >= 1.0:
+        elif t2_count < t2_cap and r >= 1.2:
             tier = 2
             t2_count += 1
             iconicity = round(
-                max(0.45, 0.66 - 0.21 * (t2_count - 1) / max(1, t2_cap - 1)), 3
+                max(0.60, 0.84 - 0.24 * (t2_count - 1) / max(1, t2_cap - 1)), 3
             )
         elif r <= 0.3:
             tier = 4
             iconicity = 0.10
         else:
             tier = 3
-            iconicity = round(min(0.40, 0.20 + 0.05 * r), 3)
+            iconicity = round(min(0.59, 0.35 + 0.08 * r), 3)
 
         rec.update(
             {

@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 from app.domain.entities.poi import ScoredPoi
+from app.engine.v2.rhythm import RhythmProfile
 from app.schemas.itinerary import TravelConstraints
 from app.utils.text import is_poi_mandatory
 
@@ -46,6 +47,7 @@ def build_cpp_pois(
     day_start_mins: int,
     mandatory_names: list[str] | None = None,
     day_weekday: int = 0,
+    rhythm: RhythmProfile | None = None,
 ) -> list[Any]:
     if not paladio_core:
         return []
@@ -59,7 +61,8 @@ def build_cpp_pois(
         node_type = map_category_to_node_type(poi.category, poi.name)
 
         is_specialized_meal = any(
-            s in poi.name.lower() for s in ("(lunch)", "(dinner)", "(breakfast)")
+            s in poi.name.lower()
+            for s in ("(lunch)", "(dinner)", "(breakfast)", "virtual")
         )
         open_vec = getattr(poi, "open_time_mins_by_day", None)
         close_vec = getattr(poi, "close_time_mins_by_day", None)
@@ -120,22 +123,25 @@ def build_cpp_pois(
             is_l = False
             is_d = False
             is_closed = is_specialized_meal and (o_min == -1 or c_min == -1)
+            b_win = rhythm.breakfast_window if rhythm else (480, 630)
+            l_win = rhythm.lunch_window if rhythm else (720, 930)
+            d_win = rhythm.dinner_window if rhythm else (1170, 1410)
             if not is_closed:
                 if "breakfast" in name:
-                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 450)
-                    cpp_poi.latest_time = min(cpp_poi.latest_time, 630)
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, b_win[0])
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, b_win[1])
                     is_b = (
                         cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
                     )
                 elif "dinner" in name:
-                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 1110)
-                    cpp_poi.latest_time = min(cpp_poi.latest_time, 1350)
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, d_win[0])
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, d_win[1])
                     is_d = (
                         cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
                     )
                 elif "lunch" in name:
-                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, 690)
-                    cpp_poi.latest_time = min(cpp_poi.latest_time, 900)
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, l_win[0])
+                    cpp_poi.latest_time = min(cpp_poi.latest_time, l_win[1])
                     is_l = (
                         cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
                     )
@@ -146,12 +152,12 @@ def build_cpp_pois(
                         or "bakery" in name
                         or "desayuno" in name
                         or cat in ("CAFE", "BAKERY")
-                        or (earliest <= 10 * 60 and latest >= 11 * 60)
+                        or (earliest <= b_win[1] and latest >= b_win[0] + 30)
                     ):
                         is_b = True
-                    if earliest <= 14 * 60 and latest >= 13 * 60:
+                    if earliest <= l_win[1] and latest >= l_win[0] + 30:
                         is_l = True
-                    if latest >= 20 * 60 and earliest <= 21 * 60:
+                    if latest >= d_win[0] + 30 and earliest <= d_win[1]:
                         is_d = True
                     if not (is_b or is_l or is_d):
                         is_l = True
@@ -203,19 +209,29 @@ def build_optimization_config(
     max_budget: float | None = None,
     enforce_default_meal_deadlines: bool = False,
     max_idle_time: int = 120,
+    rhythm: RhythmProfile | None = None,
+    requested_meals: list[str] | None = None,
 ) -> Any:
     if not paladio_core:
         return None
 
+    b_window = rhythm.breakfast_window if rhythm else (480, 630)
+    l_window = rhythm.lunch_window if rhythm else (720, 930)
+    d_window = rhythm.dinner_window if rhythm else (1170, 1410)
+
     breakfast_deadline = -1
     lunch_deadline = -1
-    # Dinner deadline remains -1 in single-day continuous touring so that daytime tours
-    # concluding at the hotel depot in late afternoon are not invalidated by evening dinner hours.
     dinner_deadline = -1
+
+    req_meals = [m.lower() for m in (requested_meals or [])]
 
     if not constraints.meals:
         if enforce_default_meal_deadlines:
-            lunch_deadline = 15 * 60
+            lunch_deadline = l_window[1]
+            if "dinner" in req_meals and day_end_mins >= d_window[0] + 60:
+                dinner_deadline = min(day_end_mins, d_window[1])
+            if "breakfast" in req_meals and day_start_mins <= b_window[0] + 60:
+                breakfast_deadline = b_window[1]
     else:
         for meal in constraints.meals:
             m_type = meal.meal_type.upper()
@@ -225,7 +241,17 @@ def build_optimization_config(
             elif "LUNCH" in m_type:
                 lunch_deadline = end_mins
             elif "DINNER" in m_type:
-                dinner_deadline = end_mins
+                if (
+                    day_start_mins >= 1020
+                    or "dinner" in req_meals
+                    or day_end_mins >= d_window[0] + 60
+                ):
+                    dinner_deadline = end_mins
+                else:
+                    dinner_deadline = -1
+
+    if dinner_deadline != -1 and day_end_mins >= 1260:
+        max_idle_time = max(max_idle_time, 300)
 
     if day_end_mins - day_start_mins < 240:
         breakfast_deadline = -1

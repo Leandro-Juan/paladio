@@ -6,51 +6,6 @@ from app.schemas.itinerary import TravelConstraints
 logger = logging.getLogger(__name__)
 
 
-KNOWN_CITY_CENTERS: dict[str, tuple[float, float]] = {
-    "paris": (48.8566, 2.3522),
-    "rome": (41.9028, 12.4964),
-    "madrid": (40.4168, -3.7038),
-    "barcelona": (41.3851, 2.1734),
-    "london": (51.5074, -0.1278),
-    "berlin": (52.5200, 13.4050),
-    "amsterdam": (52.3676, 4.9041),
-    "new york": (40.7128, -74.0060),
-    "tokyo": (35.6762, 139.6503),
-    "lisbon": (38.7223, -9.1393),
-    "vienna": (48.2082, 16.3738),
-    "prague": (50.0755, 14.4378),
-    "milan": (45.4642, 9.1900),
-    "florence": (43.7696, 11.2558),
-    "venice": (45.4408, 12.3155),
-    "seville": (37.3891, -5.9845),
-    "valencia": (39.4699, -0.3763),
-    "munich": (48.1351, 11.5820),
-    "dublin": (53.3498, -6.2603),
-    "brussels": (50.8503, 4.3517),
-}
-
-KNOWN_AIRPORT_COORDINATES: dict[str, tuple[float, float]] = {
-    "cdg": (49.0097, 2.5479),
-    "ory": (48.7262, 2.3652),
-    "mad": (40.4839, -3.5680),
-    "bcn": (41.2974, 2.0833),
-    "fco": (41.8003, 12.2389),
-    "cia": (41.7999, 12.5949),
-    "lhr": (51.4700, -0.4543),
-    "lgw": (51.1537, -0.1821),
-    "jfk": (40.6413, -73.7781),
-    "ewr": (40.6895, -74.1745),
-    "lga": (40.7769, -73.8740),
-    "ber": (52.3667, 13.5033),
-    "ams": (52.3105, 4.7683),
-    "lis": (38.7742, -9.1342),
-    "vie": (48.1103, 16.5697),
-    "prg": (50.1008, 14.2600),
-    "mxp": (45.6301, 8.7255),
-    "lin": (45.4451, 9.2767),
-}
-
-
 class FetchTravelContextUseCase:
     """
     Use Case responsible for fetching and formatting all travel context
@@ -113,53 +68,53 @@ class FetchTravelContextUseCase:
             for p, sp in zip(db_pois, scored_pois):
                 p["ml_affinity_score"] = sp.score
 
-        # Determine city center from db_pois for snapping
+        # Determine city center dynamically from median of located db_pois
         center_lat, center_lon = None, None
-        if db_pois and db_pois[0].get("location"):
-            center_lat = db_pois[0]["location"].get("latitude")
-            center_lon = db_pois[0]["location"].get("longitude")
+        located_pts = [
+            (
+                float(p["location"]["latitude"]),
+                float(p["location"]["longitude"]),
+            )
+            for p in db_pois
+            if isinstance(p.get("location"), dict)
+            and p["location"].get("latitude") is not None
+            and p["location"].get("longitude") is not None
+        ]
+        if located_pts:
+            lats = sorted(pt[0] for pt in located_pts)
+            lons = sorted(pt[1] for pt in located_pts)
+            center_lat = lats[len(lats) // 2]
+            center_lon = lons[len(lons) // 2]
 
         if center_lat is None or center_lon is None:
-            city_clean = city.strip().lower()
-            if city_clean in KNOWN_CITY_CENTERS:
-                center_lat, center_lon = KNOWN_CITY_CENTERS[city_clean]
-            else:
-                try:
-                    import urllib.parse
+            try:
+                import urllib.parse
+                import httpx
 
-                    import httpx
-
-                    query = urllib.parse.quote(city)
-                    url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(
-                            url, headers={"User-Agent": "PaladioApp/1.0"}
-                        )
-                        if resp.status_code == 200 and resp.json():
-                            data = resp.json()[0]
-                            center_lat = float(data["lat"])
-                            center_lon = float(data["lon"])
-                except (
-                    httpx.HTTPError,
-                    TimeoutError,
-                    ValueError,
-                    KeyError,
-                    RuntimeError,
-                    OSError,
-                ) as e:
-                    logger.warning(f"Failed to geocode {city}: {e}")
-
-                if center_lat is None or center_lon is None:
-                    # Partial match in known centers as final fallback
-                    for k, (klat, klon) in KNOWN_CITY_CENTERS.items():
-                        if k in city_clean or city_clean in k:
-                            center_lat, center_lon = klat, klon
-                            break
-
-                if center_lat is None or center_lon is None:
-                    raise RuntimeError(
-                        f"Could not geocode destination city: {city}. Missing data."
+                query = urllib.parse.quote(city)
+                url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(
+                        url, headers={"User-Agent": "PaladioApp/1.0"}
                     )
+                    if resp.status_code == 200 and resp.json():
+                        data = resp.json()[0]
+                        center_lat = float(data["lat"])
+                        center_lon = float(data["lon"])
+            except (
+                httpx.HTTPError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                RuntimeError,
+                OSError,
+            ) as e:
+                logger.warning(f"Failed to geocode city {city}: {e}")
+
+            if center_lat is None or center_lon is None:
+                raise RuntimeError(
+                    f"Could not geocode destination city: {city}. Missing data."
+                )
 
         # 2. Extract Anchors & Geocode
         booking_anchors = constraints.booking_anchors
@@ -236,46 +191,38 @@ class FetchTravelContextUseCase:
                 outbound_flight = None
                 return_flight = None
             else:
-                airport_name = f"{iata} Airport"
-                iata_clean = iata.strip().lower()
-                if iata_clean in KNOWN_AIRPORT_COORDINATES:
-                    airport_lat, airport_lon = KNOWN_AIRPORT_COORDINATES[iata_clean]
-                    logger.info(
-                        f"Resolved airport {iata} from known coordinates: {airport_lat}, {airport_lon}"
-                    )
-                else:
-                    query = f"{iata} airport"
-                    try:
-                        import urllib.parse
+                airport_name = f"{iata.upper()} Airport"
+                query = f"{iata} airport"
+                try:
+                    import urllib.parse
+                    import httpx
 
-                        import httpx
-
-                        q = urllib.parse.quote(query)
-                        url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                        async with httpx.AsyncClient(timeout=5.0) as client:
-                            resp = await client.get(
-                                url, headers={"User-Agent": "PaladioApp/1.0"}
+                    q = urllib.parse.quote(query)
+                    url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            url, headers={"User-Agent": "PaladioApp/1.0"}
+                        )
+                        if resp.status_code == 200 and resp.json():
+                            data = resp.json()[0]
+                            airport_lat = float(data["lat"])
+                            airport_lon = float(data["lon"])
+                            logger.info(
+                                f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
                             )
-                            if resp.status_code == 200 and resp.json():
-                                data = resp.json()[0]
-                                airport_lat = float(data["lat"])
-                                airport_lon = float(data["lon"])
-                                logger.info(
-                                    f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
-                                )
-                            else:
-                                logger.warning(
-                                    f"Nominatim returned no results for airport: {query}"
-                                )
-                    except (
-                        httpx.HTTPError,
-                        TimeoutError,
-                        ValueError,
-                        KeyError,
-                        RuntimeError,
-                        OSError,
-                    ) as e:
-                        logger.warning(f"Failed to geocode airport {iata}: {e}")
+                        else:
+                            logger.warning(
+                                f"Nominatim returned no results for airport: {query}. Snapping to city center."
+                            )
+                except (
+                    httpx.HTTPError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    RuntimeError,
+                    OSError,
+                ) as e:
+                    logger.warning(f"Failed to geocode airport {iata}: {e}")
 
         # Calculate trip duration strictly from real dates
         if not constraints.start_date or not constraints.end_date:
@@ -462,13 +409,34 @@ class FetchTravelContextUseCase:
                     }
                 )
 
-            start_idx = (
-                (day * 3) % max(1, len(restaurants_data)) if restaurants_data else 0
+            # Separate breakfast-appropriate venues (cafes/bakeries) from lunch/dinner restaurants
+            cafes = [
+                r
+                for r in restaurants_data
+                if str(r.get("category", "")).lower() in ("cafe", "bakery")
+            ]
+            dining_places = [
+                r
+                for r in restaurants_data
+                if str(r.get("category", "")).lower() not in ("cafe", "bakery")
+            ]
+            if not cafes:
+                cafes = restaurants_data
+            if not dining_places:
+                dining_places = restaurants_data
+
+            b_spot = cafes[day % max(1, len(cafes))] if cafes else None
+            l_spot = (
+                dining_places[(day * 2) % max(1, len(dining_places))]
+                if dining_places
+                else None
             )
-            end_idx = start_idx + 3
-            day_restaurants = restaurants_data[start_idx:end_idx]
-            if len(day_restaurants) < 3 and restaurants_data:
-                day_restaurants += restaurants_data[: 3 - len(day_restaurants)]
+            d_spot = (
+                dining_places[(day * 2 + 1) % max(1, len(dining_places))]
+                if dining_places
+                else None
+            )
+            day_restaurants = [r for r in (b_spot, l_spot, d_spot) if r]
 
             for i, r in enumerate(day_restaurants):
                 r_loc = r.get("location", {})

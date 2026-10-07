@@ -12,108 +12,51 @@ logger = logging.getLogger(__name__)
 
 GEOFABRIK_INDEX_URL = "https://download.geofabrik.de/index-v1.json"
 
-# Fast-path lookup for popular destination cities
-KNOWN_GEOFABRIK_MAP: dict[str, str] = {
-    "madrid": "europe/spain/madrid-latest.osm.pbf",
-    "paris": "europe/france/ile-de-france-latest.osm.pbf",
-    "barcelona": "europe/spain/cataluna-latest.osm.pbf",
-    "porto": "europe/portugal-latest.osm.pbf",
-    "oporto": "europe/portugal-latest.osm.pbf",
-    "rome": "europe/italy/centro-latest.osm.pbf",
-    "roma": "europe/italy/centro-latest.osm.pbf",
-    "milan": "europe/italy/nord-ovest-latest.osm.pbf",
-    "london": "europe/united-kingdom/england/greater-london-latest.osm.pbf",
-    "berlin": "europe/germany/berlin-latest.osm.pbf",
-    "amsterdam": "europe/netherlands-latest.osm.pbf",
-    "vienna": "europe/austria-latest.osm.pbf",
-    "prague": "europe/czech-republic-latest.osm.pbf",
-    "lisbon": "europe/portugal-latest.osm.pbf",
-    "tokyo": "asia/japan/kanto-latest.osm.pbf",
-    "newyork": "north-america/us/new-york-latest.osm.pbf",
-    "new_york": "north-america/us/new-york-latest.osm.pbf",
-    "new york": "north-america/us/new-york-latest.osm.pbf",
-}
 
-# Regional aliases for unhardcoded world destination cities whose extracts reside under their parent state or province
-CITY_REGION_ALIASES: dict[str, str] = {
-    # Spain
-    "sevilla": "europe/spain/andalucia-latest.osm.pbf",
-    "seville": "europe/spain/andalucia-latest.osm.pbf",
-    "malaga": "europe/spain/andalucia-latest.osm.pbf",
-    "granada": "europe/spain/andalucia-latest.osm.pbf",
-    "bilbao": "europe/spain/pais-vasco-latest.osm.pbf",
-    "sansebastian": "europe/spain/pais-vasco-latest.osm.pbf",
-    "zaragoza": "europe/spain/aragon-latest.osm.pbf",
-    "santiagodecompostela": "europe/spain/galicia-latest.osm.pbf",
-    "palma": "europe/spain/islas-baleares-latest.osm.pbf",
-    "mallorca": "europe/spain/islas-baleares-latest.osm.pbf",
-    "ibiza": "europe/spain/islas-baleares-latest.osm.pbf",
-    # Germany
-    "munich": "europe/germany/bayern-latest.osm.pbf",
-    "muenchen": "europe/germany/bayern-latest.osm.pbf",
-    "münchen": "europe/germany/bayern-latest.osm.pbf",
-    "frankfurt": "europe/germany/hessen-latest.osm.pbf",
-    "cologne": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
-    "koln": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
-    "dusseldorf": "europe/germany/nordrhein-westfalen-latest.osm.pbf",
-    "stuttgart": "europe/germany/baden-wuerttemberg-latest.osm.pbf",
-    "dresden": "europe/germany/sachsen-latest.osm.pbf",
-    "leipzig": "europe/germany/sachsen-latest.osm.pbf",
-    # Italy
-    "florence": "europe/italy/centro-latest.osm.pbf",
-    "firenze": "europe/italy/centro-latest.osm.pbf",
-    "pisa": "europe/italy/centro-latest.osm.pbf",
-    "venice": "europe/italy/nord-est-latest.osm.pbf",
-    "venezia": "europe/italy/nord-est-latest.osm.pbf",
-    "verona": "europe/italy/nord-est-latest.osm.pbf",
-    "naples": "europe/italy/sud-latest.osm.pbf",
-    "napoli": "europe/italy/sud-latest.osm.pbf",
-    "palermo": "europe/italy/isole-latest.osm.pbf",
-    # France
-    "marseille": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
-    "nice": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
-    "cannes": "europe/france/provence-alpes-cote-d-azur-latest.osm.pbf",
-    "lyon": "europe/france/rhone-alpes-latest.osm.pbf",
-    "bordeaux": "europe/france/aquitaine-latest.osm.pbf",
-    "strasbourg": "europe/france/alsace-latest.osm.pbf",
-    "toulouse": "europe/france/midi-pyrenees-latest.osm.pbf",
-    # United Kingdom & Ireland
-    "edinburgh": "europe/united-kingdom/scotland-latest.osm.pbf",
-    "glasgow": "europe/united-kingdom/scotland-latest.osm.pbf",
-    "cardiff": "europe/united-kingdom/wales-latest.osm.pbf",
-    "belfast": "europe/ireland-and-northern-ireland-latest.osm.pbf",
-    "dublin": "europe/ireland-and-northern-ireland-latest.osm.pbf",
-    # Japan
-    "kyoto": "asia/japan/kansai-latest.osm.pbf",
-    "osaka": "asia/japan/kansai-latest.osm.pbf",
-    "kobe": "asia/japan/kansai-latest.osm.pbf",
-    "nara": "asia/japan/kansai-latest.osm.pbf",
-    "sapporo": "asia/japan/hokkaido-latest.osm.pbf",
-    "fukuoka": "asia/japan/kyushu-latest.osm.pbf",
-    "nagoya": "asia/japan/chubu-latest.osm.pbf",
-    # North America
-    "losangeles": "north-america/us/california-latest.osm.pbf",
-    "sanfrancisco": "north-america/us/california-latest.osm.pbf",
-    "sandiego": "north-america/us/california-latest.osm.pbf",
-    "chicago": "north-america/us/illinois-latest.osm.pbf",
-    "miami": "north-america/us/florida-latest.osm.pbf",
-    "orlando": "north-america/us/florida-latest.osm.pbf",
-    "seattle": "north-america/us/washington-latest.osm.pbf",
-    "boston": "north-america/us/massachusetts-latest.osm.pbf",
-    "houston": "north-america/us/texas-latest.osm.pbf",
-    "dallas": "north-america/us/texas-latest.osm.pbf",
-    "austin": "north-america/us/texas-latest.osm.pbf",
-    "denver": "north-america/us/colorado-latest.osm.pbf",
-    "lasvegas": "north-america/us/nevada-latest.osm.pbf",
-    "toronto": "north-america/canada/ontario-latest.osm.pbf",
-    "montreal": "north-america/canada/quebec-latest.osm.pbf",
-    "vancouver": "north-america/canada/british-columbia-latest.osm.pbf",
-    # Australia
-    "sydney": "australia-oceania/australia/new-south-wales-latest.osm.pbf",
-    "melbourne": "australia-oceania/australia/victoria-latest.osm.pbf",
-    "brisbane": "australia-oceania/australia/queensland-latest.osm.pbf",
-    "perth": "australia-oceania/australia/western-australia-latest.osm.pbf",
-}
+def _point_in_polygon(x: float, y: float, poly: list) -> bool:
+    inside = False
+    n = len(poly)
+    if n < 3:
+        return False
+    p1x, p1y = poly[0]
+    for i in range(n + 1):
+        p2x, p2y = poly[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xinters:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+
+def _point_in_geometry(x: float, y: float, geom: dict[str, Any]) -> bool:
+    gtype = geom.get("type")
+    coords = geom.get("coordinates", [])
+    if gtype == "Polygon" and coords:
+        return _point_in_polygon(x, y, coords[0])
+    elif gtype == "MultiPolygon" and coords:
+        return any(_point_in_polygon(x, y, poly[0]) for poly in coords if poly)
+    return False
+
+
+def _geom_approx_area(geom: dict[str, Any]) -> float:
+    coords = geom.get("coordinates", [])
+    all_pts = []
+    if geom.get("type") == "Polygon" and coords:
+        all_pts = coords[0]
+    elif geom.get("type") == "MultiPolygon":
+        for poly in coords:
+            if poly:
+                all_pts.extend(poly[0])
+    if not all_pts:
+        return 999999.0
+    xs = [p[0] for p in all_pts]
+    ys = [p[1] for p in all_pts]
+    return (max(xs) - min(xs)) * (max(ys) - min(ys))
+
 
 _geofabrik_index_cache: dict[str, Any] | None = None
 
@@ -121,49 +64,84 @@ _geofabrik_index_cache: dict[str, Any] | None = None
 class OSMMapService:
     """
     Handles dynamic discovery, download, and incremental compilation
-    of OpenStreetMap road networks into Valhalla.
+    of OpenStreetMap road networks into Valhalla for any city worldwide.
     """
 
     @classmethod
     async def resolve_osm_pbf_url(cls, city_name: str) -> tuple[str, str]:
         """
-        Resolves a city name to its authoritative Geofabrik download URL and filename.
+        Resolves any destination city dynamically to its authoritative Geofabrik download URL and filename.
         Returns: (download_url, filename)
         """
         city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
 
-        if city_clean in KNOWN_GEOFABRIK_MAP:
-            subpath = KNOWN_GEOFABRIK_MAP[city_clean]
-            url = f"https://download.geofabrik.de/{subpath}"
-            filename = subpath.split("/")[-1]
-            return url, filename
+        # 1. Fetch Geofabrik dynamic index
+        index_data = await cls._get_geofabrik_index()
 
-        if city_clean in CITY_REGION_ALIASES:
-            subpath = CITY_REGION_ALIASES[city_clean]
-            url = f"https://download.geofabrik.de/{subpath}"
-            filename = subpath.split("/")[-1]
-            return url, filename
+        # 2. Check for exact name/id match in Geofabrik index
+        if index_data and "features" in index_data:
+            for feature in index_data["features"]:
+                props = feature.get("properties", {})
+                f_id = str(props.get("id", "")).lower()
+                f_name = str(props.get("name", "")).lower()
+                urls = props.get("urls", {})
+                if (city_clean == f_id or city_clean == f_name) and "pbf" in urls:
+                    pbf_url = urls["pbf"]
+                    return pbf_url, pbf_url.split("/")[-1]
 
-        # Query Geofabrik index
+        # 3. Spatial resolution via city center coordinates
+        center_lat: float | None = None
+        center_lon: float | None = None
+
         try:
-            index_data = await cls._get_geofabrik_index()
-            if index_data and "features" in index_data:
-                for feature in index_data["features"]:
-                    props = feature.get("properties", {})
-                    f_id = str(props.get("id", "")).lower()
-                    f_name = str(props.get("name", "")).lower()
-                    urls = props.get("urls", {})
+            from app.adapters.repositories.sql_city_repository import SqlCityRepository
+            from app.db.session import async_session
 
-                    if (city_clean in f_id or city_clean in f_name) and "pbf" in urls:
-                        pbf_url = urls["pbf"]
-                        filename = pbf_url.split("/")[-1]
-                        logger.info(
-                            f"Discovered Geofabrik extract for '{city_name}': {pbf_url}"
-                        )
-                        return pbf_url, filename
-        except (httpx.HTTPError, KeyError, ValueError) as exc:
-            logger.warning(f"Error querying Geofabrik index for '{city_name}': {exc}")
+            async with async_session() as s:
+                c_repo = SqlCityRepository(s)
+                c_ent = await c_repo.find_by_name_or_alias(city_clean)
+                if c_ent:
+                    center_lat, center_lon = c_ent.center_lat, c_ent.center_lon
+        except Exception as exc:
+            logger.debug(f"City repo lookup skipped for OSM PBF: {exc}")
 
+        if center_lat is None or center_lon is None:
+            try:
+                from app.infrastructure.providers.osm_city_ingest import geocode_city
+
+                geo = await geocode_city(city_clean)
+                center_lat, center_lon = geo.lat, geo.lon
+            except Exception as geo_exc:
+                logger.debug(f"Geocoding skipped for OSM PBF: {geo_exc}")
+
+        if (
+            center_lat is not None
+            and center_lon is not None
+            and index_data
+            and "features" in index_data
+        ):
+            matches: list[tuple[float, str, str]] = []
+            for feature in index_data["features"]:
+                urls = feature.get("properties", {}).get("urls", {})
+                if "pbf" not in urls:
+                    continue
+                geom = feature.get("geometry", {})
+                if _point_in_geometry(center_lon, center_lat, geom):
+                    area = _geom_approx_area(geom)
+                    pbf_url = urls["pbf"]
+                    matches.append((area, feature["properties"].get("id", ""), pbf_url))
+
+            if matches:
+                # Pick the smallest enclosing administrative region
+                matches.sort(key=lambda m: m[0])
+                best_url = matches[0][2]
+                filename = best_url.split("/")[-1]
+                logger.info(
+                    f"Spatially resolved Geofabrik extract for '{city_name}' -> {matches[0][1]} ({best_url})"
+                )
+                return best_url, filename
+
+        # Fallback to direct name PBF if index is unreachable
         filename = f"{city_clean}-latest.osm.pbf"
         url = f"https://download.geofabrik.de/europe/{filename}"
         return url, filename

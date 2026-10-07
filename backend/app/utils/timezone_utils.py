@@ -140,31 +140,32 @@ IATA_TIMEZONES: dict[str, str] = {
     "AKL": "Pacific/Auckland",
 }
 
-CITY_TIMEZONES: dict[str, str] = {
-    "paris": "Europe/Paris",
-    "madrid": "Europe/Madrid",
-    "barcelona": "Europe/Madrid",
-    "london": "Europe/London",
-    "rome": "Europe/Rome",
-    "milan": "Europe/Rome",
-    "berlin": "Europe/Berlin",
-    "munich": "Europe/Berlin",
-    "vienna": "Europe/Vienna",
-    "zurich": "Europe/Zurich",
-    "amsterdam": "Europe/Amsterdam",
-    "brussels": "Europe/Brussels",
-    "lisbon": "Europe/Lisbon",
-    "dublin": "Europe/Dublin",
-    "prague": "Europe/Prague",
-    "tokyo": "Asia/Tokyo",
-    "new york": "America/New_York",
-}
+_CITY_TZ_CACHE: dict[str, str] = {}
+
+
+def cache_city_timezone(city: str, tz: str) -> None:
+    if city and tz:
+        _CITY_TZ_CACHE[city.strip().lower()] = tz
+
+
+def get_timezone_for_city(city: str) -> ZoneInfo:
+    """Dynamically resolves ZoneInfo for any destination city."""
+    if not city:
+        return ZoneInfo("UTC")
+
+    city_clean = city.strip().lower()
+    if city_clean in _CITY_TZ_CACHE:
+        try:
+            return ZoneInfo(_CITY_TZ_CACHE[city_clean])
+        except Exception:
+            pass
+
+    return ZoneInfo("UTC")
 
 
 def get_timezone_for_iata(iata_code: str | None) -> ZoneInfo:
     """
-    Returns the ZoneInfo for an airport IATA code.
-    Defaults to Europe/Paris (app default context) if unknown.
+    Returns the ZoneInfo for an airport IATA code using standard IATA tables or dynamic lookup.
     """
     if iata_code:
         clean = iata_code.strip().upper()
@@ -175,16 +176,16 @@ def get_timezone_for_iata(iata_code: str | None) -> ZoneInfo:
                 pass
 
         # Try looking up city name
-        from app.utils.iata_mapping import get_city_from_iata
+        try:
+            from app.utils.iata_mapping import get_city_from_iata
 
-        city = get_city_from_iata(clean).lower()
-        if city in CITY_TIMEZONES:
-            try:
-                return ZoneInfo(CITY_TIMEZONES[city])
-            except Exception:
-                pass
+            city = get_city_from_iata(clean)
+            if city and city.lower() != "unknown":
+                return get_timezone_for_city(city)
+        except Exception:
+            pass
 
-    return ZoneInfo("Europe/Paris")
+    return ZoneInfo("UTC")
 
 
 def parse_flexible_datetime(dt_str: str) -> tuple[datetime, str]:

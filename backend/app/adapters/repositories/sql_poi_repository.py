@@ -15,7 +15,7 @@ from app.schemas.scraper import (
 )
 from app.services.poi_pricing_service import PoiPricingService
 from app.utils.opening_hours_parser import parse_osm_opening_hours
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,12 @@ def model_to_poi(model: AttractionModel) -> Poi:
             else list(model.embedding)
         )
 
+    open_vec = list(model.open_time_mins_by_day or [480] * 7)
+    close_vec = list(model.close_time_mins_by_day or [1320] * 7)
+    for i in range(min(len(open_vec), len(close_vec))):
+        if open_vec[i] != -1 and close_vec[i] != -1 and open_vec[i] >= close_vec[i]:
+            close_vec[i] = open_vec[i] + 60
+
     return Poi(
         id=model.id,
         city=model.city,
@@ -70,8 +76,8 @@ def model_to_poi(model: AttractionModel) -> Poi:
         location=loc,
         scoring=sc,
         metadata=meta,
-        open_time_mins_by_day=model.open_time_mins_by_day or [480] * 7,
-        close_time_mins_by_day=model.close_time_mins_by_day or [1320] * 7,
+        open_time_mins_by_day=open_vec,
+        close_time_mins_by_day=close_vec,
         duration_mins=int(model.duration_mins) if model.duration_mins else 60,
         cost_eur=float(model.cost_eur) if model.cost_eur is not None else 0.0,
         cost_is_estimated=bool(model.cost_is_estimated),
@@ -247,17 +253,27 @@ class SqlPoiRepository(IPoiRepository):
         self.session = session
 
     async def find_by_city(self, city_name: str) -> list[Poi]:
+        city_clean = city_name.strip().lower()
         stmt = select(AttractionModel).where(
-            func.lower(AttractionModel.city) == city_name.strip().lower()
+            or_(
+                AttractionModel.city_id == city_clean,
+                func.lower(AttractionModel.city) == city_clean,
+            )
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
 
     async def find_tiered_pois(self, city_name: str, max_tier: int = 2) -> list[Poi]:
+        city_clean = city_name.strip().lower()
         stmt = (
             select(AttractionModel)
-            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
+            .where(
+                or_(
+                    AttractionModel.city_id == city_clean,
+                    func.lower(AttractionModel.city) == city_clean,
+                )
+            )
             .where(AttractionModel.tier <= max_tier)
             .order_by(
                 AttractionModel.tier.asc(),
@@ -269,9 +285,15 @@ class SqlPoiRepository(IPoiRepository):
         return [model_to_poi(model) for model in models]
 
     async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
+        city_clean = city_name.strip().lower()
         stmt = (
             select(AttractionModel)
-            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
+            .where(
+                or_(
+                    AttractionModel.city_id == city_clean,
+                    func.lower(AttractionModel.city) == city_clean,
+                )
+            )
             .where(
                 func.lower(AttractionModel.category).in_(
                     ("restaurant", "cafe", "food", "bistrot")
@@ -294,10 +316,16 @@ class SqlPoiRepository(IPoiRepository):
                 "A valid 768-dimensional user_vector is required for semantic candidate search."
             )
 
+        city_clean = city_name.strip().lower()
         dist_col = AttractionModel.embedding.cosine_distance(user_vector)
         stmt = (
             select(AttractionModel, dist_col.label("distance"))
-            .where(func.lower(AttractionModel.city) == city_name.strip().lower())
+            .where(
+                or_(
+                    AttractionModel.city_id == city_clean,
+                    func.lower(AttractionModel.city) == city_clean,
+                )
+            )
             .where(AttractionModel.embedding.isnot(None))
             .order_by(dist_col.asc())
             .limit(limit)
@@ -355,6 +383,7 @@ class SqlPoiRepository(IPoiRepository):
                 {
                     "id": r["id"],
                     "city": city_name,
+                    "city_id": r.get("city_id"),
                     "name": r["name"],
                     "category": r["category"],
                     "location": r["location"],
@@ -388,6 +417,7 @@ class SqlPoiRepository(IPoiRepository):
                     col: getattr(stmt.excluded, col)
                     for col in (
                         "name",
+                        "city_id",
                         "category",
                         "location",
                         "open_time_mins_by_day",

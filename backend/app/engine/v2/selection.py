@@ -74,6 +74,7 @@ def select_trip_pois(
     """Performs deterministic submodular selection over the candidate pool."""
     selected: list[SelectedPoi] = []
     selected_ids: set[str] = set()
+    selected_names: set[str] = set()
     current_time_mins = 0
     current_cost_eur = 0.0
     total_score = 0.0
@@ -88,7 +89,11 @@ def select_trip_pois(
 
     # 1. Forced Set: User Mandatories
     for cand in candidate_pool:
-        if cand.is_mandatory and cand.id not in selected_ids:
+        if (
+            cand.is_mandatory
+            and cand.id not in selected_ids
+            and cand.name.strip().lower() not in selected_names
+        ):
             dur = cand.duration_mins
             selected.append(
                 SelectedPoi(
@@ -100,40 +105,45 @@ def select_trip_pois(
                 )
             )
             selected_ids.add(cand.id)
+            selected_names.add(cand.name.strip().lower())
             current_time_mins += dur
             current_cost_eur += cand.cost_eur
             total_score += 100.0
 
-    # 2. Forced Set: Tier 1 Iconic POIs by iconicity score (up to max_tier1_slots)
+    # 2. Forced Set: Tier 1 Iconic POIs (blended iconicity and user taste; filters out taste < 35.0)
     t1_candidates = sorted(
         [
             c
             for c in candidate_pool
             if c.tier == 1
             and c.id not in selected_ids
+            and c.name.strip().lower() not in selected_names
             and not c.is_meal_spot
             and is_poi_open_any_trip_day(c, trip_weekdays)
+            and c.taste_score >= 35.0
         ],
-        key=lambda x: x.iconicity_score,
+        key=lambda x: (0.5 * (x.iconicity_score * 100.0) + 0.5 * x.taste_score),
         reverse=True,
     )
     for cand in t1_candidates:
         if len([s for s in selected if s.poi.tier == 1]) >= max_tier1_slots:
             break
         dur = cand.duration_mins
+        gain = 80.0 + cand.iconicity_score * 20.0
         selected.append(
             SelectedPoi(
                 poi=cand,
                 reason_code=SelectionReasonCode.SELECTED_TIER_1_MUST_SEE,
                 visit_mode=cand.visit_mode,
                 effective_duration_mins=dur,
-                marginal_gain=80.0 + cand.iconicity_score * 20.0,
+                marginal_gain=gain,
             )
         )
         selected_ids.add(cand.id)
+        selected_names.add(cand.name.strip().lower())
         current_time_mins += dur
         current_cost_eur += cand.cost_eur
-        total_score += 80.0 + cand.iconicity_score * 20.0
+        total_score += gain
 
     # 3. Submodular Greedy Selection Loop
     while len(selected) < max_anchor_slots and current_time_mins < max_active_time:
@@ -143,7 +153,11 @@ def select_trip_pois(
         best_dur = 60
 
         for cand in candidate_pool:
-            if cand.id in selected_ids or cand.is_meal_spot:
+            if (
+                cand.id in selected_ids
+                or cand.name.strip().lower() in selected_names
+                or cand.is_meal_spot
+            ):
                 continue
             if not cand.is_mandatory and not is_poi_open_any_trip_day(
                 cand, trip_weekdays
@@ -157,14 +171,16 @@ def select_trip_pois(
             tier_weights = {1: 40.0, 2: 25.0, 3: 5.0, 4: -15.0}
             tier_bonus = tier_weights.get(cand.tier, 0.0)
 
-            # C. Category saturation penalty (scaled by trip duration)
-            n_days = max(1, len(trip_frame.days))
-            same_cat_count = sum(
-                1 for s in selected if s.poi.category_id == cand.category_id
-            )
-            cat_allowance = max(1, n_days)
-            excess = max(0, same_cat_count - cat_allowance)
-            cat_penalty = excess * 15.0 + (same_cat_count / cat_allowance) * 4.0
+            # C. Category saturation penalty (scaled by trip duration; ignored for unknown category 255)
+            cat_penalty = 0.0
+            if cand.category_id != 255:
+                n_days = max(1, len(trip_frame.days))
+                same_cat_count = sum(
+                    1 for s in selected if s.poi.category_id == cand.category_id
+                )
+                cat_allowance = max(1, n_days)
+                excess = max(0, same_cat_count - cat_allowance)
+                cat_penalty = excess * 15.0 + (same_cat_count / cat_allowance) * 4.0
 
             # D. Cosine redundancy penalty
             redundancy_penalty = 0.0
@@ -230,6 +246,7 @@ def select_trip_pois(
             )
         )
         selected_ids.add(best_cand.id)
+        selected_names.add(best_cand.name.strip().lower())
         current_time_mins += best_dur
         current_cost_eur += best_cand.cost_eur
         total_score += best_gain
@@ -237,15 +254,27 @@ def select_trip_pois(
     # 4. Reason Assignment for All Dropped Candidates
     dropped: list[DroppedPoi] = []
     for cand in candidate_pool:
-        if cand.id in selected_ids or cand.is_meal_spot:
+        if (
+            cand.id in selected_ids
+            or cand.name.strip().lower() in selected_names
+            or cand.is_meal_spot
+        ):
             continue
 
-        same_cat_count = sum(
-            1 for s in selected if s.poi.category_id == cand.category_id
+        same_cat_count = (
+            sum(1 for s in selected if s.poi.category_id == cand.category_id)
+            if cand.category_id != 255
+            else 0
         )
         if not cand.is_mandatory and not is_poi_open_any_trip_day(cand, trip_weekdays):
             code = SelectionReasonCode.DROPPED_CLOSED_ON_TRIP_DATES
             exp = f"POI is closed on all trip days (weekdays: {trip_weekdays})."
+        elif cand.tier == 1 and cand.taste_score < 35:
+            code = SelectionReasonCode.DROPPED_LOW_TASTE_AND_TIER
+            exp = (
+                f"Tier 1 attraction omitted due to low taste match ({cand.taste_score:.1f}) "
+                f"for category '{cand.taxonomy_category}'."
+            )
         elif cand.tier == 4 or cand.taste_score < 30:
             code = SelectionReasonCode.DROPPED_LOW_TASTE_AND_TIER
             exp = f"Low taste score ({cand.taste_score:.1f}) and low priority tier ({cand.tier})."

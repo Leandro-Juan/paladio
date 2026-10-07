@@ -7,30 +7,11 @@ pace preferences, arrival/departure flight buffers, meal windows, and budget sha
 from datetime import date, datetime, timedelta
 from typing import Any
 
+from app.engine.v2.currency import usd_to_eur
+from app.engine.v2.rhythm import RhythmProfile
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field
-
-# Standard FX rate (Amendment A6: Single conversion function, no online calls)
-USD_TO_EUR_RATE = 0.92
-
-
-def usd_to_eur(usd: float) -> float:
-    return round(usd * USD_TO_EUR_RATE, 2)
-
-
-def eur_to_usd(eur: float) -> float:
-    return round(eur / USD_TO_EUR_RATE, 2) if USD_TO_EUR_RATE > 0 else 0.0
-
-
-# Default city center coordinates for fallback depot
-CITY_DEPOT_COORDINATES: dict[str, tuple[float, float]] = {
-    "paris": (48.8566, 2.3522),
-    "madrid": (40.4168, -3.7038),
-    "lisbon": (38.7223, -9.1393),
-    "porto": (41.1579, -8.6291),
-    "tokyo": (35.6762, 139.6503),
-}
 
 
 class DayFrame(BaseModel):
@@ -65,6 +46,10 @@ class TripFrame(BaseModel):
     total_budget_eur: float = 0.0
     total_anchor_slots: int = 0
     max_tier1_slots: int = 0
+    tag_affinities: dict[str, float] = Field(default_factory=dict)
+    travel_tastes: list[str] = Field(default_factory=list)
+    rhythm: RhythmProfile = Field(default_factory=RhythmProfile)
+    city_center: tuple[float, float] | None = None
 
 
 def _parse_flight_time_to_minutes(flight_time_str: str | None) -> int | None:
@@ -93,17 +78,21 @@ def build_trip_frame(
     outbound_flight: Any = None,
     return_flight: Any = None,
     city_center: tuple[float, float] | None = None,
+    fx_rate: float | None = None,
+    rhythm: RhythmProfile | None = None,
 ) -> TripFrame:
     """Builds a deterministic TripFrame from user TravelConstraints.
 
     `city_center` supplies the default depot for cities outside the built-in table.
     """
-    city = (
-        getattr(constraints, "destination_city", None)
-        or getattr(constraints, "city", None)
-        or "Paris"
-    ).strip()
+    raw_city = getattr(constraints, "destination_city", None) or getattr(
+        constraints, "city", None
+    )
+    if not raw_city or not raw_city.strip():
+        raise ValueError("destination_city must be specified in constraints.")
+    city = raw_city.strip()
     pace = constraints.pace or PacePreference.BALANCED
+    r = rhythm or RhythmProfile()
 
     # Calculate number of days
     num_days = 3
@@ -112,21 +101,20 @@ def build_trip_frame(
         delta = (constraints.end_date - constraints.start_date).days + 1
         num_days = max(1, delta)
     elif hasattr(constraints, "days") and getattr(constraints, "days", None):
-        num_days = max(1, int(getattr(constraints, "days")))
+        num_days = max(1, int(constraints.days))
 
     total_budget_usd = float(constraints.budget_usd or 0.0)
-    total_budget_eur = usd_to_eur(total_budget_usd)
+    total_budget_eur = usd_to_eur(total_budget_usd, rate=fx_rate)
     daily_budget_eur = round(total_budget_eur / num_days, 2) if num_days > 0 else 0.0
 
-    depot_coord = city_center or CITY_DEPOT_COORDINATES.get(city.lower())
-    if depot_coord is None:
+    if city_center is None:
         raise ValueError(
-            f"No depot coordinates for '{city}': pass city_center (derived from its POIs)."
+            f"No depot coordinates for '{city}': pass city_center (dynamically derived from its POIs)."
         )
     default_depot = {
         "name": f"{city} Center Base",
-        "latitude": depot_coord[0],
-        "longitude": depot_coord[1],
+        "latitude": city_center[0],
+        "longitude": city_center[1],
     }
 
     # Extract flight arrival/departure buffers if available
@@ -166,18 +154,22 @@ def build_trip_frame(
         is_arr = d == 0
         is_dep = d == (num_days - 1)
 
-        start_time = 540  # 09:00
-        end_time = 1260  # 21:00
+        start_time = (
+            600
+            if pace == PacePreference.LEISURELY
+            else (510 if pace == PacePreference.INTENSE else 540)
+        )
+        end_time = rhythm.evening_cutoff_min if rhythm else 1380  # 23:00 default
 
         # Arrival day window shrink (flight arrival + 120m buffer)
         if is_arr and arrival_flight_mins is not None:
             buffered_start = arrival_flight_mins + 120
-            start_time = max(540, min(1200, buffered_start))
+            start_time = max(start_time, min(1200, buffered_start))
 
         # Departure day window shrink (flight departure - 180m buffer)
         if is_dep and departure_flight_mins is not None:
             buffered_end = departure_flight_mins - 180
-            end_time = min(1260, max(start_time + 120, buffered_end))
+            end_time = min(end_time, max(start_time + 120, buffered_end))
 
         if pace == PacePreference.LEISURELY:
             max_a = 1 if (is_arr or is_dep) else 2
@@ -198,7 +190,7 @@ def build_trip_frame(
         if start_dt:
             cal_date = start_dt + timedelta(days=d)
 
-        # Distribute requested meals across days
+        # Distribute requested meals across days using local rhythm
         day_meals: list[str] = []
         if constraints.meals:
             for m in constraints.meals:
@@ -206,7 +198,38 @@ def build_trip_frame(
                 if m_type not in day_meals:
                     day_meals.append(m_type)
         else:
-            day_meals = ["lunch"] if not (is_arr and start_time >= 840) else []
+            l_start, _l_end = r.lunch_window
+            d_start, _d_end = r.dinner_window
+
+            if not is_arr and not is_dep:
+                # Agency standard full day: lunch and dinner
+                day_meals = ["lunch", "dinner"]
+            elif is_arr and is_dep:
+                # Single day trip
+                meals_single = []
+                if start_time <= l_start + 60 and end_time >= l_start + 60:
+                    meals_single.append("lunch")
+                if start_time <= d_start + 60 and end_time >= d_start + 60:
+                    meals_single.append("dinner")
+                day_meals = meals_single or ["lunch"]
+            elif is_arr:
+                meals_arr = []
+                if start_time <= l_start + 60:
+                    meals_arr.append("lunch")
+                if start_time <= d_start + 90:
+                    meals_arr.append("dinner")
+                day_meals = meals_arr
+            elif is_dep:
+                meals_dep = []
+                if end_time >= l_start + 60:
+                    meals_dep.append("lunch")
+                if end_time >= d_start + 60:
+                    meals_dep.append("dinner")
+                day_meals = meals_dep
+
+        # When dinner is scheduled, extend end_time to local evening cutoff
+        if "dinner" in day_meals and not (is_dep and departure_flight_mins is not None):
+            end_time = max(end_time, r.evening_cutoff_min)
 
         days.append(
             DayFrame(
@@ -237,4 +260,8 @@ def build_trip_frame(
         total_budget_eur=total_budget_eur,
         total_anchor_slots=total_anchors,
         max_tier1_slots=max_t1_slots,
+        tag_affinities=dict(constraints.tag_affinities or {}),
+        travel_tastes=list(constraints.travel_tastes or []),
+        rhythm=r,
+        city_center=city_center,
     )

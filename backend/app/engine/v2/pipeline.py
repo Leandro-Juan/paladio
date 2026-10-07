@@ -20,6 +20,7 @@ from app.domain.interfaces.poi_repository import IPoiRepository
 from app.engine.v2.budget import allocate_trip_budget
 from app.engine.v2.candidate_pool import CandidatePoi, build_candidate_pool
 from app.engine.v2.day_assignment import DayAssignmentResult, assign_pois_to_days
+from app.engine.v2.rhythm import compute_city_rhythm_profile
 from app.engine.v2.selection import DroppedPoi, SelectedPoi, select_trip_pois
 from app.engine.v2.solver import DaySolveResult, solve_trip_v2
 from app.engine.v2.trip_frame import TripFrame, build_trip_frame
@@ -55,14 +56,13 @@ def derive_city_center(candidate_pool: list[CandidatePoi]) -> tuple[float, float
     sights = [c for c in candidate_pool if not c.is_meal_spot]
     core = [c for c in sights if c.tier <= 2] or sights
     pts = [
-        (c.location["latitude"], c.location["longitude"])
+        (float(c.location["latitude"]), float(c.location["longitude"]))
         for c in core
-        if c.location.get("latitude") and c.location.get("longitude")
+        if c.location.get("latitude") is not None
+        and c.location.get("longitude") is not None
     ]
     if not pts:
-        raise ValueError(
-            "Cannot derive a city centre: candidate pool has no located sights."
-        )
+        return (0.0, 0.0)
     lats = sorted(p[0] for p in pts)
     lons = sorted(p[1] for p in pts)
     mid = len(pts) // 2
@@ -88,7 +88,17 @@ async def run_itinerary_v2_pipeline(
         user_vector=user_vector,
         constraints=constraints,
     )
-    city_center = derive_city_center(candidate_pool)
+    if depot_poi and depot_poi.location and depot_poi.location.latitude:
+        city_center = (
+            float(depot_poi.location.latitude),
+            float(depot_poi.location.longitude),
+        )
+    else:
+        city_center = derive_city_center(candidate_pool)
+
+    # Derive local circadian rhythm and dining windows from city dining venues
+    dining_venues = [c for c in candidate_pool if c.is_meal_spot]
+    rhythm_profile = compute_city_rhythm_profile(dining_venues)
 
     # Stage 1: Trip Frame
     trip_frame = build_trip_frame(
@@ -96,6 +106,7 @@ async def run_itinerary_v2_pipeline(
         outbound_flight=outbound_flight,
         return_flight=return_flight,
         city_center=city_center,
+        rhythm=rhythm_profile,
     )
 
     # Stage 3: Submodular Selection
@@ -110,6 +121,7 @@ async def run_itinerary_v2_pipeline(
     assignment_res: DayAssignmentResult = assign_pois_to_days(
         selected_pois=selected_pois,
         trip_frame=trip_frame,
+        candidate_pool=candidate_pool,
     )
 
     # Stage 5: Budget Allocation
@@ -145,6 +157,7 @@ async def run_itinerary_v2_pipeline(
         candidate_pool=candidate_pool,
         transit_matrix_fn=transit_matrix_fn,
         max_nodes_expanded=max_nodes_expanded,
+        rhythm=rhythm_profile,
     )
 
     # Stage 8: Explainable Output Assembly
@@ -171,9 +184,27 @@ async def run_itinerary_v2_pipeline(
         ]
         total_scheduled += len(non_depots)
 
+        import copy
+
+        daily_flight = None
+        if d_res.day_index == 0 and outbound_flight:
+            daily_flight = copy.deepcopy(outbound_flight)
+            daily_flight["direction"] = "arrival"
+        elif d_res.day_index == len(solve_results) - 1 and return_flight:
+            daily_flight = copy.deepcopy(return_flight)
+            daily_flight["direction"] = "departure"
+
         days_output.append(
             {
+                "day": d_res.day_index + 1,
                 "day_index": d_res.day_index,
+                "flight_info": daily_flight,
+                "inbound_flight": copy.deepcopy(outbound_flight)
+                if d_res.day_index == 0 and outbound_flight
+                else None,
+                "outbound_flight": copy.deepcopy(return_flight)
+                if d_res.day_index == len(solve_results) - 1 and return_flight
+                else None,
                 "theme": d_res.theme,
                 "anchor": d_res.anchor_name,
                 "itinerary": itin,

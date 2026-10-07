@@ -6,38 +6,19 @@ Implements pro-rata daily budget allocation, single FX conversion function
 
 from collections.abc import Sequence
 
+from app.engine.v2.currency import convert_currency, get_cached_rate
 from app.engine.v2.day_assignment import AssignedDay
-
-# Standard static FX conversion rate (Amendment A6: single conversion function, no new online calls)
-DEFAULT_USD_TO_EUR_RATE = 0.92
-
-
-def convert_currency(
-    amount: float,
-    from_currency: str = "USD",
-    to_currency: str = "EUR",
-    exchange_rate: float = DEFAULT_USD_TO_EUR_RATE,
-) -> float:
-    """Converts amounts between USD and EUR deterministically."""
-    from_c = from_currency.upper()
-    to_c = to_currency.upper()
-
-    if from_c == to_c:
-        return round(amount, 2)
-    if from_c == "USD" and to_c == "EUR":
-        return round(amount * exchange_rate, 2)
-    if from_c == "EUR" and to_c == "USD":
-        return round(amount / exchange_rate if exchange_rate > 0 else amount, 2)
-    return round(amount, 2)
 
 
 def allocate_trip_budget(
     assigned_days: Sequence[AssignedDay],
     total_budget_usd: float | None = None,
-    exchange_rate: float = DEFAULT_USD_TO_EUR_RATE,
+    exchange_rate: float | None = None,
     daily_meal_buffer_eur: float = 25.0,
 ) -> list[AssignedDay]:
     """Allocates total trip budget pro-rata based on planned daily POI and meal costs."""
+    if exchange_rate is None:
+        exchange_rate = get_cached_rate("USD", "EUR") or 1.0
     k = len(assigned_days)
     if k == 0:
         return []
