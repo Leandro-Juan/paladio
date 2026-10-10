@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -63,26 +63,10 @@ class RoutingService:
         transit_single_fare = fare_info.single_fare
 
         if plan_mode == "real":
-            # 1. Format ISO departure time
-            if isinstance(departure_dt, datetime):
-                iso_dep = departure_dt.strftime("%Y-%m-%dT%H:%M")
-            elif isinstance(departure_dt, str) and departure_dt:
-                iso_dep = departure_dt
-            else:
-                iso_dep = datetime.now(timezone.utc).strftime("%Y-%m-%dT09:00")
-
             req_json = {
                 "sources": locations,
                 "targets": locations,
-                "costing": "multimodal",
-                "date_time": {"type": 1, "value": iso_dep},
-                "costing_options": {
-                    "transit": {
-                        "use_bus": 0.8,
-                        "use_rail": 1.0,
-                        "use_transfers": 0.5,
-                    }
-                },
+                "costing": "pedestrian",
                 "units": "km",
             }
 
@@ -127,13 +111,19 @@ class RoutingService:
                                         locations[j]["lon"],
                                     ),
                                 )
-                                mode = "pedestrian" if dist_km <= 1.0 else "transit"
-                                cost = (
-                                    0.0 if mode == "pedestrian" else transit_single_fare
-                                )
+                                if dist_km <= 1.0:
+                                    mode = "pedestrian"
+                                    cost = 0.0
+                                    duration_mins = max(1, int(duration_secs / 60))
+                                else:
+                                    mode = "transit"
+                                    cost = transit_single_fare
+                                    duration_mins = max(
+                                        1, int((dist_km / 25.0 * 60) + 6)
+                                    )
 
                                 matrix[i][j] = {
-                                    "duration_mins": max(1, int(duration_secs / 60)),
+                                    "duration_mins": duration_mins,
                                     "cost_eur": cost,
                                     "mode": mode,
                                     "is_reachable": True,
@@ -155,11 +145,17 @@ class RoutingService:
                 ValueError,
                 RuntimeError,
             ) as exc:
+                err_detail = str(exc)
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response is not None:
+                    try:
+                        err_detail = f"{exc} - Body: {exc.response.text}"
+                    except Exception:
+                        pass
                 logger.error(
-                    f"Valhalla routing engine unavailable at {VALHALLA_URL} for '{city_name}': {exc}"
+                    f"Valhalla routing engine unavailable at {VALHALLA_URL} for '{city_name}': {err_detail}"
                 )
                 raise RoutingUnavailable(
-                    f"Valhalla routing engine is unavailable at {VALHALLA_URL} for '{city_name}' ({type(exc).__name__}: {exc}). "
+                    f"Valhalla routing engine is unavailable at {VALHALLA_URL} for '{city_name}' ({type(exc).__name__}: {err_detail}). "
                     "Paladio strictly rejects silent fallback to arbitrary distance estimates in plan_mode='real'. "
                     "To generate an explicitly estimated plan, request plan_mode='estimated'."
                 ) from exc

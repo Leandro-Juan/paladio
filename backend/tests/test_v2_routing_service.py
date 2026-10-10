@@ -106,3 +106,97 @@ def test_transit_fare_service_unindexed_city_fare_honesty():
     assert fare.source == "fare_unknown"
     assert fare.fare_unknown is True
     assert fare.pass_24h_price is None
+
+
+@pytest.mark.asyncio
+async def test_routing_service_pedestrian_matrix_payload_and_modes():
+    """Verify get_transit_matrix uses pedestrian costing on Valhalla matrix endpoint and correctly partitions pedestrian vs transit legs."""
+    pois = [
+        {"location": {"latitude": 40.4138, "longitude": -3.6921}},
+        {"location": {"latitude": 40.4153, "longitude": -3.6845}},
+        {"location": {"latitude": 40.4500, "longitude": -3.6800}},
+    ]
+
+    mock_resp = {
+        "sources_to_targets": [
+            [
+                {"time": 0, "distance": 0.0},
+                {
+                    "time": 480,
+                    "distance": 0.8,
+                },  # <= 1.0 km: pedestrian mode, 8 mins, 0 cost
+                {
+                    "time": 3000,
+                    "distance": 4.5,
+                },  # > 1.0 km: transit mode, (4.5 / 25 * 60) + 6 = 16 mins, fare
+            ],
+            [
+                {"time": 480, "distance": 0.8},
+                {"time": 0, "distance": 0.0},
+                {"time": 2400, "distance": 3.8},
+            ],
+            [
+                {"time": 3000, "distance": 4.5},
+                {"time": 2400, "distance": 3.8},
+                {"time": 0, "distance": 0.0},
+            ],
+        ]
+    }
+
+    from unittest.mock import MagicMock
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = mock_resp
+    mock_post = AsyncMock(return_value=mock_response)
+
+    with patch("httpx.AsyncClient.post", mock_post):
+        matrix = await RoutingService.get_transit_matrix(
+            pois=pois,
+            city_name="Madrid",
+            plan_mode="real",
+        )
+
+    # 1. Assert pedestrian costing sent to matrix API
+    call_json = mock_post.call_args[1]["json"]
+    assert call_json["costing"] == "pedestrian"
+    assert "date_time" not in call_json
+
+    # 2. Short leg (0, 1): 0.8km <= 1.0km -> pedestrian
+    assert matrix[0][1]["mode"] == "pedestrian"
+    assert matrix[0][1]["duration_mins"] == 8
+    assert matrix[0][1]["cost_eur"] == 0.0
+
+    # 3. Long leg (0, 2): 4.5km > 1.0km -> transit
+    assert matrix[0][2]["mode"] == "transit"
+    assert (
+        matrix[0][2]["duration_mins"] == 16
+    )  # int(4.5 / 25.0 * 60) + 6 = 10.8 + 6 = 16
+    assert matrix[0][2]["cost_eur"] == 1.50
+
+
+@pytest.mark.asyncio
+async def test_routing_service_includes_response_body_on_http_error():
+    """Verify HTTPStatusError includes Valhalla response text for clear error reporting."""
+    from unittest.mock import MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 400
+    mock_resp.text = (
+        '{"error_code": 140, "error": "Action does not support multimodal costing"}'
+    )
+    http_err = httpx.HTTPStatusError(
+        "Client error '400 Bad Request'", request=MagicMock(), response=mock_resp
+    )
+
+    with (
+        patch("httpx.AsyncClient.post", side_effect=http_err),
+        pytest.raises(RoutingUnavailable) as exc_info,
+    ):
+        await RoutingService.get_transit_matrix(
+            pois=[{"location": {"latitude": 40.4, "longitude": -3.7}}],
+            city_name="Sevilla",
+            plan_mode="real",
+        )
+
+    assert 'Body: {"error_code": 140' in str(exc_info.value)

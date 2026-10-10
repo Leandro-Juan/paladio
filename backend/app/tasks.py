@@ -98,12 +98,18 @@ def refresh_city_pois_task(self, city_name: str):
 CITY_GTFS_MAP: dict[str, str] = {}
 
 
-def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) -> None:
+def sanitize_gtfs_feed(
+    gtfs_dir: str,
+    bounds: dict[str, float] | None = None,
+    center_lat: float | None = None,
+    center_lon: float | None = None,
+    max_radius_km: float = 70.0,
+) -> None:
     """
     Sanitizes GTFS feeds to protect Valhalla from fatal crashes:
     1. Renames pathways.txt to pathways.txt.disabled to prevent missing egress pointer crashes.
     2. Discards location_type == '2' (station entrances/exits) to prevent Valhalla in/egress null-pointer segfaults.
-    3. If bounds are specified, clips stops.txt, stop_times.txt, trips.txt, and transfers.txt
+    3. If bounds or center coordinates are specified, clips stops.txt, stop_times.txt, trips.txt, and transfers.txt
        to remove terminus rail/bus stations lying in neighboring regions outside the OSM road boundary.
     """
     if not os.path.exists(gtfs_dir):
@@ -122,8 +128,8 @@ def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) ->
             except OSError as rename_err:
                 logger.warning(f"Could not rename pathways.txt: {rename_err}")
 
-    # 2. Prune entrances and out-of-bounds stops if bounds provided
-    if not bounds:
+    # 2. Prune entrances and out-of-bounds/out-of-radius stops if filters provided
+    if not bounds and (center_lat is None or center_lon is None):
         return
 
     stops_file = os.path.join(gtfs_dir, "stops.txt")
@@ -134,10 +140,12 @@ def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) ->
     if not os.path.exists(stops_file) or not os.path.exists(stop_times_file):
         return
 
-    min_lat = bounds["min_lat"]
-    max_lat = bounds["max_lat"]
-    min_lon = bounds["min_lon"]
-    max_lon = bounds["max_lon"]
+    min_lat = bounds["min_lat"] if bounds else None
+    max_lat = bounds["max_lat"] if bounds else None
+    min_lon = bounds["min_lon"] if bounds else None
+    max_lon = bounds["max_lon"] if bounds else None
+
+    from app.engine.transit_matrix import haversine_distance
 
     try:
         kept_stops = {}
@@ -151,22 +159,44 @@ def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) ->
                 try:
                     lat = float(r["stop_lat"])
                     lon = float(r["stop_lon"])
-                    if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+
+                    in_bounds = True
+                    if (
+                        min_lat is not None
+                        and max_lat is not None
+                        and min_lon is not None
+                        and max_lon is not None
+                    ):
+                        in_bounds = (
+                            min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
+                        )
+
+                    in_radius = True
+                    if center_lat is not None and center_lon is not None:
+                        in_radius = (
+                            haversine_distance(lat, lon, center_lat, center_lon)
+                            <= max_radius_km
+                        )
+
+                    if in_bounds and in_radius:
                         kept_stops[r["stop_id"]] = r
                 except (ValueError, KeyError):
                     pass
 
-        valid_stop_ids = set()
-        for sid, r in kept_stops.items():
-            parent = r.get("parent_station")
-            if not parent or parent in kept_stops:
-                valid_stop_ids.add(sid)
+        valid_stop_ids = set(kept_stops.keys())
 
         with open(stops_file + ".tmp", "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames_stops)
             writer.writeheader()
             for sid in valid_stop_ids:
-                writer.writerow(kept_stops[sid])
+                row = kept_stops[sid]
+                # If parent_station is not among valid kept stops, clear it to avoid broken foreign keys
+                if (
+                    row.get("parent_station")
+                    and row["parent_station"] not in valid_stop_ids
+                ):
+                    row["parent_station"] = ""
+                writer.writerow(row)
 
         trip_stops_count: dict[str, int] = {}
         with open(stop_times_file, "r", encoding="utf-8") as in_f:
@@ -221,8 +251,8 @@ def sanitize_gtfs_feed(gtfs_dir: str, bounds: dict[str, float] | None = None) ->
                 os.replace(tmp_f, dest_f)
 
         logger.info(
-            f"Auto-Sanitization: Pruned perimeter stops for bounds {bounds} "
-            f"(kept {len(valid_stop_ids)} stops, {len(valid_trip_ids)} trips)."
+            f"Auto-Sanitization: Pruned perimeter stops (bounds={bounds}, center=({center_lat}, {center_lon}), radius={max_radius_km}km). "
+            f"Kept {len(valid_stop_ids)} stops, {len(valid_trip_ids)} trips."
         )
     except Exception as e:
         logger.warning(f"Could not complete GTFS boundary sanitization: {e}")
@@ -333,7 +363,7 @@ async def async_trigger_city_gtfs_download_if_needed(
             logger.info(
                 f"GTFS data for {city_clean} is already READY and valid until {entry.valid_until}."
             )
-            return False
+            return False, False
 
         if entry and entry.gtfs_status in ("BUILDING", "QUEUED"):
             logger.info(
@@ -919,14 +949,51 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             )
             return {"status": "unavailable", "city": city_lower}
 
-        # 4. Auto-Sanitization: dynamically resolve bounds from Geofabrik metadata
+        # 4. Auto-Sanitization: dynamically resolve bounds and metropolitan coordinates
         if os.path.exists(gtfs_dest_dir):
             from app.services.osm_map_service import OSMMapService
 
             dynamic_bounds = _run_async(
                 OSMMapService.get_city_extract_bounds(city_lower)
             )
-            sanitize_gtfs_feed(gtfs_dest_dir, bounds=dynamic_bounds)
+
+            center_lat, center_lon = None, None
+            try:
+                from app.adapters.repositories.sql_city_repository import (
+                    SqlCityRepository,
+                )
+                from app.db.session import async_session
+
+                async def _get_city_coords():
+                    async with async_session() as s:
+                        c_repo = SqlCityRepository(s)
+                        c_ent = await c_repo.find_by_name_or_alias(city_lower)
+                        if c_ent:
+                            return c_ent.center_lat, c_ent.center_lon
+                    return None, None
+
+                center_lat, center_lon = _run_async(_get_city_coords())
+            except Exception as coord_err:
+                logger.debug(f"City repo lookup skipped for GTFS pruning: {coord_err}")
+
+            if center_lat is None or center_lon is None:
+                try:
+                    from app.infrastructure.providers.osm_city_ingest import (
+                        geocode_city,
+                    )
+
+                    geo = _run_async(geocode_city(city_lower))
+                    center_lat, center_lon = geo.lat, geo.lon
+                except Exception as geo_err:
+                    logger.debug(f"Geocoding skipped for GTFS pruning: {geo_err}")
+
+            sanitize_gtfs_feed(
+                gtfs_dest_dir,
+                bounds=dynamic_bounds,
+                center_lat=center_lat,
+                center_lon=center_lon,
+                max_radius_km=70.0,
+            )
 
         # 4b. Valhalla container setup & timezone check
         client = docker.from_env()
@@ -982,9 +1049,9 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             pass
 
         # 6. Sequential Valhalla Compilation Commands via docker library
-        # Clean previous tiles and stale archives to avoid corrupted intermediate states
+        # Clean intermediate build directories to avoid stale states, preserving valhalla_tiles.tar until new build completes cleanly
         container.exec_run(
-            "rm -rf /custom_files/valhalla_tiles/* /custom_files/transit_tiles/* /custom_files/valhalla_tiles.tar /custom_files/active_transit_feeds"
+            "rm -rf /custom_files/valhalla_tiles/* /custom_files/transit_tiles/* /custom_files/active_transit_feeds"
         )
         # Stage only this city's feed into an isolated directory so Valhalla does not re-ingest other cities
         container.exec_run(
@@ -996,7 +1063,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         logger.info(f"Executing Valhalla transit ingest for {city_lower}...")
         res_ingest = container.exec_run(
-            "valhalla_ingest_transit -c /custom_files/valhalla.json -j 2"
+            "valhalla_ingest_transit -c /custom_files/valhalla.json -j 1"
         )
         if res_ingest.exit_code != 0:
             err_msg = (
@@ -1010,7 +1077,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         logger.info(f"Executing Valhalla transit convert for {city_lower}...")
         res_convert = container.exec_run(
-            "valhalla_convert_transit -c /custom_files/valhalla.json -j 2"
+            "valhalla_convert_transit -c /custom_files/valhalla.json -j 1"
         )
         if res_convert.exit_code != 0:
             err_msg = (
@@ -1026,7 +1093,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             f"Executing full Valhalla tile build pipeline for {city_osm_pbf}..."
         )
         res_build = container.exec_run(
-            f"valhalla_build_tiles -c /custom_files/valhalla.json -j 2 /custom_files/{city_osm_pbf}"
+            f"valhalla_build_tiles -c /custom_files/valhalla.json -j 1 /custom_files/{city_osm_pbf}"
         )
         if res_build.exit_code != 0:
             err_msg = (

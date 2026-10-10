@@ -97,7 +97,7 @@ async def test_ensure_transit_ready_cache_miss_trigger_celery():
 
 
 @pytest.mark.asyncio
-async def test_get_transit_matrix_multimodal():
+async def test_get_transit_matrix_pedestrian_and_transit():
     pois = [
         {"name": "Sol", "location": {"latitude": 40.4168, "longitude": -3.7038}},
         {"name": "Prado", "location": {"latitude": 40.4138, "longitude": -3.6922}},
@@ -128,15 +128,16 @@ async def test_get_transit_matrix_multimodal():
         assert len(matrix) == 2
         assert len(matrix[0]) == 2
         assert matrix[0][0]["duration_mins"] == 0
-        assert matrix[0][1]["duration_mins"] == 12
+        # dist is 1.4km (> 1.0km) -> transit mode: (1.4 / 25.0 * 60) + 6 = 9 mins
+        assert matrix[0][1]["duration_mins"] == 9
         assert matrix[0][1]["mode"] == "transit"
         assert matrix[0][1]["cost_eur"] == 1.50
 
-        # Verify request parameters
+        # Verify request parameters sent to Valhalla matrix endpoint
         call_kwargs = mock_post.call_args[1]
         req_json = call_kwargs["json"]
-        assert req_json["costing"] == "multimodal"
-        assert req_json["date_time"]["value"] == "2026-09-10T10:00"
+        assert req_json["costing"] == "pedestrian"
+        assert "units" in req_json
 
 
 @pytest.mark.asyncio
