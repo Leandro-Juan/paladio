@@ -226,7 +226,16 @@ def build_optimization_config(
     lunch_deadline = -1
     dinner_deadline = -1
 
-    req_meals = [m.lower() for m in (requested_meals or [])]
+    req_meals = [
+        (
+            m.meal_type
+            if hasattr(m, "meal_type")
+            else (
+                m.get("meal_type") or m.get("type") if isinstance(m, dict) else str(m)
+            )
+        ).lower()
+        for m in (requested_meals or [])
+    ]
 
     if not constraints.meals:
         if enforce_default_meal_deadlines:
@@ -237,19 +246,34 @@ def build_optimization_config(
                 breakfast_deadline = b_window[1]
     else:
         for meal in constraints.meals:
-            m_type = meal.meal_type.upper()
-            end_mins = meal.end_time.hour * 60 + meal.end_time.minute
+            if hasattr(meal, "meal_type"):
+                m_type = meal.meal_type.upper()
+                end_mins = meal.end_time.hour * 60 + meal.end_time.minute
+            elif isinstance(meal, dict):
+                m_type = str(meal.get("meal_type") or meal.get("type") or "").upper()
+                end_val = meal.get("end_time")
+                if hasattr(end_val, "hour"):
+                    end_mins = end_val.hour * 60 + end_val.minute
+                elif isinstance(end_val, str) and ":" in end_val:
+                    parts = end_val.split(":")[:2]
+                    end_mins = int(parts[0]) * 60 + int(parts[1])
+                else:
+                    end_mins = -1
+            else:
+                m_type = str(meal).upper()
+                end_mins = -1
+
             if "BREAKFAST" in m_type:
-                breakfast_deadline = end_mins
+                breakfast_deadline = end_mins if end_mins != -1 else b_window[1]
             elif "LUNCH" in m_type:
-                lunch_deadline = end_mins
+                lunch_deadline = end_mins if end_mins != -1 else l_window[1]
             elif "DINNER" in m_type:
                 if (
                     day_start_mins >= 1020
                     or "dinner" in req_meals
                     or day_end_mins >= d_window[0] + 60
                 ):
-                    dinner_deadline = end_mins
+                    dinner_deadline = end_mins if end_mins != -1 else d_window[1]
                 else:
                     dinner_deadline = -1
 

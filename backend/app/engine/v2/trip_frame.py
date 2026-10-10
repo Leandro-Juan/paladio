@@ -200,15 +200,37 @@ def build_trip_frame(
 
         # Distribute requested meals across days using local rhythm
         day_meals: list[str] = []
+        b_start, _b_end = r.breakfast_window
+        l_start, _l_end = r.lunch_window
+        d_start, _d_end = r.dinner_window
+
         if constraints.meals:
             for m in constraints.meals:
-                m_type = m.meal_type.lower()
-                if m_type not in day_meals:
-                    day_meals.append(m_type)
+                m_type = (
+                    m.meal_type
+                    if hasattr(m, "meal_type")
+                    else (
+                        m.get("meal_type") or m.get("type")
+                        if isinstance(m, dict)
+                        else str(m)
+                    )
+                ).lower()
+                if "breakfast" in m_type:
+                    if start_time <= b_start + 60 and end_time >= b_start + 30:
+                        if "breakfast" not in day_meals:
+                            day_meals.append("breakfast")
+                elif "lunch" in m_type:
+                    if start_time <= l_start + 60 and end_time >= l_start + 60:
+                        if "lunch" not in day_meals:
+                            day_meals.append("lunch")
+                elif "dinner" in m_type:
+                    if start_time <= d_start + 90 and end_time >= d_start + 60:
+                        if "dinner" not in day_meals:
+                            day_meals.append("dinner")
+                else:
+                    if m_type not in day_meals:
+                        day_meals.append(m_type)
         else:
-            l_start, _l_end = r.lunch_window
-            d_start, _d_end = r.dinner_window
-
             if not is_arr and not is_dep:
                 # Agency standard full day: lunch and dinner
                 day_meals = ["lunch", "dinner"]

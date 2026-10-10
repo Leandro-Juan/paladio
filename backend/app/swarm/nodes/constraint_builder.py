@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from app.schemas.itinerary import (
@@ -113,6 +113,32 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
                     logger.warning(f"Could not parse meal requirement: {e}")
             elif isinstance(m, MealRequirement):
                 meals.append(m)
+            elif isinstance(m, str):
+                m_str = m.strip().upper()
+                if "BREAKFAST" in m_str:
+                    meals.append(
+                        MealRequirement(
+                            meal_type="BREAKFAST",
+                            start_time=time(8, 0),
+                            end_time=time(10, 30),
+                        )
+                    )
+                elif "LUNCH" in m_str:
+                    meals.append(
+                        MealRequirement(
+                            meal_type="LUNCH",
+                            start_time=time(12, 0),
+                            end_time=time(15, 0),
+                        )
+                    )
+                elif "DINNER" in m_str:
+                    meals.append(
+                        MealRequirement(
+                            meal_type="DINNER",
+                            start_time=time(19, 30),
+                            end_time=time(23, 0),
+                        )
+                    )
 
     raw_nodes = manual.get("nodes") or []
     nodes: list[NodeConstraint] = []

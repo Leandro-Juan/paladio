@@ -65,6 +65,15 @@ class DaySolveResult(BaseModel):
     timed_out: bool = False
 
 
+def _normalize_meal_slot(m: Any) -> str:
+    """Safely extracts a lowercase meal slot string from MealRequirement, dict, or str."""
+    if hasattr(m, "meal_type"):
+        return str(m.meal_type).lower()
+    if isinstance(m, dict):
+        return str(m.get("meal_type") or m.get("type") or "").lower()
+    return str(m).lower()
+
+
 async def solve_day_v2(
     assigned_day: AssignedDay,
     city: str,
@@ -212,17 +221,46 @@ async def solve_day_v2(
             else getattr(loc, "longitude", anchor_lon)
         )
 
-    slots = (
-        [m.lower() for m in constraints.meals]
-        if constraints.meals
-        else (assigned_day.requested_meals or ["lunch", "dinner"])
-    )
+    if assigned_day.requested_meals:
+        slots = [_normalize_meal_slot(m) for m in assigned_day.requested_meals]
+    elif constraints.meals:
+        slots = [_normalize_meal_slot(m) for m in constraints.meals]
+    else:
+        slots = ["lunch", "dinner"]
 
     virtual_meals: list[Poi] = []
+    b_win = rhythm.breakfast_window if rhythm else (480, 630)
     l_win = rhythm.lunch_window if rhythm else (690, 900)
     d_win = rhythm.dinner_window if rhythm else (1110, 1350)
 
-    if "lunch" in slots and assigned_day.end_time_mins >= l_win[0] + 60:
+    if (
+        "breakfast" in slots
+        and assigned_day.start_time_mins <= b_win[1] - 30
+        and assigned_day.end_time_mins >= b_win[0] + 30
+    ):
+        virtual_breakfast = Poi(
+            id="virtual_meal_breakfast",
+            name="Breakfast Break (Virtual)",
+            city=city,
+            category="RESTAURANT",
+            location=PoiLocation(latitude=anchor_lat, longitude=anchor_lon),
+            open_time_mins_by_day=[b_win[0]] * 7,
+            close_time_mins_by_day=[b_win[1]] * 7,
+            duration_mins=45,
+            cost_eur=0.0,
+            tier=1,
+            iconicity_score=1.0,
+            taxonomy_category="food_culinary",
+            category_id=4,
+        )
+        virtual_breakfast.is_mandatory = False
+        virtual_meals.append(virtual_breakfast)
+
+    if (
+        "lunch" in slots
+        and assigned_day.start_time_mins <= l_win[1] - 30
+        and assigned_day.end_time_mins >= l_win[0] + 60
+    ):
         virtual_lunch = Poi(
             id="virtual_meal_lunch",
             name="Lunch Break (Virtual)",
@@ -241,7 +279,11 @@ async def solve_day_v2(
         virtual_lunch.is_mandatory = False
         virtual_meals.append(virtual_lunch)
 
-    if "dinner" in slots and assigned_day.end_time_mins >= d_win[0] + 60:
+    if (
+        "dinner" in slots
+        and assigned_day.start_time_mins <= d_win[1] - 30
+        and assigned_day.end_time_mins >= d_win[0] + 60
+    ):
         virtual_dinner = Poi(
             id="virtual_meal_dinner",
             name="Dinner Break (Virtual)",

@@ -105,6 +105,14 @@ class MealRequirement(BaseModel):
     start_time: time = Field(..., description="Earliest time the meal can start.")
     end_time: time = Field(..., description="Latest time the meal must end by.")
 
+    def lower(self) -> str:
+        """Defense-in-depth helper returning lowercase meal_type."""
+        return self.meal_type.lower()
+
+    def upper(self) -> str:
+        """Defense-in-depth helper returning uppercase meal_type."""
+        return self.meal_type.upper()
+
 
 class TravelConstraints(BaseModel):
     origin_city: str | None = Field(

@@ -43,7 +43,18 @@ def _extract_missing_fields(constraints: TravelConstraints) -> list[str]:
     if not constraints.meals or len(constraints.meals) == 0:
         missing.append("meals")
     else:
-        meal_types = [m.meal_type.upper() for m in constraints.meals]
+        meal_types = [
+            (
+                m.meal_type
+                if hasattr(m, "meal_type")
+                else (
+                    m.get("meal_type") or m.get("type")
+                    if isinstance(m, dict)
+                    else str(m)
+                )
+            ).upper()
+            for m in constraints.meals
+        ]
         if not any("LUNCH" in mt for mt in meal_types) or not any(
             "DINNER" in mt for mt in meal_types
         ):
