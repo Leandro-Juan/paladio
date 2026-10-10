@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.db.models import AttractionModel
+from app.db.models import AttractionModel, CityModel
 from app.domain.entities.poi import Poi
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.schemas.scraper import (
@@ -252,28 +252,54 @@ class SqlPoiRepository(IPoiRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def find_by_city(self, city_name: str) -> list[Poi]:
+    async def _get_city_filter(self, city_name: str):
         city_clean = city_name.strip().lower()
-        stmt = select(AttractionModel).where(
+        if not city_clean:
+            return or_(False)
+
+        stmt = select(CityModel).where(
             or_(
-                AttractionModel.city_id == city_clean,
-                func.lower(AttractionModel.city) == city_clean,
+                CityModel.id == city_clean,
+                func.lower(CityModel.name) == city_clean,
+                func.lower(func.array_to_string(CityModel.aliases, " ")).like(
+                    f"%{city_clean}%"
+                ),
             )
         )
+        res = await self.session.execute(stmt)
+        cities = res.scalars().all()
+
+        city_ids = {c.id for c in cities}
+        city_names = {city_clean}
+        for c in cities:
+            if c.name:
+                city_names.add(c.name.strip().lower())
+            if c.aliases:
+                for a in c.aliases:
+                    if a and len(a.strip()) <= 50:
+                        city_names.add(a.strip().lower())
+
+        clauses = [
+            func.lower(AttractionModel.city).in_(city_names),
+            AttractionModel.city_id == city_clean,
+        ]
+        if city_ids:
+            clauses.append(AttractionModel.city_id.in_(city_ids))
+
+        return or_(*clauses)
+
+    async def find_by_city(self, city_name: str) -> list[Poi]:
+        filter_clause = await self._get_city_filter(city_name)
+        stmt = select(AttractionModel).where(filter_clause)
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
 
     async def find_tiered_pois(self, city_name: str, max_tier: int = 2) -> list[Poi]:
-        city_clean = city_name.strip().lower()
+        filter_clause = await self._get_city_filter(city_name)
         stmt = (
             select(AttractionModel)
-            .where(
-                or_(
-                    AttractionModel.city_id == city_clean,
-                    func.lower(AttractionModel.city) == city_clean,
-                )
-            )
+            .where(filter_clause)
             .where(AttractionModel.tier <= max_tier)
             .order_by(
                 AttractionModel.tier.asc(),
@@ -285,15 +311,10 @@ class SqlPoiRepository(IPoiRepository):
         return [model_to_poi(model) for model in models]
 
     async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
-        city_clean = city_name.strip().lower()
+        filter_clause = await self._get_city_filter(city_name)
         stmt = (
             select(AttractionModel)
-            .where(
-                or_(
-                    AttractionModel.city_id == city_clean,
-                    func.lower(AttractionModel.city) == city_clean,
-                )
-            )
+            .where(filter_clause)
             .where(
                 func.lower(AttractionModel.category).in_(
                     ("restaurant", "cafe", "food", "bistrot")
@@ -316,16 +337,11 @@ class SqlPoiRepository(IPoiRepository):
                 "A valid 768-dimensional user_vector is required for semantic candidate search."
             )
 
-        city_clean = city_name.strip().lower()
+        filter_clause = await self._get_city_filter(city_name)
         dist_col = AttractionModel.embedding.cosine_distance(user_vector)
         stmt = (
             select(AttractionModel, dist_col.label("distance"))
-            .where(
-                or_(
-                    AttractionModel.city_id == city_clean,
-                    func.lower(AttractionModel.city) == city_clean,
-                )
-            )
+            .where(filter_clause)
             .where(AttractionModel.embedding.isnot(None))
             .order_by(dist_col.asc())
             .limit(limit)

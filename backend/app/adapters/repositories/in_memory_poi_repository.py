@@ -67,12 +67,25 @@ class InMemoryPoiRepository(IPoiRepository):
 
     async def find_by_city(self, city_name: str) -> list[Poi]:
         c_clean = city_name.strip().lower()
-        return [p for p in self.pois if p.city.lower() == c_clean]
+        return [
+            p
+            for p in self.pois
+            if p.city.lower() == c_clean
+            or not p.city
+            or (self.city and self.city.lower() == c_clean)
+        ]
 
     async def find_tiered_pois(self, city_name: str, max_tier: int = 2) -> list[Poi]:
         c_clean = city_name.strip().lower()
         return [
-            p for p in self.pois if p.city.lower() == c_clean and p.tier <= max_tier
+            p
+            for p in self.pois
+            if (
+                p.city.lower() == c_clean
+                or not p.city
+                or (self.city and self.city.lower() == c_clean)
+            )
+            and p.tier <= max_tier
         ]
 
     async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
@@ -80,7 +93,11 @@ class InMemoryPoiRepository(IPoiRepository):
         return [
             p
             for p in self.pois
-            if p.city.lower() == c_clean
+            if (
+                p.city.lower() == c_clean
+                or not p.city
+                or (self.city and self.city.lower() == c_clean)
+            )
             and p.category.upper() in ("RESTAURANT", "CAFE", "BAKERY", "BAR")
         ][:limit]
 

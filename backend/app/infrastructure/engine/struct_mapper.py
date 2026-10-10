@@ -278,7 +278,8 @@ def build_optimization_config(
                     dinner_deadline = -1
 
     if dinner_deadline != -1 and day_end_mins >= 1260:
-        max_idle_time = max(max_idle_time, 300)
+        inter_meal_gap = max(300, (d_window[0] - l_window[0]) + 60, 480)
+        max_idle_time = max(max_idle_time, inter_meal_gap)
 
     if day_end_mins - day_start_mins < 240:
         breakfast_deadline = -1
