@@ -53,7 +53,7 @@ class OptimizeDailyItineraryUseCase:
             from app.tasks import async_trigger_city_gtfs_download_if_needed
 
             await async_trigger_city_gtfs_download_if_needed(city_name=city)
-        except (ImportError, OSError, RuntimeError) as e:
+        except Exception as e:
             logger.debug(f"GTFS background trigger skipped for {city}: {e}")
 
         # Resolve Flights

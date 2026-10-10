@@ -132,6 +132,57 @@ async def test_trigger_compile_when_another_city_is_building(
     await db_session.commit()
 
 
+@pytest.mark.asyncio
+async def test_async_trigger_when_city_gtfs_already_ready(db_session):
+    """Verify async_trigger_city_gtfs_download_if_needed returns False without unpacking error when READY."""
+    from datetime import datetime, timedelta, timezone
+    from app.tasks import async_trigger_city_gtfs_download_if_needed
+
+    city_name = "sevilla_ready_test"
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == city_name)
+    )
+    ready_entry = TransitCacheModel(
+        city=city_name,
+        status=TransitCacheStatus.READY.value,
+        osm_status="READY",
+        gtfs_status="READY",
+        valid_until=datetime.now(timezone.utc) + timedelta(days=30),
+    )
+    db_session.add(ready_entry)
+    await db_session.commit()
+
+    with patch("app.tasks.CITY_GTFS_MAP", {city_name: "http://example.com/gtfs.zip"}):
+        # 1. With provided session
+        res_with_session = await async_trigger_city_gtfs_download_if_needed(
+            city_name=city_name, session=db_session
+        )
+        assert res_with_session is False
+
+        # 2. Without provided session (spawns own session via _get_task_session_maker)
+        from unittest.mock import AsyncMock
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        mock_engine = MagicMock()
+        mock_engine.dispose = AsyncMock()
+        with patch(
+            "app.tasks._get_task_session_maker",
+            return_value=(
+                async_sessionmaker(db_session.bind, expire_on_commit=False),
+                mock_engine,
+            ),
+        ):
+            res_without_session = await async_trigger_city_gtfs_download_if_needed(
+                city_name=city_name, session=None
+            )
+            assert res_without_session is False
+
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == city_name)
+    )
+    await db_session.commit()
+
+
 def test_build_city_gtfs_task_execution_and_sanitization():
     """Verify build_city_gtfs_task performs pathways auto-sanitization, timezone check, docker compilation, and releases lock."""
     redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")

@@ -162,3 +162,29 @@ async def test_legacy_single_day_removed():
     use_case = OptimizeDailyItineraryUseCase()
     # Confirm legacy v1 private method is removed
     assert not hasattr(use_case, "_optimize_single_day")
+
+
+@pytest.mark.asyncio
+async def test_gtfs_trigger_failure_does_not_abort_optimization(
+    sample_constraints, sample_pois_data
+):
+    """Ensure that any failure in async_trigger_city_gtfs_download_if_needed does not crash optimization."""
+    from unittest.mock import patch, AsyncMock
+
+    use_case = OptimizeDailyItineraryUseCase(
+        transit_matrix_fn=lambda p, c: [
+            [{"duration_mins": 5, "cost_eur": 0.0} for _ in p] for _ in p
+        ]
+    )
+
+    with patch(
+        "app.tasks.async_trigger_city_gtfs_download_if_needed",
+        new_callable=AsyncMock,
+        side_effect=TypeError("cannot unpack non-iterable bool object"),
+    ):
+        result = await use_case.execute(
+            sample_constraints, [sample_pois_data], None, None
+        )
+        assert result is not None
+        assert "days" in result
+        assert len(result["days"]) > 0

@@ -431,7 +431,7 @@ async def async_trigger_city_gtfs_download_if_needed(
         else:
             _publish_transit_started_event(city_clean, city_name, trip_id)
         return True
-    except (SQLAlchemyError, OSError, RuntimeError) as e:
+    except Exception as e:
         logger.error(f"Error checking/triggering GTFS download for {city_name}: {e}")
         return False
 

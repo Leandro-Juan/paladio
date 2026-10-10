@@ -16,7 +16,6 @@ from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import delete, func
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -249,7 +248,7 @@ async def create_trip(
                 trip_id=db_trip.id,
                 session=session,
             )
-        except (SQLAlchemyError, OSError, RuntimeError) as e:
+        except Exception as e:
             logger.warning(
                 f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
             )
