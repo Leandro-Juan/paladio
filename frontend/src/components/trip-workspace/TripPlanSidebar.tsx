@@ -131,8 +131,19 @@ export function TripPlanSidebar({
     }
   };
 
+  // Check if any day or leg contains public transit legs
+  const hasPublicTransit = React.useMemo(() => {
+    return days.some((d) =>
+      Boolean(d.itinerary?.transit_recommendation) ||
+      d.itinerary?.path?.some((p) => {
+        const t = p.transit_from_previous;
+        return Boolean(t && (t.mode === 'transit' || (t.cost_eur && t.cost_eur > 0)));
+      })
+    );
+  }, [days]);
+
   const isGtfsReady = gtfsStatus === 'READY';
-  const showUpgradeToolbar = (isGtfsReady || gtfsStatus === 'INDEXING') && !isUpgraded;
+  const showUpgradeToolbar = (isGtfsReady || gtfsStatus === 'INDEXING') && !isUpgraded && hasPublicTransit;
 
   // Filter displayed days based on selectedDay
   const displayedDays = selectedDay === 'all'

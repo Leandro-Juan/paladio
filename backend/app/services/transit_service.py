@@ -149,6 +149,75 @@ async def get_detailed_transit_leg(
     )
 
 
+async def get_detailed_walking_leg(
+    origin: dict[str, Any],
+    destination: dict[str, Any],
+) -> TransitLeg:
+    """
+    Retrieves real pedestrian maneuvers and route between two locations via Valhalla /route.
+    """
+    orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
+    orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+    orig_name = origin.get("name", "Origin")
+
+    dest_lat = destination.get("location", {}).get(
+        "latitude", destination.get("lat", 0.0)
+    )
+    dest_lon = destination.get("location", {}).get(
+        "longitude", destination.get("lon", 0.0)
+    )
+    dest_name = destination.get("name", "Destination")
+
+    req_payload = {
+        "locations": [
+            {"lat": float(orig_lat), "lon": float(orig_lon)},
+            {"lat": float(dest_lat), "lon": float(dest_lon)},
+        ],
+        "costing": "pedestrian",
+        "directions_options": {"units": "kilometers"},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+            trip = data.get("trip", {})
+            summary = trip.get("summary", {})
+            total_duration_mins = max(1, int(round(summary.get("time", 60) / 60)))
+
+            steps: list[TransitStep] = []
+            for leg in trip.get("legs", []):
+                for m in leg.get("maneuvers", []):
+                    instruction = m.get("instruction", "")
+                    m_time_mins = max(1, int(round(m.get("time", 60) / 60)))
+                    m_dist_km = round(m.get("length", 0.0), 2)
+                    steps.append(
+                        TransitStep(
+                            type="walk",
+                            instruction=instruction,
+                            duration_mins=m_time_mins,
+                            distance_km=m_dist_km,
+                        )
+                    )
+
+            return TransitLeg(
+                duration_mins=total_duration_mins,
+                cost_eur=0.0,
+                cost_is_estimated=False,
+                mode="pedestrian",
+                steps=steps,
+            )
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+        logger.error(
+            f"Could not fetch pedestrian route between '{orig_name}' and '{dest_name}': {exc}."
+        )
+        raise TransitRoutingError(
+            f"Could not fetch pedestrian route between '{orig_name}' and '{dest_name}': {exc}"
+        ) from exc
+
+
 def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     import math
 
@@ -330,3 +399,110 @@ def synthesize_fallback_transit_leg(
         steps=steps,
         airport_surcharge_eur=fare_res.airport_surcharge_eur,
     )
+
+
+async def ensure_walking_legs_populated(
+    itinerary: dict[str, Any], city: str = ""
+) -> dict[str, Any]:
+    """
+    Enriches all walkable legs in an itinerary with real turn-by-turn pedestrian routing
+    from Valhalla directly upon trip creation, keeping public transit legs marked as estimated.
+    """
+    if not isinstance(itinerary, dict):
+        return itinerary
+    days = itinerary.get("days", [])
+    if not isinstance(days, list):
+        return itinerary
+
+    for d_idx, day_obj in enumerate(days):
+        if not isinstance(day_obj, dict):
+            continue
+        day_itin = day_obj.get("itinerary", {})
+        if not isinstance(day_itin, dict):
+            continue
+        path = day_itin.get("path", [])
+        if not isinstance(path, list) or len(path) < 2:
+            continue
+
+        for k in range(1, len(path)):
+            prev_poi = path[k - 1].get("poi") or {}
+            curr_poi = path[k].get("poi") or {}
+            existing_transit = path[k].get("transit_from_previous")
+
+            # Check if this leg already has verified real walking steps
+            if (
+                isinstance(existing_transit, dict)
+                and existing_transit.get("mode") in ("pedestrian", "walk")
+                and bool(existing_transit.get("steps"))
+                and not existing_transit.get("cost_is_estimated", False)
+            ):
+                continue
+
+            prev_loc = prev_poi.get("location") or {}
+            curr_loc = curr_poi.get("location") or {}
+            p_lat = prev_loc.get("latitude", prev_poi.get("lat"))
+            p_lon = prev_loc.get("longitude", prev_poi.get("lon"))
+            c_lat = curr_loc.get("latitude", curr_poi.get("lat"))
+            c_lon = curr_loc.get("longitude", curr_poi.get("lon"))
+
+            is_airport_leg = (
+                curr_poi.get("category") == "AIRPORT"
+                or prev_poi.get("category") == "AIRPORT"
+            )
+
+            dist_km = 999.0
+            if (
+                p_lat is not None
+                and p_lon is not None
+                and c_lat is not None
+                and c_lon is not None
+            ):
+                try:
+                    dist_km = calculate_haversine_km(
+                        float(p_lat), float(p_lon), float(c_lat), float(c_lon)
+                    )
+                except (ValueError, TypeError):
+                    dist_km = 999.0
+
+            if dist_km <= 1.2 and not is_airport_leg:
+                # Real walking leg
+                try:
+                    walk_leg = await get_detailed_walking_leg(prev_poi, curr_poi)
+                    path[k]["transit_from_previous"] = walk_leg.model_dump(mode="json")
+                except Exception as walk_err:
+                    logger.warning(
+                        f"Could not fetch real pedestrian leg between '{prev_poi.get('name')}' and '{curr_poi.get('name')}': {walk_err}. Using synthesized walk."
+                    )
+                    synth = synthesize_fallback_transit_leg(
+                        prev_poi, curr_poi, city=city, is_airport_leg=False
+                    )
+                    path[k]["transit_from_previous"] = synth.model_dump(mode="json")
+            else:
+                # Public transit leg: retain/provide estimated transit placeholder
+                dest_name = curr_poi.get("name", "Stop")
+                trans_dur = (
+                    existing_transit.get("duration_mins", 20)
+                    if isinstance(existing_transit, dict)
+                    and existing_transit.get("duration_mins")
+                    else 20
+                )
+                fare_info = TransitFareService.get_city_transit_fare(city)
+                single_fare = fare_info.single_fare if fare_info else 1.5
+                path[k]["transit_from_previous"] = {
+                    "mode": "transit",
+                    "duration_mins": trans_dur,
+                    "cost_eur": single_fare,
+                    "cost_is_estimated": True,
+                    "price_source": "estimated_city_transit_fare",
+                    "steps": [
+                        {
+                            "type": "transit_board",
+                            "transit_line": "Transit",
+                            "instruction": f"Board public transit towards {dest_name}",
+                            "duration_mins": trans_dur,
+                            "distance_km": round(dist_km, 2) if dist_km < 100 else 0.0,
+                        }
+                    ],
+                }
+
+    return itinerary

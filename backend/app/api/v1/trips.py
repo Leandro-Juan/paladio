@@ -207,6 +207,17 @@ async def create_trip(
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
+    itin_data = trip.itinerary_data
+    if itin_data and isinstance(itin_data, dict):
+        try:
+            from app.services.transit_service import ensure_walking_legs_populated
+
+            itin_data = await ensure_walking_legs_populated(
+                itin_data, city=trip.destination or ""
+            )
+        except Exception as e:
+            logger.warning(f"Could not ensure walking legs in create_trip: {e}")
+
     new_id = str(uuid.uuid4())
     db_trip = TripModel(
         id=new_id,
@@ -214,7 +225,7 @@ async def create_trip(
         destination=trip.destination,
         start_date=trip.start_date,
         end_date=trip.end_date,
-        itinerary_data=trip.itinerary_data,
+        itinerary_data=itin_data,
     )
     session.add(db_trip)
     await session.commit()

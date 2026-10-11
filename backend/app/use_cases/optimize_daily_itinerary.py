@@ -354,7 +354,7 @@ class OptimizeDailyItineraryUseCase:
             "Deterministic C++ optimization via paladio_core with sequential schedule verification.",
         ]
 
-        return {
+        out_result = {
             "metadata": {
                 "engine": "paladio_core_cpp20",
                 "version": "2.0.0",
@@ -380,3 +380,8 @@ class OptimizeDailyItineraryUseCase:
             if hasattr(v2_res.summary, "model_dump")
             else v2_res.summary,
         }
+
+        from app.services.transit_service import ensure_walking_legs_populated
+
+        await ensure_walking_legs_populated(out_result, city=city)
+        return out_result

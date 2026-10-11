@@ -51,6 +51,7 @@ class UpgradeTripTransitUseCase:
         city = trip.destination or ""
 
         total_upgraded_legs = 0
+        total_transit_legs = 0
         total_legs = 0
 
         for day_idx, day_obj in enumerate(days):
@@ -86,66 +87,79 @@ class UpgradeTripTransitUseCase:
                 prev_poi = path_items[k - 1].get("poi", {})
                 curr_poi = path_items[k].get("poi", {})
 
-                is_airport_leg = (
-                    (day_idx == 0 and k == 1)
-                    or (day_idx == len(days) - 1 and k == len(path_items) - 1)
-                    or curr_poi.get("category") == "AIRPORT"
-                    or prev_poi.get("category") == "AIRPORT"
+                existing_transit = path_items[k].get("transit_from_previous") or {}
+                is_existing_walk = (
+                    isinstance(existing_transit, dict)
+                    and existing_transit.get("mode") in ("pedestrian", "walk")
+                    and bool(existing_transit.get("steps"))
+                    and not existing_transit.get("cost_is_estimated", False)
                 )
 
-                if isinstance(prev_poi, dict) and "city" not in prev_poi and city:
-                    prev_poi["city"] = city
-                if isinstance(curr_poi, dict) and "city" not in curr_poi and city:
-                    curr_poi["city"] = city
-
-                dep_clock_str = minutes_to_time_str(current_clock_mins)
-                dep_iso = f"{base_date.isoformat()}T{dep_clock_str}"
-
-                try:
-                    transit_leg = await get_detailed_transit_leg(
-                        origin=prev_poi,
-                        destination=curr_poi,
-                        departure_iso=dep_iso,
-                        is_airport_leg=is_airport_leg,
-                    )
-                except (
-                    TransitRoutingError,
-                    httpx.HTTPError,
-                    ValueError,
-                    KeyError,
-                    OSError,
-                    RuntimeError,
-                ) as exc:
-                    logger.warning(
-                        f"Could not fetch real transit leg on upgrade ({exc}), retaining previous."
-                    )
+                if is_existing_walk:
+                    # Walking transit leg is already fully resolved. Preserve it intact!
                     transit_leg = None
-
-                if transit_leg:
-                    total_upgraded_legs += 1
-                    # Update leg data
-                    path_items[k]["transit_from_previous"] = transit_leg.model_dump(
-                        mode="json"
-                    )
-                    leg_dur_mins = transit_leg.duration_mins or 15
-                    if transit_leg.cost_eur > 0:
-                        transit_leg_costs.append(transit_leg.cost_eur)
-                    if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
-                        has_airport_transit = True
+                    leg_dur_mins = existing_transit.get("duration_mins", 15)
                 else:
-                    existing_transit = path_items[k].get("transit_from_previous") or {}
-                    if isinstance(existing_transit, dict) and existing_transit.get(
-                        "duration_mins"
-                    ):
-                        leg_dur_mins = existing_transit["duration_mins"]
+                    total_transit_legs += 1
+                    is_airport_leg = (
+                        (day_idx == 0 and k == 1)
+                        or (day_idx == len(days) - 1 and k == len(path_items) - 1)
+                        or curr_poi.get("category") == "AIRPORT"
+                        or prev_poi.get("category") == "AIRPORT"
+                    )
+
+                    if isinstance(prev_poi, dict) and "city" not in prev_poi and city:
+                        prev_poi["city"] = city
+                    if isinstance(curr_poi, dict) and "city" not in curr_poi and city:
+                        curr_poi["city"] = city
+
+                    dep_clock_str = minutes_to_time_str(current_clock_mins)
+                    dep_iso = f"{base_date.isoformat()}T{dep_clock_str}"
+
+                    try:
+                        transit_leg = await get_detailed_transit_leg(
+                            origin=prev_poi,
+                            destination=curr_poi,
+                            departure_iso=dep_iso,
+                            is_airport_leg=is_airport_leg,
+                        )
+                    except (
+                        TransitRoutingError,
+                        httpx.HTTPError,
+                        ValueError,
+                        KeyError,
+                        OSError,
+                        RuntimeError,
+                    ) as exc:
+                        logger.warning(
+                            f"Could not fetch real transit leg on upgrade ({exc}), retaining previous."
+                        )
+                        transit_leg = None
+
+                    if transit_leg:
+                        total_upgraded_legs += 1
+                        # Update leg data
+                        path_items[k]["transit_from_previous"] = transit_leg.model_dump(
+                            mode="json"
+                        )
+                        leg_dur_mins = transit_leg.duration_mins or 15
+                        if transit_leg.cost_eur > 0:
+                            transit_leg_costs.append(transit_leg.cost_eur)
+                        if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
+                            has_airport_transit = True
                     else:
-                        old_start_mins = parse_time_to_minutes(
-                            path_items[k].get("scheduled_start", "09:00")
-                        )
-                        prev_old_end = parse_time_to_minutes(
-                            path_items[k - 1].get("scheduled_end", "09:00")
-                        )
-                        leg_dur_mins = max(15, old_start_mins - prev_old_end)
+                        if isinstance(existing_transit, dict) and existing_transit.get(
+                            "duration_mins"
+                        ):
+                            leg_dur_mins = existing_transit["duration_mins"]
+                        else:
+                            old_start_mins = parse_time_to_minutes(
+                                path_items[k].get("scheduled_start", "09:00")
+                            )
+                            prev_old_end = parse_time_to_minutes(
+                                path_items[k - 1].get("scheduled_end", "09:00")
+                            )
+                            leg_dur_mins = max(15, old_start_mins - prev_old_end)
 
                 # Calculate dwell time at current POI based on original schedule
                 old_start_mins = parse_time_to_minutes(
@@ -188,7 +202,7 @@ class UpgradeTripTransitUseCase:
             day_itin["transit_recommendation"] = transit_rec.model_dump(mode="json")
             day_obj["transit_recommendation"] = transit_rec.model_dump(mode="json")
 
-        if total_legs > 0 and total_upgraded_legs == 0:
+        if total_transit_legs > 0 and total_upgraded_legs == 0:
             raise TransitRoutingError(
                 f"Routing engine could not find real public transit routes for {city}. "
                 "Ensure transit network tiles are compiled."

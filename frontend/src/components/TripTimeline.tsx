@@ -105,15 +105,17 @@ export function TripTimeline({
 
   const isGtfsReady = gtfsStatus === 'READY';
 
-  // Check if any leg currently has estimated transit
+  // Check if any leg currently has estimated public transit
   const hasEstimatedTransit = React.useMemo(() => {
     return days.some((d) =>
       d.itinerary?.path?.some(
         (p) =>
           p.transit_from_previous &&
+          p.transit_from_previous.mode === 'transit' &&
           (p.transit_from_previous.cost_is_estimated ||
             p.transit_from_previous.price_source === 'fallback_estimate' ||
             p.transit_from_previous.price_source === 'regional_benchmark_estimate' ||
+            p.transit_from_previous.price_source === 'estimated_city_transit_fare' ||
             p.transit_from_previous.steps?.some((s) => s.transit_line === 'Transit'))
       )
     );
@@ -144,18 +146,18 @@ export function TripTimeline({
     return false;
   }, [upgraded, currentItinerary, tripId, destinationCity]);
 
-  const showUpgradeToolbar = !isAlreadyUpgraded && (hasEstimatedTransit || isGtfsReady);
-
-  // Check if any day or leg contains public transit
-  const hasTransit = React.useMemo(() => {
+  // Check if any day or leg contains public transit legs
+  const hasPublicTransit = React.useMemo(() => {
     return days.some((d) =>
       Boolean(d.itinerary?.transit_recommendation) ||
       d.itinerary?.path?.some((p) => {
         const t = p.transit_from_previous;
-        return Boolean(t && (t.mode === 'transit' || (t.steps && t.steps.length > 0) || (t.cost_eur && t.cost_eur > 0)));
+        return Boolean(t && (t.mode === 'transit' || (t.cost_eur && t.cost_eur > 0)));
       })
     );
   }, [days]);
+
+  const showUpgradeToolbar = !isAlreadyUpgraded && hasPublicTransit && (hasEstimatedTransit || isGtfsReady);
 
   const handleUpgrade = async () => {
     if (upgrading || !isGtfsReady) return;
