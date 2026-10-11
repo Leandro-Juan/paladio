@@ -1,0 +1,1863 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+      
+      
+        <meta name="author" content="Leandro Juan">
+      
+      
+        <link rel="canonical" href="https://leandro-juan.github.io/paladio/superpowers/specs/2026-10-11-trip-workspace-redesign-design/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Design Specification: Renovating Trip Planning UI (TREK-Inspired Workspace) - Paladio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    
+      <link rel="stylesheet" href="../../../css/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-specification-renovating-trip-planning-ui-trek-inspired-workspace" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Paladio" class="md-header__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Paladio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Specification: Renovating Trip Planning UI (TREK-Inspired Workspace)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tutorials/quickstart-docker/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../how-to/run-offline-swarm/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/langgraph-swarm-architecture/" class="md-tabs__link">
+          
+  
+  
+  Technical Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../explanation/system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architectural Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Paladio" class="md-nav__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    Paladio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/quickstart-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart with Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Autonomous Swarm Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-offline-swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Offline Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Custom LangGraph Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/modify-engine-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify Engine Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/tune-ml-taste-learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tune ML Taste Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Hybrid Scoring Weights
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/handle-human-in-the-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Handle Human-in-the-Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydrate POI Embeddings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/langgraph-swarm-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/ml-feature-tensor-16d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16-D Feature Tensor (PoiEncoder)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/semantic-learning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Learning Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/poi-database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POI Database & Vault Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/frontend-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Frontend Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/websocket-gateway-telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Gateway Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fastapi-gateway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Gateway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/scraper_json_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scraper JSON Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/core-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Combinatorial Core (paladio-core)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architectural Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architectural Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macro System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/langgraph-vs-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm vs Linear Chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/sovereign-ml-and-semantic-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sovereign ML & Dense Semantic RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/continuous-to-discrete-harmonics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Continuous-to-Discrete Harmonics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/resilient-scraping-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resilient Scraping Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/roadmap-and-future-horizons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategic Roadmap & Future Horizons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview &amp; Motivation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-architecture-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Architecture &amp; Routing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Architecture &amp; Routing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-route-modernization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Route Modernization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-aesthetic-design-system-tactical-glassmorphism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Aesthetic &amp; Design System: Tactical Glassmorphism
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-component-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Component Hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-feature-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Feature Specifications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Feature Specifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-plan-view-left-panel-tripplansidebar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Plan View (Left Panel: TripPlanSidebar)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-plan-view-center-tripmapview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Plan View (Center: TripMapView)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-plan-view-right-panel-tripplacessidebar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Plan View (Right Panel: TripPlacesSidebar)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-tab-transports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Tab: Transports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-tab-costs-tripbudgetwallet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Tab: Costs (TripBudgetWallet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-tab-collab-tripcrewmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Tab: Collab (TripCrewManager)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-tab-photos-tripphotosview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 Tab: Photos (TripPhotosView)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-data-flow-state-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Data Flow &amp; State Management
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-error-handling-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Error Handling &amp; Edge Cases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-verification-testing-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Verification &amp; Testing Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Verification &amp; Testing Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-automated-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Automated Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-manual-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Manual Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Leandro-Juan/Paladio/edit/main/docs/superpowers/specs/2026-10-11-trip-workspace-redesign-design.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="design-specification-renovating-trip-planning-ui-trek-inspired-workspace">Design Specification: Renovating Trip Planning UI (TREK-Inspired Workspace)<a class="headerlink" href="#design-specification-renovating-trip-planning-ui-trek-inspired-workspace" title="Permanent link">&para;</a></h1>
+<p><strong>Date</strong>: 2026-10-11<br />
+<strong>Author</strong>: Antigravity<br />
+<strong>Status</strong>: Validated &amp; Approved<br />
+<strong>Canonical Spec Path</strong>: <code>docs/superpowers/specs/2026-10-11-trip-workspace-redesign-design.md</code></p>
+<hr />
+<h2 id="1-overview-motivation">1. Overview &amp; Motivation<a class="headerlink" href="#1-overview-motivation" title="Permanent link">&para;</a></h2>
+<p>Paladio currently splits trip interaction into two separate interfaces:
+1. <code>/engine</code>: The active mission preparation and LangGraph swarm telemetry cockpit.
+2. <code>/vault/[id]</code>: The saved trip detail viewer displaying a basic 2-column layout with an interactive map, timeline, and budget wallet.</p>
+<p>The user desires to completely renovate the trip page (accessed when opening a trip from the upcoming trips list or dashboard) into a modern, high-polish workspace modeled after <strong>TREK</strong> (<code>demo.liketrek.com</code>). </p>
+<p>The renovated design replaces the legacy layout with a full-bleed interactive map surrounded by collapsible floating glassmorphism panels and a top navigation tab bar, while <strong>strictly preserving 100% of Paladio's existing capabilities</strong>:
+- Colored day cluster region hulls (<code>computeClusterPolygon</code>) and centroid badges in "ALL DAYS" mode.
+- Solo active day route polylines connecting sequenced waypoints.
+- Hotel Base Camp and Airport Transit Gate anchor markers.
+- Numbered tactical categorical SVG waypoint pins with timing and cost popups.
+- Live GTFS public transit upgrade action with polling and toast notifications.
+- Complete <code>TripBudgetWallet</code> (itemized cost dissection, manual expenses, equal/custom traveler splitting, and debt settlements).
+- Flight tickets, transit legs, crew/collaborator management, and photo vault.
+- Right-hand Places sidebar with a search filter and a clean placeholder modal for future live POI searching.</p>
+<hr />
+<h2 id="2-architecture-routing">2. Architecture &amp; Routing<a class="headerlink" href="#2-architecture-routing" title="Permanent link">&para;</a></h2>
+<h3 id="21-route-modernization">2.1 Route Modernization<a class="headerlink" href="#21-route-modernization" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Canonical Route</strong>: <code>/trips/[id]</code> is established as the modern Trip Workspace.</li>
+<li><strong>Backward-Compatible Routing</strong>: <code>/vault/[id]</code> will automatically redirect/delegate to <code>/trips/[id]</code>, ensuring all existing database references, bookmarks, and automated tests remain functional.</li>
+<li><strong>Navigation Links</strong>:</li>
+<li><code>frontend/src/app/trips/page.tsx</code>: Trip card click navigates to <code>/trips/${trip.id}</code>.</li>
+<li><code>frontend/src/app/dashboard/page.tsx</code>: Upcoming Mission card navigates to <code>/trips/${nextTrip.id}</code>.</li>
+<li><code>frontend/src/app/vault/page.tsx</code>: Mission cards navigate to <code>/trips/${trip.id}</code>.</li>
+</ul>
+<h3 id="22-aesthetic-design-system-tactical-glassmorphism">2.2 Aesthetic &amp; Design System: Tactical Glassmorphism<a class="headerlink" href="#22-aesthetic-design-system-tactical-glassmorphism" title="Permanent link">&para;</a></h3>
+<p>The workspace blends TREK’s spatial fluidity with Paladio's dark/sovereign aesthetic:
+- <strong>Floating Panels</strong>: 
+  - <code>background: rgba(15, 23, 42, 0.82)</code>
+  - <code>backdrop-filter: blur(20px) saturate(180%)</code>
+  - <code>border: 1px solid rgba(255, 255, 255, 0.08)</code>
+  - <code>border-radius: 16px</code>
+  - <code>box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36)</code>
+- <strong>Typography &amp; Accents</strong>:
+  - Headers: <code>var(--font-display)</code>
+  - Metadata &amp; Timestamps: <code>var(--font-mono)</code>
+  - Primary Accent: <code>var(--color-accent-primary, #2563EB)</code>
+  - Success/Online: <code>#10B981</code></p>
+<hr />
+<h2 id="3-component-hierarchy">3. Component Hierarchy<a class="headerlink" href="#3-component-hierarchy" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>frontend/src/app/trips/[id]/page.tsx
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  └── TripWorkspace
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ├── TripWorkspaceHeader
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        │     ├── BackButton ("← TRIPS")
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        │     ├── DestinationTitle &amp; DateRangeBadge
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        │     ├── SlidingTabsStrip ([Plan] | [Transports] | [Costs] | [Collab] | [Photos])
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        │     └── ShareButton &amp; ExportTrigger
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        │
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        ├── Tab: "Plan" (Full-Bleed 3-Panel Experience)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        │     ├── TripPlanSidebar (Left Panel)
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        │     │     ├── PanelLeftToggle (Collapse to 0px / Expand)
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        │     │     ├── PlanToolbar (All Days vs Day tabs, Total Cost tally)
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        │     │     ├── GtfsUpgradeToolbar (Real public transit check &amp; 1-click upgrade)
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        │     │     └── DayCardsList
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        │     │           └── WaypointRows (Stop index, SVG icon, POI name, times, duration, cost)
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        │     │
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        │     ├── TripMapView (Center Canvas)
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        │     │     ├── FloatingPoiCategoryBar (Top-center category quick-filters)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        │     │     ├── LeafletMapContainer (Full bleed Esri canvas basemap)
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>        │     │     │     ├── ClusterHullPolygons (Colored day territory polygons)
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>        │     │     │     ├── ClusterCentroidMarkers (Day badges in All Days view)
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>        │     │     │     ├── ActiveRoutePolyline (Solo active day path)
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>        │     │     │     ├── BaseCampHotelMarker (Hotel anchor)
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>        │     │     │     ├── TransitGateAirportMarker (Airport anchor)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>        │     │     │     └── CategoricalSvgMarkers (Numbered stop pins with popups)
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        │     │     └── MapControls (Recenter &amp; Zoom controls)
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        │     │
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        │     └── TripPlacesSidebar (Right Panel)
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        │           ├── PanelRightToggle (Collapse to 0px / Expand)
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        │           ├── AddPlaceButton (+ Add Place / Activity)
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        │           │     └── AddPlaceModal (Informative placeholder for future POI search)
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        │           ├── PlacesSearchInput &amp; CategoryFilterSelect
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>        │           └── PlacesList (Current POIs with photo thumbnail, category, assigned day)
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>        │
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>        ├── Tab: "Transports" -&gt; TripTransportsView
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>        │     ├── FlightCards (Inbound &amp; outbound flights with departure/arrival airports &amp; times)
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>        │     └── TransitPassAdvisory &amp; Step-by-Step Public Transit Legs
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>        │
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        ├── Tab: "Costs" -&gt; TripCostsView
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        │     └── TripBudgetWallet (Dissection, manual expenses, split type, debt settlements)
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        │
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>        ├── Tab: "Collab" -&gt; TripCollabView
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>        │     └── TripCrewManager (Participant list, registered user invite, add/remove travelers)
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>        │
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>        └── Tab: "Photos" -&gt; TripPhotosView
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>              └── PhotoVaultGrid (Visual gallery of destination sights &amp; waypoints)
+</span></code></pre></div>
+<hr />
+<h2 id="4-feature-specifications">4. Feature Specifications<a class="headerlink" href="#4-feature-specifications" title="Permanent link">&para;</a></h2>
+<h3 id="41-plan-view-left-panel-tripplansidebar">4.1 Plan View (Left Panel: <code>TripPlanSidebar</code>)<a class="headerlink" href="#41-plan-view-left-panel-tripplansidebar" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Day Selector &amp; Filter</strong>: </li>
+<li>Allows selecting "ALL DAYS" or individual days ("DAY 1", "DAY 2", etc.).</li>
+<li>Selecting a day updates the shared <code>activeDay</code> state, instantly focusing the map and polyline.</li>
+<li><strong>Stops &amp; Timing</strong>:</li>
+<li>Each POI card displays: Stop index badge (<code>01</code>, <code>02</code>), category badge, POI title, arrival time, scheduled start, departure time, duration, and cost in EUR.</li>
+<li>Inter-stop travel time and walking/transit leg details are displayed between consecutive POIs.</li>
+<li><strong>GTFS Public Transit Upgrade</strong>:</li>
+<li>Checks transit availability for the destination city (<code>/trips/${tripId}/transit-status</code>).</li>
+<li>Polls until status is <code>READY</code>.</li>
+<li>Triggering the upgrade invokes <code>/trips/${tripId}/upgrade-transit</code>, updating the itinerary with exact transit lines, stations, and cascading schedules in place.</li>
+<li><strong>Edge Collapse Toggle</strong>:</li>
+<li>Clicking the toggle collapses the left panel (<code>width: 0px</code>, <code>overflow: hidden</code>) with a smooth CSS transition, leaving only a floating <code>PanelLeftOpen</code> icon button on the edge.</li>
+</ul>
+<h3 id="42-plan-view-center-tripmapview">4.2 Plan View (Center: <code>TripMapView</code>)<a class="headerlink" href="#42-plan-view-center-tripmapview" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Colored Day Cluster Hulls</strong>:</li>
+<li>Evaluated using <code>computeClusterPolygon</code>.</li>
+<li>Active day hull: highlighted with <code>#2563EB</code> tactical stroke, <code>#1E3A8A</code> fill, opacity 0.32.</li>
+<li>Inactive day hulls: muted dashed stroke (<code>#94A3B8</code>), soft fill, opacity 0.20.</li>
+<li>Clicking a cluster polygon immediately selects and focuses that day.</li>
+<li><strong>Centroid Badges</strong>:</li>
+<li>When in "ALL DAYS" mode, renders interactive circular markers at each day's centroid (<code>DAY 1</code>, <code>DAY 2</code>). Clicking zooms into that day.</li>
+<li><strong>Solo Active Day Polyline</strong>:</li>
+<li>Renders a <code>#2563EB</code> polyline connecting only the active day's sequenced stops, preventing visual spiderwebs across days.</li>
+<li><strong>Anchor Markers</strong>:</li>
+<li>Hotel Base Camp: distinct hotel building SVG pin with glowing box shadow and popup.</li>
+<li>Transit Gate: airplane SVG pin with flight details.</li>
+<li><strong>Tactical Waypoint Markers</strong>:</li>
+<li>Pure vector SVG category markers (museum, restaurant, cafe, park, landmark, etc.) with stop numbering.</li>
+<li>Popups include stop timing, duration, cost, and category.</li>
+<li><strong>Floating Category Filter Bar</strong>:</li>
+<li>Centered floating pill above the map with category toggles (Restaurant, Cafe, Bar, Hotel, Attraction, Landmark, Park, Transit).</li>
+<li>Toggling an icon filters active markers on the map and stops in the sidebars.</li>
+</ul>
+<h3 id="43-plan-view-right-panel-tripplacessidebar">4.3 Plan View (Right Panel: <code>TripPlacesSidebar</code>)<a class="headerlink" href="#43-plan-view-right-panel-tripplacessidebar" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>+ Add Place/Activity</code> Button</strong>:</li>
+<li>Prominent top action.</li>
+<li>Opens <code>AddPlaceModal</code>: Explains that live POI discovery and custom waypoint insertion will arrive in the next release, allowing the user to view upcoming capabilities.</li>
+<li><strong>Search &amp; Category Filtering</strong>:</li>
+<li>Real-time text search through all trip POIs.</li>
+<li>Dropdown filter by category (<code>All Categories</code>, <code>Museum</code>, <code>Restaurant</code>, <code>Landmark</code>, etc.).</li>
+<li><strong>Places List</strong>:</li>
+<li>Displays each waypoint with photo thumbnail (or fallback SVG pattern), name, category badge, and day label.</li>
+<li>Clicking any place card centers and zooms the Leaflet map onto that location.</li>
+<li><strong>Edge Collapse Toggle</strong>:</li>
+<li>Collapses the panel (<code>width: 0px</code>) with smooth transition to maximize map view.</li>
+</ul>
+<h3 id="44-tab-transports">4.4 Tab: <code>Transports</code><a class="headerlink" href="#44-tab-transports" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Flight ticket cards extracted from <code>itinerary_data.days</code> and <code>flight_info</code>:</li>
+<li>Departure and arrival airports (IATA codes), times, flight duration, and ticket identifiers.</li>
+<li>Daily transit pass recommendations (<code>TransitRecommendationCard</code>) if single tickets exceed the daily pass threshold.</li>
+<li>Detailed public transit leg step cards (<code>TransitLegView</code>).</li>
+</ul>
+<h3 id="45-tab-costs-tripbudgetwallet">4.5 Tab: <code>Costs</code> (<code>TripBudgetWallet</code>)<a class="headerlink" href="#45-tab-costs-tripbudgetwallet" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Seamlessly hosts Paladio’s <code>TripBudgetWallet</code>:</li>
+<li><strong>Dissection</strong>: Itemized itinerary costs by category (transit, lodging, activities, dining, other) with exclude/include toggles.</li>
+<li><strong>Expenses</strong>: Custom manual expense addition and deletion.</li>
+<li><strong>Settlement</strong>: Equal or custom splitting across registered trip travelers with net balance calculation and simplified debt settlement transactions.</li>
+</ul>
+<h3 id="46-tab-collab-tripcrewmanager">4.6 Tab: <code>Collab</code> (<code>TripCrewManager</code>)<a class="headerlink" href="#46-tab-collab-tripcrewmanager" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Displays all participants associated with the trip.</li>
+<li>Provides forms to add registered users by ID or add guest travelers by name/email.</li>
+<li>Prevents removal of the last remaining participant.</li>
+</ul>
+<h3 id="47-tab-photos-tripphotosview">4.7 Tab: <code>Photos</code> (<code>TripPhotosView</code>)<a class="headerlink" href="#47-tab-photos-tripphotosview" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Visual gallery displaying all photos in <code>itinerary_data.photos</code>.</li>
+<li>Aspect-ratio locked image cards with hover magnification.</li>
+</ul>
+<hr />
+<h2 id="5-data-flow-state-management">5. Data Flow &amp; State Management<a class="headerlink" href="#5-data-flow-state-management" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Trip Fetch</strong>:</li>
+<li><code>useTrips</code> hook and <code>apiFetch</code> load the active trip from <code>/trips/${id}</code>.</li>
+<li><strong>Synchronized State</strong>:</li>
+<li><code>activeTab</code>: <code>'plan' | 'transports' | 'costs' | 'collab' | 'photos'</code>.</li>
+<li><code>selectedDay</code>: <code>number | 'all'</code> (shared between <code>TripPlanSidebar</code>, <code>TripMapView</code>, and <code>TripPlacesSidebar</code>).</li>
+<li><code>categoryFilter</code>: <code>PoiCategoryType | null</code> (shared between floating pill bar and right sidebar).</li>
+<li><code>isLeftOpen</code>, <code>isRightOpen</code>: Boolean collapse states stored in <code>sessionStorage</code> for persistence across tab navigation.</li>
+<li><strong>Trip Updates</strong>:</li>
+<li>Upgrades (e.g. GTFS public transit) and traveler modifications update the local trip state and trigger re-render of dependent tabs (<code>Costs</code>, <code>Transports</code>, <code>Plan</code>) without page reload.</li>
+<li><strong>Dynamic Data Invariant</strong>:</li>
+<li>Zero hardcoded mock records. All data originates from PostgreSQL, live external API/GTFS services, or user parameters.</li>
+</ol>
+<hr />
+<h2 id="6-error-handling-edge-cases">6. Error Handling &amp; Edge Cases<a class="headerlink" href="#6-error-handling-edge-cases" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Trip Not Found (404)</strong>:</li>
+<li>Renders a sovereign error state: <code>[ MISSION DATA NOT FOUND FOR ID: {id} ]</code> with a return link to <code>/trips</code>.</li>
+<li><strong>Missing Lat/Lng</strong>:</li>
+<li>Stops without geodata are rendered in the itinerary list with a <code>[NO GEODATA]</code> indicator and skipped from Leaflet polyline/marker calculations without throwing Leaflet bounds errors.</li>
+<li><strong>Single-Day Fallback</strong>:</li>
+<li>Safely parses flat itineraries with <code>itinerary.path</code> as Day 1.</li>
+<li><strong>Offline / Network Interruption</strong>:</li>
+<li>Displays retry banner and preserves cached session data.</li>
+</ol>
+<hr />
+<h2 id="7-verification-testing-plan">7. Verification &amp; Testing Plan<a class="headerlink" href="#7-verification-testing-plan" title="Permanent link">&para;</a></h2>
+<h3 id="71-automated-tests">7.1 Automated Tests<a class="headerlink" href="#71-automated-tests" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Unit &amp; Integration Suite</strong>:</li>
+<li><code>TripWorkspace</code> rendering and tab transitions.</li>
+<li><code>TripPlanSidebar</code> day filtering, stop rendering, and GTFS upgrade dispatch.</li>
+<li><code>TripMapView</code> cluster hull polygon and marker generation.</li>
+<li><code>TripPlacesSidebar</code> text search filtering and placeholder modal interaction.</li>
+<li>Link integrity tests ensuring <code>/trips/page.tsx</code> and <code>/dashboard/page.tsx</code> route to <code>/trips/[id]</code>.</li>
+<li>Command: <code>pytest backend/tests/ -q</code> &amp; <code>npm run test</code> / <code>npx vitest run</code>.</li>
+</ul>
+<h3 id="72-manual-verification">7.2 Manual Verification<a class="headerlink" href="#72-manual-verification" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Launch local development environment.</li>
+<li>Open <code>/trips</code> and click an existing trip.</li>
+<li>Verify full-bleed map loads with left floating plan sidebar and right places sidebar.</li>
+<li>Verify day selection switches active cluster hull, route polyline, and markers.</li>
+<li>Test left and right panel collapse toggles.</li>
+<li>Switch tabs to <code>Transports</code>, <code>Costs</code>, <code>Collab</code>, and <code>Photos</code> to verify all data displays properly.</li>
+<li>Verify GTFS upgrade button and budget wallet settlement calculations.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+      
+        <script src="../../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../../js/mermaid.js"></script>
+      
+    
+  </body>
+</html>
