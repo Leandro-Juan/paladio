@@ -114,6 +114,29 @@ a {
   animation: spin 1s linear infinite;
 }
 
+/* Fluid Tab Content Entrance Animation */
+@keyframes tabPaneEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-tab-pane {
+  animation: tabPaneEntrance 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-pane {
+    animation: none !important;
+  }
+}
+
 .layout-container {
   display: flex;
   height: 100vh;

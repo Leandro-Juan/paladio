@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 export type WorkspaceTab = 'plan' | 'transports' | 'costs' | 'collab' | 'photos';
@@ -43,6 +43,57 @@ export function TripWorkspaceHeader({
   participantsCount = 1,
 }: TripWorkspaceHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const tabRefs = useRef<Partial<Record<WorkspaceTab, HTMLButtonElement | null>>>({});
+  const [pillStyle, setPillStyle] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    isReady: boolean;
+  }>({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+    isReady: false,
+  });
+
+  const updatePill = useCallback(() => {
+    const nav = navRef.current;
+    const activeBtn = tabRefs.current[activeTab];
+    if (!nav || !activeBtn) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+
+    setPillStyle({
+      left: btnRect.left - navRect.left,
+      top: btnRect.top - navRect.top,
+      width: btnRect.width,
+      height: btnRect.height,
+      isReady: true,
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
+    updatePill();
+    window.addEventListener('resize', updatePill);
+
+    const raf = requestAnimationFrame(updatePill);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && navRef.current) {
+      resizeObserver = new ResizeObserver(() => updatePill());
+      resizeObserver.observe(navRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updatePill);
+      cancelAnimationFrame(raf);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [updatePill]);
 
   const handleShare = async () => {
     try {
@@ -160,9 +211,13 @@ export function TripWorkspaceHeader({
         </div>
       </div>
 
-      {/* Center: White Sliding Pill Tabs with Blue Accent */}
+      {/* Center: Sliding Pill Tabs */}
       <nav
+        ref={navRef}
+        role="tablist"
+        aria-label="Trip views"
         style={{
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           background: '#FFFFFF',
@@ -170,36 +225,80 @@ export function TripWorkspaceHeader({
           borderRadius: '999px',
           border: '1px solid var(--color-border, #E2E8F0)',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          gap: '3px',
+          gap: '2px',
         }}
       >
+        {/* Animated Sliding Pill */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            transform: `translate3d(${pillStyle.left}px, ${pillStyle.top}px, 0)`,
+            width: `${pillStyle.width}px`,
+            height: `${pillStyle.height}px`,
+            borderRadius: '999px',
+            background: 'var(--color-accent-primary, #1E3A8A)',
+            boxShadow: '0 2px 6px rgba(30, 58, 138, 0.35)',
+            opacity: pillStyle.isReady ? 1 : 0,
+            pointerEvents: 'none',
+            zIndex: 1,
+            transition: pillStyle.isReady
+              ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease'
+              : 'none',
+            willChange: 'transform, width',
+          }}
+        />
+
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               type="button"
               onClick={() => onTabChange(tab.id)}
               style={{
+                position: 'relative',
+                zIndex: 2,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 padding: '5px 14px',
                 borderRadius: '999px',
-                border: isActive ? '1px solid var(--color-accent-primary, #1E3A8A)' : '1px solid transparent',
-                background: isActive ? 'var(--color-accent-primary, #1E3A8A)' : 'transparent',
+                border: '1px solid transparent',
+                background: 'transparent',
                 color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontSize: '0.82rem',
                 fontWeight: isActive ? 600 : 500,
-                transition: 'all 0.15s cubic-bezier(0.23, 1, 0.32, 1)',
-                boxShadow: isActive ? '0 2px 6px rgba(30, 58, 138, 0.35)' : 'none',
+                transition: 'color 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s ease',
+                outline: 'none',
+                userSelect: 'none',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.color = 'var(--color-text-primary, #0F172A)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.color = 'var(--color-text-muted, #64748B)';
+                }
               }}
             >
               <span
                 dangerouslySetInnerHTML={{ __html: tab.iconSvg }}
-                style={{ display: 'flex', alignItems: 'center' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: isActive ? '#FFFFFF' : 'currentColor',
+                  transition: 'color 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
               />
               <span>{tab.label}</span>
               {typeof tab.count === 'number' && tab.count > 0 && (
@@ -213,6 +312,7 @@ export function TripWorkspaceHeader({
                     background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-surface-card, #F1F5F9)',
                     color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
                     border: isActive ? 'none' : '1px solid var(--color-border, #E2E8F0)',
+                    transition: 'background 0.18s ease, color 0.18s ease, border 0.18s ease',
                   }}
                 >
                   {tab.count}

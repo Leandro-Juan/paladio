@@ -195,6 +195,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             inset: 0,
             visibility: activeTab === 'plan' ? 'visible' : 'hidden',
             pointerEvents: activeTab === 'plan' ? 'auto' : 'none',
+            opacity: activeTab === 'plan' ? 1 : 0,
+            transform: activeTab === 'plan' ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.996)',
+            transition: 'opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            willChange: 'opacity, transform',
           }}
         >
           {/* Background Interactive Map */}
@@ -240,28 +244,28 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
         {/* Tab 2: Transports */}
         {activeTab === 'transports' && (
-          <div style={{ height: '100%', overflowY: 'auto' }}>
+          <div key="transports" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
             <TripTransportsView itinerary={itinerary} />
           </div>
         )}
 
         {/* Tab 3: Costs */}
         {activeTab === 'costs' && (
-          <div style={{ height: '100%', overflowY: 'auto' }}>
+          <div key="costs" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
             <TripCostsView trip={trip} itinerary={itinerary} onTripUpdated={onTripUpdated} />
           </div>
         )}
 
         {/* Tab 4: Collab */}
         {activeTab === 'collab' && (
-          <div style={{ height: '100%', overflowY: 'auto' }}>
+          <div key="collab" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
             <TripCollabView trip={trip} onTripUpdated={onTripUpdated} />
           </div>
         )}
 
         {/* Tab 5: Photos */}
         {activeTab === 'photos' && (
-          <div style={{ height: '100%', overflowY: 'auto' }}>
+          <div key="photos" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
             <TripPhotosView photos={photos} />
           </div>
         )}

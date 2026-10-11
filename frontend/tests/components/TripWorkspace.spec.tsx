@@ -186,5 +186,29 @@ test.describe('Trip Workspace Renovated Components', () => {
     await simplePill.click();
     expect(mode).toBe('simple');
   });
+
+  test('TripWorkspaceHeader renders animated sliding pill indicator and transitions on tab click', async ({ mount }) => {
+    let currentTab = 'plan';
+    const component = await mount(
+      <TripWorkspaceHeader
+        destination="Iceland: The Ring Road"
+        activeTab={currentTab as any}
+        onTabChange={(tab) => {
+          currentTab = tab;
+        }}
+      />
+    );
+
+    const nav = component.getByRole('tablist');
+    await expect(nav).toBeVisible();
+
+    const indicator = nav.locator('div[aria-hidden="true"]');
+    await expect(indicator).toBeVisible();
+
+    // Click Costs tab
+    const costsBtn = component.getByRole('button', { name: /Costs/i });
+    await costsBtn.click();
+    expect(currentTab).toBe('costs');
+  });
 });
 
