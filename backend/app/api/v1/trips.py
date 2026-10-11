@@ -7,6 +7,7 @@ from typing import Any
 from app.api.deps import get_optional_user
 from app.db.models import (
     TransitCacheModel,
+    TransitCacheStatus,
     TripExpenseModel,
     TripModel,
     TripParticipantModel,
@@ -365,6 +366,7 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
 
     city_items: list[CityGtfsItem] = []
     active_cities: list[str] = []
+    need_commit = False
 
     for city_key in all_city_keys:
         rec = records.get(city_key)
@@ -379,6 +381,21 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         status_val = rec.status if rec else "PENDING"
         osm_status_val = rec.osm_status if rec else "PENDING"
         gtfs_status_val = rec.gtfs_status if rec else "PENDING"
+
+        # Reconcile stale/dead tasks
+        if rec and (
+            gtfs_status_val in ("BUILDING", "QUEUED")
+            or status_val in ("BUILDING", "QUEUED")
+        ):
+            from app.tasks import is_transit_task_alive
+
+            if not is_transit_task_alive(city_key):
+                status_val = TransitCacheStatus.FAILED.value
+                gtfs_status_val = "FAILED"
+                rec.status = status_val
+                rec.gtfs_status = gtfs_status_val
+                session.add(rec)
+                need_commit = True
 
         is_queued = bool(gtfs_status_val == "QUEUED" or status_val == "QUEUED")
         is_building = not is_queued and (
@@ -429,6 +446,9 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
             )
         )
 
+    if need_commit:
+        await session.commit()
+
     compiled_count = sum(1 for c in city_items if c.is_compiled)
     queued_count = sum(1 for c in city_items if c.is_queued)
 
@@ -468,7 +488,12 @@ async def trigger_city_gtfs_compile(
         TransitCacheModel.gtfs_status.in_(["BUILDING", "QUEUED"]),
     )
     res_active = await session.execute(stmt_active)
-    has_active_compilation = res_active.scalars().first() is not None
+    active_records = res_active.scalars().all()
+    from app.tasks import is_transit_task_alive
+
+    has_active_compilation = any(
+        is_transit_task_alive(ar.city) for ar in active_records
+    )
 
     should_queue = is_locked or has_active_compilation
 
@@ -610,7 +635,7 @@ async def delete_city_gtfs(
 
     # 4. Inspect active, reserved, and scheduled Celery tasks across all workers and revoke them
     try:
-        inspect = celery_app.control.inspect()
+        inspect = celery_app.control.inspect(timeout=1.0)
         active_tasks = inspect.active() or {}
         reserved_tasks = inspect.reserved() or {}
         scheduled_tasks = inspect.scheduled() or {}
@@ -663,6 +688,16 @@ async def delete_city_gtfs(
         _publish_transit_event("TRANSIT_DELETED", city_clean, city.title())
     except Exception as pub_err:
         logger.warning(f"Could not publish TRANSIT_DELETED event: {pub_err}")
+
+    # 8. Advance the queue for any remaining cities marked QUEUED
+    try:
+        from app.tasks import async_trigger_next_queued_city
+
+        await async_trigger_next_queued_city(session=session)
+    except Exception as q_adv_err:
+        logger.warning(
+            f"Could not advance queued cities after deleting {city_clean}: {q_adv_err}"
+        )
 
     return {
         "status": "deleted",

@@ -295,6 +295,134 @@ def _publish_transit_started_event(
     _publish_transit_event("TRANSIT_DOWNLOAD_STARTED", city_clean, city_name, trip_id)
 
 
+def is_transit_task_alive(city_clean: str) -> bool:
+    """
+    Checks if a GTFS/transit task for city_clean is genuinely active.
+    Returns False if the Celery task has terminated with FAILURE or REVOKED,
+    or if cancelled flag is active in Redis.
+    """
+    try:
+        import redis
+        from celery.result import AsyncResult
+        from app.celery_app import app as celery_app
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+
+        if r.get(f"paladio:transit_cancelled:{city_clean}"):
+            return False
+
+        task_id = r.get(f"paladio:transit_task_id:{city_clean}")
+        if task_id:
+            task_id_str = (
+                task_id.decode("utf-8", errors="ignore")
+                if isinstance(task_id, bytes)
+                else str(task_id)
+            )
+            res = AsyncResult(task_id_str, app=celery_app)
+            if res.ready() and res.state in ("FAILURE", "REVOKED"):
+                return False
+
+        return True
+    except Exception as exc:
+        logger.warning(f"Error checking transit task liveness for {city_clean}: {exc}")
+        return True
+
+
+async def async_trigger_next_queued_city(session: Any | None = None) -> str | None:
+    """
+    Checks if there are any cities in TransitCacheModel marked QUEUED,
+    and dispatches build_city_gtfs_task for the oldest queued city
+    if it is not already actively running or in the transit_build queue.
+    """
+    try:
+        from sqlalchemy import select
+        from app.db.models import TransitCacheModel
+
+        async def _find_next(db_session):
+            stmt = (
+                select(TransitCacheModel.city)
+                .where(TransitCacheModel.gtfs_status == "QUEUED")
+                .order_by(TransitCacheModel.updated_at.asc())
+            )
+            res = await db_session.execute(stmt)
+            return res.scalars().all()
+
+        if session is not None:
+            queued_cities = await _find_next(session)
+        else:
+            session_maker, task_engine = _get_task_session_maker()
+            try:
+                async with session_maker() as new_session:
+                    queued_cities = await _find_next(new_session)
+            finally:
+                await task_engine.dispose()
+
+        if not queued_cities:
+            return None
+
+        import os
+        import redis
+        from celery.result import AsyncResult
+        from app.celery_app import app as celery_app
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+
+        compiler_lock = r.lock("paladio:transit_compiler_lock", timeout=7200)
+        curr = r.get("paladio:transit_compiler_current_city")
+        curr_str = (
+            curr.decode("utf-8", errors="ignore")
+            if isinstance(curr, bytes)
+            else str(curr or "")
+        )
+
+        for q_city in queued_cities:
+            # Check if this city is already holding the lock
+            if compiler_lock.locked() and curr_str == q_city:
+                return q_city
+
+            # Check if this city is already waiting in Celery transit_build queue
+            raw_tasks = r.lrange("transit_build", 0, -1)
+            in_queue = any(q_city.encode() in t for t in raw_tasks)
+
+            task_id = r.get(f"paladio:transit_task_id:{q_city}")
+            task_failed = False
+            if task_id:
+                task_id_str = (
+                    task_id.decode("utf-8", errors="ignore")
+                    if isinstance(task_id, bytes)
+                    else str(task_id)
+                )
+                res = AsyncResult(task_id_str, app=celery_app)
+                if res.ready() and res.state in ("FAILURE", "REVOKED"):
+                    task_failed = True
+
+            # If not in transit_build queue, or if the task previously failed:
+            if not in_queue or task_failed:
+                logger.info(f"Advancing queue: triggering queued city '{q_city}'")
+                task = build_city_gtfs_task.delay(city_name=q_city)
+                try:
+                    r.set(f"paladio:transit_task_id:{q_city}", task.id, ex=86400)
+                except Exception:
+                    pass
+                _publish_transit_event(
+                    "TRANSIT_DOWNLOAD_STARTED", q_city, q_city.title(), None
+                )
+                return q_city
+            else:
+                return q_city
+        return None
+    except Exception as exc:
+        logger.warning(f"Error checking next queued city: {exc}")
+        return None
+
+
+def trigger_next_queued_city() -> str | None:
+    """Synchronous wrapper for async_trigger_next_queued_city."""
+    return _run_async(async_trigger_next_queued_city())
+
+
 async def async_trigger_city_gtfs_download_if_needed(
     city_name: str,
     trip_id: str | None = None,
@@ -366,10 +494,15 @@ async def async_trigger_city_gtfs_download_if_needed(
             return False, False
 
         if entry and entry.gtfs_status in ("BUILDING", "QUEUED"):
-            logger.info(
-                f"GTFS compilation for {city_clean} is already in progress ({entry.gtfs_status})."
-            )
-            return False, False
+            if is_transit_task_alive(city_clean):
+                logger.info(
+                    f"GTFS compilation for {city_clean} is already in progress ({entry.gtfs_status})."
+                )
+                return False, False
+            else:
+                logger.warning(
+                    f"Detected stale/dead GTFS task for {city_clean} ({entry.gtfs_status}). Auto-recovering and triggering build."
+                )
 
         # Determine if compilation lock is currently held or another city is compiling
         initial_status = TransitCacheStatus.BUILDING.value
@@ -385,13 +518,16 @@ async def async_trigger_city_gtfs_download_if_needed(
         except (redis.RedisError, OSError):
             pass
 
-        # Also check if any other city is currently BUILDING or QUEUED in DB
+        # Also check if any other city is currently actively BUILDING or QUEUED in DB
         stmt_active = select(TransitCacheModel).where(
             TransitCacheModel.city != city_clean,
             TransitCacheModel.gtfs_status.in_(["BUILDING", "QUEUED"]),
         )
         res_active = await db_session.execute(stmt_active)
-        has_active_compilation = res_active.scalars().first() is not None
+        other_active_records = res_active.scalars().all()
+        has_active_compilation = any(
+            is_transit_task_alive(ar.city) for ar in other_active_records
+        )
 
         if is_locked or has_active_compilation:
             initial_status = TransitCacheStatus.QUEUED.value
@@ -425,7 +561,16 @@ async def async_trigger_city_gtfs_download_if_needed(
         if not should_trigger:
             return False
 
-        build_city_gtfs_task.delay(city_name=city_clean, trip_id=trip_id)
+        task = build_city_gtfs_task.delay(city_name=city_clean, trip_id=trip_id)
+        try:
+            import redis
+
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = redis.from_url(redis_url)
+            r.set(f"paladio:transit_task_id:{city_clean}", task.id, ex=86400)
+        except Exception:
+            pass
+
         if is_queued:
             _publish_transit_event("TRANSIT_QUEUED", city_clean, city_name, trip_id)
         else:
@@ -810,11 +955,9 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         # Loop-wait with short timeout so cancellation or deletion aborts promptly
         while not acquired:
-            if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
-                _city_exists_in_transit_cache(city_lower)
-            ):
+            if r.get(f"paladio:transit_cancelled:{city_lower}"):
                 logger.info(
-                    f"Transit build for {city_lower} was cancelled/deleted while waiting in queue."
+                    f"Transit build for {city_lower} was cancelled while waiting in queue."
                 )
                 return {"status": "cancelled", "city": city_lower}
             acquired = lock.acquire(blocking=True, blocking_timeout=2)
@@ -1183,3 +1326,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             logger.info(f"Cleanly released transit compiler lock for {city_name}.")
         except (redis.exceptions.LockError, redis.RedisError) as lock_err:
             logger.debug(f"Lock release note for {city_name}: {lock_err}")
+        try:
+            trigger_next_queued_city()
+        except Exception as q_err:
+            logger.debug(f"Queue advancement note for {city_name}: {q_err}")

@@ -105,20 +105,24 @@ async def ensure_transit_ready(city_name: str, max_wait_secs: int = 5) -> bool:
                         build_city_map_task.delay(city_clean)
                         triggered = True
                     return True
-                elif (
-                    cache_entry.status == TransitCacheStatus.FAILED.value
-                    or cache_entry.gtfs_status in ("FAILED", "UNAVAILABLE")
-                ) and not triggered:
-                    logger.info(
-                        f"Transit build previously marked failed/unavailable for '{city_name}'. Retrying compilation..."
+                elif not triggered:
+                    is_failed = (
+                        cache_entry.status == TransitCacheStatus.FAILED.value
+                        or cache_entry.gtfs_status in ("FAILED", "UNAVAILABLE")
                     )
-                    from app.tasks import build_city_map_task
+                    from app.tasks import is_transit_task_alive
 
-                    cache_entry.status = TransitCacheStatus.BUILDING.value
-                    cache_entry.gtfs_status = "BUILDING"
-                    await session.commit()
-                    build_city_map_task.delay(city_clean)
-                    triggered = True
+                    if is_failed or not is_transit_task_alive(city_clean):
+                        logger.info(
+                            f"Transit build inactive/failed for '{city_name}'. Triggering compilation..."
+                        )
+                        from app.tasks import build_city_map_task
+
+                        cache_entry.status = TransitCacheStatus.BUILDING.value
+                        cache_entry.gtfs_status = "BUILDING"
+                        await session.commit()
+                        build_city_map_task.delay(city_clean)
+                        triggered = True
         except PublicTransitCompilationError:
             raise
         except (SQLAlchemyError, OSError, RuntimeError) as db_err:

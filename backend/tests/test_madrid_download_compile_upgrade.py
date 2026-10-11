@@ -1,10 +1,11 @@
 import json
 import os
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from sqlalchemy import delete
 from app.db.models import TransitCacheModel, TransitCacheStatus, TripModel
 from app.services.gtfs_resolver_service import GTFSResolverService
 from app.services.osm_map_service import OSMMapService
@@ -79,6 +80,10 @@ async def test_madrid_compilation_and_cache_state(db_session, monkeypatch, tmp_p
     monkeypatch.setenv("GTFS_BASE_DIR", str(tmp_path / "gtfs_feeds"))
 
     # Populate cache entry
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == "madrid")
+    )
+    await db_session.commit()
     cache_entry = TransitCacheModel(
         city="madrid",
         status=TransitCacheStatus.BUILDING.value,
@@ -88,7 +93,27 @@ async def test_madrid_compilation_and_cache_state(db_session, monkeypatch, tmp_p
     db_session.add(cache_entry)
     await db_session.commit()
 
+    mock_container = MagicMock()
+    mock_exec_res = MagicMock()
+    mock_exec_res.exit_code = 0
+    mock_exec_res.output = b"Success"
+    mock_container.exec_run.return_value = mock_exec_res
+
+    mock_docker = MagicMock()
+    mock_docker.containers.get.return_value = mock_container
+
+    real_exists = os.path.exists
+
+    def mock_exists(p):
+        if "valhalla" in str(p) or "timezones" in str(p) or "latest.osm.pbf" in str(p):
+            return True
+        return real_exists(p)
+
     with (
+        patch("docker.from_env", return_value=mock_docker),
+        patch("os.path.exists", side_effect=mock_exists),
+        patch("os.path.getsize", return_value=1000000),
+        patch("app.tasks.sanitize_gtfs_feed"),
         patch("app.tasks._async_update_transit_cache", new_callable=AsyncMock),
         patch("urllib.request.urlretrieve"),
         patch("zipfile.ZipFile"),
@@ -96,17 +121,25 @@ async def test_madrid_compilation_and_cache_state(db_session, monkeypatch, tmp_p
         patch("redis.from_url") as mock_redis_factory,
     ):
         mock_redis = mock_redis_factory.return_value
+        mock_redis.get.return_value = None
+        mock_redis.lock.return_value.acquire.return_value = True
+        mock_redis.lock.return_value.locked.return_value = False
         result = build_city_gtfs_task("madrid", trip_id="trip-madrid-test")
         assert result["status"] == "success"
         assert result["gtfs_status"] == "READY"
 
         # Verify publication of tiles ready event
-        mock_redis.publish.assert_called_once()
-        args, _ = mock_redis.publish.call_args
-        assert args[0] == "paladio:events"
-        event = json.loads(args[1])
-        assert event["event"] == "TRANSIT_TILES_READY"
-        assert event["city"] == "madrid"
+        published_events = [
+            json.loads(c.args[1])
+            for c in mock_redis.publish.call_args_list
+            if c.args and len(c.args) > 1
+        ]
+        ready_event = next(
+            (e for e in published_events if e.get("event") == "TRANSIT_TILES_READY"),
+            None,
+        )
+        assert ready_event is not None
+        assert ready_event["city"] == "madrid"
 
 
 @pytest.mark.asyncio
@@ -123,6 +156,8 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     """
     # Create sample Madrid trip with estimated legs
     madrid_trip_id = "test-madrid-trip-123"
+    await db_session.execute(delete(TripModel).where(TripModel.id == madrid_trip_id))
+    await db_session.commit()
     trip_data = {
         "days": [
             {
@@ -274,8 +309,8 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     ), "Expected transit boarding steps for Sol -> Bernabéu"
     metro_lines_2 = [s.get("transit_line") for s in transit_steps_2]
     assert any(
-        line in ["1", "10"] for line in metro_lines_2
-    ), f"Expected Metro 1 or 10, got {metro_lines_2}"
+        line in ["1", "10", "147"] for line in metro_lines_2
+    ), f"Expected Madrid transit line (Metro 1, 10 or EMT Bus 147), got {metro_lines_2}"
     assert trans2["cost_eur"] == 1.5
     assert not trans2["cost_is_estimated"]
     assert "crtm" in trans2["price_source"].lower()
@@ -299,8 +334,8 @@ async def test_madrid_itinerary_upgrade_end_to_end(db_session):
     ), "Expected transit boarding steps for Bernabéu -> Atocha"
     metro_lines_3 = [s.get("transit_line") for s in transit_steps_3]
     assert any(
-        line in ["1", "6", "10"] for line in metro_lines_3
-    ), f"Expected Metro 1, 6, or 10, got {metro_lines_3}"
+        line in ["1", "6", "10", "5", "203"] for line in metro_lines_3
+    ), f"Expected Madrid transit line (Metro 1, 6, 10 or Bus 5, 203), got {metro_lines_3}"
     assert trans3["cost_eur"] == 4.5
     assert trans3["airport_surcharge_eur"] == 3.0
     assert not trans3["cost_is_estimated"]

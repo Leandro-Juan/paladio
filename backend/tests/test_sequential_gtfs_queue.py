@@ -263,3 +263,92 @@ def test_build_city_gtfs_task_execution_and_sanitization():
     finally:
         shutil.rmtree(temp_gtfs_dir, ignore_errors=True)
         r.delete("paladio:transit_compiler_lock")
+
+
+@pytest.mark.asyncio
+async def test_cancelling_previous_download_advances_queued_city(
+    async_client: AsyncClient, db_session
+):
+    """Verify that cancelling a city triggers the next queued city automatically."""
+    await db_session.execute(
+        delete(TransitCacheModel).where(
+            (TransitCacheModel.city.in_(["city_active", "city_queued"]))
+            | (TransitCacheModel.gtfs_status == "QUEUED")
+        )
+    )
+    await db_session.commit()
+    # City 1: BUILDING
+    c1 = TransitCacheModel(
+        city="city_active",
+        status=TransitCacheStatus.BUILDING.value,
+        osm_status="READY",
+        gtfs_status="BUILDING",
+    )
+    # City 2: QUEUED
+    c2 = TransitCacheModel(
+        city="city_queued",
+        status=TransitCacheStatus.QUEUED.value,
+        osm_status="READY",
+        gtfs_status="QUEUED",
+    )
+    db_session.add_all([c1, c2])
+    await db_session.commit()
+
+    with patch("app.tasks.build_city_gtfs_task.delay") as mock_delay:
+        res = await async_client.delete("/api/v1/trips/transit/city_active")
+        assert res.status_code == 200
+
+        # Verify build_city_gtfs_task was delayed for city_queued
+        mock_delay.assert_called_with(city_name="city_queued")
+
+    await db_session.execute(
+        delete(TransitCacheModel).where(
+            TransitCacheModel.city.in_(["city_active", "city_queued"])
+        )
+    )
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_stale_failed_task_healed_on_trip_trigger(db_session):
+    """Verify that a trip trigger auto-heals an orphaned/failed QUEUED city and dispatches a build."""
+    from app.tasks import async_trigger_city_gtfs_download_if_needed
+
+    city_name = "madrid_heal_test"
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == city_name)
+    )
+    stale_record = TransitCacheModel(
+        city=city_name,
+        status=TransitCacheStatus.QUEUED.value,
+        osm_status="PENDING",
+        gtfs_status="QUEUED",
+    )
+    db_session.add(stale_record)
+    await db_session.commit()
+
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    r = redis.from_url(redis_url)
+    r.set(f"paladio:transit_task_id:{city_name}", "fake-failed-task-id", ex=300)
+
+    # Mock AsyncResult so it reports FAILURE (dead task)
+    mock_async_res = MagicMock()
+    mock_async_res.ready.return_value = True
+    mock_async_res.state = "FAILURE"
+
+    with patch("celery.result.AsyncResult", return_value=mock_async_res), patch(
+        "app.tasks.build_city_gtfs_task.delay"
+    ) as mock_delay, patch(
+        "app.tasks.CITY_GTFS_MAP", {city_name: "http://example.com/gtfs.zip"}
+    ):
+        result = await async_trigger_city_gtfs_download_if_needed(
+            city_name=city_name, session=db_session
+        )
+        assert result is True
+        mock_delay.assert_called_once()
+
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == city_name)
+    )
+    await db_session.commit()
+    r.delete(f"paladio:transit_task_id:{city_name}")
