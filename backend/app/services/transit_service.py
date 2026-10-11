@@ -66,7 +66,7 @@ async def get_detailed_transit_leg(
     mode = "multimodal"
 
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
             if resp.status_code == 400 and not is_airport_leg:
                 # Multimodal transit route not found in GTFS; try pedestrian route via OSM
@@ -178,7 +178,7 @@ async def get_detailed_walking_leg(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
             resp.raise_for_status()
             data = resp.json()

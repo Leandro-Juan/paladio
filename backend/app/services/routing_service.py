@@ -68,10 +68,15 @@ class RoutingService:
                 "targets": locations,
                 "costing": "pedestrian",
                 "units": "km",
+                "costing_options": {
+                    "pedestrian": {
+                        "max_distance": 25000,
+                    }
+                },
             }
 
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=35.0) as client:
                     resp = await client.post(
                         f"{VALHALLA_URL}/sources_to_targets", json=req_json
                     )
@@ -217,7 +222,7 @@ class RoutingService:
                 "directions_options": {"units": "km"},
             }
             try:
-                async with httpx.AsyncClient(timeout=8.0) as client:
+                async with httpx.AsyncClient(timeout=20.0) as client:
                     resp = await client.post(f"{VALHALLA_URL}/route", json=req_json)
                     resp.raise_for_status()
                     return resp.json()
