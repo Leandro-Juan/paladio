@@ -126,6 +126,15 @@ test.describe('Trip Workspace Renovated Components', () => {
       await expect(dayBtn).toHaveText(`DAY ${dayNum}`);
     }
 
+    // Verify carousel navigation arrow buttons are rendered
+    const prevBtn = component.getByTestId('day-nav-prev');
+    const nextBtn = component.getByTestId('day-nav-next');
+    await expect(prevBtn).toBeVisible();
+    await expect(nextBtn).toBeVisible();
+
+    // Clicking next button is enabled and clickable
+    await nextBtn.click();
+
     // Verify selecting Day 5 works
     const day5Btn = component.getByTestId('day-tab-5');
     await day5Btn.click();

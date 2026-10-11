@@ -161,6 +161,73 @@ export function TripPlanSidebar({
     return sum + dayCost;
   }, 0);
 
+  // Horizontal day navigation scroll
+  const dayTabsRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollState = React.useCallback(() => {
+    const el = dayTabsRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 2;
+    setCanScrollLeft(hasOverflow && el.scrollLeft > 2);
+    setCanScrollRight(hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    const el = dayTabsRef.current;
+    if (!el) return;
+
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    window.addEventListener('resize', updateScrollState);
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      el.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [updateScrollState, days]);
+
+  useEffect(() => {
+    const el = dayTabsRef.current;
+    if (!el) return;
+    if (selectedDay === 'all') {
+      el.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      const activeBtn = el.querySelector<HTMLElement>(`[data-testid="day-tab-${selectedDay}"]`);
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+    const timeout = setTimeout(updateScrollState, 300);
+    return () => clearTimeout(timeout);
+  }, [selectedDay, updateScrollState]);
+
+  const handleScrollLeft = () => {
+    if (dayTabsRef.current) {
+      dayTabsRef.current.scrollBy({ left: -140, behavior: 'smooth' });
+      setTimeout(updateScrollState, 250);
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (dayTabsRef.current) {
+      dayTabsRef.current.scrollBy({ left: 140, behavior: 'smooth' });
+      setTimeout(updateScrollState, 250);
+    }
+  };
+
+  const showScrollArrows = days.length > 3 || canScrollLeft || canScrollRight;
+
   return (
     <div
       style={{
@@ -214,66 +281,165 @@ export function TripPlanSidebar({
                 </span>
               </div>
 
-              {/* Day Selection Tabs */}
+              {/* Day Selection Tabs with Single-Line Carousel */}
               <div
-                data-testid="day-selector-tabs"
                 style={{
                   display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '6px',
                   alignItems: 'center',
+                  gap: '5px',
+                  width: '100%',
                 }}
               >
-                <button
-                  type="button"
-                  data-testid="day-tab-all"
-                  onClick={() => onSelectDay('all')}
+                {/* Left Navigation Arrow */}
+                {showScrollArrows && (
+                  <button
+                    type="button"
+                    data-testid="day-nav-prev"
+                    onClick={handleScrollLeft}
+                    disabled={!canScrollLeft}
+                    aria-label="Previous days"
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '6px',
+                      border: '1px solid #E2E8F0',
+                      background: '#FFFFFF',
+                      color: canScrollLeft ? '#1E3A8A' : '#CBD5E1',
+                      cursor: canScrollLeft ? 'pointer' : 'default',
+                      opacity: canScrollLeft ? 1 : 0.4,
+                      flexShrink: 0,
+                      boxShadow: canScrollLeft ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Single Line Scrollable Tabs */}
+                <div
+                  ref={dayTabsRef}
+                  data-testid="day-selector-tabs"
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid',
-                    borderColor: selectedDay === 'all' ? '#1E3A8A' : '#E2E8F0',
-                    background: selectedDay === 'all' ? '#1E3A8A' : '#FFFFFF',
-                    color: selectedDay === 'all' ? '#FFFFFF' : '#475569',
-                    fontFamily: 'monospace',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
-                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    gap: '4px',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch',
+                    flex: 1,
+                    minWidth: 0,
+                    scrollBehavior: 'smooth',
+                    alignItems: 'center',
                   }}
                 >
-                  ALL DAYS
-                </button>
-                {days.map((d) => {
-                  const isSel = selectedDay === d.day;
-                  return (
-                    <button
-                      key={d.day}
-                      type="button"
-                      data-testid={`day-tab-${d.day}`}
-                      onClick={() => onSelectDay(d.day)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        border: '1px solid',
-                        borderColor: isSel ? '#1E3A8A' : '#E2E8F0',
-                        background: isSel ? '#1E3A8A' : '#FFFFFF',
-                        color: isSel ? '#FFFFFF' : '#475569',
-                        fontFamily: 'monospace',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        boxShadow: isSel ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
+                  <button
+                    type="button"
+                    data-testid="day-tab-all"
+                    onClick={() => onSelectDay('all')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid',
+                      borderColor: selectedDay === 'all' ? '#1E3A8A' : '#E2E8F0',
+                      background: selectedDay === 'all' ? '#1E3A8A' : '#FFFFFF',
+                      color: selectedDay === 'all' ? '#FFFFFF' : '#475569',
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    ALL DAYS
+                  </button>
+                  {days.map((d) => {
+                    const isSel = selectedDay === d.day;
+                    return (
+                      <button
+                        key={d.day}
+                        type="button"
+                        data-testid={`day-tab-${d.day}`}
+                        onClick={() => onSelectDay(d.day)}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid',
+                          borderColor: isSel ? '#1E3A8A' : '#E2E8F0',
+                          background: isSel ? '#1E3A8A' : '#FFFFFF',
+                          color: isSel ? '#FFFFFF' : '#475569',
+                          fontFamily: 'monospace',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          boxShadow: isSel ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        DAY {d.day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Right Navigation Arrow */}
+                {showScrollArrows && (
+                  <button
+                    type="button"
+                    data-testid="day-nav-next"
+                    onClick={handleScrollRight}
+                    disabled={!canScrollRight}
+                    aria-label="Next days"
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '6px',
+                      border: '1px solid #E2E8F0',
+                      background: '#FFFFFF',
+                      color: canScrollRight ? '#1E3A8A' : '#CBD5E1',
+                      cursor: canScrollRight ? 'pointer' : 'default',
+                      opacity: canScrollRight ? 1 : 0.4,
+                      flexShrink: 0,
+                      boxShadow: canScrollRight ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      DAY {d.day}
-                    </button>
-                  );
-                })}
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
               {/* Transit Route Mode Pill Toggle */}
