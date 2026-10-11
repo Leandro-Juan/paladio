@@ -74,6 +74,104 @@ def _normalize_meal_slot(m: Any) -> str:
     return str(m).lower()
 
 
+def _two_opt_smooth_path(
+    path_nodes: list[int],
+    all_pois: list[Poi],
+    durations: list[int | float],
+    assigned_day: AssignedDay,
+) -> tuple[list[int], list[int]]:
+    """Untangles intermediate stops using 2-opt to minimize travel duration without violating opening hours."""
+    n_nodes = len(path_nodes)
+    if n_nodes <= 3:
+        return path_nodes, []
+
+    n_all = len(all_pois)
+
+    def is_feasible_schedule(route: list[int]) -> tuple[bool, int, list[int]]:
+        curr_m = assigned_day.start_time_mins
+        arr_times = []
+        tot_travel = 0
+        for step, u in enumerate(route):
+            is_dep = step == 0 or step == len(route) - 1
+            dur = 0 if is_dep else all_pois[u].duration_mins
+            if step > 0:
+                prev_u = route[step - 1]
+                t_dur = int(durations[prev_u * n_all + u])
+                curr_m += t_dur
+                tot_travel += t_dur
+
+            o_m = (
+                all_pois[u].open_time_mins_by_day[assigned_day.weekday]
+                if assigned_day.weekday < len(all_pois[u].open_time_mins_by_day)
+                else 0
+            )
+            c_m = (
+                all_pois[u].close_time_mins_by_day[assigned_day.weekday]
+                if assigned_day.weekday < len(all_pois[u].close_time_mins_by_day)
+                else 1440
+            )
+            if o_m != -1 and curr_m < o_m:
+                curr_m = o_m
+            arr_times.append(curr_m)
+            if o_m != -1 and c_m != -1 and c_m > o_m:
+                if curr_m + dur > c_m:
+                    return False, 100000, []
+            curr_m += dur
+
+        if curr_m > assigned_day.end_time_mins + 15:
+            return False, 100000, []
+
+        return True, tot_travel, arr_times
+
+    feasible_orig, best_travel, best_arr = is_feasible_schedule(path_nodes)
+    if not feasible_orig:
+        return path_nodes, []
+
+    best_route = list(path_nodes)
+    improved = True
+    passes = 0
+    while improved and passes < 25:
+        improved = False
+        passes += 1
+        # 1. 2-opt edge inversions
+        for i in range(1, n_nodes - 2):
+            for j in range(i + 1, n_nodes - 1):
+                cand_route = (
+                    best_route[:i] + best_route[i : j + 1][::-1] + best_route[j + 1 :]
+                )
+                is_feas, cand_travel, cand_arr = is_feasible_schedule(cand_route)
+                if is_feas and cand_travel < best_travel - 1:
+                    best_route = cand_route
+                    best_travel = cand_travel
+                    best_arr = cand_arr
+                    improved = True
+                    break
+            if improved:
+                break
+        if improved:
+            continue
+
+        # 2. Or-opt single-node relocation (untangles directional tours without flipping time windows)
+        for i in range(1, n_nodes - 1):
+            for j in range(1, n_nodes - 1):
+                if i == j:
+                    continue
+                cand_route = list(best_route)
+                node = cand_route.pop(i)
+                cand_route.insert(j, node)
+                is_feas, cand_travel, cand_arr = is_feasible_schedule(cand_route)
+                if is_feas and cand_travel < best_travel - 1:
+                    best_route = cand_route
+                    best_travel = cand_travel
+                    best_arr = cand_arr
+                    improved = True
+                    break
+            if improved:
+                break
+
+    return best_route, best_arr
+
+
 async def solve_day_v2(
     assigned_day: AssignedDay,
     city: str,
@@ -449,9 +547,21 @@ async def solve_day_v2(
             f"C++ solve failed for day {assigned_day.day_index} in {city}: {e}"
         ) from e
 
-    # 7. Map back using direct arrival times from C++ result
+    # 7. Map back using direct arrival times from C++ result with 2-opt trajectory smoothing
     path_nodes = opt_res.path
     arr_times = getattr(opt_res, "arrival_times", [])
+
+    # Apply 2-opt smoothing on intermediate path to eliminate zigzag crossings
+    smoothed_route, smoothed_arr = _two_opt_smooth_path(
+        path_nodes=path_nodes,
+        all_pois=all_pois,
+        durations=durations,
+        assigned_day=assigned_day,
+    )
+    if smoothed_arr:
+        path_nodes = smoothed_route
+        arr_times = smoothed_arr
+
     has_arrival_times = len(arr_times) == len(path_nodes)
 
     scheduled: list[ScheduledPoi] = []

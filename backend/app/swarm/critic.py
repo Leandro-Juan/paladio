@@ -13,6 +13,7 @@ from enum import Enum
 import logging
 from typing import Any
 
+from app.engine.transit_matrix import haversine_distance
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
 from app.swarm.state import SwarmState
@@ -29,6 +30,7 @@ class CriticIssueType(str, Enum):
     MEAL_GAP = "meal_gap"
     EXCESSIVE_TRANSIT = "excessive_transit"
     IDLE_GAP = "idle_gap"
+    ZIGZAG_ROUTING = "zigzag_routing"
 
 
 class CriticIssue(BaseModel):
@@ -60,6 +62,63 @@ def _is_meal(p: dict[str, Any]) -> bool:
 def _is_depot(p: dict[str, Any]) -> bool:
     cat = (p.get("poi", {}).get("category") or "").upper()
     return cat in ("HOTEL", "AIRPORT")
+
+
+def _compute_day_zigzag_ratio(coords: list[tuple[float, float]]) -> float:
+    n = len(coords)
+    if n <= 2:
+        return 1.0
+    actual_dist = sum(
+        haversine_distance(
+            coords[i][0], coords[i][1], coords[i + 1][0], coords[i + 1][1]
+        )
+        for i in range(n - 1)
+    )
+    if actual_dist < 1e-4:
+        return 1.0
+    best_route = list(range(n))
+    improved = True
+    passes = 0
+    while improved and passes < 30:
+        improved = False
+        passes += 1
+        for i in range(1, n - 2):
+            for j in range(i + 1, n - 1):
+                cur_d = haversine_distance(
+                    coords[best_route[i - 1]][0],
+                    coords[best_route[i - 1]][1],
+                    coords[best_route[i]][0],
+                    coords[best_route[i]][1],
+                ) + haversine_distance(
+                    coords[best_route[j]][0],
+                    coords[best_route[j]][1],
+                    coords[best_route[j + 1]][0],
+                    coords[best_route[j + 1]][1],
+                )
+                new_d = haversine_distance(
+                    coords[best_route[i - 1]][0],
+                    coords[best_route[i - 1]][1],
+                    coords[best_route[j]][0],
+                    coords[best_route[j]][1],
+                ) + haversine_distance(
+                    coords[best_route[i]][0],
+                    coords[best_route[i]][1],
+                    coords[best_route[j + 1]][0],
+                    coords[best_route[j + 1]][1],
+                )
+                if new_d < cur_d - 1e-5:
+                    best_route[i : j + 1] = reversed(best_route[i : j + 1])
+                    improved = True
+    opt_dist = sum(
+        haversine_distance(
+            coords[best_route[k]][0],
+            coords[best_route[k]][1],
+            coords[best_route[k + 1]][0],
+            coords[best_route[k + 1]][1],
+        )
+        for k in range(n - 1)
+    )
+    return max(1.0, actual_dist / opt_dist) if opt_dist > 1e-4 else 1.0
 
 
 def evaluate_itinerary_quality(
@@ -154,6 +213,34 @@ def evaluate_itinerary_quality(
                         details=f"Day {d_idx + 1} contains a transit leg of {dur} minutes (>50m).",
                     )
                 )
+        # 4. Zigzag geometry check
+        day_coords = []
+        for p in path:
+            loc = p.get("poi", {}).get("location") or {}
+            lat = (
+                loc.get("latitude")
+                if isinstance(loc, dict)
+                else getattr(loc, "latitude", None)
+            )
+            lon = (
+                loc.get("longitude")
+                if isinstance(loc, dict)
+                else getattr(loc, "longitude", None)
+            )
+            if lat is not None and lon is not None and (lat != 0.0 or lon != 0.0):
+                day_coords.append((float(lat), float(lon)))
+        if len(day_coords) >= 3:
+            z_ratio = _compute_day_zigzag_ratio(day_coords)
+            if z_ratio > 1.25:
+                issues.append(
+                    CriticIssue(
+                        issue_type=CriticIssueType.ZIGZAG_ROUTING,
+                        day_index=d_idx,
+                        severity=2.0 if z_ratio > 1.40 else 1.2,
+                        details=f"Day {d_idx + 1} exhibits ping-pong routing (zigzag ratio {z_ratio:.2f} > 1.25).",
+                    )
+                )
+
         total_travel_mins += day_travel
         day_loads.append(
             day_travel + sum(p.get("poi", {}).get("duration_mins", 60) for p in sights)

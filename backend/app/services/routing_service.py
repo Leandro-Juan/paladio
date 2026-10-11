@@ -75,6 +75,8 @@ class RoutingService:
                     resp = await client.post(
                         f"{VALHALLA_URL}/sources_to_targets", json=req_json
                     )
+                    if resp.status_code != 200:
+                        logger.error(f"Valhalla 400 error for locations: {locations}")
                     resp.raise_for_status()
                     data = resp.json()
                     sources_to_targets = data.get("sources_to_targets", [])

@@ -352,10 +352,21 @@ def _local_search_refinement(
     trip_frame: TripFrame,
     max_iters: int = 20,
 ) -> list[list[SelectedPoi]]:
-    """Refines clusters via relocation and pairwise swap local search."""
+    """Refines clusters via relocation and pairwise swap local search while strictly preserving spatial bounds."""
     k = len(clusters)
     if k <= 1:
         return clusters
+
+    full_day_targets = [
+        d.target_active_mins
+        for d in trip_frame.days
+        if not d.is_arrival_day and not d.is_departure_day
+    ]
+    avg_target = (
+        float(np.mean(full_day_targets))
+        if full_day_targets
+        else float(np.mean([d.target_active_mins for d in trip_frame.days]))
+    )
 
     def eval_solution(current_clusters: list[list[SelectedPoi]]) -> float:
         total_obj = 0.0
@@ -363,19 +374,33 @@ def _local_search_refinement(
         for c_idx, cl in enumerate(current_clusters):
             d_dur = sum(p.effective_duration_mins for p in cl)
             daily_durs.append(d_dur)
-            # Dispersion
+            # Dispersion & diameter
             if len(cl) > 1:
                 c_c = _bundle_centroid(cl)
-                for p in cl:
-                    p_lat, p_lon = _get_poi_coord(p)
-                    d = haversine_distance(p_lat, p_lon, c_c[0], c_c[1])
+                coords = [_get_poi_coord(p) for p in cl]
+                for p_coord in coords:
+                    d = haversine_distance(p_coord[0], p_coord[1], c_c[0], c_c[1])
                     total_obj += (d**1.5) * 8.0
-            # Target diff
-            target = trip_frame.days[c_idx].target_active_mins
-            total_obj += ((d_dur - target) / 60.0) ** 2 * 20.0
+
+                # Strict cluster diameter penalty (reject sprawling across town)
+                max_d = 0.0
+                for idx_a in range(len(coords)):
+                    for idx_b in range(idx_a + 1, len(coords)):
+                        pair_d = haversine_distance(
+                            coords[idx_a][0],
+                            coords[idx_a][1],
+                            coords[idx_b][0],
+                            coords[idx_b][1],
+                        )
+                        max_d = max(max_d, pair_d)
+                if max_d > 2.2:
+                    total_obj += ((max_d - 2.2) ** 2) * 800.0 + 200.0
+
+            # Target diff relative to average active time (avoids premature day matching)
+            total_obj += ((d_dur - avg_target) / 60.0) ** 2 * 10.0
 
         # Load variance
-        total_obj += float(np.var(daily_durs)) * 0.1
+        total_obj += float(np.var(daily_durs)) * 0.05
 
         # Closure feasibility penalty across trip calendar
         trip_weekdays = [
@@ -406,9 +431,18 @@ def _local_search_refinement(
             for i, p in enumerate(current_best[c_from]):
                 if p.poi.is_mandatory:
                     continue  # Keep anchors stable
+                p_coord = _get_poi_coord(p)
                 for c_to in range(k):
                     if c_from == c_to:
                         continue
+                    # Geometric feasibility check: do not add p if it's > 2.2 km from any POI in target cluster
+                    target_coords = [_get_poi_coord(x) for x in current_best[c_to]]
+                    if any(
+                        haversine_distance(p_coord[0], p_coord[1], tc[0], tc[1]) > 2.2
+                        for tc in target_coords
+                    ):
+                        continue
+
                     # Test move
                     cand_clusters = [list(c) for c in current_best]
                     cand_clusters[c_from].pop(i)
@@ -674,7 +708,7 @@ def assign_pois_to_days(
                     else getattr(loc, "longitude", 0.0)
                 )
                 dist = haversine_distance(d_lat, d_lon, lat, lon)
-                if dist <= 3.5:
+                if dist <= 2.0:
                     taste = getattr(cp, "taste_score", 50.0)
                     icon = getattr(cp, "iconicity_score", 0.0)
                     tier = getattr(cp, "tier", 3)

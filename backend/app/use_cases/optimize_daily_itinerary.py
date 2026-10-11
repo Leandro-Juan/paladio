@@ -271,11 +271,23 @@ class OptimizeDailyItineraryUseCase:
                     "scheduled_start": f"{airport_start // 60:02d}:{airport_start % 60:02d}",
                     "scheduled_end": f"{airport_end // 60:02d}:{airport_end % 60:02d}",
                 }
-                itin_dict.setdefault("path", []).insert(0, airport_node)
-                itin_dict["total_time_mins"] = itin_dict.get("total_time_mins", 0) + 60
-                itin_dict["total_cost_eur"] = itin_dict.get(
-                    "total_cost_eur", 0.0
-                ) + float(selected_airport.get("cost_eur", 0.0) or 0.0)
+                path_list = itin_dict.setdefault("path", [])
+                path_list.insert(0, airport_node)
+                if len(path_list) > 1:
+                    path_list[1]["transit_from_previous"] = {
+                        "mode": "transit",
+                        "duration_mins": 30,
+                        "cost_eur": 4.0,
+                        "distance_meters": 8500,
+                    }
+                itin_dict["total_time_mins"] = (
+                    itin_dict.get("total_time_mins", 0) + 60 + 30
+                )
+                itin_dict["total_cost_eur"] = (
+                    itin_dict.get("total_cost_eur", 0.0)
+                    + float(selected_airport.get("cost_eur", 0.0) or 0.0)
+                    + 4.0
+                )
 
             if d_idx == num_days - 1 and selected_airport and ret_flight:
                 dep_t = ret_flight.get("departure_time") or "18:00"
@@ -296,12 +308,22 @@ class OptimizeDailyItineraryUseCase:
                     "poi": selected_airport,
                     "scheduled_start": f"{airport_start // 60:02d}:{airport_start % 60:02d}",
                     "scheduled_end": f"{airport_end // 60:02d}:{airport_end % 60:02d}",
+                    "transit_from_previous": {
+                        "mode": "transit",
+                        "duration_mins": 30,
+                        "cost_eur": 4.0,
+                        "distance_meters": 8500,
+                    },
                 }
                 itin_dict.setdefault("path", []).append(airport_node)
-                itin_dict["total_time_mins"] = itin_dict.get("total_time_mins", 0) + 120
-                itin_dict["total_cost_eur"] = itin_dict.get(
-                    "total_cost_eur", 0.0
-                ) + float(selected_airport.get("cost_eur", 0.0) or 0.0)
+                itin_dict["total_time_mins"] = (
+                    itin_dict.get("total_time_mins", 0) + 120 + 30
+                )
+                itin_dict["total_cost_eur"] = (
+                    itin_dict.get("total_cost_eur", 0.0)
+                    + float(selected_airport.get("cost_eur", 0.0) or 0.0)
+                    + 4.0
+                )
 
             if "total_cost" not in itin_dict:
                 itin_dict["total_cost"] = itin_dict.get("total_cost_eur", 0.0)
