@@ -95,11 +95,11 @@ export function TripWorkspaceHeader({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 1rem',
-        background: 'rgba(15, 23, 42, 0.90)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        zIndex: 50,
+        background: '#FFFFFF',
+        borderBottom: '1px solid var(--color-border, #E2E8F0)',
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+        zIndex: 1200,
+        position: 'relative',
         flexShrink: 0,
       }}
     >
@@ -111,16 +111,17 @@ export function TripWorkspaceHeader({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
-            color: 'var(--color-text-muted, #94A3B8)',
+            color: 'var(--color-text-muted, #64748B)',
             textDecoration: 'none',
             fontSize: '0.8rem',
             fontFamily: 'var(--font-mono, monospace)',
-            padding: '4px 8px',
+            padding: '4px 10px',
             borderRadius: '6px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'var(--color-surface-card, #F8FAFC)',
+            border: '1px solid var(--color-border, #E2E8F0)',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
+            fontWeight: 600,
           }}
         >
           <span style={{ fontSize: '12px' }}>&larr;</span> TRIPS
@@ -130,14 +131,14 @@ export function TripWorkspaceHeader({
           <h1
             className="font-display"
             style={{
-              fontSize: '1.15rem',
+              fontSize: '1.2rem',
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--color-text-primary, #0F172A)',
               margin: 0,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              letterSpacing: '0.5px',
+              letterSpacing: '0.2px',
             }}
           >
             {destination}
@@ -147,6 +148,7 @@ export function TripWorkspaceHeader({
               className="font-mono text-muted"
               style={{
                 fontSize: '0.75rem',
+                color: 'var(--color-text-muted, #64748B)',
                 whiteSpace: 'nowrap',
                 display: 'none',
               }}
@@ -158,16 +160,17 @@ export function TripWorkspaceHeader({
         </div>
       </div>
 
-      {/* Center: Sliding Pill Tabs (TREK Style) */}
+      {/* Center: White Sliding Pill Tabs with Blue Accent */}
       <nav
         style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(30, 41, 59, 0.70)',
+          background: '#FFFFFF',
           padding: '3px',
           borderRadius: '999px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          gap: '2px',
+          border: '1px solid var(--color-border, #E2E8F0)',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          gap: '3px',
         }}
       >
         {tabs.map((tab) => {
@@ -181,17 +184,17 @@ export function TripWorkspaceHeader({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '5px 12px',
+                padding: '5px 14px',
                 borderRadius: '999px',
-                border: 'none',
-                background: isActive ? '#2563EB' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #94A3B8)',
+                border: isActive ? '1px solid var(--color-accent-primary, #1E3A8A)' : '1px solid transparent',
+                background: isActive ? 'var(--color-accent-primary, #1E3A8A)' : 'transparent',
+                color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                fontSize: '0.8rem',
+                fontSize: '0.82rem',
                 fontWeight: isActive ? 600 : 500,
                 transition: 'all 0.15s cubic-bezier(0.23, 1, 0.32, 1)',
-                boxShadow: isActive ? '0 2px 8px rgba(37, 99, 235, 0.4)' : 'none',
+                boxShadow: isActive ? '0 2px 6px rgba(30, 58, 138, 0.35)' : 'none',
               }}
             >
               <span
@@ -207,8 +210,9 @@ export function TripWorkspaceHeader({
                     fontWeight: 700,
                     padding: '1px 5px',
                     borderRadius: '999px',
-                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-                    color: isActive ? '#FFFFFF' : '#94A3B8',
+                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-surface-card, #F1F5F9)',
+                    color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
+                    border: isActive ? 'none' : '1px solid var(--color-border, #E2E8F0)',
                   }}
                 >
                   {tab.count}
@@ -229,14 +233,15 @@ export function TripWorkspaceHeader({
             alignItems: 'center',
             gap: '6px',
             padding: '5px 12px',
-            background: copied ? '#10B981' : 'rgba(255, 255, 255, 0.06)',
-            color: '#FFFFFF',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            background: copied ? '#10B981' : '#FFFFFF',
+            color: copied ? '#FFFFFF' : 'var(--color-text-primary, #0F172A)',
+            border: '1px solid var(--color-border, #E2E8F0)',
             borderRadius: '6px',
             fontSize: '0.75rem',
             fontFamily: 'var(--font-mono, monospace)',
             fontWeight: 600,
             cursor: 'pointer',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
             transition: 'all 0.2s ease',
           }}
         >

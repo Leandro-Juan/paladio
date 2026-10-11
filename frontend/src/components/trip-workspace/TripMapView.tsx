@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -164,9 +164,13 @@ function MapViewportController({
     if (!map) return;
     const handleResize = () => map.invalidateSize();
     window.addEventListener('resize', handleResize);
-    const timer = setTimeout(() => map.invalidateSize(), 150);
+    const t1 = setTimeout(() => map.invalidateSize(), 50);
+    const t2 = setTimeout(() => map.invalidateSize(), 150);
+    const t3 = setTimeout(() => map.invalidateSize(), 400);
     return () => {
-      clearTimeout(timer);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener('resize', handleResize);
     };
   }, [map]);
@@ -266,17 +270,17 @@ export default function TripMapView({
           top: '14px',
           left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 25,
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          zIndex: 900,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid #E2E8F0',
           borderRadius: '999px',
           padding: '4px 6px',
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04)',
         }}
       >
         {categoryPills.map((pill) => {
@@ -294,8 +298,8 @@ export default function TripMapView({
                 padding: '4px 9px',
                 borderRadius: '999px',
                 border: 'none',
-                background: isSelected ? '#2563EB' : 'transparent',
-                color: isSelected ? '#FFFFFF' : '#94A3B8',
+                background: isSelected ? '#1E3A8A' : 'transparent',
+                color: isSelected ? '#FFFFFF' : '#64748B',
                 cursor: 'pointer',
                 fontSize: '11px',
                 fontFamily: 'monospace',
@@ -317,9 +321,11 @@ export default function TripMapView({
       <MapContainer
         center={centerPosition}
         zoom={13}
+        zoomControl={false}
         style={{ height: '100%', width: '100%' }}
         attributionControl={false}
       >
+        <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
 
         {/* Esri Light Gray Canvas Basemap */}

@@ -147,7 +147,7 @@ export function TripPlanSidebar({
         top: '12px',
         bottom: '12px',
         left: '12px',
-        zIndex: 20,
+        zIndex: 1000,
         display: 'flex',
         alignItems: 'stretch',
         pointerEvents: 'none',
@@ -158,12 +158,12 @@ export function TripPlanSidebar({
         style={{
           width: isOpen ? '380px' : '0px',
           height: '100%',
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          background: 'rgba(255, 255, 255, 0.94)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
           borderRadius: '16px',
-          border: isOpen ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-          boxShadow: isOpen ? '0 12px 36px rgba(0, 0, 0, 0.45)' : 'none',
+          border: isOpen ? '1px solid #E2E8F0' : 'none',
+          boxShadow: isOpen ? '0 12px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.04)' : 'none',
           overflow: 'hidden',
           transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
           pointerEvents: isOpen ? 'auto' : 'none',
@@ -177,17 +177,18 @@ export function TripPlanSidebar({
             <div
               style={{
                 padding: '14px 16px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                borderBottom: '1px solid #E2E8F0',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
+                background: '#FFFFFF',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="font-mono text-muted" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
                   {'// ITINERARY TIMELINE'}
                 </span>
-                <span className="font-mono" style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 600 }}>
+                <span className="font-mono" style={{ fontSize: '0.8rem', color: '#1E3A8A', fontWeight: 700 }}>
                   EST. {totalCost.toFixed(2)} &euro;
                 </span>
               </div>
@@ -201,14 +202,15 @@ export function TripPlanSidebar({
                     padding: '4px 10px',
                     borderRadius: '6px',
                     border: '1px solid',
-                    borderColor: selectedDay === 'all' ? '#2563EB' : 'rgba(255, 255, 255, 0.1)',
-                    background: selectedDay === 'all' ? '#1E3A8A' : 'rgba(255, 255, 255, 0.04)',
-                    color: selectedDay === 'all' ? '#FFFFFF' : '#94A3B8',
+                    borderColor: selectedDay === 'all' ? '#1E3A8A' : '#E2E8F0',
+                    background: selectedDay === 'all' ? '#1E3A8A' : '#FFFFFF',
+                    color: selectedDay === 'all' ? '#FFFFFF' : '#475569',
                     fontFamily: 'monospace',
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
+                    boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
                   }}
                 >
                   ALL DAYS
@@ -224,14 +226,15 @@ export function TripPlanSidebar({
                         padding: '4px 10px',
                         borderRadius: '6px',
                         border: '1px solid',
-                        borderColor: isSel ? '#2563EB' : 'rgba(255, 255, 255, 0.1)',
-                        background: isSel ? '#1E3A8A' : 'rgba(255, 255, 255, 0.04)',
-                        color: isSel ? '#FFFFFF' : '#94A3B8',
+                        borderColor: isSel ? '#1E3A8A' : '#E2E8F0',
+                        background: isSel ? '#1E3A8A' : '#FFFFFF',
+                        color: isSel ? '#FFFFFF' : '#475569',
                         fontFamily: 'monospace',
                         fontSize: '11px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
+                        boxShadow: isSel ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
                       }}
                     >
                       DAY {d.day}
@@ -246,8 +249,8 @@ export function TripPlanSidebar({
                   style={{
                     marginTop: '2px',
                     padding: '8px 10px',
-                    background: 'rgba(37, 99, 235, 0.1)',
-                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                    background: 'rgba(30, 58, 138, 0.05)',
+                    border: '1px solid rgba(30, 58, 138, 0.15)',
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -256,8 +259,8 @@ export function TripPlanSidebar({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LightningIcon size={13} color="#60A5FA" />
-                    <span className="font-mono" style={{ fontSize: '11px', color: '#93C5FD', fontWeight: 600 }}>
+                    <LightningIcon size={13} color="#1E3A8A" />
+                    <span className="font-mono" style={{ fontSize: '11px', color: '#1E3A8A', fontWeight: 600 }}>
                       REAL PUBLIC TRANSIT
                     </span>
                   </div>
@@ -267,7 +270,7 @@ export function TripPlanSidebar({
                     disabled={upgrading || !isGtfsReady}
                     style={{
                       padding: '3px 8px',
-                      background: '#2563EB',
+                      background: '#1E3A8A',
                       color: '#FFF',
                       border: 'none',
                       borderRadius: '4px',
@@ -297,8 +300,8 @@ export function TripPlanSidebar({
                 return (
                   <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* Day Group Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '4px' }}>
-                      <span className="font-display" style={{ fontSize: '0.95rem', color: '#60A5FA', fontWeight: 700 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px' }}>
+                      <span className="font-display" style={{ fontSize: '0.95rem', color: '#1E3A8A', fontWeight: 700 }}>
                         DAY {dayObj.day} {dayObj.theme ? `— ${dayObj.theme}` : ''}
                       </span>
                       <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
@@ -312,7 +315,7 @@ export function TripPlanSidebar({
                     )}
 
                     {path.length === 0 && (
-                      <div className="font-mono text-muted" style={{ fontSize: '12px', padding: '1rem', textAlign: 'center', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '6px' }}>
+                      <div className="font-mono text-muted" style={{ fontSize: '12px', padding: '1rem', textAlign: 'center', border: '1px dashed #CBD5E1', borderRadius: '6px', background: '#F8FAFC' }}>
                         No scheduled stops for this day. Free exploration.
                       </div>
                     )}
@@ -334,10 +337,10 @@ export function TripPlanSidebar({
                                 gap: '8px',
                                 padding: '4px 8px',
                                 margin: '2px 0 2px 20px',
-                                borderLeft: '2px dashed rgba(59, 130, 246, 0.4)',
+                                borderLeft: '2px dashed #93C5FD',
                                 fontSize: '11px',
                                 fontFamily: 'monospace',
-                                color: '#94A3B8',
+                                color: '#64748B',
                               }}
                             >
                               {(() => {
@@ -346,9 +349,9 @@ export function TripPlanSidebar({
                                 return (
                                   <>
                                     {isPedestrian ? (
-                                      <WalkIcon size={12} color="#94A3B8" />
+                                      <WalkIcon size={12} color="#64748B" />
                                     ) : (
-                                      <TransitIcon size={12} color="#60A5FA" />
+                                      <TransitIcon size={12} color="#1E3A8A" />
                                     )}
                                     <span>
                                       {isPedestrian
@@ -364,13 +367,14 @@ export function TripPlanSidebar({
                           {/* Waypoint Card */}
                           <div
                             style={{
-                              background: 'rgba(30, 41, 59, 0.6)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              background: '#FFFFFF',
+                              border: '1px solid #E2E8F0',
                               borderRadius: '10px',
                               padding: '10px 12px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '6px',
+                              boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
                               transition: 'all 0.15s ease',
                             }}
                           >
@@ -382,15 +386,14 @@ export function TripPlanSidebar({
                                     fontSize: '11px',
                                     fontWeight: 700,
                                     background: '#1E3A8A',
-                                    color: '#93C5FD',
+                                    color: '#FFFFFF',
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    border: '1px solid rgba(59, 130, 246, 0.4)',
                                   }}
                                 >
                                   {stopNum}
                                 </span>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#FFF', fontWeight: 600 }}>
+                                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#0F172A', fontWeight: 600 }}>
                                   {p?.name || 'Waypoint'}
                                 </h4>
                               </div>
@@ -399,7 +402,7 @@ export function TripPlanSidebar({
                               )}
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'monospace', color: '#94A3B8', marginTop: '2px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'monospace', color: '#64748B', marginTop: '2px' }}>
                               <span>
                                 {scheduledPoi.arrival_time ? scheduledPoi.arrival_time.substring(11, 16) : '--:--'}
                                 {' '}&rarr;{' '}
@@ -407,7 +410,7 @@ export function TripPlanSidebar({
                                 {p?.duration_mins ? ` (${p.duration_mins}m)` : ''}
                               </span>
                               {typeof p?.cost_eur === 'number' && p.cost_eur > 0 && (
-                                <span style={{ color: '#10B981', fontWeight: 600 }}>
+                                <span style={{ color: '#059669', fontWeight: 600 }}>
                                   {p.cost_eur.toFixed(2)} &euro;
                                 </span>
                               )}
@@ -435,22 +438,26 @@ export function TripPlanSidebar({
           height: '36px',
           alignSelf: 'center',
           marginLeft: isOpen ? '6px' : '0px',
-          background: 'rgba(15, 23, 42, 0.88)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: '0 8px 8px 0',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#94A3B8',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          color: '#475569',
+          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
           pointerEvents: 'auto',
-          transition: 'color 0.15s ease',
+          transition: 'color 0.15s ease, background 0.15s ease',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#1E3A8A';
+          e.currentTarget.style.background = '#F8FAFC';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#475569';
+          e.currentTarget.style.background = '#FFFFFF';
+        }}
       >
         <svg
           width="16"

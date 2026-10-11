@@ -55,7 +55,7 @@ export function TripPlacesSidebar({
           top: '12px',
           bottom: '12px',
           right: '12px',
-          zIndex: 20,
+          zIndex: 15000,
           display: 'flex',
           alignItems: 'stretch',
           pointerEvents: 'none',
@@ -72,22 +72,22 @@ export function TripPlacesSidebar({
             height: '36px',
             alignSelf: 'center',
             marginRight: isOpen ? '6px' : '0px',
-            background: 'rgba(15, 23, 42, 0.88)',
+            background: '#FFFFFF',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            border: '1px solid #E2E8F0',
             borderRadius: '8px 0 0 8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#94A3B8',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            color: '#475569',
+            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
             pointerEvents: 'auto',
             transition: 'color 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#1E3A8A')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#475569')}
         >
           <svg
             width="16"
@@ -112,12 +112,12 @@ export function TripPlacesSidebar({
           style={{
             width: isOpen ? '340px' : '0px',
             height: '100%',
-            background: 'rgba(15, 23, 42, 0.85)',
+            background: 'rgba(255, 255, 255, 0.94)',
             backdropFilter: 'blur(24px) saturate(180%)',
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             borderRadius: '16px',
-            border: isOpen ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-            boxShadow: isOpen ? '0 12px 36px rgba(0, 0, 0, 0.45)' : 'none',
+            border: isOpen ? '1px solid #E2E8F0' : 'none',
+            boxShadow: isOpen ? '0 12px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.04)' : 'none',
             overflow: 'hidden',
             transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
             pointerEvents: isOpen ? 'auto' : 'none',
@@ -131,7 +131,7 @@ export function TripPlacesSidebar({
               <div
                 style={{
                   padding: '14px 16px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderBottom: '1px solid #E2E8F0', background: '#FFFFFF',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
@@ -144,7 +144,7 @@ export function TripPlacesSidebar({
                   style={{
                     width: '100%',
                     padding: '8px 14px',
-                    background: '#2563EB',
+                    background: '#1E3A8A',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '8px',
@@ -156,7 +156,7 @@ export function TripPlacesSidebar({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
+                    boxShadow: '0 2px 8px rgba(30, 58, 138, 0.25)',
                     transition: 'all 0.15s ease',
                   }}
                 >
@@ -174,10 +174,10 @@ export function TripPlacesSidebar({
                     style={{
                       width: '100%',
                       padding: '7px 10px 7px 30px',
-                      background: 'rgba(30, 41, 59, 0.7)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
                       borderRadius: '8px',
-                      color: '#FFF',
+                      color: '#0F172A',
                       fontSize: '12px',
                       fontFamily: 'inherit',
                       outline: 'none',
@@ -207,10 +207,10 @@ export function TripPlacesSidebar({
                     style={{
                       flex: 1,
                       padding: '5px 8px',
-                      background: 'rgba(30, 41, 59, 0.7)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
                       borderRadius: '6px',
-                      color: '#94A3B8',
+                      color: '#475569',
                       fontSize: '11px',
                       outline: 'none',
                       fontFamily: 'monospace',
@@ -247,8 +247,8 @@ export function TripPlacesSidebar({
                       onClick={() => onPlaceClick?.(place)}
                       style={{
                         padding: '10px',
-                        background: 'rgba(30, 41, 59, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        background: '#FFFFFF', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '10px',
                         cursor: 'pointer',
                         display: 'flex',
@@ -271,13 +271,13 @@ export function TripPlacesSidebar({
                           width: '36px',
                           height: '36px',
                           borderRadius: '8px',
-                          background: '#1E293B',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          background: '#EFF6FF',
+                          border: '1px solid #E2E8F0',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
-                          color: '#93C5FD',
+                          color: '#1E3A8A',
                           fontSize: '12px',
                           fontFamily: 'monospace',
                           fontWeight: 700,
@@ -289,7 +289,7 @@ export function TripPlacesSidebar({
                       {/* Content */}
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#FFF', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {place.name}
                           </span>
                           {place.day && (
@@ -297,7 +297,7 @@ export function TripPlacesSidebar({
                               style={{
                                 fontSize: '10px',
                                 fontFamily: 'monospace',
-                                color: '#93C5FD',
+                                color: '#1E3A8A',
                                 background: 'rgba(59, 130, 246, 0.2)',
                                 padding: '1px 5px',
                                 borderRadius: '4px',
@@ -331,7 +331,7 @@ export function TripPlacesSidebar({
             inset: 0,
             background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(8px)',
-            zIndex: 100,
+            zIndex: 1500,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -344,18 +344,18 @@ export function TripPlacesSidebar({
             style={{
               maxWidth: '480px',
               width: '100%',
-              background: '#0F172A',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
               borderRadius: '14px',
               padding: '1.5rem',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+              boxShadow: '0 20px 40px rgba(15, 23, 42, 0.15)',
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-display" style={{ margin: 0, fontSize: '1.15rem', color: '#FFF' }}>
+              <h3 className="font-display" style={{ margin: 0, fontSize: '1.15rem', color: '#0F172A' }}>
                 ADD PLACE / ACTIVITY
               </h3>
               <button
@@ -364,7 +364,7 @@ export function TripPlacesSidebar({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94A3B8',
+                  color: '#475569',
                   fontSize: '18px',
                   cursor: 'pointer',
                 }}
@@ -375,13 +375,13 @@ export function TripPlacesSidebar({
 
             <div
               style={{
-                background: 'rgba(37, 99, 235, 0.1)',
-                border: '1px solid rgba(37, 99, 235, 0.25)',
+                background: '#EFF6FF',
+                border: '1px solid #DBEAFE',
                 borderRadius: '8px',
                 padding: '1rem',
                 fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '0.85rem',
-                color: '#93C5FD',
+                color: '#1E3A8A',
                 lineHeight: 1.5,
               }}
             >
@@ -398,8 +398,8 @@ export function TripPlacesSidebar({
                 onClick={() => setShowAddModal(false)}
                 style={{
                   padding: '6px 16px',
-                  background: '#2563EB',
-                  color: '#FFF',
+                  background: '#1E3A8A',
+                  color: '#0F172A',
                   border: 'none',
                   borderRadius: '6px',
                   fontFamily: 'var(--font-display, inherit)',
