@@ -688,7 +688,7 @@ export function TripTimeline({
       })}
 
       {/* Subtle disclaimer for public transit fares */}
-      {hasTransit && (
+      {hasPublicTransit && (
         <div
           data-testid="timeline-transit-disclaimer"
           style={{
