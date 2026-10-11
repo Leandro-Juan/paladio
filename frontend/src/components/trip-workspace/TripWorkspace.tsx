@@ -5,6 +5,7 @@ import { Trip } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput } from '@/types/domain';
 import { RouteItineraryData } from '@/app/vault/[id]/page';
 import { PoiCategoryType } from '@/utils/poiCategory';
+import { getScheduledPoiTimes } from '@/utils/date';
 
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripPlanSidebar } from './TripPlanSidebar';
@@ -28,6 +29,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [isRightOpen, setIsRightOpen] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
   const [focusedPlace, setFocusedPlace] = useState<{ lat: number; lng: number } | null>(null);
+  const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
 
   // Cast itinerary data
   const itinerary = trip.itinerary_data as RouteItineraryData | null | undefined;
@@ -52,15 +54,17 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             const lng = p?.location?.longitude;
 
             if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
+              const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi);
               const poiItem: MapPoi = {
                 name: p?.name || 'Waypoint',
                 lat,
                 lng,
                 category: p?.category,
-                arrivalTime: scheduledPoi.arrival_time,
-                departureTime: scheduledPoi.departure_time,
+                arrivalTime: aTime !== '--:--' ? aTime : undefined,
+                departureTime: dTime !== '--:--' ? dTime : undefined,
                 durationMins: p?.duration_mins,
                 costEur: p?.cost_eur,
+                transitFromPrevious: scheduledPoi.transit_from_previous,
               };
               dayPois.push(poiItem);
 
@@ -203,6 +207,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             focusedPlace={focusedPlace}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
+            transitMode={transitMode}
           />
 
           {/* Left Floating Itinerary Sidebar */}
@@ -218,6 +223,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onItineraryUpdate={onTripUpdated}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
+            transitMode={transitMode}
+            onTransitModeChange={setTransitMode}
           />
 
           {/* Right Floating Places Sidebar */}

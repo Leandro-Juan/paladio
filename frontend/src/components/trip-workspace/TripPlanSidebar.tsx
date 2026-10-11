@@ -8,6 +8,7 @@ import { TransitRecommendationCard } from '@/components/TransitLegView';
 import { Spinner, LightningIcon, WalkIcon, TransitIcon } from '@/components/icons';
 import { apiFetch } from '@/utils/api';
 import { notify } from '@/utils/notify';
+import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 
 interface TripPlanSidebarProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ interface TripPlanSidebarProps {
   onItineraryUpdate?: (updated: OptimizationResult) => void;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
+  transitMode?: 'simple' | 'detailed';
+  onTransitModeChange?: (mode: 'simple' | 'detailed') => void;
 }
 
 export function TripPlanSidebar({
@@ -35,6 +38,8 @@ export function TripPlanSidebar({
   onItineraryUpdate,
   categoryFilter,
   onCategoryFilterChange,
+  transitMode = 'simple',
+  onTransitModeChange,
 }: TripPlanSidebarProps) {
   // Transit upgrade state
   const [upgrading, setUpgrading] = useState(false);
@@ -210,9 +215,18 @@ export function TripPlanSidebar({
               </div>
 
               {/* Day Selection Tabs */}
-              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              <div
+                data-testid="day-selector-tabs"
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  alignItems: 'center',
+                }}
+              >
                 <button
                   type="button"
+                  data-testid="day-tab-all"
                   onClick={() => onSelectDay('all')}
                   style={{
                     padding: '4px 10px',
@@ -227,6 +241,7 @@ export function TripPlanSidebar({
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   ALL DAYS
@@ -237,6 +252,7 @@ export function TripPlanSidebar({
                     <button
                       key={d.day}
                       type="button"
+                      data-testid={`day-tab-${d.day}`}
                       onClick={() => onSelectDay(d.day)}
                       style={{
                         padding: '4px 10px',
@@ -251,12 +267,93 @@ export function TripPlanSidebar({
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
                         boxShadow: isSel ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       DAY {d.day}
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Transit Route Mode Pill Toggle */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  padding: '3px 4px 3px 10px',
+                  background: '#F8FAFC',
+                  borderRadius: '999px',
+                  border: '1px solid #E2E8F0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <TransitIcon size={12} color="#1E3A8A" />
+                  <span
+                    className="font-mono text-muted"
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    TRANSIT ROUTE
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    background: '#FFFFFF',
+                    padding: '2px',
+                    borderRadius: '999px',
+                    border: '1px solid #CBD5E1',
+                    gap: '2px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    data-testid="transit-pill-simple"
+                    onClick={() => onTransitModeChange?.('simple')}
+                    style={{
+                      padding: '3px 9px',
+                      borderRadius: '999px',
+                      border: 'none',
+                      background: transitMode === 'simple' ? '#1E3A8A' : 'transparent',
+                      color: transitMode === 'simple' ? '#FFFFFF' : '#64748B',
+                      fontFamily: 'monospace',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: transitMode === 'simple' ? '0 1px 3px rgba(30, 58, 138, 0.25)' : 'none',
+                    }}
+                  >
+                    SIMPLE
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="transit-pill-detailed"
+                    onClick={() => onTransitModeChange?.('detailed')}
+                    style={{
+                      padding: '3px 9px',
+                      borderRadius: '999px',
+                      border: 'none',
+                      background: transitMode === 'detailed' ? '#1E3A8A' : 'transparent',
+                      color: transitMode === 'detailed' ? '#FFFFFF' : '#64748B',
+                      fontFamily: 'monospace',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: transitMode === 'detailed' ? '0 1px 3px rgba(30, 58, 138, 0.25)' : 'none',
+                    }}
+                  >
+                    DETAILED
+                  </button>
+                </div>
               </div>
 
               {/* Active Category Filter Indicator */}
@@ -377,6 +474,8 @@ export function TripPlanSidebar({
                     {/* POI Cards */}
                     {path.map((scheduledPoi: ScheduledPoi, poiIdx: number) => {
                       const p = scheduledPoi.poi;
+                      const { start: startTime, end: endTime } = getScheduledPoiTimes(scheduledPoi);
+                      const openHours = getPoiOpeningHours(p, dayObj.day);
                       const transitFromPrev = scheduledPoi.transit_from_previous;
                       const stopNum = String(poiIdx + 1).padStart(2, '0');
 
@@ -469,9 +568,9 @@ export function TripPlanSidebar({
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'monospace', color: '#64748B', marginTop: '2px' }}>
                               <span>
-                                {scheduledPoi.arrival_time ? scheduledPoi.arrival_time.substring(11, 16) : '--:--'}
+                                {startTime}
                                 {' '}&rarr;{' '}
-                                {scheduledPoi.departure_time ? scheduledPoi.departure_time.substring(11, 16) : '--:--'}
+                                {endTime}
                                 {p?.duration_mins ? ` (${p.duration_mins}m)` : ''}
                               </span>
                               {typeof p?.cost_eur === 'number' && p.cost_eur > 0 && (
@@ -480,6 +579,13 @@ export function TripPlanSidebar({
                                 </span>
                               )}
                             </div>
+
+                            {openHours && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', color: '#64748B', marginTop: '-2px' }}>
+                                <span style={{ color: '#94A3B8' }}>&bull;</span>
+                                <span>{openHours}</span>
+                              </div>
+                            )}
                           </div>
                         </React.Fragment>
                       );

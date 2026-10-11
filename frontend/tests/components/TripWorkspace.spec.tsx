@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/experimental-ct-react';
 import { TripWorkspaceHeader } from '../../src/components/trip-workspace/TripWorkspaceHeader';
 import { TripPlacesSidebar, PlaceItem } from '../../src/components/trip-workspace/TripPlacesSidebar';
 import { TripTransportsView } from '../../src/components/trip-workspace/TripTransportsView';
+import { TripPlanSidebar } from '../../src/components/trip-workspace/TripPlanSidebar';
+import { DayOutput } from '../../src/types/domain';
 
 test.describe('Trip Workspace Renovated Components', () => {
   test('TripWorkspaceHeader renders destination, tabs, and handles tab switching', async ({ mount }) => {
@@ -26,7 +28,7 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(component.getByText('Costs')).toBeVisible();
     await expect(component.getByText('Collab')).toBeVisible();
     await expect(component.getByText('Photos')).toBeVisible();
-    await expect(component.getByText('12')).toBeVisible(); // Photos count badge
+    await expect(component.getByRole('button', { name: /Photos/i }).getByText('12')).toBeVisible(); // Photos count badge
     await expect(component.getByText('3')).toBeVisible();  // Collab count badge
   });
 
@@ -86,4 +88,94 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(component.getByText('RVK')).toBeVisible();
     await expect(component.getByText('FI-101')).toBeVisible();
   });
+
+  test('TripPlanSidebar displays and allows selecting all days when a trip has more than 4 days', async ({ mount }) => {
+    const mockDays: DayOutput[] = [
+      { day: 1, theme: 'Arrival & City Center', itinerary: { path: [] } },
+      { day: 2, theme: 'Historic Monuments', itinerary: { path: [] } },
+      { day: 3, theme: 'Royal Palace & Gardens', itinerary: { path: [] } },
+      { day: 4, theme: 'Culinary & Markets', itinerary: { path: [] } },
+      { day: 5, theme: 'Art & Masterpieces', itinerary: { path: [] } },
+      { day: 6, theme: 'Parks & Farewell', itinerary: { path: [] } },
+    ];
+
+    let selectedDay: number | 'all' = 'all';
+
+    const component = await mount(
+      <TripPlanSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        days={mockDays}
+        selectedDay={selectedDay}
+        onSelectDay={(day) => {
+          selectedDay = day;
+        }}
+      />
+    );
+
+    // Verify all day buttons are rendered and visible (including day 5 and 6)
+    const tabsContainer = component.getByTestId('day-selector-tabs');
+    await expect(tabsContainer).toBeVisible();
+
+    const allDaysBtn = component.getByTestId('day-tab-all');
+    await expect(allDaysBtn).toBeVisible();
+
+    for (let dayNum = 1; dayNum <= 6; dayNum++) {
+      const dayBtn = component.getByTestId(`day-tab-${dayNum}`);
+      await expect(dayBtn).toBeVisible();
+      await expect(dayBtn).toHaveText(`DAY ${dayNum}`);
+    }
+
+    // Verify selecting Day 5 works
+    const day5Btn = component.getByTestId('day-tab-5');
+    await day5Btn.click();
+    expect(selectedDay).toBe(5);
+
+    // Verify selecting Day 6 works
+    const day6Btn = component.getByTestId('day-tab-6');
+    await day6Btn.click();
+    expect(selectedDay).toBe(6);
+
+    // Verify selecting ALL DAYS works
+    await allDaysBtn.click();
+    expect(selectedDay).toBe('all');
+  });
+
+  test('TripPlanSidebar renders transit route view pill toggle and switches modes', async ({ mount }) => {
+    let mode: 'simple' | 'detailed' = 'simple';
+    const mockDays: DayOutput[] = [
+      { day: 1, theme: 'Arrival', itinerary: { path: [] } },
+    ];
+
+    const component = await mount(
+      <TripPlanSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        transitMode={mode}
+        onTransitModeChange={(m) => {
+          mode = m;
+        }}
+      />
+    );
+
+    // Verify transit route pill controls are visible
+    const simplePill = component.getByTestId('transit-pill-simple');
+    const detailedPill = component.getByTestId('transit-pill-detailed');
+    await expect(simplePill).toBeVisible();
+    await expect(detailedPill).toBeVisible();
+    await expect(simplePill).toHaveText('SIMPLE');
+    await expect(detailedPill).toHaveText('DETAILED');
+
+    // Click Detailed Transit
+    await detailedPill.click();
+    expect(mode).toBe('detailed');
+
+    // Click Simple Transit
+    await simplePill.click();
+    expect(mode).toBe('simple');
+  });
 });
+

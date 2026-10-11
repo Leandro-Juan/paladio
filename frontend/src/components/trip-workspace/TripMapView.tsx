@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, Tooltip, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
+import { TransitLeg, TransitStep } from '@/types/domain';
+import { formatPoiTime } from '@/utils/date';
 
 export interface MapPoi {
   name: string;
@@ -17,12 +19,35 @@ export interface MapPoi {
   departureTime?: string;
   durationMins?: number;
   costEur?: number;
+  transitFromPrevious?: TransitLeg | null;
 }
 
 export interface MapDayGroup {
   dayNumber: number;
   label?: string;
   pois: MapPoi[];
+}
+
+export interface DetailedTransitSegment {
+  key: string;
+  positions: [number, number][];
+  color: string;
+  isDashed: boolean;
+  weight: number;
+  instruction: string;
+  type: string;
+  transitLine?: string | null;
+  durationMins?: number;
+  distanceKm?: number;
+  stationName?: string | null;
+}
+
+export interface TransitStationNode {
+  key: string;
+  position: [number, number];
+  stationName: string;
+  line?: string | null;
+  instruction: string;
 }
 
 interface TripMapViewProps {
@@ -34,6 +59,57 @@ interface TripMapViewProps {
   focusedPlace?: { lat: number; lng: number } | null;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
+  transitMode?: 'simple' | 'detailed';
+}
+
+function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
+  const type = (step.type || '').toLowerCase();
+  if (type === 'walk' || type === 'pedestrian') {
+    return { color: '#10B981', isDashed: true, weight: 4 };
+  }
+  if (type === 'transfer') {
+    return { color: '#F59E0B', isDashed: true, weight: 4 };
+  }
+  if (type === 'transit_alight') {
+    return { color: '#059669', isDashed: false, weight: 4.5 };
+  }
+
+  const line = (step.transit_line || '').toUpperCase().trim();
+  const lineColors: Record<string, string> = {
+    '1': '#EF4444',
+    '2': '#3B82F6',
+    '3': '#10B981',
+    '4': '#8B5CF6',
+    '5': '#EC4899',
+    '6': '#7C2D12',
+    '7': '#F97316',
+    '8': '#E11D48',
+    '9': '#84CC16',
+    '10': '#0284C7',
+    '11': '#14B8A6',
+    '12': '#6366F1',
+    'A': '#EF4444',
+    'B': '#3B82F6',
+    'C': '#EAB308',
+    'D': '#10B981',
+    'E': '#8B5CF6',
+  };
+
+  if (line && lineColors[line]) {
+    return { color: lineColors[line], isDashed: false, weight: 5 };
+  }
+
+  if (line) {
+    const palette = ['#EF4444', '#F97316', '#F59E0B', '#10B981', '#06B6D4', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899'];
+    let hash = 0;
+    for (let i = 0; i < line.length; i++) {
+      hash = (hash << 5) - hash + line.charCodeAt(i);
+    }
+    const color = palette[Math.abs(hash) % palette.length];
+    return { color, isDashed: false, weight: 5 };
+  }
+
+  return { color: '#1E3A8A', isDashed: false, weight: 5 };
 }
 
 // Pure SVG vector icons matching Paladio design standards (NO EMOJIS)
@@ -187,6 +263,7 @@ export default function TripMapView({
   focusedPlace,
   categoryFilter,
   onCategoryFilterChange,
+  transitMode = 'simple',
 }: TripMapViewProps) {
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
@@ -196,6 +273,118 @@ export default function TripMapView({
     if (onCategoryFilterChange) onCategoryFilterChange(next);
     else setInternalCatFilter(next);
   };
+
+  // Current active day data
+  const activeDayData = useMemo(() => {
+    if (activeDay === 'all') return null;
+    return days.find((d) => d.dayNumber === activeDay) || null;
+  }, [days, activeDay]);
+
+  // Detailed transit segments computation
+  const { detailedSegments, stationNodes } = useMemo(() => {
+    if (transitMode !== 'detailed') {
+      return { detailedSegments: [], stationNodes: [] };
+    }
+
+    const segments: DetailedTransitSegment[] = [];
+    const nodes: TransitStationNode[] = [];
+
+    const daysToProcess = activeDay === 'all'
+      ? days
+      : (activeDayData ? [activeDayData] : []);
+
+    daysToProcess.forEach((dayGroup) => {
+      const pois = dayGroup.pois;
+      if (!pois || pois.length < 2) return;
+
+      for (let k = 1; k < pois.length; k++) {
+        const fromPoi = pois[k - 1];
+        const toPoi = pois[k];
+        const startCoord: [number, number] = [fromPoi.lat, fromPoi.lng];
+        const endCoord: [number, number] = [toPoi.lat, toPoi.lng];
+        const leg = toPoi.transitFromPrevious;
+
+        if (leg && Array.isArray(leg.steps) && leg.steps.length > 0) {
+          const hasDist = leg.steps.some((s) => typeof s.distance_km === 'number' && s.distance_km > 0);
+          const weights = leg.steps.map((s) => {
+            if (hasDist && typeof s.distance_km === 'number' && s.distance_km > 0) return s.distance_km;
+            if (typeof s.duration_mins === 'number' && s.duration_mins > 0) return s.duration_mins;
+            return 1;
+          });
+          const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
+
+          let currFrac = 0;
+          for (let sIdx = 0; sIdx < leg.steps.length; sIdx++) {
+            const step = leg.steps[sIdx];
+            const stepFrac = weights[sIdx] / totalWeight;
+            const nextFrac = Math.min(1, currFrac + stepFrac);
+
+            const sLat = startCoord[0] + currFrac * (endCoord[0] - startCoord[0]);
+            const sLng = startCoord[1] + currFrac * (endCoord[1] - startCoord[1]);
+            const eLat = startCoord[0] + nextFrac * (endCoord[0] - startCoord[0]);
+            const eLng = startCoord[1] + nextFrac * (endCoord[1] - startCoord[1]);
+
+            const style = getTransitStepStyle(step);
+
+            segments.push({
+              key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
+              positions: [[sLat, sLng], [eLat, eLng]],
+              color: style.color,
+              isDashed: style.isDashed,
+              weight: style.weight,
+              instruction: step.instruction || 'Transit maneuver',
+              type: step.type || 'transit',
+              transitLine: step.transit_line,
+              durationMins: step.duration_mins,
+              distanceKm: step.distance_km,
+              stationName: step.station_name,
+            });
+
+            if (step.station_name) {
+              nodes.push({
+                key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}`,
+                position: [sLat, sLng],
+                stationName: step.station_name,
+                line: step.transit_line,
+                instruction: step.instruction || 'Station stop',
+              });
+            }
+
+            currFrac = nextFrac;
+          }
+        } else if (leg) {
+          const isWalk = leg.mode === 'pedestrian' || leg.mode === 'walk';
+          const style = isWalk
+            ? { color: '#10B981', isDashed: true, weight: 4 }
+            : { color: '#2563EB', isDashed: false, weight: 5 };
+
+          segments.push({
+            key: `d${dayGroup.dayNumber}-leg${k}-single`,
+            positions: [startCoord, endCoord],
+            color: style.color,
+            isDashed: style.isDashed,
+            weight: style.weight,
+            instruction: isWalk ? `Walk (~${leg.duration_mins || 0}m)` : `Transit (~${leg.duration_mins || 0}m)`,
+            type: leg.mode || 'transit',
+            durationMins: leg.duration_mins,
+            distanceKm: 0,
+          });
+        } else {
+          segments.push({
+            key: `d${dayGroup.dayNumber}-leg${k}-direct`,
+            positions: [startCoord, endCoord],
+            color: '#2563EB',
+            isDashed: false,
+            weight: 3.5,
+            instruction: `${fromPoi.name} → ${toPoi.name}`,
+            type: 'direct',
+          });
+        }
+      }
+    });
+
+    return { detailedSegments: segments, stationNodes: nodes };
+  }, [transitMode, activeDay, days, activeDayData]);
 
   // Compute cluster polygons for each day (excluding transit hubs and accommodation depots so territory is not warped)
   const dayClusters = useMemo(() => {
@@ -226,12 +415,6 @@ export default function TripMapView({
       };
     });
   }, [days]);
-
-  // Current active day data
-  const activeDayData = useMemo(() => {
-    if (activeDay === 'all') return null;
-    return days.find((d) => d.dayNumber === activeDay) || null;
-  }, [days, activeDay]);
 
   // Active bounds points
   const activeBoundsPoints: LatLngPoint[] = useMemo(() => {
@@ -421,16 +604,92 @@ export default function TripMapView({
             );
           })}
 
-        {/* 3. Solo Active Day Polyline */}
-        {activeDay !== 'all' && activePolyline.length > 1 && (
-          <Polyline
-            positions={activePolyline}
-            pathOptions={{
-              color: '#2563EB',
-              weight: 3.5,
-              opacity: 0.85,
-            }}
-          />
+        {/* 3. Route Polyline: Simple vs Detailed Transit */}
+        {transitMode === 'detailed' ? (
+          <>
+            {detailedSegments.map((seg) => (
+              <Polyline
+                key={seg.key}
+                positions={seg.positions}
+                pathOptions={{
+                  color: seg.color,
+                  weight: seg.weight,
+                  opacity: 0.9,
+                  dashArray: seg.isDashed ? '6, 6' : undefined,
+                }}
+              >
+                <Tooltip sticky direction="top" opacity={0.95}>
+                  <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                    {seg.transitLine ? `[LINE ${seg.transitLine}] ` : ''}
+                    {seg.instruction}
+                    {typeof seg.durationMins === 'number' && seg.durationMins > 0 ? ` · ${seg.durationMins}m` : ''}
+                  </span>
+                </Tooltip>
+                <Popup>
+                  <div style={{ minWidth: '150px', fontFamily: 'monospace', fontSize: '11px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <span
+                        style={{
+                          background: seg.color,
+                          color: '#FFFFFF',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                          fontSize: '10px',
+                        }}
+                      >
+                        {seg.transitLine ? `LINE ${seg.transitLine}` : seg.type.toUpperCase()}
+                      </span>
+                      {typeof seg.durationMins === 'number' && seg.durationMins > 0 && (
+                        <span style={{ color: '#64748B' }}>{seg.durationMins} MINS</span>
+                      )}
+                    </div>
+                    <div style={{ color: '#0F172A', fontWeight: 600 }}>{seg.instruction}</div>
+                    {seg.stationName && (
+                      <div style={{ color: '#64748B', marginTop: '3px' }}>Station: {seg.stationName}</div>
+                    )}
+                    {typeof seg.distanceKm === 'number' && seg.distanceKm > 0 && (
+                      <div style={{ color: '#94A3B8', marginTop: '2px', fontSize: '10px' }}>
+                        Distance: {seg.distanceKm.toFixed(2)} km
+                      </div>
+                    )}
+                  </div>
+                </Popup>
+              </Polyline>
+            ))}
+
+            {/* Station nodes for transfers and boardings */}
+            {stationNodes.map((node) => (
+              <CircleMarker
+                key={node.key}
+                center={node.position}
+                radius={4.5}
+                pathOptions={{
+                  color: '#1E3A8A',
+                  fillColor: '#FFFFFF',
+                  fillOpacity: 1,
+                  weight: 2,
+                }}
+              >
+                <Tooltip direction="top">
+                  <span className="font-mono" style={{ fontSize: '10px', fontWeight: 600 }}>
+                    {node.line ? `[Line ${node.line}] ` : ''}Station: {node.stationName}
+                  </span>
+                </Tooltip>
+              </CircleMarker>
+            ))}
+          </>
+        ) : (
+          activeDay !== 'all' && activePolyline.length > 1 && (
+            <Polyline
+              positions={activePolyline}
+              pathOptions={{
+                color: '#2563EB',
+                weight: 3.5,
+                opacity: 0.85,
+              }}
+            />
+          )
         )}
 
         {/* 4. Hotel Base Camp Anchor Marker */}
@@ -507,7 +766,7 @@ export default function TripMapView({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', fontFamily: 'monospace' }}>
                         {poi.arrivalTime && (
                           <div style={{ color: '#475569' }}>
-                            Time: {poi.arrivalTime.substring(11, 16)} &rarr; {poi.departureTime ? poi.departureTime.substring(11, 16) : '--:--'}
+                            Time: {formatPoiTime(poi.arrivalTime)} &rarr; {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
                           </div>
                         )}
                         {typeof poi.costEur === 'number' && (
@@ -523,6 +782,45 @@ export default function TripMapView({
             });
           })()}
       </MapContainer>
+
+      {/* Floating Detailed Transit Route Legend */}
+      {transitMode === 'detailed' && (
+        <div
+          data-testid="detailed-transit-legend"
+          style={{
+            position: 'absolute',
+            bottom: '18px',
+            left: '400px',
+            zIndex: 900,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid #E2E8F0',
+            borderRadius: '8px',
+            padding: '6px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ width: '14px', height: '0px', borderTop: '2.5px dashed #10B981' }} />
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>Walk</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ width: '14px', height: '3.5px', background: '#EF4444', borderRadius: '1px' }} />
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>Transit Lines</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ width: '14px', height: '0px', borderTop: '2.5px dashed #F59E0B' }} />
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>Transfer</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

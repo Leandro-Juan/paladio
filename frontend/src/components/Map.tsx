@@ -287,14 +287,14 @@ export default function LeafletMap({
       {/* Day Selector Navigation Bar */}
       {effectiveDays.length > 1 && (
         <div
+          data-testid="map-day-selector"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            overflowX: 'auto',
+            flexWrap: 'wrap',
             paddingBottom: '8px',
             marginBottom: '6px',
-            scrollbarWidth: 'none',
           }}
         >
           <button
