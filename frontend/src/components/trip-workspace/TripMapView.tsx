@@ -197,16 +197,27 @@ export default function TripMapView({
     else setInternalCatFilter(next);
   };
 
-  // Compute cluster polygons for each day (excluding airports)
+  // Compute cluster polygons for each day (excluding transit hubs and accommodation depots so territory is not warped)
   const dayClusters = useMemo(() => {
     return days.map((d) => {
       const cityPoints = d.pois.filter((p) => {
         const cat = (p.category || '').toLowerCase();
-        return cat !== 'airport' && cat !== 'flight';
+        const normName = (p.name || '').toLowerCase();
+        const catType = classifyPoiCategory(p.category, p.name).type;
+        return (
+          cat !== 'airport' &&
+          cat !== 'flight' &&
+          cat !== 'hotel' &&
+          cat !== 'lodging' &&
+          catType !== 'hotel' &&
+          catType !== 'airport' &&
+          catType !== 'flight' &&
+          !normName.includes('(start)') &&
+          !normName.includes('(end)')
+        );
       });
-      const pointsToUse = cityPoints.length > 0 ? cityPoints : d.pois;
-      const polygon = computeClusterPolygon(pointsToUse);
-      const centroid = computeCentroid(pointsToUse);
+      const polygon = computeClusterPolygon(cityPoints);
+      const centroid = computeCentroid(cityPoints);
       return {
         dayNumber: d.dayNumber,
         polygon,
@@ -354,6 +365,9 @@ export default function TripMapView({
         {dayClusters.map((cluster) => {
           if (cluster.polygon.length < 3) return null;
           const isActive = activeDay === cluster.dayNumber;
+
+          // In single-day view, only render the active day's territory to prevent visual clutter
+          if (activeDay !== 'all' && !isActive) return null;
 
           return (
             <Polygon

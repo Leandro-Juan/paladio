@@ -205,16 +205,27 @@ export default function LeafletMap({
   );
 
   // Compute cluster polygons for each day
-  // (Filter out distant airports so the attraction territory isn't warped)
+  // (Filter out distant airports and accommodation depots so the attraction territory isn't warped)
   const dayClusters = useMemo(() => {
     return effectiveDays.map((d) => {
       const cityPoints = d.pois.filter((p) => {
         const cat = (p.category || '').toLowerCase();
-        return cat !== 'airport' && cat !== 'flight';
+        const normName = (p.name || '').toLowerCase();
+        const catType = classifyPoiCategory(p.category, p.name).type;
+        return (
+          cat !== 'airport' &&
+          cat !== 'flight' &&
+          cat !== 'hotel' &&
+          cat !== 'lodging' &&
+          catType !== 'hotel' &&
+          catType !== 'airport' &&
+          catType !== 'flight' &&
+          !normName.includes('(start)') &&
+          !normName.includes('(end)')
+        );
       });
-      const pointsToUse = cityPoints.length > 0 ? cityPoints : d.pois;
-      const polygon = computeClusterPolygon(pointsToUse);
-      const centroid = computeCentroid(pointsToUse);
+      const polygon = computeClusterPolygon(cityPoints);
+      const centroid = computeCentroid(cityPoints);
       return {
         dayNumber: d.dayNumber,
         polygon,
@@ -361,6 +372,9 @@ export default function LeafletMap({
           {dayClusters.map((cluster) => {
             if (cluster.polygon.length < 3) return null;
             const isActive = activeTab === cluster.dayNumber;
+
+            // In single-day view, only render the active day's territory to prevent visual clutter
+            if (activeTab !== 'all' && !isActive) return null;
 
             return (
               <Polygon
