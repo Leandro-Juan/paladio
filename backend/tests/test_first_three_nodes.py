@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import pytest
 from app.schemas.itinerary import TravelConstraints
 from app.swarm.agents.ticket_parser import ticket_parser_agent, ticket_parser_node
@@ -13,12 +13,16 @@ from pydantic_ai.models.test import TestModel
 @pytest.fixture
 def mock_ticket_parser():
     """Mock the ticket parser LLM agent using Pydantic AI's TestModel."""
+    start_dt = date.today() + timedelta(days=10)
+    end_dt = date.today() + timedelta(days=15)
+    start_str = start_dt.isoformat()
+    end_str = end_dt.isoformat()
     test_model = TestModel(
         custom_output_args={
             "outbound_flight": {
                 "origin_iata": "JFK",
                 "destination_iata": "CDG",
-                "departure_time": "2026-10-10 10:00",
+                "departure_time": f"{start_str} 10:00",
                 "flight_duration_minutes": 420,
                 "airline": "Air France",
                 "flight_number": "AF007",
@@ -26,7 +30,7 @@ def mock_ticket_parser():
             "return_flight": {
                 "origin_iata": "CDG",
                 "destination_iata": "JFK",
-                "departure_time": "2026-10-15 14:00",
+                "departure_time": f"{end_str} 14:00",
                 "flight_duration_minutes": 480,
                 "airline": "Air France",
                 "flight_number": "AF008",
@@ -35,8 +39,8 @@ def mock_ticket_parser():
                 "name": "Hotel Plaza Athenee",
                 "address": "25 Avenue Montaigne, 75008 Paris",
                 "city": "Paris",
-                "check_in_date": "2026-10-10",
-                "check_out_date": "2026-10-15",
+                "check_in_date": start_str,
+                "check_out_date": end_str,
             },
         }
     )
@@ -53,10 +57,15 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
       3. verify_constraints: human-in-the-loop review and validation
       4. guardrails: evaluates hard logic rules and schedule overlap
     """
+    start_dt = date.today() + timedelta(days=10)
+    end_dt = date.today() + timedelta(days=15)
+    start_str = start_dt.isoformat()
+    end_str = end_dt.isoformat()
+
     raw_booking_text = (
-        "Flight AF007 from JFK to CDG departing 2026-10-10 10:00. "
-        "Flight AF008 return from CDG to JFK departing 2026-10-15 14:00. "
-        "Hotel Plaza Athenee booked in Paris from 2026-10-10 to 2026-10-15."
+        f"Flight AF007 from JFK to CDG departing {start_str} 10:00. "
+        f"Flight AF008 return from CDG to JFK departing {end_str} 14:00. "
+        f"Hotel Plaza Athenee booked in Paris from {start_str} to {end_str}."
     )
 
     state: SwarmState = {
@@ -122,8 +131,8 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
 
     assert constraints.destination_city == "Paris"
     assert constraints.origin_city == "New York"
-    assert constraints.start_date == date(2026, 10, 10)
-    assert constraints.end_date == date(2026, 10, 15)
+    assert constraints.start_date == start_dt
+    assert constraints.end_date == end_dt
     assert constraints.budget_usd == 3000.0
     assert len(constraints.meals) == 2
 
@@ -131,11 +140,13 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
 @pytest.mark.asyncio
 async def test_guardrails_hard_errors():
     """Verify that hard guardrail violations result in ABORT status."""
+    future_start = date.today() + timedelta(days=10)
+    future_end = date.today() + timedelta(days=15)
     base_constraints = {
         "destination_city": "Paris",
         "origin_city": "New York",
-        "start_date": "2026-10-10",
-        "end_date": "2026-10-15",
+        "start_date": future_start.isoformat(),
+        "end_date": future_end.isoformat(),
         "budget_usd": 1500.0,
         "meals": [
             {"meal_type": "LUNCH", "start_time": "12:00", "end_time": "14:00"},
@@ -144,8 +155,9 @@ async def test_guardrails_hard_errors():
     }
 
     # 1. Past departure date
+    past_date = (date.today() - timedelta(days=5)).isoformat()
     past_state: SwarmState = {
-        "validated_itinerary": {**base_constraints, "start_date": "2020-01-01"},
+        "validated_itinerary": {**base_constraints, "start_date": past_date},
     }
     res_past = await guardrails_node(past_state)
     assert res_past["guardrail_status"] == "ABORT"
@@ -155,8 +167,8 @@ async def test_guardrails_hard_errors():
     inverted_state: SwarmState = {
         "validated_itinerary": {
             **base_constraints,
-            "start_date": "2026-10-15",
-            "end_date": "2026-10-10",
+            "start_date": future_end.isoformat(),
+            "end_date": future_start.isoformat(),
         },
     }
     res_inv = await guardrails_node(inverted_state)
@@ -179,8 +191,8 @@ async def test_guardrails_hard_errors():
     long_state: SwarmState = {
         "validated_itinerary": {
             **base_constraints,
-            "start_date": "2026-10-01",
-            "end_date": "2026-11-15",
+            "start_date": future_start.isoformat(),
+            "end_date": (future_start + timedelta(days=35)).isoformat(),
         },
     }
     res_long = await guardrails_node(long_state)
