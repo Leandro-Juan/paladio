@@ -166,6 +166,78 @@ async def test_upgrade_trip_transit_cascades_schedule():
         assert not path[2]["transit_from_previous"]["cost_is_estimated"]
 
 
+async def test_upgrade_trip_transit_handles_none_transit_from_previous():
+    from app.services.transit_service import TransitRoutingError
+
+    mock_trip = MagicMock()
+    mock_trip.id = "trip-none-transit"
+    mock_trip.destination = "Sevilla"
+    mock_trip.itinerary_data = {
+        "days": [
+            {
+                "day": 1,
+                "date": "2026-10-17",
+                "itinerary": {
+                    "path": [
+                        {
+                            "poi": {"name": "SVQ Airport", "category": "AIRPORT"},
+                            "scheduled_start": "13:00",
+                            "scheduled_end": "14:00",
+                            "transit_from_previous": None,
+                        },
+                        {
+                            "poi": {
+                                "name": "Sevilla Center (Start)",
+                                "category": "HOTEL",
+                            },
+                            "scheduled_start": "15:00",
+                            "scheduled_end": "15:00",
+                            "transit_from_previous": None,
+                        },
+                        {
+                            "poi": {"name": "Chupadedos Bar", "category": "RESTAURANT"},
+                            "scheduled_start": "19:30",
+                            "scheduled_end": "21:00",
+                            "transit_from_previous": {
+                                "duration_mins": 15,
+                                "mode": "pedestrian",
+                            },
+                        },
+                    ]
+                },
+            }
+        ]
+    }
+
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = MagicMock(scalar_one_or_none=lambda: mock_trip)
+
+    leg2 = TransitLeg(
+        duration_mins=12,
+        cost_eur=0.0,
+        cost_is_estimated=False,
+        price_source="pedestrian",
+        mode="pedestrian",
+        steps=[],
+    )
+
+    # First leg (Airport) fails with TransitRoutingError, second succeeds
+    with patch(
+        "app.use_cases.upgrade_trip_transit.get_detailed_transit_leg",
+        side_effect=[TransitRoutingError("No route to airport"), leg2],
+    ):
+        use_case = UpgradeTripTransitUseCase(mock_session)
+        res = await use_case.execute("trip-none-transit")
+        assert res["status"] == "success"
+        days = mock_trip.itinerary_data["days"]
+        path = days[0]["itinerary"]["path"]
+        # Leg 1 retained scheduled duration (60m) without raising AttributeError
+        assert path[1]["scheduled_start"] == "15:00"
+        assert path[1]["scheduled_end"] == "15:00"
+        # Leg 2 upgraded with 12 mins transit
+        assert path[2]["transit_from_previous"]["duration_mins"] == 12
+
+
 @pytest.mark.slow
 def test_build_city_gtfs_task_publishes_to_redis(monkeypatch, tmp_path):
     from app.tasks import build_city_gtfs_task

@@ -75,7 +75,7 @@ class UpgradeTripTransitUseCase:
             curr_end_str = first_item.get("scheduled_end", "09:00")
             start_mins = parse_time_to_minutes(curr_start_str)
             end_mins = parse_time_to_minutes(curr_end_str)
-            dwell_mins = max(15, end_mins - start_mins)
+            dwell_mins = max(0, end_mins - start_mins)
             current_clock_mins = start_mins + dwell_mins
 
             transit_leg_costs = []
@@ -133,8 +133,19 @@ class UpgradeTripTransitUseCase:
                     if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
                         has_airport_transit = True
                 else:
-                    existing_transit = path_items[k].get("transit_from_previous", {})
-                    leg_dur_mins = existing_transit.get("duration_mins", 15)
+                    existing_transit = path_items[k].get("transit_from_previous") or {}
+                    if isinstance(existing_transit, dict) and existing_transit.get(
+                        "duration_mins"
+                    ):
+                        leg_dur_mins = existing_transit["duration_mins"]
+                    else:
+                        old_start_mins = parse_time_to_minutes(
+                            path_items[k].get("scheduled_start", "09:00")
+                        )
+                        prev_old_end = parse_time_to_minutes(
+                            path_items[k - 1].get("scheduled_end", "09:00")
+                        )
+                        leg_dur_mins = max(15, old_start_mins - prev_old_end)
 
                 # Calculate dwell time at current POI based on original schedule
                 old_start_mins = parse_time_to_minutes(
@@ -143,7 +154,7 @@ class UpgradeTripTransitUseCase:
                 old_end_mins = parse_time_to_minutes(
                     path_items[k].get("scheduled_end", "10:00")
                 )
-                poi_dwell = max(15, old_end_mins - old_start_mins)
+                poi_dwell = max(0, old_end_mins - old_start_mins)
 
                 # Dynamic cascade of timestamps
                 arrival_mins = current_clock_mins + leg_dur_mins
