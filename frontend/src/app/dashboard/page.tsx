@@ -68,7 +68,7 @@ export default function DashboardPage() {
               <p className="text-muted font-mono">LOADING UPCOMING ITINERARY...</p>
             </div>
           ) : nextTrip ? (
-            <Link href="/trips" style={{ textDecoration: 'none' }}>
+            <Link href={`/trips/${nextTrip.id}`} style={{ textDecoration: 'none' }}>
               <ActiveTripTicket 
                 destination={nextTrip.destination}
                 startDate={nextTrip.start_date}

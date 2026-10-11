@@ -397,12 +397,12 @@ export default function VaultMap({ trips }: VaultMapProps) {
             icon={accentIcon}
             eventHandlers={{
               click: () => {
-                if (trip.id) router.push(`/vault/${trip.id}`);
+                if (trip.id) router.push(`/trips/${trip.id}`);
               },
             }}
           >
             <Popup className="premium-popup">
-              <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => trip.id && router.push(`/vault/${trip.id}`)}>
+              <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => trip.id && router.push(`/trips/${trip.id}`)}>
                 <strong className="font-display" style={{ display: 'block', fontSize: '1.1rem' }}>{trip.destination}</strong>
                 <span className="font-mono text-muted text-xs mt-1">CLICK TO VIEW MISSION</span>
               </div>

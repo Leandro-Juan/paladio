@@ -188,7 +188,7 @@ export default function TripsPage() {
 
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                       <Link
-                        href={`/vault/${trip.id}`}
+                        href={`/trips/${trip.id}`}
                         style={{
                           flex: 1,
                           padding: '0.5rem',
