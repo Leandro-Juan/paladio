@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { classifyPoiCategory } from '../../src/utils/poiCategory';
+import { classifyPoiCategory, isCategoryMatch } from '../../src/utils/poiCategory';
 
 test.describe('POI Category Classification & Metadata', () => {
   test('correctly identifies museum categories', () => {
@@ -82,6 +82,31 @@ test.describe('POI Category Classification & Metadata', () => {
 
     const parkFromName = classifyPoiCategory('', 'Retiro Park Gardens');
     expect(parkFromName.type).toBe('park');
+
+    // Seville landmarks with generic 'attraction' category
+    const cathedral = classifyPoiCategory('attraction', 'Cathedral of Seville');
+    expect(cathedral.type).toBe('landmark');
+
+    const alcazar = classifyPoiCategory('attraction', 'Patronato del Real Alcazar');
+    expect(alcazar.type).toBe('landmark');
+
+    const walls = classifyPoiCategory('attraction', 'Seville City Walls');
+    expect(walls.type).toBe('landmark');
+  });
+
+  test('isCategoryMatch correctly matches compatible categories', () => {
+    // Landmark matches both landmark and attraction
+    expect(isCategoryMatch('landmark', 'landmark')).toBe(true);
+    expect(isCategoryMatch('landmark', 'attraction')).toBe(true);
+    expect(isCategoryMatch('attraction', 'landmark')).toBe(true);
+
+    // Negative matches
+    expect(isCategoryMatch('landmark', 'restaurant')).toBe(false);
+    expect(isCategoryMatch('landmark', 'hotel')).toBe(false);
+
+    // All matches everything
+    expect(isCategoryMatch('all', 'landmark')).toBe(true);
+    expect(isCategoryMatch(null, 'landmark')).toBe(true);
   });
 
   test('correctly identifies flights and airports', () => {

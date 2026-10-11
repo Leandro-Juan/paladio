@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DayOutput, OptimizationResult, ScheduledPoi } from '@/types/domain';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
+import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { TransitRecommendationCard } from '@/components/TransitLegView';
 import { Spinner, LightningIcon, WalkIcon, TransitIcon } from '@/components/icons';
 import { apiFetch } from '@/utils/api';
@@ -18,6 +19,8 @@ interface TripPlanSidebarProps {
   destinationCity?: string;
   itinerary?: OptimizationResult | null;
   onItineraryUpdate?: (updated: OptimizationResult) => void;
+  categoryFilter?: PoiCategoryType | null;
+  onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
 }
 
 export function TripPlanSidebar({
@@ -30,6 +33,8 @@ export function TripPlanSidebar({
   destinationCity,
   itinerary,
   onItineraryUpdate,
+  categoryFilter,
+  onCategoryFilterChange,
 }: TripPlanSidebarProps) {
   // Transit upgrade state
   const [upgrading, setUpgrading] = useState(false);
@@ -243,6 +248,44 @@ export function TripPlanSidebar({
                 })}
               </div>
 
+              {/* Active Category Filter Indicator */}
+              {categoryFilter && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 8px',
+                    background: 'rgba(30, 58, 138, 0.06)',
+                    border: '1px solid rgba(30, 58, 138, 0.18)',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  <span style={{ color: '#1E3A8A', fontWeight: 600 }}>
+                    FILTERED: {categoryFilter.toUpperCase()}
+                  </span>
+                  {onCategoryFilterChange && (
+                    <button
+                      type="button"
+                      onClick={() => onCategoryFilterChange(null)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748B',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Discrete GTFS Upgrade Toolbar */}
               {showUpgradeToolbar && (
                 <div
@@ -326,6 +369,9 @@ export function TripPlanSidebar({
                       const transitFromPrev = scheduledPoi.transit_from_previous;
                       const stopNum = String(poiIdx + 1).padStart(2, '0');
 
+                      const catType = classifyPoiCategory(p?.category, p?.name).type;
+                      const isCatMatch = !categoryFilter || isCategoryMatch(categoryFilter, catType);
+
                       return (
                         <React.Fragment key={poiIdx}>
                           {/* Transit leg from previous POI */}
@@ -341,6 +387,8 @@ export function TripPlanSidebar({
                                 fontSize: '11px',
                                 fontFamily: 'monospace',
                                 color: '#64748B',
+                                opacity: isCatMatch ? 1 : 0.35,
+                                transition: 'opacity 0.15s ease',
                               }}
                             >
                               {(() => {
@@ -368,13 +416,19 @@ export function TripPlanSidebar({
                           <div
                             style={{
                               background: '#FFFFFF',
-                              border: '1px solid #E2E8F0',
+                              border: isCatMatch
+                                ? (categoryFilter ? '1.5px solid #2563EB' : '1px solid #E2E8F0')
+                                : '1px dashed #CBD5E1',
                               borderRadius: '10px',
                               padding: '10px 12px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '6px',
-                              boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+                              boxShadow:
+                                isCatMatch && categoryFilter
+                                  ? '0 2px 10px rgba(37, 99, 235, 0.12)'
+                                  : '0 1px 3px rgba(15, 23, 42, 0.04)',
+                              opacity: isCatMatch ? 1 : 0.35,
                               transition: 'all 0.15s ease',
                             }}
                           >

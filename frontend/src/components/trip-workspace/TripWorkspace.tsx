@@ -216,6 +216,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             destinationCity={trip.destination}
             itinerary={itinerary as OptimizationResult}
             onItineraryUpdate={onTripUpdated}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
           />
 
           {/* Right Floating Places Sidebar */}
@@ -224,6 +226,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onToggle={() => setIsRightOpen((prev) => !prev)}
             places={places}
             onPlaceClick={handlePlaceClick}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
           />
         </div>
 

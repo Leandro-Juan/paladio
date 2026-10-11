@@ -175,42 +175,53 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
   if (normCat.includes('shopping') || normCat.includes('shop') || normCat.includes('market') || normCat.includes('mall') || normCat.includes('store')) {
     return { type: 'shopping', ...CATEGORY_DEFINITIONS.shopping };
   }
-  if (normCat.includes('attraction') || normCat.includes('sight') || normCat.includes('viewpoint')) {
-    return { type: 'attraction', ...CATEGORY_DEFINITIONS.attraction };
-  }
-
   // 2. Intelligent Name Heuristic Fallbacks (when category is missing or vague like "attraction")
   if (normName) {
-    if (/\b(museum|musee|museo|gallery|galerie)\b/.test(normName)) {
+    if (/\b(museum|musee|museo|gallery|galerie)\b/i.test(normName)) {
       return { type: 'museum', ...CATEGORY_DEFINITIONS.museum };
     }
-    if (/\b(bus stop|bus station|arret de bus|parada de autobus)\b/.test(normName)) {
+    if (/\b(bus stop|bus station|arret de bus|parada de autobus)\b/i.test(normName)) {
       return { type: 'bus_stop', ...CATEGORY_DEFINITIONS.bus_stop };
     }
-    if (/\b(metro|subway|gare|train station|estacion|transit)\b/.test(normName)) {
+    if (/\b(metro|subway|gare|train station|estacion|transit)\b/i.test(normName)) {
       return { type: 'transit', ...CATEGORY_DEFINITIONS.transit };
     }
-    if (/\b(cafe|coffee|espresso|bakery|boulangerie|patisserie)\b/.test(normName)) {
+    if (/\b(cafe|coffee|espresso|bakery|boulangerie|patisserie)\b/i.test(normName)) {
       return { type: 'cafe', ...CATEGORY_DEFINITIONS.cafe };
     }
-    if (/\b(restaurant|bistro|trattoria|osteria|pizzeria|brasserie)\b/.test(normName)) {
+    if (/\b(restaurant|bistro|trattoria|osteria|pizzeria|brasserie)\b/i.test(normName)) {
       return { type: 'restaurant', ...CATEGORY_DEFINITIONS.restaurant };
     }
-    if (/\b(hotel|hostel|inn|resort|hyatt|hilton|marriott)\b/.test(normName)) {
+    if (/\b(hotel|hostel|inn|resort|hyatt|hilton|marriott)\b/i.test(normName)) {
       return { type: 'hotel', ...CATEGORY_DEFINITIONS.hotel };
     }
-    if (/\b(airport|aeroport|aeropuerto|terminal)\b/.test(normName)) {
+    if (/\b(airport|aeroport|aeropuerto|terminal)\b/i.test(normName)) {
       return { type: 'airport', ...CATEGORY_DEFINITIONS.airport };
     }
-    if (/\b(park|garden|jardin|parque)\b/.test(normName)) {
+    if (/\b(park|garden|jardin|parque)\b/i.test(normName)) {
       return { type: 'park', ...CATEGORY_DEFINITIONS.park };
     }
-    if (/\b(monument|cathedral|basilica|castle|chateau|tower|palace|arch)\b/.test(normName)) {
+    if (
+      /\b(monument|cathedral|catedral|basilica|castle|castillo|chateau|tower|torre|palace|palacio|arch|arco|alcazar|alcazaba|fortress|fortaleza|citadel|wall|walls|muralla|murallas|giralda|plaza|square|bridge|puente|pont)\b/i.test(
+        normName
+      )
+    ) {
       return { type: 'landmark', ...CATEGORY_DEFINITIONS.landmark };
     }
-    if (/\b(bar|pub|tavern|brewery)\b/.test(normName)) {
+    if (/\b(bar|pub|tavern|brewery)\b/i.test(normName)) {
       return { type: 'bar', ...CATEGORY_DEFINITIONS.bar };
     }
+  }
+
+  // 3. Vague/Broad Tourist Category Fallbacks
+  if (
+    normCat.includes('attraction') ||
+    normCat.includes('sight') ||
+    normCat.includes('viewpoint') ||
+    normCat.includes('activity') ||
+    normCat.includes('activities')
+  ) {
+    return { type: 'attraction', ...CATEGORY_DEFINITIONS.attraction };
   }
 
   // 3. If raw category was provided but didn't match standard buckets, format it nicely
@@ -226,4 +237,37 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
   }
 
   return { type: 'general', ...CATEGORY_DEFINITIONS.general };
+}
+
+/**
+ * Checks whether a POI category matches a filter category.
+ * In travel planning, landmarks and attractions are mutually compatible
+ * (e.g. selecting "Landmark" includes both historical landmarks and cultural attractions).
+ * Transit also covers bus stops.
+ */
+export function isCategoryMatch(
+  filterCategory: PoiCategoryType | string | null | undefined,
+  targetCategory: PoiCategoryType | string | null | undefined
+): boolean {
+  if (!filterCategory || filterCategory === 'all') return true;
+  if (!targetCategory) return false;
+  if (filterCategory === targetCategory) return true;
+
+  // Landmark and attraction are mutually inclusive in travel filters
+  if (
+    (filterCategory === 'landmark' && targetCategory === 'attraction') ||
+    (filterCategory === 'attraction' && targetCategory === 'landmark')
+  ) {
+    return true;
+  }
+
+  // Transit and bus stops
+  if (
+    (filterCategory === 'transit' && targetCategory === 'bus_stop') ||
+    (filterCategory === 'bus_stop' && targetCategory === 'transit')
+  ) {
+    return true;
+  }
+
+  return false;
 }

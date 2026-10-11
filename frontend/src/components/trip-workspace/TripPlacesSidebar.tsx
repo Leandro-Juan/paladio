@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
-import { classifyPoiCategory } from '@/utils/poiCategory';
+import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 
 export interface PlaceItem {
   name: string;
@@ -19,6 +19,8 @@ interface TripPlacesSidebarProps {
   onToggle: () => void;
   places: PlaceItem[];
   onPlaceClick?: (place: PlaceItem) => void;
+  categoryFilter?: PoiCategoryType | null;
+  onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
 }
 
 export function TripPlacesSidebar({
@@ -26,10 +28,21 @@ export function TripPlacesSidebar({
   onToggle,
   places,
   onPlaceClick,
+  categoryFilter,
+  onCategoryFilterChange,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [internalCategory, setInternalCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const activeCategoryValue = categoryFilter !== undefined ? (categoryFilter || 'all') : internalCategory;
+
+  const handleCategorySelect = (val: string) => {
+    setInternalCategory(val);
+    if (onCategoryFilterChange) {
+      onCategoryFilterChange(val === 'all' ? null : (val as PoiCategoryType));
+    }
+  };
 
   // Filter places based on search query and category
   const filteredPlaces = useMemo(() => {
@@ -41,11 +54,11 @@ export function TripPlacesSidebar({
 
       const categoryType = classifyPoiCategory(p.category, p.name).type;
       const matchesCategory =
-        selectedCategory === 'all' || categoryType === selectedCategory;
+        activeCategoryValue === 'all' || isCategoryMatch(activeCategoryValue, categoryType);
 
       return matchesSearch && matchesCategory;
     });
-  }, [places, searchQuery, selectedCategory]);
+  }, [places, searchQuery, activeCategoryValue]);
 
   return (
     <>
@@ -202,8 +215,8 @@ export function TripPlacesSidebar({
                 {/* Category Dropdown & Total Count */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    value={activeCategoryValue}
+                    onChange={(e) => handleCategorySelect(e.target.value)}
                     style={{
                       flex: 1,
                       padding: '5px 8px',

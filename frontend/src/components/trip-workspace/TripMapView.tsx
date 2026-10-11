@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, ZoomControl,
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-import { classifyPoiCategory, PoiCategoryType } from '@/utils/poiCategory';
+import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 
 export interface MapPoi {
@@ -224,16 +224,26 @@ export default function TripMapView({
 
   // Active bounds points
   const activeBoundsPoints: LatLngPoint[] = useMemo(() => {
+    let points: LatLngPoint[] = [];
     if (activeDay === 'all') {
-      const all: LatLngPoint[] = [];
-      days.forEach((d) => all.push(...d.pois));
-      if (hotel) all.push(hotel);
-      if (airport) all.push(airport);
-      return all;
+      days.forEach((d) => points.push(...d.pois));
+      if (hotel) points.push(hotel);
+      if (airport) points.push(airport);
+    } else if (activeDayData) {
+      points = [...activeDayData.pois];
     }
-    if (activeDayData) return activeDayData.pois;
-    return [];
-  }, [activeDay, days, activeDayData, hotel, airport]);
+
+    if (activeCategory) {
+      const filtered = points.filter((p) => {
+        const poiItem = p as Partial<MapPoi>;
+        const catType = classifyPoiCategory(poiItem.category, poiItem.name).type;
+        return isCategoryMatch(activeCategory, catType);
+      });
+      if (filtered.length > 0) return filtered;
+    }
+
+    return points;
+  }, [activeDay, days, activeDayData, hotel, airport, activeCategory]);
 
   // Centroid fallback
   const centerPosition: [number, number] = useMemo(() => {
@@ -458,7 +468,7 @@ export default function TripMapView({
 
               if (!isHotel && !isAirport) stopCounter++;
 
-              if (activeCategory && categoryType !== activeCategory) {
+              if (activeCategory && !isCategoryMatch(activeCategory, categoryType)) {
                 return null;
               }
 
