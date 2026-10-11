@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
  * 7. Saves the completed trip to the Trip Vault and verifies persistence.
  *
  * Excluded from CI/CD pipeline runs by default via the 'live_' filename prefix
- * (playwright.config.ts ignores '**/live_*.spec.ts' unless RUN_LIVE_TESTS=1).
+ * (playwright.config.ts ignores live_*.spec.ts unless RUN_LIVE_TESTS=1).
  */
 
 const TRIP_SCENARIOS = [
