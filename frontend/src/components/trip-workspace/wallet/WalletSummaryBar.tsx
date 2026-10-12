@@ -1,29 +1,47 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TripTicket } from '@/hooks/useTripTickets';
+import {
+  RefreshIcon,
+  AlertTriangleIcon,
+  PlaneIcon,
+  HotelIcon,
+  MuseumIcon,
+  TransitIcon,
+} from '@/components/icons';
 
 interface WalletSummaryBarProps {
   tickets: TripTicket[];
-  isSyncing?: boolean;
-  onSyncItinerary?: () => void;
-  hasDrift?: boolean;
+  onSyncItinerary?: () => Promise<void>;
   onOpenCreateModal?: () => void;
+  hasItineraryDrift?: boolean;
 }
 
 export function WalletSummaryBar({
   tickets,
-  isSyncing = false,
   onSyncItinerary,
-  hasDrift = false,
   onOpenCreateModal,
+  hasItineraryDrift = false,
 }: WalletSummaryBarProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const counts = {
-    total: tickets.filter((t) => t.status !== 'cancelled').length,
-    flight: tickets.filter((t) => t.ticket_type === 'flight' && t.status !== 'cancelled').length,
-    hotel: tickets.filter((t) => t.ticket_type === 'hotel' && t.status !== 'cancelled').length,
-    attraction: tickets.filter((t) => t.ticket_type === 'attraction' && t.status !== 'cancelled').length,
-    transit: tickets.filter((t) => t.ticket_type === 'transit' && t.status !== 'cancelled').length,
+    total: tickets.length,
+    flight: tickets.filter((t) => t.ticket_type === 'flight').length,
+    hotel: tickets.filter((t) => t.ticket_type === 'hotel').length,
+    attraction: tickets.filter((t) => t.ticket_type === 'attraction').length,
+    transit: tickets.filter((t) => t.ticket_type === 'transit').length,
+  };
+
+  const handleSync = async () => {
+    if (!onSyncItinerary) return;
+    setIsSyncing(true);
+    try {
+      await onSyncItinerary();
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -32,15 +50,16 @@ export function WalletSummaryBar({
         display: 'flex',
         flexDirection: 'column',
         gap: '0.75rem',
+        width: '100%',
         fontFamily: 'var(--font-mono, monospace)',
       }}
     >
-      {/* Drift alert banner if itinerary changed */}
-      {hasDrift && (
+      {/* Drift Notification Banner if detected */}
+      {hasItineraryDrift && (
         <div
           style={{
-            background: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
+            background: '#FFFBEB',
+            border: '1px solid #FDE68A',
             borderRadius: '8px',
             padding: '0.6rem 1rem',
             display: 'flex',
@@ -50,8 +69,8 @@ export function WalletSummaryBar({
             gap: '8px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#FCD34D' }}>
-            <span>⚠</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#B45309' }}>
+            <AlertTriangleIcon size={14} color="#D97706" />
             <span>
               <strong>ITINERARY DRIFT DETECTED:</strong> Trip details were modified since tickets were seeded. User edits were preserved.
             </span>
@@ -59,12 +78,12 @@ export function WalletSummaryBar({
           {onSyncItinerary && (
             <button
               type="button"
-              onClick={onSyncItinerary}
+              onClick={handleSync}
               disabled={isSyncing}
               style={{
-                background: 'rgba(245, 158, 11, 0.25)',
-                border: '1px solid rgba(245, 158, 11, 0.5)',
-                color: '#FEF3C7',
+                background: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                color: '#B45309',
                 borderRadius: '4px',
                 padding: '3px 8px',
                 fontSize: '10px',
@@ -81,9 +100,8 @@ export function WalletSummaryBar({
       {/* Main Bar */}
       <div
         style={{
-          background: 'rgba(30, 41, 59, 0.65)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: '#FFFFFF',
+          border: '1px solid var(--color-border, #E2E8F0)',
           borderRadius: '10px',
           padding: '0.85rem 1.25rem',
           display: 'flex',
@@ -91,19 +109,20 @@ export function WalletSummaryBar({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '12px',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 1px 4px rgba(15, 23, 42, 0.05)',
         }}
       >
         {/* Metric Counters */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: '#94A3B8' }}>TOTAL TICKETS:</span>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>TOTAL TICKETS:</span>
             <span
               style={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#FFF',
-                background: 'rgba(255, 255, 255, 0.1)',
+                color: 'var(--color-text-primary, #0F172A)',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 padding: '1px 7px',
                 borderRadius: '4px',
               }}
@@ -112,20 +131,24 @@ export function WalletSummaryBar({
             </span>
           </div>
 
-          <div style={{ width: '1px', height: '14px', background: 'rgba(255, 255, 255, 0.15)' }} />
+          <div style={{ width: '1px', height: '14px', background: 'var(--color-border, #CBD5E1)' }} />
 
-          <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#CBD5E1' }}>
-            <span title="Flights">
-              ✈️ <strong>{counts.flight}</strong>
+          <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
+            <span title="Flights" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <PlaneIcon size={13} color="#0284C7" />
+              <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{counts.flight}</strong>
             </span>
-            <span title="Stays & Access Codes">
-              🏨 <strong>{counts.hotel}</strong>
+            <span title="Stays & Access Codes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <HotelIcon size={13} color="#D97706" />
+              <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{counts.hotel}</strong>
             </span>
-            <span title="Attraction Passes">
-              🏛️ <strong>{counts.attraction}</strong>
+            <span title="Attraction Passes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <MuseumIcon size={13} color="#059669" />
+              <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{counts.attraction}</strong>
             </span>
-            <span title="Transit Passes">
-              🚆 <strong>{counts.transit}</strong>
+            <span title="Transit Passes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <TransitIcon size={13} color="#7C3AED" />
+              <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{counts.transit}</strong>
             </span>
           </div>
         </div>
@@ -135,31 +158,28 @@ export function WalletSummaryBar({
           {onSyncItinerary && (
             <button
               type="button"
-              onClick={onSyncItinerary}
+              onClick={handleSync}
               disabled={isSyncing}
               aria-label="Sync tickets from itinerary"
               style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
+                color: 'var(--color-text-primary, #0F172A)',
                 padding: '6px 12px',
                 fontSize: '11px',
-                color: '#CBD5E1',
                 cursor: isSyncing ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease',
+                fontWeight: 600,
+                transition: 'background 0.15s ease',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface-card, #F8FAFC)')}
             >
-              <span>🔄</span>
-              <span>{isSyncing ? 'SYNCING…' : 'SYNC FROM ITINERARY'}</span>
+              <RefreshIcon size={12} color="var(--color-accent-primary, #1E3A8A)" className={isSyncing ? 'animate-spin' : ''} />
+              <span>{isSyncing ? 'SYNCING…' : 'SYNC ITINERARY'}</span>
             </button>
           )}
 
@@ -167,29 +187,26 @@ export function WalletSummaryBar({
             <button
               type="button"
               onClick={onOpenCreateModal}
+              aria-label="Manually add new ticket"
               style={{
-                background: '#2563EB',
-                border: '1px solid #3B82F6',
-                borderRadius: '6px',
-                padding: '6px 14px',
-                fontSize: '11px',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                fontWeight: 700,
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                transition: 'all 0.15s ease',
+                background: 'var(--color-accent-primary, #1E3A8A)',
+                border: '1px solid var(--color-accent-primary, #1E3A8A)',
+                borderRadius: '6px',
+                color: '#FFFFFF',
+                padding: '6px 14px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                fontWeight: 700,
+                boxShadow: '0 1px 3px rgba(30, 58, 138, 0.2)',
+                transition: 'background 0.15s ease',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#1D4ED8';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#2563EB';
-              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#172554')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-accent-primary, #1E3A8A)')}
             >
-              <span>+</span>
-              <span>ADD TICKET</span>
+              <span>+ ADD PASS</span>
             </button>
           )}
         </div>

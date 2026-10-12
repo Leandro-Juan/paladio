@@ -30,7 +30,7 @@ MANIFEST
 develop-eggs/
 eggs/
 .eggs/
-parts/
+/parts/
 sdist/
 wheels/
 share/python-wheels/
@@ -42,8 +42,10 @@ celerybeat-schedule*
 # ==========================================
 build/
 bin/
-lib/
-lib64/
+/lib/
+/lib64/
+cpp_core/lib/
+cpp_core/build/
 CMakeFiles/
 CMakeCache.txt
 CMakeScripts/

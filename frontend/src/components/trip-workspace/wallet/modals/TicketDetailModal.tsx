@@ -7,13 +7,14 @@ import { CodeRenderer } from '../codes/CodeRenderer';
 import { SecretField } from '../parts/SecretField';
 import { CopyButton } from '../parts/CopyButton';
 import { formatTicketDateTime } from '@/lib/wallet/format';
+import { TicketIcon, SunIcon, CloseIcon, PinIcon } from '@/components/icons';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticket: TripTicket | null;
   tickets?: TripTicket[];
-  onSelectTicket?: (ticket: TripTicket) => void;
+  onSelectTicket?: (t: TripTicket) => void;
 }
 
 export function TicketDetailModal({
@@ -25,38 +26,35 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const [wakeLockActive, setWakeLockActive] = useState(false);
 
-  // Keyboard navigation (Esc to close, left/right arrows to switch)
+  // Keyboard navigation & Esc key listener
   useEffect(() => {
-    if (!isOpen || !ticket) return;
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
-      } else if (e.key === 'ArrowRight' && tickets.length > 1 && onSelectTicket) {
-        const currentIndex = tickets.findIndex((t) => t.id === ticket.id);
-        if (currentIndex < tickets.length - 1) {
-          onSelectTicket(tickets[currentIndex + 1]);
-        }
-      } else if (e.key === 'ArrowLeft' && tickets.length > 1 && onSelectTicket) {
-        const currentIndex = tickets.findIndex((t) => t.id === ticket.id);
-        if (currentIndex > 0) {
-          onSelectTicket(tickets[currentIndex - 1]);
-        }
+      } else if (e.key === 'ArrowLeft' && tickets.length > 1 && onSelectTicket && ticket) {
+        const idx = tickets.findIndex((t) => t.id === ticket.id);
+        if (idx > 0) onSelectTicket(tickets[idx - 1]);
+      } else if (e.key === 'ArrowRight' && tickets.length > 1 && onSelectTicket && ticket) {
+        const idx = tickets.findIndex((t) => t.id === ticket.id);
+        if (idx >= 0 && idx < tickets.length - 1) onSelectTicket(tickets[idx + 1]);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, ticket, tickets, onClose, onSelectTicket]);
+  }, [isOpen, tickets, ticket, onClose, onSelectTicket]);
 
-  // Request wake lock so phone screen doesn't sleep at boarding gate / ticket desk
+  // Screen Wake Lock API
   useEffect(() => {
-    let wakeLockSentinel: any = null;
+    if (!isOpen) return;
 
-    if (isOpen && typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
-      (navigator as any).wakeLock
-        ?.request('screen')
-        .then((lock: any) => {
+    let wakeLockSentinel: WakeLockSentinel | null = null;
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock
+        .request('screen')
+        .then((lock) => {
           wakeLockSentinel = lock;
           setWakeLockActive(true);
         })
@@ -82,16 +80,19 @@ export function TicketDetailModal({
   let codeSection: React.ReactNode = (
     <div
       style={{
-        border: '1px dashed rgba(255, 255, 255, 0.2)',
+        border: '1px dashed var(--color-border, #CBD5E1)',
         borderRadius: '12px',
         padding: '2rem 1rem',
         textAlign: 'center',
-        color: '#94A3B8',
+        color: 'var(--color-text-muted, #64748B)',
         width: '100%',
         maxWidth: '340px',
+        background: 'var(--color-surface-card, #F8FAFC)',
       }}
     >
-      <span style={{ fontSize: '28px', display: 'block', marginBottom: '8px' }}>🎫</span>
+      <div style={{ marginBottom: '8px' }}>
+        <TicketIcon size={32} color="var(--color-text-muted, #64748B)" />
+      </div>
       <span style={{ fontSize: '12px', fontWeight: 600 }}>NO DIGITAL BARCODE ATTACHED</span>
     </div>
   );
@@ -107,7 +108,8 @@ export function TicketDetailModal({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 30px rgba(255, 255, 255, 0.1)',
+          border: '1px solid var(--color-border, #CBD5E1)',
+          boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
           width: '100%',
           maxWidth: '340px',
         }}
@@ -119,36 +121,17 @@ export function TicketDetailModal({
         />
         <span
           style={{
-            color: '#1E293B',
-            fontSize: '11px',
-            fontWeight: 700,
             marginTop: '10px',
-            letterSpacing: '1px',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: 'var(--color-text-muted, #64748B)',
+            wordBreak: 'break-all',
+            textAlign: 'center',
+            maxWidth: '280px',
           }}
         >
-          READY FOR SCANNER
+          {ticket.barcode_value}
         </span>
-      </div>
-    );
-  } else if (ticket.access_code) {
-    codeSection = (
-      <div
-        style={{
-          background: 'rgba(251, 191, 36, 0.12)',
-          border: '2px solid #FBBF24',
-          borderRadius: '12px',
-          padding: '1.25rem',
-          width: '100%',
-          maxWidth: '340px',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ fontSize: '11px', color: '#FDE68A', fontWeight: 700, marginBottom: '8px' }}>
-          🔑 DOOR / ACCESS CODE
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <SecretField value={ticket.access_code} label="Door Access Code" />
-        </div>
       </div>
     );
   }
@@ -161,8 +144,8 @@ export function TicketDetailModal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(0, 0, 0, 0.92)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -174,15 +157,15 @@ export function TicketDetailModal({
     >
       <div
         style={{
-          background: '#0F172A',
-          border: `1px solid ${typeConfig.accentBorder}`,
+          background: '#FFFFFF',
+          border: '1px solid var(--color-border, #CBD5E1)',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '520px',
           maxHeight: '94vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
+          boxShadow: '0 25px 60px rgba(15, 23, 42, 0.25)',
           overflow: 'hidden',
           fontFamily: 'var(--font-mono, monospace)',
         }}
@@ -191,8 +174,8 @@ export function TicketDetailModal({
         <div
           style={{
             padding: '1rem 1.25rem',
-            background: 'rgba(15, 23, 42, 0.95)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'var(--color-surface-card, #F8FAFC)',
+            borderBottom: '1px solid var(--color-border, #E2E8F0)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -204,26 +187,43 @@ export function TicketDetailModal({
                 fontSize: '11px',
                 color: typeConfig.accentColor,
                 background: typeConfig.accentBg,
+                border: `1px solid ${typeConfig.accentBorder}`,
                 padding: '2px 8px',
                 borderRadius: '4px',
                 fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
               }}
             >
+              {typeConfig.renderIcon({ size: 13, color: typeConfig.accentColor })}
               {typeConfig.tag}
             </span>
             {wakeLockActive && (
               <span
                 title="Screen will stay awake"
-                style={{ fontSize: '10px', color: '#4ADE80' }}
+                style={{
+                  fontSize: '10px',
+                  color: '#059669',
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontWeight: 600,
+                }}
               >
-                🔆 AWAKE
+                <SunIcon size={11} color="#059669" />
+                AWAKE
               </span>
             )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {tickets.length > 1 && (
-              <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
                 {currentIndex + 1} / {tickets.length}
               </span>
             )}
@@ -232,16 +232,17 @@ export function TicketDetailModal({
               onClick={onClose}
               aria-label="Close fullscreen pass"
               style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
+                background: '#FFFFFF',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
-                color: '#CBD5E1',
-                padding: '4px 10px',
+                color: 'var(--color-text-muted, #64748B)',
+                padding: '4px 8px',
                 cursor: 'pointer',
-                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
-              ✕
+              <CloseIcon size={12} color="var(--color-text-muted, #64748B)" />
             </button>
           </div>
         </div>
@@ -260,24 +261,34 @@ export function TicketDetailModal({
           {/* Main Title & Provider */}
           <div style={{ textAlign: 'center', width: '100%' }}>
             {ticket.provider && (
-              <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600, letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}>
                 {ticket.provider.toUpperCase()}
               </div>
             )}
             <h2
               className="font-display"
-              style={{ fontSize: '1.4rem', fontWeight: 700, color: '#FFFFFF', margin: '4px 0 0 0' }}
+              style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', margin: '4px 0 0 0' }}
             >
               {ticket.title}
             </h2>
             {ticket.location_or_venue && (
-              <div style={{ fontSize: '11px', color: '#CBD5E1', marginTop: '4px' }}>
-                📍 {ticket.location_or_venue}
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-text-muted, #64748B)',
+                  marginTop: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <PinIcon size={12} color="var(--color-text-muted, #64748B)" />
+                {ticket.location_or_venue}
               </div>
             )}
           </div>
 
-          {/* FORCED HIGH-CONTRAST WHITE CONTAINER FOR BARCODE / CODE */}
+          {/* Barcode / QR display container */}
           <>{codeSection}</>
 
           {/* Key Credentials Grid */}
@@ -287,16 +298,16 @@ export function TicketDetailModal({
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: '10px',
-              background: 'rgba(15, 23, 42, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--color-surface-card, #F8FAFC)',
+              border: '1px solid var(--color-border, #E2E8F0)',
               borderRadius: '10px',
               padding: '1rem',
             }}
           >
             {ticket.seat_or_room && (
               <div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>SEAT / ROOM</div>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: '#FFF' }}>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>SEAT / ROOM</div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                   {ticket.seat_or_room}
                 </div>
               </div>
@@ -304,9 +315,9 @@ export function TicketDetailModal({
 
             {ticket.booking_reference && (
               <div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>REFERENCE / PNR</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>REFERENCE / PNR</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#CBD5E1' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                     {ticket.booking_reference}
                   </span>
                   <CopyButton text={ticket.booking_reference} label="Copy PNR" size="sm" />
@@ -316,18 +327,18 @@ export function TicketDetailModal({
 
             {ticket.start_time && (
               <div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>START / SCHEDULE</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#FFF' }}>
-                  {formatTicketDateTime(ticket.start_time, ticket.departure_tz || undefined)}
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>START / SCHEDULE</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
                 </div>
               </div>
             )}
 
             {ticket.end_time && (
               <div>
-                <div style={{ fontSize: '10px', color: '#94A3B8' }}>END / EXPIRY</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#FFF' }}>
-                  {formatTicketDateTime(ticket.end_time, ticket.arrival_tz || undefined)}
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>END / EXPIRY</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
                 </div>
               </div>
             )}
@@ -338,8 +349,8 @@ export function TicketDetailModal({
             <div
               style={{
                 width: '100%',
-                background: 'rgba(251, 191, 36, 0.08)',
-                border: '1px solid rgba(251, 191, 36, 0.25)',
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
                 borderRadius: '8px',
                 padding: '0.75rem 1rem',
                 display: 'flex',
@@ -350,8 +361,8 @@ export function TicketDetailModal({
               }}
             >
               <div>
-                <div style={{ fontSize: '10px', color: '#FDE68A', fontWeight: 700 }}>HOTEL WI-FI</div>
-                <div style={{ fontSize: '12px', color: '#FFF' }}>
+                <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 700 }}>HOTEL WI-FI</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)' }}>
                   SSID: {String(meta.wifi_ssid || '')}
                 </div>
               </div>
@@ -369,8 +380,8 @@ export function TicketDetailModal({
           <div
             style={{
               padding: '0.75rem 1.25rem',
-              background: 'rgba(15, 23, 42, 0.95)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'var(--color-surface-card, #F8FAFC)',
+              borderTop: '1px solid var(--color-border, #E2E8F0)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -381,35 +392,36 @@ export function TicketDetailModal({
               disabled={currentIndex <= 0}
               onClick={() => onSelectTicket(tickets[currentIndex - 1])}
               style={{
-                background: currentIndex <= 0 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
+                background: currentIndex <= 0 ? 'transparent' : '#FFFFFF',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
-                color: currentIndex <= 0 ? '#475569' : '#FFF',
+                color: currentIndex <= 0 ? '#CBD5E1' : 'var(--color-text-primary, #0F172A)',
                 padding: '6px 14px',
                 fontSize: '11px',
                 cursor: currentIndex <= 0 ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
               }}
             >
               &larr; PREVIOUS
             </button>
 
-            <span style={{ fontSize: '10px', color: '#64748B' }}>Use ← / → keys to navigate</span>
+            <span style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
+              Use ← / → keys to navigate
+            </span>
 
             <button
               type="button"
               disabled={currentIndex >= tickets.length - 1}
               onClick={() => onSelectTicket(tickets[currentIndex + 1])}
               style={{
-                background:
-                  currentIndex >= tickets.length - 1
-                    ? 'rgba(255, 255, 255, 0.02)'
-                    : 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
+                background: currentIndex >= tickets.length - 1 ? 'transparent' : '#FFFFFF',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
-                color: currentIndex >= tickets.length - 1 ? '#475569' : '#FFF',
+                color: currentIndex >= tickets.length - 1 ? '#CBD5E1' : 'var(--color-text-primary, #0F172A)',
                 padding: '6px 14px',
                 fontSize: '11px',
                 cursor: currentIndex >= tickets.length - 1 ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
               }}
             >
               NEXT &rarr;

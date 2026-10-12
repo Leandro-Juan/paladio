@@ -5,6 +5,7 @@ import { TripTicket } from '@/hooks/useTripTickets';
 import { TicketShell } from './TicketShell';
 import { CodeRenderer } from '../codes/CodeRenderer';
 import { CopyButton } from '../parts/CopyButton';
+import { PlaneIcon } from '@/components/icons';
 import { formatTicketDateTime, calculateDuration } from '@/lib/wallet/format';
 
 interface FlightBoardingPassCardProps {
@@ -42,13 +43,22 @@ export function FlightBoardingPassCard({
       stubContent={
         ticket.barcode_value ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-            <CodeRenderer
-              value={ticket.barcode_value}
-              format={ticket.barcode_format || 'pdf417'}
-              size={96}
-            />
+            <div
+              style={{
+                background: '#FFFFFF',
+                padding: '4px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border, #CBD5E1)',
+              }}
+            >
+              <CodeRenderer
+                value={ticket.barcode_value}
+                format={ticket.barcode_format || 'qr'}
+                size={80}
+              />
+            </div>
             {ticket.reference_code && (
-              <span className="font-mono" style={{ fontSize: '10px', color: '#CBD5E1', fontWeight: 600 }}>
+              <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600 }}>
                 PNR: {ticket.reference_code}
               </span>
             )}
@@ -62,16 +72,16 @@ export function FlightBoardingPassCard({
               justifyContent: 'center',
               gap: '6px',
               padding: '8px 4px',
-              border: '1px dashed rgba(255, 255, 255, 0.2)',
+              border: '1px dashed var(--color-border, #CBD5E1)',
               borderRadius: '6px',
               width: '100%',
               minHeight: '110px',
             }}
           >
-            <span style={{ fontSize: '18px' }}>✈️</span>
+            <PlaneIcon size={20} color="#0284C7" />
             <span
               className="font-mono text-center"
-              style={{ fontSize: '10px', color: '#CBD5E1', lineHeight: 1.2 }}
+              style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)', lineHeight: 1.2 }}
             >
               NO BOARDING PASS ATTACHED
             </span>
@@ -81,9 +91,9 @@ export function FlightBoardingPassCard({
                 onClick={() => onAttachFile(ticket)}
                 style={{
                   marginTop: '4px',
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                  color: '#38BDF8',
+                  background: '#F0F9FF',
+                  border: '1px solid #BAE6FD',
+                  color: '#0284C7',
                   borderRadius: '4px',
                   padding: '3px 6px',
                   fontSize: '9px',
@@ -102,18 +112,18 @@ export function FlightBoardingPassCard({
       {/* Flight Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="font-mono" style={{ fontSize: '13px', fontWeight: 700, color: '#38BDF8' }}>
+          <span className="font-mono" style={{ fontSize: '13px', fontWeight: 700, color: '#0284C7' }}>
             {flightNumber}
           </span>
           {ticket.holder_name && (
-            <span className="font-mono text-muted" style={{ fontSize: '11px', color: '#94A3B8' }}>
+            <span className="font-mono text-muted" style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
               · {ticket.holder_name}
             </span>
           )}
         </div>
         {ticket.reference_code && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px', color: '#CBD5E1' }}>
+            <span className="font-mono text-muted" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
               PNR:
             </span>
             <CopyButton value={ticket.reference_code} label={ticket.reference_code} />
@@ -133,27 +143,28 @@ export function FlightBoardingPassCard({
         <div style={{ textAlign: 'left' }}>
           <div
             className="font-display"
-            style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.5px' }}
+            style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '0.5px' }}
           >
             {originIata}
           </div>
           <div
             className="font-mono"
-            style={{ fontSize: '11px', color: '#CBD5E1', fontWeight: 600, letterSpacing: '0.5px' }}
+            style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}
           >
             DEPARTURE
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-          <div style={{ color: '#60A5FA', fontSize: '1.4rem', fontWeight: 800 }}>&rarr;</div>
+          <div style={{ color: '#0284C7', fontSize: '1.4rem', fontWeight: 800 }}>&rarr;</div>
           {duration && (
             <span
               className="font-mono"
               style={{
                 fontSize: '10px',
-                color: '#93C5FD',
-                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#0369A1',
+                background: '#F0F9FF',
+                border: '1px solid #BAE6FD',
                 padding: '1px 6px',
                 borderRadius: '4px',
               }}
@@ -166,13 +177,13 @@ export function FlightBoardingPassCard({
         <div style={{ textAlign: 'right' }}>
           <div
             className="font-display"
-            style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.5px' }}
+            style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '0.5px' }}
           >
             {destIata}
           </div>
           <div
             className="font-mono"
-            style={{ fontSize: '11px', color: '#CBD5E1', fontWeight: 600, letterSpacing: '0.5px' }}
+            style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}
           >
             ARRIVAL
           </div>
@@ -184,22 +195,22 @@ export function FlightBoardingPassCard({
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          borderTop: '1px solid var(--color-border, #E2E8F0)',
           paddingTop: '0.5rem',
           fontSize: '11px',
           fontFamily: 'var(--font-mono, monospace)',
-          color: '#CBD5E1',
+          color: 'var(--color-text-muted, #64748B)',
         }}
       >
         <div>
-          <span style={{ color: '#94A3B8' }}>DEP: </span>
-          <span style={{ color: '#FFFFFF', fontWeight: 600 }}>
+          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>DEP: </span>
+          <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
             {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
           </span>
         </div>
         <div>
-          <span style={{ color: '#94A3B8' }}>ARR: </span>
-          <span style={{ color: '#FFFFFF', fontWeight: 600 }}>
+          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>ARR: </span>
+          <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
             {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
           </span>
         </div>
@@ -211,42 +222,42 @@ export function FlightBoardingPassCard({
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: '8px',
-          background: 'rgba(15, 23, 42, 0.35)',
+          background: 'var(--color-surface-card, #F8FAFC)',
           padding: '6px 10px',
           borderRadius: '6px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: '1px solid var(--color-border, #E2E8F0)',
           textAlign: 'center',
         }}
       >
         <div>
-          <div className="font-mono text-muted" style={{ fontSize: '9px', color: '#94A3B8' }}>
+          <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
             SEAT
           </div>
-          <div className="font-mono" style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 700 }}>
+          <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {seat}
           </div>
         </div>
         <div>
-          <div className="font-mono text-muted" style={{ fontSize: '9px', color: '#94A3B8' }}>
+          <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
             GATE
           </div>
-          <div className="font-mono" style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 700 }}>
+          <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {gate || '--'}
           </div>
         </div>
         <div>
-          <div className="font-mono text-muted" style={{ fontSize: '9px', color: '#94A3B8' }}>
+          <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
             TERMINAL
           </div>
-          <div className="font-mono" style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 700 }}>
+          <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {terminal || '--'}
           </div>
         </div>
         <div>
-          <div className="font-mono text-muted" style={{ fontSize: '9px', color: '#94A3B8' }}>
+          <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
             CLASS
           </div>
-          <div className="font-mono" style={{ fontSize: '11px', color: '#38BDF8', fontWeight: 600 }}>
+          <div className="font-mono" style={{ fontSize: '11px', color: '#0284C7', fontWeight: 600 }}>
             {cabinClass}
           </div>
         </div>

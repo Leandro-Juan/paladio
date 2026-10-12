@@ -3,13 +3,14 @@
 import React from 'react';
 import { TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
+import { SearchIcon, CloseIcon } from '@/components/icons';
 
 export type FilterCategory = 'all' | TicketType;
 
 interface WalletFilterBarProps {
   currentCategory: FilterCategory;
   onSelectCategory: (cat: FilterCategory) => void;
-  counts: Record<FilterCategory, number>;
+  counts: Record<string, number>;
   searchQuery: string;
   onSearchChange: (query: string) => void;
 }
@@ -22,12 +23,12 @@ export function WalletFilterBar({
   onSearchChange,
 }: WalletFilterBarProps) {
   const categories: Array<{ id: FilterCategory; label: string }> = [
-    { id: 'all', label: 'ALL CREDENTIALS' },
-    { id: 'flight', label: 'FLIGHTS' },
-    { id: 'hotel', label: 'STAYS & PINS' },
-    { id: 'attraction', label: 'ATTRACTIONS' },
-    { id: 'transit', label: 'TRANSIT' },
-    { id: 'other', label: 'OTHER' },
+    { id: 'all', label: 'All Tickets' },
+    { id: 'flight', label: 'Flights' },
+    { id: 'hotel', label: 'Stays & Keys' },
+    { id: 'attraction', label: 'Attractions' },
+    { id: 'transit', label: 'Transit' },
+    { id: 'other', label: 'Other' },
   ];
 
   return (
@@ -38,19 +39,20 @@ export function WalletFilterBar({
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '12px',
+        width: '100%',
         fontFamily: 'var(--font-mono, monospace)',
       }}
     >
-      {/* Category Tabs */}
+      {/* Category Filter Tabs */}
       <div
         role="tablist"
-        aria-label="Ticket category filters"
+        aria-label="Filter tickets by category"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          background: 'rgba(15, 23, 42, 0.6)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          gap: '4px',
+          background: 'var(--color-surface-card, #F8FAFC)',
+          border: '1px solid var(--color-border, #E2E8F0)',
           borderRadius: '8px',
           padding: '4px',
           overflowX: 'auto',
@@ -75,8 +77,8 @@ export function WalletFilterBar({
                 padding: '6px 12px',
                 borderRadius: '6px',
                 border: 'none',
-                background: isActive ? '#1E3A8A' : 'transparent',
-                color: isActive ? '#93C5FD' : '#94A3B8',
+                background: isActive ? 'var(--color-accent-primary, #1E3A8A)' : 'transparent',
+                color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
                 fontSize: '11px',
                 fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
@@ -84,13 +86,13 @@ export function WalletFilterBar({
                 whiteSpace: 'nowrap',
               }}
             >
-              {conf && <span>{conf.icon}</span>}
+              {conf && <span>{conf.renderIcon({ size: 13, color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)' })}</span>}
               <span>{cat.label}</span>
               <span
                 style={{
                   fontSize: '10px',
-                  background: isActive ? 'rgba(147, 197, 253, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                  color: isActive ? '#BFDBFE' : '#64748B',
+                  background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'var(--color-border, #E2E8F0)',
+                  color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
                   padding: '1px 5px',
                   borderRadius: '10px',
                   fontWeight: 600,
@@ -105,6 +107,19 @@ export function WalletFilterBar({
 
       {/* Search Input */}
       <div style={{ position: 'relative', minWidth: '220px', flex: '0 1 280px' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <SearchIcon size={13} color="var(--color-text-muted, #64748B)" />
+        </div>
         <input
           type="text"
           value={searchQuery}
@@ -113,13 +128,15 @@ export function WalletFilterBar({
           aria-label="Search tickets"
           style={{
             width: '100%',
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            background: '#FFFFFF',
+            border: '1px solid var(--color-border, #CBD5E1)',
             borderRadius: '6px',
-            padding: '7px 28px 7px 10px',
-            color: '#FFF',
+            padding: '7px 28px 7px 26px',
+            color: 'var(--color-text-primary, #0F172A)',
             fontSize: '11px',
             fontFamily: 'var(--font-mono, monospace)',
+            outline: 'none',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
           }}
         />
         {searchQuery && (
@@ -134,13 +151,14 @@ export function WalletFilterBar({
               transform: 'translateY(-50%)',
               background: 'none',
               border: 'none',
-              color: '#94A3B8',
+              color: 'var(--color-text-muted, #64748B)',
               cursor: 'pointer',
-              fontSize: '12px',
               padding: '2px 4px',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            ✕
+            <CloseIcon size={12} color="var(--color-text-muted, #64748B)" />
           </button>
         )}
       </div>

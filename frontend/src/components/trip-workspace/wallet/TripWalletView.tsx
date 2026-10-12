@@ -23,6 +23,7 @@ import { TransitAdvisorySection } from './TransitAdvisorySection';
 import { TicketFormModal } from './modals/TicketFormModal';
 import { TicketDetailModal } from './modals/TicketDetailModal';
 import { ScanReviewModal } from './modals/ScanReviewModal';
+import { TicketIcon } from '@/components/icons';
 
 interface TripWalletViewProps {
   tripId: string;
@@ -99,92 +100,109 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
 
   const handleEditTicket = (t: TripTicket) => {
     setEditingTicket(t);
+    setFormDefaultType(t.ticket_type);
     setIsFormModalOpen(true);
-  };
-
-  const handleDeleteTicket = async (ticketId: string) => {
-    if (confirm('Are you sure you want to delete this ticket? Attached documents will also be removed.')) {
-      await deleteTicket(ticketId);
-    }
   };
 
   const handleViewDetail = (t: TripTicket) => {
     setDetailTicket(t);
   };
 
-  const handleSaveForm = async (payload: TripTicketCreateInput | TripTicketUpdateInput) => {
+  const handleAttachFile = (t: TripTicket) => {
+    setEditingTicket(t);
+    setFormDefaultType(t.ticket_type);
+    setIsFormModalOpen(true);
+  };
+
+  const handleSaveForm = async (data: Record<string, unknown>) => {
     if (editingTicket) {
-      await updateTicket(editingTicket.id, payload as TripTicketUpdateInput);
+      await updateTicket(editingTicket.id, data as unknown as TripTicketUpdateInput);
     } else {
-      await createTicket(payload as TripTicketCreateInput);
+      await createTicket(data as unknown as TripTicketCreateInput);
     }
   };
 
-  const handleConfirmScanDrafts = async (drafts: TripTicketCreateInput[]) => {
-    for (const draft of drafts) {
-      await createTicket(draft);
+  const handleConfirmScanDrafts = async (drafts: ScanDraft[], uploadId?: string) => {
+    for (const d of drafts) {
+      const createPayload: TripTicketCreateInput = {
+        ticket_type: d.ticket_type,
+        title: d.title,
+        status: 'confirmed',
+        provider: d.provider || undefined,
+        booking_reference: d.booking_reference || undefined,
+        holder_name: d.holder_name || undefined,
+        seat_or_room: d.seat_or_room || undefined,
+        location_or_venue: d.location_or_venue || undefined,
+        start_time: d.start_time || undefined,
+        end_time: d.end_time || undefined,
+        departure_tz: d.departure_tz || undefined,
+        arrival_tz: d.arrival_tz || undefined,
+        barcode_value: d.barcode_value || undefined,
+        barcode_format: (d.barcode_format as 'qr' | 'aztec' | 'pdf417' | 'code128' | 'datamatrix') || undefined,
+        access_code: d.access_code || undefined,
+        metadata: {
+          ...d.metadata,
+          source_upload_id: uploadId,
+        },
+      };
+      await createTicket(createPayload);
     }
   };
 
-  // Filter tickets by category and search term
+  // Filter & Search Tickets
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
+      // Category match
       if (category !== 'all' && t.ticket_type !== category) {
         return false;
       }
+      // Search match
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const titleMatch = t.title.toLowerCase().includes(q);
-        const providerMatch = t.provider?.toLowerCase().includes(q) || false;
-        const refMatch = t.booking_reference?.toLowerCase().includes(q) || false;
-        const locationMatch = t.location_or_venue?.toLowerCase().includes(q) || false;
-        const notesMatch = t.notes?.toLowerCase().includes(q) || false;
-        if (!titleMatch && !providerMatch && !refMatch && !locationMatch && !notesMatch) {
-          return false;
-        }
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = t.title.toLowerCase().includes(query);
+        const matchesRef = (t.booking_reference || '').toLowerCase().includes(query);
+        const matchesProvider = (t.provider || '').toLowerCase().includes(query);
+        const matchesVenue = (t.location_or_venue || '').toLowerCase().includes(query);
+        const matchesCode = (t.barcode_value || '').toLowerCase().includes(query);
+        return matchesTitle || matchesRef || matchesProvider || matchesVenue || matchesCode;
       }
       return true;
     });
   }, [tickets, category, searchQuery]);
 
-  // Group filtered tickets by type
-  const flights = filteredTickets.filter((t) => t.ticket_type === 'flight');
-  const hotels = filteredTickets.filter((t) => t.ticket_type === 'hotel');
-  const attractions = filteredTickets.filter((t) => t.ticket_type === 'attraction');
-  const transits = filteredTickets.filter((t) => t.ticket_type === 'transit');
-  const others = filteredTickets.filter((t) => t.ticket_type === 'other');
+  // Section grouping
+  const flightTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'flight'), [filteredTickets]);
+  const hotelTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'hotel'), [filteredTickets]);
+  const attractionTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'attraction'), [filteredTickets]);
+  const transitTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'transit'), [filteredTickets]);
+  const otherTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'other'), [filteredTickets]);
 
-  // Category counts
-  const counts: Record<FilterCategory, number> = useMemo(
-    () => ({
-      all: tickets.filter((t) => t.status !== 'cancelled').length,
-      flight: tickets.filter((t) => t.ticket_type === 'flight' && t.status !== 'cancelled').length,
-      hotel: tickets.filter((t) => t.ticket_type === 'hotel' && t.status !== 'cancelled').length,
-      attraction: tickets.filter((t) => t.ticket_type === 'attraction' && t.status !== 'cancelled').length,
-      transit: tickets.filter((t) => t.ticket_type === 'transit' && t.status !== 'cancelled').length,
-      other: tickets.filter((t) => t.ticket_type === 'other' && t.status !== 'cancelled').length,
-    }),
-    [tickets]
-  );
+  const counts: Record<string, number> = useMemo(() => {
+    return {
+      all: tickets.length,
+      flight: tickets.filter((t) => t.ticket_type === 'flight').length,
+      hotel: tickets.filter((t) => t.ticket_type === 'hotel').length,
+      attraction: tickets.filter((t) => t.ticket_type === 'attraction').length,
+      transit: tickets.filter((t) => t.ticket_type === 'transit').length,
+      other: tickets.filter((t) => t.ticket_type === 'other').length,
+    };
+  }, [tickets]);
 
   return (
     <div
       style={{
-        padding: '2rem',
-        maxWidth: '1100px',
-        margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '2rem',
-        fontFamily: 'var(--font-mono, monospace)',
+        gap: '1.5rem',
+        padding: '0 0.5rem 3rem 0.5rem',
+        maxWidth: '1280px',
+        margin: '0 auto',
+        width: '100%',
       }}
     >
-      {/* View Header */}
-      <div>
-        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: '#FFF' }}>
-          TRIP WALLET & DIGITAL PASSES
-        </h2>
-        <p className="font-mono text-muted text-sm mt-1">
+      {/* Header Banner */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <p className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
           {'// BOARDING PASSES, HOTEL PINS, ENTRY TICKETS & TRANSIT PASSES'}
         </p>
       </div>
@@ -192,7 +210,9 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {/* Summary Bar */}
       <WalletSummaryBar
         tickets={tickets}
-        onSyncItinerary={syncItinerary}
+        onSyncItinerary={async () => {
+          await syncItinerary();
+        }}
         onOpenCreateModal={() => handleOpenCreate()}
       />
 
@@ -229,8 +249,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
               key={n}
               style={{
                 height: '180px',
-                background: 'rgba(30, 41, 59, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px solid var(--color-border, #E2E8F0)',
                 borderRadius: '12px',
                 animation: 'pulse 1.5s ease-in-out infinite',
               }}
@@ -243,47 +263,57 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'flight') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0 }}>
+            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
               {'// FLIGHT BOARDING PASSES'}
             </h3>
             <button
               type="button"
               onClick={() => handleOpenCreate('flight')}
+              className="font-mono"
               style={{
+                fontSize: '11px',
+                color: 'var(--color-accent-primary, #1E3A8A)',
                 background: 'none',
                 border: 'none',
-                color: '#38BDF8',
-                fontSize: '11px',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
               + ADD FLIGHT
             </button>
           </div>
 
-          {flights.length === 0 ? (
+          {flightTickets.length === 0 ? (
             <div
               style={{
                 padding: '1.5rem',
                 textAlign: 'center',
-                background: 'rgba(30, 41, 59, 0.3)',
-                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px dashed var(--color-border, #CBD5E1)',
+                borderRadius: '8px',
+                color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                fontFamily: 'monospace',
               }}
             >
-              [ NO FLIGHT PASSES RECORDED ]
+              No flight passes in wallet. Drop a PDF boarding pass or add one manually.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-              {flights.map((t) => (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {flightTickets.map((t) => (
                 <FlightBoardingPassCard
                   key={t.id}
                   ticket={t}
                   onEdit={handleEditTicket}
-                  onDelete={handleDeleteTicket}
+                  onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
+                  onAttachFile={handleAttachFile}
                 />
               ))}
             </div>
@@ -291,51 +321,61 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         </section>
       )}
 
-      {/* SECTION: STAYS & ACCESS CODES */}
+      {/* SECTION: STAYS & DOOR CODES */}
       {(category === 'all' || category === 'hotel') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0 }}>
-              {'// STAYS & ACCESS CODES'}
+            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
+              {'// LODGING & ACCESS CODES'}
             </h3>
             <button
               type="button"
               onClick={() => handleOpenCreate('hotel')}
+              className="font-mono"
               style={{
+                fontSize: '11px',
+                color: 'var(--color-accent-primary, #1E3A8A)',
                 background: 'none',
                 border: 'none',
-                color: '#FBBF24',
-                fontSize: '11px',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
               + ADD STAY
             </button>
           </div>
 
-          {hotels.length === 0 ? (
+          {hotelTickets.length === 0 ? (
             <div
               style={{
                 padding: '1.5rem',
                 textAlign: 'center',
-                background: 'rgba(30, 41, 59, 0.3)',
-                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px dashed var(--color-border, #CBD5E1)',
+                borderRadius: '8px',
+                color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                fontFamily: 'monospace',
               }}
             >
-              [ NO HOTEL STAYS OR DOOR CODES RECORDED ]
+              No accommodations recorded. Add door codes, key PINs, or Wi-Fi passwords here.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-              {hotels.map((t) => (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {hotelTickets.map((t) => (
                 <HotelAccessCard
                   key={t.id}
                   ticket={t}
                   onEdit={handleEditTicket}
-                  onDelete={handleDeleteTicket}
+                  onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
+                  onAttachFile={handleAttachFile}
                 />
               ))}
             </div>
@@ -343,51 +383,61 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         </section>
       )}
 
-      {/* SECTION: ATTRACTION & MUSEUM PASSES */}
+      {/* SECTION: MUSEUMS & ATTRACTIONS */}
       {(category === 'all' || category === 'attraction') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0 }}>
-              {'// ATTRACTIONS & MUSEUM PASSES'}
+            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
+              {'// MUSEUMS & ATTRACTION PASSES'}
             </h3>
             <button
               type="button"
               onClick={() => handleOpenCreate('attraction')}
+              className="font-mono"
               style={{
+                fontSize: '11px',
+                color: 'var(--color-accent-primary, #1E3A8A)',
                 background: 'none',
                 border: 'none',
-                color: '#34D399',
-                fontSize: '11px',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
-              + ADD PASS
+              + ADD ATTRACTION PASS
             </button>
           </div>
 
-          {attractions.length === 0 ? (
+          {attractionTickets.length === 0 ? (
             <div
               style={{
                 padding: '1.5rem',
                 textAlign: 'center',
-                background: 'rgba(30, 41, 59, 0.3)',
-                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px dashed var(--color-border, #CBD5E1)',
+                borderRadius: '8px',
+                color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                fontFamily: 'monospace',
               }}
             >
-              [ NO ATTRACTION PASSES RECORDED ]
+              No museum passes or entry tickets. Tickets synced from itinerary will appear here.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-              {attractions.map((t) => (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {attractionTickets.map((t) => (
                 <AttractionPassCard
                   key={t.id}
                   ticket={t}
                   onEdit={handleEditTicket}
-                  onDelete={handleDeleteTicket}
+                  onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
+                  onAttachFile={handleAttachFile}
                 />
               ))}
             </div>
@@ -395,105 +445,137 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         </section>
       )}
 
-      {/* SECTION: TRANSIT & PUBLIC PASSES */}
+      {/* SECTION: TRANSIT & RAIL TICKETS */}
       {(category === 'all' || category === 'transit') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0 }}>
-              {'// RAIL, COACH & PUBLIC TRANSIT PASSES'}
+            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
+              {'// PUBLIC TRANSIT & RAIL TICKETS'}
             </h3>
             <button
               type="button"
               onClick={() => handleOpenCreate('transit')}
+              className="font-mono"
               style={{
+                fontSize: '11px',
+                color: 'var(--color-accent-primary, #1E3A8A)',
                 background: 'none',
                 border: 'none',
-                color: '#A78BFA',
-                fontSize: '11px',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
-              + ADD TRANSIT TICKET
+              + ADD TRANSIT PASS
             </button>
           </div>
 
-          {transits.length === 0 ? (
+          {transitTickets.length === 0 ? (
             <div
               style={{
                 padding: '1.5rem',
                 textAlign: 'center',
-                background: 'rgba(30, 41, 59, 0.3)',
-                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px dashed var(--color-border, #CBD5E1)',
+                borderRadius: '8px',
+                color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                fontFamily: 'monospace',
               }}
             >
-              [ NO TRANSIT PASSES RECORDED ]
+              No rail or transit passes. Renfe, metro passes and regional rail tickets appear here.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-              {transits.map((t) => (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {transitTickets.map((t) => (
                 <TransitTicketCard
                   key={t.id}
                   ticket={t}
                   onEdit={handleEditTicket}
-                  onDelete={handleDeleteTicket}
+                  onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
+                  onAttachFile={handleAttachFile}
                 />
               ))}
             </div>
           )}
-
-          {/* Solver Transit Advisory Section */}
-          <TransitAdvisorySection
-            itinerary={itinerary}
-            onAddDayPass={(rec) => {
-              createTicket({
-                ticket_type: 'transit',
-                status: 'confirmed',
-                title: rec.pass_name || '24h Public Transit Pass',
-                price: rec.pass_price_eur || 0,
-                currency: 'EUR',
-                notes: rec.message || 'Purchased 24h tourist public transit pass',
-                metadata: { is_pass: true },
-              });
-            }}
-          />
         </section>
       )}
 
       {/* SECTION: OTHER VOUCHERS */}
-      {(category === 'all' || category === 'other') && others.length > 0 && (
+      {(category === 'all' || category === 'other') && otherTickets.length > 0 && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0 }}>
-              {'// OTHER CONFIRMATIONS & VOUCHERS'}
+            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
+              {'// GENERAL VOUCHERS & CREDENTIALS'}
             </h3>
+            <button
+              type="button"
+              onClick={() => handleOpenCreate('other')}
+              className="font-mono"
+              style={{
+                fontSize: '11px',
+                color: 'var(--color-accent-primary, #1E3A8A)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              + ADD VOUCHER
+            </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-            {others.map((t) => (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+              gap: '1.25rem',
+            }}
+          >
+            {otherTickets.map((t) => (
               <GenericTicketCard
                 key={t.id}
                 ticket={t}
                 onEdit={handleEditTicket}
-                onDelete={handleDeleteTicket}
+                onDelete={deleteTicket}
                 onViewDetail={handleViewDetail}
+                onAttachFile={handleAttachFile}
               />
             ))}
           </div>
         </section>
       )}
 
-      {/* Empty State when zero tickets exist across entire wallet */}
+      {/* Transit Pass Cost Solver Advisory Component */}
+      <TransitAdvisorySection
+        itinerary={itinerary}
+        onAddDayPass={(rec) => {
+          createTicket({
+            ticket_type: 'transit',
+            title: '24h Transit Travel Day Pass',
+            status: 'planned',
+            provider: 'Public Transport Authority',
+            price: rec.pass_price_eur != null ? rec.pass_price_eur : undefined,
+            currency: 'EUR',
+            notes: rec.message || undefined,
+          });
+        }}
+      />
+
+      {/* Global Empty State */}
       {tickets.length === 0 && !isLoading && (
         <div
           style={{
             padding: '3rem 1.5rem',
             textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.4)',
-            border: '1px dashed rgba(255, 255, 255, 0.15)',
+            background: 'var(--color-surface-card, #F8FAFC)',
+            border: '1px dashed var(--color-border, #CBD5E1)',
             borderRadius: '12px',
             display: 'flex',
             flexDirection: 'column',
@@ -501,12 +583,26 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
             gap: '1rem',
           }}
         >
-          <span style={{ fontSize: '32px' }}>🎫</span>
+          <div
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid var(--color-border, #CBD5E1)',
+              borderRadius: '50%',
+              width: '56px',
+              height: '56px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.05)',
+            }}
+          >
+            <TicketIcon size={28} color="var(--color-accent-primary, #1E3A8A)" />
+          </div>
           <div>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: '#FFF' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary, #0F172A)' }}>
               YOUR TRIP WALLET IS EMPTY
             </h3>
-            <p className="font-mono text-muted text-xs mt-1">
+            <p className="font-mono text-muted text-xs mt-1" style={{ color: 'var(--color-text-muted, #64748B)' }}>
               Drop documents above, sync from itinerary, or create credentials manually.
             </p>
           </div>
@@ -514,14 +610,15 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
             type="button"
             onClick={() => handleOpenCreate()}
             style={{
-              background: '#2563EB',
-              border: '1px solid #3B82F6',
+              background: 'var(--color-accent-primary, #1E3A8A)',
+              border: 'none',
               borderRadius: '6px',
               padding: '8px 18px',
               fontSize: '12px',
               color: '#FFFFFF',
               cursor: 'pointer',
               fontWeight: 700,
+              boxShadow: '0 2px 6px rgba(30, 58, 138, 0.25)',
             }}
           >
             + ADD FIRST TICKET

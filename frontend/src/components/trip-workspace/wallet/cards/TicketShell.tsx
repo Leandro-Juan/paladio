@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
+import { LockIcon, SearchIcon, EditIcon, TrashIcon } from '@/components/icons';
 
 interface TicketShellProps {
   ticket: TripTicket;
@@ -22,23 +23,33 @@ export function TicketShell({
   onViewDetail,
 }: TicketShellProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
   const statusConfig = STATUS_BADGE_CONFIG[ticket.status] || STATUS_BADGE_CONFIG.planned;
   const isUsed = ticket.status === 'used';
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <article
       tabIndex={0}
       aria-label={`${typeConfig.label}: ${ticket.title}`}
       style={{
-        background: isUsed ? 'rgba(30, 41, 59, 0.45)' : 'rgba(30, 41, 59, 0.78)',
-        backdropFilter: 'blur(16px)',
-        border: `1px solid ${ticket.status === 'planned' ? 'rgba(255, 255, 255, 0.15)' : typeConfig.accentBorder}`,
+        background: isUsed ? 'var(--color-surface-card, #F8FAFC)' : '#FFFFFF',
+        border: `1px solid ${ticket.status === 'planned' ? 'var(--color-border, #CBD5E1)' : typeConfig.accentBorder}`,
         borderRadius: '12px',
         display: 'flex',
         flexDirection: 'row',
         position: 'relative',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.28)',
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
         overflow: 'hidden',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
         opacity: isUsed ? 0.75 : 1,
@@ -46,13 +57,13 @@ export function TicketShell({
       onMouseEnter={(e) => {
         if (!isUsed) {
           e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 8px 26px rgba(0, 0, 0, 0.38)';
+          e.currentTarget.style.boxShadow = '0 6px 18px rgba(15, 23, 42, 0.1)';
         }
       }}
       onMouseLeave={(e) => {
         if (!isUsed) {
           e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.28)';
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.06)';
         }
       }}
     >
@@ -81,8 +92,12 @@ export function TicketShell({
                 borderRadius: '4px',
                 fontWeight: 700,
                 letterSpacing: '0.5px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
               }}
             >
+              {typeConfig.renderIcon({ size: 13, color: typeConfig.accentColor })}
               {typeConfig.tag}
             </span>
 
@@ -93,10 +108,10 @@ export function TicketShell({
                 fontSize: '10px',
                 color: statusConfig.color,
                 background: statusConfig.bg,
+                border: `1px solid ${statusConfig.border}`,
                 padding: '2px 6px',
                 borderRadius: '4px',
                 fontWeight: 600,
-                border: ticket.status === 'planned' ? '1px dashed rgba(255, 255, 255, 0.2)' : 'none',
               }}
             >
               {statusConfig.label}
@@ -108,19 +123,24 @@ export function TicketShell({
                 style={{
                   fontFamily: 'var(--font-mono, monospace)',
                   fontSize: '10px',
-                  color: '#94A3B8',
-                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: 'var(--color-text-muted, #64748B)',
+                  background: 'var(--color-surface-card, #F8FAFC)',
+                  border: '1px solid var(--color-border, #CBD5E1)',
                   padding: '2px 6px',
                   borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                🔒 PRIVATE
+                <LockIcon size={11} color="var(--color-text-muted, #64748B)" />
+                PRIVATE
               </span>
             )}
           </div>
 
           {/* Actions Dropdown / Trigger */}
-          <div style={{ position: 'relative' }}>
+          <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               type="button"
               aria-label="Ticket options"
@@ -130,10 +150,10 @@ export function TicketShell({
                 setShowMenu((prev) => !prev);
               }}
               style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'var(--color-surface-card, #F8FAFC)',
+                border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '4px',
-                color: '#CBD5E1',
+                color: 'var(--color-text-muted, #64748B)',
                 padding: '3px 8px',
                 cursor: 'pointer',
                 fontSize: '12px',
@@ -151,13 +171,13 @@ export function TicketShell({
                   right: 0,
                   top: '100%',
                   marginTop: '4px',
-                  background: '#0F172A',
-                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                  background: '#FFFFFF',
+                  border: '1px solid var(--color-border, #CBD5E1)',
                   borderRadius: '6px',
                   padding: '4px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
                   zIndex: 20,
-                  minWidth: '120px',
+                  minWidth: '130px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '2px',
@@ -173,18 +193,22 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#F1F5F9',
+                      color: 'var(--color-text-primary, #0F172A)',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
                       fontFamily: 'var(--font-mono, monospace)',
                       cursor: 'pointer',
                       borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F5F9')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    🔍 View Pass
+                    <SearchIcon size={12} color="var(--color-accent-primary, #1E3A8A)" />
+                    View Pass
                   </button>
                 )}
                 {onEdit && (
@@ -197,18 +221,22 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#F1F5F9',
+                      color: 'var(--color-text-primary, #0F172A)',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
                       fontFamily: 'var(--font-mono, monospace)',
                       cursor: 'pointer',
                       borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F5F9')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    ✏️ Edit
+                    <EditIcon size={12} color="var(--color-text-muted, #64748B)" />
+                    Edit
                   </button>
                 )}
                 {onDelete && (
@@ -223,18 +251,22 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#F87171',
+                      color: '#DC2626',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
                       fontFamily: 'var(--font-mono, monospace)',
                       cursor: 'pointer',
                       borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#FEF2F2')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    🗑️ Delete
+                    <TrashIcon size={12} color="#DC2626" />
+                    Delete
                   </button>
                 )}
               </div>
@@ -251,8 +283,7 @@ export function TicketShell({
         aria-hidden="true"
         style={{
           width: '1px',
-          background: 'radial-gradient(circle, transparent 2px, rgba(255, 255, 255, 0.12) 2px)',
-          backgroundSize: '1px 8px',
+          borderLeft: '1px dashed var(--color-border, #CBD5E1)',
           position: 'relative',
           margin: '8px 0',
         }}
@@ -267,6 +298,7 @@ export function TicketShell({
             height: '12px',
             borderRadius: '50%',
             background: 'var(--color-bg-main, #FFFFFF)',
+            boxShadow: 'inset 0 1px 2px rgba(15, 23, 42, 0.1)',
           }}
         />
         {/* Bottom notch */}
@@ -279,6 +311,7 @@ export function TicketShell({
             height: '12px',
             borderRadius: '50%',
             background: 'var(--color-bg-main, #FFFFFF)',
+            boxShadow: 'inset 0 -1px 2px rgba(15, 23, 42, 0.1)',
           }}
         />
       </div>
@@ -292,7 +325,7 @@ export function TicketShell({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'rgba(15, 23, 42, 0.45)',
+          background: 'var(--color-surface-card, #F8FAFC)',
           gap: '8px',
           textAlign: 'center',
           flexShrink: 0,
