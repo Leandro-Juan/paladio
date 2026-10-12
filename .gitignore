@@ -132,3 +132,10 @@ docs/NOMENCLATURE.md
 
 data/wallet_attachments/
 data/wallet_temp_uploads/
+
+# Pacific Jazz UI Baseline & Scratch
+ui-baseline/
+test-results/
+paladio_frontend.txt
+temp_ui_showcase/
+
