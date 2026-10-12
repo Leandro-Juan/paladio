@@ -42,7 +42,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jost.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${jost.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var enabled=false;if(!enabled){document.documentElement.setAttribute('data-theme','light');return;}var stored=localStorage.getItem('paladio-theme');var theme=stored||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',theme);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`,
+          }}
+        />
+      </head>
       <body>
         <AuthProvider>
           <SocketProvider>
