@@ -31,21 +31,21 @@ export function Modal({
   const isDangerMode = variant === 'danger' || isDanger;
 
   let headerColor = 'var(--color-text-primary)';
-  let confirmBg = 'var(--color-accent-primary, #1E3A8A)';
+  let confirmBg = 'var(--color-accent-primary)';
 
   if (isDangerMode) {
-    headerColor = 'var(--color-accent-secondary, #DC2626)';
-    confirmBg = 'var(--color-accent-secondary, #DC2626)';
+    headerColor = 'var(--color-danger)';
+    confirmBg = 'var(--color-danger)';
   } else if (isWarningMode) {
-    headerColor = 'var(--color-accent-warning, #D97706)';
-    confirmBg = 'var(--color-accent-warning, #D97706)';
+    headerColor = 'var(--color-accent-warning)';
+    confirmBg = 'var(--color-accent-warning)';
   }
 
   return (
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.4)',
+      background: 'rgba(8, 28, 36, 0.65)',
       backdropFilter: 'blur(4px)',
       display: 'flex',
       alignItems: 'center',
@@ -53,21 +53,17 @@ export function Modal({
       zIndex: 9999
     }}>
       <div style={{
-        background: 'var(--color-bg-main)',
+        background: 'var(--color-surface-card)',
         border: isDangerMode 
-          ? '1px solid var(--color-accent-secondary, #DC2626)' 
+          ? '1px solid var(--color-danger)' 
           : isWarningMode
-          ? '1px solid var(--color-accent-warning, #D97706)'
+          ? '1px solid var(--color-accent-warning)'
           : '1px solid var(--color-border)',
-        borderRadius: '8px',
+        borderRadius: '12px',
         padding: '2rem',
         maxWidth: '480px',
         width: '90%',
-        boxShadow: isDangerMode 
-          ? '0 12px 36px rgba(220, 38, 38, 0.25)' 
-          : isWarningMode
-          ? '0 12px 36px rgba(217, 119, 6, 0.2)'
-          : '0 10px 25px rgba(0,0,0,0.1)'
+        boxShadow: 'var(--shadow-lg)'
       }}>
         <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: headerColor }}>
           {title}
@@ -82,18 +78,20 @@ export function Modal({
           </div>
         )}
         
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
           {Boolean(cancelText) && (
             <button 
               onClick={onCancel}
               style={{
-                padding: '0.5rem 1rem',
+                padding: '0.5rem 1.15rem',
                 background: 'transparent',
                 border: '1px solid var(--color-border)',
                 color: 'var(--color-text-primary)',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 fontFamily: 'var(--font-mono)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                fontWeight: 500,
+                transition: 'all 0.15s ease'
               }}
             >
               {cancelText}
@@ -103,14 +101,16 @@ export function Modal({
             <button 
               onClick={onConfirm}
               style={{
-                padding: '0.5rem 1rem',
+                padding: '0.5rem 1.25rem',
                 background: confirmBg,
                 border: 'none',
                 color: '#FFF',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 fontFamily: 'var(--font-mono)',
                 cursor: 'pointer',
-                fontWeight: 600
+                fontWeight: 600,
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all 0.15s ease'
               }}
             >
               {confirmText}

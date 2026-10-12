@@ -46,7 +46,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <img
           src="/logo-horizontal.png"
           alt="Paladio Logo"
+          className="brand-logo-light"
           style={{ height: '44px', width: 'auto', display: 'block' }}
+        />
+        <img
+          src="/logo-horizontal-dark.png"
+          alt="Paladio Logo"
+          className="brand-logo-dark"
+          style={{ height: '44px', width: 'auto', display: 'none' }}
         />
         <p className="font-mono text-muted" style={{ fontSize: '12px' }}>
           {'// VERIFYING SOVEREIGN SECURITY GATE...'}

@@ -97,7 +97,14 @@ export function Sidebar() {
             <img
               src="/logo.png"
               alt="Paladio Icon"
+              className="brand-logo-light"
               style={{ height: '28px', width: '28px', objectFit: 'contain', display: 'block' }}
+            />
+            <img
+              src="/logo-white.png"
+              alt="Paladio Icon"
+              className="brand-logo-dark"
+              style={{ height: '28px', width: '28px', objectFit: 'contain', display: 'none' }}
             />
           </Link>
           <NotificationBell />
@@ -109,7 +116,14 @@ export function Sidebar() {
               <img
                 src="/logo-horizontal.png"
                 alt="Paladio Logo"
+                className="brand-logo-light"
                 style={{ height: '32px', width: 'auto', display: 'block' }}
+              />
+              <img
+                src="/logo-horizontal-dark.png"
+                alt="Paladio Logo"
+                className="brand-logo-dark"
+                style={{ height: '32px', width: 'auto', display: 'none' }}
               />
             </Link>
           </div>

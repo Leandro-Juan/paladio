@@ -92,14 +92,14 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
               width: '36px',
               height: '36px',
               borderRadius: '50%',
-              background: '#0F172A',
+              background: 'var(--color-accent-primary)',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '14px',
               fontWeight: 700,
-              boxShadow: isOpen ? '0 0 0 2px var(--color-accent-primary, #1E3A8A)' : 'none',
+              boxShadow: isOpen ? '0 0 0 2px var(--color-accent-primary)' : 'none',
               transition: 'all 0.2s ease',
               overflow: 'hidden',
             }}
@@ -122,7 +122,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '6px 8px',
-            background: isOpen ? 'rgba(0, 0, 0, 0.05)' : 'transparent',
+            background: isOpen ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
@@ -130,7 +130,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             textAlign: 'left',
           }}
           onMouseOver={(e) => {
-            if (!isOpen) e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+            if (!isOpen) e.currentTarget.style.background = 'rgba(15, 76, 92, 0.05)';
           }}
           onMouseOut={(e) => {
             if (!isOpen) e.currentTarget.style.background = 'transparent';
@@ -143,7 +143,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                background: '#0F172A',
+                background: 'var(--color-accent-primary)',
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
@@ -228,10 +228,10 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             left: isCollapsed ? 'calc(100% + 10px)' : '0',
             width: isCollapsed ? '210px' : '100%',
             minWidth: '200px',
-            background: '#FFFFFF',
-            borderRadius: '14px',
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+            background: 'var(--color-surface-card)',
+            borderRadius: '12px',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-md)',
             padding: '12px 14px 10px',
             zIndex: 9999,
             display: 'flex',
@@ -247,7 +247,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 width: '38px',
                 height: '38px',
                 borderRadius: '50%',
-                background: '#0F172A',
+                background: 'var(--color-accent-primary)',
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
@@ -271,7 +271,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                   style={{
                     fontSize: '14px',
                     fontWeight: 700,
-                    color: '#0F172A',
+                    color: 'var(--color-text-primary)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -286,7 +286,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                       fontSize: '9px',
                       padding: '2px 5px',
                       borderRadius: '4px',
-                      background: '#1E3A8A',
+                      background: 'var(--color-accent-primary)',
                       color: '#FFFFFF',
                       fontWeight: 700,
                       letterSpacing: '0.5px',
@@ -301,7 +301,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 className="font-sans"
                 style={{
                   fontSize: '12px',
-                  color: user.email ? '#2563EB' : 'var(--color-text-muted, #94A3B8)',
+                  color: user.email ? 'var(--color-link)' : 'var(--color-text-muted)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -313,7 +313,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
           </div>
 
           {/* Divider */}
-          <div style={{ height: '1px', background: '#F1F5F9', margin: '2px -14px 4px -14px' }} />
+          <div style={{ height: '1px', background: 'var(--color-border)', margin: '2px -14px 4px -14px' }} />
 
           {/* Menu Items */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -330,7 +330,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 background: 'transparent',
                 border: 'none',
                 borderRadius: '6px',
-                color: '#334155',
+                color: 'var(--color-text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -338,17 +338,15 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 transition: 'background 0.15s ease',
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = '#F8FAFC';
-                e.currentTarget.style.color = '#0F172A';
+                e.currentTarget.style.background = 'rgba(15, 76, 92, 0.08)';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#334155';
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
               <span>Settings</span>
             </button>
@@ -366,7 +364,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 background: 'transparent',
                 border: 'none',
                 borderRadius: '6px',
-                color: '#334155',
+                color: 'var(--color-text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -374,12 +372,10 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 transition: 'background 0.15s ease',
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = '#F8FAFC';
-                e.currentTarget.style.color = '#0F172A';
+                e.currentTarget.style.background = 'rgba(15, 76, 92, 0.08)';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#334155';
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -402,7 +398,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 background: 'transparent',
                 border: 'none',
                 borderRadius: '6px',
-                color: '#EF4444',
+                color: 'var(--color-danger)',
                 fontSize: '13px',
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -410,13 +406,13 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 transition: 'background 0.15s ease',
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = '#FEF2F2';
+                e.currentTarget.style.background = 'rgba(179, 38, 30, 0.08)';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.background = 'transparent';
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
@@ -441,14 +437,15 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: '#F1F5F9',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
                 padding: '3px 12px',
                 borderRadius: '9999px',
                 fontSize: '11px',
               }}
             >
-              <span style={{ fontWeight: 700, color: '#334155' }}>paladio</span>
-              <span style={{ color: '#64748B' }}>v2.0.0</span> {/* x-release-please-version */}
+              <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>paladio</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>v2.0.0</span> {/* x-release-please-version */}
             </div>
           </div>
         </div>

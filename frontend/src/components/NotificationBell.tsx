@@ -59,7 +59,7 @@ export function NotificationBell() {
               position: 'absolute',
               top: '-4px',
               right: '-4px',
-              background: '#DC2626',
+              background: 'var(--color-accent-secondary)',
               color: '#FFFFFF',
               fontSize: '10px',
               fontWeight: 700,

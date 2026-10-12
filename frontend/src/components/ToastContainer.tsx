@@ -7,10 +7,10 @@ import { ToastItem, NotificationType } from '@/types/notification';
 import { formatRelativeTime } from '@/utils/date';
 
 const TOAST_THEMES: Record<NotificationType, { border: string; bg: string; icon: string; text: string }> = {
-  info: { border: '#2563EB', bg: '#EFF6FF', icon: 'ℹ', text: '#1E40AF' },
-  success: { border: '#059669', bg: '#ECFDF5', icon: '✓', text: '#065F46' },
-  warning: { border: '#D97706', bg: '#FFFBEB', icon: '▲', text: '#92400E' },
-  error: { border: '#DC2626', bg: '#FEF2F2', icon: '✕', text: '#991B1B' },
+  info: { border: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', icon: 'ℹ', text: 'var(--color-link)' },
+  success: { border: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', icon: '✓', text: 'var(--color-success)' },
+  warning: { border: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', icon: '▲', text: 'var(--color-accent-warning)' },
+  error: { border: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', icon: '✕', text: 'var(--color-danger)' },
 };
 
 function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
@@ -31,13 +31,13 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
       role="status"
       aria-live="polite"
       style={{
-        background: 'var(--color-bg-main)',
+        background: 'var(--color-surface-card)',
         borderLeft: `4px solid ${theme.border}`,
         borderTop: '1px solid var(--color-border)',
         borderRight: '1px solid var(--color-border)',
         borderBottom: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-sm)',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-md)',
         padding: '12px 14px',
         width: '320px',
         display: 'flex',

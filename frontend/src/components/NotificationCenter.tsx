@@ -13,10 +13,10 @@ interface NotificationCenterProps {
 }
 
 const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: string }> = {
-  info: { color: '#2563EB', bg: '#EFF6FF', label: 'INFO', icon: 'ℹ' },
-  success: { color: '#059669', bg: '#ECFDF5', label: 'SUCCESS', icon: '✓' },
-  warning: { color: '#D97706', bg: '#FFFBEB', label: 'ALERT', icon: '▲' },
-  error: { color: '#DC2626', bg: '#FEF2F2', label: 'ERROR', icon: '✕' },
+  info: { color: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', label: 'INFO', icon: 'ℹ' },
+  success: { color: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', label: 'SUCCESS', icon: '✓' },
+  warning: { color: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', label: 'ALERT', icon: '▲' },
+  error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: '✕' },
 };
 
 export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
@@ -71,10 +71,10 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
         width: '380px',
         maxWidth: 'calc(100vw - 32px)',
         maxHeight: '520px',
-        background: 'var(--color-bg-main)',
+        background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow-lg)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
@@ -191,7 +191,7 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
                 style={{
                   padding: '12px 16px',
                   borderBottom: '1px solid var(--color-border)',
-                  background: item.read ? 'transparent' : 'rgba(30, 58, 138, 0.03)',
+                  background: item.read ? 'transparent' : 'rgba(15, 76, 92, 0.05)',
                   display: 'flex',
                   gap: '12px',
                   position: 'relative',

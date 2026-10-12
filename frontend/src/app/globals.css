@@ -352,3 +352,12 @@ a {
   animation: pulse-accent 2s infinite;
   border-color: var(--color-accent-primary);
 }
+
+/* Brand logo theme switching */
+[data-theme="dark"] .brand-logo-light {
+  display: none !important;
+}
+
+[data-theme="dark"] .brand-logo-dark {
+  display: block !important;
+}
