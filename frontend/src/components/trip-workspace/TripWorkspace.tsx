@@ -12,10 +12,11 @@ import { TripPlanSidebar } from './TripPlanSidebar';
 import { TripPlacesSidebar, PlaceItem } from './TripPlacesSidebar';
 import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi } from './TripMapView';
-import { TripTransportsView } from './TripTransportsView';
 import { TripCostsView } from './TripCostsView';
 import { TripCollabView } from './TripCollabView';
 import { TripPhotosView } from './TripPhotosView';
+import { TripWalletView } from './wallet/TripWalletView';
+import { useTripTickets } from '@/hooks/useTripTickets';
 
 interface TripWorkspaceProps {
   trip: Trip;
@@ -30,6 +31,21 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
   const [focusedPlace, setFocusedPlace] = useState<{ lat: number; lng: number } | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
+
+  // Query tickets for live count and auto-sync status
+  const { tickets: walletTickets } = useTripTickets(trip.id || '');
+  const activeTicketsCount = useMemo(() => {
+    if (walletTickets.length > 0) {
+      return walletTickets.filter((t) => t.status !== 'cancelled').length;
+    }
+    return trip.tickets_count || 0;
+  }, [walletTickets, trip.tickets_count]);
+
+  const handleTabChange = useCallback((tab: WorkspaceTab) => {
+    // Backward compatibility: map transports to wallet
+    const resolvedTab = tab === 'transports' ? 'wallet' : tab;
+    setActiveTab(resolvedTab);
+  }, []);
 
   // Cast itinerary data
   const itinerary = trip.itinerary_data as RouteItineraryData | null | undefined;
@@ -180,10 +196,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         destination={trip.destination}
         startDate={trip.start_date}
         endDate={trip.end_date}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        activeTab={activeTab === 'transports' ? 'wallet' : activeTab}
+        onTabChange={handleTabChange}
         photosCount={photos.length}
         participantsCount={participantsCount}
+        ticketsCount={activeTicketsCount}
       />
 
       {/* Main Workspace Body */}
@@ -242,10 +259,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           />
         </div>
 
-        {/* Tab 2: Transports */}
-        {activeTab === 'transports' && (
-          <div key="transports" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
-            <TripTransportsView itinerary={itinerary} />
+        {/* Tab 2: Wallet (replaces transports with backward compatibility) */}
+        {(activeTab === 'wallet' || activeTab === 'transports') && (
+          <div key="wallet" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
+            <TripWalletView tripId={trip.id || ''} itinerary={itinerary} />
           </div>
         )}
 

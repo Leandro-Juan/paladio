@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-export type WorkspaceTab = 'plan' | 'transports' | 'costs' | 'collab' | 'photos';
+export type WorkspaceTab = 'plan' | 'wallet' | 'costs' | 'collab' | 'photos' | 'transports';
 
 interface TripWorkspaceHeaderProps {
   tripId?: string;
@@ -14,6 +14,7 @@ interface TripWorkspaceHeaderProps {
   onTabChange: (tab: WorkspaceTab) => void;
   photosCount?: number;
   participantsCount?: number;
+  ticketsCount?: number;
 }
 
 const formatDateRange = (start?: string, end?: string): string => {
@@ -41,6 +42,7 @@ export function TripWorkspaceHeader({
   onTabChange,
   photosCount = 0,
   participantsCount = 1,
+  ticketsCount = 0,
 }: TripWorkspaceHeaderProps) {
   const [copied, setCopied] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
@@ -114,9 +116,10 @@ export function TripWorkspaceHeader({
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>`,
     },
     {
-      id: 'transports',
-      label: 'Transports',
-      iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/></svg>`,
+      id: 'wallet',
+      label: 'Wallet',
+      count: ticketsCount,
+      iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1.5"/></svg>`,
     },
     {
       id: 'costs',

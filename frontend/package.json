@@ -12,8 +12,10 @@
     "test:live": "RUN_LIVE_TESTS=true playwright test tests/e2e/live_*.spec.ts"
   },
   "dependencies": {
+    "@types/qrcode": "^1.5.6",
     "leaflet": "^1.9.4",
     "next": "16.3.6",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-leaflet": "^5.0.0",

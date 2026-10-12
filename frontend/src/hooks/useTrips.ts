@@ -72,6 +72,7 @@ export interface Trip {
   itinerary_data: unknown;
   created_at?: string;
   participants?: TripParticipant[];
+  tickets_count?: number;
 }
 
 export function useTrips() {
