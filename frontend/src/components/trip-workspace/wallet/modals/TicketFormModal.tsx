@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripTicket, TicketType, TicketStatus } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
@@ -21,16 +23,29 @@ export function TicketFormModal({
   initialTicket,
   defaultType = 'flight',
 }: TicketFormModalProps) {
-  if (!isOpen) return null;
+  const isMounted = useIsMounted();
 
-  return (
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !isMounted) return null;
+
+  return createPortal(
     <TicketFormDialog
       key={initialTicket ? initialTicket.id : `new-${defaultType}`}
       onClose={onClose}
       onSubmit={onSubmit}
       initialTicket={initialTicket}
       defaultType={defaultType}
-    />
+    />,
+    document.body
   );
 }
 
@@ -220,6 +235,7 @@ function TicketFormDialog({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexShrink: 0,
           }}
         >
           <div>
@@ -259,6 +275,8 @@ function TicketFormDialog({
             flexDirection: 'column',
             gap: '1.25rem',
             fontFamily: 'var(--font-mono, monospace)',
+            flex: 1,
+            minHeight: 0,
           }}
         >
           {errorMsg && (

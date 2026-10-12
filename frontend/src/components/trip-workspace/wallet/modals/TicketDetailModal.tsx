@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CodeRenderer } from '../codes/CodeRenderer';
@@ -24,7 +26,18 @@ export function TicketDetailModal({
   tickets = [],
   onSelectTicket,
 }: TicketDetailModalProps) {
+  const isMounted = useIsMounted();
   const [wakeLockActive, setWakeLockActive] = useState(false);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   // Keyboard navigation & Esc key listener
   useEffect(() => {
@@ -71,7 +84,7 @@ export function TicketDetailModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !ticket) return null;
+  if (!isOpen || !ticket || !isMounted) return null;
 
   const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
   const meta = ticket.metadata || {};
@@ -136,7 +149,7 @@ export function TicketDetailModal({
     );
   }
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -179,6 +192,7 @@ export function TicketDetailModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -256,6 +270,8 @@ export function TicketDetailModal({
             flexDirection: 'column',
             alignItems: 'center',
             gap: '1.25rem',
+            flex: 1,
+            minHeight: 0,
           }}
         >
           {/* Main Title & Provider */}
@@ -385,6 +401,7 @@ export function TicketDetailModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexShrink: 0,
             }}
           >
             <button
@@ -429,6 +446,7 @@ export function TicketDetailModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

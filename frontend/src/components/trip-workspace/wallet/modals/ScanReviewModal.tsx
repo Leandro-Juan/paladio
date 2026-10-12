@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { ScanDraft, TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
@@ -23,9 +25,21 @@ export function ScanReviewModal({
   rawTextExcerpt,
   onConfirmDrafts,
 }: ScanReviewModalProps) {
-  if (!isOpen || drafts.length === 0) return null;
+  const isMounted = useIsMounted();
 
-  return (
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen || drafts.length === 0 || !isMounted) return null;
+
+  return createPortal(
     <ScanReviewDialog
       key={uploadId || drafts.map((d) => d.title).join('-')}
       onClose={onClose}
@@ -33,7 +47,8 @@ export function ScanReviewModal({
       uploadId={uploadId}
       rawTextExcerpt={rawTextExcerpt}
       onConfirmDrafts={onConfirmDrafts}
-    />
+    />,
+    document.body
   );
 }
 
@@ -172,6 +187,7 @@ function ScanReviewDialog({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexShrink: 0,
           }}
         >
           <div>
@@ -209,6 +225,8 @@ function ScanReviewDialog({
             display: 'flex',
             flexDirection: 'column',
             gap: '1.25rem',
+            flex: 1,
+            minHeight: 0,
           }}
         >
           {errorMsg && (
@@ -442,6 +460,7 @@ function ScanReviewDialog({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexShrink: 0,
           }}
         >
           <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
