@@ -24,7 +24,7 @@ test.describe('Trip Workspace Renovated Components', () => {
 
     await expect(component.getByText('Iceland: The Ring Road')).toBeVisible();
     await expect(component.getByText('Plan')).toBeVisible();
-    await expect(component.getByText('Transports')).toBeVisible();
+    await expect(component.getByText('Wallet')).toBeVisible();
     await expect(component.getByText('Costs')).toBeVisible();
     await expect(component.getByText('Collab')).toBeVisible();
     await expect(component.getByText('Photos')).toBeVisible();

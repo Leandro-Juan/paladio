@@ -9,6 +9,7 @@ import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/p
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
+import { useThemeStore } from '@/stores/themeStore';
 
 export interface MapPoi {
   name: string;
@@ -149,11 +150,11 @@ function createWaypointIcon(categoryType: PoiCategoryType, stopNumber: number): 
   return L.divIcon({
     className: 'paladio-waypoint-icon',
     html: `
-      <div style="display:inline-flex;align-items:center;background:#0F172A;border:1.5px solid #2563EB;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,0.5);padding:2px 6px 2px 3px;gap:4px;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1E3A8A;color:#93C5FD;">
+      <div style="display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid var(--color-accent-teal-mid, #14788D);border-radius:14px;box-shadow:var(--shadow-sm);padding:2px 6px 2px 3px;gap:4px;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
+        <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;">
           ${svg}
         </div>
-        <span style="font-family:monospace;font-size:10px;font-weight:700;color:#FFFFFF;line-height:1;letter-spacing:0.5px;">${formattedNum}</span>
+        <span style="font-family:var(--font-mono, monospace);font-size:10px;font-weight:700;color:var(--color-text-primary, #FFFFFF);line-height:1;letter-spacing:0.5px;">${formattedNum}</span>
       </div>
     `,
     iconSize: [46, 24],
@@ -168,10 +169,10 @@ function createHotelIcon(): L.DivIcon {
     className: 'paladio-hotel-icon',
     html: `
       <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:#1E3A8A;border:2px solid #FFFFFF;border-radius:8px;box-shadow:0 0 12px rgba(30,58,138,0.7),0 2px 8px rgba(0,0,0,0.4);color:#FFF;">
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:var(--color-accent-primary, #0F4C5C);border:2px solid var(--color-surface-card, #FFFFFF);border-radius:8px;box-shadow:0 0 12px rgba(15,76,92,0.6);color:#FFF;">
           ${svg}
         </div>
-        <span style="margin-top:2px;background:#0F172A;color:#93C5FD;border:1px solid #1E3A8A;font-size:9px;font-family:monospace;font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:0 1px 4px rgba(0,0,0,0.4);">HOTEL</span>
+        <span style="margin-top:2px;background:var(--color-surface-card, #081C24);color:var(--color-accent-teal-soft, #7CC4D1);border:1px solid var(--color-border-subtle);font-size:9px;font-family:var(--font-mono, monospace);font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:var(--shadow-xs);">HOTEL</span>
       </div>
     `,
     iconSize: [32, 48],
@@ -186,10 +187,10 @@ function createAirportIcon(): L.DivIcon {
     className: 'paladio-airport-icon',
     html: `
       <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:#0284C7;border:2px solid #FFFFFF;border-radius:8px;box-shadow:0 0 12px rgba(2,132,199,0.7),0 2px 8px rgba(0,0,0,0.4);color:#FFF;">
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:var(--color-accent-teal-mid, #14788D);border:2px solid var(--color-surface-card, #FFFFFF);border-radius:8px;box-shadow:0 0 12px rgba(20,120,141,0.6);color:#FFF;">
           ${svg}
         </div>
-        <span style="margin-top:2px;background:#0F172A;color:#7DD3FC;border:1px solid #0284C7;font-size:9px;font-family:monospace;font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:0 1px 4px rgba(0,0,0,0.4);">AIRPORT</span>
+        <span style="margin-top:2px;background:var(--color-surface-card, #081C24);color:var(--color-accent-teal-soft, #7CC4D1);border:1px solid var(--color-border-subtle);font-size:9px;font-family:var(--font-mono, monospace);font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:var(--shadow-xs);">AIRPORT</span>
       </div>
     `,
     iconSize: [32, 48],
@@ -202,7 +203,7 @@ function createClusterLabelIcon(dayNumber: number): L.DivIcon {
   return L.divIcon({
     className: 'paladio-cluster-badge',
     html: `
-      <div style="display:flex;align-items:center;justify-content:center;background:#1E3A8A;color:#FFFFFF;border:2px solid #2563EB;border-radius:999px;padding:3px 10px;font-family:monospace;font-size:11px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,0.5);letter-spacing:0.5px;cursor:pointer;transform:translate(-50%, -50%);white-space:nowrap;user-select:none;">
+      <div style="display:flex;align-items:center;justify-content:center;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;border:2px solid var(--color-accent-teal-mid, #14788D);border-radius:999px;padding:3px 10px;font-family:var(--font-mono, monospace);font-size:11px;font-weight:700;box-shadow:var(--shadow-md);letter-spacing:0.5px;cursor:pointer;transform:translate(-50%, -50%);white-space:nowrap;user-select:none;">
         DAY ${dayNumber}
       </div>
     `,
@@ -265,6 +266,12 @@ export default function TripMapView({
   onCategoryFilterChange,
   transitMode = 'simple',
 }: TripMapViewProps) {
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === 'dark';
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
 
@@ -532,16 +539,12 @@ export default function TripMapView({
         <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
 
-        {/* Esri Light Gray Canvas Basemap */}
+        {/* CartoDB Voyager / Dark Matter Basemap */}
         <TileLayer
-          attribution="Tiles &copy; Esri"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={16}
-        />
-        <TileLayer
-          attribution="Tiles &copy; Esri"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={16}
+          attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+          url={tileUrl}
+          subdomains="abcd"
+          maxZoom={19}
         />
 
         {/* 1. Cluster Region Polygons (Colored convex hulls) */}
@@ -559,14 +562,14 @@ export default function TripMapView({
               pathOptions={
                 isActive
                   ? {
-                      fillColor: '#1E3A8A',
-                      fillOpacity: 0.32,
-                      color: '#2563EB',
+                      fillColor: '#0F4C5C',
+                      fillOpacity: 0.20,
+                      color: '#14788D',
                       weight: 2,
                     }
                   : {
-                      fillColor: '#E2E8F0',
-                      fillOpacity: 0.20,
+                      fillColor: '#64748B',
+                      fillOpacity: 0.10,
                       color: '#94A3B8',
                       weight: 1.5,
                       dashArray: '4, 4',
@@ -578,7 +581,7 @@ export default function TripMapView({
             >
               <Popup>
                 <div className="font-mono" style={{ fontSize: '11px', padding: '2px' }}>
-                  <strong style={{ color: '#0F172A' }}>DAY {cluster.dayNumber} TERRITORY</strong>
+                  <strong style={{ color: 'var(--color-text-primary)' }}>DAY {cluster.dayNumber} TERRITORY</strong>
                   <div className="text-muted" style={{ marginTop: '2px' }}>
                     {cluster.pois.length} stops scheduled
                   </div>
@@ -665,7 +668,7 @@ export default function TripMapView({
                 center={node.position}
                 radius={4.5}
                 pathOptions={{
-                  color: '#1E3A8A',
+                  color: '#0F4C5C',
                   fillColor: '#FFFFFF',
                   fillOpacity: 1,
                   weight: 2,
@@ -684,9 +687,9 @@ export default function TripMapView({
             <Polyline
               positions={activePolyline}
               pathOptions={{
-                color: '#2563EB',
+                color: '#14788D',
                 weight: 3.5,
-                opacity: 0.85,
+                opacity: 0.9,
               }}
             />
           )
@@ -700,7 +703,7 @@ export default function TripMapView({
                 <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
                   BASE CAMP
                 </span>
-                <strong className="font-display" style={{ fontSize: '0.95rem', color: '#0F172A' }}>
+                <strong className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
                   {hotel.name}
                 </strong>
                 <div className="font-mono text-xs text-muted">Primary accommodation anchor</div>
@@ -717,7 +720,7 @@ export default function TripMapView({
                 <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
                   TRANSIT GATE
                 </span>
-                <strong className="font-display" style={{ fontSize: '0.95rem', color: '#0F172A' }}>
+                <strong className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
                   {airport.name}
                 </strong>
                 <div className="font-mono text-xs text-muted">Airport transit gateway</div>
@@ -755,17 +758,17 @@ export default function TripMapView({
                 <Marker key={`${poi.lat}-${poi.lng}-${idx}`} position={[poi.lat, poi.lng]} icon={markerIcon}>
                   <Popup>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
-                      <div style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: '4px' }}>
+                      <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
                         <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
                           STOP {String(stopCounter).padStart(2, '0')}
                         </span>
-                        <div className="font-display" style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0F172A' }}>
+                        <div className="font-display" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                           {poi.name}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', fontFamily: 'monospace' }}>
                         {poi.arrivalTime && (
-                          <div style={{ color: '#475569' }}>
+                          <div style={{ color: 'var(--color-text-muted)' }}>
                             Time: {formatPoiTime(poi.arrivalTime)} &rarr; {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
                           </div>
                         )}

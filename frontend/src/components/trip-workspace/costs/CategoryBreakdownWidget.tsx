@@ -39,11 +39,11 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
   return (
     <div
       style={{
-        background: '#FFFFFF',
-        border: '1px solid var(--color-border, #E2E8F0)',
-        borderRadius: '16px',
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--border-radius-lg, 16px)',
         padding: '22px 24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div
@@ -102,7 +102,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
               height: '8px',
               borderRadius: '4px',
               overflow: 'hidden',
-              background: '#F1F5F9',
+              background: 'var(--color-surface-muted, rgba(148, 163, 184, 0.15))',
               marginBottom: '18px',
               gap: '2px',
             }}
@@ -195,7 +195,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
                       gridColumn: '1 / -1',
                       height: '5px',
                       borderRadius: '3px',
-                      background: '#F1F5F9',
+                      background: 'var(--color-surface-muted, rgba(148, 163, 184, 0.15))',
                       overflow: 'hidden',
                     }}
                   >

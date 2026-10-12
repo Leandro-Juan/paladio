@@ -6,16 +6,17 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useRouter } from 'next/navigation';
 import type { GeoJsonObject, Feature } from 'geojson';
+import { useThemeStore } from '@/stores/themeStore';
 
-// Self-contained custom marker for Paladio (Navy Blue / Accent)
+// Self-contained custom marker for Paladio (Pacific Jazz Teal)
 const accentIcon = typeof window !== 'undefined' ? L.divIcon({
   className: 'paladio-map-marker',
-  html: `<div style="width:20px;height:20px;border-radius:50%;background:#2563EB;border:2px solid #FFF;box-shadow:0 0 8px rgba(37,99,235,0.6);display:flex;align-items:center;justify-content:center;">
-    <div style="width:6px;height:6px;border-radius:50%;background:#FFF;"></div>
+  html: `<div style="width:22px;height:22px;border-radius:50%;background:var(--color-accent-primary, #0F4C5C);border:2px solid var(--color-surface-card, #FFFFFF);box-shadow:0 0 10px rgba(15,76,92,0.6);display:flex;align-items:center;justify-content:center;">
+    <div style="width:7px;height:7px;border-radius:50%;background:var(--color-accent-teal-soft, #7CC4D1);"></div>
   </div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-  popupAnchor: [0, -12],
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -14],
 }) : ({} as L.DivIcon);
 
 export interface VaultTrip {
@@ -298,6 +299,11 @@ export function resolveCountryNames(destination?: string, country?: string): str
 
 export default function VaultMap({ trips }: VaultMapProps) {
   const router = useRouter();
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === 'dark';
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
 
   useEffect(() => {
@@ -357,13 +363,13 @@ export default function VaultMap({ trips }: VaultMapProps) {
     }
 
     return {
-      fillColor: isVisited ? '#1E3A8A' : '#E2E8F0', // Accent blue or light gray
+      fillColor: isVisited ? (isDark ? '#14788D' : '#0F4C5C') : (isDark ? '#0C2631' : '#E2E8F0'),
       weight: 1,
       opacity: 1,
-      color: '#FFFFFF', // White borders between countries
-      fillOpacity: isVisited ? 0.7 : 0.3
+      color: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+      fillOpacity: isVisited ? 0.75 : 0.25
     };
-  }, [visitedCountriesSet]);
+  }, [visitedCountriesSet, isDark]);
 
   const validTrips = trips.filter(
     t => typeof t.lat === 'number' && !isNaN(t.lat) && typeof t.lng === 'number' && !isNaN(t.lng)
@@ -374,15 +380,16 @@ export default function VaultMap({ trips }: VaultMapProps) {
       center={[30, 0]} 
       zoom={2} 
       minZoom={2}
-      style={{ height: '100%', width: '100%', borderRadius: '8px', background: '#F8FAFC' }}
+      style={{ height: '100%', width: '100%', borderRadius: 'var(--border-radius-md, 8px)', background: 'var(--color-surface-sunken)' }}
       zoomControl={false}
       attributionControl={false}
     >
-      {/* Esri World Light Gray Base Map */}
+      {/* CartoDB Voyager / Dark Matter Basemap */}
       <TileLayer
-        attribution='Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-        maxZoom={16}
+        attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+        url={tileUrl}
+        subdomains="abcd"
+        maxZoom={19}
       />
 
       {geoData && (
@@ -403,7 +410,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
           >
             <Popup className="premium-popup">
               <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => trip.id && router.push(`/trips/${trip.id}`)}>
-                <strong className="font-display" style={{ display: 'block', fontSize: '1.1rem' }}>{trip.destination}</strong>
+                <strong className="font-display" style={{ display: 'block', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>{trip.destination}</strong>
                 <span className="font-mono text-muted text-xs mt-1">CLICK TO VIEW MISSION</span>
               </div>
             </Popup>
