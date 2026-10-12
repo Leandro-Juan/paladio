@@ -87,7 +87,6 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
 
   const handleRemoveMeal = (index: number) => {
     if (meals.length <= 2) {
-      // Keep at least two meal windows for solver stability
       return;
     }
     setMeals(meals.filter((_, i) => i !== index));
@@ -131,8 +130,8 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* 1. Trip Mission Intent */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <label className="font-mono text-sm" style={{ fontWeight: 600 }}>
-          {'>'} TRIP INTENT & PREFERENCES
+        <label className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+          {'>'} TRIP INTENT &amp; PREFERENCES
         </label>
         <textarea
           rows={3}
@@ -143,7 +142,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
           style={{
             background: 'var(--color-bg-main)',
             border: '1px solid var(--color-border)',
-            borderRadius: '6px',
+            borderRadius: 'var(--radius-md)',
             padding: '0.75rem',
             fontFamily: 'var(--font-body)',
             fontSize: '0.875rem',
@@ -157,7 +156,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
       {/* 2. Budget Ceiling */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label className="font-mono text-sm" style={{ fontWeight: 600 }}>
+          <label className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {'>'} BUDGET CEILING
           </label>
           <span className="font-mono text-xs text-muted">USD CURRENCY ENVELOPE</span>
@@ -169,7 +168,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               alignItems: 'center',
               background: 'var(--color-bg-main)',
               border: '1px solid var(--color-border)',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-md)',
               padding: '0 0.75rem',
               flex: 1,
             }}
@@ -201,7 +200,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
       {/* 3. Meal Constraints */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label className="font-mono text-sm" style={{ fontWeight: 600 }}>
+          <label className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {'>'} MEAL CONSTRAINTS
           </label>
           <span className="font-mono text-xs text-muted">MANDATORY C++ WINDOWS</span>
@@ -216,7 +215,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.5rem 0.75rem',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 gap: '0.75rem',
               }}
             >
@@ -224,11 +223,12 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 value={meal.meal_type}
                 onChange={(e) => handleMealChange(idx, 'meal_type', e.target.value)}
                 disabled={disabled}
-                className="font-mono text-xs text-accent"
+                className="font-mono text-xs"
                 style={{
                   background: 'var(--color-bg-main)',
                   border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
+                  color: 'var(--color-accent-primary)',
+                  borderRadius: 'var(--radius-sm)',
                   padding: '0.25rem 0.4rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -250,7 +250,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.25rem 0.4rem',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.8rem',
@@ -266,7 +266,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.25rem 0.4rem',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.8rem',
@@ -304,7 +304,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
             border: '1px dashed var(--color-border)',
             color: 'var(--color-text-muted)',
             padding: '0.3rem 0.6rem',
-            borderRadius: '4px',
+            borderRadius: 'var(--radius-sm)',
             fontSize: '0.75rem',
             fontFamily: 'var(--font-mono)',
             cursor: 'pointer',
@@ -319,7 +319,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
       <div
         className="bg-surface border-subtle"
         style={{
-          borderRadius: '8px',
+          borderRadius: 'var(--radius-md)',
           padding: '1rem',
           display: 'flex',
           flexDirection: 'column',
@@ -327,8 +327,8 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label className="font-mono text-sm" style={{ fontWeight: 600 }}>
-            {'>'} TRAVEL ANCHORS (FLIGHTS & HOTEL)
+          <label className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {'>'} TRAVEL ANCHORS (FLIGHTS &amp; HOTEL)
           </label>
         </div>
 
@@ -338,7 +338,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
             display: 'flex',
             background: 'var(--color-bg-main)',
             border: '1px solid var(--color-border)',
-            borderRadius: '6px',
+            borderRadius: 'var(--radius-sm)',
             padding: '3px',
             gap: '4px',
           }}
@@ -351,13 +351,13 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               flex: 1,
               padding: '0.45rem',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
               fontWeight: 600,
               cursor: 'pointer',
               background: anchorMode === 'simulated' ? 'var(--color-accent-primary)' : 'transparent',
-              color: anchorMode === 'simulated' ? '#FFF' : 'var(--color-text-muted)',
+              color: anchorMode === 'simulated' ? '#FFFFFF' : 'var(--color-text-muted)',
               transition: 'all 0.2s',
             }}
           >
@@ -371,13 +371,13 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               flex: 1,
               padding: '0.45rem',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
               fontWeight: 600,
               cursor: 'pointer',
               background: anchorMode === 'direct' ? 'var(--color-accent-primary)' : 'transparent',
-              color: anchorMode === 'direct' ? '#FFF' : 'var(--color-text-muted)',
+              color: anchorMode === 'direct' ? '#FFFFFF' : 'var(--color-text-muted)',
               transition: 'all 0.2s',
             }}
           >
@@ -390,13 +390,13 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div
               style={{
-                background: 'rgba(30, 58, 138, 0.05)',
-                border: '1px solid rgba(30, 58, 138, 0.2)',
-                borderRadius: '6px',
+                background: 'rgba(15, 76, 92, 0.06)',
+                border: '1px solid rgba(15, 76, 92, 0.2)',
+                borderRadius: 'var(--radius-sm)',
                 padding: '0.6rem 0.75rem',
               }}
             >
-              <div className="font-mono text-xs text-accent" style={{ fontWeight: 600, marginBottom: '2px' }}>
+              <div className="font-mono text-xs" style={{ fontWeight: 600, marginBottom: '2px', color: 'var(--color-accent-primary)' }}>
                 {`// ${tripDurationDays}-DAY AUTOMATED MOCK GENERATION`}
               </div>
               <p className="font-mono text-xs text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
@@ -416,7 +416,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.5rem',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.85rem',
@@ -436,7 +436,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.5rem',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.85rem',
@@ -458,7 +458,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.5rem',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.85rem',
@@ -477,7 +477,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                   style={{
                     background: 'var(--color-bg-main)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.5rem',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.85rem',
@@ -498,7 +498,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
                 paddingTop: '0.5rem',
               }}
             >
-              <span className="text-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-accent-primary)' }}>
                 <PlaneIcon size={13} color="var(--color-accent-primary)" /> ROUTE:
               </span>
               <span>{originCity.toUpperCase()} → {destinationCity.toUpperCase()}</span>
@@ -522,7 +522,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               style={{
                 background: 'var(--color-bg-main)',
                 border: '1px solid var(--color-border)',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-md)',
                 padding: '0.6rem',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.8rem',
@@ -542,9 +542,9 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
         style={{
           padding: '0.85rem',
           background: disabled ? 'var(--color-text-muted)' : 'var(--color-accent-primary)',
-          color: '#FFF',
+          color: '#FFFFFF',
           border: 'none',
-          borderRadius: '6px',
+          borderRadius: 'var(--radius-md)',
           fontWeight: 600,
           cursor: disabled ? 'not-allowed' : 'pointer',
           fontFamily: 'var(--font-display)',

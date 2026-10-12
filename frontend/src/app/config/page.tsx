@@ -445,7 +445,7 @@ export default function ConfigPage() {
             style={{
               padding: '10px 18px',
               background: 'var(--color-accent-primary)',
-              color: '#FFF',
+              color: 'var(--color-btn-primary-text)',
               border: 'none',
               borderRadius: '6px',
               fontWeight: 600,
@@ -464,9 +464,9 @@ export default function ConfigPage() {
       {actionError && (
         <div
           style={{
-            background: '#FEF2F2',
-            border: '1px solid #FECACA',
-            color: '#DC2626',
+            background: 'var(--color-danger-soft)',
+            border: '1px solid var(--color-danger)',
+            color: 'var(--color-danger)',
             padding: '12px 16px',
             borderRadius: '8px',
             marginBottom: '1.5rem',
@@ -480,9 +480,9 @@ export default function ConfigPage() {
       {actionSuccess && (
         <div
           style={{
-            background: '#F0FDF4',
-            border: '1px solid #BBF7D0',
-            color: '#16A34A',
+            background: 'var(--color-success-soft)',
+            border: '1px solid var(--color-success)',
+            color: 'var(--color-success)',
             padding: '12px 16px',
             borderRadius: '8px',
             marginBottom: '1.5rem',
@@ -540,8 +540,8 @@ export default function ConfigPage() {
                     <tr
                       key={u.id}
                       style={{
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: isSelf ? 'rgba(30, 58, 138, 0.02)' : 'transparent',
+                        borderBottom: '1px solid var(--color-border-subtle)',
+                        backgroundColor: isSelf ? 'var(--color-accent-teal-soft)' : 'transparent',
                       }}
                     >
                       <td style={{ padding: '12px', fontWeight: 600 }}>
@@ -551,8 +551,8 @@ export default function ConfigPage() {
                               width: '32px',
                               height: '32px',
                               borderRadius: '50%',
-                              background: '#0F172A',
-                              color: '#FFFFFF',
+                              background: 'var(--color-surface-page)',
+                              color: 'var(--color-text-primary)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -560,7 +560,7 @@ export default function ConfigPage() {
                               fontWeight: 700,
                               flexShrink: 0,
                               overflow: 'hidden',
-                              border: '1px solid rgba(0, 0, 0, 0.08)',
+                              border: '1px solid var(--color-border-subtle)',
                             }}
                           >
                             {getSafeAvatarUrl(avatar) ? (
@@ -580,8 +580,8 @@ export default function ConfigPage() {
                                 className="font-mono"
                                 style={{
                                   fontSize: '9px',
-                                  background: '#E0E7FF',
-                                  color: '#1E3A8A',
+                                  background: 'var(--color-accent-teal-soft)',
+                                  color: 'var(--color-accent-teal)',
                                   padding: '2px 6px',
                                   borderRadius: '4px',
                                 }}
@@ -593,7 +593,7 @@ export default function ConfigPage() {
                         </div>
                       </td>
                       <td className="text-muted font-mono" style={{ padding: '12px', fontSize: '12px' }}>
-                        {u.email || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>None</span>}
+                        {u.email || <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>None</span>}
                       </td>
                       <td style={{ padding: '12px' }}>
                         <span
@@ -602,8 +602,9 @@ export default function ConfigPage() {
                             fontSize: '10px',
                             padding: '3px 7px',
                             borderRadius: '4px',
-                            background: u.role === 'admin' ? '#1E3A8A' : '#E2E8F0',
-                            color: u.role === 'admin' ? '#FFFFFF' : '#334155',
+                            background: u.role === 'admin' ? 'var(--color-accent-teal-soft)' : 'var(--color-surface-page)',
+                            color: u.role === 'admin' ? 'var(--color-accent-teal)' : 'var(--color-text-muted)',
+                            border: '1px solid var(--color-border-subtle)',
                             fontWeight: 600,
                           }}
                         >
@@ -617,8 +618,8 @@ export default function ConfigPage() {
                             fontSize: '10px',
                             padding: '3px 7px',
                             borderRadius: '4px',
-                            background: u.is_active ? '#DCFCE7' : '#FEE2E2',
-                            color: u.is_active ? '#15803D' : '#B91C1C',
+                            background: u.is_active ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
+                            color: u.is_active ? 'var(--color-success)' : 'var(--color-danger)',
                             fontWeight: 600,
                           }}
                         >
@@ -637,9 +638,9 @@ export default function ConfigPage() {
                               padding: '5px 10px',
                               fontSize: '11px',
                               borderRadius: '4px',
-                              border: '1px solid var(--color-border)',
-                              background: '#FFF',
-                              color: 'var(--color-text-main, #0F172A)',
+                              border: '1px solid var(--color-border-subtle)',
+                              background: 'var(--color-surface-card)',
+                              color: 'var(--color-text-primary)',
                               cursor: 'pointer',
                             }}
                           >
@@ -653,9 +654,9 @@ export default function ConfigPage() {
                               padding: '5px 10px',
                               fontSize: '11px',
                               borderRadius: '4px',
-                              border: '1px solid var(--color-border)',
-                              background: '#FFF',
-                              color: isSelf ? '#94A3B8' : u.is_active ? '#B91C1C' : '#15803D',
+                              border: '1px solid var(--color-border-subtle)',
+                              background: 'var(--color-surface-card)',
+                              color: isSelf ? 'var(--color-text-muted)' : u.is_active ? 'var(--color-danger)' : 'var(--color-success)',
                               cursor: isSelf ? 'not-allowed' : 'pointer',
                               opacity: isSelf ? 0.6 : 1,
                             }}
@@ -670,9 +671,9 @@ export default function ConfigPage() {
                               padding: '5px 10px',
                               fontSize: '11px',
                               borderRadius: '4px',
-                              border: '1px solid #FECACA',
-                              background: '#FFF',
-                              color: isSelf ? '#94A3B8' : '#DC2626',
+                              border: '1px solid var(--color-danger)',
+                              background: 'var(--color-surface-card)',
+                              color: isSelf ? 'var(--color-text-muted)' : 'var(--color-danger)',
                               cursor: isSelf ? 'not-allowed' : 'pointer',
                               opacity: isSelf ? 0.6 : 1,
                             }}
@@ -688,7 +689,7 @@ export default function ConfigPage() {
             </table>
           </div>
         ) : (
-          <div style={{ padding: '1.5rem', background: '#FFF', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+          <div style={{ padding: '1.5rem', background: 'var(--color-surface-card)', borderRadius: '10px', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                 <div
@@ -696,8 +697,8 @@ export default function ConfigPage() {
                     width: '52px',
                     height: '52px',
                     borderRadius: '50%',
-                    background: '#0F172A',
-                    color: '#FFFFFF',
+                    background: 'var(--color-surface-page)',
+                    color: 'var(--color-text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -705,7 +706,7 @@ export default function ConfigPage() {
                     fontWeight: 700,
                     overflow: 'hidden',
                     flexShrink: 0,
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    border: '1px solid var(--color-border-subtle)',
                   }}
                 >
                   {(() => {
@@ -741,8 +742,9 @@ export default function ConfigPage() {
                         fontSize: '10px',
                         padding: '3px 7px',
                         borderRadius: '4px',
-                        background: '#E2E8F0',
-                        color: '#334155',
+                        background: 'var(--color-surface-page)',
+                        color: 'var(--color-text-muted)',
+                        border: '1px solid var(--color-border-subtle)',
                         fontWeight: 600,
                       }}
                     >
@@ -759,8 +761,8 @@ export default function ConfigPage() {
                         fontSize: '10px',
                         padding: '3px 7px',
                         borderRadius: '4px',
-                        background: currentUser?.is_active ? '#DCFCE7' : '#FEE2E2',
-                        color: currentUser?.is_active ? '#15803D' : '#B91C1C',
+                        background: currentUser?.is_active ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
+                        color: currentUser?.is_active ? 'var(--color-success)' : 'var(--color-danger)',
                         fontWeight: 600,
                       }}
                     >
@@ -775,7 +777,7 @@ export default function ConfigPage() {
                     style={{
                       padding: '8px 16px',
                       background: 'var(--color-accent-primary)',
-                      color: '#FFF',
+                      color: 'var(--color-btn-primary-text)',
                       border: 'none',
                       borderRadius: '6px',
                       fontWeight: 600,
@@ -814,8 +816,8 @@ export default function ConfigPage() {
               padding: '6px 12px',
               fontSize: '11px',
               borderRadius: '6px',
-              border: '1px solid var(--color-border)',
-              background: '#FFF',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
               color: 'var(--color-text-primary)',
               cursor: gtfsLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
@@ -831,9 +833,9 @@ export default function ConfigPage() {
         {gtfsMessage && (
           <div
             style={{
-              background: gtfsMessage.type === 'success' ? '#F0FDF4' : '#FEF2F2',
-              border: `1px solid ${gtfsMessage.type === 'success' ? '#BBF7D0' : '#FECACA'}`,
-              color: gtfsMessage.type === 'success' ? '#16A34A' : '#DC2626',
+              background: gtfsMessage.type === 'success' ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
+              border: `1px solid ${gtfsMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`,
+              color: gtfsMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
               padding: '10px 14px',
               borderRadius: '6px',
               marginBottom: '1rem',
@@ -849,8 +851,8 @@ export default function ConfigPage() {
           <div
             data-testid="gtfs-active-process-banner"
             style={{
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
+              background: 'var(--color-accent-gold-soft)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '8px',
               padding: '12px 16px',
               marginBottom: '1.25rem',
@@ -861,21 +863,21 @@ export default function ConfigPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <LightningIcon size={18} color="#D97706" />
+              <LightningIcon size={18} color="var(--color-accent-gold)" />
               <div>
                 <span
                   className="font-mono"
                   style={{
                     fontSize: '11px',
                     fontWeight: 700,
-                    color: '#D97706',
+                    color: 'var(--color-accent-gold)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                   }}
                 >
                   ACTIVE COMPILATION PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
                 </span>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#78350F' }}>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
                   Downloading and compiling GTFS schedules for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Valhalla routing tiles are regenerating in the background.
                 </p>
               </div>
@@ -886,8 +888,8 @@ export default function ConfigPage() {
                 fontSize: '10px',
                 padding: '3px 8px',
                 borderRadius: '4px',
-                background: '#FEF3C7',
-                color: '#B45309',
+                background: 'var(--color-accent-gold-soft)',
+                color: 'var(--color-accent-gold)',
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
               }}
@@ -899,8 +901,8 @@ export default function ConfigPage() {
           <div
             data-testid="gtfs-idle-banner"
             style={{
-              background: 'rgba(16, 185, 129, 0.06)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
+              background: 'var(--color-success-soft)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '8px',
               padding: '10px 14px',
               marginBottom: '1.25rem',
@@ -910,8 +912,8 @@ export default function ConfigPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#059669', fontSize: '12px' }}>●</span>
-              <span className="font-mono" style={{ fontSize: '11px', color: '#065F46', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-success)', fontSize: '12px' }}>●</span>
+              <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600 }}>
                 ALL GTFS SCHEDULES IDLE — NO ACTIVE COMPILATIONS
               </span>
             </div>
@@ -923,20 +925,20 @@ export default function ConfigPage() {
 
         {/* Quick Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-          <div style={{ background: '#FFF', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem' }}>
+          <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
             <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DOWNLOADED & COMPILED</span>
-            <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: '#15803D', marginTop: '4px' }}>
+            <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
               {gtfsTelemetry?.compiled_cities ?? '...'}
             </div>
           </div>
-          <div style={{ background: '#FFF', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.85rem' }}>
+          <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
             <span className="font-mono text-muted" style={{ fontSize: '10px' }}>ACTIVE BACKGROUND TASKS</span>
             <div
               className="font-display"
               style={{
                 fontSize: '1.4rem',
                 fontWeight: 700,
-                color: (gtfsTelemetry?.active_processes_count || 0) > 0 ? '#D97706' : 'var(--color-text-primary)',
+                color: (gtfsTelemetry?.active_processes_count || 0) > 0 ? 'var(--color-accent-gold)' : 'var(--color-text-primary)',
                 marginTop: '4px',
               }}
             >
@@ -983,14 +985,14 @@ export default function ConfigPage() {
                   const isItemQueued = cityItem.gtfs_status === 'QUEUED' || cityItem.is_queued;
                   const isItemCompiling = !isItemQueued && cityItem.is_building;
                   return (
-                    <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                       <td style={{ padding: '12px', fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {isItemQueued && (
-                            <ClockIcon size={14} color="#D97706" />
+                            <ClockIcon size={14} color="var(--color-accent-gold)" />
                           )}
                           {isItemCompiling && (
-                            <Spinner size={14} color="#D97706" />
+                            <Spinner size={14} color="var(--color-accent-gold)" />
                           )}
                           <div>
                             <span>{cityItem.display_name}</span>
@@ -1008,16 +1010,16 @@ export default function ConfigPage() {
                               fontSize: '10px',
                               padding: '3px 8px',
                               borderRadius: '4px',
-                              background: '#FEF3C7',
-                              color: '#B45309',
-                              border: '1px solid #FCD34D',
+                              background: 'var(--color-accent-gold-soft)',
+                              color: 'var(--color-accent-gold)',
+                              border: '1px solid var(--color-accent-gold)',
                               fontWeight: 600,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
                             }}
                           >
-                            <ClockIcon size={11} color="#B45309" /> In Queue
+                            <ClockIcon size={11} color="var(--color-accent-gold)" /> In Queue
                           </span>
                         ) : (
                           <span
@@ -1028,46 +1030,46 @@ export default function ConfigPage() {
                               borderRadius: '4px',
                               background:
                                 cityItem.gtfs_status === 'READY'
-                                  ? '#DCFCE7'
+                                  ? 'var(--color-success-soft)'
                                   : isItemCompiling
-                                  ? '#FEF3C7'
+                                  ? 'var(--color-accent-gold-soft)'
                                   : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                  ? '#FEE2E2'
-                                  : '#E2E8F0',
+                                  ? 'var(--color-danger-soft)'
+                                  : 'var(--color-surface-page)',
                               color:
                                 cityItem.gtfs_status === 'READY'
-                                  ? '#15803D'
+                                  ? 'var(--color-success)'
                                   : isItemCompiling
-                                  ? '#B45309'
+                                  ? 'var(--color-accent-gold)'
                                   : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                  ? '#B91C1C'
-                                  : '#475569',
+                                  ? 'var(--color-danger)'
+                                  : 'var(--color-text-muted)',
                               fontWeight: 600,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
                             }}
                           >
-                            {isItemCompiling && <Spinner size={11} color="#B45309" />}
+                            {isItemCompiling && <Spinner size={11} color="var(--color-accent-gold)" />}
                             {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
                           </span>
                         )}
                       </td>
                       <td style={{ padding: '12px' }}>
                         {cityItem.is_compiled && !isItemCompiling && !isItemQueued ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#15803D', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <CheckIcon size={12} color="#15803D" /> YES (READY)
+                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckIcon size={12} color="var(--color-success)" /> YES (READY)
                           </span>
                         ) : isItemQueued ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <ClockIcon size={12} color="#D97706" /> QUEUED
+                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <ClockIcon size={12} color="var(--color-accent-gold)" /> QUEUED
                           </span>
                         ) : isItemCompiling ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#D97706', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Spinner size={12} color="#D97706" /> IN PROGRESS
+                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Spinner size={12} color="var(--color-accent-gold)" /> IN PROGRESS
                           </span>
                         ) : (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             NO
                           </span>
                         )}
@@ -1079,8 +1081,8 @@ export default function ConfigPage() {
                             fontSize: '10px',
                             padding: '2px 6px',
                             borderRadius: '4px',
-                            background: cityItem.osm_status === 'READY' ? '#DCFCE7' : '#E2E8F0',
-                            color: cityItem.osm_status === 'READY' ? '#15803D' : '#475569',
+                            background: cityItem.osm_status === 'READY' ? 'var(--color-success-soft)' : 'var(--color-surface-page)',
+                            color: cityItem.osm_status === 'READY' ? 'var(--color-success)' : 'var(--color-text-muted)',
                             fontWeight: 600,
                           }}
                         >
@@ -1106,9 +1108,9 @@ export default function ConfigPage() {
                             padding: '5px 10px',
                             fontSize: '11px',
                             borderRadius: '4px',
-                            border: '1px solid #FECACA',
-                            background: '#FFF',
-                            color: '#DC2626',
+                            border: '1px solid var(--color-danger)',
+                            background: 'var(--color-surface-card)',
+                            color: 'var(--color-danger)',
                             fontWeight: 600,
                             cursor:
                               deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
@@ -1123,8 +1125,8 @@ export default function ConfigPage() {
                         >
                           {deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
                             ? isItemCompiling || isItemQueued
-                              ? 'STOPPING...'
-                              : 'DELETING...'
+                            ? 'STOPPING...'
+                            : 'DELETING...'
                             : isItemQueued
                             ? 'CANCEL'
                             : isItemCompiling
@@ -1161,8 +1163,8 @@ export default function ConfigPage() {
             <div
               key={node.name}
               style={{
-                background: '#FFF',
-                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '8px',
                 padding: '1rem',
               }}
@@ -1175,8 +1177,8 @@ export default function ConfigPage() {
                     fontSize: '9px',
                     padding: '2px 6px',
                     borderRadius: '4px',
-                    background: '#DCFCE7',
-                    color: '#15803D',
+                    background: 'var(--color-success-soft)',
+                    color: 'var(--color-success)',
                     fontWeight: 600,
                   }}
                 >
@@ -1197,26 +1199,26 @@ export default function ConfigPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'var(--color-scrim)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <div
             style={{
-              background: '#FFFFFF',
-              borderRadius: '12px',
+              background: 'var(--color-surface-card)',
+              borderRadius: '16px',
               padding: '2rem',
               width: '100%',
               maxWidth: '440px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-modal)',
+              border: '1px solid var(--color-border-subtle)',
             }}
           >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
               Provision New User
             </h3>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', marginBottom: '1.5rem' }}>
@@ -1225,7 +1227,7 @@ export default function ConfigPage() {
 
             <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   USERNAME
                 </label>
                 <input
@@ -1238,14 +1240,16 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                     fontSize: '13px',
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   EMAIL (OPTIONAL)
                 </label>
                 <input
@@ -1257,14 +1261,16 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                     fontSize: '13px',
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   INITIAL PASSWORD
                 </label>
                 <input
@@ -1277,14 +1283,16 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                     fontSize: '13px',
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   ROLE
                 </label>
                 <select
@@ -1294,9 +1302,10 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
                     fontSize: '13px',
-                    background: '#FFF',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                   }}
                 >
                   <option value="user">Standard User</option>
@@ -1311,8 +1320,9 @@ export default function ConfigPage() {
                   style={{
                     padding: '8px 14px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-subtle)',
                     background: 'transparent',
+                    color: 'var(--color-text-muted)',
                     fontSize: '13px',
                     cursor: 'pointer',
                   }}
@@ -1328,7 +1338,7 @@ export default function ConfigPage() {
                     borderRadius: '6px',
                     border: 'none',
                     background: 'var(--color-accent-primary)',
-                    color: '#FFF',
+                    color: 'var(--color-btn-primary-text)',
                     fontWeight: 600,
                     fontSize: '13px',
                     cursor: creating ? 'not-allowed' : 'pointer',
@@ -1350,28 +1360,28 @@ export default function ConfigPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'var(--color-scrim)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <div
             style={{
-              background: '#FFFFFF',
-              borderRadius: '12px',
+              background: 'var(--color-surface-card)',
+              borderRadius: '16px',
               padding: '2rem',
               width: '100%',
               maxWidth: '480px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-modal)',
+              border: '1px solid var(--color-border-subtle)',
               maxHeight: '90vh',
               overflowY: 'auto',
             }}
           >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
               {editCandidate.id === currentUser?.id ? 'Edit Your Profile' : `Edit User: ${editCandidate.username}`}
             </h3>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', marginBottom: '1.5rem' }}>
@@ -1381,7 +1391,7 @@ export default function ConfigPage() {
             <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
               {/* Avatar Preview & Upload */}
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '8px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '8px' }}>
                   PROFILE PICTURE (PFP)
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -1390,8 +1400,8 @@ export default function ConfigPage() {
                       width: '64px',
                       height: '64px',
                       borderRadius: '50%',
-                      background: '#0F172A',
-                      color: '#FFFFFF',
+                      background: 'var(--color-surface-page)',
+                      color: 'var(--color-text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1399,7 +1409,7 @@ export default function ConfigPage() {
                       fontWeight: 700,
                       overflow: 'hidden',
                       flexShrink: 0,
-                      border: '2px solid var(--color-border)',
+                      border: '2px solid var(--color-border-subtle)',
                     }}
                   >
                     {safePreviewAvatarUrl ? (
@@ -1419,12 +1429,12 @@ export default function ConfigPage() {
                         style={{
                           padding: '6px 12px',
                           borderRadius: '6px',
-                          border: '1px solid var(--color-border)',
-                          background: '#F8FAFC',
+                          border: '1px solid var(--color-border-subtle)',
+                          background: 'var(--color-surface-card)',
                           fontSize: '11px',
                           cursor: 'pointer',
                           fontWeight: 600,
-                          color: 'var(--color-text-main, #0F172A)',
+                          color: 'var(--color-text-primary)',
                         }}
                       >
                         Upload Image
@@ -1443,9 +1453,9 @@ export default function ConfigPage() {
                           style={{
                             padding: '6px 10px',
                             borderRadius: '6px',
-                            border: '1px solid #FECACA',
-                            background: '#FFF',
-                            color: '#DC2626',
+                            border: '1px solid var(--color-danger)',
+                            background: 'var(--color-surface-card)',
+                            color: 'var(--color-danger)',
                             fontSize: '11px',
                             cursor: 'pointer',
                           }}
@@ -1463,9 +1473,10 @@ export default function ConfigPage() {
                         width: '100%',
                         padding: '6px 8px',
                         borderRadius: '6px',
-                        border: '1px solid var(--color-border)',
+                        border: '1px solid var(--color-border-input)',
                         fontSize: '11px',
-                        background: '#FFF',
+                        background: 'var(--color-surface-card)',
+                        color: 'var(--color-text-primary)',
                       }}
                     />
                   </div>
@@ -1473,7 +1484,7 @@ export default function ConfigPage() {
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   USERNAME
                 </label>
                 <input
@@ -1486,14 +1497,16 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
                     fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   EMAIL (OPTIONAL)
                 </label>
                 <input
@@ -1505,14 +1518,16 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
                     fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                   }}
                 />
               </div>
 
               <div>
-                <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                   NEW PASSWORD (OPTIONAL)
                 </label>
                 <input
@@ -1524,15 +1539,17 @@ export default function ConfigPage() {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-input)',
                     fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
                   }}
                 />
               </div>
 
               {isAdmin && editCandidate.id !== currentUser?.id && (
                 <div>
-                  <label className="font-mono" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
                     ROLE
                   </label>
                   <select
@@ -1542,9 +1559,10 @@ export default function ConfigPage() {
                       width: '100%',
                       padding: '8px 10px',
                       borderRadius: '6px',
-                      border: '1px solid var(--color-border)',
+                      border: '1px solid var(--color-border-input)',
                       fontSize: '13px',
-                      background: '#FFF',
+                      background: 'var(--color-surface-card)',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
                     <option value="user">Standard User</option>
@@ -1560,8 +1578,9 @@ export default function ConfigPage() {
                   style={{
                     padding: '8px 14px',
                     borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid var(--color-border-subtle)',
                     background: 'transparent',
+                    color: 'var(--color-text-muted)',
                     fontSize: '13px',
                     cursor: 'pointer',
                   }}
@@ -1577,7 +1596,7 @@ export default function ConfigPage() {
                     borderRadius: '6px',
                     border: 'none',
                     background: 'var(--color-accent-primary)',
-                    color: '#FFF',
+                    color: 'var(--color-btn-primary-text)',
                     fontWeight: 600,
                     fontSize: '13px',
                     cursor: savingEdit ? 'not-allowed' : 'pointer',
@@ -1598,26 +1617,26 @@ export default function ConfigPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'var(--color-scrim)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <div
             style={{
-              background: '#FFFFFF',
-              borderRadius: '12px',
+              background: 'var(--color-surface-card)',
+              borderRadius: '16px',
               padding: '2rem',
               width: '100%',
               maxWidth: '400px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-modal)',
+              border: '1px solid var(--color-border-subtle)',
             }}
           >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: '#DC2626' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
               Confirm User Deletion
             </h3>
             <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)' }}>
@@ -1633,8 +1652,9 @@ export default function ConfigPage() {
                 style={{
                   padding: '8px 14px',
                   borderRadius: '6px',
-                  border: '1px solid var(--color-border)',
+                  border: '1px solid var(--color-border-subtle)',
                   background: 'transparent',
+                  color: 'var(--color-text-muted)',
                   fontSize: '13px',
                   cursor: 'pointer',
                 }}
@@ -1650,8 +1670,8 @@ export default function ConfigPage() {
                   padding: '8px 16px',
                   borderRadius: '6px',
                   border: 'none',
-                  background: '#DC2626',
-                  color: '#FFF',
+                  background: 'var(--color-danger)',
+                  color: 'var(--color-btn-primary-text)',
                   fontWeight: 600,
                   fontSize: '13px',
                   cursor: deleting ? 'not-allowed' : 'pointer',
@@ -1671,26 +1691,26 @@ export default function ConfigPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'var(--color-scrim)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(8px)',
           }}
         >
           <div
             style={{
-              background: '#FFFFFF',
-              borderRadius: '12px',
+              background: 'var(--color-surface-card)',
+              borderRadius: '16px',
               padding: '2rem',
               width: '100%',
               maxWidth: '440px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-modal)',
+              border: '1px solid var(--color-border-subtle)',
             }}
           >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: '#DC2626' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
               {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
                 ? 'Stop GTFS Compilation'
                 : 'Delete GTFS Transit Data'}
@@ -1719,8 +1739,9 @@ export default function ConfigPage() {
                 style={{
                   padding: '8px 14px',
                   borderRadius: '6px',
-                  border: '1px solid var(--color-border)',
+                  border: '1px solid var(--color-border-subtle)',
                   background: 'transparent',
+                  color: 'var(--color-text-muted)',
                   fontSize: '13px',
                   cursor: 'pointer',
                 }}
@@ -1737,8 +1758,8 @@ export default function ConfigPage() {
                   padding: '8px 16px',
                   borderRadius: '6px',
                   border: 'none',
-                  background: '#DC2626',
-                  color: '#FFF',
+                  background: 'var(--color-danger)',
+                  color: 'var(--color-btn-primary-text)',
                   fontWeight: 600,
                   fontSize: '13px',
                   cursor: deletingGtfs ? 'not-allowed' : 'pointer',

@@ -116,7 +116,7 @@ export function ExpenseModal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         backdropFilter: 'blur(8px)',
         zIndex: 9999,
         display: 'flex',
@@ -127,11 +127,12 @@ export function ExpenseModal({
     >
       <div
         style={{
-          background: '#FFFFFF',
+          background: 'var(--color-surface-card)',
           borderRadius: '24px',
           maxWidth: '520px',
           width: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          boxShadow: 'var(--shadow-lg, 0 25px 50px -12px rgba(0, 0, 0, 0.25))',
+          border: '1px solid var(--color-border-subtle)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -142,17 +143,17 @@ export function ExpenseModal({
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid #E2E8F0',
+            borderBottom: '1px solid var(--color-border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#0F172A' }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
               {prefill ? 'Assign / Edit Expense' : 'Add Trip Expense'}
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
               Log shared costs and update balances
             </p>
           </div>
@@ -161,12 +162,12 @@ export function ExpenseModal({
             onClick={onClose}
             style={{
               border: 'none',
-              background: '#F1F5F9',
+              background: 'var(--color-surface-subtle, var(--color-surface-card))',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
               cursor: 'pointer',
-              color: '#64748B',
+              color: 'var(--color-text-muted)',
               fontSize: '1rem',
               display: 'grid',
               placeItems: 'center',
@@ -181,9 +182,9 @@ export function ExpenseModal({
           {error && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid #FCA5A5',
-                color: '#DC2626',
+                background: 'rgba(212, 42, 47, 0.1)',
+                border: '1px solid var(--color-danger)',
+                color: 'var(--color-danger)',
                 padding: '10px 14px',
                 borderRadius: '10px',
                 fontSize: '0.8rem',
@@ -197,7 +198,7 @@ export function ExpenseModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Description */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Description
               </label>
               <input
@@ -210,9 +211,11 @@ export function ExpenseModal({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
                   outline: 'none',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-main)',
                 }}
               />
             </div>
@@ -220,7 +223,7 @@ export function ExpenseModal({
             {/* Amount & Date row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Amount (€)
                 </label>
                 <input
@@ -234,15 +237,19 @@ export function ExpenseModal({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '0.9rem',
                     outline: 'none',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-main)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontFeatureSettings: '"tnum"',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Date
                 </label>
                 <input
@@ -254,9 +261,11 @@ export function ExpenseModal({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '0.9rem',
                     outline: 'none',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-main)',
                   }}
                 />
               </div>
@@ -265,7 +274,7 @@ export function ExpenseModal({
             {/* Category & Payer row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Category
                 </label>
                 <select
@@ -275,10 +284,11 @@ export function ExpenseModal({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '0.9rem',
                     outline: 'none',
-                    background: '#FFFFFF',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-main)',
                   }}
                 >
                   {COST_CATEGORY_LIST.map((c) => (
@@ -290,7 +300,7 @@ export function ExpenseModal({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Paid By
                 </label>
                 <select
@@ -300,10 +310,11 @@ export function ExpenseModal({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid var(--color-border-subtle)',
                     fontSize: '0.9rem',
                     outline: 'none',
-                    background: '#FFFFFF',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-main)',
                   }}
                 >
                   {participants.map((p) => (
@@ -316,8 +327,8 @@ export function ExpenseModal({
             </div>
 
             {/* Split options */}
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '14px' }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+            <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px' }}>
                 Split Method
               </label>
 
@@ -329,9 +340,9 @@ export function ExpenseModal({
                     flex: 1,
                     padding: '8px',
                     borderRadius: '8px',
-                    border: splitType === 'equal' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                    background: splitType === 'equal' ? 'rgba(37, 99, 235, 0.05)' : '#FFFFFF',
-                    color: splitType === 'equal' ? '#2563EB' : '#64748B',
+                    border: splitType === 'equal' ? '1px solid var(--color-accent-primary)' : '1px solid var(--color-border-subtle)',
+                    background: splitType === 'equal' ? 'var(--color-accent-primary)' : 'var(--color-surface-card)',
+                    color: splitType === 'equal' ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                     fontWeight: 600,
                     fontSize: '0.82rem',
                     cursor: 'pointer',
@@ -346,9 +357,9 @@ export function ExpenseModal({
                     flex: 1,
                     padding: '8px',
                     borderRadius: '8px',
-                    border: splitType === 'custom' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                    background: splitType === 'custom' ? 'rgba(37, 99, 235, 0.05)' : '#FFFFFF',
-                    color: splitType === 'custom' ? '#2563EB' : '#64748B',
+                    border: splitType === 'custom' ? '1px solid var(--color-accent-primary)' : '1px solid var(--color-border-subtle)',
+                    background: splitType === 'custom' ? 'var(--color-accent-primary)' : 'var(--color-surface-card)',
+                    color: splitType === 'custom' ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                     fontWeight: 600,
                     fontSize: '0.82rem',
                     cursor: 'pointer',
@@ -360,7 +371,7 @@ export function ExpenseModal({
 
               {splitType === 'equal' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                     Select participants to share cost:
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -373,13 +384,13 @@ export function ExpenseModal({
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
-                            background: checked ? '#EFF6FF' : '#F8FAFC',
-                            border: checked ? '1px solid #3B82F6' : '1px solid #E2E8F0',
+                            background: checked ? 'rgba(15, 76, 92, 0.15)' : 'var(--color-surface-card)',
+                            border: checked ? '1px solid var(--color-accent-primary)' : '1px solid var(--color-border-subtle)',
                             padding: '6px 12px',
                             borderRadius: '20px',
                             fontSize: '0.8rem',
                             cursor: 'pointer',
-                            color: checked ? '#1E40AF' : '#64748B',
+                            color: checked ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
                           }}
                         >
                           <input
@@ -390,7 +401,7 @@ export function ExpenseModal({
                                 setSelectedParticipants((prev) => [...prev, p.id]);
                               } else {
                                 setSelectedParticipants((prev) =>
-                                  prev.filter((id) => id !== p.id)
+                                    prev.filter((id) => id !== p.id)
                                 );
                               }
                             }}
@@ -413,7 +424,7 @@ export function ExpenseModal({
                         gap: '12px',
                       }}
                     >
-                      <span style={{ fontSize: '0.85rem', color: '#1E293B', fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-main)', fontWeight: 500 }}>
                         {p.name}
                       </span>
                       <input
@@ -428,9 +439,13 @@ export function ExpenseModal({
                           width: '100px',
                           padding: '6px 10px',
                           borderRadius: '8px',
-                          border: '1px solid #CBD5E1',
+                          border: '1px solid var(--color-border-subtle)',
                           fontSize: '0.85rem',
                           textAlign: 'right',
+                          background: 'var(--color-surface-card)',
+                          color: 'var(--color-text-main)',
+                          fontFamily: 'var(--font-mono, monospace)',
+                          fontFeatureSettings: '"tnum"',
                         }}
                       />
                     </div>
@@ -457,9 +472,9 @@ export function ExpenseModal({
               style={{
                 padding: '10px 18px',
                 borderRadius: '12px',
-                border: '1px solid #CBD5E1',
-                background: '#FFFFFF',
-                color: '#475569',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-main)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
@@ -474,8 +489,8 @@ export function ExpenseModal({
                 padding: '10px 22px',
                 borderRadius: '12px',
                 border: 'none',
-                background: '#0F172A',
-                color: '#FFFFFF',
+                background: 'var(--color-accent-primary)',
+                color: 'var(--color-text-on-accent)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',

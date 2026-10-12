@@ -27,8 +27,8 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
     <aside
       aria-label="Next upcoming credential"
       style={{
-        background: 'linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%)',
-        border: `1px solid ${typeConfig.accentBorder}`,
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-border-subtle)',
         borderRadius: '12px',
         padding: '1.25rem',
         display: 'flex',
@@ -36,7 +36,7 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '12px',
-        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
+        boxShadow: 'var(--shadow-sm)',
         fontFamily: 'var(--font-mono, monospace)',
       }}
     >
@@ -62,9 +62,9 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
               style={{
                 fontSize: '10px',
                 fontWeight: 800,
-                color: '#1E3A8A',
-                background: '#DBEAFE',
-                border: '1px solid #BFDBFE',
+                color: 'var(--color-accent-primary)',
+                background: 'rgba(15, 76, 92, 0.12)',
+                border: '1px solid var(--color-accent-primary)',
                 padding: '2px 6px',
                 borderRadius: '4px',
                 letterSpacing: '0.5px',
@@ -72,20 +72,20 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
             >
               UP NEXT
             </span>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
               {formatTicketDateTime(nextTicket.start_time, nextTicket.start_tz)}
             </span>
           </div>
 
           <h4
             className="font-display"
-            style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', margin: '4px 0 0 0' }}
+            style={{ fontSize: '1.15rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)', margin: '4px 0 0 0' }}
           >
             {nextTicket.title}
           </h4>
 
           {nextTicket.location_or_venue && (
-            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
+            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
               {nextTicket.location_or_venue}
             </p>
           )}
@@ -95,8 +95,8 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         {nextTicket.seat_or_room && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>ASSIGNMENT</div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>ASSIGNMENT</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)' }}>
               {nextTicket.seat_or_room}
             </div>
           </div>
@@ -104,16 +104,16 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
 
         {nextTicket.access_code && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: '#B45309', fontWeight: 700 }}>DOOR CODE</div>
+            <div style={{ fontSize: '9px', color: 'var(--color-accent-secondary)', fontWeight: 700 }}>DOOR CODE</div>
             <SecretField value={nextTicket.access_code} highlight />
           </div>
         )}
 
         {nextTicket.booking_reference && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>PNR / REF</div>
+            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>PNR / REF</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-main)' }}>
                 {nextTicket.booking_reference}
               </span>
               <CopyButton value={nextTicket.booking_reference} />
@@ -129,15 +129,15 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            background: '#FFFFFF',
-            border: '1px solid var(--color-border, #CBD5E1)',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
             borderRadius: '6px',
             padding: '8px 14px',
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-main)',
             fontSize: '11px',
             cursor: 'pointer',
             fontWeight: 700,
-            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+            boxShadow: 'var(--shadow-sm)',
             transition: 'background 0.15s ease',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFC')}

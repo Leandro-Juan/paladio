@@ -574,8 +574,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
           style={{
             padding: '3rem 1.5rem',
             textAlign: 'center',
-            background: 'var(--color-surface-card, #F8FAFC)',
-            border: '1px dashed var(--color-border, #CBD5E1)',
+            background: 'var(--color-surface-card)',
+            border: '1px dashed var(--color-border-subtle)',
             borderRadius: '12px',
             display: 'flex',
             flexDirection: 'column',
@@ -585,24 +585,24 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         >
           <div
             style={{
-              background: '#FFFFFF',
-              border: '1px solid var(--color-border, #CBD5E1)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '50%',
               width: '56px',
               height: '56px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.05)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <TicketIcon size={28} color="var(--color-accent-primary, #1E3A8A)" />
+            <TicketIcon size={28} color="var(--color-accent-primary)" />
           </div>
           <div>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary, #0F172A)' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
               YOUR TRIP WALLET IS EMPTY
             </h3>
-            <p className="font-mono text-muted text-xs mt-1" style={{ color: 'var(--color-text-muted, #64748B)' }}>
+            <p className="font-mono text-muted text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
               Drop documents above, sync from itinerary, or create credentials manually.
             </p>
           </div>
@@ -610,15 +610,15 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
             type="button"
             onClick={() => handleOpenCreate()}
             style={{
-              background: 'var(--color-accent-primary, #1E3A8A)',
+              background: 'var(--color-accent-primary)',
               border: 'none',
               borderRadius: '6px',
               padding: '8px 18px',
               fontSize: '12px',
-              color: '#FFFFFF',
+              color: 'var(--color-text-on-accent)',
               cursor: 'pointer',
               fontWeight: 700,
-              boxShadow: '0 2px 6px rgba(30, 58, 138, 0.25)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             + ADD FIRST TICKET

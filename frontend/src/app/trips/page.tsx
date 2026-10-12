@@ -95,17 +95,21 @@ export default function TripsPage() {
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
       <div>
-        <h2 className="font-display">UPCOMING TRIPS</h2>
-        <p className="font-mono text-muted text-sm mt-2">{'// CONFIRMED ITINERARIES & MULTI-USER MISSIONS'}</p>
+        <h2 className="font-display" style={{ fontSize: '32px', fontWeight: 300, color: 'var(--color-text-primary)', margin: 0 }}>
+          UPCOMING TRIPS
+        </h2>
+        <p className="font-mono text-muted text-sm mt-2">
+          Confirmed itineraries and multi-user missions
+        </p>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
           <p className="font-mono text-muted">LOADING DATA...</p>
         ) : upcomingTrips.length === 0 ? (
-          <div className="bg-surface border-subtle" style={{ padding: '3rem', textAlign: 'center', borderRadius: '8px' }}>
+          <div className="bg-surface border-subtle" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)' }}>
             <p className="font-mono text-muted">NO UPCOMING TRIPS FOUND.</p>
           </div>
         ) : (
@@ -113,34 +117,56 @@ export default function TripsPage() {
             {upcomingTrips.map((trip: Trip, idx: number) => {
               const participants = trip.participants || [];
               return (
-                <div key={trip.id || idx} className="bg-surface border-subtle" style={{ borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ background: 'var(--color-accent-primary)', color: '#FFF', padding: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>{trip.destination}</h3>
-                      <span className="font-mono text-xs" style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px' }}>
+                <div key={trip.id || idx} className="bg-surface border-subtle" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  {/* Card Header */}
+                  <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <h3 className="font-display" style={{ margin: 0, fontSize: '20px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                        {trip.destination}
+                      </h3>
+                      <span className="font-mono text-xs" style={{ background: 'var(--color-bg-main)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
                         {participants.length} {participants.length === 1 ? 'TRAVELER' : 'TRAVELERS'}
                       </span>
                     </div>
-                    <p className="font-mono text-sm" style={{ opacity: 0.8, marginTop: '4px' }}>
-                      {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
+                    <p className="font-mono text-xs text-muted" style={{ marginTop: '6px', margin: 0 }}>
+                      {new Date(trip.start_date).toLocaleDateString()} – {new Date(trip.end_date).toLocaleDateString()}
                     </p>
                   </div>
-                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                  {/* Card Body */}
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="font-mono text-sm text-muted">WAYPOINTS</span>
-                      <span className="font-mono" style={{ fontWeight: 600 }}>
-                        {countWaypoints(trip.itinerary_data)}
+                      <span className="font-mono text-xs text-muted">WAYPOINTS</span>
+                      <span className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        {countWaypoints(trip.itinerary_data)} STOPS
                       </span>
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="font-mono text-sm text-muted">STATUS</span>
-                      <span className="font-mono text-accent" style={{ fontWeight: 600 }}>CONFIRMED</span>
+                      <span className="font-mono text-xs text-muted">STATUS</span>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(31, 122, 77, 0.12)',
+                          border: '1px solid var(--color-success)',
+                          color: 'var(--color-success)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        ✓ CONFIRMED
+                      </span>
                     </div>
 
                     {/* Crew / Participants Roster */}
-                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem' }}>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', marginTop: 'auto' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span className="font-mono text-xs text-muted">{'// CREW'}</span>
+                        <span className="font-mono text-xs text-muted">CREW</span>
                         <button
                           onClick={() => {
                             setActiveTripIdForCrew(trip.id || null);
@@ -153,8 +179,8 @@ export default function TripsPage() {
                             border: '1px solid var(--color-border)',
                             color: 'var(--color-text-primary)',
                             padding: '2px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.72rem',
                             fontFamily: 'var(--font-mono)',
                             cursor: 'pointer',
                           }}
@@ -170,9 +196,9 @@ export default function TripsPage() {
                               className="font-mono text-xs"
                               style={{
                                 padding: '2px 8px',
-                                background: p.role === 'organizer' ? 'rgba(30, 58, 138, 0.1)' : 'var(--color-surface-card)',
+                                background: p.role === 'organizer' ? 'rgba(15, 76, 92, 0.1)' : 'var(--color-bg-main)',
                                 border: `1px solid ${p.role === 'organizer' ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
-                                borderRadius: '12px',
+                                borderRadius: 'var(--radius-full)',
                                 color: 'var(--color-text-primary)',
                                 fontWeight: 500,
                               }}
@@ -186,15 +212,16 @@ export default function TripsPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
                       <Link
                         href={`/trips/${trip.id}`}
                         style={{
                           flex: 1,
-                          padding: '0.5rem',
+                          padding: '0.55rem',
                           background: 'var(--color-accent-primary)',
-                          color: '#FFF',
-                          borderRadius: '4px',
+                          color: '#FFFFFF',
+                          borderRadius: 'var(--radius-md)',
                           textAlign: 'center',
                           textDecoration: 'none',
                           fontFamily: 'var(--font-display)',
@@ -210,18 +237,20 @@ export default function TripsPage() {
                       <button 
                         onClick={() => setTripToDelete(trip.id || null)}
                         style={{ 
-                          padding: '0.5rem 0.75rem', 
+                          padding: '0.55rem 0.85rem', 
                           background: 'transparent', 
-                          border: '1px solid var(--color-accent-secondary, #DC2626)', 
-                          color: 'var(--color-accent-secondary, #DC2626)', 
-                          borderRadius: '4px', 
+                          border: '1px solid var(--color-danger)', 
+                          color: 'var(--color-danger)', 
+                          borderRadius: 'var(--radius-md)', 
                           cursor: 'pointer', 
                           fontFamily: 'var(--font-display)',
                           fontSize: '0.875rem',
-                          transition: 'all 0.2s'
+                          fontWeight: 600,
+                          transition: 'all 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-accent-secondary, #DC2626)'; e.currentTarget.style.color = '#FFF'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-accent-secondary, #DC2626)'; }}
                       >
                         ABORT
                       </button>
@@ -256,36 +285,37 @@ export default function TripsPage() {
         <div
           style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.45)',
+            inset: 0,
+            background: 'rgba(8, 28, 36, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
+            padding: '1rem',
           }}
+          onClick={() => setActiveTripIdForCrew(null)}
         >
           <div
             className="bg-surface border-subtle"
             style={{
               width: '100%',
               maxWidth: '520px',
-              borderRadius: '8px',
-              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.75rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '1.25rem',
+              boxShadow: 'var(--shadow-lg)',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
+                <h3 className="font-display" style={{ margin: 0, fontSize: '1.35rem', fontWeight: 300, color: 'var(--color-text-primary)' }}>
                   MISSION CREW: {activeTripForCrew.destination.toUpperCase()}
                 </h3>
-                <p className="font-mono text-muted text-xs mt-1">{'// MANAGE TRAVELERS ON THIS TRIP'}</p>
+                <p className="font-mono text-muted text-xs mt-1">Manage travelers on this trip</p>
               </div>
               <button
                 onClick={() => setActiveTripIdForCrew(null)}
@@ -297,7 +327,7 @@ export default function TripsPage() {
                   color: 'var(--color-text-muted)',
                 }}
               >
-                [X]
+                ✕
               </button>
             </div>
 
@@ -305,10 +335,10 @@ export default function TripsPage() {
               <div
                 style={{
                   padding: '0.6rem 0.8rem',
-                  borderRadius: '4px',
-                  border: '1px solid var(--color-accent-secondary, #DC2626)',
-                  background: 'rgba(220, 38, 38, 0.08)',
-                  color: 'var(--color-accent-secondary, #DC2626)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-danger)',
+                  background: 'rgba(179, 38, 30, 0.08)',
+                  color: 'var(--color-danger)',
                   fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
                 }}
@@ -331,12 +361,12 @@ export default function TripsPage() {
                         alignItems: 'center',
                         padding: '0.5rem 0.75rem',
                         border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        background: 'var(--color-surface-card)',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--color-bg-main)',
                       }}
                     >
                       <div>
-                        <span className="font-mono text-sm" style={{ fontWeight: 600 }}>{p.name}</span>
+                        <span className="font-mono text-sm" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{p.name}</span>
                         {p.email && <span className="font-mono text-xs text-muted" style={{ marginLeft: '8px' }}>({p.email})</span>}
                         {p.role === 'organizer' && (
                           <span
@@ -344,10 +374,11 @@ export default function TripsPage() {
                             style={{
                               marginLeft: '8px',
                               padding: '1px 6px',
-                              borderRadius: '4px',
-                              background: 'rgba(30, 58, 138, 0.1)',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'rgba(15, 76, 92, 0.1)',
                               color: 'var(--color-accent-primary)',
                               fontSize: '0.7rem',
+                              fontWeight: 600,
                             }}
                           >
                             ORGANIZER
@@ -368,10 +399,11 @@ export default function TripsPage() {
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: 'var(--color-accent-secondary, #DC2626)',
+                            color: 'var(--color-danger)',
                             cursor: 'pointer',
                             fontFamily: 'var(--font-mono)',
                             fontSize: '0.75rem',
+                            fontWeight: 600,
                           }}
                         >
                           REMOVE
@@ -410,12 +442,13 @@ export default function TripsPage() {
                       style={{
                         width: '100%',
                         padding: '0.5rem',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--color-border)',
                         background: 'var(--color-bg-main)',
                         color: 'var(--color-text-primary)',
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.85rem',
+                        outline: 'none',
                       }}
                     >
                       <option value="">-- Choose registered user or enter custom name below --</option>
@@ -439,12 +472,13 @@ export default function TripsPage() {
                   style={{
                     width: '100%',
                     padding: '0.5rem',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--color-border)',
                     background: 'var(--color-bg-main)',
                     color: 'var(--color-text-primary)',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.85rem',
+                    outline: 'none',
                   }}
                 />
               </div>
@@ -457,7 +491,8 @@ export default function TripsPage() {
                     padding: '0.5rem 1rem',
                     background: 'transparent',
                     border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
+                    color: 'var(--color-text-primary)',
+                    borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.85rem',
@@ -471,9 +506,9 @@ export default function TripsPage() {
                   style={{
                     padding: '0.5rem 1rem',
                     background: 'var(--color-accent-primary)',
-                    color: '#FFF',
+                    color: '#FFFFFF',
                     border: 'none',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.85rem',
@@ -491,4 +526,3 @@ export default function TripsPage() {
     </div>
   );
 }
-

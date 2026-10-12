@@ -933,7 +933,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
                         <span
                           className="font-mono text-sm font-bold block"
                           style={{
-                            color: isPositive ? '#10B981' : isNegative ? '#DC2626' : 'var(--color-text-muted)',
+                            color: isPositive ? 'var(--color-success)' : isNegative ? 'var(--color-danger)' : 'var(--color-text-muted)',
                           }}
                         >
                           {isPositive ? `+€${b.net_balance.toFixed(2)}` : `€${b.net_balance.toFixed(2)}`}
@@ -941,7 +941,7 @@ export function TripBudgetWallet({ trip, itinerary, onTripUpdated }: TripBudgetW
                         <span
                           className="font-mono text-xs block"
                           style={{
-                            color: isPositive ? '#10B981' : isNegative ? '#DC2626' : 'var(--color-text-muted)',
+                            color: isPositive ? 'var(--color-success)' : isNegative ? 'var(--color-danger)' : 'var(--color-text-muted)',
                             fontSize: '0.7rem',
                           }}
                         >

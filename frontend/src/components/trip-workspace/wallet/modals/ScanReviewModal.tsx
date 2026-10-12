@@ -127,11 +127,11 @@ function ScanReviewDialog({
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    background: '#FFFFFF',
-    border: '1px solid var(--color-border, #CBD5E1)',
+    background: 'var(--color-surface-card)',
+    border: '1px solid var(--color-border-subtle)',
     borderRadius: '6px',
     padding: '6px 10px',
-    color: 'var(--color-text-primary, #0F172A)',
+    color: 'var(--color-text-main)',
     fontSize: '12px',
     outline: 'none',
   };
@@ -139,7 +139,7 @@ function ScanReviewDialog({
   const labelStyle: React.CSSProperties = {
     display: 'block',
     fontSize: '10px',
-    color: 'var(--color-text-muted, #64748B)',
+    color: 'var(--color-text-muted)',
     marginBottom: '3px',
     fontWeight: 600,
   };
@@ -152,7 +152,7 @@ function ScanReviewDialog({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(15, 23, 42, 0.65)',
+        background: 'rgba(0, 0, 0, 0.6)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -165,15 +165,15 @@ function ScanReviewDialog({
     >
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid var(--color-border, #CBD5E1)',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '620px',
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(15, 23, 42, 0.25)',
+          boxShadow: 'var(--shadow-lg, 0 25px 60px rgba(0, 0, 0, 0.25))',
           overflow: 'hidden',
           fontFamily: 'var(--font-mono, monospace)',
         }}
@@ -182,8 +182,8 @@ function ScanReviewDialog({
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid var(--color-border, #E2E8F0)',
-            background: 'var(--color-surface-card, #F8FAFC)',
+            borderBottom: '1px solid var(--color-border-subtle)',
+            background: 'var(--color-surface-subtle, var(--color-surface-card))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -191,10 +191,10 @@ function ScanReviewDialog({
           }}
         >
           <div>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-text-primary, #0F172A)' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
               REVIEW SCANNED CREDENTIALS ({editedDrafts.length})
             </h3>
-            <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted, #64748B)' }}>
+            <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
               {'// VERIFY EXTRACTED FIELDS BEFORE PERSISTING TO WALLET'}
             </p>
           </div>
@@ -203,17 +203,17 @@ function ScanReviewDialog({
             onClick={onClose}
             aria-label="Discard scan"
             style={{
-              background: '#FFFFFF',
-              border: '1px solid var(--color-border, #CBD5E1)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '6px',
-              color: 'var(--color-text-muted, #64748B)',
+              color: 'var(--color-text-muted)',
               padding: '4px 8px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
             }}
           >
-            <CloseIcon size={12} color="var(--color-text-muted, #64748B)" />
+            <CloseIcon size={12} color="var(--color-text-muted)" />
           </button>
         </div>
 

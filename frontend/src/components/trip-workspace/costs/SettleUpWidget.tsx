@@ -19,11 +19,11 @@ export function SettleUpWidget({
   return (
     <div
       style={{
-        background: '#FFFFFF',
-        border: '1px solid var(--color-border, #E2E8F0)',
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-border-subtle)',
         borderRadius: '16px',
         padding: '22px 24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div
@@ -36,15 +36,15 @@ export function SettleUpWidget({
       >
         <div
           style={{
-            fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+            fontFamily: 'var(--font-display, "Jost", sans-serif)',
             fontSize: '0.85rem',
             fontWeight: 700,
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-main)',
           }}
         >
-          SETTLE UP · <span style={{ color: 'var(--color-accent-primary, #1E3A8A)' }}>{transfers.length}</span>
+          SETTLE UP · <span style={{ color: 'var(--color-accent-primary)' }}>{transfers.length}</span>
         </div>
 
         {onAddPayment && (
@@ -57,16 +57,15 @@ export function SettleUpWidget({
               gap: '6px',
               padding: '6px 12px',
               borderRadius: '8px',
-              border: '1px solid var(--color-border, #E2E8F0)',
-              background: 'var(--color-surface-card, #F8FAFC)',
-              color: 'var(--color-text-primary, #0F172A)',
-              fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-main)',
+              fontFamily: 'var(--font-mono, monospace)',
               fontSize: '0.74rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'background 0.15s ease',
             }}
-            className="hover:bg-slate-100"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -94,7 +93,7 @@ export function SettleUpWidget({
               height: '44px',
               borderRadius: '50%',
               background: 'rgba(5, 150, 105, 0.12)',
-              color: '#059669',
+              color: 'var(--color-success)',
               display: 'grid',
               placeItems: 'center',
             }}
@@ -106,19 +105,19 @@ export function SettleUpWidget({
           <div>
             <div
               style={{
-                fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+                fontFamily: 'var(--font-display, "Jost", sans-serif)',
                 fontSize: '0.96rem',
                 fontWeight: 700,
-                color: 'var(--color-text-primary, #0F172A)',
+                color: 'var(--color-text-main)',
               }}
             >
               Everyone&apos;s square
             </div>
             <div
               style={{
-                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '0.74rem',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 marginTop: '3px',
               }}
             >
@@ -132,8 +131,8 @@ export function SettleUpWidget({
             <div
               key={`${t.sender_id}-${t.receiver_id}-${idx}`}
               style={{
-                background: 'var(--color-surface-card, #F8FAFC)',
-                border: '1px solid var(--color-border, #E2E8F0)',
+                background: 'var(--color-surface-subtle, var(--color-surface-card))',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '12px',
                 padding: '12px 14px',
                 display: 'flex',
@@ -148,18 +147,18 @@ export function SettleUpWidget({
                     fontFamily: 'var(--font-body, "Inter", sans-serif)',
                     fontSize: '0.84rem',
                     fontWeight: 600,
-                    color: 'var(--color-text-primary, #0F172A)',
+                    color: 'var(--color-text-main)',
                   }}
                 >
                   <span>{t.sender_name || 'Traveler'}</span>
-                  <span style={{ color: '#94A3B8', margin: '0 6px' }}>➔</span>
+                  <span style={{ color: 'var(--color-text-muted)', margin: '0 6px' }}>➔</span>
                   <span>{t.receiver_name || 'Traveler'}</span>
                 </div>
                 <div
                   style={{
-                    fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                    fontFamily: 'var(--font-mono, monospace)',
                     fontSize: '0.7rem',
-                    color: 'var(--color-text-muted, #64748B)',
+                    color: 'var(--color-text-muted)',
                     marginTop: '2px',
                   }}
                 >
@@ -170,10 +169,11 @@ export function SettleUpWidget({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontFeatureSettings: '"tnum"',
                     fontSize: '0.95rem',
                     fontWeight: 700,
-                    color: '#DC2626',
+                    color: 'var(--color-danger)',
                   }}
                 >
                   €{t.amount.toFixed(2)}
@@ -185,9 +185,9 @@ export function SettleUpWidget({
                     onClick={() => onSettleFlow(t)}
                     style={{
                       border: 'none',
-                      background: 'var(--color-accent-primary, #1E3A8A)',
-                      color: '#FFFFFF',
-                      fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                      background: 'var(--color-accent-primary)',
+                      color: 'var(--color-text-on-accent)',
+                      fontFamily: 'var(--font-mono, monospace)',
                       borderRadius: '8px',
                       padding: '5px 10px',
                       fontSize: '0.72rem',

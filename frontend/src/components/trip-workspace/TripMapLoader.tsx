@@ -14,7 +14,7 @@ const TripMapView = dynamic(() => import('./TripMapView'), {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0B0F17',
+        background: 'var(--color-bg-main)',
       }}
     >
       [ LOADING TACTICAL GEO-SERVICE... ]

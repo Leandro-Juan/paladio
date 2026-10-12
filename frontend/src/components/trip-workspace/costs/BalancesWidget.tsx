@@ -23,21 +23,21 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
   return (
     <div
       style={{
-        background: '#FFFFFF',
-        border: '1px solid var(--color-border, #E2E8F0)',
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-border-subtle)',
         borderRadius: '16px',
         padding: '22px 24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div
         style={{
-          fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+          fontFamily: 'var(--font-display, "Jost", sans-serif)',
           fontSize: '0.85rem',
           fontWeight: 700,
           letterSpacing: '0.04em',
           textTransform: 'uppercase',
-          color: 'var(--color-text-primary, #0F172A)',
+          color: 'var(--color-text-main)',
           marginBottom: '16px',
         }}
       >
@@ -49,9 +49,9 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
           style={{
             textAlign: 'center',
             padding: '16px 0',
-            fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+            fontFamily: 'var(--font-mono, monospace)',
             fontSize: '0.78rem',
-            color: 'var(--color-text-muted, #94A3B8)',
+            color: 'var(--color-text-muted)',
           }}
         >
           {`// NO TRAVELERS REGISTERED`}
@@ -63,8 +63,14 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
             const isNegative = row.netBalance < -0.01;
             const initial = (row.name || '?').charAt(0).toUpperCase();
 
-            // Paladio themed avatar accents
-            const colors = ['#1E3A8A', '#7C3AED', '#0284C7', '#D97706', '#059669'];
+            // Pacific Jazz palette avatars
+            const colors = [
+              'var(--color-accent-primary)',
+              'var(--color-accent-muted)',
+              'var(--color-accent-secondary)',
+              '#14788D',
+              '#0F4C5C',
+            ];
             const avatarBg = colors[idx % colors.length];
 
             return (
@@ -84,10 +90,10 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
                       height: '32px',
                       borderRadius: '50%',
                       background: avatarBg,
-                      color: '#FFFFFF',
+                      color: 'var(--color-text-on-accent)',
                       display: 'grid',
                       placeItems: 'center',
-                      fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+                      fontFamily: 'var(--font-display, "Jost", sans-serif)',
                       fontWeight: 700,
                       fontSize: '0.8rem',
                     }}
@@ -101,16 +107,16 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
                         fontFamily: 'var(--font-body, "Inter", sans-serif)',
                         fontSize: '0.88rem',
                         fontWeight: 600,
-                        color: 'var(--color-text-primary, #0F172A)',
+                        color: 'var(--color-text-main)',
                       }}
                     >
                       {row.name}
                     </div>
                     <div
                       style={{
-                        fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                        fontFamily: 'var(--font-mono, monospace)',
                         fontSize: '0.7rem',
-                        color: 'var(--color-text-muted, #64748B)',
+                        color: 'var(--color-text-muted)',
                       }}
                     >
                       Paid €{row.totalPaid.toFixed(2)}
@@ -120,13 +126,20 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
 
                 <div
                   style={{
-                    fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
-                    fontSize: '0.88rem',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontFeatureSettings: '"tnum"',
+                    fontSize: '0.85rem',
                     fontWeight: 700,
-                    color: isPositive ? '#059669' : isNegative ? '#DC2626' : 'var(--color-text-muted, #94A3B8)',
+                    textAlign: 'right',
+                    color: isPositive ? 'var(--color-success)' : isNegative ? 'var(--color-danger)' : 'var(--color-text-muted)',
                   }}
                 >
-                  {isPositive ? `+€${row.netBalance.toFixed(2)}` : isNegative ? `-€${Math.abs(row.netBalance).toFixed(2)}` : '€0.00'}
+                  <div>
+                    {isPositive ? `+€${row.netBalance.toFixed(2)}` : isNegative ? `-€${Math.abs(row.netBalance).toFixed(2)}` : '€0.00'}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+                    {isPositive ? 'is owed' : isNegative ? 'owes' : 'settled'}
+                  </div>
                 </div>
               </div>
             );

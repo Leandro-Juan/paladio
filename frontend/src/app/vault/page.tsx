@@ -77,9 +77,22 @@ export default function VaultPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: '2rem', left: '2rem', zIndex: 1000, pointerEvents: 'none' }}>
-        <h2 className="font-display" style={{ textShadow: '0 2px 4px rgba(255,255,255,0.8)' }}>ITINERARY VAULT</h2>
-        <p className="font-mono text-muted text-sm mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}>{'// GLOBAL MISSIONS DASHBOARD'}</p>
+      <div
+        style={{
+          position: 'absolute',
+          top: '2rem',
+          left: '2rem',
+          zIndex: 1000,
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: '12px',
+          padding: '1rem 1.25rem',
+          boxShadow: 'var(--shadow-card)',
+          maxWidth: '360px',
+        }}
+      >
+        <h2 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>ITINERARY VAULT</h2>
+        <p className="font-mono text-muted text-xs mt-1">{'// GLOBAL MISSIONS DASHBOARD'}</p>
         {completedTrips.length === 0 && (
           <div style={{ marginTop: '0.5rem' }}>
             <span
@@ -88,11 +101,10 @@ export default function VaultPage() {
                 fontSize: '11px',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                background: 'rgba(255, 255, 255, 0.9)',
+                background: 'var(--color-surface-page)',
                 color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
+                border: '1px solid var(--color-border-subtle)',
                 display: 'inline-block',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
               }}
             >
               [ NO COMPLETED MISSIONS ARCHIVED ]
@@ -101,7 +113,7 @@ export default function VaultPage() {
         )}
       </div>
 
-      <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+      <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border-subtle)', boxShadow: 'var(--shadow-card)' }}>
         <VaultMap trips={mappedTrips} />
       </div>
     </div>

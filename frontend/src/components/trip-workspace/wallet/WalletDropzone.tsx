@@ -83,13 +83,13 @@ export function WalletDropzone({
       aria-label="Upload ticket documents or boarding passes"
       style={{
         border: `2px dashed ${
-          isDragOver ? 'var(--color-accent-primary, #1E3A8A)' : isScanning ? '#3B82F6' : 'var(--color-border, #CBD5E1)'
+          isDragOver ? 'var(--color-accent-primary)' : isScanning ? 'var(--color-accent-primary)' : 'var(--color-border-subtle)'
         }`,
         background: isDragOver
-          ? '#EFF6FF'
+          ? 'rgba(15, 76, 92, 0.08)'
           : isScanning
-          ? '#F0F9FF'
-          : 'var(--color-surface-card, #F8FAFC)',
+          ? 'rgba(15, 76, 92, 0.04)'
+          : 'var(--color-surface-card)',
         borderRadius: '12px',
         padding: '1.75rem 1.5rem',
         textAlign: 'center',
@@ -115,18 +115,18 @@ export function WalletDropzone({
 
       {isScanning ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-          <Spinner size={26} color="var(--color-accent-primary, #1E3A8A)" />
+          <Spinner size={26} color="var(--color-accent-primary)" />
           <span
             style={{
               fontSize: '12px',
               fontWeight: 700,
-              color: 'var(--color-accent-primary, #1E3A8A)',
+              color: 'var(--color-accent-primary)',
               letterSpacing: '1px',
             }}
           >
             PARSING CREDENTIALS… DECODING BARCODES
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
             Extracting BCBP payloads & booking records deterministically
           </span>
         </div>
@@ -134,31 +134,31 @@ export function WalletDropzone({
         <>
           <div
             style={{
-              background: '#FFFFFF',
-              border: '1px solid var(--color-border, #CBD5E1)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '50%',
               width: '44px',
               height: '44px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(15, 23, 42, 0.05)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <DocumentIcon size={22} color="var(--color-accent-primary, #1E3A8A)" />
+            <DocumentIcon size={22} color="var(--color-accent-primary)" />
           </div>
           <div>
             <span
               style={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: isDragOver ? 'var(--color-accent-primary, #1E3A8A)' : 'var(--color-text-primary, #0F172A)',
+                color: isDragOver ? 'var(--color-accent-primary)' : 'var(--color-text-main)',
                 letterSpacing: '0.5px',
               }}
             >
               DROP TICKETS, BOARDING PASSES OR HOTEL CONFIRMATIONS HERE
             </span>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
               Supports PDF, Apple Wallet (.pkpass), PNG/JPEG barcodes, or paste text clipboard
             </div>
           </div>
@@ -167,15 +167,15 @@ export function WalletDropzone({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              background: '#FFFFFF',
-              border: '1px solid var(--color-border, #CBD5E1)',
-              color: 'var(--color-text-primary, #0F172A)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              color: 'var(--color-text-main)',
               padding: '4px 12px',
               borderRadius: '6px',
               fontSize: '11px',
               fontWeight: 600,
               marginTop: '4px',
-              boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             <span>or click to browse files</span>

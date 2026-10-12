@@ -108,7 +108,7 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
       }}
     >
       <div>
-        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: '#FFF' }}>
+        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-primary)' }}>
           COLLABORATORS & TRIP CREW
         </h2>
         <p className="font-mono text-muted text-sm mt-1">
@@ -120,10 +120,10 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
         <div
           style={{
             padding: '0.75rem 1rem',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            background: 'var(--color-danger-soft)',
+            border: '1px solid var(--color-danger)',
             borderRadius: '8px',
-            color: '#F87171',
+            color: 'var(--color-danger)',
             fontFamily: 'monospace',
             fontSize: '0.85rem',
           }}
@@ -135,8 +135,8 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
       {/* Add Traveler Form */}
       <div
         style={{
-          background: 'rgba(30, 41, 59, 0.7)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: '14px',
           padding: '1.25rem',
           display: 'flex',
@@ -155,10 +155,10 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
               onChange={(e) => setNewTravelerName(e.target.value)}
               style={{
                 padding: '8px 12px',
-                background: 'rgba(15, 23, 42, 0.8)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-input)',
                 borderRadius: '6px',
-                color: '#FFF',
+                color: 'var(--color-text-primary)',
                 fontFamily: 'inherit',
                 fontSize: '0.85rem',
               }}
@@ -173,10 +173,10 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 style={{
                   padding: '8px 12px',
-                  background: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-input)',
                   borderRadius: '6px',
-                  color: '#FFF',
+                  color: 'var(--color-text-primary)',
                   fontFamily: 'inherit',
                   fontSize: '0.85rem',
                 }}
@@ -196,14 +196,14 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
             disabled={isAdding}
             style={{
               padding: '8px 18px',
-              background: '#2563EB',
-              color: '#FFF',
+              background: 'var(--color-accent-primary)',
+              color: 'var(--color-btn-primary-text)',
               border: 'none',
               borderRadius: '6px',
               fontFamily: 'var(--font-display, inherit)',
               fontWeight: 600,
               fontSize: '0.85rem',
-              cursor: 'pointer',
+              cursor: isAdding ? 'wait' : 'pointer',
               height: '38px',
             }}
           >
@@ -220,8 +220,8 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
             <div
               key={p.id}
               style={{
-                background: 'rgba(30, 41, 59, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '12px',
                 padding: '1rem',
                 display: 'flex',
@@ -235,8 +235,8 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
                     width: '36px',
                     height: '36px',
                     borderRadius: '50%',
-                    background: '#1E3A8A',
-                    color: '#93C5FD',
+                    background: 'var(--color-accent-teal-soft)',
+                    color: 'var(--color-accent-teal)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -247,7 +247,7 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
                   {p.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, color: '#FFF', fontSize: '0.9rem' }}>{p.name}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.9rem' }}>{p.name}</div>
                   <div className="font-mono text-muted" style={{ fontSize: '11px' }}>
                     {p.role || 'traveler'} {p.email ? `• ${p.email}` : ''}
                   </div>
@@ -262,7 +262,7 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#F87171',
+                    color: 'var(--color-danger)',
                     cursor: 'pointer',
                     fontSize: '14px',
                     padding: '4px',

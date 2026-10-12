@@ -109,7 +109,7 @@ export function TripWorkspaceHeader({
     }
   };
 
-  const tabs: Array<{ id: WorkspaceTab; label: string; count?: number; iconSvg: string }> = [
+  const tabs: { id: WorkspaceTab; label: string; count?: number; iconSvg: string }[] = [
     {
       id: 'plan',
       label: 'Plan',
@@ -148,10 +148,10 @@ export function TripWorkspaceHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 1rem',
-        background: '#FFFFFF',
-        borderBottom: '1px solid var(--color-border, #E2E8F0)',
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+        padding: '0 1.25rem',
+        background: 'var(--color-surface-card)',
+        borderBottom: '1px solid var(--color-border)',
+        boxShadow: 'var(--shadow-sm)',
         zIndex: 1200,
         position: 'relative',
         flexShrink: 0,
@@ -165,14 +165,14 @@ export function TripWorkspaceHeader({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
-            color: 'var(--color-text-muted, #64748B)',
+            color: 'var(--color-text-muted)',
             textDecoration: 'none',
             fontSize: '0.8rem',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: 'var(--font-mono)',
             padding: '4px 10px',
-            borderRadius: '6px',
-            background: 'var(--color-surface-card, #F8FAFC)',
-            border: '1px solid var(--color-border, #E2E8F0)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-bg-main)',
+            border: '1px solid var(--color-border)',
             transition: 'all 0.15s ease',
             whiteSpace: 'nowrap',
             fontWeight: 600,
@@ -185,14 +185,14 @@ export function TripWorkspaceHeader({
           <h1
             className="font-display"
             style={{
-              fontSize: '1.2rem',
-              fontWeight: 700,
-              color: 'var(--color-text-primary, #0F172A)',
+              fontSize: '1.45rem',
+              fontWeight: 300,
+              color: 'var(--color-text-primary)',
               margin: 0,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              letterSpacing: '0.2px',
+              letterSpacing: '-0.01em',
             }}
           >
             {destination}
@@ -202,7 +202,7 @@ export function TripWorkspaceHeader({
               className="font-mono text-muted"
               style={{
                 fontSize: '0.75rem',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 whiteSpace: 'nowrap',
                 display: 'none',
               }}
@@ -214,7 +214,7 @@ export function TripWorkspaceHeader({
         </div>
       </div>
 
-      {/* Center: Sliding Pill Tabs */}
+      {/* Center: Sliding Pill Tabs with Gold Selected Underline */}
       <nav
         ref={navRef}
         role="tablist"
@@ -223,15 +223,15 @@ export function TripWorkspaceHeader({
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          background: '#FFFFFF',
+          background: 'var(--color-bg-main)',
           padding: '3px',
-          borderRadius: '999px',
-          border: '1px solid var(--color-border, #E2E8F0)',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          borderRadius: 'var(--radius-full)',
+          border: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-sm)',
           gap: '2px',
         }}
       >
-        {/* Animated Sliding Pill */}
+        {/* Animated Sliding Pill with gold selected underline */}
         <div
           aria-hidden="true"
           style={{
@@ -241,9 +241,10 @@ export function TripWorkspaceHeader({
             transform: `translate3d(${pillStyle.left}px, ${pillStyle.top}px, 0)`,
             width: `${pillStyle.width}px`,
             height: `${pillStyle.height}px`,
-            borderRadius: '999px',
-            background: 'var(--color-accent-primary, #1E3A8A)',
-            boxShadow: '0 2px 6px rgba(30, 58, 138, 0.35)',
+            borderRadius: 'var(--radius-full)',
+            background: 'var(--color-accent-primary)',
+            borderBottom: '2px solid var(--color-accent-warning)',
+            boxShadow: '0 2px 6px rgba(15, 76, 92, 0.25)',
             opacity: pillStyle.isReady ? 1 : 0,
             pointerEvents: 'none',
             zIndex: 1,
@@ -271,10 +272,10 @@ export function TripWorkspaceHeader({
                 alignItems: 'center',
                 gap: '6px',
                 padding: '5px 14px',
-                borderRadius: '999px',
+                borderRadius: 'var(--radius-full)',
                 border: '1px solid transparent',
                 background: 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
+                color: isActive ? '#FFFFFF' : 'var(--color-text-muted)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontSize: '0.82rem',
@@ -285,12 +286,12 @@ export function TripWorkspaceHeader({
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.color = 'var(--color-text-primary, #0F172A)';
+                  e.currentTarget.style.color = 'var(--color-text-primary)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.color = 'var(--color-text-muted, #64748B)';
+                  e.currentTarget.style.color = 'var(--color-text-muted)';
                 }
               }}
             >
@@ -308,13 +309,13 @@ export function TripWorkspaceHeader({
                 <span
                   style={{
                     fontSize: '10px',
-                    fontFamily: 'monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     padding: '1px 5px',
-                    borderRadius: '999px',
-                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-surface-card, #F1F5F9)',
-                    color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
-                    border: isActive ? 'none' : '1px solid var(--color-border, #E2E8F0)',
+                    borderRadius: 'var(--radius-full)',
+                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-surface-card)',
+                    color: isActive ? '#FFFFFF' : 'var(--color-text-muted)',
+                    border: isActive ? 'none' : '1px solid var(--color-border)',
                     transition: 'background 0.18s ease, color 0.18s ease, border 0.18s ease',
                   }}
                 >
@@ -336,15 +337,15 @@ export function TripWorkspaceHeader({
             alignItems: 'center',
             gap: '6px',
             padding: '5px 12px',
-            background: copied ? '#10B981' : '#FFFFFF',
-            color: copied ? '#FFFFFF' : 'var(--color-text-primary, #0F172A)',
-            border: '1px solid var(--color-border, #E2E8F0)',
-            borderRadius: '6px',
+            background: copied ? 'var(--color-success)' : 'var(--color-bg-main)',
+            color: copied ? '#FFFFFF' : 'var(--color-text-primary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
             fontSize: '0.75rem',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: 'var(--font-mono)',
             fontWeight: 600,
             cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+            boxShadow: 'var(--shadow-sm)',
             transition: 'all 0.2s ease',
           }}
         >

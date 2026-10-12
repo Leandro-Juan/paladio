@@ -362,7 +362,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         maxWidth: '1280px',
         margin: '0 auto',
         minHeight: '100%',
-        color: '#0F172A',
+        color: 'var(--color-text-main)',
       }}
     >
       {/* Top Bar Header with trip details and primary actions */}
@@ -380,13 +380,13 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
           {tripDateMeta && (
             <span
               style={{
-                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '0.82rem',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 fontWeight: 500,
               }}
             >
-              {tripDateMeta.range} · <b style={{ color: 'var(--color-text-primary, #0F172A)' }}>{tripDateMeta.days} days</b>
+              {tripDateMeta.range} · <b style={{ color: 'var(--color-text-main)' }}>{tripDateMeta.days} days</b>
             </span>
           )}
 
@@ -397,12 +397,12 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               gap: '6px',
               padding: '4px 10px',
               borderRadius: '999px',
-              background: 'var(--color-surface-card, #F8FAFC)',
-              border: '1px solid var(--color-border, #E2E8F0)',
-              fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              fontFamily: 'var(--font-mono, monospace)',
               fontSize: '0.76rem',
               fontWeight: 600,
-              color: 'var(--color-text-primary, #334155)',
+              color: 'var(--color-text-main)',
             }}
           >
             <span
@@ -410,8 +410,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                 width: '18px',
                 height: '18px',
                 borderRadius: '50%',
-                background: 'var(--color-accent-primary, #1E3A8A)',
-                color: '#FFFFFF',
+                background: 'var(--color-accent-primary)',
+                color: 'var(--color-text-on-accent)',
                 display: 'grid',
                 placeItems: 'center',
                 fontSize: '0.65rem',
@@ -438,9 +438,9 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               gap: '6px',
               padding: '9px 16px',
               borderRadius: '12px',
-              border: '1px solid #CBD5E1',
-              background: '#FFFFFF',
-              color: '#334155',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-main)',
               fontSize: '0.85rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -466,13 +466,13 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               padding: '9px 18px',
               borderRadius: '10px',
               border: 'none',
-              background: 'var(--color-accent-primary, #1E3A8A)',
-              color: '#FFFFFF',
+              background: 'var(--color-accent-primary)',
+              color: 'var(--color-text-on-accent)',
               fontFamily: 'var(--font-body, "Inter", sans-serif)',
               fontSize: '0.85rem',
               fontWeight: 600,
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(30, 58, 138, 0.25)',
+              boxShadow: 'var(--shadow-sm)',
               transition: 'transform 0.1s ease',
             }}
             className="hover:opacity-95 active:scale-95"
@@ -516,14 +516,14 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
           />
 
           {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8' }}>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--color-text-muted)' }}>
               Loading trip expenses...
             </div>
           ) : groupedByDate.length === 0 ? (
             <div
               style={{
-                background: '#FFFFFF',
-                border: '1px dashed #CBD5E1',
+                background: 'var(--color-surface-card)',
+                border: '1px dashed var(--color-border-subtle)',
                 borderRadius: '20px',
                 padding: '60px 20px',
                 textAlign: 'center',
@@ -534,8 +534,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                   width: '48px',
                   height: '48px',
                   borderRadius: '50%',
-                  background: '#F1F5F9',
-                  color: '#64748B',
+                  background: 'var(--color-surface-subtle, var(--color-surface-card))',
+                  color: 'var(--color-text-muted)',
                   display: 'grid',
                   placeItems: 'center',
                   margin: '0 auto 16px auto',
@@ -546,10 +546,10 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                   <line x1="2" y1="10" x2="22" y2="10" />
                 </svg>
               </div>
-              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#1E293B' }}>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
                 No expenses found
               </h4>
-              <p style={{ margin: '6px 0 16px 0', fontSize: '0.82rem', color: '#64748B' }}>
+              <p style={{ margin: '6px 0 16px 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
                 {search || categoryFilter || dayFilter || scopeFilter !== 'all'
                   ? 'Try clearing active filters to see all trip costs.'
                   : 'Start by logging your first expense or assigning route tickets.'}
@@ -564,8 +564,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                   padding: '8px 16px',
                   borderRadius: '10px',
                   border: 'none',
-                  background: '#0F172A',
-                  color: '#FFFFFF',
+                  background: 'var(--color-accent-primary)',
+                  color: 'var(--color-text-on-accent)',
                   fontSize: '0.8rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -590,21 +590,21 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                   >
                     <span
                       style={{
-                        fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                        fontFamily: 'var(--font-mono, monospace)',
                         fontSize: '0.74rem',
                         fontWeight: 700,
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
-                        color: 'var(--color-text-muted, #64748B)',
+                        color: 'var(--color-text-muted)',
                       }}
                     >
                       {group.date}
                     </span>
                     <span
                       style={{
-                        fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                        fontFamily: 'var(--font-mono, monospace)',
                         fontSize: '0.76rem',
-                        color: 'var(--color-text-muted, #64748B)',
+                        color: 'var(--color-text-muted)',
                         fontWeight: 600,
                       }}
                     >

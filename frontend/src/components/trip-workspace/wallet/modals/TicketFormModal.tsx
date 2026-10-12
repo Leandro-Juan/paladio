@@ -176,11 +176,11 @@ function TicketFormDialog({
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    background: '#FFFFFF',
-    border: '1px solid var(--color-border, #CBD5E1)',
+    background: 'var(--color-surface-card)',
+    border: '1px solid var(--color-border-input)',
     borderRadius: '6px',
     padding: '8px 10px',
-    color: 'var(--color-text-primary, #0F172A)',
+    color: 'var(--color-text-primary)',
     fontSize: '12px',
     outline: 'none',
   };
@@ -188,7 +188,7 @@ function TicketFormDialog({
   const labelStyle: React.CSSProperties = {
     display: 'block',
     fontSize: '11px',
-    color: 'var(--color-text-muted, #64748B)',
+    color: 'var(--color-text-muted)',
     marginBottom: '4px',
     fontWeight: 600,
   };
@@ -201,7 +201,7 @@ function TicketFormDialog({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(15, 23, 42, 0.65)',
+        background: 'var(--color-scrim)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -214,15 +214,15 @@ function TicketFormDialog({
     >
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid var(--color-border, #CBD5E1)',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '560px',
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(15, 23, 42, 0.25)',
+          boxShadow: 'var(--shadow-modal)',
           overflow: 'hidden',
         }}
       >
@@ -230,8 +230,8 @@ function TicketFormDialog({
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid var(--color-border, #E2E8F0)',
-            background: 'var(--color-surface-card, #F8FAFC)',
+            borderBottom: '1px solid var(--color-border-subtle)',
+            background: 'var(--color-surface-page)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -239,10 +239,10 @@ function TicketFormDialog({
           }}
         >
           <div>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-text-primary, #0F172A)' }}>
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
               {isEditing ? 'EDIT TICKET CREDENTIAL' : 'ADD TICKET TO WALLET'}
             </h3>
-            <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted, #64748B)' }}>
+            <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
               {'// VERIFIED WALLET PASS SPECIFICATION'}
             </p>
           </div>
@@ -251,17 +251,17 @@ function TicketFormDialog({
             onClick={onClose}
             aria-label="Close modal"
             style={{
-              background: '#FFFFFF',
-              border: '1px solid var(--color-border, #CBD5E1)',
+              background: 'transparent',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '6px',
-              color: 'var(--color-text-muted, #64748B)',
+              color: 'var(--color-text-muted)',
               padding: '4px 8px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
             }}
           >
-            <CloseIcon size={12} color="var(--color-text-muted, #64748B)" />
+            <CloseIcon size={12} color="var(--color-text-muted)" />
           </button>
         </div>
 
@@ -282,18 +282,18 @@ function TicketFormDialog({
           {errorMsg && (
             <div
               style={{
-                background: '#FEF2F2',
-                border: '1px solid #FECACA',
+                background: 'var(--color-danger-soft)',
+                border: '1px solid var(--color-danger)',
                 borderRadius: '6px',
                 padding: '0.6rem 0.8rem',
-                color: '#DC2626',
+                color: 'var(--color-danger)',
                 fontSize: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
               }}
             >
-              <AlertTriangleIcon size={14} color="#DC2626" />
+              <AlertTriangleIcon size={14} color="var(--color-danger)" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -312,10 +312,10 @@ function TicketFormDialog({
                     onClick={() => setTicketType(type)}
                     style={{
                       padding: '8px 4px',
-                      background: isSelected ? conf.accentBg : 'var(--color-surface-card, #F8FAFC)',
-                      border: `1px solid ${isSelected ? conf.accentBorder : 'var(--color-border, #CBD5E1)'}`,
+                      background: isSelected ? conf.accentBg : 'var(--color-surface-card)',
+                      border: `1px solid ${isSelected ? conf.accentBorder : 'var(--color-border-subtle)'}`,
                       borderRadius: '6px',
-                      color: isSelected ? conf.accentColor : 'var(--color-text-muted, #64748B)',
+                      color: isSelected ? conf.accentColor : 'var(--color-text-muted)',
                       fontSize: '11px',
                       cursor: 'pointer',
                       display: 'flex',
@@ -326,7 +326,7 @@ function TicketFormDialog({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>{conf.renderIcon({ size: 16, color: isSelected ? conf.accentColor : 'var(--color-text-muted, #64748B)' })}</span>
+                    <span>{conf.renderIcon({ size: 16, color: isSelected ? conf.accentColor : 'var(--color-text-muted)' })}</span>
                     <span style={{ fontSize: '10px' }}>{conf.label}</span>
                   </button>
                 );
@@ -407,8 +407,8 @@ function TicketFormDialog({
           {ticketType === 'flight' && (
             <div
               style={{
-                background: '#F0F9FF',
-                border: '1px solid #BAE6FD',
+                background: 'var(--color-accent-teal-soft)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '8px',
                 padding: '0.85rem',
                 display: 'grid',
@@ -417,7 +417,7 @@ function TicketFormDialog({
               }}
             >
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#0369A1', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
                   ORIGIN (IATA)
                 </label>
                 <input
@@ -431,7 +431,7 @@ function TicketFormDialog({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#0369A1', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
                   DEST (IATA)
                 </label>
                 <input
@@ -445,7 +445,7 @@ function TicketFormDialog({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#0369A1', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
                   FLIGHT #
                 </label>
                 <input
@@ -458,7 +458,7 @@ function TicketFormDialog({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#0369A1', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
                   TERMINAL
                 </label>
                 <input
@@ -471,7 +471,7 @@ function TicketFormDialog({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#0369A1', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
                   GATE
                 </label>
                 <input
@@ -489,8 +489,8 @@ function TicketFormDialog({
           {ticketType === 'hotel' && (
             <div
               style={{
-                background: '#FFFBEB',
-                border: '1px solid #FDE68A',
+                background: 'var(--color-accent-gold-soft)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '8px',
                 padding: '0.85rem',
                 display: 'grid',
@@ -499,7 +499,7 @@ function TicketFormDialog({
               }}
             >
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#B45309', marginBottom: '2px', fontWeight: 700 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 700 }}>
                   DOOR ACCESS CODE / PIN
                 </label>
                 <input
@@ -507,12 +507,12 @@ function TicketFormDialog({
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value)}
                   placeholder="#1234*"
-                  style={{ ...inputStyle, padding: '6px', fontSize: '11px', color: '#B45309', fontWeight: 700 }}
+                  style={{ ...inputStyle, padding: '6px', fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 700 }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#B45309', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 600 }}>
                   WIFI SSID
                 </label>
                 <input
@@ -525,7 +525,7 @@ function TicketFormDialog({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#B45309', marginBottom: '2px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 600 }}>
                   WIFI PASSWORD
                 </label>
                 <input
@@ -683,7 +683,7 @@ function TicketFormDialog({
               justifyContent: 'flex-end',
               gap: '10px',
               paddingTop: '0.75rem',
-              borderTop: '1px solid var(--color-border, #E2E8F0)',
+              borderTop: '1px solid var(--color-border-subtle)',
             }}
           >
             <button
@@ -692,9 +692,9 @@ function TicketFormDialog({
               disabled={isSubmitting}
               style={{
                 background: 'transparent',
-                border: '1px solid var(--color-border, #CBD5E1)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '6px',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 padding: '8px 16px',
                 fontSize: '12px',
                 cursor: 'pointer',
@@ -706,15 +706,15 @@ function TicketFormDialog({
               type="submit"
               disabled={isSubmitting}
               style={{
-                background: 'var(--color-accent-primary, #1E3A8A)',
+                background: 'var(--color-accent-primary)',
                 border: 'none',
                 borderRadius: '6px',
-                color: '#FFFFFF',
+                color: 'var(--color-btn-primary-text)',
                 padding: '8px 20px',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: isSubmitting ? 'wait' : 'pointer',
-                boxShadow: '0 2px 6px rgba(30, 58, 138, 0.25)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               {isSubmitting ? 'SAVING PASS…' : isEditing ? 'UPDATE PASS' : 'ADD PASS'}

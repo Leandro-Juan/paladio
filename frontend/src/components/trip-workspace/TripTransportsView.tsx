@@ -70,7 +70,7 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
       }}
     >
       <div>
-        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: '#FFF' }}>
+        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-primary)' }}>
           TRANSPORTS & TRANSIT GATEWAYS
         </h2>
         <p className="font-mono text-muted text-sm mt-1">
@@ -87,8 +87,8 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
             style={{
               padding: '2rem',
               textAlign: 'center',
-              background: 'rgba(30, 41, 59, 0.4)',
-              border: '1px dashed rgba(255, 255, 255, 0.1)',
+              background: 'var(--color-surface-card)',
+              border: '1px dashed var(--color-border-subtle)',
               borderRadius: '10px',
             }}
           >
@@ -100,15 +100,14 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
               <div
                 key={idx}
                 style={{
-                  background: 'rgba(30, 41, 59, 0.7)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-subtle)',
                   borderRadius: '12px',
                   padding: '1.25rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                  boxShadow: 'var(--shadow-card)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -116,8 +115,8 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
                     style={{
                       fontFamily: 'monospace',
                       fontSize: '11px',
-                      color: '#60A5FA',
-                      background: 'rgba(37, 99, 235, 0.15)',
+                      color: 'var(--color-accent-teal)',
+                      background: 'var(--color-accent-teal-soft)',
                       padding: '2px 8px',
                       borderRadius: '4px',
                       fontWeight: 700,
@@ -134,14 +133,14 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0.5rem 0' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, color: '#FFF' }}>
+                    <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                       {t.origin}
                     </div>
                     <div className="font-mono text-xs text-muted">DEPARTURE</div>
                   </div>
-                  <div style={{ color: '#3B82F6', fontSize: '1.2rem' }}>&rarr;</div>
+                  <div style={{ color: 'var(--color-accent-teal)', fontSize: '1.2rem' }}>&rarr;</div>
                   <div style={{ textAlign: 'center' }}>
-                    <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, color: '#FFF' }}>
+                    <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                       {t.destination}
                     </div>
                     <div className="font-mono text-xs text-muted">ARRIVAL</div>
@@ -150,11 +149,11 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
 
                 <div
                   style={{
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderTop: '1px solid var(--color-border-subtle)',
                     paddingTop: '0.5rem',
                     fontSize: '11px',
                     fontFamily: 'monospace',
-                    color: '#94A3B8',
+                    color: 'var(--color-text-muted)',
                     display: 'flex',
                     justifyContent: 'space-between',
                   }}

@@ -19,7 +19,7 @@ export function TripPhotosView({ photos = [] }: TripPhotosViewProps) {
       }}
     >
       <div>
-        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: '#FFF' }}>
+        <h2 className="font-display" style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-primary)' }}>
           PHOTO VAULT & SIGHTS
         </h2>
         <p className="font-mono text-muted text-sm mt-1">
@@ -33,8 +33,8 @@ export function TripPhotosView({ photos = [] }: TripPhotosViewProps) {
           style={{
             padding: '3rem',
             textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.4)',
-            border: '1px dashed rgba(255, 255, 255, 0.1)',
+            background: 'var(--color-surface-card)',
+            border: '1px dashed var(--color-border-subtle)',
             borderRadius: '12px',
           }}
         >
@@ -57,18 +57,18 @@ export function TripPhotosView({ photos = [] }: TripPhotosViewProps) {
                 backgroundImage: `url(${photoUrl})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                border: '1px solid var(--color-border-subtle)',
+                boxShadow: 'var(--shadow-card)',
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.5)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-modal)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-card)';
               }}
             />
           ))}

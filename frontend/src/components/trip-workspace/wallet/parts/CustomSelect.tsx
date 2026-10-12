@@ -64,15 +64,15 @@ export function CustomSelect<T extends string = string>({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#FFFFFF',
-          border: `1px solid ${isOpen ? 'var(--color-accent-primary, #1E3A8A)' : 'var(--color-border, #CBD5E1)'}`,
+          background: 'var(--color-surface-card)',
+          border: `1px solid ${isOpen ? 'var(--color-accent-primary)' : 'var(--color-border-input)'}`,
           borderRadius: '6px',
           padding: '8px 10px',
-          color: 'var(--color-text-primary, #0F172A)',
+          color: 'var(--color-text-primary)',
           fontSize: '12px',
           cursor: disabled ? 'not-allowed' : 'pointer',
           outline: 'none',
-          boxShadow: isOpen ? '0 0 0 2px rgba(30, 58, 138, 0.15)' : 'none',
+          boxShadow: isOpen ? '0 0 0 2px var(--color-focus-ring)' : 'none',
           transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
           opacity: disabled ? 0.6 : 1,
         }}
@@ -88,7 +88,7 @@ export function CustomSelect<T extends string = string>({
           height="12"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="var(--color-text-muted, #64748B)"
+          stroke="var(--color-text-muted)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -112,10 +112,10 @@ export function CustomSelect<T extends string = string>({
             left: 0,
             right: 0,
             zIndex: 50,
-            background: '#FFFFFF',
-            border: '1px solid var(--color-border, #CBD5E1)',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
             borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+            boxShadow: 'var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.15))',
             maxHeight: '220px',
             overflowY: 'auto',
             padding: '4px',
@@ -142,15 +142,15 @@ export function CustomSelect<T extends string = string>({
                   borderRadius: '4px',
                   fontSize: '12px',
                   color: isSelected
-                    ? 'var(--color-accent-primary, #1E3A8A)'
-                    : 'var(--color-text-primary, #0F172A)',
-                  background: isSelected ? '#EFF6FF' : 'transparent',
+                    ? 'var(--color-accent-teal)'
+                    : 'var(--color-text-primary)',
+                  background: isSelected ? 'var(--color-accent-teal-soft)' : 'transparent',
                   fontWeight: isSelected ? 700 : 500,
                   cursor: 'pointer',
                   transition: 'background 0.1s ease',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                  if (!isSelected) e.currentTarget.style.background = 'var(--color-surface-hover)';
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -166,7 +166,7 @@ export function CustomSelect<T extends string = string>({
                     height="12"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="var(--color-accent-primary, #1E3A8A)"
+                    stroke="var(--color-accent-teal)"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"

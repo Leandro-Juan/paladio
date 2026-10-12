@@ -43,13 +43,13 @@ export function TicketShell({
       tabIndex={0}
       aria-label={`${typeConfig.label}: ${ticket.title}`}
       style={{
-        background: isUsed ? 'var(--color-surface-card, #F8FAFC)' : '#FFFFFF',
-        border: `1px solid ${ticket.status === 'planned' ? 'var(--color-border, #CBD5E1)' : typeConfig.accentBorder}`,
+        background: 'var(--color-surface-card)',
+        border: `1px solid var(--color-border-subtle)`,
         borderRadius: '12px',
         display: 'flex',
         flexDirection: 'row',
         position: 'relative',
-        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
+        boxShadow: 'var(--shadow-sm)',
         overflow: 'hidden',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
         opacity: isUsed ? 0.75 : 1,
@@ -57,13 +57,13 @@ export function TicketShell({
       onMouseEnter={(e) => {
         if (!isUsed) {
           e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 6px 18px rgba(15, 23, 42, 0.1)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
         }
       }}
       onMouseLeave={(e) => {
         if (!isUsed) {
           e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.06)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
         }
       }}
     >
@@ -123,9 +123,9 @@ export function TicketShell({
                 style={{
                   fontFamily: 'var(--font-mono, monospace)',
                   fontSize: '10px',
-                  color: 'var(--color-text-muted, #64748B)',
-                  background: 'var(--color-surface-card, #F8FAFC)',
-                  border: '1px solid var(--color-border, #CBD5E1)',
+                  color: 'var(--color-text-muted)',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-subtle)',
                   padding: '2px 6px',
                   borderRadius: '4px',
                   display: 'inline-flex',
@@ -133,7 +133,7 @@ export function TicketShell({
                   gap: '4px',
                 }}
               >
-                <LockIcon size={11} color="var(--color-text-muted, #64748B)" />
+                <LockIcon size={11} color="var(--color-text-muted)" />
                 PRIVATE
               </span>
             )}
@@ -150,10 +150,10 @@ export function TicketShell({
                 setShowMenu((prev) => !prev);
               }}
               style={{
-                background: 'var(--color-surface-card, #F8FAFC)',
-                border: '1px solid var(--color-border, #CBD5E1)',
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '4px',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 padding: '3px 8px',
                 cursor: 'pointer',
                 fontSize: '12px',
@@ -171,11 +171,11 @@ export function TicketShell({
                   right: 0,
                   top: '100%',
                   marginTop: '4px',
-                  background: '#FFFFFF',
-                  border: '1px solid var(--color-border, #CBD5E1)',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-subtle)',
                   borderRadius: '6px',
                   padding: '4px',
-                  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+                  boxShadow: 'var(--shadow-md)',
                   zIndex: 20,
                   minWidth: '130px',
                   display: 'flex',
@@ -193,7 +193,7 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--color-text-primary, #0F172A)',
+                      color: 'var(--color-text-main)',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
@@ -204,10 +204,10 @@ export function TicketShell({
                       alignItems: 'center',
                       gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F5F9')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.04))')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <SearchIcon size={12} color="var(--color-accent-primary, #1E3A8A)" />
+                    <SearchIcon size={12} color="var(--color-accent-primary)" />
                     View Pass
                   </button>
                 )}
@@ -221,7 +221,7 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--color-text-primary, #0F172A)',
+                      color: 'var(--color-text-main)',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
@@ -232,10 +232,10 @@ export function TicketShell({
                       alignItems: 'center',
                       gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F5F9')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.04))')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <EditIcon size={12} color="var(--color-text-muted, #64748B)" />
+                    <EditIcon size={12} color="var(--color-text-muted)" />
                     Edit
                   </button>
                 )}
@@ -251,7 +251,7 @@ export function TicketShell({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#DC2626',
+                      color: 'var(--color-danger)',
                       padding: '6px 10px',
                       textAlign: 'left',
                       fontSize: '12px',
@@ -262,10 +262,10 @@ export function TicketShell({
                       alignItems: 'center',
                       gap: '6px',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#FEF2F2')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(212, 42, 47, 0.08)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <TrashIcon size={12} color="#DC2626" />
+                    <TrashIcon size={12} color="var(--color-danger)" />
                     Delete
                   </button>
                 )}
@@ -283,7 +283,7 @@ export function TicketShell({
         aria-hidden="true"
         style={{
           width: '1px',
-          borderLeft: '1px dashed var(--color-border, #CBD5E1)',
+          borderLeft: '1px dashed var(--color-border-subtle)',
           position: 'relative',
           margin: '8px 0',
         }}
@@ -297,8 +297,8 @@ export function TicketShell({
             width: '12px',
             height: '12px',
             borderRadius: '50%',
-            background: 'var(--color-bg-main, #FFFFFF)',
-            boxShadow: 'inset 0 1px 2px rgba(15, 23, 42, 0.1)',
+            background: 'var(--color-bg-main)',
+            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)',
           }}
         />
         {/* Bottom notch */}
@@ -310,8 +310,8 @@ export function TicketShell({
             width: '12px',
             height: '12px',
             borderRadius: '50%',
-            background: 'var(--color-bg-main, #FFFFFF)',
-            boxShadow: 'inset 0 -1px 2px rgba(15, 23, 42, 0.1)',
+            background: 'var(--color-bg-main)',
+            boxShadow: 'inset 0 -1px 2px rgba(0, 0, 0, 0.1)',
           }}
         />
       </div>
@@ -325,7 +325,7 @@ export function TicketShell({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--color-surface-card, #F8FAFC)',
+          background: 'var(--color-surface-subtle, var(--color-surface-card))',
           gap: '8px',
           textAlign: 'center',
           flexShrink: 0,

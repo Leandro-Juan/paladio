@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
-import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
+import { PoiCategoryType } from '@/utils/poiCategory';
 
 export interface PlaceItem {
   name: string;
@@ -32,49 +32,43 @@ export function TripPlacesSidebar({
   onCategoryFilterChange,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [internalCategory, setInternalCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const activeCategoryValue = categoryFilter !== undefined ? (categoryFilter || 'all') : internalCategory;
+  // Filter places based on search text and active categoryFilter prop
+  const filteredPlaces = useMemo(() => {
+    return places.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        !categoryFilter || (p.category && p.category.toLowerCase() === categoryFilter.toLowerCase());
+      return matchesSearch && matchesCategory;
+    });
+  }, [places, searchQuery, categoryFilter]);
 
   const handleCategorySelect = (val: string) => {
-    setInternalCategory(val);
-    if (onCategoryFilterChange) {
-      onCategoryFilterChange(val === 'all' ? null : (val as PoiCategoryType));
+    if (val === 'all') {
+      onCategoryFilterChange?.(null);
+    } else {
+      onCategoryFilterChange?.(val as PoiCategoryType);
     }
   };
 
-  // Filter places based on search query and category
-  const filteredPlaces = useMemo(() => {
-    return places.filter((p) => {
-      const matchesSearch =
-        !searchQuery ||
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const categoryType = classifyPoiCategory(p.category, p.name).type;
-      const matchesCategory =
-        activeCategoryValue === 'all' || isCategoryMatch(activeCategoryValue, categoryType);
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [places, searchQuery, activeCategoryValue]);
+  const activeCategoryValue = categoryFilter ? categoryFilter.toLowerCase() : 'all';
 
   return (
     <>
+      {/* Floating Container Anchor on the Right */}
       <div
         style={{
           position: 'absolute',
-          top: '12px',
-          bottom: '12px',
-          right: '12px',
-          zIndex: 15000,
+          top: '16px',
+          right: '16px',
+          bottom: '16px',
+          zIndex: 1000,
           display: 'flex',
-          alignItems: 'stretch',
           pointerEvents: 'none',
         }}
       >
-        {/* Floating Edge Collapse Toggle (TREK Style) */}
+        {/* Toggle Collapse Button on Left Edge of the sidebar */}
         <button
           type="button"
           onClick={onToggle}
@@ -85,22 +79,22 @@ export function TripPlacesSidebar({
             height: '36px',
             alignSelf: 'center',
             marginRight: isOpen ? '6px' : '0px',
-            background: '#FFFFFF',
+            background: 'var(--color-surface-card)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid #E2E8F0',
+            border: '1px solid var(--color-border)',
             borderRadius: '8px 0 0 8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#475569',
-            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+            color: 'var(--color-text-muted)',
+            boxShadow: 'var(--shadow-sm)',
             pointerEvents: 'auto',
             transition: 'color 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#1E3A8A')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#475569')}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-accent-primary)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
         >
           <svg
             width="16"
@@ -125,12 +119,12 @@ export function TripPlacesSidebar({
           style={{
             width: isOpen ? '340px' : '0px',
             height: '100%',
-            background: 'rgba(255, 255, 255, 0.94)',
-            backdropFilter: 'blur(24px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            borderRadius: '16px',
-            border: isOpen ? '1px solid #E2E8F0' : 'none',
-            boxShadow: isOpen ? '0 12px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.04)' : 'none',
+            background: 'var(--color-surface-card)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: 'var(--radius-lg)',
+            border: isOpen ? '1px solid var(--color-border)' : 'none',
+            boxShadow: isOpen ? 'var(--shadow-lg)' : 'none',
             overflow: 'hidden',
             transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
             pointerEvents: isOpen ? 'auto' : 'none',
@@ -144,7 +138,8 @@ export function TripPlacesSidebar({
               <div
                 style={{
                   padding: '14px 16px',
-                  borderBottom: '1px solid #E2E8F0', background: '#FFFFFF',
+                  borderBottom: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-card)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
@@ -157,11 +152,11 @@ export function TripPlacesSidebar({
                   style={{
                     width: '100%',
                     padding: '8px 14px',
-                    background: '#1E3A8A',
+                    background: 'var(--color-accent-primary)',
                     color: '#FFFFFF',
                     border: 'none',
-                    borderRadius: '8px',
-                    fontFamily: 'var(--font-display, inherit)',
+                    borderRadius: 'var(--radius-md)',
+                    fontFamily: 'var(--font-display)',
                     fontWeight: 600,
                     fontSize: '0.85rem',
                     cursor: 'pointer',
@@ -169,7 +164,7 @@ export function TripPlacesSidebar({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: '0 2px 8px rgba(30, 58, 138, 0.25)',
+                    boxShadow: 'var(--shadow-sm)',
                     transition: 'all 0.15s ease',
                   }}
                 >
@@ -187,10 +182,10 @@ export function TripPlacesSidebar({
                     style={{
                       width: '100%',
                       padding: '7px 10px 7px 30px',
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      color: '#0F172A',
+                      background: 'var(--color-bg-main)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '12px',
                       fontFamily: 'inherit',
                       outline: 'none',
@@ -201,7 +196,7 @@ export function TripPlacesSidebar({
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#94A3B8"
+                    stroke="var(--color-text-muted)"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -220,13 +215,13 @@ export function TripPlacesSidebar({
                     style={{
                       flex: 1,
                       padding: '5px 8px',
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '6px',
-                      color: '#475569',
+                      background: 'var(--color-bg-main)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '11px',
                       outline: 'none',
-                      fontFamily: 'monospace',
+                      fontFamily: 'var(--font-mono)',
                     }}
                   >
                     <option value="all">ALL CATEGORIES</option>
@@ -260,9 +255,10 @@ export function TripPlacesSidebar({
                       onClick={() => onPlaceClick?.(place)}
                       style={{
                         padding: '10px',
-                        background: '#FFFFFF', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '10px',
+                        background: 'var(--color-bg-main)',
+                        boxShadow: 'var(--shadow-sm)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -270,12 +266,10 @@ export function TripPlacesSidebar({
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                        e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.borderColor = 'var(--color-border)';
                       }}
                     >
                       {/* Avatar / Category Indicator */}
@@ -283,16 +277,16 @@ export function TripPlacesSidebar({
                         style={{
                           width: '36px',
                           height: '36px',
-                          borderRadius: '8px',
-                          background: '#EFF6FF',
-                          border: '1px solid #E2E8F0',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(15, 76, 92, 0.08)',
+                          border: '1px solid var(--color-border)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
-                          color: '#1E3A8A',
+                          color: 'var(--color-accent-primary)',
                           fontSize: '12px',
-                          fontFamily: 'monospace',
+                          fontFamily: 'var(--font-mono)',
                           fontWeight: 700,
                         }}
                       >
@@ -302,18 +296,18 @@ export function TripPlacesSidebar({
                       {/* Content */}
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {place.name}
                           </span>
                           {place.day && (
                             <span
                               style={{
                                 fontSize: '10px',
-                                fontFamily: 'monospace',
-                                color: '#1E3A8A',
-                                background: 'rgba(59, 130, 246, 0.2)',
+                                fontFamily: 'var(--font-mono)',
+                                color: 'var(--color-accent-primary)',
+                                background: 'rgba(15, 76, 92, 0.1)',
                                 padding: '1px 5px',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--radius-sm)',
                                 flexShrink: 0,
                               }}
                             >
@@ -342,7 +336,7 @@ export function TripPlacesSidebar({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
+            background: 'rgba(8, 28, 36, 0.65)',
             backdropFilter: 'blur(8px)',
             zIndex: 1500,
             display: 'flex',
@@ -357,18 +351,18 @@ export function TripPlacesSidebar({
             style={{
               maxWidth: '480px',
               width: '100%',
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              borderRadius: '14px',
-              padding: '1.5rem',
-              boxShadow: '0 20px 40px rgba(15, 23, 42, 0.15)',
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.75rem',
+              boxShadow: 'var(--shadow-lg)',
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-display" style={{ margin: 0, fontSize: '1.15rem', color: '#0F172A' }}>
+              <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 300, color: 'var(--color-text-primary)' }}>
                 ADD PLACE / ACTIVITY
               </h3>
               <button
@@ -377,29 +371,31 @@ export function TripPlacesSidebar({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#475569',
+                  color: 'var(--color-text-muted)',
                   fontSize: '18px',
                   cursor: 'pointer',
                 }}
               >
-                &times;
+                ✕
               </button>
             </div>
 
             <div
               style={{
-                background: '#EFF6FF',
-                border: '1px solid #DBEAFE',
-                borderRadius: '8px',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
                 padding: '1rem',
-                fontFamily: 'var(--font-mono, monospace)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '0.85rem',
-                color: '#1E3A8A',
+                color: 'var(--color-text-primary)',
                 lineHeight: 1.5,
               }}
             >
-              <div style={{ fontWeight: 700, marginBottom: '6px' }}>{'// POI SEARCH INTEGRATION'}</div>
-              <p style={{ margin: 0 }}>
+              <div style={{ fontWeight: 700, marginBottom: '6px', color: 'var(--color-accent-primary)' }}>
+                {'// POI SEARCH INTEGRATION'}
+              </div>
+              <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
                 Live POI discovery and custom waypoint insertion will be activated in the upcoming release.
                 Currently, all scheduled waypoints and clusters are synchronized dynamically with your itinerary.
               </p>
@@ -411,11 +407,11 @@ export function TripPlacesSidebar({
                 onClick={() => setShowAddModal(false)}
                 style={{
                   padding: '6px 16px',
-                  background: '#1E3A8A',
-                  color: '#0F172A',
+                  background: 'var(--color-accent-primary)',
+                  color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '6px',
-                  fontFamily: 'var(--font-display, inherit)',
+                  borderRadius: 'var(--radius-md)',
+                  fontFamily: 'var(--font-display)',
                   fontWeight: 600,
                   fontSize: '0.85rem',
                   cursor: 'pointer',

@@ -98,9 +98,21 @@ export function TripPlanSidebar({
   }, [tripId, destinationCity]);
 
   const isUpgraded = Boolean(itinerary?.metadata && (itinerary.metadata as Record<string, unknown>).transit_upgraded) || upgraded;
+  const isGtfsReady = gtfsStatus === 'READY';
+  const showUpgradeToolbar = !isUpgraded && gtfsStatus !== 'NOT_SUPPORTED';
 
   const handleUpgradeTransit = async () => {
     if (upgrading || isUpgraded) return;
+
+    if (!isGtfsReady) {
+      notify({
+        type: 'info',
+        title: 'GTFS Schedules Compiling',
+        message: 'Real-world transit schedules for this city are currently compiling. Please try again shortly.',
+      });
+      return;
+    }
+
     setUpgrading(true);
     try {
       let endpoint = '';
@@ -108,136 +120,96 @@ export function TripPlanSidebar({
         endpoint = `/trips/${tripId}/upgrade-transit`;
       } else if (destinationCity) {
         endpoint = `/trips/upgrade-transit?city=${encodeURIComponent(destinationCity)}`;
-      } else {
-        throw new Error('No trip or city identified.');
       }
 
-      const res = await apiFetch<{ itinerary: OptimizationResult; message?: string }>(endpoint, {
-        method: 'POST',
+      const res = await apiFetch<{ success: boolean; trip?: { itinerary_data?: OptimizationResult }; itinerary_data?: OptimizationResult }>(
+        endpoint,
+        { method: 'POST' }
+      );
+
+      const updatedItin = res.trip?.itinerary_data || res.itinerary_data;
+      if (updatedItin && onItineraryUpdate) {
+        onItineraryUpdate(updatedItin);
+      }
+
+      setUpgraded(true);
+      if (typeof window !== 'undefined') {
+        try {
+          if (tripId) sessionStorage.setItem(`paladio_trip_upgraded_${tripId}`, 'true');
+          if (destinationCity) sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
+        } catch {
+          // ignore
+        }
+      }
+
+      notify({
+        type: 'success',
+        title: 'Transit Schedules Applied',
+        message: 'Itinerary upgraded with real-world public transit routes and exact timetables.',
       });
-
-      if (res?.itinerary) {
-        const updated = {
-          ...res.itinerary,
-          metadata: {
-            ...res.itinerary.metadata,
-            transit_upgraded: true,
-          },
-        };
-        if (onItineraryUpdate) onItineraryUpdate(updated);
-        notify.success('Transit Upgraded', 'Public transit lines and real schedules integrated.');
-        setUpgraded(true);
-      }
-    } catch (err) {
-      console.error(err);
-      notify.error('Upgrade Failed', 'Could not upgrade transit directions at this time.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Transit upgrade failed.';
+      notify({
+        type: 'error',
+        title: 'Transit Upgrade Failed',
+        message: msg,
+      });
     } finally {
       setUpgrading(false);
     }
   };
 
-  // Check if any day or leg contains public transit legs
-  const hasPublicTransit = React.useMemo(() => {
-    return days.some((d) =>
-      Boolean(d.itinerary?.transit_recommendation) ||
-      d.itinerary?.path?.some((p) => {
-        const t = p.transit_from_previous;
-        return Boolean(t && (t.mode === 'transit' || (t.cost_eur && t.cost_eur > 0)));
-      })
-    );
-  }, [days]);
+  // Day filter
+  const displayedDays = selectedDay === 'all' ? days : days.filter((d) => d.day === selectedDay);
 
-  const isGtfsReady = gtfsStatus === 'READY';
-  const showUpgradeToolbar = (isGtfsReady || gtfsStatus === 'INDEXING') && !isUpgraded && hasPublicTransit;
-
-  // Filter displayed days based on selectedDay
-  const displayedDays = selectedDay === 'all'
-    ? days
-    : days.filter((d) => d.day === selectedDay);
-
-  // Compute total cost across displayed days
-  const totalCost = days.reduce((sum, d) => {
-    const dayCost = (d.itinerary?.path || []).reduce((dSum, item) => dSum + (item.poi?.cost_eur || 0), 0);
-    return sum + dayCost;
-  }, 0);
-
-  // Horizontal day navigation scroll
+  // Carousel ref and scroll state
   const dayTabsRef = React.useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-  const updateScrollState = React.useCallback(() => {
+  const checkScroll = React.useCallback(() => {
     const el = dayTabsRef.current;
     if (!el) return;
-    const hasOverflow = el.scrollWidth > el.clientWidth + 2;
-    setCanScrollLeft(hasOverflow && el.scrollLeft > 2);
-    setCanScrollRight(hasOverflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
   }, []);
 
-  useEffect(() => {
-    updateScrollState();
-    const el = dayTabsRef.current;
-    if (!el) return;
-
-    el.addEventListener('scroll', updateScrollState, { passive: true });
-    window.addEventListener('resize', updateScrollState);
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY !== 0 && el.scrollWidth > el.clientWidth) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-
-    return () => {
-      el.removeEventListener('scroll', updateScrollState);
-      window.removeEventListener('resize', updateScrollState);
-      el.removeEventListener('wheel', onWheel);
-    };
-  }, [updateScrollState, days]);
-
-  useEffect(() => {
-    const el = dayTabsRef.current;
-    if (!el) return;
-    if (selectedDay === 'all') {
-      el.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      const activeBtn = el.querySelector<HTMLElement>(`[data-testid="day-tab-${selectedDay}"]`);
-      if (activeBtn) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      }
-    }
-    const timeout = setTimeout(updateScrollState, 300);
-    return () => clearTimeout(timeout);
-  }, [selectedDay, updateScrollState]);
+  React.useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll, days]);
 
   const handleScrollLeft = () => {
     if (dayTabsRef.current) {
       dayTabsRef.current.scrollBy({ left: -140, behavior: 'smooth' });
-      setTimeout(updateScrollState, 250);
+      setTimeout(checkScroll, 250);
     }
   };
 
   const handleScrollRight = () => {
     if (dayTabsRef.current) {
       dayTabsRef.current.scrollBy({ left: 140, behavior: 'smooth' });
-      setTimeout(updateScrollState, 250);
+      setTimeout(checkScroll, 250);
     }
   };
 
-  const showScrollArrows = days.length > 3 || canScrollLeft || canScrollRight;
+  // Total trip cost
+  const totalCost = React.useMemo(() => {
+    return days.reduce((sum, d) => sum + (d.itinerary?.total_cost || 0), 0);
+  }, [days]);
+
+  const showScrollArrows = days.length > 5;
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: '12px',
-        bottom: '12px',
-        left: '12px',
+        top: '16px',
+        left: '16px',
+        bottom: '16px',
         zIndex: 1000,
         display: 'flex',
-        alignItems: 'stretch',
         pointerEvents: 'none',
       }}
     >
@@ -246,12 +218,12 @@ export function TripPlanSidebar({
         style={{
           width: isOpen ? '380px' : '0px',
           height: '100%',
-          background: 'rgba(255, 255, 255, 0.94)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          borderRadius: '16px',
-          border: isOpen ? '1px solid #E2E8F0' : 'none',
-          boxShadow: isOpen ? '0 12px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.04)' : 'none',
+          background: 'var(--color-surface-card)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: 'var(--radius-lg)',
+          border: isOpen ? '1px solid var(--color-border)' : 'none',
+          boxShadow: isOpen ? 'var(--shadow-lg)' : 'none',
           overflow: 'hidden',
           transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
           pointerEvents: isOpen ? 'auto' : 'none',
@@ -265,18 +237,18 @@ export function TripPlanSidebar({
             <div
               style={{
                 padding: '14px 16px',
-                borderBottom: '1px solid #E2E8F0',
+                borderBottom: '1px solid var(--color-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
-                background: '#FFFFFF',
+                background: 'var(--color-surface-card)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="font-mono text-muted" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
                   {'// ITINERARY TIMELINE'}
                 </span>
-                <span className="font-mono" style={{ fontSize: '0.8rem', color: '#1E3A8A', fontWeight: 700 }}>
+                <span className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-accent-primary)', fontWeight: 700 }}>
                   EST. {totalCost.toFixed(2)} &euro;
                 </span>
               </div>
@@ -304,14 +276,14 @@ export function TripPlanSidebar({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '6px',
-                      border: '1px solid #E2E8F0',
-                      background: '#FFFFFF',
-                      color: canScrollLeft ? '#1E3A8A' : '#CBD5E1',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-main)',
+                      color: canScrollLeft ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
                       cursor: canScrollLeft ? 'pointer' : 'default',
                       opacity: canScrollLeft ? 1 : 0.4,
                       flexShrink: 0,
-                      boxShadow: canScrollLeft ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                      boxShadow: canScrollLeft ? 'var(--shadow-sm)' : 'none',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -353,23 +325,24 @@ export function TripPlanSidebar({
                     onClick={() => onSelectDay('all')}
                     style={{
                       padding: '4px 10px',
-                      borderRadius: '6px',
+                      borderRadius: 'var(--radius-sm)',
                       border: '1px solid',
-                      borderColor: selectedDay === 'all' ? '#1E3A8A' : '#E2E8F0',
-                      background: selectedDay === 'all' ? '#1E3A8A' : '#FFFFFF',
-                      color: selectedDay === 'all' ? '#FFFFFF' : '#475569',
-                      fontFamily: 'monospace',
+                      borderColor: selectedDay === 'all' ? 'var(--color-accent-primary)' : 'var(--color-border)',
+                      background: selectedDay === 'all' ? 'var(--color-accent-primary)' : 'var(--color-bg-main)',
+                      color: selectedDay === 'all' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: '11px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
-                      boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                      boxShadow: selectedDay === 'all' ? '0 1px 3px rgba(15, 76, 92, 0.2)' : 'none',
                       transition: 'all 0.15s ease',
                     }}
                   >
                     ALL DAYS
                   </button>
+
                   {days.map((d) => {
                     const isSel = selectedDay === d.day;
                     return (
@@ -380,18 +353,18 @@ export function TripPlanSidebar({
                         onClick={() => onSelectDay(d.day)}
                         style={{
                           padding: '4px 10px',
-                          borderRadius: '6px',
+                          borderRadius: 'var(--radius-sm)',
                           border: '1px solid',
-                          borderColor: isSel ? '#1E3A8A' : '#E2E8F0',
-                          background: isSel ? '#1E3A8A' : '#FFFFFF',
-                          color: isSel ? '#FFFFFF' : '#475569',
-                          fontFamily: 'monospace',
+                          borderColor: isSel ? 'var(--color-accent-primary)' : 'var(--color-border)',
+                          background: isSel ? 'var(--color-accent-primary)' : 'var(--color-bg-main)',
+                          color: isSel ? '#FFFFFF' : 'var(--color-text-muted)',
+                          fontFamily: 'var(--font-mono)',
                           fontSize: '11px',
                           fontWeight: 600,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
                           flexShrink: 0,
-                          boxShadow: isSel ? '0 1px 3px rgba(30, 58, 138, 0.2)' : 'none',
+                          boxShadow: isSel ? '0 1px 3px rgba(15, 76, 92, 0.2)' : 'none',
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -415,14 +388,14 @@ export function TripPlanSidebar({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '6px',
-                      border: '1px solid #E2E8F0',
-                      background: '#FFFFFF',
-                      color: canScrollRight ? '#1E3A8A' : '#CBD5E1',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-main)',
+                      color: canScrollRight ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
                       cursor: canScrollRight ? 'pointer' : 'default',
                       opacity: canScrollRight ? 1 : 0.4,
                       flexShrink: 0,
-                      boxShadow: canScrollRight ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                      boxShadow: canScrollRight ? 'var(--shadow-sm)' : 'none',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -450,13 +423,13 @@ export function TripPlanSidebar({
                   justifyContent: 'space-between',
                   gap: '8px',
                   padding: '3px 4px 3px 10px',
-                  background: '#F8FAFC',
-                  borderRadius: '999px',
-                  border: '1px solid #E2E8F0',
+                  background: 'var(--color-bg-main)',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid var(--color-border)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <TransitIcon size={12} color="#1E3A8A" />
+                  <TransitIcon size={12} color="var(--color-accent-primary)" />
                   <span
                     className="font-mono text-muted"
                     style={{
@@ -472,10 +445,10 @@ export function TripPlanSidebar({
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    background: '#FFFFFF',
+                    background: 'var(--color-surface-card)',
                     padding: '2px',
-                    borderRadius: '999px',
-                    border: '1px solid #CBD5E1',
+                    borderRadius: 'var(--radius-full)',
+                    border: '1px solid var(--color-border)',
                     gap: '2px',
                   }}
                 >
@@ -485,16 +458,16 @@ export function TripPlanSidebar({
                     onClick={() => onTransitModeChange?.('simple')}
                     style={{
                       padding: '3px 9px',
-                      borderRadius: '999px',
+                      borderRadius: 'var(--radius-full)',
                       border: 'none',
-                      background: transitMode === 'simple' ? '#1E3A8A' : 'transparent',
-                      color: transitMode === 'simple' ? '#FFFFFF' : '#64748B',
-                      fontFamily: 'monospace',
+                      background: transitMode === 'simple' ? 'var(--color-accent-primary)' : 'transparent',
+                      color: transitMode === 'simple' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: '10px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      boxShadow: transitMode === 'simple' ? '0 1px 3px rgba(30, 58, 138, 0.25)' : 'none',
+                      boxShadow: transitMode === 'simple' ? '0 1px 3px rgba(15, 76, 92, 0.25)' : 'none',
                     }}
                   >
                     SIMPLE
@@ -505,16 +478,16 @@ export function TripPlanSidebar({
                     onClick={() => onTransitModeChange?.('detailed')}
                     style={{
                       padding: '3px 9px',
-                      borderRadius: '999px',
+                      borderRadius: 'var(--radius-full)',
                       border: 'none',
-                      background: transitMode === 'detailed' ? '#1E3A8A' : 'transparent',
-                      color: transitMode === 'detailed' ? '#FFFFFF' : '#64748B',
-                      fontFamily: 'monospace',
+                      background: transitMode === 'detailed' ? 'var(--color-accent-primary)' : 'transparent',
+                      color: transitMode === 'detailed' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: '10px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      boxShadow: transitMode === 'detailed' ? '0 1px 3px rgba(30, 58, 138, 0.25)' : 'none',
+                      boxShadow: transitMode === 'detailed' ? '0 1px 3px rgba(15, 76, 92, 0.25)' : 'none',
                     }}
                   >
                     DETAILED
@@ -530,14 +503,14 @@ export function TripPlanSidebar({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '4px 8px',
-                    background: 'rgba(30, 58, 138, 0.06)',
-                    border: '1px solid rgba(30, 58, 138, 0.18)',
-                    borderRadius: '6px',
+                    background: 'rgba(15, 76, 92, 0.08)',
+                    border: '1px solid var(--color-accent-teal-soft)',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '11px',
-                    fontFamily: 'monospace',
+                    fontFamily: 'var(--font-mono)',
                   }}
                 >
-                  <span style={{ color: '#1E3A8A', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--color-accent-primary)', fontWeight: 600 }}>
                     FILTERED: {categoryFilter.toUpperCase()}
                   </span>
                   {onCategoryFilterChange && (
@@ -547,7 +520,7 @@ export function TripPlanSidebar({
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: '#64748B',
+                        color: 'var(--color-text-muted)',
                         cursor: 'pointer',
                         fontSize: '10px',
                         fontWeight: 600,
@@ -566,9 +539,9 @@ export function TripPlanSidebar({
                   style={{
                     marginTop: '2px',
                     padding: '8px 10px',
-                    background: 'rgba(30, 58, 138, 0.05)',
-                    border: '1px solid rgba(30, 58, 138, 0.15)',
-                    borderRadius: '8px',
+                    background: 'rgba(15, 76, 92, 0.06)',
+                    border: '1px solid var(--color-accent-teal-soft)',
+                    borderRadius: 'var(--radius-md)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -576,8 +549,8 @@ export function TripPlanSidebar({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LightningIcon size={13} color="#1E3A8A" />
-                    <span className="font-mono" style={{ fontSize: '11px', color: '#1E3A8A', fontWeight: 600 }}>
+                    <LightningIcon size={13} color="var(--color-accent-primary)" />
+                    <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-primary)', fontWeight: 600 }}>
                       REAL PUBLIC TRANSIT
                     </span>
                   </div>
@@ -587,12 +560,12 @@ export function TripPlanSidebar({
                     disabled={upgrading || !isGtfsReady}
                     style={{
                       padding: '3px 8px',
-                      background: '#1E3A8A',
-                      color: '#FFF',
+                      background: 'var(--color-accent-primary)',
+                      color: '#FFFFFF',
                       border: 'none',
-                      borderRadius: '4px',
+                      borderRadius: 'var(--radius-sm)',
                       fontSize: '10px',
-                      fontFamily: 'monospace',
+                      fontFamily: 'var(--font-mono)',
                       fontWeight: 700,
                       cursor: isGtfsReady ? 'pointer' : 'not-allowed',
                       display: 'inline-flex',
@@ -601,7 +574,7 @@ export function TripPlanSidebar({
                       opacity: upgrading ? 0.7 : 1,
                     }}
                   >
-                    {upgrading ? <Spinner size={10} color="#FFF" /> : null}
+                    {upgrading ? <Spinner size={10} color="#FFFFFF" /> : null}
                     <span>{upgrading ? 'UPGRADING...' : 'APPLY GTFS'}</span>
                   </button>
                 </div>
@@ -617,8 +590,8 @@ export function TripPlanSidebar({
                 return (
                   <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* Day Group Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid #E2E8F0', paddingBottom: '4px' }}>
-                      <span className="font-display" style={{ fontSize: '0.95rem', color: '#1E3A8A', fontWeight: 700 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid var(--color-border)', paddingBottom: '4px' }}>
+                      <span className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
                         DAY {dayObj.day} {dayObj.theme ? `— ${dayObj.theme}` : ''}
                       </span>
                       <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
@@ -632,7 +605,7 @@ export function TripPlanSidebar({
                     )}
 
                     {path.length === 0 && (
-                      <div className="font-mono text-muted" style={{ fontSize: '12px', padding: '1rem', textAlign: 'center', border: '1px dashed #CBD5E1', borderRadius: '6px', background: '#F8FAFC' }}>
+                      <div className="font-mono text-muted" style={{ fontSize: '12px', padding: '1rem', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-main)' }}>
                         No scheduled stops for this day. Free exploration.
                       </div>
                     )}
@@ -659,10 +632,10 @@ export function TripPlanSidebar({
                                 gap: '8px',
                                 padding: '4px 8px',
                                 margin: '2px 0 2px 20px',
-                                borderLeft: '2px dashed #93C5FD',
+                                borderLeft: '2px dashed var(--color-accent-teal-soft)',
                                 fontSize: '11px',
-                                fontFamily: 'monospace',
-                                color: '#64748B',
+                                fontFamily: 'var(--font-mono)',
+                                color: 'var(--color-text-muted)',
                                 opacity: isCatMatch ? 1 : 0.35,
                                 transition: 'opacity 0.15s ease',
                               }}
@@ -671,11 +644,11 @@ export function TripPlanSidebar({
                                 const isPedestrian = transitFromPrev.mode === 'pedestrian' || transitFromPrev.mode === 'walk';
                                 const line = transitFromPrev.steps?.find((s) => s.transit_line)?.transit_line;
                                 return (
-                                  <>
+                                   <>
                                     {isPedestrian ? (
-                                      <WalkIcon size={12} color="#64748B" />
+                                      <WalkIcon size={12} color="var(--color-text-muted)" />
                                     ) : (
-                                      <TransitIcon size={12} color="#1E3A8A" />
+                                      <TransitIcon size={12} color="var(--color-accent-primary)" />
                                     )}
                                     <span>
                                       {isPedestrian
@@ -691,19 +664,19 @@ export function TripPlanSidebar({
                           {/* Waypoint Card */}
                           <div
                             style={{
-                              background: '#FFFFFF',
+                              background: 'var(--color-bg-main)',
                               border: isCatMatch
-                                ? (categoryFilter ? '1.5px solid #2563EB' : '1px solid #E2E8F0')
-                                : '1px dashed #CBD5E1',
-                              borderRadius: '10px',
+                                ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
+                                : '1px dashed var(--color-border)',
+                              borderRadius: 'var(--radius-md)',
                               padding: '10px 12px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '6px',
                               boxShadow:
                                 isCatMatch && categoryFilter
-                                  ? '0 2px 10px rgba(37, 99, 235, 0.12)'
-                                  : '0 1px 3px rgba(15, 23, 42, 0.04)',
+                                  ? 'var(--shadow-md)'
+                                  : 'var(--shadow-sm)',
                               opacity: isCatMatch ? 1 : 0.35,
                               transition: 'all 0.15s ease',
                             }}
@@ -712,18 +685,18 @@ export function TripPlanSidebar({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span
                                   style={{
-                                    fontFamily: 'monospace',
+                                    fontFamily: 'var(--font-mono)',
                                     fontSize: '11px',
                                     fontWeight: 700,
-                                    background: '#1E3A8A',
+                                    background: 'var(--color-accent-primary)',
                                     color: '#FFFFFF',
                                     padding: '2px 6px',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--radius-sm)',
                                   }}
                                 >
                                   {stopNum}
                                 </span>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#0F172A', fontWeight: 600 }}>
+                                <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
                                   {p?.name || 'Waypoint'}
                                 </h4>
                               </div>
@@ -732,23 +705,23 @@ export function TripPlanSidebar({
                               )}
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'monospace', color: '#64748B', marginTop: '2px' }}>
-                              <span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {startTime}
                                 {' '}&rarr;{' '}
                                 {endTime}
                                 {p?.duration_mins ? ` (${p.duration_mins}m)` : ''}
                               </span>
                               {typeof p?.cost_eur === 'number' && p.cost_eur > 0 && (
-                                <span style={{ color: '#059669', fontWeight: 600 }}>
+                                <span style={{ color: 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                                   {p.cost_eur.toFixed(2)} &euro;
                                 </span>
                               )}
                             </div>
 
                             {openHours && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'monospace', color: '#64748B', marginTop: '-2px' }}>
-                                <span style={{ color: '#94A3B8' }}>&bull;</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '-2px' }}>
+                                <span style={{ color: 'var(--color-text-muted)' }}>&bull;</span>
                                 <span>{openHours}</span>
                               </div>
                             )}
@@ -775,25 +748,25 @@ export function TripPlanSidebar({
           height: '36px',
           alignSelf: 'center',
           marginLeft: isOpen ? '6px' : '0px',
-          background: '#FFFFFF',
-          border: '1px solid #E2E8F0',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border)',
           borderRadius: '0 8px 8px 0',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#475569',
-          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+          color: 'var(--color-text-muted)',
+          boxShadow: 'var(--shadow-sm)',
           pointerEvents: 'auto',
           transition: 'color 0.15s ease, background 0.15s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#1E3A8A';
-          e.currentTarget.style.background = '#F8FAFC';
+          e.currentTarget.style.color = 'var(--color-accent-primary)';
+          e.currentTarget.style.background = 'var(--color-bg-main)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.color = '#475569';
-          e.currentTarget.style.background = '#FFFFFF';
+          e.currentTarget.style.color = 'var(--color-text-muted)';
+          e.currentTarget.style.background = 'var(--color-surface-card)';
         }}
       >
         <svg

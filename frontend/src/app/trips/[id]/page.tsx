@@ -56,7 +56,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
         style={{
           position: 'fixed',
           inset: 0,
-          background: '#0B0F17',
+          background: 'var(--color-bg-main)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -75,7 +75,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
         style={{
           position: 'fixed',
           inset: 0,
-          background: '#0B0F17',
+          background: 'var(--color-bg-main)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -86,13 +86,13 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
           style={{
             maxWidth: '480px',
             textAlign: 'center',
-            background: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-danger)',
             borderRadius: '12px',
             padding: '2rem',
           }}
         >
-          <h3 className="font-display" style={{ color: '#F87171', margin: 0 }}>
+          <h3 className="font-display" style={{ color: 'var(--color-danger)', margin: 0 }}>
             MISSION TELEMETRY ERROR
           </h3>
           <p className="font-mono text-muted text-sm mt-2">{error}</p>
@@ -100,13 +100,14 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
             <button
               onClick={loadTrip}
               style={{
-                padding: '6px 14px',
-                background: '#2563EB',
-                color: '#FFF',
+                padding: '8px 16px',
+                background: 'var(--color-accent-primary)',
+                color: 'var(--color-text-on-accent)',
                 border: 'none',
                 borderRadius: '6px',
                 fontFamily: 'monospace',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
               RETRY
@@ -114,9 +115,10 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
             <Link
               href="/trips"
               style={{
-                padding: '6px 14px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                color: '#94A3B8',
+                padding: '8px 16px',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-main)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '6px',
                 fontFamily: 'monospace',
                 textDecoration: 'none',
@@ -138,7 +140,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
         style={{
           position: 'fixed',
           inset: 0,
-          background: '#0B0F17',
+          background: 'var(--color-bg-main)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -149,13 +151,13 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
           style={{
             maxWidth: '480px',
             textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
             borderRadius: '12px',
             padding: '2rem',
           }}
         >
-          <h3 className="font-display" style={{ color: '#FFF', margin: 0 }}>
+          <h3 className="font-display" style={{ color: 'var(--color-text-main)', margin: 0 }}>
             MISSION NOT FOUND
           </h3>
           <p className="font-mono text-muted text-sm mt-2">
@@ -166,13 +168,15 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
             style={{
               marginTop: '1.5rem',
               display: 'inline-block',
-              padding: '6px 14px',
-              background: '#2563EB',
-              color: '#FFF',
+              padding: '8px 16px',
+              background: 'var(--color-accent-primary)',
+              color: 'var(--color-text-on-accent)',
+              border: 'none',
               borderRadius: '6px',
               fontFamily: 'monospace',
               textDecoration: 'none',
               fontSize: '0.85rem',
+              fontWeight: 600,
             }}
           >
             &larr; RETURN TO TRIPS

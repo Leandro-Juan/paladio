@@ -35,18 +35,17 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
     <div
       style={{
         position: 'relative',
-        background: '#FFFFFF',
-        border: '1px solid var(--color-border, #E2E8F0)',
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-border-subtle)',
         borderRadius: '16px',
         padding: '20px 20px 16px 20px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '16px',
         transition: 'all 0.15s ease',
       }}
-      className="hover:border-slate-300 hover:shadow-sm"
     >
       {/* Signature corner-riding category badge */}
       <span
@@ -62,7 +61,7 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
           borderRadius: '15px 0 10px 0',
           background: meta.color,
           color: '#FFFFFF',
-          fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+          fontFamily: 'var(--font-mono, monospace)',
           fontSize: '0.65rem',
           fontWeight: 700,
           letterSpacing: '0.06em',
@@ -97,10 +96,10 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span
               style={{
-                fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+                fontFamily: 'var(--font-display, "Jost", sans-serif)',
                 fontSize: '1rem',
                 fontWeight: 600,
-                color: 'var(--color-text-primary, #0F172A)',
+                color: 'var(--color-text-main)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -117,10 +116,10 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
                   gap: '4px',
                   padding: '1px 7px',
                   borderRadius: '6px',
-                  background: 'var(--color-accent-warning-bg, rgba(217, 119, 6, 0.08))',
-                  border: '1px solid var(--color-accent-warning-border, rgba(217, 119, 6, 0.3))',
-                  color: 'var(--color-accent-warning, #D97706)',
-                  fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                  background: 'rgba(226, 179, 60, 0.12)',
+                  border: '1px solid rgba(226, 179, 60, 0.3)',
+                  color: 'var(--color-accent-secondary)',
+                  fontFamily: 'var(--font-mono, monospace)',
                   fontSize: '0.68rem',
                   fontWeight: 600,
                   flexShrink: 0,
@@ -138,19 +137,19 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
               fontSize: '0.73rem',
-              color: 'var(--color-text-muted, #64748B)',
+              color: 'var(--color-text-muted)',
               marginTop: '4px',
               flexWrap: 'wrap',
             }}
           >
             {item.payerName ? (
               <span>
-                Paid by <b style={{ color: 'var(--color-text-primary, #0F172A)' }}>{item.payerName}</b>
+                Paid by <b style={{ color: 'var(--color-text-main)' }}>{item.payerName}</b>
               </span>
             ) : (
-              <span style={{ color: '#D97706' }}>
+              <span style={{ color: 'var(--color-accent-secondary)' }}>
                 {item.source === 'itinerary' ? '// ROUTE ESTIMATE (UNASSIGNED)' : '// NEEDS A PAYER'}
               </span>
             )}
@@ -177,10 +176,11 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
         <div style={{ textAlign: 'right' }}>
           <div
             style={{
-              fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontFeatureSettings: '"tnum"',
               fontSize: '1.25rem',
               fontWeight: 700,
-              color: 'var(--color-text-primary, #0F172A)',
+              color: 'var(--color-text-main)',
               letterSpacing: '-0.02em',
             }}
           >
@@ -188,9 +188,9 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
               fontSize: '0.68rem',
-              color: 'var(--color-text-muted, #94A3B8)',
+              color: 'var(--color-text-muted)',
             }}
           >
             {currency}
@@ -205,10 +205,10 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               onClick={() => onClaim(item)}
               title="Assign Payer"
               style={{
-                border: '1px solid rgba(30, 58, 138, 0.25)',
-                background: 'rgba(30, 58, 138, 0.08)',
-                color: 'var(--color-accent-primary, #1E3A8A)',
-                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                border: '1px solid var(--color-accent-primary)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-accent-primary)',
+                fontFamily: 'var(--font-mono, monospace)',
                 borderRadius: '8px',
                 padding: '5px 12px',
                 fontSize: '0.74rem',
@@ -216,7 +216,6 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              className="hover:bg-blue-100"
             >
               Assign
             </button>
@@ -228,16 +227,15 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               onClick={() => onEdit(item)}
               title="Edit Expense"
               style={{
-                border: '1px solid var(--color-border, #E2E8F0)',
-                background: '#FFFFFF',
-                color: 'var(--color-text-muted, #64748B)',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-muted)',
                 cursor: 'pointer',
                 padding: '6px',
                 borderRadius: '8px',
                 display: 'grid',
                 placeItems: 'center',
               }}
-              className="hover:text-slate-900 hover:border-slate-400"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9" />
@@ -252,16 +250,15 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               onClick={() => onDelete(item)}
               title="Delete Expense"
               style={{
-                border: '1px solid rgba(220, 38, 38, 0.2)',
-                background: 'rgba(220, 38, 38, 0.05)',
-                color: '#DC2626',
+                border: '1px solid var(--color-danger)',
+                background: 'transparent',
+                color: 'var(--color-danger)',
                 cursor: 'pointer',
                 padding: '6px',
                 borderRadius: '8px',
                 display: 'grid',
                 placeItems: 'center',
               }}
-              className="hover:bg-red-100"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />

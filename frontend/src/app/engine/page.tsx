@@ -158,7 +158,7 @@ export default function EnginePage() {
               fontWeight: 600,
               cursor: 'pointer',
               background: activeTab === 'prep' ? 'var(--color-accent-primary)' : 'transparent',
-              color: activeTab === 'prep' ? '#FFF' : 'var(--color-text-muted)',
+              color: activeTab === 'prep' ? 'var(--color-btn-primary-text)' : 'var(--color-text-muted)',
               transition: 'all 0.2s',
             }}
           >
@@ -177,7 +177,7 @@ export default function EnginePage() {
               fontWeight: 600,
               cursor: 'pointer',
               background: activeTab === 'telemetry' ? 'var(--color-accent-primary)' : 'transparent',
-              color: activeTab === 'telemetry' ? '#FFF' : 'var(--color-text-muted)',
+              color: activeTab === 'telemetry' ? 'var(--color-btn-primary-text)' : 'var(--color-text-muted)',
               transition: 'all 0.2s',
             }}
           >
@@ -238,7 +238,7 @@ export default function EnginePage() {
                 )}
 
                 {missingFields.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-accent-warning, #D97706)', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-accent-gold)', marginBottom: '0.75rem' }}>
                     [MISSING FIELDS DETECTED]: {missingFields.join(', ').toUpperCase()}
                   </div>
                 )}
@@ -357,7 +357,7 @@ export default function EnginePage() {
                     }}
                     style={{
                       background: 'var(--color-accent-primary)',
-                      color: '#FFF',
+                      color: 'var(--color-btn-primary-text)',
                       border: 'none',
                       padding: '0.5rem 1rem',
                       cursor: 'pointer',
@@ -451,7 +451,7 @@ export default function EnginePage() {
                       sendFeedback(firstPoi, 100.0);
                     }
                   }}
-                  style={{ flex: 1, padding: '0.5rem', background: 'var(--color-accent-primary)', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-display)' }}
+                  style={{ flex: 1, padding: '0.5rem', background: 'var(--color-accent-primary)', color: 'var(--color-btn-primary-text)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-display)' }}
                 >
                   TUNE PREFERENCE
                 </button>
@@ -488,14 +488,14 @@ export default function EnginePage() {
       >
         {overlapWarning?.overlapping_trip && (
           <div style={{
-            background: 'var(--color-accent-warning-bg, rgba(217, 119, 6, 0.08))',
-            border: '1px solid var(--color-accent-warning-border, rgba(217, 119, 6, 0.3))',
+            background: 'var(--color-accent-gold-soft)',
+            border: '1px solid var(--color-border-subtle)',
             borderRadius: '4px',
             padding: '0.75rem',
             fontFamily: 'var(--font-mono)',
             fontSize: '0.85rem'
           }}>
-            <div style={{ fontWeight: 600, color: 'var(--color-accent-warning, #D97706)', marginBottom: '0.25rem' }}>
+            <div style={{ fontWeight: 600, color: 'var(--color-accent-gold)', marginBottom: '0.25rem' }}>
               CONFLICTING TRIP DETAILS:
             </div>
             <div>Destination: {overlapWarning.overlapping_trip.destination}</div>
@@ -521,14 +521,14 @@ export default function EnginePage() {
       >
         {guardrailAbort?.errors && guardrailAbort.errors.length > 0 && (
           <div style={{
-            background: 'rgba(220, 38, 38, 0.08)',
-            border: '1px solid var(--color-accent-secondary, #DC2626)',
+            background: 'var(--color-danger-soft)',
+            border: '1px solid var(--color-danger)',
             borderRadius: '4px',
             padding: '0.75rem',
             fontFamily: 'var(--font-mono)',
             fontSize: '0.85rem'
           }}>
-            <div style={{ fontWeight: 600, color: 'var(--color-accent-secondary, #DC2626)', marginBottom: '0.5rem' }}>
+            <div style={{ fontWeight: 600, color: 'var(--color-danger)', marginBottom: '0.5rem' }}>
               CRITICAL VIOLATIONS:
             </div>
             <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--color-text-primary)' }}>

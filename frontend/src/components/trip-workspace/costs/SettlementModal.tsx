@@ -83,7 +83,7 @@ export function SettlementModal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         backdropFilter: 'blur(8px)',
         zIndex: 9999,
         display: 'flex',
@@ -94,11 +94,12 @@ export function SettlementModal({
     >
       <div
         style={{
-          background: '#FFFFFF',
+          background: 'var(--color-surface-card)',
           borderRadius: '24px',
           maxWidth: '460px',
           width: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          boxShadow: 'var(--shadow-lg, 0 25px 50px -12px rgba(0, 0, 0, 0.25))',
+          border: '1px solid var(--color-border-subtle)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -107,17 +108,17 @@ export function SettlementModal({
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid #E2E8F0',
+            borderBottom: '1px solid var(--color-border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#0F172A' }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
               Record Payment
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
               Mark a debt between crew members as settled
             </p>
           </div>
@@ -126,12 +127,12 @@ export function SettlementModal({
             onClick={onClose}
             style={{
               border: 'none',
-              background: '#F1F5F9',
+              background: 'var(--color-surface-subtle, var(--color-surface-card))',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
               cursor: 'pointer',
-              color: '#64748B',
+              color: 'var(--color-text-muted)',
               fontSize: '1rem',
               display: 'grid',
               placeItems: 'center',
@@ -145,9 +146,9 @@ export function SettlementModal({
           {error && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid #FCA5A5',
-                color: '#DC2626',
+                background: 'rgba(212, 42, 47, 0.1)',
+                border: '1px solid var(--color-danger)',
+                color: 'var(--color-danger)',
                 padding: '10px 14px',
                 borderRadius: '10px',
                 fontSize: '0.8rem',
@@ -161,7 +162,7 @@ export function SettlementModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Sender / Payer */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Paid By (Sender)
               </label>
               <select
@@ -171,10 +172,11 @@ export function SettlementModal({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
                   outline: 'none',
-                  background: '#FFFFFF',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-main)',
                 }}
               >
                 {participants.map((p) => (
@@ -187,7 +189,7 @@ export function SettlementModal({
 
             {/* Receiver */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Sent To (Recipient)
               </label>
               <select
@@ -197,10 +199,11 @@ export function SettlementModal({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
                   outline: 'none',
-                  background: '#FFFFFF',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-main)',
                 }}
               >
                 {participants.map((p) => (
@@ -213,7 +216,7 @@ export function SettlementModal({
 
             {/* Amount */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Amount (€)
               </label>
               <input
@@ -227,16 +230,20 @@ export function SettlementModal({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
                   outline: 'none',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-main)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontFeatureSettings: '"tnum"',
                 }}
               />
             </div>
 
             {/* Description */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Note / Reference
               </label>
               <input
@@ -247,9 +254,11 @@ export function SettlementModal({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #CBD5E1',
+                  border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
                   outline: 'none',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-main)',
                 }}
               />
             </div>
@@ -271,9 +280,9 @@ export function SettlementModal({
               style={{
                 padding: '10px 18px',
                 borderRadius: '12px',
-                border: '1px solid #CBD5E1',
-                background: '#FFFFFF',
-                color: '#475569',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-main)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',
@@ -288,8 +297,8 @@ export function SettlementModal({
                 padding: '10px 22px',
                 borderRadius: '12px',
                 border: 'none',
-                background: '#16A34A',
-                color: '#FFFFFF',
+                background: 'var(--color-accent-primary)',
+                color: 'var(--color-text-on-accent)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',

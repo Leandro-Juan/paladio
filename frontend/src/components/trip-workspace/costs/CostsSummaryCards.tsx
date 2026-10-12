@@ -41,11 +41,11 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
   const isTotal = tone === 'total';
   const accentColor =
     tone === 'owe'
-      ? '#DC2626'
+      ? 'var(--color-danger)'
       : tone === 'owed'
-      ? '#059669'
+      ? 'var(--color-success)'
       : tone === 'unfinished'
-      ? '#D97706'
+      ? 'var(--color-accent-secondary)'
       : undefined;
 
   const { integerPart, otherPart } = formatMoneyParts(amount, currency);
@@ -58,15 +58,13 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
         position: 'relative',
         overflow: 'hidden',
         background: isTotal
-          ? 'linear-gradient(135deg, #0F172A 0%, #172554 60%, #1E3A8A 100%)'
-          : '#FFFFFF',
-        color: isTotal ? '#FFFFFF' : 'inherit',
+          ? 'var(--color-accent-primary)'
+          : 'var(--color-surface-card)',
+        color: isTotal ? 'var(--color-text-on-accent)' : 'var(--color-text-main)',
         border: isTotal
-          ? '1px solid rgba(255, 255, 255, 0.12)'
-          : '1px solid var(--color-border, #E2E8F0)',
-        boxShadow: isTotal
-          ? '0 10px 25px -5px rgba(30, 58, 138, 0.25)'
-          : '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+          ? '1px solid var(--color-accent-primary)'
+          : '1px solid var(--color-border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -84,9 +82,9 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
               display: 'grid',
               placeItems: 'center',
               background: isTotal
-                ? 'rgba(255, 255, 255, 0.12)'
-                : `${accentColor}14`,
-              color: isTotal ? '#FFFFFF' : accentColor,
+                ? 'rgba(255, 255, 255, 0.15)'
+                : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
+              color: isTotal ? 'var(--color-text-on-accent)' : accentColor,
             }}
           >
             {icon}
@@ -94,20 +92,20 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
           <div>
             <div
               style={{
-                fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+                fontFamily: 'var(--font-display, "Jost", sans-serif)',
                 fontSize: '0.88rem',
                 fontWeight: 600,
                 letterSpacing: '-0.01em',
-                color: isTotal ? '#FFFFFF' : 'var(--color-text-primary, #0F172A)',
+                color: isTotal ? 'var(--color-text-on-accent)' : 'var(--color-text-main)',
               }}
             >
               {label}
             </div>
             <div
               style={{
-                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '0.7rem',
-                color: isTotal ? 'rgba(255, 255, 255, 0.65)' : 'var(--color-text-muted, #64748B)',
+                color: isTotal ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-muted)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -118,7 +116,8 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
 
         <div
           style={{
-            fontFamily: 'var(--font-display, "Outfit", sans-serif)',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontFeatureSettings: '"tnum"',
             fontSize: '2.5rem',
             fontWeight: 700,
             letterSpacing: '-0.035em',
@@ -126,17 +125,18 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
             marginTop: '16px',
             display: 'flex',
             alignItems: 'baseline',
-            color: isTotal ? '#FFFFFF' : accentColor,
+            color: isTotal ? 'var(--color-text-on-accent)' : accentColor,
           }}
         >
           <span>{integerPart}</span>
           <span
             style={{
-              fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontFeatureSettings: '"tnum"',
               fontSize: '1.25rem',
               fontWeight: 500,
               marginLeft: '4px',
-              color: isTotal ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-text-muted, #64748B)',
+              color: isTotal ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-muted)',
             }}
           >
             {otherPart}
@@ -147,13 +147,13 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
       <div
         style={{
           marginTop: '14px',
-          fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+          fontFamily: 'var(--font-mono, monospace)',
           fontSize: '0.74rem',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
           flexWrap: 'wrap',
-          color: isTotal ? 'rgba(255, 255, 255, 0.85)' : 'var(--color-text-muted, #64748B)',
+          color: isTotal ? 'rgba(255, 255, 255, 0.85)' : 'var(--color-text-muted)',
         }}
       >
         {foot}
@@ -204,9 +204,9 @@ export function CostsSummaryCards({ totals }: CostsSummaryCardsProps) {
         }
         foot={
           totals.owe > 0.01 ? (
-            <span style={{ color: '#DC2626', fontWeight: 600 }}>Payments pending</span>
+            <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>Payments pending</span>
           ) : (
-            <span style={{ color: '#94A3B8' }}>You&apos;re all settled up</span>
+            <span style={{ color: 'var(--color-text-muted)' }}>You&apos;re all settled up</span>
           )
         }
       />
@@ -226,9 +226,9 @@ export function CostsSummaryCards({ totals }: CostsSummaryCardsProps) {
         }
         foot={
           totals.owed > 0.01 ? (
-            <span style={{ color: '#059669', fontWeight: 600 }}>Refunds pending</span>
+            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Refunds pending</span>
           ) : (
-            <span style={{ color: '#94A3B8' }}>Nothing owed to you</span>
+            <span style={{ color: 'var(--color-text-muted)' }}>Nothing owed to you</span>
           )
         }
       />
@@ -250,11 +250,11 @@ export function CostsSummaryCards({ totals }: CostsSummaryCardsProps) {
         foot={
           totals.outstandingCount > 0 ? (
             <span>
-              <b style={{ color: '#D97706' }}>{totals.outstandingCount}</b> expense
+              <b style={{ color: 'var(--color-accent-secondary)' }}>{totals.outstandingCount}</b> expense
               {totals.outstandingCount !== 1 ? 's' : ''} need a payer
             </span>
           ) : (
-            <span style={{ color: '#94A3B8' }}>All items assigned</span>
+            <span style={{ color: 'var(--color-text-muted)' }}>All items assigned</span>
           )
         }
       />
@@ -277,14 +277,14 @@ export function CostsSummaryCards({ totals }: CostsSummaryCardsProps) {
           <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
             <span>
               Your share:{' '}
-              <b style={{ color: '#FFFFFF' }}>
+              <b style={{ color: 'var(--color-text-on-accent)' }}>
                 €{totals.myShare.toFixed(0)}
               </b>
             </span>
             <span>·</span>
             <span>
               You paid:{' '}
-              <b style={{ color: '#FFFFFF' }}>
+              <b style={{ color: 'var(--color-text-on-accent)' }}>
                 €{totals.myPaid.toFixed(0)}
               </b>
             </span>

@@ -51,9 +51,9 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
       case 'transit_board':
         return <TransitIcon size={14} color="var(--color-accent-primary)" />;
       case 'transit_alight':
-        return <ArrivalIcon size={14} color="#059669" />;
+        return <ArrivalIcon size={14} color="var(--color-success)" />;
       case 'transfer':
-        return <TransferIcon size={14} color="#D97706" />;
+        return <TransferIcon size={14} color="var(--color-accent-warning)" />;
       case 'walk':
       default:
         return <WalkIcon size={14} color="var(--color-text-muted)" />;
@@ -67,7 +67,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
       style={{
         margin: '0.5rem 0 1rem 1.75rem',
         padding: '0.6rem 0.85rem',
-        borderRadius: '6px',
+        borderRadius: 'var(--radius-sm)',
         background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border)',
         fontSize: '0.825rem',
@@ -118,9 +118,9 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
               data-testid="transit-line-chip"
               style={{
                 background: 'var(--color-accent-primary)',
-                color: '#FFF',
+                color: '#FFFFFF',
                 padding: '2px 6px',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 fontSize: '0.7rem',
                 fontWeight: 600,
                 letterSpacing: '0.5px',
@@ -140,7 +140,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
               {cost_eur.toFixed(2)} €
             </span>
           ) : (
-            <span style={{ color: '#16A34A', fontWeight: 600 }}>FREE</span>
+            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>FREE</span>
           )}
 
           {airport_surcharge_eur > 0 && (
@@ -148,11 +148,11 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
               data-testid="airport-surcharge-badge"
               style={{
                 fontSize: '0.65rem',
-                background: '#DBEAFE',
-                color: '#1E40AF',
-                border: '1px solid #93C5FD',
+                background: 'rgba(15, 76, 92, 0.1)',
+                color: 'var(--color-accent-primary)',
+                border: '1px solid var(--color-accent-teal-soft)',
                 padding: '1px 5px',
-                borderRadius: '3px',
+                borderRadius: 'var(--radius-sm)',
                 fontWeight: 600,
                 letterSpacing: '0.3px',
               }}
@@ -179,11 +179,11 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
               data-testid="estimated-fare-badge"
               style={{
                 fontSize: '0.65rem',
-                background: '#FEF3C7',
-                color: '#92400E',
-                border: '1px solid #FCD34D',
+                background: 'var(--color-accent-warning-bg)',
+                color: 'var(--color-accent-warning)',
+                border: '1px solid var(--color-accent-warning-border)',
                 padding: '1px 5px',
-                borderRadius: '3px',
+                borderRadius: 'var(--radius-sm)',
                 fontWeight: 500,
               }}
             >
@@ -317,9 +317,9 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
       style={{
         margin: '0.75rem 0 1rem 0',
         padding: '0.75rem 1rem',
-        borderRadius: '6px',
-        background: isPassRecommended ? '#EFF6FF' : 'var(--color-surface-card)',
-        border: `1px solid ${isPassRecommended ? '#93C5FD' : 'var(--color-border)'}`,
+        borderRadius: 'var(--radius-sm)',
+        background: isPassRecommended ? 'rgba(15, 76, 92, 0.08)' : 'var(--color-surface-card)',
+        border: `1px solid ${isPassRecommended ? 'var(--color-accent-teal-soft)' : 'var(--color-border)'}`,
         fontFamily: 'var(--font-mono)',
         fontSize: '0.8rem',
       }}
@@ -327,7 +327,7 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center' }}>
           {isPassRecommended ? (
-            <BulbIcon size={16} color="#1E40AF" />
+            <BulbIcon size={16} color="var(--color-accent-primary)" />
           ) : (
             <TicketIcon size={16} color="var(--color-accent-primary)" />
           )}
@@ -335,7 +335,7 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
         <span
           style={{
             fontWeight: 700,
-            color: isPassRecommended ? '#1E40AF' : 'var(--color-text-primary)',
+            color: isPassRecommended ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
             fontSize: '0.85rem',
           }}
         >
@@ -365,7 +365,7 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
           <span>24h Pass Price: {recommendation.pass_price_eur.toFixed(2)}€</span>
         )}
         {recommendation.savings_eur > 0 && (
-          <span style={{ color: '#16A34A', fontWeight: 600 }}>
+          <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
             Estimated Savings: +{recommendation.savings_eur.toFixed(2)}€
           </span>
         )}
@@ -376,7 +376,7 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
         style={{
           marginTop: '0.5rem',
           paddingTop: '0.4rem',
-          borderTop: isPassRecommended ? '1px dashed #BFDBFE' : '1px dashed var(--color-border)',
+          borderTop: isPassRecommended ? '1px dashed var(--color-accent-teal-soft)' : '1px dashed var(--color-border)',
           fontSize: '0.675rem',
           color: 'var(--color-text-muted)',
           fontStyle: 'italic',

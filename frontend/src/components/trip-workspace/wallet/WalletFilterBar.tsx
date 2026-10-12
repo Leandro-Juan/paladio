@@ -51,8 +51,8 @@ export function WalletFilterBar({
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          background: 'var(--color-surface-card, #F8FAFC)',
-          border: '1px solid var(--color-border, #E2E8F0)',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: '8px',
           padding: '4px',
           overflowX: 'auto',
@@ -77,8 +77,8 @@ export function WalletFilterBar({
                 padding: '6px 12px',
                 borderRadius: '6px',
                 border: 'none',
-                background: isActive ? 'var(--color-accent-primary, #1E3A8A)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
+                background: isActive ? 'var(--color-accent-primary)' : 'transparent',
+                color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                 fontSize: '11px',
                 fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
@@ -86,13 +86,13 @@ export function WalletFilterBar({
                 whiteSpace: 'nowrap',
               }}
             >
-              {conf && <span>{conf.renderIcon({ size: 13, color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)' })}</span>}
+              {conf && <span>{conf.renderIcon({ size: 13, color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)' })}</span>}
               <span>{cat.label}</span>
               <span
                 style={{
                   fontSize: '10px',
-                  background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'var(--color-border, #E2E8F0)',
-                  color: isActive ? '#FFFFFF' : 'var(--color-text-muted, #64748B)',
+                  background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.05))',
+                  color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                   padding: '1px 5px',
                   borderRadius: '10px',
                   fontWeight: 600,
@@ -118,7 +118,7 @@ export function WalletFilterBar({
             alignItems: 'center',
           }}
         >
-          <SearchIcon size={13} color="var(--color-text-muted, #64748B)" />
+          <SearchIcon size={13} color="var(--color-text-muted)" />
         </div>
         <input
           type="text"
@@ -128,15 +128,15 @@ export function WalletFilterBar({
           aria-label="Search tickets"
           style={{
             width: '100%',
-            background: '#FFFFFF',
-            border: '1px solid var(--color-border, #CBD5E1)',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
             borderRadius: '6px',
             padding: '7px 28px 7px 26px',
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-main)',
             fontSize: '11px',
             fontFamily: 'var(--font-mono, monospace)',
             outline: 'none',
-            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+            boxShadow: 'var(--shadow-sm)',
           }}
         />
         {searchQuery && (

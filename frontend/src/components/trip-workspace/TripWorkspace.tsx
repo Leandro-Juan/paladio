@@ -186,8 +186,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        background: '#FFFFFF',
-        color: 'var(--color-text-primary, #0F172A)',
+        background: 'var(--color-bg-main)',
+        color: 'var(--color-text-main)',
       }}
     >
       {/* Top Header with Navigation Tabs */}

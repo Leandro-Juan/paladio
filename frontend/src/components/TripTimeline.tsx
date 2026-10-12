@@ -282,9 +282,9 @@ export function TripTimeline({
                 fontSize: '12px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                background: isGtfsReady ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.06)',
-                color: isGtfsReady ? '#60a5fa' : '#9ca3af',
-                border: isGtfsReady ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: isGtfsReady ? 'rgba(15, 76, 92, 0.12)' : 'var(--color-bg-main)',
+                color: isGtfsReady ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                border: isGtfsReady ? '1px solid var(--color-accent-teal-soft)' : '1px solid var(--color-border)',
                 transition: 'all 0.2s ease',
               }}
             >
@@ -303,11 +303,11 @@ export function TripTimeline({
                   right: 0,
                   width: '280px',
                   padding: '0.65rem 0.85rem',
-                  borderRadius: '6px',
-                  background: '#18181b',
-                  border: isGtfsReady ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid #3f3f46',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)',
-                  color: '#e4e4e7',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--color-surface-card)',
+                  border: isGtfsReady ? '1px solid var(--color-accent-teal-soft)' : '1px solid var(--color-border)',
+                  boxShadow: 'var(--shadow-lg)',
+                  color: 'var(--color-text-primary)',
                   fontSize: '0.75rem',
                   lineHeight: '1.4',
                   zIndex: 50,
@@ -321,7 +321,7 @@ export function TripTimeline({
                     gap: '0.4rem',
                     fontWeight: 600,
                     marginBottom: '0.35rem',
-                    color: isGtfsReady ? '#60a5fa' : '#fbbf24',
+                    color: isGtfsReady ? 'var(--color-accent-primary)' : 'var(--color-accent-warning)',
                     textTransform: 'uppercase',
                     fontSize: '0.7rem',
                     letterSpacing: '0.5px',
@@ -329,7 +329,7 @@ export function TripTimeline({
                 >
                   <span>{isGtfsReady ? '● READY' : '○ GTFS SCHEDULE COMPILING'}</span>
                 </div>
-                <div style={{ color: '#d1d5db' }}>
+                <div style={{ color: 'var(--color-text-muted)' }}>
                   {isGtfsReady
                     ? 'Upgrades estimated transit times and fallback routes to exact real-world public transit lines, metro/bus stops, and live cascading schedules for this city.'
                     : gtfsStatus === 'UNAVAILABLE'
@@ -349,21 +349,21 @@ export function TripTimeline({
             className="font-mono text-xs"
             style={{
               background: upgrading
-                ? '#2b2b2b'
+                ? 'var(--color-surface-card)'
                 : isGtfsReady
-                ? 'rgba(59, 130, 246, 0.12)'
-                : '#27272a',
+                ? 'var(--color-accent-primary)'
+                : 'var(--color-surface-card)',
               color: upgrading
-                ? '#777777'
+                ? 'var(--color-text-muted)'
                 : isGtfsReady
-                ? '#60a5fa'
-                : '#71717a',
+                ? '#FFFFFF'
+                : 'var(--color-text-muted)',
               border: upgrading
-                ? '1px solid #444444'
+                ? '1px solid var(--color-border)'
                 : isGtfsReady
-                ? '1px solid rgba(59, 130, 246, 0.35)'
-                : '1px solid #3f3f46',
-              borderRadius: '4px',
+                ? '1px solid var(--color-accent-primary)'
+                : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
               padding: '0.4rem 0.8rem',
               cursor: !isGtfsReady || upgrading ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
@@ -375,12 +375,12 @@ export function TripTimeline({
           >
             {upgrading ? (
               <>
-                <Spinner size={14} color="#777777" />
+                <Spinner size={14} color="var(--color-text-muted)" />
                 <span>UPGRADING TO REAL PUBLIC TRANSIT...</span>
               </>
             ) : (
               <>
-                <LightningIcon size={14} color={isGtfsReady ? '#60a5fa' : '#71717a'} />
+                <LightningIcon size={14} color={isGtfsReady ? '#FFFFFF' : 'var(--color-text-muted)'} />
                 <span>UPGRADE TO REAL PUBLIC TRANSIT</span>
               </>
             )}
@@ -589,8 +589,8 @@ export function TripTimeline({
                                 fontSize: '0.65rem',
                                 padding: '1px 5px',
                                 borderRadius: '4px',
-                                background: scheduledPoi.poi.tier === 1 ? 'rgba(234, 179, 8, 0.2)' : 'rgba(100, 116, 139, 0.2)',
-                                color: scheduledPoi.poi.tier === 1 ? '#eab308' : '#94a3b8',
+                                background: scheduledPoi.poi.tier === 1 ? 'var(--color-accent-warning-bg)' : 'rgba(15, 76, 92, 0.08)',
+                                color: scheduledPoi.poi.tier === 1 ? 'var(--color-accent-warning)' : 'var(--color-text-muted)',
                                 fontWeight: 700,
                               }}
                             >
@@ -599,7 +599,7 @@ export function TripTimeline({
                           )}
                           <PoiCategoryBadge category={category} name={name} size="xs" />
                         </div>
-                        <span className="font-mono text-muted text-sm">{time}</span>
+                        <span className="font-mono text-muted text-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>{time}</span>
                       </div>
                       {duration && (
                         <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>

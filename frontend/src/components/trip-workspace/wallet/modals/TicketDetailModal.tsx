@@ -157,7 +157,7 @@ export function TicketDetailModal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(15, 23, 42, 0.65)',
+        background: 'rgba(0, 0, 0, 0.6)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -170,15 +170,15 @@ export function TicketDetailModal({
     >
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid var(--color-border, #CBD5E1)',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '520px',
           maxHeight: '94vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(15, 23, 42, 0.25)',
+          boxShadow: 'var(--shadow-lg, 0 25px 60px rgba(0, 0, 0, 0.25))',
           overflow: 'hidden',
           fontFamily: 'var(--font-mono, monospace)',
         }}
@@ -187,8 +187,8 @@ export function TicketDetailModal({
         <div
           style={{
             padding: '1rem 1.25rem',
-            background: 'var(--color-surface-card, #F8FAFC)',
-            borderBottom: '1px solid var(--color-border, #E2E8F0)',
+            background: 'var(--color-surface-subtle, var(--color-surface-card))',
+            borderBottom: '1px solid var(--color-border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -218,9 +218,9 @@ export function TicketDetailModal({
                 title="Screen will stay awake"
                 style={{
                   fontSize: '10px',
-                  color: '#059669',
-                  background: '#ECFDF5',
-                  border: '1px solid #A7F3D0',
+                  color: 'var(--color-success)',
+                  background: 'rgba(5, 150, 105, 0.12)',
+                  border: '1px solid var(--color-success)',
                   padding: '2px 6px',
                   borderRadius: '4px',
                   display: 'inline-flex',
@@ -229,7 +229,7 @@ export function TicketDetailModal({
                   fontWeight: 600,
                 }}
               >
-                <SunIcon size={11} color="#059669" />
+                <SunIcon size={11} color="var(--color-success)" />
                 AWAKE
               </span>
             )}
@@ -237,7 +237,7 @@ export function TicketDetailModal({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {tickets.length > 1 && (
-              <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                 {currentIndex + 1} / {tickets.length}
               </span>
             )}
@@ -246,17 +246,17 @@ export function TicketDetailModal({
               onClick={onClose}
               aria-label="Close fullscreen pass"
               style={{
-                background: '#FFFFFF',
-                border: '1px solid var(--color-border, #CBD5E1)',
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '6px',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted)',
                 padding: '4px 8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <CloseIcon size={12} color="var(--color-text-muted, #64748B)" />
+              <CloseIcon size={12} color="var(--color-text-muted)" />
             </button>
           </div>
         </div>
