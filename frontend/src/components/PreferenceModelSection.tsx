@@ -83,7 +83,7 @@ export function PreferenceModelSection() {
 
   if (loading) {
     return (
-      <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: '12px', textAlign: 'center' }}>
+      <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
         <p className="font-mono text-muted">{'// LOADING SOVEREIGN TASTE TELEMETRY...'}</p>
       </div>
     );
@@ -94,7 +94,7 @@ export function PreferenceModelSection() {
       data-testid="preference-model-section"
       className="bg-surface border-subtle"
       style={{
-        borderRadius: '12px',
+        borderRadius: 'var(--radius-lg)',
         padding: '1.75rem',
         display: 'flex',
         flexDirection: 'column',
@@ -105,21 +105,22 @@ export function PreferenceModelSection() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
-              PREFERENCE MODEL & TASTE TELEMETRY
+            <h3 className="font-display" style={{ margin: 0, fontSize: '1.35rem', fontWeight: 300, color: 'var(--color-text-primary)' }}>
+              PREFERENCE MODEL &amp; TASTE TELEMETRY
             </h3>
             <span
-              className="font-mono text-xs"
               style={{
                 padding: '2px 8px',
-                borderRadius: '4px',
-                background: 'rgba(34, 197, 94, 0.1)',
-                color: '#16A34A',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
+                borderRadius: 'var(--radius-full)',
+                background: 'rgba(31, 122, 77, 0.1)',
+                color: 'var(--color-success)',
+                border: '1px solid var(--color-success)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.72rem',
                 fontWeight: 600,
               }}
             >
-              ● [ AUTONOMOUS ]
+              ● AUTONOMOUS
             </span>
           </div>
           <p className="font-mono text-muted text-xs mt-1">
@@ -131,8 +132,8 @@ export function PreferenceModelSection() {
           <span
             className="font-mono text-xs text-muted"
             style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
+              padding: '3px 10px',
+              borderRadius: 'var(--radius-full)',
               background: 'var(--color-bg-main)',
               border: '1px solid var(--color-border)',
             }}
@@ -143,8 +144,8 @@ export function PreferenceModelSection() {
             <span
               className="font-mono text-xs text-muted"
               style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full)',
                 background: 'var(--color-bg-main)',
                 border: '1px solid var(--color-border)',
               }}
@@ -159,12 +160,12 @@ export function PreferenceModelSection() {
         <div
           style={{
             padding: '10px 14px',
-            borderRadius: '6px',
+            borderRadius: 'var(--radius-md)',
             fontSize: '12px',
             fontFamily: 'var(--font-mono)',
-            background: '#FEF2F2',
-            color: '#B91C1C',
-            border: '1px solid #FECACA',
+            background: 'rgba(179, 38, 30, 0.1)',
+            color: 'var(--color-danger)',
+            border: '1px solid var(--color-danger)',
           }}
         >
           {error}
@@ -178,7 +179,7 @@ export function PreferenceModelSection() {
           <div
             style={{
               padding: '1.25rem',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-md)',
               background: 'var(--color-bg-main)',
               border: '1px solid var(--color-border)',
               display: 'flex',
@@ -188,7 +189,9 @@ export function PreferenceModelSection() {
           >
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span className="font-mono text-muted text-xs">{'// 8-POINT HARMONIC RADAR'}</span>
-              <span className="font-mono text-xs text-accent" style={{ fontSize: '11px', fontWeight: 600 }}>C++20 UTILITY</span>
+              <span className="font-mono text-xs" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-accent-teal-mid)' }}>
+                C++20 UTILITY
+              </span>
             </div>
 
             <PreferenceRadar data={radarData} />
@@ -203,7 +206,7 @@ export function PreferenceModelSection() {
             <div
               style={{
                 padding: '10px 12px',
-                borderRadius: '8px',
+                borderRadius: 'var(--radius-md)',
                 background: 'var(--color-bg-main)',
                 border: '1px solid var(--color-border)',
               }}
@@ -222,7 +225,7 @@ export function PreferenceModelSection() {
             <div
               style={{
                 padding: '10px 12px',
-                borderRadius: '8px',
+                borderRadius: 'var(--radius-md)',
                 background: 'var(--color-bg-main)',
                 border: '1px solid var(--color-border)',
               }}
@@ -244,7 +247,7 @@ export function PreferenceModelSection() {
         <div
           style={{
             padding: '1.25rem',
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-md)',
             background: 'var(--color-bg-main)',
             border: '1px solid var(--color-border)',
             display: 'flex',
@@ -264,8 +267,10 @@ export function PreferenceModelSection() {
               return (
                 <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span className="font-display text-xs" style={{ fontWeight: 600 }}>{label}</span>
-                    <span className="font-mono text-xs text-accent" style={{ fontWeight: 700 }}>
+                    <span className="font-display text-xs" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      {label}
+                    </span>
+                    <span className="font-mono text-xs" style={{ fontWeight: 700, color: 'var(--color-accent-primary)' }}>
                       {val.toFixed(2)} <span className="text-muted" style={{ fontWeight: 400 }}>({pct}%)</span>
                     </span>
                   </div>
@@ -274,9 +279,9 @@ export function PreferenceModelSection() {
                   <div
                     style={{
                       width: '100%',
-                      height: '5px',
+                      height: '6px',
                       background: 'var(--color-surface-card)',
-                      borderRadius: '3px',
+                      borderRadius: 'var(--radius-sm)',
                       overflow: 'hidden',
                       border: '1px solid var(--color-border)',
                     }}
@@ -286,7 +291,7 @@ export function PreferenceModelSection() {
                         width: `${pct}%`,
                         height: '100%',
                         background: 'var(--color-accent-primary)',
-                        borderRadius: '3px',
+                        borderRadius: 'var(--radius-sm)',
                         transition: 'width 0.4s ease',
                       }}
                     />

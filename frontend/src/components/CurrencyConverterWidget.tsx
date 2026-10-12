@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import styles from './CurrencyConverterWidget.module.css';
 
 export interface CurrencyOption {
   code: string;
@@ -71,7 +72,6 @@ export function CurrencyConverterWidget() {
     let isCancelled = false;
 
     async function syncRates() {
-      // Asynchronous microtask separation to avoid cascading synchronous renders
       await Promise.resolve();
       if (isCancelled) return;
 
@@ -99,53 +99,47 @@ export function CurrencyConverterWidget() {
           }
         }
       } catch {
-        // Ignore localStorage read errors in restricted contexts
+        // Continue to fetch
       }
 
-      // 2. Fetch live rate from free Frankfurter ECB API
+      // 2. Fetch live FX rates from Frankfurter API
       let liveFetched = false;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const endpoints = [
-        `https://api.frankfurter.dev/v1/latest?from=${fromCurrency}&to=${toCurrency}`,
-        `https://api.frankfurter.app/latest?from=${fromCurrency}&to=${toCurrency}`,
-      ];
+      try {
+        const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=${fromCurrency}&symbols=${toCurrency}`, {
+          signal: controller.signal,
+        });
 
-      for (const url of endpoints) {
-        try {
-          const response = await fetch(url, { signal: controller.signal });
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.rates && typeof data.rates[toCurrency] === 'number') {
-              const rate = data.rates[toCurrency];
-              if (!isCancelled) {
-                setExchangeRate(rate);
-                setStatus('live');
-                const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                setLastUpdated(`Live (${nowStr})`);
-              }
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.rates && typeof data.rates[toCurrency] === 'number') {
+            const liveRate = data.rates[toCurrency];
+            if (!isCancelled) {
+              setExchangeRate(liveRate);
+              setStatus('live');
+              const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setLastUpdated(nowStr);
+              liveFetched = true;
 
               try {
                 localStorage.setItem(
                   cacheKey,
                   JSON.stringify({
-                    rate,
-                    date: data.date || new Date().toISOString().slice(0, 10),
+                    rate: liveRate,
                     timestamp: Date.now(),
+                    date: nowStr,
                   })
                 );
               } catch {
-                // Ignore cache write errors
+                // Ignore storage errors
               }
-
-              liveFetched = true;
-              break;
             }
           }
-        } catch {
-          // Try next endpoint or continue
         }
+      } catch {
+        // Fall back to offline/cache
       }
 
       clearTimeout(timeoutId);
@@ -197,14 +191,25 @@ export function CurrencyConverterWidget() {
     return isNaN(val) || val < 0 ? 0 : val;
   }, [amountInput]);
 
+  const currencyFormatter = useMemo(() => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, []);
+
+  const rateFormatter = useMemo(() => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    });
+  }, []);
+
   const convertedResult = useMemo(() => {
     if (exchangeRate === null) return '---';
     const total = parsedAmount * exchangeRate;
-    if (total >= 1000) {
-      return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-  }, [parsedAmount, exchangeRate]);
+    return currencyFormatter.format(total);
+  }, [parsedAmount, exchangeRate, currencyFormatter]);
 
   const fromSymbol = useMemo(() => {
     return SUPPORTED_CURRENCIES.find((c) => c.code === fromCurrency)?.symbol || fromCurrency;
@@ -214,114 +219,50 @@ export function CurrencyConverterWidget() {
     return SUPPORTED_CURRENCIES.find((c) => c.code === toCurrency)?.symbol || toCurrency;
   }, [toCurrency]);
 
+  const statusColor =
+    status === 'live'
+      ? 'var(--color-success)'
+      : status === 'cached'
+      ? 'var(--color-accent-teal-mid)'
+      : 'var(--color-accent-warning)';
+
   return (
-    <div
-      className="bg-surface border-subtle"
-      style={{
-        padding: '1.5rem',
-        borderRadius: '8px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: '200px',
-        position: 'relative',
-      }}
-    >
+    <div className={styles.card}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div className={styles.header}>
         <div>
-          <h3 className="font-display" style={{ fontSize: '1.1rem', margin: 0 }}>CURRENCY CONVERSION</h3>
-          <p className="font-mono text-muted text-xs mt-1">{'// SOVEREIGN FX & RATE CONVERTER'}</p>
+          <h3 className={styles.title}>CURRENCY CONVERSION</h3>
+          <p className={styles.subtitle}>{'// SOVEREIGN FX & RATE CONVERTER'}</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            className="font-mono text-xs"
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              background:
-                status === 'live'
-                  ? 'rgba(34, 197, 94, 0.12)'
-                  : status === 'cached'
-                  ? 'rgba(59, 130, 246, 0.12)'
-                  : 'rgba(217, 119, 6, 0.12)',
-              color:
-                status === 'live'
-                  ? '#16A34A'
-                  : status === 'cached'
-                  ? '#2563EB'
-                  : '#D97706',
-              border: `1px solid ${
-                status === 'live'
-                  ? 'rgba(34, 197, 94, 0.3)'
-                  : status === 'cached'
-                  ? 'rgba(59, 130, 246, 0.3)'
-                  : 'rgba(217, 119, 6, 0.3)'
-              }`,
-            }}
-          >
-            {loading ? '● SYNCING...' : status === 'live' ? '● LIVE FX' : status === 'cached' ? '⚡ CACHED' : '○ AIR-GAPPED'}
+        <div className={styles.fxIndicator} style={{ color: statusColor }}>
+          <span className={styles.fxDot} style={{ backgroundColor: statusColor }} />
+          <span>
+            {loading ? 'SYNCING...' : status === 'live' ? 'LIVE FX' : status === 'cached' ? 'CACHED' : 'AIR-GAPPED'}
           </span>
         </div>
       </div>
 
-      {/* Main Conversion Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          gap: '1rem',
-          alignItems: 'center',
-          marginTop: '1rem',
-          marginBottom: '1rem',
-        }}
-      >
-        {/* Origin (From) Card */}
-        <div
-          style={{
-            background: 'var(--color-bg-main)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '6px',
-            padding: '0.75rem 1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.35rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>
-              ORIGIN [FROM]
-            </span>
-            <select
-              aria-label="Origin Currency"
-              value={fromCurrency}
-              onChange={(e) => setFromCurrency(e.target.value)}
-              className="font-mono"
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Main Conversion Row: 1fr auto 1fr */}
+      <div className={styles.converterGrid}>
+        {/* Origin (From) */}
+        <div className={styles.currencyField}>
+          <span className={styles.fieldLabel}>ORIGIN [FROM]</span>
+          <select
+            aria-label="Origin Currency"
+            value={fromCurrency}
+            onChange={(e) => setFromCurrency(e.target.value)}
+            className={styles.select}
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} - {c.name}
+              </option>
+            ))}
+          </select>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '1rem' }}>
-              {fromSymbol}
-            </span>
+          <div className={styles.amountRow}>
+            <span className={styles.currencySymbol}>{fromSymbol}</span>
             <input
               type="number"
               min="0"
@@ -329,16 +270,7 @@ export function CurrencyConverterWidget() {
               aria-label="Origin Amount"
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
-              className="font-mono"
-              style={{
-                width: '100%',
-                fontSize: '1.4rem',
-                fontWeight: 600,
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                color: 'var(--color-text-primary)',
-              }}
+              className={styles.amountInput}
             />
           </div>
         </div>
@@ -349,88 +281,30 @@ export function CurrencyConverterWidget() {
           onClick={handleSwap}
           aria-label="Swap currencies"
           title="Swap origin and destination currencies"
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'var(--color-bg-main)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-accent-primary)',
-            fontSize: '1.25rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-            e.currentTarget.style.transform = 'scale(1.08)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-border)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
+          className={styles.swapButton}
         >
           ⇄
         </button>
 
-        {/* Target (To) Card */}
-        <div
-          style={{
-            background: 'var(--color-bg-main)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '6px',
-            padding: '0.75rem 1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.35rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>
-              TARGET [TO]
-            </span>
-            <select
-              aria-label="Target Currency"
-              value={toCurrency}
-              onChange={(e) => setToCurrency(e.target.value)}
-              className="font-mono"
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} - {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Target (To) */}
+        <div className={styles.currencyField}>
+          <span className={styles.fieldLabel}>TARGET [TO]</span>
+          <select
+            aria-label="Target Currency"
+            value={toCurrency}
+            onChange={(e) => setToCurrency(e.target.value)}
+            className={styles.select}
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} - {c.name}
+              </option>
+            ))}
+          </select>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', overflow: 'hidden' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '1rem' }}>
-              {toSymbol}
-            </span>
-            <span
-              className="font-mono"
-              title={`${convertedResult} ${toCurrency}`}
-              style={{
-                fontSize: '1.4rem',
-                fontWeight: 600,
-                color: 'var(--color-accent-primary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+          <div className={styles.amountRow}>
+            <span className={styles.currencySymbol}>{toSymbol}</span>
+            <span className={styles.resultValue} title={`${convertedResult} ${toCurrency}`}>
               {convertedResult}
             </span>
           </div>
@@ -438,31 +312,20 @@ export function CurrencyConverterWidget() {
       </div>
 
       {/* Footer Rate / Telemetry Info */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-          paddingTop: '0.5rem',
-          borderTop: '1px dashed var(--color-border)',
-          fontSize: '0.75rem',
-        }}
-      >
-        <span className="font-mono text-muted">
+      <div className={styles.footer}>
+        <span className={styles.rateText}>
           EXCHANGE RATIO:{' '}
-          <strong style={{ color: 'var(--color-text-primary)' }}>
-            1 {fromCurrency} = {exchangeRate !== null ? exchangeRate.toFixed(4) : '...'} {toCurrency}
+          <strong className={styles.rateValue}>
+            1 {fromCurrency} = {exchangeRate !== null ? rateFormatter.format(exchangeRate) : '...'} {toCurrency}
           </strong>
           {exchangeRate !== null && exchangeRate !== 0 && (
             <span style={{ marginLeft: '8px', opacity: 0.8 }}>
-              (1 {toCurrency} = {(1 / exchangeRate).toFixed(4)} {fromCurrency})
+              (1 {toCurrency} = {rateFormatter.format(1 / exchangeRate)} {fromCurrency})
             </span>
           )}
         </span>
 
-        <span className="font-mono text-muted text-xs">
+        <span className={styles.syncText}>
           SYNC: {lastUpdated || 'INITIALIZING'}
         </span>
       </div>

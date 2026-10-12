@@ -22,21 +22,21 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
   const statusConfig = {
     UPCOMING: {
       label: 'QUEUED PROTOCOL',
-      bg: 'rgba(37, 99, 235, 0.1)',
-      border: 'rgba(37, 99, 235, 0.3)',
-      text: '#2563EB',
+      bg: 'rgba(15, 76, 92, 0.1)',
+      border: 'var(--color-accent-teal-soft)',
+      text: 'var(--color-accent-primary)',
     },
     ACTIVE: {
       label: 'ACTIVE MISSION',
-      bg: 'rgba(16, 185, 129, 0.1)',
-      border: 'rgba(16, 185, 129, 0.3)',
-      text: '#10B981',
+      bg: 'rgba(31, 122, 77, 0.12)',
+      border: 'var(--color-success)',
+      text: 'var(--color-success)',
     },
     COMPLETED: {
       label: 'COMPLETED ARCHIVE',
-      bg: 'rgba(100, 116, 139, 0.1)',
-      border: 'rgba(100, 116, 139, 0.3)',
-      text: '#64748B',
+      bg: 'transparent',
+      border: 'var(--color-border)',
+      text: 'var(--color-text-muted)',
     },
   }[status];
 
@@ -45,7 +45,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backgroundColor: 'rgba(8, 28, 36, 0.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -60,9 +60,9 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
         style={{
           width: '100%',
           maxWidth: '480px',
-          borderRadius: '12px',
+          borderRadius: 'var(--radius-lg)',
           padding: '2rem',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          boxShadow: 'var(--shadow-lg)',
           position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -75,7 +75,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
               style={{
                 fontSize: '11px',
                 padding: '3px 8px',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 background: statusConfig.bg,
                 border: `1px solid ${statusConfig.border}`,
                 color: statusConfig.text,
@@ -85,7 +85,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
             >
               {statusConfig.label}
             </span>
-            <h3 className="font-display" style={{ fontSize: '1.5rem', marginTop: '0.5rem', marginBottom: 0 }}>
+            <h3 className="font-display" style={{ fontSize: '1.65rem', fontWeight: 300, marginTop: '0.5rem', marginBottom: 0, color: 'var(--color-text-primary)' }}>
               {trip.destination}
             </h3>
           </div>
@@ -114,26 +114,26 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
             gap: '1rem',
             padding: '1.25rem',
             background: 'var(--color-bg-main)',
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-border)',
             marginBottom: '1.5rem',
           }}
         >
           <div>
             <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>TIMEFRAME</span>
-            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px' }}>
+            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
               {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
             </p>
           </div>
           <div>
             <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>DURATION</span>
-            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px' }}>
+            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
               {durationDays} {durationDays === 1 ? 'DAY' : 'DAYS'}
             </p>
           </div>
           <div>
             <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>WAYPOINTS / POIS</span>
-            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px' }}>
+            <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
               {waypoints} OPTIMIZED STOPS
             </p>
           </div>
@@ -154,10 +154,10 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '0.75rem 1rem',
+                padding: '0.65rem 1rem',
                 backgroundColor: 'var(--color-accent-primary)',
-                color: '#FFF',
-                borderRadius: '6px',
+                color: '#FFFFFF',
+                borderRadius: 'var(--radius-md)',
                 fontFamily: 'var(--font-display)',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -175,14 +175,15 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
               onClick={() => downloadTripIcs(trip)}
               style={{
                 flex: 1,
-                padding: '0.625rem 1rem',
+                padding: '0.6rem 1rem',
                 background: 'transparent',
                 border: '1px solid var(--color-border)',
                 color: 'var(--color-text-primary)',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.8rem',
+                fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -195,14 +196,15 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
               type="button"
               onClick={onClose}
               style={{
-                padding: '0.625rem 1.25rem',
+                padding: '0.6rem 1.25rem',
                 background: 'transparent',
                 border: '1px solid var(--color-border)',
                 color: 'var(--color-text-muted)',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.8rem',
+                fontWeight: 600,
               }}
             >
               CLOSE

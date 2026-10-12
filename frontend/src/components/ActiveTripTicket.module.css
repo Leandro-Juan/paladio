@@ -1,0 +1,212 @@
+.ticket {
+  background-color: var(--color-hero-bg);
+  color: #F5EFEB;
+  border-radius: var(--radius-lg);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(226, 217, 204, 0.18);
+  box-shadow: var(--shadow-md);
+  min-height: 190px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  mask-image: radial-gradient(circle at 72px 0px, transparent 9px, black 9.5px),
+              radial-gradient(circle at 72px 100%, transparent 9px, black 9.5px);
+  -webkit-mask-image: radial-gradient(circle at 72px 0px, transparent 9px, black 9.5px),
+                      radial-gradient(circle at 72px 100%, transparent 9px, black 9.5px);
+}
+
+.ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Semicircle notch cutouts as backup visuals */
+.notchTop {
+  position: absolute;
+  top: -8px;
+  left: 72px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--color-bg-main);
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.notchBottom {
+  position: absolute;
+  bottom: -8px;
+  left: 72px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--color-bg-main);
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Left Stub */
+.stub {
+  width: 72px;
+  border-right: 1.5px dashed rgba(245, 239, 235, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.stubCaption {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: rgba(245, 239, 235, 0.7);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Main Ticket Body */
+.body {
+  padding: 1.5rem 1.75rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 2;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.destination {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 300;
+  color: #F5EFEB;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.dates {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: rgba(245, 239, 235, 0.75);
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+/* Countdown */
+.countdownCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.sunDisc {
+  width: 58px;
+  height: 58px;
+  font-size: 1.4rem;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(212, 42, 47, 0.35);
+}
+
+.countdownLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(245, 239, 235, 0.75);
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* Bottom Stats Strip */
+.statsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(245, 239, 235, 0.16);
+}
+
+.statGroup {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.statPair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(245, 239, 235, 0.65);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #F5EFEB;
+  margin: 0;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 239, 235, 0.15);
+  border: 1px solid rgba(245, 239, 235, 0.3);
+  color: #F5EFEB;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.stamp {
+  border-color: rgba(245, 239, 235, 0.4);
+  color: rgba(245, 239, 235, 0.85);
+  transform: rotate(-5deg);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  user-select: none;
+}
+
+/* Seigaiha Pattern */
+.wavePattern {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 45%;
+  height: 65%;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 1;
+  mask-image: linear-gradient(to top left, black, transparent);
+  -webkit-mask-image: linear-gradient(to top left, black, transparent);
+}

@@ -1,85 +1,143 @@
 import React from 'react';
+import styles from './ActiveTripTicket.module.css';
 
-interface ActiveTripTicketProps {
-  destination: string;
-  startDate: string;
-  endDate: string;
-  poisCount: number;
+export interface ActiveTripTicketProps {
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  poisCount?: number;
+  empty?: boolean;
 }
 
-export function ActiveTripTicket({ destination, startDate, endDate, poisCount }: ActiveTripTicketProps) {
-  // Calculate days until trip
+export function ActiveTripTicket({
+  destination,
+  startDate,
+  endDate,
+  poisCount = 0,
+  empty = false,
+}: ActiveTripTicketProps) {
+  if (empty || !destination || !startDate || !endDate) {
+    return (
+      <div className={styles.ticket}>
+        <div className={styles.notchTop} aria-hidden="true" />
+        <div className={styles.notchBottom} aria-hidden="true" />
+        <div className={styles.stub}>
+          <span className={styles.stubCaption}>PALADIO QUEUE</span>
+        </div>
+        <div className={styles.body}>
+          <div>
+            <h3 className={styles.destination}>No Active Protocol</h3>
+            <p className={styles.dates}>Awaiting mission parameters</p>
+          </div>
+          <div className={styles.statsRow}>
+            <span className={styles.statusChip}>IDLE</span>
+            <div aria-hidden="true" className={`travel-stamp ${styles.stamp}`}>
+              PALADIO SOVEREIGN DISPATCH
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const now = new Date();
   const start = new Date(startDate);
   const end = new Date(endDate);
+
+  // Status and countdown calculation
   const isOngoing = now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
   const diffTime = start.getTime() - now.getTime();
   const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
+  // Calculate day progress if ongoing
+  let dayProgressText = '';
+  if (isOngoing) {
+    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    const elapsedDays = Math.min(totalDays, Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1));
+    dayProgressText = `Day ${elapsedDays} of ${totalDays}`;
+  }
+
+  const formattedDateRange = `${start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })} – ${end.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })}`;
+
   return (
-    <div style={{
-      border: '1px solid var(--color-accent-primary)',
-      borderRadius: '8px',
-      background: 'var(--color-bg-main)',
-      display: 'flex',
-      overflow: 'hidden',
-      position: 'relative'
-    }}>
-      {/* Left stub/barcode area */}
-      <div style={{
-        width: '60px',
-        background: 'var(--color-accent-primary)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        writingMode: 'vertical-rl',
-        transform: 'rotate(180deg)',
-        color: '#FFF',
-        fontFamily: 'var(--font-mono)',
-        fontSize: '0.875rem',
-        letterSpacing: '2px',
-        padding: '1rem 0'
-      }}>
-        ACTIVE // PROTOCOL
+    <div className={styles.ticket}>
+      {/* Semicircle notches at tear boundary */}
+      <div className={styles.notchTop} aria-hidden="true" />
+      <div className={styles.notchBottom} aria-hidden="true" />
+
+      {/* Left Stub */}
+      <div className={styles.stub}>
+        <span className={styles.stubCaption}>ACTIVE PROTOCOL</span>
       </div>
 
-      <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* Main Ticket Body */}
+      <div className={styles.body}>
+        <div className={styles.headerRow}>
           <div>
-            <h3 className="font-display" style={{ fontSize: '1.5rem', margin: 0 }}>{destination}</h3>
-            <p className="font-mono text-muted text-sm mt-1">{start.toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}</p>
+            <h3 className={styles.destination}>{destination}</h3>
+            <p className={styles.dates}>
+              {isOngoing ? `${dayProgressText} · ${formattedDateRange}` : formattedDateRange}
+            </p>
           </div>
-          <div style={{ textAlign: 'right' }}>
+
+          {/* Sun Disc Countdown */}
+          <div className={styles.countdownCol}>
             {diffDays > 0 ? (
               <>
-                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--color-accent-primary)', fontWeight: 600 }}>T-{diffDays}</span>
-                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>DAYS OUT</p>
+                <div className={`sun-disc ${styles.sunDisc}`}>{diffDays}</div>
+                <span className={styles.countdownLabel}>DAYS OUT</span>
               </>
             ) : isOngoing ? (
               <>
-                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: '#10B981', fontWeight: 600 }}>ACTIVE</span>
-                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>IN PROGRESS</p>
+                <div className={`sun-disc ${styles.sunDisc}`} style={{ background: 'var(--color-success)' }}>
+                  ●
+                </div>
+                <span className={styles.countdownLabel}>IN PROGRESS</span>
               </>
             ) : (
               <>
-                <span className="font-mono" style={{ fontSize: '2rem', lineHeight: 1, color: 'var(--color-accent-primary)', fontWeight: 600 }}>TODAY</span>
-                <p className="font-mono text-muted" style={{ fontSize: '0.75rem' }}>DEPARTURE</p>
+                <div className={`sun-disc ${styles.sunDisc}`}>0</div>
+                <span className={styles.countdownLabel}>DEPARTING TODAY</span>
               </>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
-          <div>
-            <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>WAYPOINTS</p>
-            <p className="font-mono" style={{ fontWeight: 500 }}>{poisCount} STOPS</p>
+        {/* Bottom stats row */}
+        <div className={styles.statsRow}>
+          <div className={styles.statGroup}>
+            <div className={styles.statPair}>
+              <span className={styles.statLabel}>WAYPOINTS</span>
+              <span className={styles.statValue}>{poisCount} STOPS</span>
+            </div>
+
+            <div className={styles.statPair}>
+              <span className={styles.statLabel}>STATUS</span>
+              <span className={styles.statusChip}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {isOngoing ? 'ACTIVE' : 'CONFIRMED'}
+              </span>
+            </div>
           </div>
-          <div>
-            <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>STATUS</p>
-            <p className="font-mono text-accent" style={{ fontWeight: 500 }}>CONFIRMED</p>
+
+          {/* Sovereign Stamp */}
+          <div aria-hidden="true" className={`travel-stamp ${styles.stamp}`}>
+            PALADIO SOVEREIGN DISPATCH
           </div>
         </div>
       </div>
+
+      {/* Seigaiha wave overlay */}
+      <div className={`seigaiha-bg ${styles.wavePattern}`} aria-hidden="true" />
     </div>
   );
 }

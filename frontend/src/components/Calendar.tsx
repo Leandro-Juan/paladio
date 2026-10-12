@@ -10,6 +10,7 @@ import {
   CalendarDay,
 } from '@/utils/calendarUtils';
 import { MissionInspectorModal } from './MissionInspectorModal';
+import styles from './Calendar.module.css';
 
 interface CalendarProps {
   trips: Trip[];
@@ -87,389 +88,198 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
   };
 
   return (
-    <div
-      className="bg-surface border-subtle"
-      style={{
-        borderRadius: '12px',
-        padding: '1.75rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.5rem',
-      }}
-    >
-      {/* Top Controls & Month Title */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          borderBottom: '1px solid var(--color-border)',
-          paddingBottom: '1.25rem',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem' }}>
-              MISSION OPERATIONS CALENDAR
-            </h3>
-            <span
-              className="font-mono text-xs"
-              style={{
-                background: 'rgba(30, 58, 138, 0.08)',
-                color: 'var(--color-accent-primary)',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                fontWeight: 600,
-              }}
-            >
-              TEMPORAL RADAR
-            </span>
-          </div>
-          <p className="font-mono text-muted text-xs mt-1">
-            {'// TRACKING ACTIVE, QUEUED, AND ARCHIVED DEPLOYMENTS'}
-          </p>
+    <div className={styles.wrapper}>
+      {/* KPI Row: hairline dividers, no outer box, Jost 28 weight 300 tnum */}
+      <div className={styles.kpiRow}>
+        <div className={styles.kpiCell}>
+          <span className={styles.kpiLabel}>TOTAL MISSIONS</span>
+          <p className={styles.kpiValue}>{telemetry.total}</p>
         </div>
-
-        {/* Month Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={handlePrevMonth}
-            style={{
-              padding: '0.4rem 0.75rem',
-              background: 'var(--color-bg-main)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '6px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              color: 'var(--color-text-primary)',
-              fontWeight: 600,
-            }}
-            title="Previous month"
-          >
-            &lt; PREV
-          </button>
-
-          <button
-            type="button"
-            onClick={handleToday}
-            style={{
-              padding: '0.4rem 0.75rem',
-              background: 'var(--color-bg-main)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '6px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              color: 'var(--color-accent-primary)',
-              fontWeight: 700,
-            }}
-            title="Jump to current cycle"
-          >
-            CYCLE TODAY
-          </button>
-
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            style={{
-              padding: '0.4rem 0.75rem',
-              background: 'var(--color-bg-main)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '6px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              color: 'var(--color-text-primary)',
-              fontWeight: 600,
-            }}
-            title="Next month"
-          >
-            NEXT &gt;
-          </button>
-
-          <span
-            className="font-mono font-semibold"
-            style={{
-              minWidth: '150px',
-              textAlign: 'center',
-              padding: '0.4rem 0.75rem',
-              background: 'var(--color-bg-main)',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border)',
-              fontSize: '0.85rem',
-              letterSpacing: '1px',
-            }}
-          >
-            {MONTH_NAMES[month]} {year}
-          </span>
+        <div className={styles.kpiCell}>
+          <span className={styles.kpiLabel}>ACTIVE / QUEUED</span>
+          <p className={`${styles.kpiValue} ${styles.kpiValueActive}`}>{telemetry.queued}</p>
         </div>
-      </div>
-
-      {/* Telemetry Bar */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: '1rem',
-          padding: '0.875rem 1rem',
-          background: 'var(--color-bg-main)',
-          borderRadius: '8px',
-          border: '1px solid var(--color-border)',
-        }}
-      >
-        <div>
-          <span className="font-mono text-muted text-xs">TOTAL MISSIONS</span>
-          <p className="font-mono text-sm font-semibold" style={{ margin: 0, marginTop: '2px' }}>
-            {telemetry.total}
-          </p>
-        </div>
-        <div>
-          <span className="font-mono text-muted text-xs">ACTIVE / QUEUED</span>
-          <p
-            className="font-mono text-sm font-semibold"
-            style={{ margin: 0, marginTop: '2px', color: 'var(--color-accent-primary)' }}
-          >
-            {telemetry.queued}
-          </p>
-        </div>
-        <div>
-          <span className="font-mono text-muted text-xs">ARCHIVED (PAST)</span>
-          <p
-            className="font-mono text-sm font-semibold text-muted"
-            style={{ margin: 0, marginTop: '2px' }}
-          >
+        <div className={styles.kpiCell}>
+          <span className={styles.kpiLabel}>ARCHIVED (PAST)</span>
+          <p className={styles.kpiValue} style={{ color: 'var(--color-text-muted)' }}>
             {telemetry.completed}
           </p>
         </div>
-        <div>
-          <span className="font-mono text-muted text-xs">DEPLOYED DAYS ({year})</span>
-          <p className="font-mono text-sm font-semibold" style={{ margin: 0, marginTop: '2px' }}>
-            {telemetry.deployedDays} DAYS
-          </p>
+        <div className={styles.kpiCell}>
+          <span className={styles.kpiLabel}>DEPLOYED DAYS ({year})</span>
+          <p className={styles.kpiValue}>{telemetry.deployedDays}</p>
         </div>
       </div>
 
-      {/* 7-Day Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: '4px',
-        }}
-      >
-        {/* Weekday Headers */}
-        {WEEKDAY_NAMES.map((name) => (
-          <div
-            key={name}
-            className="font-mono text-muted text-xs"
-            style={{
-              textAlign: 'center',
-              padding: '0.5rem 0',
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-            }}
-          >
-            {name}
+      {/* Main Calendar Card */}
+      <div className={styles.calendarCard}>
+        {/* Top Controls & Month Title */}
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <div className={styles.titleRow}>
+              <h2 className={styles.monthTitle}>
+                {MONTH_NAMES[month]} {year}
+              </h2>
+              <span className={styles.radarBadge}>TEMPORAL RADAR</span>
+            </div>
+            <p className={styles.subtitle}>
+              MISSION OPERATIONS CALENDAR &middot; TRACKING ACTIVE, QUEUED, AND ARCHIVED DEPLOYMENTS
+            </p>
           </div>
-        ))}
 
-        {/* Day Cells */}
-        {days.map((day) => {
-          const hasTrip = day.trips.length > 0;
-          return (
-            <div
-              key={day.dateString}
-              onClick={() => handleCellClick(day)}
-              style={{
-                minHeight: '85px',
-                padding: '6px',
-                background: day.isCurrentMonth
-                  ? day.isToday
-                    ? 'rgba(30, 58, 138, 0.04)'
-                    : 'var(--color-bg-main)'
-                  : 'rgba(241, 245, 249, 0.5)',
-                border: day.isToday
-                  ? '2px solid var(--color-accent-primary)'
-                  : '1px solid var(--color-border)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                transition: 'background 0.15s, border-color 0.15s',
-                opacity: day.isCurrentMonth ? 1 : 0.45,
-              }}
-              onMouseEnter={(e) => {
-                if (!day.isToday) {
-                  e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!day.isToday) {
-                  e.currentTarget.style.borderColor = 'var(--color-border)';
-                }
-              }}
-              title={
-                hasTrip
-                  ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
-                  : `Click to plan mission on ${day.dateString}`
-              }
+          {/* Month Navigation */}
+          <div className={styles.navControls}>
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className={styles.ghostButton}
+              title="Previous month"
+              aria-label="< PREV"
             >
-              {/* Day Number and Today Indicator */}
+              <span>&lsaquo;</span> &lt; PREV
+            </button>
+
+            <button
+              type="button"
+              onClick={handleToday}
+              className={styles.todayButton}
+              title="Jump to current cycle"
+              aria-label="CYCLE TODAY"
+            >
+              CYCLE TODAY
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className={styles.ghostButton}
+              title="Next month"
+              aria-label="NEXT >"
+            >
+              NEXT &gt; <span>&rsaquo;</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 7-Day Grid */}
+        <div className={styles.grid}>
+          {/* Weekday Headers */}
+          {WEEKDAY_NAMES.map((name) => (
+            <div key={name} className={styles.weekdayHeader}>
+              {name}
+            </div>
+          ))}
+
+          {/* Day Cells */}
+          {days.map((day) => {
+            const hasTrip = day.trips.length > 0;
+            const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
+
+            const cellClasses = [
+              styles.dayCell,
+              !day.isCurrentMonth ? styles.dayCellOutside : '',
+              isWeekend && day.isCurrentMonth ? styles.dayCellWeekend : '',
+              day.isToday ? styles.dayCellToday : '',
+            ].filter(Boolean).join(' ');
+
+            // Display at most 2 chips per cell, with +N more if overflow
+            const visibleTrips = day.trips.slice(0, 2);
+            const hiddenCount = day.trips.length - visibleTrips.length;
+
+            return (
               <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
+                key={day.dateString}
+                onClick={() => handleCellClick(day)}
+                className={cellClasses}
+                title={
+                  hasTrip
+                    ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
+                    : `Click to plan mission on ${day.dateString}`
+                }
               >
-                <span
-                  className="font-mono text-xs"
-                  style={{
-                    fontWeight: day.isToday ? 700 : 500,
-                    color: day.isToday
-                      ? 'var(--color-accent-primary)'
-                      : day.isCurrentMonth
-                      ? 'var(--color-text-primary)'
-                      : 'var(--color-text-muted)',
-                  }}
-                >
-                  {day.dayNumber}
-                </span>
-                {day.isToday && (
-                  <span
-                    className="font-mono text-xs"
-                    style={{
-                      fontSize: '9px',
-                      color: 'var(--color-accent-primary)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    TODAY
-                  </span>
-                )}
-              </div>
-
-              {/* Trip Bar/Pill within cell */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
-                {day.trips.map(({ trip, status }, i) => {
-                  let badgeBg = 'rgba(100, 116, 139, 0.14)';
-                  let badgeBorder = 'rgba(100, 116, 139, 0.35)';
-                  let badgeColor = '#475569';
-
-                  if (status === 'UPCOMING') {
-                    badgeBg = 'rgba(37, 99, 235, 0.15)';
-                    badgeBorder = 'rgba(37, 99, 235, 0.4)';
-                    badgeColor = '#1E40AF';
-                  } else if (status === 'ACTIVE') {
-                    badgeBg = 'rgba(16, 185, 129, 0.18)';
-                    badgeBorder = 'rgba(16, 185, 129, 0.5)';
-                    badgeColor = '#065F46';
-                  }
-
-                  return (
-                    <div
-                      key={trip.id || i}
+                {/* Cell Header: Day Number + Today disc */}
+                <div className={styles.cellHeader}>
+                  {day.isToday ? (
+                    <div className={`sun-disc ${styles.todayDisc}`}>{day.dayNumber}</div>
+                  ) : (
+                    <span className={styles.dayNumber}>{day.dayNumber}</span>
+                  )}
+                  {day.isToday && (
+                    <span
                       style={{
-                        padding: '2px 5px',
-                        background: badgeBg,
-                        border: `1px solid ${badgeBorder}`,
-                        borderRadius: '4px',
-                        color: badgeColor,
+                        fontSize: '9px',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
+                        fontWeight: 700,
+                        color: 'var(--color-accent-warning)',
+                        letterSpacing: '0.05em',
                       }}
                     >
-                      <span
-                        style={{
-                          width: '5px',
-                          height: '5px',
-                          borderRadius: '50%',
-                          background: badgeColor,
-                          display: 'inline-block',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span>{trip.destination}</span>
-                    </div>
-                  );
-                })}
+                      TODAY
+                    </span>
+                  )}
+                </div>
+
+                {/* Trip Chips */}
+                <div className={styles.chipsContainer}>
+                  {visibleTrips.map(({ trip, status }, i) => {
+                    const chipClass =
+                      status === 'ACTIVE'
+                        ? styles.chipActive
+                        : status === 'UPCOMING'
+                        ? styles.chipQueued
+                        : styles.chipArchived;
+
+                    return (
+                      <div key={trip.id || i} className={chipClass}>
+                        <span className={styles.chipDot} />
+                        <span>{trip.destination}</span>
+                      </div>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <span className={styles.moreChips}>+{hiddenCount} more</span>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Legend & Quick Actions */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          paddingTop: '0.75rem',
-          borderTop: '1px solid var(--color-border)',
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '2px',
-                background: 'rgba(37, 99, 235, 0.3)',
-                border: '1px solid #1E40AF',
-                display: 'inline-block',
-              }}
-            />
-            <span className="font-mono text-xs text-muted">PLANNED FUTURE MISSION</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '2px',
-                background: 'rgba(16, 185, 129, 0.3)',
-                border: '1px solid #065F46',
-                display: 'inline-block',
-              }}
-            />
-            <span className="font-mono text-xs text-muted">ACTIVE ONGOING MISSION</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '2px',
-                background: 'rgba(100, 116, 139, 0.25)',
-                border: '1px solid #475569',
-                display: 'inline-block',
-              }}
-            />
-            <span className="font-mono text-xs text-muted">COMPLETED MISSION ARCHIVE</span>
-          </div>
+            );
+          })}
         </div>
 
-        <p className="font-mono text-muted text-xs" style={{ margin: 0 }}>
-          {'// Click any open day to plan a mission on that date'}
-        </p>
+        {/* Legend */}
+        <div className={styles.legend}>
+          <div className={styles.legendItems}>
+            <div className={styles.legendItem}>
+              <span
+                className={styles.legendIndicator}
+                style={{ backgroundColor: 'var(--color-accent-primary)' }}
+              />
+              <span>ACTIVE ONGOING MISSION</span>
+            </div>
+
+            <div className={styles.legendItem}>
+              <span
+                className={styles.legendIndicator}
+                style={{ backgroundColor: 'var(--color-accent-teal-soft)' }}
+              />
+              <span>PLANNED FUTURE MISSION</span>
+            </div>
+
+            <div className={styles.legendItem}>
+              <span
+                className={styles.legendIndicator}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--color-border)',
+                }}
+              />
+              <span>COMPLETED MISSION ARCHIVE</span>
+            </div>
+          </div>
+
+          <p className={styles.subtitle} style={{ margin: 0 }}>
+            {'// Click any open day to plan a mission on that date'}
+          </p>
+        </div>
       </div>
 
       {/* Mission Inspector Modal */}
