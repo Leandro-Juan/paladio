@@ -4,13 +4,16 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
+    Text,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -164,6 +167,12 @@ class TripModel(Base):
         back_populates="trip",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    tickets = relationship(
+        "TripTicketModel",
+        back_populates="trip",
+        cascade="all, delete-orphan",
+        lazy="select",
     )
 
 
@@ -357,3 +366,108 @@ class PoiTravelCacheModel(Base):
     __table_args__ = (
         Index("idx_poi_travel_cache_pair", "origin_id", "destination_id"),
     )
+
+
+class TripTicketModel(Base):
+    __tablename__ = "trip_tickets"
+
+    id = Column(String, primary_key=True, index=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ticket_type = Column(String, nullable=False)
+    title = Column(String(200), nullable=False)
+    provider = Column(String(200), nullable=True)
+    reference_code = Column(String(64), nullable=True)
+    holder_name = Column(String(200), nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    start_tz = Column(String(64), nullable=True)
+    end_tz = Column(String(64), nullable=True)
+    seat_or_room = Column(String(64), nullable=True)
+    location_or_venue = Column(String(300), nullable=True)
+    price = Column(Numeric(12, 2), nullable=True)
+    currency = Column(String(3), nullable=True, default="EUR")
+    status = Column(String, nullable=False, default="planned")
+    access_code = Column(Text, nullable=True)
+    barcode_value = Column(Text, nullable=True)
+    barcode_format = Column(String, nullable=True)
+    ticket_metadata = Column("metadata", JSONB, default=dict, nullable=False)
+    notes = Column(Text, nullable=True)
+    source = Column(String, nullable=False, default="manual")
+    source_ref = Column(String, nullable=True)
+    user_modified = Column(Boolean, nullable=False, default=False)
+    visibility = Column(String, nullable=False, default="trip")
+    holder_user_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    pinned = Column(Boolean, nullable=False, default=False)
+
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("idx_trip_tickets_trip_start", "trip_id", "start_time"),
+        Index(
+            "idx_trip_tickets_itinerary_unique",
+            "trip_id",
+            "source",
+            "source_ref",
+            unique=True,
+            postgresql_where=Column("source") == "itinerary",
+        ),
+        CheckConstraint(
+            "ticket_type IN ('flight', 'hotel', 'attraction', 'transit', 'other')",
+            name="check_trip_ticket_type",
+        ),
+        CheckConstraint(
+            "status IN ('planned', 'confirmed', 'used', 'cancelled')",
+            name="check_trip_ticket_status",
+        ),
+        CheckConstraint(
+            "end_time IS NULL OR end_time >= start_time",
+            name="check_trip_ticket_time_range",
+        ),
+    )
+
+    trip = relationship("TripModel", back_populates="tickets")
+    attachments = relationship(
+        "TripTicketAttachmentModel",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    holder_user = relationship("UserModel", foreign_keys=[holder_user_id])
+    creator = relationship("UserModel", foreign_keys=[created_by])
+
+
+class TripTicketAttachmentModel(Base):
+    __tablename__ = "trip_ticket_attachments"
+
+    id = Column(String, primary_key=True, index=True)
+    ticket_id = Column(
+        String,
+        ForeignKey("trip_tickets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    filename = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    storage_path = Column(String, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    ticket = relationship("TripTicketModel", back_populates="attachments")

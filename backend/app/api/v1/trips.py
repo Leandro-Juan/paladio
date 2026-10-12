@@ -5,12 +5,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
+from app.api.v1.tickets import router as tickets_router
 from app.db.models import (
     TransitCacheModel,
     TransitCacheStatus,
     TripExpenseModel,
     TripModel,
     TripParticipantModel,
+    TripTicketModel,
     UserModel,
 )
 from app.db.session import get_db
@@ -200,6 +202,19 @@ class TripResponse(TripCreate):
     user_id: str | None = None
     created_at: str
     participants: list[TripParticipantResponse] = []
+    tickets_count: int = 0
+
+
+async def _get_trip_tickets_count(trip_id: str, session: AsyncSession) -> int:
+    try:
+        stmt = select(func.count(TripTicketModel.id)).where(
+            TripTicketModel.trip_id == trip_id,
+            TripTicketModel.status != "cancelled",
+        )
+        res = await session.execute(stmt)
+        return int(res.scalar() or 0)
+    except Exception:
+        return 0
 
 
 @router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
@@ -250,6 +265,14 @@ async def create_trip(
     await session.commit()
     await session.refresh(db_trip)
 
+    # Auto-seed tickets from itinerary if any flights or hotels exist
+    try:
+        from app.wallet.seeding import sync_trip_tickets
+
+        await sync_trip_tickets(db_trip, session)
+    except Exception as e:
+        logger.warning(f"Could not auto-seed tickets for trip {db_trip.id}: {e}")
+
     # Auto-trigger GTFS download for trip destination if needed
     if db_trip.destination:
         try:
@@ -265,6 +288,8 @@ async def create_trip(
                 f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
             )
 
+    t_count = await _get_trip_tickets_count(db_trip.id, session)
+
     return TripResponse(
         id=db_trip.id,
         user_id=db_trip.user_id,
@@ -276,6 +301,7 @@ async def create_trip(
         if db_trip.created_at
         else datetime.now(timezone.utc).isoformat(),
         participants=[_participant_to_response(first_p)],
+        tickets_count=t_count,
     )
 
 
@@ -293,6 +319,7 @@ async def get_trips(
     for t in trips:
         part_models = await _ensure_trip_participants(t, session)
         parts = [_participant_to_response(p) for p in part_models]
+        t_count = await _get_trip_tickets_count(t.id, session)
         response.append(
             TripResponse(
                 id=t.id,
@@ -305,6 +332,7 @@ async def get_trips(
                 if t.created_at
                 else datetime.now(timezone.utc).isoformat(),
                 participants=parts,
+                tickets_count=t_count,
             )
         )
     return response
@@ -719,6 +747,7 @@ async def get_trip(
 
     parts_models = await _ensure_trip_participants(trip, session)
     parts = [_participant_to_response(p) for p in parts_models]
+    t_count = await _get_trip_tickets_count(trip.id, session)
 
     return TripResponse(
         id=trip.id,
@@ -731,6 +760,7 @@ async def get_trip(
         if trip.created_at
         else datetime.now(timezone.utc).isoformat(),
         participants=parts,
+        tickets_count=t_count,
     )
 
 
@@ -1137,4 +1167,8 @@ async def upgrade_trip_transit(
         created_at=trip.created_at.isoformat()
         if trip.created_at
         else datetime.now(timezone.utc).isoformat(),
+        tickets_count=await _get_trip_tickets_count(trip.id, session),
     )
+
+
+router.include_router(tickets_router)

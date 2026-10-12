@@ -119,7 +119,7 @@ site/
 # Private Notes
 # ==========================================
 BACKLOG.md
-AGENCY_ITINERARY_PLAN_AND_CHECKPOINT.md
+PLAN.md
 ROADMAP.md
 CONTEXT.md
 comprehensive_audit_report.md
@@ -127,3 +127,6 @@ docs/NOMENCLATURE.md
 
 # Skills backup
 .skills_backup/
+
+data/wallet_attachments/
+data/wallet_temp_uploads/
