@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from app.domain.entities.poi import Poi
 
@@ -53,4 +54,11 @@ class IPoiRepository(ABC):
     ) -> None:
         """
         Updates the 768D semantic embedding for multiple attractions (poi_id, embedding_vector).
+        """
+
+    @abstractmethod
+    async def check_city_staleness(self, city_name: str) -> tuple[Any, bool]:
+        """
+        Checks ingestion timestamp and whether any attractions have outdated embedding versions.
+        Returns (ingested_at, has_outdated_embeddings).
         """

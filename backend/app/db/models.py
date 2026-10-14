@@ -78,9 +78,11 @@ class AttractionModel(Base):
     )
     duration_mins = Column(Integer, default=60, nullable=False)
     cost_eur = Column(Float, default=0.0, nullable=False)
+    admission_fee = synonym("cost_eur")
     cost_is_estimated = Column(Boolean, default=True, nullable=False)
     cost_source = Column(String, nullable=True)
     osm_opening_hours = Column(String, nullable=True)
+    opening_hours_raw = synonym("osm_opening_hours")
 
     # Itinerary v2 tiering and taxonomy fields
     tier = Column(Integer, default=3, server_default="3", nullable=False)

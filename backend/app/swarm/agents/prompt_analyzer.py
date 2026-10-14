@@ -53,8 +53,9 @@ prompt_analysis_agent = Agent(
         "- `travel_tastes`: Desired atmospheres, trip styles, or activities (e.g. 'bar', 'relaxed', 'cultural', 'art'). "
         "- `tag_affinities`: Dictionary with estimated affinity weights (0.0 to 1.0) for any relevant standard tags from: "
         "['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']. "
-        "E.g., if user loves art and museums, set 'art_culture': 0.9. If user loves bars, set 'nightlife': 0.85. "
-        "- `cuisine_target_frequency`: 1 or 2 meal slots for requested preferred cuisine across the trip."
+        "- `cuisine_target_frequency`: 1 or 2 meal slots for requested preferred cuisine across the trip. "
+        "- `semantic_subqueries`: 2-4 expanded dense retrieval queries in English and local destination language capturing the user's specific travel desires. "
+        "- `required_facets`: Key-value pairs for explicit constraints (e.g. {'rain_friendly': true, 'indoor_outdoor': 'indoor'})."
     ),
 )
 

@@ -56,42 +56,845 @@ def _run_async(coro):
     return asyncio.run(coro)
 
 
-@app.task(bind=True, name="app.tasks.refresh_city_pois_task")
-def refresh_city_pois_task(self, city_name: str):
-    """
-    Background SWR task: Fetches updated POIs for a city and saves them to the DB.
-    """
-    logger.info(
-        f"Task {self.request.id}: Background SWR refresh started for {city_name}"
+def _publish_city_hydration_event(
+    event_name: str,
+    city_id: str,
+    city_name: str,
+    stage: str,
+    progress: float,
+    **extra: Any,
+) -> None:
+    try:
+        import json
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        event_payload = json.dumps(
+            {
+                "event": event_name,
+                "city_id": city_id,
+                "city": city_id,
+                "city_name": (
+                    city_name.strip().title() if city_name else city_id.title()
+                ),
+                "stage": stage,
+                "progress": round(progress, 2),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                **extra,
+            }
+        )
+        r.publish(f"paladio:city_hydration:{city_id}", event_payload)
+        r.publish("paladio:events", event_payload)
+        logger.info(
+            f"Published {event_name} ({stage} {int(progress * 100)}%) for {city_name} to Redis."
+        )
+    except (redis.RedisError, OSError, RuntimeError) as r_err:
+        logger.warning(f"Could not publish {event_name} event: {r_err}")
+
+
+async def _run_ingest_city_pois(city_name: str, force: bool = False) -> dict[str, Any]:
+    from app.adapters.repositories.sql_city_repository import SqlCityRepository
+    from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+    from app.domain.entities.city import City
+    from app.domain.reference.iso_currencies import get_country_currency
+    from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
+    from app.engine.v2.tiering import tier_city_attractions
+    from app.infrastructure.providers.osm_city_ingest import (
+        fetch_city_records,
+        geocode_city,
     )
 
-    # Import inside the task to prevent circular imports
-    from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-    from app.infrastructure.providers.overpass_provider import OverpassProviderAdapter
-    from app.services.poi_service import _fetch_and_store_pois
+    try:
+        from timezonefinder import TimezoneFinder
+
+        tf = TimezoneFinder()
+    except Exception:
+        tf = None
+
+    name = " ".join(city_name.strip().split()).title()
+    city_lower = name.lower()
+
+    session_maker, task_engine = _get_task_session_maker()
+    try:
+        async with session_maker() as session:
+            city_repo = SqlCityRepository(session)
+            poi_repo = SqlPoiRepository(session)
+
+            geo = await geocode_city(name)
+            country = (geo.country_code or "XX").upper()
+            canon_id = f"{city_lower}_{country.lower()}"
+            tz = (tf.timezone_at(lat=geo.lat, lng=geo.lon) if tf else None) or "UTC"
+            currency = get_country_currency(country)
+
+            city_obj = City(
+                id=canon_id,
+                name=name,
+                aliases=[city_lower, name, geo.display_name],
+                country_code=country,
+                center_lat=geo.lat,
+                center_lon=geo.lon,
+                bbox=geo.bbox,
+                radius_km=geo.radius_km,
+                timezone=tz,
+                currency=currency,
+                profile={"source": "osm_city_ingest"},
+            )
+            await city_repo.save_city(city_obj)
+
+            _publish_city_hydration_event(
+                "HYDRATION_STAGE_STARTED",
+                city_id=canon_id,
+                city_name=name,
+                stage="INGESTING",
+                progress=0.05,
+            )
+
+            records = await fetch_city_records(geo)
+            for r in records:
+                r["city_id"] = canon_id
+                r["hydration_status"] = "RAW"
+
+            try:
+                resolver = await NeighborhoodResolver.create_for_city(name)
+                for r in records:
+                    lat = r.get("latitude")
+                    lon = r.get("longitude")
+                    if (
+                        lat is not None
+                        and lon is not None
+                        and not r.get("neighborhood")
+                    ):
+                        r["neighborhood"] = resolver.resolve_neighborhood(lat, lon)
+            except Exception as ne:
+                logger.warning(f"Could not resolve neighborhoods for {name}: {ne}")
+
+            tiered = tier_city_attractions(records, name)
+            for t in tiered:
+                t["city_id"] = canon_id
+                t["hydration_status"] = "RAW"
+
+            await poi_repo.save_tiered_for_city(name, tiered)
+            await session.commit()
+
+            _publish_city_hydration_event(
+                "HYDRATION_STAGE_COMPLETED",
+                city_id=canon_id,
+                city_name=name,
+                stage="INGESTING",
+                progress=0.25,
+                raw_count=len(records),
+            )
+            return {"city_name": name, "city_id": canon_id, "raw_count": len(records)}
+    finally:
+        await task_engine.dispose()
+
+
+async def _run_enrich_tier12_city_pois(
+    city_name: str, city_id: str | None = None
+) -> dict[str, Any]:
+    from sqlalchemy import func, or_, select
+
+    from app.db.models import AttractionModel, CityModel
+    from app.engine.hydration.document_builder import PoiDocumentBuilder
+    from app.engine.hydration.facet_extractor import FacetExtractor
+    from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
+    from app.utils.opening_hours_parser import parse_osm_opening_hours
+    from app.infrastructure.providers.ollama_embedding_provider import (
+        OllamaEmbeddingProvider,
+    )
+    from app.infrastructure.providers.wikimedia_enrichment_provider import (
+        WikimediaEnrichmentProvider,
+    )
+    from app.services.poi_pricing_service import PoiPricingService
+
+    name = " ".join(city_name.strip().split()).title()
+    city_lower = name.lower()
+
+    session_maker, task_engine = _get_task_session_maker()
+    try:
+        async with session_maker() as session:
+            cid = city_id
+            if not cid:
+                c_stmt = (
+                    select(CityModel.id)
+                    .where(
+                        or_(
+                            CityModel.id == city_lower,
+                            func.lower(CityModel.name) == city_lower,
+                        )
+                    )
+                    .limit(1)
+                )
+                c_res = await session.execute(c_stmt)
+                cid = c_res.scalar_one_or_none() or f"{city_lower}_xx"
+
+            _publish_city_hydration_event(
+                "HYDRATION_STAGE_STARTED",
+                city_id=cid,
+                city_name=name,
+                stage="ENRICHING_TIER12",
+                progress=0.25,
+            )
+
+            await PoiPricingService.load_catalog_from_db(session)
+
+            tier12_stmt = select(AttractionModel).where(
+                or_(
+                    AttractionModel.city_id == cid,
+                    func.lower(AttractionModel.city) == city_lower,
+                ),
+                AttractionModel.tier.in_([1, 2]),
+            )
+            dining_stmt = (
+                select(AttractionModel)
+                .where(
+                    or_(
+                        AttractionModel.city_id == cid,
+                        func.lower(AttractionModel.city) == city_lower,
+                    ),
+                    AttractionModel.category.in_(
+                        ["restaurant", "cafe", "bar", "food", "dining"]
+                    ),
+                    AttractionModel.tier > 2,
+                )
+                .order_by(AttractionModel.iconicity_score.desc())
+                .limit(300)
+            )
+
+            t12_res = await session.execute(tier12_stmt)
+            dining_res = await session.execute(dining_stmt)
+            target_models = list(t12_res.scalars().all()) + list(
+                dining_res.scalars().all()
+            )
+
+            if not target_models:
+                top_stmt = (
+                    select(AttractionModel)
+                    .where(
+                        or_(
+                            AttractionModel.city_id == cid,
+                            func.lower(AttractionModel.city) == city_lower,
+                        )
+                    )
+                    .order_by(AttractionModel.iconicity_score.desc())
+                    .limit(500)
+                )
+                top_res = await session.execute(top_stmt)
+                target_models = list(top_res.scalars().all())
+
+            logger.info(
+                f"Stage 2 enriching {len(target_models)} priority POIs for {name} ({cid})"
+            )
+
+            neighborhood_resolver = None
+            try:
+                neighborhood_resolver = await NeighborhoodResolver.create_for_city(name)
+            except Exception as ne:
+                logger.debug(f"Neighborhood resolver unavailable: {ne}")
+
+            wikivoyage_listings: dict[str, Any] = {}
+            try:
+                raw_wv = await WikimediaEnrichmentProvider.fetch_wikivoyage_listings(
+                    name
+                )
+                if isinstance(raw_wv, list):
+                    for wv in raw_wv:
+                        if hasattr(wv, "name") and wv.name:
+                            wikivoyage_listings[wv.name.strip().lower()] = wv
+                            wikivoyage_listings[wv.name.strip()] = wv
+                        if hasattr(wv, "wikidata_id") and wv.wikidata_id:
+                            wikivoyage_listings[wv.wikidata_id.strip().upper()] = wv
+                elif isinstance(raw_wv, dict):
+                    wikivoyage_listings = raw_wv
+            except Exception as we:
+                logger.debug(f"Wikivoyage fetch error: {we}")
+
+            qids = [
+                m.wikidata_id
+                for m in target_models
+                if m.wikidata_id and m.wikidata_id.startswith("Q")
+            ]
+            wikidata_entities = {}
+            if qids:
+                try:
+                    wikidata_entities = (
+                        await WikimediaEnrichmentProvider.resolve_wikidata_batch(
+                            list(set(qids))
+                        )
+                    )
+                except Exception as we:
+                    logger.debug(f"Wikidata batch error: {we}")
+
+            wp_titles = [m.wikipedia_title for m in target_models if m.wikipedia_title]
+            wikipedia_extracts = {}
+            if wp_titles:
+                try:
+                    wikipedia_extracts = (
+                        await WikimediaEnrichmentProvider.fetch_wikipedia_extracts(
+                            list(set(wp_titles))
+                        )
+                    )
+                except Exception as we:
+                    logger.debug(f"Wikipedia extracts error: {we}")
+
+            embed_provider = OllamaEmbeddingProvider()
+            texts_to_embed = []
+            models_to_embed = []
+
+            for m in target_models:
+                meta = dict(m.metadata_field or {})
+                tags = dict(meta.get("tags") or {})
+                loc = m.location if isinstance(m.location, dict) else {}
+                lat = loc.get("latitude")
+                lon = loc.get("longitude")
+
+                wd_data = (
+                    wikidata_entities.get(m.wikidata_id or "")
+                    if m.wikidata_id
+                    else None
+                )
+                if wd_data:
+                    m.sitelinks_count = getattr(
+                        wd_data, "sitelinks_count", getattr(wd_data, "sitelinks", 0)
+                    )
+                    w_title = getattr(wd_data, "wikipedia_title", None) or getattr(
+                        wd_data, "enwiki_title", None
+                    )
+                    if w_title and not m.wikipedia_title:
+                        m.wikipedia_title = w_title
+
+                wp_extract = (
+                    wikipedia_extracts.get(m.wikipedia_title or "")
+                    or wikipedia_extracts.get(f"en:{m.wikipedia_title}")
+                    or wikipedia_extracts.get(f"es:{m.wikipedia_title}")
+                    if m.wikipedia_title
+                    else None
+                )
+                if wp_extract:
+                    if isinstance(wp_extract, str):
+                        if not m.description:
+                            m.description = wp_extract
+                    elif hasattr(wp_extract, "extract"):
+                        m.pageviews_30d = getattr(wp_extract, "pageviews_30d", 0)
+                        if wp_extract.extract and not m.description:
+                            m.description = wp_extract.extract
+
+                wv_data = (
+                    wikivoyage_listings.get((m.wikidata_id or "").upper())
+                    or wikivoyage_listings.get(m.name.strip().lower())
+                    or wikivoyage_listings.get(m.name.strip())
+                )
+                wv_price = None
+                if wv_data:
+                    wv_price = getattr(wv_data, "price", None) or (
+                        wv_data.get("price") if isinstance(wv_data, dict) else None
+                    )
+                    wv_desc = (
+                        getattr(wv_data, "content", None)
+                        or getattr(wv_data, "description", None)
+                        or (
+                            wv_data.get("description") or wv_data.get("content")
+                            if isinstance(wv_data, dict)
+                            else None
+                        )
+                    )
+                    if not m.description and wv_desc:
+                        m.description = wv_desc
+
+                if (
+                    neighborhood_resolver
+                    and lat is not None
+                    and lon is not None
+                    and not m.neighborhood
+                ):
+                    m.neighborhood = neighborhood_resolver.resolve_neighborhood(
+                        lat, lon
+                    )
+
+                raw_hours = (
+                    getattr(m, "osm_opening_hours", None)
+                    or getattr(m, "opening_hours_raw", None)
+                    or tags.get("opening_hours")
+                )
+                parsed_hours = parse_osm_opening_hours(raw_hours)
+                m.osm_opening_hours = raw_hours
+                if hasattr(m, "opening_hours_raw"):
+                    m.opening_hours_raw = raw_hours
+                m.daily_windows = parsed_hours.daily_windows
+                m.hours_known = parsed_hours.hours_known
+                m.has_split_hours = parsed_hours.has_split_hours
+
+                cost, is_est, cost_src = PoiPricingService.resolve_poi_price(
+                    poi_name=m.name,
+                    city=m.city,
+                    category=m.category,
+                    osm_fee=tags.get("fee"),
+                    osm_charge=tags.get("charge"),
+                    wikidata_id=m.wikidata_id,
+                    wikivoyage_price=wv_price,
+                    existing_cost=getattr(
+                        m, "cost_eur", getattr(m, "admission_fee", 0.0)
+                    ),
+                    existing_is_estimated=m.cost_is_estimated,
+                    existing_source=m.cost_source,
+                )
+                m.cost_eur = cost
+                if hasattr(m, "admission_fee"):
+                    m.admission_fee = cost
+                m.cost_is_estimated = is_est
+                m.cost_source = cost_src
+
+                poi_dict = {
+                    "id": m.id,
+                    "name": m.name,
+                    "city": m.city,
+                    "category": m.category,
+                    "description": m.description,
+                    "duration_mins": m.duration_mins or 60,
+                    "cost_eur": getattr(
+                        m, "cost_eur", getattr(m, "admission_fee", 0.0)
+                    ),
+                    "cost_is_estimated": m.cost_is_estimated,
+                    "cost_source": m.cost_source,
+                    "wikidata_id": m.wikidata_id,
+                    "wikipedia_title": m.wikipedia_title,
+                    "sitelinks_count": m.sitelinks_count or 0,
+                    "pageviews_30d": m.pageviews_30d or 0,
+                    "wikivoyage_listed": bool(wv_data),
+                    "neighborhood": m.neighborhood,
+                    "metadata": meta,
+                    "tags": tags,
+                }
+
+                facets = FacetExtractor.extract_facets(poi_dict)
+                m.controlled_facets = facets.model_dump()
+                m.doc_quality = FacetExtractor.compute_doc_quality(
+                    poi=poi_dict,
+                    has_wikidata=bool(m.wikidata_id),
+                    has_wikipedia=bool(m.wikipedia_title),
+                    has_wikivoyage=bool(wv_data),
+                    has_hours=bool(m.hours_known),
+                    has_price=not bool(m.cost_is_estimated),
+                )
+
+                doc_text = PoiDocumentBuilder.build_document(m)
+                doc_hash = PoiDocumentBuilder.compute_hash(doc_text)
+                m.embedding_text = doc_text
+                m.hydration_status = "ENRICHED"
+
+                if (
+                    m.embedding is None
+                    or m.embedding_text_hash != doc_hash
+                    or m.embedding_version < PoiDocumentBuilder.VERSION
+                ):
+                    m.embedding_text_hash = doc_hash
+                    texts_to_embed.append(doc_text)
+                    models_to_embed.append(m)
+                else:
+                    m.hydration_status = "EMBEDDED"
+                    m.embedding_version = PoiDocumentBuilder.VERSION
+
+            if texts_to_embed:
+                logger.info(
+                    f"Batch embedding {len(texts_to_embed)} priority POIs via /api/embed (batch_size=128)"
+                )
+                vectors = await embed_provider.embed_batch(
+                    texts_to_embed, batch_size=128
+                )
+                for model, vec in zip(models_to_embed, vectors):
+                    model.embedding = vec
+                    model.embedding_model = embed_provider.model
+                    model.embedding_version = PoiDocumentBuilder.VERSION
+                    model.embedded_at = func.now()
+                    model.hydration_status = "EMBEDDED"
+
+            await session.commit()
+
+            _publish_city_hydration_event(
+                "HYDRATION_STAGE_COMPLETED",
+                city_id=cid,
+                city_name=name,
+                stage="ENRICHING_TIER12",
+                progress=0.60,
+                tier12_count=len(target_models),
+                embedded_count=len(texts_to_embed),
+            )
+            return {
+                "city_name": name,
+                "city_id": cid,
+                "tier12_count": len(target_models),
+                "embedded_count": len(texts_to_embed),
+            }
+    finally:
+        await task_engine.dispose()
+
+
+async def _run_enrich_long_tail_city_pois(
+    city_name: str, city_id: str | None = None
+) -> dict[str, Any]:
+    from sqlalchemy import func, or_, select, update
+
+    from app.db.models import AttractionModel, CityModel
+    from app.engine.hydration.document_builder import PoiDocumentBuilder
+    from app.engine.hydration.facet_extractor import FacetExtractor
+    from app.utils.opening_hours_parser import parse_osm_opening_hours
+    from app.infrastructure.providers.ollama_embedding_provider import (
+        OllamaEmbeddingProvider,
+    )
+    from app.infrastructure.providers.wikimedia_enrichment_provider import (
+        WikimediaEnrichmentProvider,
+    )
+
+    name = " ".join(city_name.strip().split()).title()
+    city_lower = name.lower()
+
+    session_maker, task_engine = _get_task_session_maker()
+    try:
+        async with session_maker() as session:
+            cid = city_id
+            if not cid:
+                c_stmt = (
+                    select(CityModel.id)
+                    .where(
+                        or_(
+                            CityModel.id == city_lower,
+                            func.lower(CityModel.name) == city_lower,
+                        )
+                    )
+                    .limit(1)
+                )
+                c_res = await session.execute(c_stmt)
+                cid = c_res.scalar_one_or_none() or f"{city_lower}_xx"
+
+            _publish_city_hydration_event(
+                "HYDRATION_STAGE_STARTED",
+                city_id=cid,
+                city_name=name,
+                stage="ENRICHING_LONG_TAIL",
+                progress=0.60,
+            )
+
+            rem_stmt = select(AttractionModel.id).where(
+                or_(
+                    AttractionModel.city_id == cid,
+                    func.lower(AttractionModel.city) == city_lower,
+                ),
+                or_(
+                    AttractionModel.hydration_status != "EMBEDDED",
+                    AttractionModel.embedding_version < PoiDocumentBuilder.VERSION,
+                    AttractionModel.embedding.is_(None),
+                ),
+            )
+            rem_res = await session.execute(rem_stmt)
+            all_ids = list(rem_res.scalars().all())
+            total_remaining = len(all_ids)
+            logger.info(
+                f"Stage 3: {total_remaining} long-tail POIs remaining for {name} ({cid})"
+            )
+
+            if total_remaining == 0:
+                await session.execute(
+                    update(CityModel)
+                    .where(
+                        or_(
+                            CityModel.id == cid,
+                            func.lower(CityModel.name) == city_lower,
+                        )
+                    )
+                    .values(ingested_at=func.now())
+                )
+                await session.commit()
+
+                _publish_city_hydration_event(
+                    "HYDRATION_COMPLETED",
+                    city_id=cid,
+                    city_name=name,
+                    stage="COMPLETED",
+                    progress=1.0,
+                    total_enriched=0,
+                )
+                return {
+                    "city_name": name,
+                    "city_id": cid,
+                    "total_enriched": 0,
+                    "status": "completed",
+                }
+
+            embed_provider = OllamaEmbeddingProvider()
+            chunk_size = 500
+            total_chunks = (total_remaining + chunk_size - 1) // chunk_size
+
+            for chunk_idx in range(total_chunks):
+                chunk_ids = all_ids[
+                    chunk_idx * chunk_size : (chunk_idx + 1) * chunk_size
+                ]
+                m_stmt = select(AttractionModel).where(
+                    AttractionModel.id.in_(chunk_ids)
+                )
+                m_res = await session.execute(m_stmt)
+                models = list(m_res.scalars().all())
+
+                qids = [
+                    m.wikidata_id
+                    for m in models
+                    if m.wikidata_id and m.wikidata_id.startswith("Q")
+                ]
+                wd_entities = {}
+                if qids:
+                    try:
+                        wd_entities = (
+                            await WikimediaEnrichmentProvider.resolve_wikidata_batch(
+                                list(set(qids))
+                            )
+                        )
+                    except Exception:
+                        pass
+
+                texts_to_embed = []
+                models_to_embed = []
+
+                for m in models:
+                    meta = dict(m.metadata_field or {})
+                    tags = dict(meta.get("tags") or {})
+
+                    wd_data = (
+                        wd_entities.get(m.wikidata_id or "") if m.wikidata_id else None
+                    )
+                    if wd_data:
+                        m.sitelinks_count = getattr(
+                            wd_data, "sitelinks_count", getattr(wd_data, "sitelinks", 0)
+                        )
+                        w_title = getattr(wd_data, "wikipedia_title", None) or getattr(
+                            wd_data, "enwiki_title", None
+                        )
+                        if w_title and not m.wikipedia_title:
+                            m.wikipedia_title = w_title
+
+                    raw_hours = (
+                        getattr(m, "osm_opening_hours", None)
+                        or getattr(m, "opening_hours_raw", None)
+                        or tags.get("opening_hours")
+                    )
+                    parsed_hours = parse_osm_opening_hours(raw_hours)
+                    m.osm_opening_hours = raw_hours
+                    if hasattr(m, "opening_hours_raw"):
+                        m.opening_hours_raw = raw_hours
+                    m.daily_windows = parsed_hours.daily_windows
+                    m.hours_known = parsed_hours.hours_known
+                    m.has_split_hours = parsed_hours.has_split_hours
+
+                    poi_dict = {
+                        "id": m.id,
+                        "name": m.name,
+                        "city": m.city,
+                        "category": m.category,
+                        "description": m.description,
+                        "duration_mins": m.duration_mins or 60,
+                        "cost_eur": getattr(
+                            m, "cost_eur", getattr(m, "admission_fee", 0.0)
+                        ),
+                        "cost_is_estimated": m.cost_is_estimated,
+                        "cost_source": m.cost_source,
+                        "wikidata_id": m.wikidata_id,
+                        "wikipedia_title": m.wikipedia_title,
+                        "sitelinks_count": m.sitelinks_count or 0,
+                        "pageviews_30d": m.pageviews_30d or 0,
+                        "wikivoyage_listed": False,
+                        "neighborhood": m.neighborhood,
+                        "metadata": meta,
+                        "tags": tags,
+                    }
+
+                    facets = FacetExtractor.extract_facets(poi_dict)
+                    m.controlled_facets = facets.model_dump()
+                    m.doc_quality = FacetExtractor.compute_doc_quality(
+                        poi=poi_dict,
+                        has_wikidata=bool(m.wikidata_id),
+                        has_wikipedia=bool(m.wikipedia_title),
+                        has_wikivoyage=False,
+                        has_hours=bool(m.hours_known),
+                        has_price=not bool(m.cost_is_estimated),
+                    )
+
+                    doc_text = PoiDocumentBuilder.build_document(m)
+                    doc_hash = PoiDocumentBuilder.compute_hash(doc_text)
+                    m.embedding_text = doc_text
+
+                    if (
+                        m.embedding is None
+                        or m.embedding_text_hash != doc_hash
+                        or m.embedding_version < PoiDocumentBuilder.VERSION
+                    ):
+                        m.embedding_text_hash = doc_hash
+                        texts_to_embed.append(doc_text)
+                        models_to_embed.append(m)
+                    else:
+                        m.hydration_status = "EMBEDDED"
+                        m.embedding_version = PoiDocumentBuilder.VERSION
+
+                if texts_to_embed:
+                    try:
+                        vectors = await embed_provider.embed_batch(
+                            texts_to_embed, batch_size=128
+                        )
+                        for model, vec in zip(models_to_embed, vectors):
+                            model.embedding = vec
+                            model.embedding_model = embed_provider.model
+                            model.embedding_version = PoiDocumentBuilder.VERSION
+                            model.embedded_at = func.now()
+                            model.hydration_status = "EMBEDDED"
+                    except Exception as ee:
+                        logger.warning(
+                            f"Long-tail batch embedding failed for chunk {chunk_idx}: {ee}"
+                        )
+
+                await session.commit()
+
+                prog = 0.60 + 0.39 * ((chunk_idx + 1) / total_chunks)
+                _publish_city_hydration_event(
+                    "HYDRATION_PROGRESS",
+                    city_id=cid,
+                    city_name=name,
+                    stage="ENRICHING_LONG_TAIL",
+                    progress=prog,
+                    chunk=chunk_idx + 1,
+                    total_chunks=total_chunks,
+                )
+
+            await session.execute(
+                update(CityModel)
+                .where(
+                    or_(
+                        CityModel.id == cid,
+                        func.lower(CityModel.name) == city_lower,
+                    )
+                )
+                .values(ingested_at=func.now())
+            )
+            await session.commit()
+
+            _publish_city_hydration_event(
+                "HYDRATION_COMPLETED",
+                city_id=cid,
+                city_name=name,
+                stage="COMPLETED",
+                progress=1.0,
+                total_remaining=total_remaining,
+            )
+            return {
+                "city_name": name,
+                "city_id": cid,
+                "total_enriched": total_remaining,
+                "status": "completed",
+            }
+    finally:
+        await task_engine.dispose()
+
+
+@app.task(bind=True, name="app.tasks.ingest_city_pois_task", queue="poi_hydration")
+def ingest_city_pois_task(self, city_name: str, force: bool = False):
+    """Stage 1: Ingestion task."""
+    return _run_async(_run_ingest_city_pois(city_name, force=force))
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.enrich_tier12_city_pois_task",
+    queue="poi_hydration",
+)
+def enrich_tier12_city_pois_task(self, city_name: str, city_id: str | None = None):
+    """Stage 2: Priority enrichment task."""
+    return _run_async(_run_enrich_tier12_city_pois(city_name, city_id=city_id))
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.enrich_long_tail_city_pois_task",
+    queue="poi_hydration",
+)
+def enrich_long_tail_city_pois_task(self, city_name: str, city_id: str | None = None):
+    """Stage 3: Long-tail background enrichment task."""
+    return _run_async(_run_enrich_long_tail_city_pois(city_name, city_id=city_id))
+
+
+@app.task(bind=True, name="app.tasks.hydrate_city_pipeline_task", queue="poi_hydration")
+def hydrate_city_pipeline_task(self, city_name: str, force: bool = False):
+    """
+    Master chained Celery workflow for City POI Hydration:
+    Stage 1: INGESTING (10k+ POIs extracted, spatial deduplicated, raw upsert)
+    Stage 2: ENRICHING_TIER12 (Wikimedia authority, pricing cascade, doc builder, batch embed)
+    Stage 3: ENRICHING_LONG_TAIL (Remaining Tier 3/4 venues in chunks of 500)
+    """
+    logger.info(
+        f"Task {self.request.id}: Hydration pipeline initiated for {city_name} (force={force})"
+    )
+
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+
+    import redis
+
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    r = redis.from_url(redis_url)
+    lock = r.lock(f"paladio:lock:hydrate_city:{city_clean}", timeout=1800)
+
+    acquired = lock.acquire(blocking=False)
+    if not acquired:
+        logger.warning(
+            f"Hydration for {city_name} is already in progress on another worker."
+        )
+        return {"status": "in_progress", "city": city_name}
 
     try:
-        session_maker, task_engine = _get_task_session_maker()
-
-        async def run_fetch():
-            try:
-                async with session_maker() as session:
-                    repo = SqlPoiRepository(session)
-                    provider = OverpassProviderAdapter()
-                    await _fetch_and_store_pois(city_name, repo, provider)
-            finally:
-                await task_engine.dispose()
-
-        asyncio.run(run_fetch())
-        logger.info(
-            f"Task {self.request.id}: Successfully refreshed POIs for {city_name}"
+        _publish_city_hydration_event(
+            "HYDRATION_STARTED",
+            city_id=city_clean,
+            city_name=city_name,
+            stage="STARTED",
+            progress=0.0,
         )
-        return {"status": "success", "city": city_name}
+
+        stage1_result = _run_async(_run_ingest_city_pois(city_name, force=force))
+        city_id = stage1_result.get("city_id", city_clean)
+
+        stage2_result = _run_async(
+            _run_enrich_tier12_city_pois(city_name, city_id=city_id)
+        )
+
+        stage3_result = _run_async(
+            _run_enrich_long_tail_city_pois(city_name, city_id=city_id)
+        )
+
+        return {
+            "status": "success",
+            "city": city_name,
+            "city_id": city_id,
+            "stage1": stage1_result,
+            "stage2": stage2_result,
+            "stage3": stage3_result,
+        }
     except Exception as exc:
-        logger.error(
-            f"Task {self.request.id}: Failed to refresh POIs for {city_name}: {exc}"
+        logger.error(f"Hydration pipeline failed for {city_name}: {exc}", exc_info=True)
+        _publish_city_hydration_event(
+            "HYDRATION_FAILED",
+            city_id=city_clean,
+            city_name=city_name,
+            stage="FAILED",
+            progress=0.0,
+            error=str(exc),
         )
         raise
+    finally:
+        try:
+            lock.release()
+        except Exception:
+            pass
+
+
+@app.task(bind=True, name="app.tasks.refresh_city_pois_task", queue="poi_hydration")
+def refresh_city_pois_task(self, city_name: str):
+    """Backwards-compatible wrapper delegating to hydrate_city_pipeline_task."""
+    return hydrate_city_pipeline_task(city_name)
 
 
 # Optional override map for direct custom GTFS URLs; dynamic resolution handles any world city via GTFSResolverService

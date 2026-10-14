@@ -16,7 +16,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-import osmium
+try:
+    import osmium
+except ImportError:
+    osmium = None
+
 from app.engine.v2.osm_signals import (
     classify_osm_category,
     count_name_languages,
@@ -491,13 +495,23 @@ def spatial_deduplicate(
 # --- pyosmium Handler ---------------------------------------------------------
 
 
-class PoiPbfHandler(osmium.SimpleHandler):
+class PoiPbfHandler(osmium.SimpleHandler if osmium is not None else object):  # type: ignore[misc]
     """Streams .osm.pbf, filters within city bounding box, and buckets into 6 streams."""
 
     def __init__(self, bbox: tuple[float, float, float, float]) -> None:
         super().__init__()
-        # bbox: (min_lat, min_lon, max_lat, max_lon)
-        self.min_lat, self.min_lon, self.max_lat, self.max_lon = bbox
+        b0, b1, b2, b3 = bbox
+        if (
+            abs(b0) <= 90
+            and abs(b1) <= 90
+            and (abs(b2) > 90 or b2 < 0 or abs(b3) > 90 or b3 < 0 or b2 < b1)
+        ):
+            self.min_lat, self.max_lat = min(b0, b1), max(b0, b1)
+            self.min_lon, self.max_lon = min(b2, b3), max(b2, b3)
+        else:
+            self.min_lat, self.max_lat = min(b0, b2), max(b0, b2)
+            self.min_lon, self.max_lon = min(b1, b3), max(b1, b3)
+
         self.streams: dict[int, list[dict[str, Any]]] = {
             1: [],
             2: [],

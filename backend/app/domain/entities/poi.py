@@ -223,6 +223,7 @@ class TransitStep(BaseModel):
     transit_line: str | None = None
     headsign: str | None = None
     station_name: str | None = None
+    geometry: list[list[float]] = Field(default_factory=list)
 
 
 class TransitLeg(BaseModel):
@@ -233,6 +234,7 @@ class TransitLeg(BaseModel):
     mode: str = "multimodal"  # "multimodal", "pedestrian", "transit"
     steps: list[TransitStep] = Field(default_factory=list)
     airport_surcharge_eur: float = 0.0
+    geometry: list[list[float]] = Field(default_factory=list)
 
 
 class TransitRecommendation(BaseModel):

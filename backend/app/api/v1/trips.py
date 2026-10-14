@@ -749,6 +749,40 @@ async def get_trip(
     parts = [_participant_to_response(p) for p in parts_models]
     t_count = await _get_trip_tickets_count(trip.id, session)
 
+    if trip.itinerary_data and isinstance(trip.itinerary_data, dict):
+        has_missing_geom = False
+        for day_obj in trip.itinerary_data.get("days", []):
+            path = day_obj.get("itinerary", {}).get("path", [])
+            for p in path:
+                tr = p.get("transit_from_previous")
+                if (
+                    isinstance(tr, dict)
+                    and tr.get("mode") in ("pedestrian", "walk")
+                    and not tr.get("geometry")
+                ):
+                    has_missing_geom = True
+                    break
+            if has_missing_geom:
+                break
+
+        if has_missing_geom:
+            try:
+                from app.services.transit_service import ensure_walking_legs_populated
+                import copy
+
+                cloned_itin = copy.deepcopy(trip.itinerary_data)
+                updated_itin = await ensure_walking_legs_populated(
+                    cloned_itin, city=trip.destination or ""
+                )
+                trip.itinerary_data = updated_itin
+                session.add(trip)
+                await session.commit()
+                await session.refresh(trip)
+            except Exception as e:
+                logger.warning(
+                    f"Could not lazily enrich walking geometries for trip {trip.id}: {e}"
+                )
+
     return TripResponse(
         id=trip.id,
         user_id=trip.user_id,

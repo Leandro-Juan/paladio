@@ -4,6 +4,7 @@ Resolves curated seed assignments (Tier 1 iconic must-sees, Tier 2 anchors)
 with high confidence, and applies deterministic heuristic scoring for unseeded POIs.
 """
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,66 @@ def get_seed_store() -> CitySeedStore:
     return _GLOBAL_SEED_STORE
 
 
+def compute_unified_iconicity_raw(poi: dict[str, Any]) -> float:
+    """Computes raw iconicity combining OSM importance + Wikimedia authority signals.
+
+    Formula:
+    I_raw(p) = osm_importance_raw(p)
+             + 2.5 * ln(1 + sitelinks_count)
+             + 1.0 * ln(1 + pageviews_30d / 1000)
+             + 3.0 * I(unesco)
+             + 2.0 * I(wikivoyage_listed)
+    """
+    meta = poi.get("metadata") if isinstance(poi.get("metadata"), dict) else {}
+    sig = meta.get("osm") if isinstance(meta.get("osm"), dict) else {}
+    tags = meta.get("tags") if isinstance(meta.get("tags"), dict) else {}
+
+    osm_raw = float(sig.get("importance_raw") or poi.get("importance_raw") or 0.0)
+    if osm_raw == 0.0 and tags:
+        from app.engine.v2.osm_signals import extract_osm_signals
+
+        extracted = extract_osm_signals(tags)
+        osm_raw = float(extracted.get("importance_raw", 0.0))
+
+    sitelinks = int(
+        poi.get("sitelinks_count")
+        or meta.get("sitelinks_count")
+        or meta.get("wikidata", {}).get("sitelinks")
+        or 0
+    )
+    pageviews = float(
+        poi.get("pageviews_30d")
+        or meta.get("pageviews_30d")
+        or meta.get("wikipedia", {}).get("pageviews_30d")
+        or 0.0
+    )
+
+    is_unesco = bool(
+        poi.get("is_unesco")
+        or meta.get("unesco")
+        or sig.get("unesco")
+        or tags.get("heritage") == "1"
+        or "unesco" in str(tags.get("heritage", "")).lower()
+        or tags.get("heritage:operator") == "whc"
+    )
+
+    is_wikivoyage = bool(
+        poi.get("wikivoyage_listed")
+        or meta.get("wikivoyage_listed")
+        or poi.get("wikivoyage_extract")
+        or meta.get("wikivoyage")
+    )
+
+    i_raw = (
+        osm_raw
+        + 2.5 * math.log(1.0 + sitelinks)
+        + 1.0 * math.log(1.0 + max(0.0, pageviews) / 1000.0)
+        + (3.0 if is_unesco else 0.0)
+        + (2.0 if is_wikivoyage else 0.0)
+    )
+    return round(i_raw, 4)
+
+
 def classify_poi_tier(
     poi: dict[str, Any],
     city: str,
@@ -44,8 +105,6 @@ def classify_poi_tier(
 
     Always dynamic and algorithmic for every city worldwide.
     """
-    # 1. Fast path: if the POI already has persisted tier and iconicity_score from
-    # automatic OSM relative tiering, preserve them directly.
     existing_tier = poi.get("tier")
     existing_iconicity = poi.get("iconicity_score")
     if (
@@ -64,27 +123,25 @@ def classify_poi_tier(
             "visit_mode": poi.get("visit_mode", "full"),
         }
 
-    # Dynamic signal / heuristic classification
     name = poi.get("name", "")
     category = poi.get("category", "")
     metadata = poi.get("metadata") if isinstance(poi.get("metadata"), dict) else {}
-    tax_cat, cat_id = classify_poi_taxonomy(name, category, metadata)
     sig = metadata.get("osm") if isinstance(metadata.get("osm"), dict) else {}
-    r = float(sig.get("importance_raw", 0.0))
+    tax_cat, cat_id = classify_poi_taxonomy(name, category, metadata)
+    i_raw = compute_unified_iconicity_raw(poi)
 
     duration = poi.get("duration_mins", 60)
     cost = poi.get("cost_eur", 0.0)
 
-    if r >= 3.5:
+    if i_raw >= 3.5:
         tier = 1
-        iconicity = round(min(0.99, 0.85 + 0.03 * (r - 3.5)), 3)
+        iconicity = round(min(0.99, 0.85 + 0.03 * (i_raw - 3.5)), 3)
         confidence = "high"
-    elif r >= 1.2:
+    elif i_raw >= 1.2:
         tier = 2
-        iconicity = round(min(0.84, 0.60 + 0.08 * (r - 1.2)), 3)
+        iconicity = round(min(0.84, 0.60 + 0.08 * (i_raw - 1.2)), 3)
         confidence = "high"
     else:
-        # Calculate heuristic iconicity score
         score = 0.25
         if duration >= 120:
             score += 0.20
@@ -110,8 +167,11 @@ def classify_poi_tier(
             tier = 3
         confidence = "low"
 
-    # Visit mode heuristic
-    if tax_cat == "scenic_views" or duration <= 45:
+    if (
+        tax_cat == "scenic_views"
+        or duration <= 45
+        or str(category).lower() in ("statue", "viewpoint")
+    ):
         visit_mode = "quick"
     else:
         visit_mode = "full"
@@ -119,7 +179,7 @@ def classify_poi_tier(
     return {
         "tier": tier,
         "tier_confidence": confidence,
-        "tier_source": "osm_signals" if r > 0 else "heuristic",
+        "tier_source": "osm_signals" if (i_raw > 0 or sig) else "heuristic",
         "iconicity_score": round(iconicity, 3),
         "taxonomy_category": tax_cat,
         "category_id": cat_id,
@@ -150,11 +210,13 @@ def tier_city_attractions(
     city: str,
     seed_store: CitySeedStore | None = None,
 ) -> list[dict[str, Any]]:
-    """Assign tiers relative to the city itself from OSM importance signals.
+    """Assign tiers relative to the city itself using unified OSM + Wikimedia signals.
 
-    A town of 3 sights and a megacity both get a handful of Tier-1 must-sees, because
-    ranking is by percentile of the importance score, not by absolute thresholds.
-    100% dynamic and algorithmic for every city. Ties broken deterministically by name.
+    A small town and a megacity both get calibrated must-sees, because ranking is by
+    city-relative percentile ranks combined with absolute floors.
+    Megacities allow up to t1_cap = 25 Tier 1 anchors and t2_cap = 80 Tier 2 sights,
+    while smaller cities scale proportionally.
+    Ties broken deterministically by name.
     """
     out: list[dict[str, Any]] = []
     sights: list[dict[str, Any]] = []
@@ -176,56 +238,85 @@ def tier_city_attractions(
         else:
             sights.append(rec)
 
-    def raw(rec: dict[str, Any]) -> float:
-        return float(
-            (rec.get("metadata", {}).get("osm") or {}).get("importance_raw", 0.0)
-        )
-
-    ranked = sorted(sights, key=lambda r: (-raw(r), r.get("name", "")))
+    ranked = sorted(
+        sights,
+        key=lambda r: (-compute_unified_iconicity_raw(r), r.get("name", "")),
+    )
     n = len(ranked)
-    t1_cap = max(4, min(14, round(0.08 * n)))
-    t2_cap = max(8, min(35, round(0.22 * n)))
+    t1_cap = max(4, min(25, round(0.08 * n)))
+    t2_cap = max(8, min(80, round(0.22 * n)))
 
     t1_count = 0
     t2_count = 0
-    for idx, rec in enumerate(ranked):
+    for rec in ranked:
+        i_raw = compute_unified_iconicity_raw(rec)
         sig = rec.get("metadata", {}).get("osm") or {}
-        r = raw(rec)
         tax_cat, cat_id = classify_poi_taxonomy(
             rec.get("name", ""),
             rec.get("category", ""),
             {"tags": _osm_tag_words(sig)},
         )
-        strong = bool(sig.get("wikidata") or sig.get("wikipedia") or sig.get("unesco"))
+        strong = bool(
+            sig.get("wikidata")
+            or sig.get("wikipedia")
+            or sig.get("unesco")
+            or rec.get("wikidata_id")
+            or rec.get("wikipedia_title")
+        )
 
-        if t1_count < t1_cap and (r >= 3.5 or (t1_count < 3 and r > 0.0)):
+        if t1_count < t1_cap and (i_raw >= 3.5 or (t1_count < 3 and i_raw > 0.0)):
             tier = 1
             t1_count += 1
             iconicity = round(
                 max(0.85, 0.99 - 0.14 * (t1_count - 1) / max(1, t1_cap - 1)), 3
             )
-        elif t2_count < t2_cap and r >= 1.2:
+        elif t2_count < t2_cap and i_raw >= 1.2:
             tier = 2
             t2_count += 1
             iconicity = round(
                 max(0.60, 0.84 - 0.24 * (t2_count - 1) / max(1, t2_cap - 1)), 3
             )
-        elif r <= 0.3:
+        elif i_raw <= 0.3:
             tier = 4
             iconicity = 0.10
         else:
             tier = 3
-            iconicity = round(min(0.59, 0.35 + 0.08 * r), 3)
+            iconicity = round(min(0.59, 0.35 + 0.08 * i_raw), 3)
+
+        tier_source = (
+            "osm_signals" if (sig or rec.get("wikidata_id")) else "unified_signals"
+        )
+        if seed_store is not None:
+            seed = seed_store.get_seed(city, rec.get("name", ""))
+            if seed and seed.get("tier") is not None and seed["tier"] < tier:
+                tier = seed["tier"]
+                tier_source = "seed_override"
+                if tier == 1:
+                    iconicity = max(0.90, iconicity)
+                elif tier == 2:
+                    iconicity = max(0.75, iconicity)
+
+        dur = rec.get("duration_mins", 60)
+        if (
+            tax_cat == "scenic_views"
+            or dur <= 45
+            or str(rec.get("category", "")).lower() in ("statue", "viewpoint")
+        ):
+            visit_mode = "quick"
+        else:
+            visit_mode = "full"
 
         rec.update(
             {
                 "tier": tier,
-                "tier_confidence": "high" if strong and tier <= 2 else "low",
-                "tier_source": "osm_signals",
+                "tier_confidence": "high"
+                if (strong and tier <= 2) or tier == 1
+                else "low",
+                "tier_source": tier_source,
                 "iconicity_score": iconicity,
                 "taxonomy_category": tax_cat,
                 "category_id": cat_id,
-                "visit_mode": rec.get("visit_mode", "full"),
+                "visit_mode": rec.get("visit_mode") or visit_mode,
             }
         )
         out.append(rec)

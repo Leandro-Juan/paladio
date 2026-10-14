@@ -1,56 +1,84 @@
+"""Deterministic parser for OpenStreetMap opening_hours syntax.
+
+Extracts multi-interval schedules (split lunch/dinner windows), supports sunrise/sunset,
+and flags unparseable or missing schedules with UNKNOWN_TIME_SENTINEL = -2 to prevent
+hallucinated 08:00-22:00 assumptions.
+"""
+
+from __future__ import annotations
+
 import re
 from typing import NamedTuple
 
 WEEKDAYS = ["mo", "tu", "we", "th", "fr", "sa", "su"]
 DAY_INDEX_MAP = {day: idx for idx, day in enumerate(WEEKDAYS)}
 
+UNKNOWN_TIME_SENTINEL = -2  # -1 = Explicitly Closed on this weekday; -2 = Hours Unknown
+SUNRISE_MINS = 390  # 06:30
+SUNSET_MINS = 1140  # 19:00
+
 
 class ParsedWeeklySchedule(NamedTuple):
-    open_time_mins_by_day: list[int]  # Length 7, -1 if closed
-    close_time_mins_by_day: list[int]  # Length 7, -1 if closed
+    open_time_mins_by_day: list[int]  # Length 7, -1 if closed, -2 if unknown
+    close_time_mins_by_day: list[int]  # Length 7, -1 if closed, -2 if unknown
+    daily_windows: list[
+        list[tuple[int, int]]
+    ]  # All intervals per day, e.g. [[(780, 990), (1200, 1425)], ...]
+    hours_known: bool  # False if raw string is None/empty/unparseable
+    has_split_hours: bool  # True if any weekday has >= 2 intervals
 
 
 def parse_time_to_minutes(time_str: str) -> int:
-    """Parses 'HH:MM' or 'H:MM' to minutes elapsed from midnight."""
-    parts = time_str.strip().split(":")
+    """Parses 'HH:MM', 'H:MM', 'sunrise', or 'sunset' to minutes elapsed from midnight."""
+    t = time_str.strip().lower()
+    if t == "sunrise":
+        return SUNRISE_MINS
+    if t == "sunset":
+        return SUNSET_MINS
+    parts = t.split(":")
     if len(parts) == 2:
         return int(parts[0]) * 60 + int(parts[1])
     return int(parts[0]) * 60
 
 
 def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
-    """
-    Parses OSM opening_hours syntax into two 7-element vectors representing
-    opening and closing minutes for Monday (0) through Sunday (6).
-    Closed days are represented as -1.
+    """Parses OSM opening_hours syntax into multi-interval daily windows and outer bounds.
 
-    Guardrail: If close_mins < open_mins (e.g. 20:00-02:00), normalize by adding 1440
-    to close_mins (120 + 1440 = 1560) to prevent time-window violations.
+    Returns UNKNOWN_TIME_SENTINEL (-2) when hours are unknown or unparseable.
     """
-    default_open = [480] * 7  # 08:00
-    default_close = [1320] * 7  # 22:00
+    empty_windows: list[list[tuple[int, int]]] = [[] for _ in range(7)]
 
     if not hours_str or not isinstance(hours_str, str) or not hours_str.strip():
-        return ParsedWeeklySchedule(default_open, default_close)
+        return ParsedWeeklySchedule(
+            open_time_mins_by_day=[-2] * 7,
+            close_time_mins_by_day=[-2] * 7,
+            daily_windows=empty_windows,
+            hours_known=False,
+            has_split_hours=False,
+        )
 
     s = hours_str.strip().lower()
 
     # 24/7 check
     if "24/7" in s:
-        return ParsedWeeklySchedule([0] * 7, [1440] * 7)
+        windows_24_7 = [[(0, 1440)] for _ in range(7)]
+        return ParsedWeeklySchedule(
+            open_time_mins_by_day=[0] * 7,
+            close_time_mins_by_day=[1440] * 7,
+            daily_windows=windows_24_7,
+            hours_known=True,
+            has_split_hours=False,
+        )
 
-    open_vec = [-1] * 7
-    close_vec = [-1] * 7
+    daily_windows: list[list[tuple[int, int]]] = [[] for _ in range(7)]
+    closed_days: set[int] = set()
     matched_any = False
 
     # Split rules separated by semicolon
     rules = [r.strip() for r in s.split(";") if r.strip()]
 
     for rule in rules:
-        # Check if this rule explicitly marks closure
         is_closed = any(kw in rule for kw in ["closed", "off"])
-
-        # Extract days
         applicable_days: list[int] = []
 
         # Check day range: e.g. mo-fr, tu-sa, sa-su
@@ -69,7 +97,6 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
         # Check individual days: e.g. mo, tu, sa
         if not applicable_days:
             for day_str, idx in DAY_INDEX_MAP.items():
-                # Word boundary check for 2-letter day
                 if re.search(rf"\b{day_str}\b", rule) and idx not in applicable_days:
                     applicable_days.append(idx)
 
@@ -79,42 +106,76 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
 
         if is_closed:
             for d in applicable_days:
-                open_vec[d] = -1
-                close_vec[d] = -1
+                closed_days.add(d)
+                daily_windows[d] = []
             matched_any = True
             continue
 
-        # Extract time range: e.g. 09:30-18:00, 10:00-20:00
-        time_match = re.search(r"(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})", rule)
-        if time_match:
-            o_min = parse_time_to_minutes(time_match.group(1))
-            c_min = parse_time_to_minutes(time_match.group(2))
-
-            # Midnight crossing normalization: e.g. 20:00-02:00 -> close = 120 + 1440 = 1560
-            if c_min < o_min:
-                c_min += 1440
-
-            for d in applicable_days:
-                open_vec[d] = o_min
-                close_vec[d] = c_min
+        # Extract all time ranges: e.g. 13:00-16:30, 20:00-23:45 or sunrise-sunset
+        time_matches = re.findall(
+            r"(sunrise|sunset|\d{1,2}:\d{2})\s*-\s*(sunrise|sunset|\d{1,2}:\d{2})",
+            rule,
+        )
+        if time_matches:
             matched_any = True
+            for t_open, t_close in time_matches:
+                o_min = parse_time_to_minutes(t_open)
+                c_min = parse_time_to_minutes(t_close)
+                if c_min < o_min:
+                    c_min += 1440
+                for d in applicable_days:
+                    if d not in closed_days:
+                        daily_windows[d].append((o_min, c_min))
 
     if not matched_any:
         # Check if single simple time range exists in the entire string
-        single_time = re.search(r"(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})", s)
-        if single_time:
-            o_min = parse_time_to_minutes(single_time.group(1))
-            c_min = parse_time_to_minutes(single_time.group(2))
-            if c_min < o_min:
-                c_min += 1440
-            return ParsedWeeklySchedule([o_min] * 7, [c_min] * 7)
-        return ParsedWeeklySchedule(default_open, default_close)
+        single_matches = re.findall(
+            r"(sunrise|sunset|\d{1,2}:\d{2})\s*-\s*(sunrise|sunset|\d{1,2}:\d{2})",
+            s,
+        )
+        if single_matches:
+            matched_any = True
+            intervals: list[tuple[int, int]] = []
+            for t_open, t_close in single_matches:
+                o_min = parse_time_to_minutes(t_open)
+                c_min = parse_time_to_minutes(t_close)
+                if c_min < o_min:
+                    c_min += 1440
+                intervals.append((o_min, c_min))
+            intervals.sort(key=lambda iv: iv[0])
+            daily_windows = [list(intervals) for _ in range(7)]
+        else:
+            return ParsedWeeklySchedule(
+                open_time_mins_by_day=[-2] * 7,
+                close_time_mins_by_day=[-2] * 7,
+                daily_windows=empty_windows,
+                hours_known=False,
+                has_split_hours=False,
+            )
 
-    # For any days that were not specified in an open schedule:
-    # If some days matched, unspecified days might be closed (if explicit days were listed like Tu-Su)
-    # or should retain default if all are -1
+    open_vec = [-2] * 7
+    close_vec = [-2] * 7
+
     for d in range(7):
-        if open_vec[d] != -1 and close_vec[d] != -1 and open_vec[d] >= close_vec[d]:
-            close_vec[d] = open_vec[d] + 60
+        if d in closed_days:
+            open_vec[d] = -1
+            close_vec[d] = -1
+        elif daily_windows[d]:
+            # Sort windows and remove overlaps if any
+            daily_windows[d].sort(key=lambda iv: iv[0])
+            open_vec[d] = daily_windows[d][0][0]
+            close_vec[d] = daily_windows[d][-1][1]
+        elif matched_any:
+            # Unspecified day in an explicit schedule -> closed
+            open_vec[d] = -1
+            close_vec[d] = -1
 
-    return ParsedWeeklySchedule(open_vec, close_vec)
+    has_split = any(len(windows) >= 2 for windows in daily_windows)
+
+    return ParsedWeeklySchedule(
+        open_time_mins_by_day=open_vec,
+        close_time_mins_by_day=close_vec,
+        daily_windows=daily_windows,
+        hours_known=matched_any,
+        has_split_hours=has_split,
+    )

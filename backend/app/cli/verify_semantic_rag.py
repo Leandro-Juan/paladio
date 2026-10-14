@@ -80,14 +80,18 @@ async def generate_health_report(city: str | None = None) -> None:
         print(f"NULL Embeddings:         {null_emb} ({pct_null:.2f}%)")
 
         # 2. Vector inspection (Uniform vector check & embedding distribution)
+        where_conds = ["embedding IS NOT NULL"]
+        if city:
+            where_conds.append("lower(city) = lower(:city)")
+        where_clause = "WHERE " + " AND ".join(where_conds)
         query_vectors = text(
             f"""
             SELECT id, name, category, embedding
             FROM attractions
-            {city_clause}
-            AND embedding IS NOT NULL
+            {where_clause}
             """
         )
+
         v_res = await session.execute(query_vectors, params)
         rows = v_res.fetchall()
 
@@ -99,6 +103,15 @@ async def generate_health_report(city: str | None = None) -> None:
         for row in rows:
             p_id, p_name, p_cat, emb = row
             if emb is not None:
+                if isinstance(emb, str):
+                    try:
+                        emb = [
+                            float(x)
+                            for x in emb.strip("[] \n\r\t").split(",")
+                            if x.strip()
+                        ]
+                    except Exception:
+                        continue
                 arr = np.asarray(emb, dtype=np.float32)
                 if len(arr) == 768:
                     if np.max(np.abs(arr - target_uniform_val)) < 1e-4:

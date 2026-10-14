@@ -36,6 +36,7 @@ dependencies = [
     "timezonefinder>=6.0.0",
     "pypdf>=5.0.0",
     "zxing-cpp>=2.0.0",
+    "osmium>=4.0.0",
 ]
 
 [project.optional-dependencies]

@@ -66,14 +66,53 @@ def build_cpp_pois(
         )
         open_vec = getattr(poi, "open_time_mins_by_day", None)
         close_vec = getattr(poi, "close_time_mins_by_day", None)
+        daily_windows = getattr(poi, "daily_windows", None) or (
+            poi.metadata.get("daily_windows")
+            if hasattr(poi, "metadata") and isinstance(poi.metadata, dict)
+            else None
+        )
         is_closed = False
         if open_vec and len(open_vec) == 7 and 0 <= day_weekday < 7:
             o_min = open_vec[day_weekday]
             c_min = close_vec[day_weekday]
             if o_min == -1 or c_min == -1:
                 is_closed = True
+            elif o_min == -2 or c_min == -2:
+                # UNKNOWN_TIME_SENTINEL = -2: apply category-aware soft bounds ONLY at solver mapping time
+                tags = (
+                    poi.metadata.get("tags", {})
+                    if hasattr(poi, "metadata") and isinstance(poi.metadata, dict)
+                    else {}
+                )
+                from app.engine.v2.osm_signals import default_hours
+
+                d_open, d_close = default_hours(poi.category, tags)
+                o_min, c_min = d_open[day_weekday], d_close[day_weekday]
+            elif (
+                daily_windows
+                and len(daily_windows) == 7
+                and len(daily_windows[day_weekday]) >= 2
+            ):
+                # Multi-interval: select the window that best covers solver operating hours
+                best_iv = None
+                best_len = -1
+                for iv_o, iv_c in daily_windows[day_weekday]:
+                    iv_len = iv_c - iv_o
+                    if iv_len > best_len:
+                        best_len = iv_len
+                        best_iv = (iv_o, iv_c)
+                if best_iv:
+                    o_min, c_min = best_iv
         else:
-            o_min, c_min = poi.open_time_mins, poi.close_time_mins
+            o_min, c_min = (
+                getattr(poi, "open_time_mins", 540),
+                getattr(poi, "close_time_mins", 1200),
+            )
+            if o_min == -2 or c_min == -2:
+                from app.engine.v2.osm_signals import default_hours
+
+                d_open, d_close = default_hours(poi.category, {})
+                o_min, c_min = d_open[day_weekday], d_close[day_weekday]
 
         if is_closed or (is_specialized_meal and (o_min == -1 or c_min == -1)):
             earliest = 1440

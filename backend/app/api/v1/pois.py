@@ -1,17 +1,28 @@
+"""POI Search and Retrieval API (Phase 4).
+
+Powered by HybridRetriever:
+- Single-roundtrip SQL CTE combining Dense Vector + Full-Text Search + Trigram RRF
+- Composite reranking (RRF + Iconicity + Facet Match + Doc Quality Bonus)
+- Spatial-Semantic MMR diversification
+- Exposes description, neighborhood, facets, doc_quality, and hours_known
+"""
+
 import logging
 import re
 import unicodedata
 from typing import Any
 
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.db.session import get_db
+from app.engine.retrieval.hybrid_retriever import HybridRetriever
+from app.engine.retrieval.query_rewriter import QueryRewriter
 from app.infrastructure.providers.ollama_embedding_provider import (
     OllamaEmbeddingProvider,
 )
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +39,11 @@ class PoiSearchItem(BaseModel):
     cost_eur: float = 0.0
     similarity: float = 1.0
     match_type: str | None = None
+    description: str | None = None
+    neighborhood: str | None = None
+    facets: dict[str, Any] = Field(default_factory=dict)
+    doc_quality: str = "C"
+    hours_known: bool = False
 
 
 class PoiSearchResponse(BaseModel):
@@ -81,6 +97,28 @@ def _extract_coords(location: Any) -> tuple[float, float]:
     return 0.0, 0.0
 
 
+def _candidate_to_search_item(
+    c: dict[str, Any], sim: float, match_type: str
+) -> PoiSearchItem:
+    lat, lng = _extract_coords(c.get("location"))
+    return PoiSearchItem(
+        id=str(c.get("id")),
+        name=str(c.get("name")),
+        category=str(c.get("category", "attraction")),
+        lat=lat,
+        lng=lng,
+        duration_mins=int(c.get("duration_mins") or 60),
+        cost_eur=float(c.get("cost_eur") or 0.0),
+        similarity=round(float(sim), 3),
+        match_type=match_type,
+        description=c.get("description"),
+        neighborhood=c.get("neighborhood"),
+        facets=c.get("facets") or {},
+        doc_quality=c.get("doc_quality") or "C",
+        hours_known=bool(c.get("hours_known", False)),
+    )
+
+
 @router.get("/search", response_model=PoiSearchResponse)
 async def search_pois(
     city: str = Query(..., description="Destination city name (e.g. Madrid)"),
@@ -91,13 +129,7 @@ async def search_pois(
     limit: int = Query(15, ge=1, le=50, description="Max results to return"),
     session: AsyncSession = Depends(get_db),
 ):
-    """
-    Intelligent POI search engine supporting:
-    1. Exact / Fuzzy POI Name Search: checks PostgreSQL database. If found, returns
-       exact match card + similar POIs nearby. If not found, explicitly informs user.
-    2. Natural Language Semantic RAG: embeds prompt via Ollama (768D) and retrieves
-       most relevant POIs in the city ranked by cosine similarity [0.0, 1.0].
-    """
+    """Hybrid POI Search Engine with Single-Roundtrip SQL RRF & Spatial-Semantic MMR."""
     clean_query = query.strip()
     if not clean_query:
         return PoiSearchResponse(
@@ -115,40 +147,32 @@ async def search_pois(
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
 
-    norm_query = _normalize_text(clean_query)
-    stripped_query = _strip_articles(clean_query)
-
-    # 2. Check for exact / fuzzy name match
-    category_filter_sql = ""
-    params: dict[str, Any] = {
-        "city_name": city_name,
-        "city_id": city_id,
-        "limit": limit,
-    }
-    if category and category.lower() != "all":
-        category_filter_sql = "AND lower(category) = :category"
-        params["category"] = category.lower()
-
-    # Query all POIs in the city for lexical evaluation
-    lexical_query = text(
-        f"""
-        SELECT id, name, category, location, scoring, cost_eur, duration_mins, embedding
-        FROM attractions
-        WHERE (lower(city) = lower(:city_name) OR city_id = :city_id)
-        {category_filter_sql}
-        """
+    # 2. Check for exact / fuzzy name match via Trigram RRF
+    lexical_candidates = await HybridRetriever.search_hybrid(
+        session=session,
+        city=city_name,
+        city_id=city_id,
+        query_vec=None,
+        clean_query=clean_query,
+        limit=5,
+        w_vec=0.0,
+        w_fts=0.4,
+        w_trgm=0.6,
+        apply_mmr=False,
     )
-    lex_res = await session.execute(lexical_query, params)
-    city_pois = lex_res.fetchall()
 
     best_match = None
     best_match_score = 0.0
     best_match_type = None
 
-    for poi in city_pois:
-        p_id, p_name, p_cat, p_loc, p_sc, p_cost, p_dur, p_emb = poi
+    norm_query = _normalize_text(clean_query)
+    stripped_query = _strip_articles(clean_query)
+
+    for cand in lexical_candidates:
+        p_name = cand.get("name", "")
         norm_name = _normalize_text(p_name)
         stripped_name = _strip_articles(p_name)
+        trgm_sim = float(cand.get("trgm_sim") or 0.0)
 
         score = 0.0
         mtype = None
@@ -165,80 +189,47 @@ async def search_pois(
         elif len(stripped_query) >= 3 and stripped_query in stripped_name:
             score = 0.82
             mtype = "fuzzy_name"
-        elif len(norm_query) >= 4 and norm_name in norm_query:
-            score = 0.80
+        elif trgm_sim >= 0.70:
+            score = trgm_sim
             mtype = "fuzzy_name"
-        else:
-            # Word token overlap
-            q_words = [w for w in stripped_query.split() if len(w) >= 3]
-            n_words = [w for w in stripped_name.split() if len(w) >= 3]
-            if q_words and n_words:
-                overlap = set(q_words).intersection(set(n_words))
-                if len(overlap) == len(q_words):
-                    score = 0.75
-                    mtype = "fuzzy_name"
-                elif overlap:
-                    score = 0.40 * (len(overlap) / max(len(q_words), len(n_words)))
-                    mtype = "fuzzy_name"
 
         if score > best_match_score:
             best_match_score = score
-            best_match = poi
+            best_match = cand
             best_match_type = mtype
 
-    # 3. Decision: Is this an Exact/Fuzzy POI Name Match?
+    # 3. Decision: Exact / Fuzzy match branch
     if best_match and best_match_score >= 0.70:
-        p_id, p_name, p_cat, p_loc, p_sc, p_cost, p_dur, p_emb = best_match
-        lat, lng = _extract_coords(p_loc)
-        exact_item = PoiSearchItem(
-            id=p_id,
-            name=p_name,
-            category=p_cat,
-            lat=lat,
-            lng=lng,
-            duration_mins=int(p_dur or 60),
-            cost_eur=float(p_cost or 0.0),
-            similarity=1.0,
-            match_type=best_match_type,
+        exact_item = _candidate_to_search_item(
+            best_match, 1.0, best_match_type or "exact_name"
         )
 
+        # Find similar POIs nearby using vector embedding of exact match
         similar_items: list[PoiSearchItem] = []
+        p_emb = best_match.get("embedding")
         if p_emb is not None:
-            sim_sql = text(
-                f"""
-                WITH city_pois AS MATERIALIZED (
-                    SELECT id, name, category, location, scoring, cost_eur, duration_mins, embedding
-                    FROM attractions
-                    WHERE (lower(city) = lower(:city_name) OR city_id = :city_id)
-                      AND id != :target_id AND embedding IS NOT NULL
-                      {category_filter_sql}
-                )
-                SELECT id, name, category, location, scoring, cost_eur, duration_mins,
-                       1 - (embedding <=> cast(:emb as vector)) AS sim
-                FROM city_pois
-                ORDER BY embedding <=> cast(:emb as vector) ASC
-                LIMIT :limit;
-                """
+            # Query similar items with vector search
+            emb_list = list(p_emb) if hasattr(p_emb, "__iter__") else None
+            sim_candidates = await HybridRetriever.search_hybrid(
+                session=session,
+                city=city_name,
+                city_id=city_id,
+                query_vec=emb_list,
+                clean_query="",
+                limit=limit + 1,
+                w_vec=1.0,
+                w_fts=0.0,
+                w_trgm=0.0,
+                apply_mmr=True,
             )
-            sim_params = {**params, "target_id": p_id, "emb": str(p_emb)}
-            sim_res = await session.execute(sim_sql, sim_params)
-            for r in sim_res.fetchall():
-                r_id, r_name, r_cat, r_loc, r_sc, r_cost, r_dur, r_sim = r
-                r_lat, r_lng = _extract_coords(r_loc)
-                sim_score = float(max(0.0, min(1.0, float(r_sim))))
-                similar_items.append(
-                    PoiSearchItem(
-                        id=r_id,
-                        name=r_name,
-                        category=r_cat,
-                        lat=r_lat,
-                        lng=r_lng,
-                        duration_mins=int(r_dur or 60),
-                        cost_eur=float(r_cost or 0.0),
-                        similarity=round(sim_score, 3),
-                        match_type="similar_poi",
+            for c in sim_candidates:
+                if str(c.get("id")) != str(best_match.get("id")):
+                    sim_val = float(c.get("vec_sim", 0.85))
+                    similar_items.append(
+                        _candidate_to_search_item(c, sim_val, "similar_poi")
                     )
-                )
+                if len(similar_items) >= limit:
+                    break
 
         return PoiSearchResponse(
             city=city_name,
@@ -249,7 +240,8 @@ async def search_pois(
             results=similar_items,
         )
 
-    # 4. Otherwise, generate embedding for Natural Language / Semantic RAG search
+    # 4. Natural Language Semantic RAG & Hybrid Retrieval
+    sq = QueryRewriter.rewrite_query(clean_query, city_name)
     embedding_provider = OllamaEmbeddingProvider()
     try:
         query_vector = await embedding_provider.embed_text(
@@ -258,72 +250,42 @@ async def search_pois(
     except Exception:
         query_vector = None
 
-    results: list[PoiSearchItem] = []
-    if query_vector:
-        rag_sql = text(
-            f"""
-            WITH city_pois AS MATERIALIZED (
-                SELECT id, name, category, location, scoring, cost_eur, duration_mins, embedding
-                FROM attractions
-                WHERE (lower(city) = lower(:city_name) OR city_id = :city_id)
-                  AND embedding IS NOT NULL
-                  {category_filter_sql}
-            )
-            SELECT id, name, category, location, scoring, cost_eur, duration_mins,
-                   1 - (embedding <=> cast(:vec as vector)) AS sim
-            FROM city_pois
-            ORDER BY embedding <=> cast(:vec as vector) ASC
-            LIMIT :limit;
-            """
-        )
-        rag_params = {**params, "vec": str(query_vector)}
-        rag_res = await session.execute(rag_sql, rag_params)
-        for r in rag_res.fetchall():
-            r_id, r_name, r_cat, r_loc, r_sc, r_cost, r_dur, r_sim = r
-            r_lat, r_lng = _extract_coords(r_loc)
-            sim_score = float(max(0.0, min(1.0, float(r_sim))))
-            results.append(
-                PoiSearchItem(
-                    id=r_id,
-                    name=r_name,
-                    category=r_cat,
-                    lat=r_lat,
-                    lng=r_lng,
-                    duration_mins=int(r_dur or 60),
-                    cost_eur=float(r_cost or 0.0),
-                    similarity=round(sim_score, 3),
-                    match_type="semantic",
-                )
-            )
-
-    is_name_attempt = (
-        len(clean_query.split()) <= 4
-        and not any(
-            w in norm_query
-            for w in [
-                "best",
-                "good",
-                "cozy",
-                "with",
-                "where",
-                "popular",
-                "top",
-                "cheap",
-                "free",
-                "view",
-                "museums",
-                "cafes",
-                "restaurants",
-            ]
-        )
-        and (best_match_score < 0.5)
+    candidates = await HybridRetriever.search_hybrid(
+        session=session,
+        city=city_name,
+        city_id=city_id,
+        query_vec=query_vector,
+        clean_query=sq.clean_query,
+        required_facets=sq.required_facets,
+        max_cost_eur=sq.max_cost_eur,
+        max_tier=sq.max_tier,
+        require_rain_friendly=sq.require_rain_friendly,
+        limit=limit,
+        w_vec=0.55 if query_vector else 0.0,
+        w_fts=0.25 if sq.clean_query else 0.0,
+        w_trgm=0.20 if sq.clean_query else 0.0,
+        apply_mmr=True,
     )
 
+    if category and category.lower() != "all":
+        candidates = [
+            c
+            for c in candidates
+            if str(c.get("category", "")).lower() == category.lower()
+        ]
+
+    results: list[PoiSearchItem] = []
+    for c in candidates:
+        sim_val = float(c.get("vec_sim", c.get("composite_score", 0.0)))
+        results.append(_candidate_to_search_item(c, sim_val, "semantic_rag"))
+
+    # If results are sorted by similarity
+    results.sort(key=lambda x: x.similarity, reverse=True)
+
+    # Check if a non-empty query retrieved no exact match
     message = None
-    if is_name_attempt and not results:
-        message = f"Place '{clean_query}' not found in {city_name} database."
-    elif is_name_attempt:
-        message = f"Exact place '{clean_query}' not found in {city_name} database. Showing closest semantic discoveries below:"
+    if not best_match or best_match_score < 0.70:
+        message = f"No exact match found for '{clean_query}' in {city_name}. Showing top recommendations."
 
     return PoiSearchResponse(
         city=city_name,

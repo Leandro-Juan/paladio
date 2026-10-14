@@ -115,12 +115,39 @@ def select_daily_meal_candidates(
                     w_start, w_end = slot_window
                     open_by_day = list(slot_p.open_time_mins_by_day)
                     close_by_day = list(slot_p.close_time_mins_by_day)
+                    daily_windows = getattr(slot_p, "daily_windows", None) or (
+                        slot_p.metadata.get("daily_windows")
+                        if hasattr(slot_p, "metadata")
+                        and isinstance(slot_p.metadata, dict)
+                        else None
+                    )
                     for w in range(7):
-                        o = open_by_day[w] if w < len(open_by_day) else 480
-                        c = close_by_day[w] if w < len(close_by_day) else 1320
+                        o = open_by_day[w] if w < len(open_by_day) else -2
+                        c = close_by_day[w] if w < len(close_by_day) else -2
                         if o == -1 or c == -1:
                             open_by_day[w] = -1
                             close_by_day[w] = -1
+                        elif o == -2 or c == -2:
+                            # Soft default bounds for unknown meal venues
+                            open_by_day[w] = w_start
+                            close_by_day[w] = w_end
+                        elif (
+                            daily_windows
+                            and w < len(daily_windows)
+                            and len(daily_windows[w]) >= 2
+                        ):
+                            # Split hours: pick the interval overlapping the meal slot
+                            matched_iv = None
+                            for iv_o, iv_c in daily_windows[w]:
+                                no = max(iv_o, w_start)
+                                nc = min(iv_c, w_end)
+                                if nc - no >= 45:
+                                    matched_iv = (no, nc)
+                                    break
+                            if matched_iv:
+                                open_by_day[w], close_by_day[w] = matched_iv
+                            else:
+                                open_by_day[w], close_by_day[w] = -1, -1
                         else:
                             no = max(o, w_start)
                             nc = min(c, w_end)
@@ -374,11 +401,35 @@ def snap_corridor_meals(
                 c_time = close_by_day[day_weekday]
                 if o_time == -1 or c_time == -1:
                     continue  # Closed today
-                if not (o_time == 0 and c_time in (0, 1440)) and (
-                    target_arr < o_time - 15
-                    or (target_arr + meal_duration) > c_time + 15
-                ):
-                    continue  # Closed during meal time
+                if o_time == -2 or c_time == -2:
+                    # Hours unknown: allow venue with soft bounds
+                    pass
+                else:
+                    windows = getattr(cand, "daily_windows", None) or (
+                        cand.metadata.get("daily_windows")
+                        if hasattr(cand, "metadata") and isinstance(cand.metadata, dict)
+                        else None
+                    )
+                    if (
+                        windows
+                        and day_weekday < len(windows)
+                        and len(windows[day_weekday]) >= 2
+                    ):
+                        window_open = any(
+                            not (
+                                target_arr < iv_o - 15
+                                or (target_arr + meal_duration) > iv_c + 15
+                            )
+                            for iv_o, iv_c in windows[day_weekday]
+                        )
+                        if not window_open:
+                            continue
+                    else:
+                        if not (o_time == 0 and c_time in (0, 1440)) and (
+                            target_arr < o_time - 15
+                            or (target_arr + meal_duration) > c_time + 15
+                        ):
+                            continue  # Closed during meal time
 
             d_from_prev = haversine_distance(lat_prev, lon_prev, c_lat, c_lon)
             d_to_next = haversine_distance(c_lat, c_lon, lat_next, lon_next)

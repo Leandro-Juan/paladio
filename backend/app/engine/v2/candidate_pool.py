@@ -8,6 +8,7 @@ Constructs an exhaustive candidate pool combining:
 """
 
 import logging
+from typing import Any
 
 from app.domain.entities.poi import Poi
 from app.domain.interfaces.poi_repository import IPoiRepository
@@ -40,6 +41,11 @@ class CandidatePoi(BaseModel):
     is_meal_spot: bool = False
     meal_types: list[str] = Field(default_factory=list)
     embedding: list[float] | None = None
+    description: str | None = None
+    neighborhood: str | None = None
+    facets: dict[str, Any] = Field(default_factory=dict)
+    doc_quality: str = "C"
+    hours_known: bool = False
 
     model_config = ConfigDict(extra="allow")
 
@@ -196,6 +202,11 @@ def _poi_to_candidate(
         is_mandatory=is_mandatory,
         is_meal_spot=is_meal,
         embedding=poi.embedding,
+        description=getattr(poi, "description", None),
+        neighborhood=getattr(poi, "neighborhood", None),
+        facets=getattr(poi, "facets", None) or {},
+        doc_quality=getattr(poi, "doc_quality", "C") or "C",
+        hours_known=bool(getattr(poi, "hours_known", False)),
     )
 
 
@@ -246,15 +257,31 @@ async def build_candidate_pool(
     except Exception as e:
         logger.warning(f"Could not load tiered POIs for {city}: {e}")
 
-    # 2. Semantic pgvector taste candidates
+    # 2. Semantic & Hybrid MMR taste candidates
     semantic_hits = 0
+    clean_query = (
+        " ".join(constraints.travel_tastes)
+        if constraints and constraints.travel_tastes
+        else ""
+    )
+    req_facets = getattr(constraints, "required_facets", None)
     if user_vector and len(user_vector) == 768:
         try:
-            semantic_candidates = await poi_repo.find_semantic_candidates(
-                city_name=city,
-                user_vector=user_vector,
-                limit=semantic_limit,
-            )
+            if hasattr(poi_repo, "find_hybrid_candidates"):
+                semantic_candidates = await poi_repo.find_hybrid_candidates(
+                    city_name=city,
+                    user_vector=user_vector,
+                    clean_query=clean_query,
+                    required_facets=req_facets,
+                    limit=semantic_limit,
+                    apply_mmr=True,
+                )
+            else:
+                semantic_candidates = await poi_repo.find_semantic_candidates(
+                    city_name=city,
+                    user_vector=user_vector,
+                    limit=semantic_limit,
+                )
             semantic_hits = len(semantic_candidates)
             for poi, sim in semantic_candidates:
                 taste = compute_taste_score(

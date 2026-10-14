@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -24,4 +25,12 @@ class RAGPromptAnalysis(BaseModel):
     cuisine_target_frequency: int = Field(
         default=1,
         description="Suggested number of meals for the preferred cuisine across the trip (e.g., 1-2).",
+    )
+    semantic_subqueries: list[str] = Field(
+        default_factory=list,
+        description="2-4 expanded dense retrieval queries in English and local destination language.",
+    )
+    required_facets: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Extracted facet constraints (e.g., indoor_outdoor, rain_friendly, themes, vibes, audience, neighborhoods).",
     )

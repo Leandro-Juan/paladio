@@ -308,53 +308,112 @@ export default function TripMapView({
         const endCoord: [number, number] = [toPoi.lat, toPoi.lng];
         const leg = toPoi.transitFromPrevious;
 
+        const hasStepGeom = Boolean(
+          leg && Array.isArray(leg.steps) && leg.steps.some((s) => Array.isArray(s.geometry) && s.geometry.length > 1)
+        );
+        const hasLegGeom = Boolean(
+          leg && Array.isArray(leg.geometry) && leg.geometry.length > 1
+        );
+
         if (leg && Array.isArray(leg.steps) && leg.steps.length > 0) {
-          const hasDist = leg.steps.some((s) => typeof s.distance_km === 'number' && s.distance_km > 0);
-          const weights = leg.steps.map((s) => {
-            if (hasDist && typeof s.distance_km === 'number' && s.distance_km > 0) return s.distance_km;
-            if (typeof s.duration_mins === 'number' && s.duration_mins > 0) return s.duration_mins;
-            return 1;
-          });
-          const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
+          if (hasStepGeom) {
+            for (let sIdx = 0; sIdx < leg.steps.length; sIdx++) {
+              const step = leg.steps[sIdx];
+              const style = getTransitStepStyle(step);
+              const positions: [number, number][] = (Array.isArray(step.geometry) && step.geometry.length > 1)
+                ? (step.geometry as [number, number][])
+                : [startCoord, endCoord];
 
-          let currFrac = 0;
-          for (let sIdx = 0; sIdx < leg.steps.length; sIdx++) {
-            const step = leg.steps[sIdx];
-            const stepFrac = weights[sIdx] / totalWeight;
-            const nextFrac = Math.min(1, currFrac + stepFrac);
+              segments.push({
+                key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
+                positions,
+                color: style.color,
+                isDashed: style.isDashed,
+                weight: style.weight,
+                instruction: step.instruction || 'Transit maneuver',
+                type: step.type || 'transit',
+                transitLine: step.transit_line,
+                durationMins: step.duration_mins,
+                distanceKm: step.distance_km,
+                stationName: step.station_name,
+              });
 
-            const sLat = startCoord[0] + currFrac * (endCoord[0] - startCoord[0]);
-            const sLng = startCoord[1] + currFrac * (endCoord[1] - startCoord[1]);
-            const eLat = startCoord[0] + nextFrac * (endCoord[0] - startCoord[0]);
-            const eLng = startCoord[1] + nextFrac * (endCoord[1] - startCoord[1]);
-
-            const style = getTransitStepStyle(step);
+              if (step.station_name) {
+                const nodePos = positions.length > 0 ? positions[0] : startCoord;
+                nodes.push({
+                  key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}`,
+                  position: nodePos,
+                  stationName: step.station_name,
+                  line: step.transit_line,
+                  instruction: step.instruction || 'Station stop',
+                });
+              }
+            }
+          } else if (hasLegGeom) {
+            const isWalk = leg.mode === 'pedestrian' || leg.mode === 'walk';
+            const style = isWalk
+              ? { color: '#10B981', isDashed: true, weight: 4 }
+              : { color: '#2563EB', isDashed: false, weight: 5 };
 
             segments.push({
-              key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
-              positions: [[sLat, sLng], [eLat, eLng]],
+              key: `d${dayGroup.dayNumber}-leg${k}-geom`,
+              positions: leg.geometry as [number, number][],
               color: style.color,
               isDashed: style.isDashed,
               weight: style.weight,
-              instruction: step.instruction || 'Transit maneuver',
-              type: step.type || 'transit',
-              transitLine: step.transit_line,
-              durationMins: step.duration_mins,
-              distanceKm: step.distance_km,
-              stationName: step.station_name,
+              instruction: isWalk ? `Walk (~${leg.duration_mins || 0}m)` : `Transit (~${leg.duration_mins || 0}m)`,
+              type: leg.mode || 'transit',
+              durationMins: leg.duration_mins,
+              distanceKm: 0,
             });
+          } else {
+            const hasDist = leg.steps.some((s) => typeof s.distance_km === 'number' && s.distance_km > 0);
+            const weights = leg.steps.map((s) => {
+              if (hasDist && typeof s.distance_km === 'number' && s.distance_km > 0) return s.distance_km;
+              if (typeof s.duration_mins === 'number' && s.duration_mins > 0) return s.duration_mins;
+              return 1;
+            });
+            const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
 
-            if (step.station_name) {
-              nodes.push({
-                key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}`,
-                position: [sLat, sLng],
+            let currFrac = 0;
+            for (let sIdx = 0; sIdx < leg.steps.length; sIdx++) {
+              const step = leg.steps[sIdx];
+              const stepFrac = weights[sIdx] / totalWeight;
+              const nextFrac = Math.min(1, currFrac + stepFrac);
+
+              const sLat = startCoord[0] + currFrac * (endCoord[0] - startCoord[0]);
+              const sLng = startCoord[1] + currFrac * (endCoord[1] - startCoord[1]);
+              const eLat = startCoord[0] + nextFrac * (endCoord[0] - startCoord[0]);
+              const eLng = startCoord[1] + nextFrac * (endCoord[1] - startCoord[1]);
+
+              const style = getTransitStepStyle(step);
+
+              segments.push({
+                key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
+                positions: [[sLat, sLng], [eLat, eLng]],
+                color: style.color,
+                isDashed: style.isDashed,
+                weight: style.weight,
+                instruction: step.instruction || 'Transit maneuver',
+                type: step.type || 'transit',
+                transitLine: step.transit_line,
+                durationMins: step.duration_mins,
+                distanceKm: step.distance_km,
                 stationName: step.station_name,
-                line: step.transit_line,
-                instruction: step.instruction || 'Station stop',
               });
-            }
 
-            currFrac = nextFrac;
+              if (step.station_name) {
+                nodes.push({
+                  key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}`,
+                  position: [sLat, sLng],
+                  stationName: step.station_name,
+                  line: step.transit_line,
+                  instruction: step.instruction || 'Station stop',
+                });
+              }
+
+              currFrac = nextFrac;
+            }
           }
         } else if (leg) {
           const isWalk = leg.mode === 'pedestrian' || leg.mode === 'walk';
@@ -362,9 +421,13 @@ export default function TripMapView({
             ? { color: '#10B981', isDashed: true, weight: 4 }
             : { color: '#2563EB', isDashed: false, weight: 5 };
 
+          const positions: [number, number][] = hasLegGeom
+            ? (leg.geometry as [number, number][])
+            : [startCoord, endCoord];
+
           segments.push({
             key: `d${dayGroup.dayNumber}-leg${k}-single`,
-            positions: [startCoord, endCoord],
+            positions,
             color: style.color,
             isDashed: style.isDashed,
             weight: style.weight,
@@ -453,7 +516,7 @@ export default function TripMapView({
     return [41.1579, -8.6291]; // Default fallback
   }, [activeBoundsPoints, hotel]);
 
-  // Active day route polyline
+  // Active day route polyline (Simple View: clean straight chord lines connecting POIs)
   const activePolyline: [number, number][] = activeDayData
     ? activeDayData.pois.map((p) => [p.lat, p.lng])
     : [];

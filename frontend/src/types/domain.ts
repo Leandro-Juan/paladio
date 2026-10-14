@@ -46,6 +46,7 @@ export interface TransitStep {
     transit_line?: string | null;
     headsign?: string | null;
     station_name?: string | null;
+    geometry?: [number, number][];
 }
 
 export interface TransitLeg {
@@ -56,6 +57,7 @@ export interface TransitLeg {
     mode: 'transit' | 'pedestrian' | 'multimodal' | string;
     steps: TransitStep[];
     airport_surcharge_eur?: number;
+    geometry?: [number, number][];
 }
 
 export interface TransitRecommendation {

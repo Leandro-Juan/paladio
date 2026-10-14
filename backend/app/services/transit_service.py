@@ -11,6 +11,48 @@ logger = logging.getLogger(__name__)
 VALHALLA_URL = os.getenv("VALHALLA_URL", "http://localhost:8002")
 
 
+def decode_polyline6(encoded: str) -> list[list[float]]:
+    """Decodes Google/Valhalla polyline with precision 6 (1e-6) into [[lat, lon], ...]."""
+    if not encoded:
+        return []
+    coords: list[list[float]] = []
+    lat = 0
+    lng = 0
+    i = 0
+    length = len(encoded)
+    inv = 1e-6
+    while i < length:
+        shift = 0
+        result = 0
+        while i < length:
+            b = ord(encoded[i]) - 63
+            i += 1
+            result |= (b & 0x1F) << shift
+            shift += 5
+            if b < 0x20:
+                break
+        dlat = ~(result >> 1) if (result & 1) else (result >> 1)
+        lat += dlat
+
+        if i >= length:
+            break
+
+        shift = 0
+        result = 0
+        while i < length:
+            b = ord(encoded[i]) - 63
+            i += 1
+            result |= (b & 0x1F) << shift
+            shift += 5
+            if b < 0x20:
+                break
+        dlng = ~(result >> 1) if (result & 1) else (result >> 1)
+        lng += dlng
+
+        coords.append([round(lat * inv, 6), round(lng * inv, 6)])
+    return coords
+
+
 class TransitRoutingError(Exception):
     """Raised when multimodal transit routing cannot be fetched or parsed."""
 
@@ -86,8 +128,18 @@ async def get_detailed_transit_leg(
             total_duration_mins = max(1, int(summary.get("time", 900) / 60))
 
             has_transit_step = False
+            legs = trip.get("legs", [])
+            full_geometry: list[list[float]] = []
 
-            for leg in trip.get("legs", []):
+            for leg in legs:
+                leg_shape = leg.get("shape", "")
+                leg_coords = decode_polyline6(leg_shape) if leg_shape else []
+                if leg_coords:
+                    if not full_geometry:
+                        full_geometry.extend(leg_coords)
+                    else:
+                        full_geometry.extend(leg_coords[1:])
+
                 for m in leg.get("maneuvers", []):
                     instruction = m.get("instruction", "")
                     m_time_mins = max(1, int(m.get("time", 60) / 60))
@@ -108,6 +160,10 @@ async def get_detailed_transit_leg(
                         headsign = transit_info.get("headsign")
                         station = transit_info.get("description") or "Transit Stop"
 
+                    b_idx = m.get("begin_shape_index", 0)
+                    e_idx = m.get("end_shape_index", b_idx)
+                    m_geom = leg_coords[b_idx : e_idx + 1] if leg_coords else []
+
                     steps.append(
                         TransitStep(
                             type=step_type,
@@ -117,8 +173,21 @@ async def get_detailed_transit_leg(
                             transit_line=line_name,
                             headsign=headsign,
                             station_name=station,
+                            geometry=m_geom,
                         )
                     )
+
+            if (
+                not full_geometry
+                and orig_lat is not None
+                and orig_lon is not None
+                and dest_lat is not None
+                and dest_lon is not None
+            ):
+                full_geometry = [
+                    [float(orig_lat), float(orig_lon)],
+                    [float(dest_lat), float(dest_lon)],
+                ]
 
             city_name = str(origin.get("city") or destination.get("city") or "").strip()
             fare_result = TransitFareService.calculate_transit_leg_fare(
@@ -146,6 +215,7 @@ async def get_detailed_transit_leg(
         mode=mode,
         steps=steps,
         airport_surcharge_eur=fare_result.airport_surcharge_eur if fare_result else 0.0,
+        geometry=full_geometry,
     )
 
 
@@ -187,20 +257,47 @@ async def get_detailed_walking_leg(
             summary = trip.get("summary", {})
             total_duration_mins = max(1, int(round(summary.get("time", 60) / 60)))
 
+            legs = trip.get("legs", [])
+            full_geometry: list[list[float]] = []
             steps: list[TransitStep] = []
-            for leg in trip.get("legs", []):
+
+            for leg in legs:
+                leg_shape = leg.get("shape", "")
+                leg_coords = decode_polyline6(leg_shape) if leg_shape else []
+                if leg_coords:
+                    if not full_geometry:
+                        full_geometry.extend(leg_coords)
+                    else:
+                        full_geometry.extend(leg_coords[1:])
+
                 for m in leg.get("maneuvers", []):
                     instruction = m.get("instruction", "")
                     m_time_mins = max(1, int(round(m.get("time", 60) / 60)))
                     m_dist_km = round(m.get("length", 0.0), 2)
+                    b_idx = m.get("begin_shape_index", 0)
+                    e_idx = m.get("end_shape_index", b_idx)
+                    m_geom = leg_coords[b_idx : e_idx + 1] if leg_coords else []
                     steps.append(
                         TransitStep(
                             type="walk",
                             instruction=instruction,
                             duration_mins=m_time_mins,
                             distance_km=m_dist_km,
+                            geometry=m_geom,
                         )
                     )
+
+            if (
+                not full_geometry
+                and orig_lat is not None
+                and orig_lon is not None
+                and dest_lat is not None
+                and dest_lon is not None
+            ):
+                full_geometry = [
+                    [float(orig_lat), float(orig_lon)],
+                    [float(dest_lat), float(dest_lon)],
+                ]
 
             return TransitLeg(
                 duration_mins=total_duration_mins,
@@ -208,6 +305,7 @@ async def get_detailed_walking_leg(
                 cost_is_estimated=False,
                 mode="pedestrian",
                 steps=steps,
+                geometry=full_geometry,
             )
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         logger.error(
@@ -279,6 +377,15 @@ def synthesize_fallback_transit_leg(
     )
     is_airport = is_airport_leg or orig_is_airport or dest_is_airport
 
+    fallback_geom = (
+        [[float(orig_lat), float(orig_lon)], [float(dest_lat), float(dest_lon)]]
+        if orig_lat is not None
+        and orig_lon is not None
+        and dest_lat is not None
+        and dest_lon is not None
+        else []
+    )
+
     # If distance < 1.2 km and not airport: Pedestrian walk
     if dist_km < 1.2 and not is_airport:
         dur_mins = max(4, int(dist_km / 4.5 * 60))
@@ -289,6 +396,7 @@ def synthesize_fallback_transit_leg(
                 instruction=f"Walk approx {dist_m}m to {dest_name}",
                 duration_mins=dur_mins,
                 distance_km=round(dist_km, 2),
+                geometry=fallback_geom,
             )
         ]
         return TransitLeg(
@@ -299,6 +407,7 @@ def synthesize_fallback_transit_leg(
             mode="pedestrian",
             steps=steps,
             airport_surcharge_eur=0.0,
+            geometry=fallback_geom,
         )
 
     # Multimodal transit route
@@ -398,6 +507,7 @@ def synthesize_fallback_transit_leg(
         mode="transit",
         steps=steps,
         airport_surcharge_eur=fare_res.airport_surcharge_eur,
+        geometry=fallback_geom,
     )
 
 
@@ -429,11 +539,12 @@ async def ensure_walking_legs_populated(
             curr_poi = path[k].get("poi") or {}
             existing_transit = path[k].get("transit_from_previous")
 
-            # Check if this leg already has verified real walking steps
+            # Check if this leg already has verified real walking steps with geometry
             if (
                 isinstance(existing_transit, dict)
                 and existing_transit.get("mode") in ("pedestrian", "walk")
                 and bool(existing_transit.get("steps"))
+                and bool(existing_transit.get("geometry"))
                 and not existing_transit.get("cost_is_estimated", False)
             ):
                 continue

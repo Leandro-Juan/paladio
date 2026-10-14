@@ -1,6 +1,29 @@
+"""POI Admission Pricing Service.
+
+Implements the 4-tier dynamic price resolution cascade:
+1. Exact wikidata_id or (city_id, normalized_name) match in database poi_price_catalog.
+2. OSM explicit fee="no" (0.0 EUR, cost_source="osm_fee_no") or parsed charge tag.
+3. Wikivoyage listing price field.
+4. Official website scraping with strict literal verification gate (extracted float
+   must literally appear as substring in HTML text).
+Fallback: Category benchmark estimation with cost_is_estimated=True.
+"""
+
+import asyncio
+import json
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
+from urllib.parse import urljoin
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import PoiPriceCatalogModel
+from app.db.seeds.poi_prices import INITIAL_VERIFIED_PRICES
+from app.utils.opening_hours_parser import parse_osm_opening_hours
 
 logger = logging.getLogger(__name__)
 
@@ -11,203 +34,9 @@ class VerifiedPoiPrice:
     city: str
     price_eur: float
     is_free: bool
-    source: str = "verified_official_pricing"
+    source: str = "poi_price_catalog"
+    wikidata_id: str | None = None
 
-
-# Verified Real-World Admission Pricing for Top Sights
-VERIFIED_POI_PRICES: dict[tuple[str, str], VerifiedPoiPrice] = {
-    # Madrid
-    ("museo del prado", "madrid"): VerifiedPoiPrice(
-        "Museo del Prado", "madrid", 15.00, False
-    ),
-    ("prado museum", "madrid"): VerifiedPoiPrice(
-        "Museo del Prado", "madrid", 15.00, False
-    ),
-    ("museo reina sofia", "madrid"): VerifiedPoiPrice(
-        "Museo Reina Sofía", "madrid", 12.00, False
-    ),
-    ("palacio real de madrid", "madrid"): VerifiedPoiPrice(
-        "Palacio Real de Madrid", "madrid", 14.00, False
-    ),
-    ("royal palace of madrid", "madrid"): VerifiedPoiPrice(
-        "Palacio Real de Madrid", "madrid", 14.00, False
-    ),
-    ("parque del retiro", "madrid"): VerifiedPoiPrice(
-        "Parque del Retiro", "madrid", 0.00, True
-    ),
-    ("el retiro park", "madrid"): VerifiedPoiPrice(
-        "Parque del Retiro", "madrid", 0.00, True
-    ),
-    ("puerta del sol", "madrid"): VerifiedPoiPrice(
-        "Puerta del Sol", "madrid", 0.00, True
-    ),
-    ("plaza mayor", "madrid"): VerifiedPoiPrice("Plaza Mayor", "madrid", 0.00, True),
-    ("templo de debod", "madrid"): VerifiedPoiPrice(
-        "Templo de Debod", "madrid", 0.00, True
-    ),
-    ("santiago bernabeu", "madrid"): VerifiedPoiPrice(
-        "Estadio Santiago Bernabéu", "madrid", 25.00, False
-    ),
-    ("estadio santiago bernabeu", "madrid"): VerifiedPoiPrice(
-        "Estadio Santiago Bernabéu", "madrid", 25.00, False
-    ),
-    ("museo thyssen-bornemisza", "madrid"): VerifiedPoiPrice(
-        "Museo Thyssen-Bornemisza", "madrid", 13.00, False
-    ),
-    # Paris
-    ("musee du louvre", "paris"): VerifiedPoiPrice(
-        "Musée du Louvre", "paris", 22.00, False
-    ),
-    ("louvre museum", "paris"): VerifiedPoiPrice(
-        "Musée du Louvre", "paris", 22.00, False
-    ),
-    ("louvre", "paris"): VerifiedPoiPrice("Musée du Louvre", "paris", 22.00, False),
-    ("tour eiffel", "paris"): VerifiedPoiPrice("Tour Eiffel", "paris", 29.40, False),
-    ("eiffel tower", "paris"): VerifiedPoiPrice("Tour Eiffel", "paris", 29.40, False),
-    ("musee d'orsay", "paris"): VerifiedPoiPrice(
-        "Musée d'Orsay", "paris", 16.00, False
-    ),
-    ("orsay museum", "paris"): VerifiedPoiPrice("Musée d'Orsay", "paris", 16.00, False),
-    ("cathedrale notre-dame de paris", "paris"): VerifiedPoiPrice(
-        "Cathédrale Notre-Dame", "paris", 0.00, True
-    ),
-    ("notre-dame", "paris"): VerifiedPoiPrice(
-        "Cathédrale Notre-Dame", "paris", 0.00, True
-    ),
-    ("notre-dame cathedral", "paris"): VerifiedPoiPrice(
-        "Cathédrale Notre-Dame", "paris", 0.00, True
-    ),
-    ("basilique du sacre-coeur", "paris"): VerifiedPoiPrice(
-        "Basilique du Sacré-Cœur", "paris", 0.00, True
-    ),
-    ("sacre-coeur", "paris"): VerifiedPoiPrice(
-        "Basilique du Sacré-Cœur", "paris", 0.00, True
-    ),
-    ("arc de triomphe", "paris"): VerifiedPoiPrice(
-        "Arc de Triomphe", "paris", 16.00, False
-    ),
-    ("sainte-chapelle", "paris"): VerifiedPoiPrice(
-        "Sainte-Chapelle", "paris", 13.00, False
-    ),
-    ("jardin du luxembourg", "paris"): VerifiedPoiPrice(
-        "Jardin du Luxembourg", "paris", 0.00, True
-    ),
-    ("centre pompidou", "paris"): VerifiedPoiPrice(
-        "Centre Pompidou", "paris", 15.00, False
-    ),
-    # Lisbon
-    ("mosteiro dos jeronimos", "lisbon"): VerifiedPoiPrice(
-        "Mosteiro dos Jerónimos", "lisbon", 12.00, False
-    ),
-    ("jeronimos monastery", "lisbon"): VerifiedPoiPrice(
-        "Mosteiro dos Jerónimos", "lisbon", 12.00, False
-    ),
-    ("torre de belem", "lisbon"): VerifiedPoiPrice(
-        "Torre de Belém", "lisbon", 9.00, False
-    ),
-    ("belem tower", "lisbon"): VerifiedPoiPrice(
-        "Torre de Belém", "lisbon", 9.00, False
-    ),
-    ("castelo de sao jorge", "lisbon"): VerifiedPoiPrice(
-        "Castelo de São Jorge", "lisbon", 15.00, False
-    ),
-    ("saint george's castle", "lisbon"): VerifiedPoiPrice(
-        "Castelo de São Jorge", "lisbon", 15.00, False
-    ),
-    ("praca do comercio", "lisbon"): VerifiedPoiPrice(
-        "Praça do Comércio", "lisbon", 0.00, True
-    ),
-    ("commerce square", "lisbon"): VerifiedPoiPrice(
-        "Praça do Comércio", "lisbon", 0.00, True
-    ),
-    ("miradouro de santa luzia", "lisbon"): VerifiedPoiPrice(
-        "Miradouro de Santa Luzia", "lisbon", 0.00, True
-    ),
-    ("elevador de santa justa", "lisbon"): VerifiedPoiPrice(
-        "Elevador de Santa Justa", "lisbon", 5.30, False
-    ),
-    ("oceanario de lisboa", "lisbon"): VerifiedPoiPrice(
-        "Oceanário de Lisboa", "lisbon", 25.00, False
-    ),
-    ("lisbon oceanarium", "lisbon"): VerifiedPoiPrice(
-        "Oceanário de Lisboa", "lisbon", 25.00, False
-    ),
-    ("museu nacional do azulejo", "lisbon"): VerifiedPoiPrice(
-        "Museu Nacional do Azulejo", "lisbon", 8.00, False
-    ),
-    # Barcelona
-    ("basilica de la sagrada familia", "barcelona"): VerifiedPoiPrice(
-        "Sagrada Família", "barcelona", 26.00, False
-    ),
-    ("sagrada familia", "barcelona"): VerifiedPoiPrice(
-        "Sagrada Família", "barcelona", 26.00, False
-    ),
-    ("park guell", "barcelona"): VerifiedPoiPrice(
-        "Park Güell", "barcelona", 10.00, False
-    ),
-    ("parc guell", "barcelona"): VerifiedPoiPrice(
-        "Park Güell", "barcelona", 10.00, False
-    ),
-    ("casa batllo", "barcelona"): VerifiedPoiPrice(
-        "Casa Batlló", "barcelona", 29.00, False
-    ),
-    ("casa mila", "barcelona"): VerifiedPoiPrice(
-        "Casa Milà", "barcelona", 28.00, False
-    ),
-    ("la pedrera", "barcelona"): VerifiedPoiPrice(
-        "Casa Milà", "barcelona", 28.00, False
-    ),
-    ("barri gotic", "barcelona"): VerifiedPoiPrice(
-        "Barri Gòtic", "barcelona", 0.00, True
-    ),
-    ("gothic quarter", "barcelona"): VerifiedPoiPrice(
-        "Barri Gòtic", "barcelona", 0.00, True
-    ),
-    ("placa de catalunya", "barcelona"): VerifiedPoiPrice(
-        "Plaça de Catalunya", "barcelona", 0.00, True
-    ),
-    ("catalonia square", "barcelona"): VerifiedPoiPrice(
-        "Plaça de Catalunya", "barcelona", 0.00, True
-    ),
-    ("parc de la ciutadella", "barcelona"): VerifiedPoiPrice(
-        "Parc de la Ciutadella", "barcelona", 0.00, True
-    ),
-    ("museu picasso", "barcelona"): VerifiedPoiPrice(
-        "Museu Picasso", "barcelona", 15.00, False
-    ),
-    # Rome
-    ("colosseo", "rome"): VerifiedPoiPrice("Colosseo", "rome", 18.00, False),
-    ("colosseum", "rome"): VerifiedPoiPrice("Colosseo", "rome", 18.00, False),
-    ("pantheon", "rome"): VerifiedPoiPrice("Pantheon", "rome", 5.00, False),
-    ("musei vaticani", "rome"): VerifiedPoiPrice(
-        "Musei Vaticani", "rome", 20.00, False
-    ),
-    ("vatican museums", "rome"): VerifiedPoiPrice(
-        "Musei Vaticani", "rome", 20.00, False
-    ),
-    ("fontana di trevi", "rome"): VerifiedPoiPrice(
-        "Fontana di Trevi", "rome", 0.00, True
-    ),
-    ("trevi fountain", "rome"): VerifiedPoiPrice(
-        "Fontana di Trevi", "rome", 0.00, True
-    ),
-    ("piazza navona", "rome"): VerifiedPoiPrice("Piazza Navona", "rome", 0.00, True),
-    ("scalinata di trinita dei monti", "rome"): VerifiedPoiPrice(
-        "Spanish Steps", "rome", 0.00, True
-    ),
-    ("spanish steps", "rome"): VerifiedPoiPrice("Spanish Steps", "rome", 0.00, True),
-    ("foro romano", "rome"): VerifiedPoiPrice("Foro Romano", "rome", 18.00, False),
-    ("roman forum", "rome"): VerifiedPoiPrice("Foro Romano", "rome", 18.00, False),
-    ("basilica di san pietro", "rome"): VerifiedPoiPrice(
-        "Basilica di San Pietro", "rome", 0.00, True
-    ),
-    ("st. peter's basilica", "rome"): VerifiedPoiPrice(
-        "Basilica di San Pietro", "rome", 0.00, True
-    ),
-    ("galleria borghese", "rome"): VerifiedPoiPrice(
-        "Galleria Borghese", "rome", 13.00, False
-    ),
-}
 
 # Category Benchmarks for estimating unindexed POIs
 CATEGORY_BENCHMARKS: dict[str, tuple[float, bool]] = {
@@ -223,48 +52,116 @@ CATEGORY_BENCHMARKS: dict[str, tuple[float, bool]] = {
 
 def normalize_string(s: str) -> str:
     """Normalize string by replacing ligatures, removing diacritics and non-alphanumeric chars."""
-    import unicodedata
-
+    if not s:
+        return ""
     s = s.replace("œ", "oe").replace("Œ", "oe").replace("æ", "ae").replace("Æ", "ae")
     n = unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("utf-8")
     return re.sub(r"[^\w\s]", "", n).lower().strip()
 
 
-_NORMALIZED_VERIFIED_PRICES: dict[tuple[str, str], VerifiedPoiPrice] = {}
+# In-memory caches for fast catalog lookup
+_NORMALIZED_CATALOG: dict[tuple[str, str], VerifiedPoiPrice] = {}
+_WIKIDATA_CATALOG: dict[str, VerifiedPoiPrice] = {}
 
 
-def _get_normalized_catalog() -> dict[tuple[str, str], VerifiedPoiPrice]:
-    global _NORMALIZED_VERIFIED_PRICES
-    if not _NORMALIZED_VERIFIED_PRICES:
-        _NORMALIZED_VERIFIED_PRICES = {
-            (normalize_string(k[0]), normalize_string(k[1])): v
-            for k, v in VERIFIED_POI_PRICES.items()
-        }
-    return _NORMALIZED_VERIFIED_PRICES
+def _ensure_catalog_initialized() -> None:
+    """Lazily populates in-memory catalog from seed definitions if not yet loaded."""
+    global _NORMALIZED_CATALOG, _WIKIDATA_CATALOG
+    if _NORMALIZED_CATALOG:
+        return
+
+    for item in INITIAL_VERIFIED_PRICES:
+        norm_name = normalize_string(item["normalized_name"])
+        norm_city = normalize_string(item["city"])
+        vp = VerifiedPoiPrice(
+            name=item["name"],
+            city=item["city"],
+            price_eur=float(item["price_eur"]),
+            is_free=bool(item["is_free"]),
+            source="verified_official_pricing",
+            wikidata_id=item.get("wikidata_id"),
+        )
+        _NORMALIZED_CATALOG[(norm_name, norm_city)] = vp
+        if item.get("wikidata_id"):
+            _WIKIDATA_CATALOG[item["wikidata_id"]] = vp
+
+
+def parse_wikivoyage_price(price_str: str | None) -> tuple[float | None, bool]:
+    """Parses Wikivoyage listing price strings (e.g. '€15', 'free', '12 EUR')."""
+    if not price_str or not isinstance(price_str, str):
+        return None, False
+
+    clean = price_str.strip().lower()
+    if any(w in clean for w in ("free", "gratis", "gratuit", "donation", "frei")):
+        return 0.0, True
+
+    # Look for numeric patterns like 15, 15.00, 15,50
+    m = re.search(r"(\d+(?:[.,]\d{1,2})?)", clean)
+    if m:
+        try:
+            val = float(m.group(1).replace(",", "."))
+            return val, val == 0.0
+        except ValueError:
+            pass
+    return None, False
 
 
 class PoiPricingService:
-    """
-    Service responsible for resolving real-world admission prices for POIs across any city,
-    combining official verified tariffs, OSM charge data, and transparent estimation benchmarks.
-    """
+    """Service responsible for resolving admission prices for POIs across any city."""
+
+    @classmethod
+    async def load_catalog_from_db(cls, session: AsyncSession) -> int:
+        """Load catalog from PostgreSQL poi_price_catalog table into memory."""
+        global _NORMALIZED_CATALOG, _WIKIDATA_CATALOG
+        res = await session.execute(select(PoiPriceCatalogModel))
+        rows = res.scalars().all()
+        count = 0
+        for row in rows:
+            vp = VerifiedPoiPrice(
+                name=row.normalized_name,
+                city="",
+                price_eur=row.price_eur,
+                is_free=row.is_free,
+                source="poi_price_catalog",
+                wikidata_id=row.wikidata_id,
+            )
+            norm_name = normalize_string(row.normalized_name)
+            _NORMALIZED_CATALOG[(norm_name, "")] = vp
+            if row.wikidata_id:
+                _WIKIDATA_CATALOG[row.wikidata_id] = vp
+            count += 1
+        return count
 
     @classmethod
     def get_verified_poi_price(
-        cls, poi_name: str, city: str
+        cls,
+        poi_name: str,
+        city: str,
+        wikidata_id: str | None = None,
     ) -> VerifiedPoiPrice | None:
-        """Finds verified price by normalized name and city."""
+        """Finds verified price by wikidata_id or normalized name and city."""
+        _ensure_catalog_initialized()
+
+        # 1. Exact wikidata_id match
+        if wikidata_id and wikidata_id in _WIKIDATA_CATALOG:
+            return _WIKIDATA_CATALOG[wikidata_id]
+
         norm_name = normalize_string(poi_name)
         norm_city = normalize_string(city)
-        catalog = _get_normalized_catalog()
 
-        # Exact match
-        if (norm_name, norm_city) in catalog:
-            return catalog[(norm_name, norm_city)]
+        # 2. Exact (name, city) match
+        if (norm_name, norm_city) in _NORMALIZED_CATALOG:
+            return _NORMALIZED_CATALOG[(norm_name, norm_city)]
 
-        # Partial / fuzzy substring match
-        for (k_name, k_city), v in catalog.items():
-            if k_city == norm_city and (k_name in norm_name or norm_name in k_name):
+        # Check match without city constraint if city is empty
+        if (norm_name, "") in _NORMALIZED_CATALOG:
+            return _NORMALIZED_CATALOG[(norm_name, "")]
+
+        # 3. Fuzzy / substring match
+        for (k_name, k_city), v in _NORMALIZED_CATALOG.items():
+            if (not k_city or k_city == norm_city) and (
+                k_name in norm_name or norm_name in k_name
+            ):
                 return v
 
         return None
@@ -277,25 +174,25 @@ class PoiPricingService:
         category: str = "generic",
         osm_fee: str | None = None,
         osm_charge: str | None = None,
+        wikidata_id: str | None = None,
+        wikivoyage_price: str | None = None,
         existing_cost: float | None = None,
         existing_is_estimated: bool | None = None,
         existing_source: str | None = None,
     ) -> tuple[float, bool, str]:
-        """
-        Determines the price for any POI in any city.
+        """Determines admission price using the 4-tier resolution cascade.
+
         Returns: (cost_eur, is_estimated, price_source)
-        Guarantees: If the price cannot be verified as real-world, cost_is_estimated=True.
         """
-        # 1. Check verified catalog first
-        verified = cls.get_verified_poi_price(poi_name, city)
+        # Tier 1: Check verified catalog
+        verified = cls.get_verified_poi_price(poi_name, city, wikidata_id=wikidata_id)
         if verified is not None:
             return verified.price_eur, False, verified.source
 
-        # 2. Check OSM explicit free tag
-        if osm_fee and str(osm_fee).lower() in ["no", "false", "0"]:
-            return 0.0, False, "osm_fee_tag_free"
+        # Tier 2: Check OSM explicit fee / charge
+        if osm_fee and str(osm_fee).strip().lower() in ["no", "false", "0", "free"]:
+            return 0.0, False, "osm_fee_no"
 
-        # 3. Check OSM explicit charge
         if osm_charge:
             try:
                 cleaned = re.sub(r"[^\d.]", " ", str(osm_charge))
@@ -309,7 +206,13 @@ class PoiPricingService:
             except (ValueError, TypeError) as parse_err:
                 logger.debug("Could not parse charge tag: %s", parse_err)
 
-        # 4. Check if existing data already has a verified real price
+        # Tier 3: Check Wikivoyage listing price
+        if wikivoyage_price:
+            wv_cost, wv_free = parse_wikivoyage_price(wikivoyage_price)
+            if wv_cost is not None:
+                return wv_cost, False, "wikivoyage_listing"
+
+        # Tier 4: Check if existing data already has a verified real price
         if (
             existing_cost is not None
             and existing_is_estimated is False
@@ -318,37 +221,149 @@ class PoiPricingService:
         ):
             return existing_cost, False, existing_source
 
-        # 4.5 If existing data has a non-zero cost (e.g. scraped estimated cost), preserve it
-        if existing_cost is not None and existing_cost > 0.0:
-            return existing_cost, True, (existing_source or "existing_estimate")
+        if (
+            existing_cost is not None
+            and existing_cost > 0.0
+            and existing_is_estimated is False
+        ):
+            return existing_cost, False, (existing_source or "existing_verified")
 
-        # 5. Fallback: Category benchmark estimation
-        # Mandatory Guardrail: Clearly state that this is AN ESTIMATED PRICE
+        # Fallback: Category benchmark estimation
         cat_key = category.lower() if category else "generic"
         benchmark_cost, is_free = CATEGORY_BENCHMARKS.get(
             cat_key, CATEGORY_BENCHMARKS["generic"]
         )
-
         cost = 0.0 if is_free else benchmark_cost
         return cost, True, "category_benchmark_estimate"
+
+    @classmethod
+    async def scrape_and_verify_official_price(
+        cls,
+        website_url: str,
+        poi_name: str,
+        city: str,
+        ollama_url: str = "http://localhost:11434",
+        model: str = "qwen2.5:3b",
+    ) -> tuple[float | None, bool, str]:
+        """Tier 4: Scrapes official website and verifies admission price with a strict literal verification gate.
+
+        Guarantees: Any extracted numeric price must literally appear in the fetched text.
+        """
+        if not website_url or not website_url.startswith(("http://", "https://")):
+            return None, True, "invalid_url"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Paladio/1.0"
+        }
+        candidate_urls = [website_url]
+        for sub in ("/tickets", "/visita", "/tarifs", "/en/tickets", "/prices"):
+            candidate_urls.append(urljoin(website_url, sub))
+
+        extracted_text = ""
+        try:
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
+                for target_url in candidate_urls[:2]:
+                    try:
+                        resp = await client.get(target_url, headers=headers)
+                        if resp.status_code == 200:
+                            # Strip script, style and html tags
+                            raw_html = resp.text
+                            clean = re.sub(
+                                r"<(script|style)[^>]*>.*?</\1>",
+                                " ",
+                                raw_html,
+                                flags=re.DOTALL | re.IGNORECASE,
+                            )
+                            clean = re.sub(r"<[^>]+>", " ", clean)
+                            clean = re.sub(r"\s+", " ", clean).strip()
+
+                            # Extract paragraphs with pricing signals
+                            matches = re.findall(
+                                r"[^.!?\n]{10,200}?(?:€|EUR|eur|\$|£|admission|ticket|entry|entrada|tarifs?|billet|free|gratis|gratuit)[^.!?\n]{0,100}",
+                                clean,
+                                re.IGNORECASE,
+                            )
+                            if matches:
+                                extracted_text = " ".join(matches[:8])
+                                break
+                    except (httpx.HTTPError, asyncio.TimeoutError):
+                        continue
+        except Exception as e:
+            logger.debug("Failed fetching official website %s: %s", website_url, e)
+            return None, True, "fetch_failed"
+
+        if not extracted_text:
+            return None, True, "no_price_text_found"
+
+        # Ask Ollama for structured extraction
+        prompt = (
+            f"Extract the adult admission price in EUR from the following text for {poi_name} in {city}.\n"
+            "If admission is completely free of charge, set price_eur to 0.0 and is_free to true.\n"
+            "If no price is mentioned, set price_eur to null.\n\n"
+            f"Text:\n{extracted_text[:1200]}\n\n"
+            'Respond ONLY in valid JSON matching schema: {"price_eur": <float or null>, "is_free": <bool>}'
+        )
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                ollama_resp = await client.post(
+                    f"{ollama_url}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": prompt,
+                        "format": "json",
+                        "stream": False,
+                    },
+                )
+                if ollama_resp.status_code != 200:
+                    return None, True, "ollama_error"
+
+                res_data = json.loads(ollama_resp.json().get("response", "{}"))
+                extracted_price = res_data.get("price_eur")
+                is_free = bool(res_data.get("is_free"))
+
+                if is_free and (extracted_price == 0.0 or extracted_price is None):
+                    # Literal check for free terms
+                    if any(
+                        term in extracted_text.lower()
+                        for term in ("free", "gratis", "gratuit", "libre")
+                    ):
+                        return 0.0, False, "official_website_literal_verified"
+
+                if extracted_price is not None:
+                    price_val = float(extracted_price)
+                    if price_val < 0.0:
+                        return None, True, "negative_price_rejected"
+
+                    # STRICT LITERAL VERIFICATION GATE:
+                    # The numeric representation must literally appear in extracted_text!
+                    int_str = str(int(price_val))
+                    float_str_dot = f"{price_val:.2f}"
+                    float_str_comma = f"{price_val:.2f}".replace(".", ",")
+                    simple_float = str(price_val)
+
+                    candidates = [int_str, float_str_dot, float_str_comma, simple_float]
+                    matched_literal = any(c in extracted_text for c in candidates if c)
+
+                    if matched_literal:
+                        return price_val, False, "official_website_literal_verified"
+                    else:
+                        logger.warning(
+                            "Ollama extracted price %s for %s, but literal verification failed in source text.",
+                            price_val,
+                            poi_name,
+                        )
+                        return None, True, "literal_verification_failed"
+        except Exception as e:
+            logger.debug("Ollama pricing extraction failed: %s", e)
+
+        return None, True, "extraction_unsuccessful"
 
     @classmethod
     async def batch_resolve_unindexed_pois(
         cls, pois: list[dict], city: str
     ) -> list[dict]:
-        """
-        Enriches a batch of candidate POI dictionaries with verified prices and 7-day opening vectors.
-        1. Fast path: Verified catalog and OSM tags.
-        2. Web grounding: Queries DuckDuckGo / Wikivoyage search snippets in parallel and
-           calls Ollama in a single structured batch prompt to extract official prices and opening hours.
-        3. Strict fallback: Category benchmark estimates with cost_is_estimated=True if ungrounded.
-        """
-        import asyncio
-        import json
-
-        import httpx
-        from app.utils.opening_hours_parser import parse_osm_opening_hours
-
+        """Enriches candidate POI dictionaries with verified prices and opening hours."""
         unindexed_indices = []
 
         for idx, p in enumerate(pois):
@@ -357,19 +372,31 @@ class PoiPricingService:
             raw_cost = p.get("cost_eur")
             osm_fee = p.get("osm_fee")
             osm_charge = p.get("osm_charge")
+            wikidata_id = p.get("wikidata_id") or (
+                p.get("metadata", {}).get("wikidata_id")
+                if isinstance(p.get("metadata"), dict)
+                else None
+            )
+            wv_price = p.get("wikivoyage_price") or (
+                p.get("metadata", {}).get("wikivoyage", {}).get("price")
+                if isinstance(p.get("metadata"), dict)
+                else None
+            )
             osm_h = p.get("osm_opening_hours") or (
                 p.get("schedule", {}).get("osm_opening_hours")
                 if isinstance(p.get("schedule"), dict)
                 else None
             )
 
-            # Resolve price via catalog / OSM tags
+            # Resolve price via 4-tier cascade
             cost, is_est, src = cls.resolve_poi_price(
                 poi_name=name,
                 city=city,
                 category=cat,
                 osm_fee=osm_fee,
                 osm_charge=osm_charge,
+                wikidata_id=wikidata_id,
+                wikivoyage_price=wv_price,
                 existing_cost=raw_cost,
                 existing_is_estimated=p.get("cost_is_estimated"),
                 existing_source=p.get("cost_source"),
@@ -378,108 +405,40 @@ class PoiPricingService:
             p["cost_is_estimated"] = is_est
             p["cost_source"] = src
 
-            # Resolve opening hours vectors
-            if p.get("open_time_mins_by_day") and len(p["open_time_mins_by_day"]) == 7:
-                pass  # already populated
-            else:
+            # Resolve opening hours
+            if (
+                not p.get("open_time_mins_by_day")
+                or len(p["open_time_mins_by_day"]) != 7
+            ):
                 parsed = parse_osm_opening_hours(osm_h)
                 p["open_time_mins_by_day"] = parsed.open_time_mins_by_day
                 p["close_time_mins_by_day"] = parsed.close_time_mins_by_day
+                p["daily_windows"] = parsed.daily_windows
+                p["hours_known"] = parsed.hours_known
+                p["has_split_hours"] = parsed.has_split_hours
                 p["osm_opening_hours"] = osm_h
 
-            if is_est:
+            if is_est and (p.get("website") or p.get("url")):
                 unindexed_indices.append(idx)
 
-        # If unindexed POIs exist, attempt parallel web grounding and single Ollama batch extraction
+        # For unindexed POIs with website URL, attempt Tier 4 official website grounding
         if unindexed_indices:
-            unindexed_pois = [
-                pois[i] for i in unindexed_indices[:10]
-            ]  # limit to top 10 candidates
-            try:
-                # 1. Fetch search snippets in parallel
-                async def fetch_snippet(poi_item: dict) -> tuple[str, str]:
-                    poi_n = poi_item.get("name", "")
-                    query = f"{poi_n} {city} admission ticket price opening hours"
-                    try:
-                        async with httpx.AsyncClient(timeout=3.0) as client:
-                            url = f"https://html.duckduckgo.com/html/?q={httpx.URL(query)}"
-                            headers = {
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                            }
-                            resp = await client.get(url, headers=headers)
-                            if resp.status_code == 200:
-                                text = re.sub(r"<[^>]+>", " ", resp.text)[:600]
-                                return poi_n, text
-                    except (httpx.HTTPError, asyncio.TimeoutError) as e:
-                        logger.debug("Snippet fetch failed for '%s': %s", poi_n, e)
-                    return poi_n, ""
-
-                snippet_tasks = [fetch_snippet(p) for p in unindexed_pois]
-                snippets = await asyncio.gather(*snippet_tasks)
-
-                combined_context = "\n".join(
-                    f"POI: {name}\nSnippet: {text}" for name, text in snippets if text
-                )
-
-                if combined_context:
-                    # 2. Query Ollama in a single batch prompt
-                    prompt = (
-                        f"Extract admission price in EUR and opening hours for these attractions in {city}.\n"
-                        f"Context:\n{combined_context}\n\n"
-                        "Respond ONLY in valid JSON matching this schema:\n"
-                        '{"results": [{"name": "POI Name", "price_eur": 12.0, "is_free": false, "hours_raw": "09:00-18:00"}]}'
+            candidates = [pois[i] for i in unindexed_indices[:5]]
+            for c_poi in candidates:
+                web_url = c_poi.get("website") or c_poi.get("url")
+                if web_url:
+                    (
+                        cost_val,
+                        est_val,
+                        src_val,
+                    ) = await cls.scrape_and_verify_official_price(
+                        website_url=web_url,
+                        poi_name=c_poi.get("name", ""),
+                        city=city,
                     )
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        ollama_resp = await client.post(
-                            "http://localhost:11434/api/generate",
-                            json={
-                                "model": "qwen2.5:3b",
-                                "prompt": prompt,
-                                "format": "json",
-                                "stream": False,
-                            },
-                        )
-                        if ollama_resp.status_code == 200:
-                            res_json = json.loads(
-                                ollama_resp.json().get("response", "{}")
-                            )
-                            extracted_list = res_json.get("results", [])
-                            for ext in extracted_list:
-                                e_name = ext.get("name", "").lower()
-                                e_price = ext.get("price_eur")
-                                e_hours = ext.get("hours_raw")
-                                for u_idx in unindexed_indices:
-                                    target = pois[u_idx]
-                                    if (
-                                        target.get("name", "").lower() in e_name
-                                        or e_name in target.get("name", "").lower()
-                                    ):
-                                        if (
-                                            e_price is not None
-                                            and float(e_price) >= 0.0
-                                        ):
-                                            target["cost_eur"] = float(e_price)
-                                            target["cost_is_estimated"] = False
-                                            target["cost_source"] = (
-                                                "official_web_grounding"
-                                            )
-                                        if e_hours:
-                                            p_hours = parse_osm_opening_hours(e_hours)
-                                            target["open_time_mins_by_day"] = (
-                                                p_hours.open_time_mins_by_day
-                                            )
-                                            target["close_time_mins_by_day"] = (
-                                                p_hours.close_time_mins_by_day
-                                            )
-                                            target["osm_opening_hours"] = e_hours
-            except (
-                httpx.HTTPError,
-                asyncio.TimeoutError,
-                json.JSONDecodeError,
-                KeyError,
-                ValueError,
-                TypeError,
-            ) as e:
-                logger.warning("Batch web grounding failed gracefully: %s", e)
+                    if cost_val is not None and not est_val:
+                        c_poi["cost_eur"] = cost_val
+                        c_poi["cost_is_estimated"] = False
+                        c_poi["cost_source"] = src_val
 
         return pois

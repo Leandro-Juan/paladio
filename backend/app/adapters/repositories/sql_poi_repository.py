@@ -143,17 +143,30 @@ def attraction_to_poi(attraction: Attraction, city: str = "") -> Poi:
         else dict(attraction.metadata)
     )
 
-    osm_h = sched.get("osm_opening_hours")
+    osm_h = getattr(attraction, "opening_hours_raw", None) or sched.get(
+        "osm_opening_hours"
+    )
     parsed_hours = parse_osm_opening_hours(osm_h)
     dur = sched.get("recommended_duration_minutes", 60)
-    raw_cost = fin.get("estimated_cost", 0.0) or 0.0
-    raw_is_estimated = fin.get("is_estimated", True) if isinstance(fin, dict) else True
-    raw_price_source = fin.get("price_source", None) if isinstance(fin, dict) else None
+    raw_cost = getattr(attraction, "admission_fee", None)
+    if raw_cost is None:
+        raw_cost = fin.get("estimated_cost", 0.0) or 0.0
+    raw_is_estimated = getattr(attraction, "cost_is_estimated", None)
+    if raw_is_estimated is None:
+        raw_is_estimated = (
+            fin.get("is_estimated", True) if isinstance(fin, dict) else True
+        )
+    raw_price_source = getattr(attraction, "cost_source", None)
+    if raw_price_source is None:
+        raw_price_source = (
+            fin.get("price_source", None) if isinstance(fin, dict) else None
+        )
 
     cost, is_estimated, price_source = PoiPricingService.resolve_poi_price(
         poi_name=attraction.name,
         city=city or "",
         category=attraction.category,
+        wikidata_id=getattr(attraction, "wikidata_id", None),
         existing_cost=raw_cost,
         existing_is_estimated=raw_is_estimated,
         existing_source=raw_price_source,
@@ -264,6 +277,60 @@ def poi_to_attraction(poi: Poi) -> Attraction:
     )
 
 
+def dict_to_poi(d: dict[str, Any]) -> Poi:
+    from app.engine.retrieval.hybrid_retriever import _parse_vector
+
+    loc = d.get("location") or {}
+    sc = d.get("scoring") or {}
+    meta = (
+        d.get("metadata")
+        if isinstance(d.get("metadata"), dict)
+        else (d.get("metadata_field") or {})
+    )
+
+    dur = d.get("duration_mins", 60)
+    cost = float(d.get("cost_eur") or 0.0)
+    is_est = bool(d.get("cost_is_estimated", True))
+    src = d.get("cost_source")
+
+    return Poi(
+        id=str(d.get("id")),
+        city=str(d.get("city")),
+        name=str(d.get("name")),
+        category=str(d.get("category", "attraction")),
+        location=_to_attr_dict(loc),
+        scoring=_to_attr_dict(sc),
+        metadata=_to_attr_dict(meta),
+        duration_mins=int(dur or 60),
+        cost_eur=cost,
+        cost_is_estimated=is_est,
+        cost_source=src,
+        tier=int(d.get("tier", 3)),
+        tier_confidence=str(d.get("tier_confidence", "low")),
+        tier_source=str(d.get("tier_source", "heuristic")),
+        iconicity_score=float(d.get("iconicity_score") or 0.0),
+        taxonomy_category=str(d.get("taxonomy_category", "art_culture")),
+        category_id=int(d.get("category_id", 0)),
+        visit_mode=str(d.get("visit_mode", "full")),
+        aliases=list(d.get("aliases") or []),
+        neighborhood=d.get("neighborhood"),
+        wikidata_id=d.get("wikidata_id"),
+        wikipedia_title=d.get("wikipedia_title"),
+        website=d.get("website"),
+        description=d.get("description"),
+        description_source=d.get("description_source"),
+        doc_quality=str(d.get("doc_quality") or "C"),
+        facets=dict(d.get("facets") or {}),
+        sitelinks_count=int(d.get("sitelinks_count") or 0),
+        pageviews_30d=int(d.get("pageviews_30d") or 0),
+        hours_known=bool(d.get("hours_known", False)),
+        daily_windows=list(d.get("daily_windows") or []),
+        has_split_hours=bool(d.get("has_split_hours", False)),
+        embedding=_parse_vector(d.get("embedding")),
+        hydration_status=str(d.get("hydration_status", "RAW")),
+    )
+
+
 class SqlPoiRepository(IPoiRepository):
     """
     SQLAlchemy implementation of the IPoiRepository port.
@@ -351,36 +418,67 @@ class SqlPoiRepository(IPoiRepository):
     ) -> list[tuple[Poi, float]]:
         """
         Retrieves candidate attractions in the city ordered by pgvector cosine similarity (<=>)
-        to the user's 768D semantic vector. Returns tuples of (Poi, semantic_affinity).
+        with pgvector 0.8+ iterative scan optimization.
         """
         if not user_vector or len(user_vector) != 768:
             raise ValueError(
                 "A valid 768-dimensional user_vector is required for semantic candidate search."
             )
 
-        filter_clause = await self._get_city_filter(city_name)
-        dist_col = AttractionModel.embedding.cosine_distance(user_vector)
-        stmt = (
-            select(AttractionModel, dist_col.label("distance"))
-            .where(filter_clause)
-            .where(AttractionModel.embedding.isnot(None))
-            .order_by(dist_col.asc())
-            .limit(limit)
-        )
-        result = await self.session.execute(stmt)
-        rows = result.all()
+        from app.engine.retrieval.hybrid_retriever import HybridRetriever
 
-        if not rows:
-            return []
+        results = await HybridRetriever.search_hybrid(
+            session=self.session,
+            city=city_name,
+            query_vec=user_vector,
+            clean_query="",
+            limit=limit,
+            w_vec=1.0,
+            w_fts=0.0,
+            w_trgm=0.0,
+            apply_mmr=True,
+        )
 
         candidates: list[tuple[Poi, float]] = []
-        for model, dist in rows:
-            dist_val = float(dist) if dist is not None else 1.0
-            # Cosine similarity in [0.0, 1.0]
-            sim = float(max(0.0, min(1.0, 1.0 - dist_val)))
-            poi = model_to_poi(model)
+        for d in results:
+            poi = dict_to_poi(d)
+            sim = float(d.get("vec_sim", d.get("composite_score", 0.0)))
             candidates.append((poi, sim))
+        return candidates
 
+    async def find_hybrid_candidates(
+        self,
+        city_name: str,
+        user_vector: list[float] | None = None,
+        clean_query: str = "",
+        required_facets: dict[str, Any] | None = None,
+        max_tier: int | None = None,
+        max_cost_eur: float | None = None,
+        require_rain_friendly: bool = False,
+        limit: int = 150,
+        apply_mmr: bool = True,
+    ) -> list[tuple[Poi, float]]:
+        """Executes full Hybrid Retrieval (Dense Vector + FTS + Trigram RRF + MMR) for candidate pool."""
+        from app.engine.retrieval.hybrid_retriever import HybridRetriever
+
+        results = await HybridRetriever.search_hybrid(
+            session=self.session,
+            city=city_name,
+            query_vec=user_vector,
+            clean_query=clean_query,
+            required_facets=required_facets,
+            max_tier=max_tier,
+            max_cost_eur=max_cost_eur,
+            require_rain_friendly=require_rain_friendly,
+            limit=limit,
+            apply_mmr=apply_mmr,
+        )
+
+        candidates: list[tuple[Poi, float]] = []
+        for d in results:
+            poi = dict_to_poi(d)
+            score = float(d.get("composite_score", d.get("vec_sim", 0.0)))
+            candidates.append((poi, score))
         return candidates
 
     async def update_poi_embeddings(
@@ -679,3 +777,41 @@ class SqlPoiRepository(IPoiRepository):
         await self.session.commit()
 
         logger.info(f"Saved {len(pois)} fresh POIs to the database for {city_name}.")
+
+    async def check_city_staleness(
+        self, city_name: str
+    ) -> tuple[datetime | None, bool]:
+        """
+        Checks ingestion timestamp and whether any attractions have outdated embedding versions.
+        Returns (ingested_at, has_outdated_embeddings).
+        """
+        from app.engine.hydration.document_builder import PoiDocumentBuilder
+
+        city_clean = city_name.strip().lower()
+        city_filter = await self._get_city_filter(city_name)
+
+        # 1. City ingested_at
+        city_stmt = (
+            select(CityModel.ingested_at)
+            .where(
+                or_(
+                    CityModel.id == city_clean,
+                    func.lower(CityModel.name) == city_clean,
+                )
+            )
+            .limit(1)
+        )
+        city_res = await self.session.execute(city_stmt)
+        ingested_at = city_res.scalar_one_or_none()
+
+        # 2. Outdated or missing embeddings
+        version_stmt = select(func.count(AttractionModel.id)).where(
+            city_filter,
+            or_(
+                AttractionModel.embedding_version < PoiDocumentBuilder.VERSION,
+                AttractionModel.embedding.is_(None),
+            ),
+        )
+        ver_res = await self.session.execute(version_stmt)
+        outdated_count = ver_res.scalar_one() or 0
+        return ingested_at, outdated_count > 0

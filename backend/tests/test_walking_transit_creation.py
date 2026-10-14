@@ -264,3 +264,72 @@ async def test_upgrade_transit_all_walking_legs_succeeds_without_gtfs():
         assert result["status"] == "success"
         # get_detailed_transit_leg was never called because all legs were already walking!
         assert mock_get_transit.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_get_detailed_walking_leg_geometry_and_decode_polyline6():
+    """
+    Verify that decode_polyline6 decodes Valhalla precision-6 polylines and
+    get_detailed_walking_leg populates geometry on both the leg and individual steps.
+    """
+    from app.services.transit_service import decode_polyline6, get_detailed_walking_leg
+
+    # Sample polyline6 shape: 5 points
+    encoded_shape = "gcwalAfygaFwj@vj@o}@n}@o}@n}@o}@noB"
+    coords = decode_polyline6(encoded_shape)
+    assert len(coords) == 5
+    assert isinstance(coords[0], list)
+    assert len(coords[0]) == 2
+    assert round(coords[0][0], 2) == 40.42
+
+    mock_valhalla_response = {
+        "trip": {
+            "summary": {"time": 600, "length": 0.8},
+            "legs": [
+                {
+                    "shape": encoded_shape,
+                    "maneuvers": [
+                        {
+                            "instruction": "Walk north on Calle de Bailén",
+                            "time": 300,
+                            "length": 0.4,
+                            "begin_shape_index": 0,
+                            "end_shape_index": 2,
+                        },
+                        {
+                            "instruction": "Turn right onto Calle Mayor",
+                            "time": 300,
+                            "length": 0.4,
+                            "begin_shape_index": 2,
+                            "end_shape_index": 4,
+                        },
+                    ],
+                }
+            ],
+        }
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = mock_valhalla_response
+        mock_post.return_value = mock_resp
+
+        origin = {
+            "name": "Palacio Real",
+            "location": {"latitude": 40.4179, "longitude": -3.7143},
+        }
+        dest = {
+            "name": "Plaza Mayor",
+            "location": {"latitude": 40.4153, "longitude": -3.7073},
+        }
+
+        leg = await get_detailed_walking_leg(origin, dest)
+
+        assert leg.mode == "pedestrian"
+        assert len(leg.geometry) > 0
+        assert len(leg.steps) == 2
+        assert len(leg.steps[0].geometry) == 3
+        assert len(leg.steps[1].geometry) == 3
+        assert leg.steps[0].instruction == "Walk north on Calle de Bailén"

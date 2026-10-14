@@ -20,15 +20,23 @@ app.conf.update(
     task_queues=[
         Queue("celery"),
         Queue("transit_build"),
+        Queue("poi_hydration"),
     ],
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     # Configure dedicated queues and rate limits to prevent memory exhaustion (Guardrail 4)
     task_routes={
         "app.tasks.build_city_gtfs_task": {"queue": "transit_build"},
+        "app.tasks.hydrate_city_pipeline_task": {"queue": "poi_hydration"},
+        "app.tasks.ingest_city_pois_task": {"queue": "poi_hydration"},
+        "app.tasks.enrich_tier12_city_pois_task": {"queue": "poi_hydration"},
+        "app.tasks.enrich_long_tail_city_pois_task": {"queue": "poi_hydration"},
     },
     task_annotations={
         "app.tasks.build_city_gtfs_task": {
+            "acks_late": True,
+        },
+        "app.tasks.hydrate_city_pipeline_task": {
             "acks_late": True,
         },
     },

@@ -95,39 +95,70 @@ async def get_attractions_for_city(
 
         return [poi.model_dump(mode="json") for poi in pois]
 
-    meta = pois[0].metadata
-    first_poi_date = (
-        meta.scraped_at
-        if hasattr(meta, "scraped_at")
-        else (meta.get("scraped_at") if isinstance(meta, dict) else None)
-    )
-    if isinstance(first_poi_date, str):
+    # 3. Check Staleness & Embedding Version
+    ingested_at = None
+    has_outdated = False
+    if hasattr(poi_repo, "check_city_staleness"):
         try:
-            first_poi_date = datetime.fromisoformat(first_poi_date)
-        except Exception:
-            first_poi_date = datetime.now(timezone.utc)
-    elif not isinstance(first_poi_date, datetime):
-        first_poi_date = datetime.now(timezone.utc)
+            staleness_res = await poi_repo.check_city_staleness(city_name)
+            if isinstance(staleness_res, (tuple, list)) and len(staleness_res) == 2:
+                ingested_at, has_outdated = staleness_res
+        except Exception as se:
+            logger.debug(f"check_city_staleness error for {city_name}: {se}")
 
-    if first_poi_date.tzinfo is None:
-        first_poi_date = first_poi_date.replace(tzinfo=timezone.utc)
-
-    age_days = (datetime.now(timezone.utc) - first_poi_date).days
-
-    # 3. Cache Hit (Fresh)
-    if age_days <= STALE_TTL_DAYS:
-        logger.info(
-            f"Cache hit for {city_name} (Age: {age_days} days). Returning instantly."
+    if ingested_at is not None:
+        if ingested_at.tzinfo is None:
+            ingested_at = ingested_at.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - ingested_at).days
+    else:
+        # Fallback to checking metadata on first POI if available (e.g. test fixtures)
+        meta = getattr(pois[0], "metadata", None) or getattr(
+            pois[0], "metadata_field", None
         )
-        return [poi.model_dump(mode="json") for poi in pois]
+        first_poi_date = None
+        if hasattr(meta, "scraped_at"):
+            first_poi_date = meta.scraped_at
+        elif isinstance(meta, dict):
+            first_poi_date = meta.get("scraped_at")
 
-    # 4. Stale-While-Revalidate (Stale)
+        if isinstance(first_poi_date, str):
+            try:
+                first_poi_date = datetime.fromisoformat(first_poi_date)
+            except Exception:
+                first_poi_date = datetime.now(timezone.utc)
+        elif not isinstance(first_poi_date, datetime):
+            first_poi_date = datetime.now(timezone.utc)
+
+        if first_poi_date.tzinfo is None:
+            first_poi_date = first_poi_date.replace(tzinfo=timezone.utc)
+
+        age_days = (datetime.now(timezone.utc) - first_poi_date).days
+
+    # 4. Cache Hit (Fresh and all embeddings up to date)
+    if age_days <= STALE_TTL_DAYS and not has_outdated:
+        logger.info(
+            f"Cache hit for {city_name} (Age: {age_days} days, up-to-date embeddings). Returning instantly."
+        )
+        return [
+            poi.model_dump(mode="json") if hasattr(poi, "model_dump") else poi
+            for poi in pois
+        ]
+
+    # 5. Stale-While-Revalidate (Stale or outdated embedding version)
+    reason = (
+        f"Age: {age_days} days"
+        if age_days > STALE_TTL_DAYS
+        else "Outdated embedding versions"
+    )
     logger.info(
-        f"Stale data for {city_name} (Age: {age_days} days). Returning stale data and triggering background SWR refresh."
+        f"Stale data for {city_name} ({reason}). Returning cached data and triggering background Celery hydration."
     )
     refresh_city_pois_task.delay(city_name)
 
-    return [poi.model_dump(mode="json") for poi in pois]
+    return [
+        poi.model_dump(mode="json") if hasattr(poi, "model_dump") else poi
+        for poi in pois
+    ]
 
 
 async def _fetch_and_store_pois(
