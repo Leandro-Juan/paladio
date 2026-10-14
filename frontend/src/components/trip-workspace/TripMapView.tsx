@@ -10,6 +10,7 @@ import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clu
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
+import { VectorBasemap } from '@/components/VectorBasemap';
 
 export interface MapPoi {
   name: string;
@@ -538,13 +539,8 @@ export default function TripMapView({
         <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
 
-        {/* Sovereign Keyless OpenStreetMap Basemap */}
-        <TileLayer
-          attribution={tileAttribution}
-          url={tileUrl}
-          subdomains={tileSubdomains}
-          maxZoom={tileMaxZoom}
-        />
+        {/* Sovereign Keyless OpenStreetMap Vector Basemap (Zero POI/amenity icon clutter) */}
+        <VectorBasemap styleUrl="https://tiles.openfreemap.org/styles/liberty" />
 
         {/* 1. Cluster Region Polygons (Colored convex hulls) */}
         {dayClusters.map((cluster) => {

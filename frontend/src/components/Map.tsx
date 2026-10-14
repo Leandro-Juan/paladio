@@ -9,6 +9,7 @@ import { PoiCategoryBadge } from './PoiCategoryBadge';
 import { classifyPoiCategory, PoiCategoryType } from '@/utils/poiCategory';
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
+import { VectorBasemap } from './VectorBasemap';
 
 export interface MapPoiItem {
   name: string;
@@ -362,13 +363,8 @@ export default function LeafletMap({
         >
           <MapViewportController activePoints={activeBoundsPoints} activeTab={activeTab} />
 
-          {/* Sovereign Keyless OpenStreetMap Basemap */}
-          <TileLayer
-            attribution={tileAttribution}
-            url={tileUrl}
-            subdomains={tileSubdomains}
-            maxZoom={tileMaxZoom}
-          />
+          {/* Sovereign Keyless OpenStreetMap Vector Basemap (Zero POI/amenity icon clutter) */}
+          <VectorBasemap styleUrl="https://tiles.openfreemap.org/styles/liberty" />
 
           {/* 1. Cluster Region Polygons (Pacific Jazz styled) */}
           {dayClusters.map((cluster) => {
