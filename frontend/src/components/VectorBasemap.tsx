@@ -34,7 +34,8 @@ export function VectorBasemap({
         }
         const style = await res.json();
 
-        // Strip out amenity icons, shop icons, bus icons, and cluttered POI layers
+        // Strip out amenity icons, shop icons, bus icons, and cluttered POI layers,
+        // as well as 3D building extrusions/shadows for a 100% plain 2D architectural map
         if (Array.isArray(style.layers)) {
           style.layers = style.layers.filter((l: { type?: string; layout?: { 'icon-image'?: unknown }; id?: string }) => {
             const id = l.id || '';
@@ -48,8 +49,18 @@ export function VectorBasemap({
             ) {
               return false;
             }
+            // Remove 3D building extrusions and elevation shadows
+            if (id === 'building-3d' || l.type === 'fill-extrusion' || id.includes('3d') || id.includes('extrusion')) {
+              return false;
+            }
             return true;
           });
+
+          // Ensure the clean 2D flat building footprints remain active across all high zoom tiers
+          const flatBuilding = style.layers.find((l: { id?: string; maxzoom?: number }) => l.id === 'building');
+          if (flatBuilding) {
+            delete flatBuilding.maxzoom;
+          }
         }
 
         if (isCancelled) return;
