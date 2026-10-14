@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+
+const emptySubscribe = () => () => {};
 
 interface ModalProps {
   isOpen: boolean;
@@ -25,6 +28,12 @@ export function Modal({
   variant = 'default',
   children
 }: ModalProps) {
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+
   if (!isOpen) return null;
 
   const isWarningMode = variant === 'warning';
@@ -41,7 +50,7 @@ export function Modal({
     confirmBg = 'var(--color-accent-warning)';
   }
 
-  return (
+  const modalElement = (
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
@@ -120,4 +129,8 @@ export function Modal({
       </div>
     </div>
   );
+
+  return isClient && typeof document !== 'undefined'
+    ? createPortal(modalElement, document.body)
+    : modalElement;
 }

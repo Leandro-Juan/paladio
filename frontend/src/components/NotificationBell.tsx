@@ -4,7 +4,11 @@ import React, { useState } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { NotificationCenter } from './NotificationCenter';
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  placement?: 'top' | 'bottom';
+}
+
+export function NotificationBell({ placement = 'bottom' }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
 
@@ -84,7 +88,7 @@ export function NotificationBell() {
         )}
       </button>
 
-      <NotificationCenter isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <NotificationCenter isOpen={isOpen} onClose={() => setIsOpen(false)} placement={placement} />
     </div>
   );
 }

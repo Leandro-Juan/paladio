@@ -6,10 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Modal } from './Modal';
 
 interface UserMenuProps {
-  isCollapsed: boolean;
+  isCollapsed?: boolean;
+  dockMode?: boolean;
 }
 
-export function UserMenu({ isCollapsed }: UserMenuProps) {
+export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -68,39 +69,42 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
   };
 
   return (
-    <div ref={menuRef} style={{ position: 'relative', width: '100%' }}>
+    <div ref={menuRef} style={{ position: 'relative', display: dockMode ? 'inline-flex' : 'block', width: dockMode ? 'auto' : '100%' }}>
       {/* Trigger Button */}
-      {isCollapsed ? (
+      {isCollapsed || dockMode ? (
         <button
           onClick={() => setIsOpen(!isOpen)}
           title={`${user.username} (${user.role.toUpperCase()})`}
           aria-label="User menu"
           aria-expanded={isOpen}
           style={{
-            background: 'transparent',
+            background: isOpen ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
             border: 'none',
             padding: 0,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '100%',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            transition: 'all 0.2s ease',
           }}
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
               background: 'var(--color-ocean, #1B8FA6)',
-              border: '1px solid rgba(246, 240, 225, 0.25)',
+              border: '1.5px solid rgba(246, 240, 225, 0.4)',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '14px',
+              fontSize: '13px',
               fontWeight: 700,
-              boxShadow: isOpen ? '0 0 0 2px var(--color-sky, #7CC4D1)' : 'none',
+              boxShadow: isOpen ? '0 0 0 2px rgba(255, 255, 255, 0.6)' : 'none',
               transition: 'all 0.2s ease',
               overflow: 'hidden',
             }}
@@ -227,14 +231,15 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
           aria-label="User navigation"
           style={{
             position: 'absolute',
-            bottom: isCollapsed ? '0' : 'calc(100% + 8px)',
-            left: isCollapsed ? 'calc(100% + 10px)' : '0',
-            width: isCollapsed ? '210px' : '100%',
+            bottom: dockMode ? 'calc(100% + 14px)' : (isCollapsed ? '0' : 'calc(100% + 8px)'),
+            left: dockMode ? 'auto' : (isCollapsed ? 'calc(100% + 10px)' : '0'),
+            right: dockMode ? '0' : 'auto',
+            width: dockMode ? '240px' : (isCollapsed ? '210px' : '100%'),
             minWidth: '200px',
             background: 'var(--color-surface-card)',
             borderRadius: '12px',
             border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-md)',
+            boxShadow: 'var(--shadow-lg)',
             padding: '12px 14px 10px',
             zIndex: 9999,
             display: 'flex',

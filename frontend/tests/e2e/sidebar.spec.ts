@@ -1,62 +1,66 @@
 import { test, expect } from '@playwright/test';
 import { mockAuthenticatedUser } from './test-utils';
 
-test.describe('Sidebar Toggle', () => {
-  test('toggles between expanded and collapsed modes via button and shortcut', async ({ page }) => {
+test.describe('Floating Sovereign Dock Navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+  });
+
+  test('auto-hides when idle/scrolling and reveals with expanded labels on hover', async ({ page }) => {
     await mockAuthenticatedUser(page);
     await page.goto('/dashboard');
 
-    const sidebar = page.locator('nav.sidebar');
-    await expect(sidebar).toBeVisible();
-    await expect(sidebar).not.toHaveClass(/collapsed/);
+    const dock = page.locator('nav.sidebar');
+    const triggerZone = page.locator('[class*="triggerZone"]');
 
-    // Verify nav links with text are visible
-    await expect(sidebar.getByText('Control Center')).toBeVisible();
+    // Initially hidden until mouse hovers bottom area
+    await expect(dock).toHaveClass(/hidden/);
 
-    // Click collapse button
-    const collapseBtn = page.getByRole('button', { name: /Collapse sidebar/i });
-    await expect(collapseBtn).toBeVisible();
-    await collapseBtn.click();
+    // Move mouse to bottom trigger zone to reveal dock
+    await triggerZone.hover();
+    await expect(dock).not.toHaveClass(/hidden/);
 
-    // Verify sidebar is collapsed
-    await expect(sidebar).toHaveClass(/collapsed/);
-    await expect(sidebar.getByText('Control Center')).not.toBeVisible();
+    // Verify all primary spaces are present in the dock
+    const controlCenterLink = dock.getByRole('link', { name: /Control Center/i });
+    const engineLink = dock.getByRole('link', { name: /Active Engine/i });
+    const tripsLink = dock.getByRole('link', { name: /Upcoming Trips/i });
+    const vaultLink = dock.getByRole('link', { name: /Itinerary Vault/i });
+    const configLink = dock.getByRole('link', { name: /System Config/i });
 
-    // Verify expand button is visible and click it
-    const expandBtn = page.getByRole('button', { name: /Expand sidebar/i });
-    await expect(expandBtn).toBeVisible();
-    await expandBtn.click();
+    await expect(controlCenterLink).toBeVisible();
+    await expect(engineLink).toBeVisible();
+    await expect(tripsLink).toBeVisible();
+    await expect(vaultLink).toBeVisible();
+    await expect(configLink).toBeVisible();
 
-    // Verify sidebar is expanded again
-    await expect(sidebar).not.toHaveClass(/collapsed/);
-    await expect(sidebar.getByText('Control Center')).toBeVisible();
+    // Verify LIVE badge is NOT present
+    await expect(dock.getByText('LIVE')).not.toBeVisible();
 
-    // Test keyboard shortcut Ctrl+B
-    await page.keyboard.press('Control+b');
-    await expect(sidebar).toHaveClass(/collapsed/);
+    // Hover over Engine to verify label expands
+    await engineLink.hover();
+    await expect(dock.getByText('Active Engine')).toBeVisible();
 
-    // Verify localStorage persistence
-    const savedState = await page.evaluate(() => localStorage.getItem('paladio_sidebar_collapsed'));
-    expect(savedState).toBe('true');
+    // Hover over Trips to verify label expands
+    await tripsLink.hover();
+    await expect(dock.getByText('Upcoming Trips')).toBeVisible();
   });
 
-  test('removes Configuration from sidebar and opens UserMenu with admin badge and items', async ({ page }) => {
+  test('opens UserMenu from photo avatar trigger with admin badge and items', async ({ page }) => {
     await mockAuthenticatedUser(page, 'admin');
     await page.goto('/dashboard');
 
-    const sidebar = page.locator('nav.sidebar');
-    await expect(sidebar).toBeVisible();
+    const dock = page.locator('nav.sidebar');
+    const triggerZone = page.locator('[class*="triggerZone"]');
 
-    // Verify Configuration is NOT in the sidebar links
-    await expect(sidebar.getByRole('link', { name: /Configuration/i })).not.toBeVisible();
+    // Reveal dock by hovering bottom trigger zone
+    await triggerZone.hover();
+    await expect(dock).not.toHaveClass(/hidden/);
 
-    // Verify UserMenu trigger shows username and ADMIN badge
-    const userMenuBtn = sidebar.getByRole('button', { name: /User menu/i });
+    // Verify UserMenu trigger button (photo avatar) is visible
+    const userMenuBtn = dock.getByRole('button', { name: /User menu/i });
     await expect(userMenuBtn).toBeVisible();
-    await expect(userMenuBtn.getByText('admin', { exact: true })).toBeVisible();
-    await expect(userMenuBtn.getByText('ADMIN', { exact: true })).toBeVisible();
 
-    // Open UserMenu dropdown
+    // Open UserMenu dropdown popover
     await userMenuBtn.click();
 
     const menu = page.getByRole('menu', { name: /User navigation/i });
@@ -96,10 +100,19 @@ test.describe('Sidebar Toggle', () => {
     await mockAuthenticatedUser(page, 'user');
     await page.goto('/dashboard');
 
-    const sidebar = page.locator('nav.sidebar');
-    const userMenuBtn = sidebar.getByRole('button', { name: /User menu/i });
+    const dock = page.locator('nav.sidebar');
+    const triggerZone = page.locator('[class*="triggerZone"]');
+
+    await triggerZone.hover();
+    await expect(dock).not.toHaveClass(/hidden/);
+
+    const userMenuBtn = dock.getByRole('button', { name: /User menu/i });
     await expect(userMenuBtn).toBeVisible();
-    await expect(userMenuBtn.getByText('traveler')).toBeVisible();
-    await expect(userMenuBtn.getByText('ADMIN')).not.toBeVisible();
+
+    await userMenuBtn.click();
+    const menu = page.getByRole('menu', { name: /User navigation/i });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByText('traveler')).toBeVisible();
+    await expect(menu.getByText('ADMIN')).not.toBeVisible();
   });
 });

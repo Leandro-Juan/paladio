@@ -10,6 +10,7 @@ import { EmptyState } from './EmptyState';
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
+  placement?: 'top' | 'bottom';
 }
 
 const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: string }> = {
@@ -19,7 +20,7 @@ const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: 
   error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: '✕' },
 };
 
-export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
+export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: NotificationCenterProps) {
   const {
     notifications,
     unreadCount,
@@ -65,9 +66,11 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
       aria-modal="false"
       style={{
         position: 'absolute',
-        top: '100%',
-        left: 0,
-        marginTop: '8px',
+        bottom: placement === 'top' ? 'calc(100% + 14px)' : 'auto',
+        top: placement === 'top' ? 'auto' : '100%',
+        right: placement === 'top' ? 0 : 'auto',
+        left: placement === 'top' ? 'auto' : 0,
+        marginTop: placement === 'top' ? 0 : '8px',
         width: '380px',
         maxWidth: 'calc(100vw - 32px)',
         maxHeight: '520px',

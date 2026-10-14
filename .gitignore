@@ -92,6 +92,8 @@ pytestdebug.log
 .vscode/
 .agents/
 AGENTS.md
+frontend/AGENTS.md
+docs/explanation/UI_UX_ARCHITECTURE_BIBLE.md
 docs/itinerary_v2_see_review.md
 repomix.config.json
 *.swp
