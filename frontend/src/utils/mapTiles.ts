@@ -4,10 +4,11 @@
  * Dark mode is achieved via CSS filters on the Leaflet tile-pane, preserving marker/polygon colors.
  */
 export const MAP_TILE_CONFIG = {
-  url: process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  subdomains: process.env.NEXT_PUBLIC_MAP_SUBDOMAINS || 'abc',
+  url: process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  subdomains: process.env.NEXT_PUBLIC_MAP_SUBDOMAINS || '',
   attribution:
     process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
-    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+    'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS',
   maxZoom: 19,
 };
+

@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { EmptyState } from '@/components/EmptyState';
+import { getApiBaseUrl } from '@/utils/api';
+import {
+  SearchIcon,
+  CheckIcon,
+  ClockIcon,
+  AlertTriangleIcon,
+  InfoIcon,
+} from '@/components/icons';
 
 export interface PlaceItem {
+  id?: string;
   name: string;
   lat: number;
   lng: number;
@@ -13,50 +22,164 @@ export interface PlaceItem {
   day?: number;
   durationMins?: number;
   costEur?: number;
+  similarity?: number;
+  matchType?: string;
 }
 
 interface TripPlacesSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
-  places: PlaceItem[];
+  city?: string;
+  places?: PlaceItem[];
   onPlaceClick?: (place: PlaceItem) => void;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
 }
 
+interface PoiApiItem {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  duration_mins: number;
+  cost_eur: number;
+  similarity: number;
+  match_type?: string;
+}
+
+interface PoiSearchResponseData {
+  city: string;
+  query: string;
+  search_type: string;
+  exact_match_found: boolean;
+  message?: string | null;
+  exact_match?: PoiApiItem | null;
+  results: PoiApiItem[];
+}
+
+const SUGGESTION_PROMPTS = [
+  'El Prado',
+  'Good and cozy cafes with charm',
+  'Museums of modern art',
+  'Tapas & wine',
+  'Statue of Liberty',
+];
+
 export function TripPlacesSidebar({
   isOpen,
   onToggle,
-  places,
+  city = 'Madrid',
   onPlaceClick,
   categoryFilter,
   onCategoryFilterChange,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Filter places based on search text and active categoryFilter prop
-  const filteredPlaces = useMemo(() => {
-    return places.filter((p) => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        !categoryFilter || (p.category && p.category.toLowerCase() === categoryFilter.toLowerCase());
-      return matchesSearch && matchesCategory;
-    });
-  }, [places, searchQuery, categoryFilter]);
+  const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
+  if (categoryFilter !== prevCategoryFilter) {
+    setPrevCategoryFilter(categoryFilter);
+    if (categoryFilter) {
+      setActiveCategory(categoryFilter.toLowerCase());
+    }
+  }
 
-  const handleCategorySelect = (val: string) => {
-    if (val === 'all') {
-      onCategoryFilterChange?.(null);
-    } else {
-      onCategoryFilterChange?.(val as PoiCategoryType);
+  // Execute Search against backend
+  const executeSearch = React.useCallback(
+    async (queryText: string, cat?: string) => {
+      const q = queryText.trim();
+      if (!q) {
+        setSearchData(null);
+        setHasSearched(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage(null);
+      setHasSearched(true);
+
+      try {
+        const catParam = cat && cat !== 'all' ? `&category=${encodeURIComponent(cat)}` : '';
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(
+          `${baseUrl}/pois/search?city=${encodeURIComponent(
+            city
+          )}&query=${encodeURIComponent(q)}${catParam}&limit=16`
+        );
+        if (!res.ok) {
+          throw new Error(`Search failed (HTTP ${res.status})`);
+        }
+        const data: PoiSearchResponseData = await res.json();
+        setSearchData(data);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error executing POI search';
+        setErrorMessage(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [city]
+  );
+
+  // Debounced auto-search when query changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!searchQuery.trim()) {
+        setSearchData(null);
+        setHasSearched(false);
+      } else {
+        executeSearch(searchQuery, activeCategory);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, activeCategory, executeSearch]);
+
+  const handleCategoryChange = (cat: string) => {
+    setActiveCategory(cat);
+    if (onCategoryFilterChange) {
+      onCategoryFilterChange(cat === 'all' ? null : (cat as PoiCategoryType));
+    }
+    if (searchQuery.trim()) {
+      executeSearch(searchQuery, cat);
     }
   };
 
-  const activeCategoryValue = categoryFilter ? categoryFilter.toLowerCase() : 'all';
+  const handleSelectPrompt = (prompt: string) => {
+    setSearchQuery(prompt);
+    executeSearch(prompt, activeCategory);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 0.75) return '#10b981'; // emerald
+    if (score >= 0.6) return '#06b6d4'; // cyan
+    return '#f59e0b'; // amber
+  };
 
   return (
     <>
+      <style>{`
+        @keyframes radarPulse {
+          0% { transform: scale(0.95); opacity: 0.6; }
+          50% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(0.95); opacity: 0.6; }
+        }
+        @keyframes searchItemFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmerBar {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
+
       {/* Floating Container Anchor on the Right */}
       <div
         style={{
@@ -73,8 +196,8 @@ export function TripPlacesSidebar({
         <button
           type="button"
           onClick={onToggle}
-          aria-label={isOpen ? 'Collapse Places Sidebar' : 'Expand Places Sidebar'}
-          title={isOpen ? 'Collapse' : 'Expand Places'}
+          aria-label={isOpen ? 'Collapse POI Search' : 'Expand POI Search'}
+          title={isOpen ? 'Collapse POI Search' : 'Expand POI Search'}
           style={{
             width: '32px',
             height: '36px',
@@ -118,7 +241,7 @@ export function TripPlacesSidebar({
         {/* Panel Body */}
         <aside
           style={{
-            width: isOpen ? 'min(340px, calc(100vw - 32px))' : '0px',
+            width: isOpen ? 'min(380px, calc(100vw - 32px))' : '0px',
             height: '100%',
             background: 'var(--color-surface-card)',
             backdropFilter: 'blur(24px)',
@@ -134,299 +257,644 @@ export function TripPlacesSidebar({
           }}
         >
           {isOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: 'min(340px, calc(100vw - 32px))', minWidth: 0 }}>
-              {/* Header Actions */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                width: 'min(380px, calc(100vw - 32px))',
+                minWidth: 0,
+              }}
+            >
+              {/* Header: Title & City Tag */}
               <div
                 style={{
-                  padding: '14px 16px',
+                  padding: '14px 16px 10px 16px',
                   borderBottom: '1px solid var(--color-border)',
                   background: 'var(--color-surface-card)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px',
+                  gap: '8px',
                 }}
               >
-                {/* + Add Place/Activity Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(true)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 14px',
-                    background: 'var(--color-accent-primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: 'var(--shadow-sm)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
-                  <span>Add Place / Activity</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        background: 'rgba(15, 76, 92, 0.15)',
+                        color: 'var(--color-accent-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <SearchIcon size={13} color="var(--color-accent-primary)" />
+                    </div>
+                    <span
+                      className="font-display"
+                      style={{
+                        fontSize: '0.88rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      POI SEARCH ENGINE
+                    </span>
+                  </div>
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      color: 'var(--color-accent-primary)',
+                      background: 'rgba(15, 76, 92, 0.1)',
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {city} • 768D RAG
+                  </span>
+                </div>
 
-                {/* Search Input */}
+                {/* Search Input Bar */}
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search places..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        executeSearch(searchQuery, activeCategory);
+                      }
+                    }}
+                    placeholder='Try "El Prado" or "cozy cafes with charm"...'
                     style={{
                       width: '100%',
-                      padding: '7px 10px 7px 30px',
+                      padding: '9px 32px 9px 34px',
                       background: 'var(--color-bg-main)',
                       border: '1px solid var(--color-border)',
                       borderRadius: 'var(--radius-md)',
                       color: 'var(--color-text-primary)',
-                      fontSize: '12px',
+                      fontSize: '12.5px',
                       fontFamily: 'inherit',
                       outline: 'none',
+                      transition: 'border-color 0.15s ease',
                     }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--color-accent-primary)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
                   />
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--color-text-muted)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ position: 'absolute', left: '10px', top: '9px' }}
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </div>
 
-                {/* Category Dropdown & Total Count */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <select
-                    value={activeCategoryValue}
-                    onChange={(e) => handleCategorySelect(e.target.value)}
+                  {/* Left Magnifying Icon or Radar Pulse */}
+                  <div
                     style={{
-                      flex: 1,
-                      padding: '5px 8px',
-                      background: 'var(--color-bg-main)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--color-text-primary)',
-                      fontSize: '11px',
-                      outline: 'none',
-                      fontFamily: 'var(--font-mono)',
+                      position: 'absolute',
+                      left: '10px',
+                      top: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isLoading ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                      animation: isLoading ? 'radarPulse 1.2s infinite ease-in-out' : 'none',
                     }}
                   >
-                    <option value="all">ALL CATEGORIES</option>
-                    <option value="museum">MUSEUM</option>
-                    <option value="restaurant">RESTAURANT</option>
-                    <option value="cafe">CAFE</option>
-                    <option value="landmark">LANDMARK</option>
-                    <option value="hotel">HOTEL</option>
-                    <option value="park">PARK</option>
-                    <option value="bar">BAR</option>
-                    <option value="shopping">SHOPPING</option>
-                    <option value="transit">TRANSIT</option>
-                    <option value="attraction">ATTRACTION</option>
-                  </select>
-                  <span className="font-mono text-muted" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
-                    {filteredPlaces.length} PLACES
-                  </span>
-                </div>
-              </div>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </div>
 
-              {/* Places List */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {filteredPlaces.length === 0 ? (
-                  <EmptyState
-                    type="no-search"
-                    title="No Matching Places"
-                    description="Try adjusting your search query or selecting a different category."
-                    style={{ border: 'none', background: 'transparent', padding: '1.5rem 1rem' }}
-                  />
-                ) : (
-                  filteredPlaces.map((place, idx) => (
-                    <div
-                      key={`${place.name}-${idx}`}
-                      onClick={() => onPlaceClick?.(place)}
+                  {/* Clear Button */}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchData(null);
+                        setHasSearched(false);
+                      }}
                       style={{
-                        padding: '10px',
-                        background: 'var(--color-bg-main)',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
+                        position: 'absolute',
+                        right: '8px',
+                        top: '8px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--color-text-muted)',
+                        fontSize: '14px',
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
+                        padding: '2px 4px',
+                        lineHeight: 1,
+                      }}
+                      title="Clear"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Suggestion Chips */}
+                <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
+                  {SUGGESTION_PROMPTS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => handleSelectPrompt(p)}
+                      style={{
+                        flexShrink: 0,
+                        padding: '3px 8px',
+                        background: searchQuery.toLowerCase() === p.toLowerCase() ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.07)',
+                        color: searchQuery.toLowerCase() === p.toLowerCase() ? '#FFFFFF' : 'var(--color-text-muted)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '12px',
+                        fontSize: '10.5px',
+                        fontFamily: 'inherit',
+                        cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                        if (searchQuery.toLowerCase() !== p.toLowerCase()) {
+                          e.currentTarget.style.color = 'var(--color-accent-primary)';
+                          e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-border)';
+                        if (searchQuery.toLowerCase() !== p.toLowerCase()) {
+                          e.currentTarget.style.color = 'var(--color-text-muted)';
+                          e.currentTarget.style.borderColor = 'var(--color-border)';
+                        }
                       }}
                     >
-                      {/* Avatar / Category Indicator */}
+                      {p}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Category Pills Row */}
+                <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none', paddingTop: '2px' }}>
+                  {['all', 'museum', 'cafe', 'restaurant', 'monument', 'attraction'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => handleCategoryChange(cat)}
+                      style={{
+                        flexShrink: 0,
+                        padding: '2px 7px',
+                        background: activeCategory === cat ? 'rgba(15, 76, 92, 0.15)' : 'transparent',
+                        color: activeCategory === cat ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                        border: activeCategory === cat ? '1px solid var(--color-accent-primary)' : '1px solid transparent',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '10px',
+                        fontWeight: activeCategory === cat ? 700 : 500,
+                        fontFamily: 'var(--font-mono)',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Content Area */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                {/* 1. Loading Skeleton Animation */}
+                {isLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[1, 2, 3, 4].map((i) => (
                       <div
+                        key={i}
                         style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'rgba(15, 76, 92, 0.08)',
+                          height: '68px',
+                          background: 'linear-gradient(90deg, rgba(15, 76, 92, 0.05) 25%, rgba(15, 76, 92, 0.12) 50%, rgba(15, 76, 92, 0.05) 75%)',
+                          backgroundSize: '200% 100%',
+                          animation: 'shimmerBar 1.5s infinite linear',
+                          borderRadius: 'var(--radius-md)',
                           border: '1px solid var(--color-border)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* 2. Error Message */}
+                {errorMessage && !isLoading && (
+                  <div
+                    style={{
+                      padding: '12px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 'var(--radius-md)',
+                      color: '#ef4444',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <AlertTriangleIcon size={14} color="#ef4444" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* 3. Empty / Initial Prompt State */}
+                {!hasSearched && !isLoading && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '2.5rem 1rem',
+                      textAlign: 'center',
+                      gap: '10px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '50%',
+                        background: 'rgba(15, 76, 92, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--color-accent-primary)',
+                      }}
+                    >
+                      <SearchIcon size={20} color="var(--color-accent-primary)" />
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--color-text-primary)' }}>
+                      Search Places in {city}
+                    </div>
+                    <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-text-muted)', lineHeight: 1.5, maxWidth: '280px' }}>
+                      Enter an exact POI name like <strong>&ldquo;El Prado&rdquo;</strong>, or describe what you want with natural language like <strong>&ldquo;cozy cafes with charm&rdquo;</strong>.
+                    </p>
+                  </div>
+                )}
+
+                {/* 4. Not Found Alert Notice */}
+                {searchData?.message && !isLoading && (
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: 'var(--radius-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      animation: 'searchItemFadeIn 0.25s ease-out',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <InfoIcon size={14} color="#f59e0b" />
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase' }}>
+                        DATABASE NOTICE
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
+                      {searchData.message}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Exact Match Highlight Card */}
+                {searchData?.exact_match && !isLoading && (
+                  <div
+                    style={{
+                      padding: '12px',
+                      background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 76, 92, 0.04) 100%)',
+                      border: '1.5px solid #10b981',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.15)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      animation: 'searchItemFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#10b981',
+                          background: 'rgba(16, 185, 129, 0.18)',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          letterSpacing: '0.04em',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          color: 'var(--color-accent-primary)',
-                          fontSize: '12px',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
+                          gap: '4px',
                         }}
                       >
-                        {String(idx + 1).padStart(2, '0')}
-                      </div>
+                        <CheckIcon size={12} color="#10b981" />
+                        <span>EXACT MATCH IN DATABASE</span>
+                      </span>
+                      <span className="font-mono text-muted" style={{ fontSize: '10.5px' }}>
+                        100% MATCH
+                      </span>
+                    </div>
 
-                      {/* Content */}
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {place.name}
+                    <div>
+                      <h4
+                        className="font-display"
+                        style={{
+                          margin: '2px 0 6px 0',
+                          fontSize: '1rem',
+                          fontWeight: 700,
+                          color: 'var(--color-text-primary)',
+                          lineHeight: 1.25,
+                        }}
+                      >
+                        {searchData.exact_match.name}
+                      </h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <PoiCategoryBadge category={searchData.exact_match.category} name={searchData.exact_match.name} />
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <ClockIcon size={11} color="var(--color-text-muted)" />
+                          <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
+                            {searchData.exact_match.duration_mins}m
                           </span>
-                          {place.day && (
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                fontFamily: 'var(--font-mono)',
-                                color: 'var(--color-accent-primary)',
-                                background: 'rgba(15, 76, 92, 0.1)',
-                                padding: '1px 5px',
-                                borderRadius: 'var(--radius-sm)',
-                                flexShrink: 0,
-                              }}
-                            >
-                              D{place.day}
-                            </span>
-                          )}
                         </div>
-                        {place.category && (
-                          <div style={{ marginTop: '2px' }}>
-                            <PoiCategoryBadge category={place.category} name={place.name} />
-                          </div>
+                        {searchData.exact_match.cost_eur > 0 ? (
+                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-primary)', fontWeight: 600 }}>
+                            {searchData.exact_match.cost_eur.toFixed(2)} €
+                          </span>
+                        ) : (
+                          <span className="font-mono" style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>
+                            FREE
+                          </span>
                         )}
                       </div>
                     </div>
-                  ))
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onPlaceClick?.({
+                            id: searchData.exact_match!.id,
+                            name: searchData.exact_match!.name,
+                            lat: searchData.exact_match!.lat,
+                            lng: searchData.exact_match!.lng,
+                            category: searchData.exact_match!.category,
+                            durationMins: searchData.exact_match!.duration_mins,
+                            costEur: searchData.exact_match!.cost_eur,
+                            similarity: 1.0,
+                          })
+                        }
+                        style={{
+                          padding: '5px 12px',
+                          background: 'var(--color-accent-primary)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: 'var(--shadow-sm)',
+                          transition: 'opacity 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                        </svg>
+                        <span>Focus on Map</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Subheader for Results List */}
+                {searchData && searchData.results.length > 0 && !isLoading && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: searchData.exact_match ? '6px' : '0px',
+                      padding: '2px 4px',
+                    }}
+                  >
+                    <span
+                      className="font-mono text-muted"
+                      style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+                    >
+                      {searchData.exact_match ? `SIMILAR PLACES IN ${city}` : `SEMANTIC DISCOVERIES IN ${city}`}
+                    </span>
+                    <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
+                      {searchData.results.length} RESULTS
+                    </span>
+                  </div>
+                )}
+
+                {/* 7. Ranked POI Results Cards */}
+                {searchData && searchData.results.length > 0 && !isLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {searchData.results.map((poi, idx) => {
+                      const scoreColor = getScoreColor(poi.similarity);
+                      return (
+                        <div
+                          key={poi.id}
+                          onClick={() =>
+                            onPlaceClick?.({
+                              id: poi.id,
+                              name: poi.name,
+                              lat: poi.lat,
+                              lng: poi.lng,
+                              category: poi.category,
+                              durationMins: poi.duration_mins,
+                              costEur: poi.cost_eur,
+                              similarity: poi.similarity,
+                            })
+                          }
+                          style={{
+                            padding: '10px',
+                            background: 'var(--color-bg-main)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)',
+                            boxShadow: 'var(--shadow-sm)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                            animation: 'searchItemFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
+                            animationDelay: `${Math.min(idx * 30, 300)}ms`,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            {/* Rank Number Badge */}
+                            <div
+                              style={{
+                                width: '30px',
+                                height: '30px',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(15, 76, 92, 0.08)',
+                                border: '1px solid var(--color-border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                color: 'var(--color-accent-primary)',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {String(idx + 1).padStart(2, '0')}
+                            </div>
+
+                            {/* Name & Details */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                <span
+                                  style={{
+                                    fontSize: '0.86rem',
+                                    fontWeight: 600,
+                                    color: 'var(--color-text-primary)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}
+                                  title={poi.name}
+                                >
+                                  {poi.name}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
+                                <PoiCategoryBadge category={poi.category} name={poi.name} />
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <ClockIcon size={10} color="var(--color-text-muted)" />
+                                  <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
+                                    {poi.duration_mins}m
+                                  </span>
+                                </div>
+                                {poi.cost_eur > 0 ? (
+                                  <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
+                                    {poi.cost_eur.toFixed(1)}€
+                                  </span>
+                                ) : (
+                                  <span className="font-mono" style={{ fontSize: '10px', color: '#10b981' }}>
+                                    Free
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Similarity Score Tag */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'flex-end',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-mono)',
+                                  fontWeight: 700,
+                                  color: scoreColor,
+                                  background: `${scoreColor}18`,
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  letterSpacing: '0.02em',
+                                }}
+                              >
+                                {poi.similarity.toFixed(3)}
+                              </div>
+                              <span
+                                className="font-mono"
+                                style={{
+                                  fontSize: '8.5px',
+                                  color: 'var(--color-text-muted)',
+                                  marginTop: '2px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                similarity
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Coincidence Score Progress Bar */}
+                          <div
+                            style={{
+                              width: '100%',
+                              height: '4px',
+                              background: 'var(--color-border)',
+                              borderRadius: '2px',
+                              overflow: 'hidden',
+                              position: 'relative',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${Math.min(100, Math.max(0, poi.similarity * 100))}%`,
+                                height: '100%',
+                                background: scoreColor,
+                                borderRadius: '2px',
+                                transition: 'width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 8. Zero Results State */}
+                {searchData && searchData.results.length === 0 && !searchData.exact_match && !isLoading && (
+                  <EmptyState
+                    type="no-search"
+                    title="No Matching POIs"
+                    description={`No attractions in ${city} matched your query. Try broadening your terms or removing category filters.`}
+                    style={{ border: 'none', background: 'transparent', padding: '1.5rem 1rem' }}
+                  />
                 )}
               </div>
             </div>
           )}
         </aside>
       </div>
-
-      {/* Add Place / Activity Placeholder Modal */}
-      {showAddModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(8, 28, 36, 0.65)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 1500,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1rem',
-          }}
-          onClick={() => setShowAddModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '480px',
-              width: '100%',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-lg)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 300, color: 'var(--color-text-primary)' }}>
-                ADD PLACE / ACTIVITY
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div
-              style={{
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.85rem',
-                color: 'var(--color-text-primary)',
-                lineHeight: 1.5,
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: '6px', color: 'var(--color-accent-primary)' }}>
-                {'// POI SEARCH INTEGRATION'}
-              </div>
-              <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
-                Live POI discovery and custom waypoint insertion will be activated in the upcoming release.
-                Currently, all scheduled waypoints and clusters are synchronized dynamically with your itinerary.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                style={{
-                  padding: '6px 16px',
-                  background: 'var(--color-accent-primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                }}
-              >
-                GOT IT
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
+

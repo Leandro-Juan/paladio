@@ -310,6 +310,32 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     }
   }, [trip.start_date, trip.end_date]);
 
+  // Today's spend in active currency
+  const todaySpend = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayExpenses = expenses.filter((e) => e.expense_date === todayStr);
+    const sumEur = todayExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+    return sumEur * (eurToActiveRate || 1.0);
+  }, [expenses, eurToActiveRate]);
+
+  // Planned trip budget in active currency
+  const totalBudget = useMemo(() => {
+    const itinData = trip.itinerary_data as Record<string, any> | undefined;
+    const constraintBudget = itinData?.travel_constraints?.budget_usd ?? (itinerary as any)?.travel_constraints?.budget_usd;
+    if (typeof constraintBudget === 'number' && constraintBudget > 0) {
+      return constraintBudget * (eurToActiveRate || 1.0);
+    }
+    if (typeof itinerary?.total_trip_cost === 'number' && itinerary.total_trip_cost > 0) {
+      return itinerary.total_trip_cost * (eurToActiveRate || 1.0);
+    }
+    const plannedItemsSum = itineraryItems.reduce((sum, item) => sum + item.amount, 0);
+    if (plannedItemsSum > 0) {
+      return plannedItemsSum * (eurToActiveRate || 1.0);
+    }
+    const days = tripDateMeta?.days || 5;
+    return days * 120 * (eurToActiveRate || 1.0);
+  }, [trip.itinerary_data, itinerary, itineraryItems, eurToActiveRate, tripDateMeta?.days]);
+
   // Action handlers
   const handleSaveExpense = async (data: {
     payer_id: string;
@@ -537,9 +563,14 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         destinationCurrency={destinationCurrency}
         destinationCountryCode={destCurrencyMeta.countryCode}
         destinationCountryName={destCurrencyMeta.country}
+        destinationCity={trip.destination}
         exchangeRate={exchangeRate}
         isLiveRate={isLiveRate}
         onOpenCurrencyPicker={() => setIsWheelPickerOpen(true)}
+        startDate={trip.start_date}
+        endDate={trip.end_date}
+        todaySpend={todaySpend}
+        totalBudget={totalBudget}
       />
 
       {/* 3D Cylinder Currency Wheel Picker Modal */}

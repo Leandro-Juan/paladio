@@ -273,10 +273,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onTransitModeChange={setTransitMode}
           />
 
-          {/* Right Floating Places Sidebar */}
+          {/* Right Floating POI Search Engine Sidebar */}
           <TripPlacesSidebar
             isOpen={isRightOpen}
             onToggle={handleToggleRight}
+            city={trip.destination}
             places={places}
             onPlaceClick={handlePlaceClick}
             categoryFilter={categoryFilter}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
 
@@ -320,6 +320,375 @@ function SplitDebtCard({
  * Spans 2 slots in the 4-column summary grid.
  * Features SVG flag icons, interactive amount converter, live rate display, and quick wheel trigger.
  */
+interface ModeToggleProps {
+  mode: 'pace' | 'fx';
+  onChange: (mode: 'pace' | 'fx') => void;
+}
+
+function ModeToggle({ mode, onChange }: ModeToggleProps) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.05))',
+        border: '1px solid var(--color-border-subtle)',
+        borderRadius: '20px',
+        padding: '2px',
+        gap: '2px',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onChange('pace')}
+        title="View daily spending velocity & runway cushion"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+          border: 'none',
+          cursor: 'pointer',
+          borderRadius: '16px',
+          padding: '3px 9px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontSize: '0.66rem',
+          fontWeight: mode === 'pace' ? 650 : 500,
+          background: mode === 'pace' ? 'var(--color-surface-card)' : 'transparent',
+          color: mode === 'pace' ? 'var(--color-text-main)' : 'var(--color-text-muted)',
+          boxShadow: mode === 'pace' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+        Pace
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onChange('fx')}
+        title="View live currency converter & rates"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+          border: 'none',
+          cursor: 'pointer',
+          borderRadius: '16px',
+          padding: '3px 9px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontSize: '0.66rem',
+          fontWeight: mode === 'fx' ? 650 : 500,
+          background: mode === 'fx' ? 'var(--color-surface-card)' : 'transparent',
+          color: mode === 'fx' ? 'var(--color-text-main)' : 'var(--color-text-muted)',
+          boxShadow: mode === 'fx' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="17" y1="3" x2="17" y2="21" />
+          <path d="m21 7-4-4-4 4" />
+          <line x1="7" y1="21" x2="7" y2="3" />
+          <path d="m3 17 4 4 4-4" />
+        </svg>
+        FX
+      </button>
+    </div>
+  );
+}
+
+interface DailyPaceDoubleCardProps {
+  activeCurrency: string;
+  destinationCity?: string;
+  startDate?: string;
+  endDate?: string;
+  todaySpend: number;
+  totalBudget: number;
+  totalSpend: number;
+  onToggleMode?: (mode: 'pace' | 'fx') => void;
+}
+
+function DailyPaceDoubleCard({
+  activeCurrency,
+  destinationCity,
+  startDate,
+  endDate,
+  todaySpend,
+  totalBudget,
+  totalSpend,
+  onToggleMode,
+}: DailyPaceDoubleCardProps) {
+  const tripDuration = useMemo(() => {
+    if (!startDate) {
+      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: 'Flexible dates', isPreTrip: false, isCompleted: false };
+    }
+    try {
+      const start = new Date(startDate);
+      const end = endDate ? new Date(endDate) : start;
+      const now = new Date();
+      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const totalDays = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / (1000 * 3600 * 24)) + 1);
+
+      if (today < startDay) {
+        const daysUntil = Math.max(1, Math.round((startDay.getTime() - today.getTime()) / (1000 * 3600 * 24)));
+        return {
+          totalDays,
+          currentDay: 0,
+          remainingDays: totalDays,
+          statusText: `Pre-trip (starts in ${daysUntil}d)`,
+          isPreTrip: true,
+          isCompleted: false,
+        };
+      } else if (today > endDay) {
+        return {
+          totalDays,
+          currentDay: totalDays,
+          remainingDays: 0,
+          statusText: `Trip completed (${totalDays}d)`,
+          isPreTrip: false,
+          isCompleted: true,
+        };
+      } else {
+        const currentDay = Math.min(totalDays, Math.max(1, Math.round((today.getTime() - startDay.getTime()) / (1000 * 3600 * 24)) + 1));
+        const remainingDays = Math.max(1, totalDays - currentDay + 1);
+        return {
+          totalDays,
+          currentDay,
+          remainingDays,
+          statusText: `Day ${currentDay} of ${totalDays}`,
+          isPreTrip: false,
+          isCompleted: false,
+        };
+      }
+    } catch {
+      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: 'Trip timeline', isPreTrip: false, isCompleted: false };
+    }
+  }, [startDate, endDate]);
+
+  const dailyAllowance = Math.max(1, totalBudget / tripDuration.totalDays);
+  const remainingCushion = Math.max(0, totalBudget - totalSpend);
+  const remainingDailyRate = tripDuration.remainingDays > 0 ? (remainingCushion / tripDuration.remainingDays) : 0;
+
+  const todayRatio = todaySpend / dailyAllowance;
+  const isOverPacingToday = todayRatio > 1.05;
+  const cushionToday = Math.max(0, dailyAllowance - todaySpend);
+  const progressPct = Math.min(100, Math.round(todayRatio * 100));
+
+  const paceHealth = useMemo(() => {
+    if (tripDuration.isCompleted) {
+      return totalSpend <= totalBudget
+        ? { text: 'COMPLETED ON BUDGET', color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' }
+        : { text: 'EXCEEDED BUDGET', color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
+    }
+    if (isOverPacingToday) {
+      return { text: 'OVER PACING TODAY', color: 'var(--color-accent-warning, #E2B33C)', bg: 'rgba(226, 179, 60, 0.18)' };
+    }
+    if (remainingCushion <= 0 && totalBudget > 0) {
+      return { text: 'BUDGET DEPLETED', color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
+    }
+    return { text: 'ON TRACK', color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' };
+  }, [tripDuration.isCompleted, isOverPacingToday, remainingCushion, totalBudget, totalSpend]);
+
+  const todayParts = formatMoneyParts(todaySpend, activeCurrency);
+  const allowanceParts = formatMoneyParts(dailyAllowance, activeCurrency);
+  const remainingCushionParts = formatMoneyParts(remainingCushion, activeCurrency);
+  const remainingDailyRateParts = formatMoneyParts(remainingDailyRate, activeCurrency);
+  const totalBudgetParts = formatMoneyParts(totalBudget, activeCurrency);
+  const totalSpendParts = formatMoneyParts(totalSpend, activeCurrency);
+  const cushionTodayParts = formatMoneyParts(cushionToday, activeCurrency);
+  const overAmountParts = formatMoneyParts(Math.max(0, todaySpend - dailyAllowance), activeCurrency);
+
+  return (
+    <div
+      style={{
+        borderRadius: '16px',
+        padding: '22px 26px',
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'var(--color-surface-card)',
+        color: 'var(--color-text-main)',
+        border: '1px solid var(--color-border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        minHeight: '170px',
+      }}
+    >
+      <div>
+        {/* Top Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                display: 'grid',
+                placeItems: 'center',
+                background: 'rgba(15, 76, 92, 0.1)',
+                color: 'var(--color-accent-primary, #0F4C5C)',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 14 4-4" />
+                <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+              </svg>
+            </span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.92rem', fontWeight: 600 }}>
+                Daily Spending Pace & Runway
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
+                {tripDuration.statusText}{destinationCity ? ` · ${destinationCity}` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onToggleMode && <ModeToggle mode="pace" onChange={onToggleMode} />}
+            <span
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '20px',
+                background: paceHealth.bg,
+                color: paceHealth.color,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: paceHealth.color,
+                }}
+              />
+              {paceHealth.text}
+            </span>
+          </div>
+        </div>
+
+        {/* 2-Column Responsive Body */}
+        <div
+          style={{
+            marginTop: '16px',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)',
+            gap: '18px',
+            alignItems: 'start',
+          }}
+        >
+          {/* Left Sub-Column: Today's Burn Rate vs. Allowance */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
+              {"TODAY'S SPENDING PACE"}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-main)' }}>
+                {todayParts.integerPart}{todayParts.otherPart}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                / {allowanceParts.integerPart}{allowanceParts.otherPart} target
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.06))', overflow: 'hidden', margin: '4px 0 2px 0' }}>
+              <div
+                style={{
+                  width: `${progressPct}%`,
+                  height: '100%',
+                  background: isOverPacingToday ? 'var(--color-danger, #E63946)' : progressPct > 80 ? 'var(--color-accent-warning, #E2B33C)' : 'var(--color-success, #1F7A4D)',
+                  borderRadius: '3px',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: isOverPacingToday ? 'var(--color-danger, #E63946)' : 'var(--color-text-muted)' }}>
+              {isOverPacingToday
+                ? `${overAmountParts.integerPart}${overAmountParts.otherPart} over daily target`
+                : `${progressPct}% spent · ${cushionTodayParts.integerPart}${cushionTodayParts.otherPart} cushion left`}
+            </div>
+          </div>
+
+          {/* Right Sub-Column: Remaining Trip Runway */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
+              REMAINING TRIP RUNWAY
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-main)' }}>
+                {remainingCushionParts.integerPart}{remainingCushionParts.otherPart}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                remaining
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 8px',
+                borderRadius: '8px',
+                background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
+                border: '1px solid var(--color-border-subtle)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                color: 'var(--color-text-main)',
+                alignSelf: 'flex-start',
+                marginTop: '2px',
+              }}
+            >
+              <span>{remainingDailyRateParts.integerPart}{remainingDailyRateParts.otherPart} / day</span>
+              <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>
+                ({tripDuration.remainingDays} {tripDuration.remainingDays === 1 ? 'day' : 'days'} left)
+              </span>
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.66rem', color: 'var(--color-text-muted)' }}>
+              From {totalBudgetParts.integerPart}{totalBudgetParts.otherPart} planned budget
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          borderTop: '1px solid var(--color-border-subtle)',
+          paddingTop: '12px',
+          marginTop: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontSize: '0.72rem',
+          color: 'var(--color-text-muted)',
+          fontFamily: 'var(--font-mono, monospace)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span>
+          Trip horizon: {tripDuration.totalDays} {tripDuration.totalDays === 1 ? 'day' : 'days'}
+        </span>
+        <span>·</span>
+        <span>
+          Total spent: {totalSpendParts.integerPart}{totalSpendParts.otherPart} ({Math.min(999, Math.round((totalSpend / Math.max(1, totalBudget)) * 100))}% of budget)
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function CurrencyConverterDoubleCard({
   activeCurrency,
   destinationCurrency,
@@ -328,6 +697,7 @@ function CurrencyConverterDoubleCard({
   exchangeRate,
   isLiveRate,
   onOpenWheelPicker,
+  onToggleMode,
 }: {
   activeCurrency: string;
   destinationCurrency: string;
@@ -336,6 +706,7 @@ function CurrencyConverterDoubleCard({
   exchangeRate: number;
   isLiveRate: boolean;
   onOpenWheelPicker?: () => void;
+  onToggleMode?: (mode: 'pace' | 'fx') => void;
 }) {
   const [testAmount, setTestAmount] = useState<string>('100');
   const numAmount = parseFloat(testAmount) || 0;
@@ -365,7 +736,7 @@ function CurrencyConverterDoubleCard({
     >
       <div>
         {/* Top Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span
               style={{
@@ -395,30 +766,33 @@ function CurrencyConverterDoubleCard({
             </div>
           </div>
 
-          <span
-            style={{
-              fontFamily: 'var(--font-mono, monospace)',
-              fontSize: '0.68rem',
-              fontWeight: 600,
-              padding: '4px 10px',
-              borderRadius: '20px',
-              background: isLiveRate ? 'rgba(31, 122, 77, 0.12)' : 'rgba(226, 179, 60, 0.18)',
-              color: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onToggleMode && <ModeToggle mode="fx" onChange={onToggleMode} />}
             <span
               style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                background: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '20px',
+                background: isLiveRate ? 'rgba(31, 122, 77, 0.12)' : 'rgba(226, 179, 60, 0.18)',
+                color: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
-            />
-            {isLiveRate ? 'LIVE ECB' : 'AIR-GAPPED'}
-          </span>
+            >
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
+                }}
+              />
+              {isLiveRate ? 'LIVE ECB' : 'AIR-GAPPED'}
+            </span>
+          </div>
         </div>
 
         {/* 2-Column Responsive Body inside the Double Card */}
@@ -587,9 +961,14 @@ interface CostsSummaryCardsProps {
   destinationCurrency?: string;
   destinationCountryCode?: string;
   destinationCountryName?: string;
+  destinationCity?: string;
   exchangeRate?: number;
   isLiveRate?: boolean;
   onOpenCurrencyPicker?: () => void;
+  startDate?: string;
+  endDate?: string;
+  todaySpend?: number;
+  totalBudget?: number;
 }
 
 export function CostsSummaryCards({
@@ -598,11 +977,30 @@ export function CostsSummaryCards({
   destinationCurrency = 'EUR',
   destinationCountryCode,
   destinationCountryName,
+  destinationCity,
   exchangeRate = 1.0,
   isLiveRate = true,
   onOpenCurrencyPicker,
+  startDate,
+  endDate,
+  todaySpend,
+  totalBudget,
 }: CostsSummaryCardsProps) {
   const currency = totals.currency || activeCurrency || 'EUR';
+
+  const isSameCurrency = (activeCurrency || '').toUpperCase() === (destinationCurrency || '').toUpperCase();
+  const [userSelectedMode, setUserSelectedMode] = useState<'pace' | 'fx' | null>(null);
+  const [prevCurrencyKey, setPrevCurrencyKey] = useState(`${activeCurrency}-${destinationCurrency}`);
+
+  const currentCurrencyKey = `${activeCurrency}-${destinationCurrency}`;
+  if (currentCurrencyKey !== prevCurrencyKey) {
+    setPrevCurrencyKey(currentCurrencyKey);
+    setUserSelectedMode(null);
+  }
+
+  // If the default/active currency is the same as destination currency,
+  // completely remove the exchange option and always display Daily Spending Pace.
+  const cardMode = isSameCurrency ? 'pace' : (userSelectedMode ?? 'fx');
 
   const hasOwe = totals.owe > 0.01;
   const hasOwed = totals.owed > 0.01;
@@ -626,16 +1024,30 @@ export function CostsSummaryCards({
         }
       `}</style>
 
-      {/* 1. Double Card: Live Currency Converter (spans 2 columns) */}
-      <CurrencyConverterDoubleCard
-        activeCurrency={activeCurrency}
-        destinationCurrency={destinationCurrency}
-        destinationCountryCode={destinationCountryCode}
-        destinationCountryName={destinationCountryName}
-        exchangeRate={exchangeRate}
-        isLiveRate={isLiveRate}
-        onOpenWheelPicker={onOpenCurrencyPicker}
-      />
+      {/* 1. Double Card: Daily Spending Pace (when same currency) or Dual-Mode Smart Card */}
+      {cardMode === 'pace' ? (
+        <DailyPaceDoubleCard
+          activeCurrency={currency}
+          destinationCity={destinationCity}
+          startDate={startDate}
+          endDate={endDate}
+          todaySpend={todaySpend ?? 0}
+          totalBudget={totalBudget ?? (totals.totalSpend > 0 ? totals.totalSpend * 1.25 : 600)}
+          totalSpend={totals.totalSpend}
+          onToggleMode={isSameCurrency ? undefined : (m) => setUserSelectedMode(m)}
+        />
+      ) : (
+        <CurrencyConverterDoubleCard
+          activeCurrency={activeCurrency}
+          destinationCurrency={destinationCurrency}
+          destinationCountryCode={destinationCountryCode}
+          destinationCountryName={destinationCountryName}
+          exchangeRate={exchangeRate}
+          isLiveRate={isLiveRate}
+          onOpenWheelPicker={onOpenCurrencyPicker}
+          onToggleMode={(m) => setUserSelectedMode(m)}
+        />
+      )}
 
       {/* 2. Single Card (Original Size): Merged Debt / Settlement Card */}
       {hasOwe && hasOwed ? (
