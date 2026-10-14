@@ -45,15 +45,43 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   const [editingExpense, setEditingExpense] = useState<DisplayExpenseItem | null>(null);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementPrefill, setSettlementPrefill] = useState<SettlementTransfer | null>(null);
+  const [simplifyDebts, setSimplifyDebts] = useState<boolean>(false);
+
+  const { user } = useAuth();
+  const userDefaultCurrency = (user?.preferences?.default_currency as string) || 'EUR';
 
   const participants: TripParticipant[] = useMemo(
     () => trip.participants || [],
     [trip.participants]
   );
-  const currentUserId = participants[0]?.id || '';
 
-  const { user } = useAuth();
-  const userDefaultCurrency = (user?.preferences?.default_currency as string) || 'EUR';
+  const currentParticipant = useMemo(() => {
+    if (!participants.length) return null;
+    if (user) {
+      // 1. Direct user_id link
+      const byId = participants.find((p) => p.user_id && p.user_id === user.id);
+      if (byId) return byId;
+
+      // 2. Email match
+      if (user.email) {
+        const byEmail = participants.find(
+          (p) => p.email && p.email.toLowerCase() === user.email?.toLowerCase()
+        );
+        if (byEmail) return byEmail;
+      }
+
+      // 3. Username match
+      if (user.username) {
+        const byName = participants.find(
+          (p) => p.name && p.name.toLowerCase() === user.username.toLowerCase()
+        );
+        if (byName) return byName;
+      }
+    }
+    return participants[0];
+  }, [participants, user]);
+
+  const currentUserId = currentParticipant?.id || '';
 
   // Destination country currency
   const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(trip.destination), [trip.destination]);
@@ -97,7 +125,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     try {
       const [expList, settl] = await Promise.all([
         getTripExpenses(trip.id),
-        getTripSettlement(trip.id),
+        getTripSettlement(trip.id, simplifyDebts),
       ]);
       setExpenses(expList || []);
       setSettlement(settl || null);
@@ -106,13 +134,13 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     } finally {
       setIsLoading(false);
     }
-  }, [trip.id, getTripExpenses, getTripSettlement]);
+  }, [trip.id, getTripExpenses, getTripSettlement, simplifyDebts]);
 
   useEffect(() => {
     let active = true;
     if (!trip.id) return;
 
-    Promise.all([getTripExpenses(trip.id), getTripSettlement(trip.id)])
+    Promise.all([getTripExpenses(trip.id), getTripSettlement(trip.id, simplifyDebts)])
       .then(([expList, settl]) => {
         if (active) {
           setExpenses(expList || []);
@@ -130,7 +158,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     return () => {
       active = false;
     };
-  }, [trip.id, getTripExpenses, getTripSettlement]);
+  }, [trip.id, getTripExpenses, getTripSettlement, simplifyDebts]);
 
   // Extract planned costs from itinerary route
   const itineraryItems = useMemo<DisplayExpenseItem[]>(() => {
@@ -730,6 +758,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
           {/* 1. Settle Up Widget */}
           <SettleUpWidget
             transfers={settlement?.transfers || []}
+            isSimplified={simplifyDebts}
+            onToggleSimplified={() => setSimplifyDebts((prev) => !prev)}
             onAddPayment={() => {
               setSettlementPrefill(null);
               setShowSettlementModal(true);
@@ -756,6 +786,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         <ExpenseModal
           participants={participants}
           prefill={editingExpense}
+          defaultPayerId={currentUserId}
           onClose={() => {
             setShowExpenseModal(false);
             setEditingExpense(null);
@@ -769,6 +800,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         <SettlementModal
           participants={participants}
           prefillTransfer={settlementPrefill}
+          defaultSenderId={currentUserId}
           onClose={() => {
             setShowSettlementModal(false);
             setSettlementPrefill(null);

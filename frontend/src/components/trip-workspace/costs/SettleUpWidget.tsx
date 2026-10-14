@@ -5,12 +5,16 @@ import { SettlementTransfer } from '@/hooks/useTrips';
 
 interface SettleUpWidgetProps {
   transfers: SettlementTransfer[];
+  isSimplified?: boolean;
+  onToggleSimplified?: () => void;
   onAddPayment?: () => void;
   onSettleFlow?: (transfer: SettlementTransfer) => void;
 }
 
 export function SettleUpWidget({
   transfers = [],
+  isSimplified = false,
+  onToggleSimplified,
   onAddPayment,
   onSettleFlow,
 }: SettleUpWidgetProps) {
@@ -34,17 +38,44 @@ export function SettleUpWidget({
           marginBottom: '16px',
         }}
       >
-        <div
-          style={{
-            fontFamily: 'var(--font-display, "Jost", sans-serif)',
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-main)',
-          }}
-        >
-          SETTLE UP · <span style={{ color: 'var(--color-accent-primary)' }}>{transfers.length}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display, "Jost", sans-serif)',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-main)',
+            }}
+          >
+            SETTLE UP · <span style={{ color: 'var(--color-accent-primary)' }}>{transfers.length}</span>
+          </div>
+
+          {onToggleSimplified && (
+            <button
+              type="button"
+              onClick={onToggleSimplified}
+              title={isSimplified ? "Currently using simplified net transfers. Click to switch to direct pairwise debts." : "Currently using direct pairwise debts. Click to simplify into minimal transactions."}
+              style={{
+                fontSize: '0.68rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: isSimplified ? 'rgba(15, 76, 92, 0.12)' : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
+                color: isSimplified ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                cursor: 'pointer',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {isSimplified ? 'Simplified' : 'Direct'}
+            </button>
+          )}
         </div>
 
         {onAddPayment && (

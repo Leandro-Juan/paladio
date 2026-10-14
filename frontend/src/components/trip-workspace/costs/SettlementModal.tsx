@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, SettlementTransfer } from '@/hooks/useTrips';
 
 interface SettlementModalProps {
   participants: TripParticipant[];
   prefillTransfer?: SettlementTransfer | null;
+  defaultSenderId?: string;
   onClose: () => void;
   onSave: (data: {
     sender_id: string;
@@ -18,15 +21,27 @@ interface SettlementModalProps {
 export function SettlementModal({
   participants,
   prefillTransfer,
+  defaultSenderId,
   onClose,
   onSave,
 }: SettlementModalProps) {
+  const isMounted = useIsMounted();
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  const resolvedDefaultSender = defaultSenderId || participants[0]?.id || '';
   const [senderId, setSenderId] = useState(
-    prefillTransfer?.sender_id || participants[0]?.id || ''
+    prefillTransfer?.sender_id || resolvedDefaultSender
   );
   const [receiverId, setReceiverId] = useState(
     prefillTransfer?.receiver_id ||
-      participants.find((p) => p.id !== (prefillTransfer?.sender_id || participants[0]?.id))?.id ||
+      participants.find((p) => p.id !== (prefillTransfer?.sender_id || resolvedDefaultSender))?.id ||
       ''
   );
   const [amount, setAmount] = useState(
@@ -78,8 +93,12 @@ export function SettlementModal({
     }
   };
 
-  return (
+  if (!isMounted) return null;
+
+  return createPortal(
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -90,6 +109,10 @@ export function SettlementModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
+        overscrollBehavior: 'contain',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
@@ -103,6 +126,8 @@ export function SettlementModal({
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          maxHeight: '90vh',
+          overscrollBehavior: 'contain',
         }}
       >
         <div
@@ -142,7 +167,7 @@ export function SettlementModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '24px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
           {error && (
             <div
               style={{
@@ -309,6 +334,7 @@ export function SettlementModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -158,6 +158,7 @@ class TripSettlementResponse(BaseModel):
     currency: str = "EUR"
     balances: list[ParticipantBalance]
     transfers: list[SettlementTransfer]
+    simplified: bool = True
 
 
 def _participant_to_response(p: TripParticipantModel) -> TripParticipantResponse:
@@ -1285,6 +1286,9 @@ async def delete_trip_expense(
 @router.get("/{trip_id}/settlement", response_model=TripSettlementResponse)
 async def get_trip_settlement(
     trip_id: str,
+    simplify: bool = Query(
+        True, description="Whether to simplify debts into minimal net transactions"
+    ),
     session: AsyncSession = Depends(get_db),
 ):
     stmt = select(TripModel).where(TripModel.id == trip_id)
@@ -1339,40 +1343,90 @@ async def get_trip_settlement(
             )
         )
 
-    # Debt simplification algorithm (greedy minimal cash transfers)
-    debtors = [[pid, -val] for pid, val in net_balances.items() if val < -0.01]
-    creditors = [[pid, val] for pid, val in net_balances.items() if val > 0.01]
-
-    debtors.sort(key=lambda x: x[1], reverse=True)
-    creditors.sort(key=lambda x: x[1], reverse=True)
-
     transfers: list[SettlementTransfer] = []
-    d_idx = 0
-    c_idx = 0
 
-    while d_idx < len(debtors) and c_idx < len(creditors):
-        debtor_id, debt_amt = debtors[d_idx]
-        creditor_id, cred_amt = creditors[c_idx]
+    if simplify:
+        # Debt simplification algorithm (greedy minimal cash transfers)
+        debtors = [[pid, -val] for pid, val in net_balances.items() if val < -0.01]
+        creditors = [[pid, val] for pid, val in net_balances.items() if val > 0.01]
 
-        settle_amt = min(debt_amt, cred_amt)
-        if settle_amt > 0.009:
-            transfers.append(
-                SettlementTransfer(
-                    sender_id=debtor_id,
-                    sender_name=p_names.get(debtor_id, "Unknown"),
-                    receiver_id=creditor_id,
-                    receiver_name=p_names.get(creditor_id, "Unknown"),
-                    amount=round(settle_amt, 2),
+        debtors.sort(key=lambda x: x[1], reverse=True)
+        creditors.sort(key=lambda x: x[1], reverse=True)
+
+        d_idx = 0
+        c_idx = 0
+
+        while d_idx < len(debtors) and c_idx < len(creditors):
+            debtor_id, debt_amt = debtors[d_idx]
+            creditor_id, cred_amt = creditors[c_idx]
+
+            settle_amt = min(debt_amt, cred_amt)
+            if settle_amt > 0.009:
+                transfers.append(
+                    SettlementTransfer(
+                        sender_id=debtor_id,
+                        sender_name=p_names.get(debtor_id, "Unknown"),
+                        receiver_id=creditor_id,
+                        receiver_name=p_names.get(creditor_id, "Unknown"),
+                        amount=round(settle_amt, 2),
+                    )
                 )
-            )
 
-        debtors[d_idx][1] -= settle_amt
-        creditors[c_idx][1] -= settle_amt
+            debtors[d_idx][1] -= settle_amt
+            creditors[c_idx][1] -= settle_amt
 
-        if debtors[d_idx][1] < 0.01:
-            d_idx += 1
-        if creditors[c_idx][1] < 0.01:
-            c_idx += 1
+            if debtors[d_idx][1] < 0.01:
+                d_idx += 1
+            if creditors[c_idx][1] < 0.01:
+                c_idx += 1
+    else:
+        # Direct pairwise debt netting (preserves bilateral obligations)
+        pairwise = {p1.id: {p2.id: 0.0 for p2 in participants} for p1 in participants}
+        for e in expenses:
+            splits = e.splits or []
+            payer = e.payer_id
+            if splits:
+                for s in splits:
+                    debtor = s.get("participant_id")
+                    if (
+                        debtor
+                        and debtor != payer
+                        and debtor in pairwise
+                        and payer in pairwise[debtor]
+                    ):
+                        pairwise[debtor][payer] += float(s.get("amount", 0.0))
+            elif participants and len(participants) > 1:
+                per_p = e.amount / len(participants)
+                for p in participants:
+                    if p.id != payer and p.id in pairwise and payer in pairwise[p.id]:
+                        pairwise[p.id][payer] += per_p
+
+        done_pairs = set()
+        for p1 in participants:
+            for p2 in participants:
+                if p1.id != p2.id and (p2.id, p1.id) not in done_pairs:
+                    done_pairs.add((p1.id, p2.id))
+                    net = round(pairwise[p1.id][p2.id] - pairwise[p2.id][p1.id], 2)
+                    if net > 0.009:
+                        transfers.append(
+                            SettlementTransfer(
+                                sender_id=p1.id,
+                                sender_name=p_names.get(p1.id, "Unknown"),
+                                receiver_id=p2.id,
+                                receiver_name=p_names.get(p2.id, "Unknown"),
+                                amount=net,
+                            )
+                        )
+                    elif net < -0.009:
+                        transfers.append(
+                            SettlementTransfer(
+                                sender_id=p2.id,
+                                sender_name=p_names.get(p2.id, "Unknown"),
+                                receiver_id=p1.id,
+                                receiver_name=p_names.get(p1.id, "Unknown"),
+                                amount=round(-net, 2),
+                            )
+                        )
 
     return TripSettlementResponse(
         trip_id=trip_id,
@@ -1380,6 +1434,7 @@ async def get_trip_settlement(
         currency="EUR",
         balances=balances,
         transfers=transfers,
+        simplified=simplify,
     )
 
 

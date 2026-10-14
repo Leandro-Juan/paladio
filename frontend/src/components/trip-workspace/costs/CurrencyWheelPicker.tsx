@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { CurrencyInfo, SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
 
@@ -27,6 +29,16 @@ export function CurrencyWheelPicker({
   onSelectCurrency,
   title = 'Select Currency',
 }: CurrencyWheelPickerProps) {
+  const isMounted = useIsMounted();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
   // Sort currencies alphabetically by country name
   const items = useMemo(() => {
     return [...SUPPORTED_CURRENCY_LIST].sort((a, b) => a.country.localeCompare(b.country));
@@ -237,11 +249,11 @@ export function CurrencyWheelPicker({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   const currentItem = items[selectedIndex] || items[0];
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -622,6 +634,7 @@ export function CurrencyWheelPicker({
           </span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -56,6 +56,7 @@ export interface TripSettlement {
   currency: string;
   balances: ParticipantBalance[];
   transfers: SettlementTransfer[];
+  simplified?: boolean;
 }
 
 export interface CollaboratorOption {
@@ -232,9 +233,10 @@ export function useTrips() {
     }
   };
 
-  const getTripSettlement = async (tripId: string) => {
+  const getTripSettlement = async (tripId: string, simplify: boolean = false) => {
     try {
-      return await apiFetch<TripSettlement>(`/trips/${tripId}/settlement`);
+      const q = simplify ? '?simplify=true' : '?simplify=false';
+      return await apiFetch<TripSettlement>(`/trips/${tripId}/settlement${q}`);
     } catch (e) {
       console.error("Failed to get settlement", e);
       return null;

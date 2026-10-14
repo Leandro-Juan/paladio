@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, ExpenseSplit } from '@/hooks/useTrips';
 import { COST_CATEGORY_LIST, getCostCategoryMeta, CostCategoryKey } from './costsCategories';
 import { DisplayExpenseItem } from './ExpenseRow';
@@ -8,6 +10,7 @@ import { DisplayExpenseItem } from './ExpenseRow';
 interface ExpenseModalProps {
   participants: TripParticipant[];
   prefill?: DisplayExpenseItem | null;
+  defaultPayerId?: string;
   onClose: () => void;
   onSave: (data: {
     payer_id: string;
@@ -23,13 +26,24 @@ interface ExpenseModalProps {
 export function ExpenseModal({
   participants,
   prefill,
+  defaultPayerId,
   onClose,
   onSave,
 }: ExpenseModalProps) {
+  const isMounted = useIsMounted();
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   const [description, setDescription] = useState(prefill?.title || '');
   const [amount, setAmount] = useState(prefill ? String(prefill.amount) : '');
   const [category, setCategory] = useState(prefill?.category ? getCostCategoryMeta(prefill.category).key : 'food');
-  const [payerId, setPayerId] = useState(prefill?.payerId || participants[0]?.id || '');
+  const [payerId, setPayerId] = useState(prefill?.payerId || defaultPayerId || participants[0]?.id || '');
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
     participants.map((p) => p.id)
@@ -111,8 +125,12 @@ export function ExpenseModal({
     }
   };
 
-  return (
+  if (!isMounted) return null;
+
+  return createPortal(
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -123,6 +141,10 @@ export function ExpenseModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
+        overscrollBehavior: 'contain',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
@@ -137,6 +159,7 @@ export function ExpenseModal({
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '90vh',
+          overscrollBehavior: 'contain',
         }}
       >
         {/* Header */}
@@ -178,7 +201,7 @@ export function ExpenseModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '24px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
           {error && (
             <div
               style={{
@@ -501,6 +524,7 @@ export function ExpenseModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
