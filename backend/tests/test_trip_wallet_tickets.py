@@ -5,12 +5,14 @@ from sqlalchemy import select
 
 from app.core.wallet_encryption import decrypt_wallet_secret
 from app.db.models import TripTicketModel
-from app.db.session import async_session
 from app.wallet.scan import parse_iata_bcbp
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_wallet_tickets_crud_and_auth(async_client: AsyncClient):
+async def test_wallet_tickets_crud_and_auth(
+    async_client: AsyncClient, db_session: AsyncSession
+):
     uid = uuid.uuid4().hex[:8]
 
     # Register User A (Alice)
@@ -149,15 +151,14 @@ async def test_wallet_tickets_crud_and_auth(async_client: AsyncClient):
     assert manual_ticket["barcode_value"] == "QR-SECRET-9941"
 
     # Verify Encryption at Rest:
-    async with async_session() as db_session:
-        db_ticket = (
-            await db_session.execute(
-                select(TripTicketModel).where(TripTicketModel.id == ticket_id)
-            )
-        ).scalar_one()
-        assert db_ticket.access_code != "8492-PIN"
-        assert db_ticket.barcode_value != "QR-SECRET-9941"
-        assert decrypt_wallet_secret(db_ticket.access_code) == "8492-PIN"
+    db_ticket = (
+        await db_session.execute(
+            select(TripTicketModel).where(TripTicketModel.id == ticket_id)
+        )
+    ).scalar_one()
+    assert db_ticket.access_code != "8492-PIN"
+    assert db_ticket.barcode_value != "QR-SECRET-9941"
+    assert decrypt_wallet_secret(db_ticket.access_code) == "8492-PIN"
 
     # 5. Authorization and IDOR check:
     # Bob is NOT a participant yet, so Bob cannot access Alice's trip or private ticket
