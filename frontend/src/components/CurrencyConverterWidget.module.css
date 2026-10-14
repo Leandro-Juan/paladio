@@ -106,10 +106,18 @@
   font-variant-numeric: tabular-nums;
   outline: none;
   width: 100%;
+  -moz-appearance: textfield;
+}
+
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .amountInput:focus {
   border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 2px rgba(18, 112, 138, 0.15);
 }
 
 .swapButton {

@@ -264,7 +264,7 @@ a {
   background-color: var(--color-deep-sea, #0F4C5C);
   color: var(--color-cream, #F6F0E1);
   border-right: 1px solid rgba(227, 217, 192, 0.15);
-  padding: var(--spacing-xl);
+  padding: 1.25rem 1rem;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
@@ -378,6 +378,7 @@ a {
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.6rem;
   text-decoration: none;
+  border-left: 2px solid transparent;
 }
 
 .sidebar.collapsed .nav-links li a {
@@ -398,6 +399,7 @@ a {
   color: var(--color-cream, #F6F0E1);
   background-color: rgba(124, 196, 209, 0.12);
   border-left: 2px solid var(--color-gold, #E2B33C);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-weight: 600;
 }
 

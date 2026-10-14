@@ -59,7 +59,7 @@
 .primaryButton {
   padding: 8px 16px;
   background-color: var(--color-accent-primary);
-  color: #FFFFFF;
+  color: var(--color-btn-primary-text, #FFFFFF);
   border-radius: 8px;
   font-weight: 500;
   font-family: var(--font-body);

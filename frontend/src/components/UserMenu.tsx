@@ -92,14 +92,15 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
               width: '36px',
               height: '36px',
               borderRadius: '50%',
-              background: 'var(--color-accent-primary)',
+              background: 'var(--color-ocean, #1B8FA6)',
+              border: '1px solid rgba(246, 240, 225, 0.25)',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '14px',
               fontWeight: 700,
-              boxShadow: isOpen ? '0 0 0 2px var(--color-accent-primary)' : 'none',
+              boxShadow: isOpen ? '0 0 0 2px var(--color-sky, #7CC4D1)' : 'none',
               transition: 'all 0.2s ease',
               overflow: 'hidden',
             }}
@@ -122,7 +123,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '6px 8px',
-            background: isOpen ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
+            background: isOpen ? 'rgba(124, 196, 209, 0.12)' : 'transparent',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
@@ -130,7 +131,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             textAlign: 'left',
           }}
           onMouseOver={(e) => {
-            if (!isOpen) e.currentTarget.style.background = 'rgba(15, 76, 92, 0.05)';
+            if (!isOpen) e.currentTarget.style.background = 'rgba(124, 196, 209, 0.12)';
           }}
           onMouseOut={(e) => {
             if (!isOpen) e.currentTarget.style.background = 'transparent';
@@ -143,7 +144,8 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                background: 'var(--color-accent-primary)',
+                background: 'var(--color-ocean, #1B8FA6)',
+                border: '1px solid rgba(246, 240, 225, 0.25)',
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
@@ -183,8 +185,9 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                     fontSize: '9px',
                     padding: '2px 5px',
                     borderRadius: '4px',
-                    background: '#1E3A8A',
-                    color: '#FFFFFF',
+                    background: 'rgba(124, 196, 209, 0.15)',
+                    color: 'var(--color-sky, #7CC4D1)',
+                    border: '1px solid rgba(124, 196, 209, 0.3)',
                     fontWeight: 700,
                     letterSpacing: '0.5px',
                     flexShrink: 0,

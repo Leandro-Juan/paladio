@@ -150,7 +150,7 @@ export function Sidebar() {
                     margin: '0 auto',
                   }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'center', color: isActive ? 'var(--color-accent-primary)' : 'inherit' }}>
+                  <span style={{ display: 'flex', alignItems: 'center' }}>
                     {item.icon}
                   </span>
                   {item.badge && (
@@ -162,7 +162,7 @@ export function Sidebar() {
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        background: 'var(--color-accent-primary)',
+                        background: 'var(--color-gold, #E2B33C)',
                       }}
                     />
                   )}
@@ -178,7 +178,7 @@ export function Sidebar() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', color: isActive ? 'var(--color-accent-primary)' : 'inherit' }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
@@ -190,8 +190,9 @@ export function Sidebar() {
                         fontSize: '9px',
                         padding: '2px 6px',
                         borderRadius: '4px',
-                        background: 'var(--color-accent-primary)',
-                        color: '#FFF',
+                        background: 'var(--color-gold, #E2B33C)',
+                        color: '#0F4C5C',
+                        fontWeight: 600,
                         letterSpacing: '0.5px',
                       }}
                     >
