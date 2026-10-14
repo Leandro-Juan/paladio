@@ -5,25 +5,39 @@ import { chartTheme } from '@/utils/chartTheme';
 
 interface PreferenceRadarProps {
   data: { subject: string; A: number; fullMark: number }[];
+  height?: number | string;
+  outerRadius?: string | number;
+  fontSize?: number;
 }
 
-export default function PreferenceRadar({ data }: PreferenceRadarProps) {
+export default function PreferenceRadar({
+  data,
+  height = 350,
+  outerRadius = '70%',
+  fontSize,
+}: PreferenceRadarProps) {
+  const containerHeight = typeof height === 'number' ? `${height}px` : height;
+
   if (!data || data.length === 0) {
     return (
-      <div style={{ width: '100%', height: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', height: containerHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p className="text-muted font-mono">No data available</p>
       </div>
     );
   }
 
+  const tickStyle = fontSize
+    ? { ...chartTheme.axisLabel, fontSize }
+    : chartTheme.axisLabel;
+
   return (
-    <div style={{ width: '100%', height: '350px' }}>
+    <div style={{ width: '100%', height: containerHeight }}>
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+        <RadarChart cx="50%" cy="50%" outerRadius={outerRadius} data={data}>
           <PolarGrid stroke={chartTheme.grid} />
           <PolarAngleAxis
             dataKey="subject"
-            tick={chartTheme.axisLabel}
+            tick={tickStyle}
           />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Radar

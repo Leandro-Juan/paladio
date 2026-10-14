@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTrips } from '@/hooks/useTrips';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
-import { CurrencyConverterWidget } from '@/components/CurrencyConverterWidget';
+import { HarmonicRadarWidget } from '@/components/HarmonicRadarWidget';
 import { Calendar } from '@/components/Calendar';
 import { PreferenceModelSection } from '@/components/PreferenceModelSection';
 import { countWaypoints } from '@/utils/tripParser';
@@ -75,8 +75,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className={styles.currencyCol}>
-          <CurrencyConverterWidget />
+        <div className={styles.radarCol}>
+          <HarmonicRadarWidget />
         </div>
       </div>
 

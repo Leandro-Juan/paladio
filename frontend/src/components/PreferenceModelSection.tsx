@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import PreferenceRadar from '@/components/PreferenceRadar';
 import { fetchCurrentUser, fetchUserEmbeddingApi } from '@/utils/api';
 import { User } from '@/types/auth';
 
@@ -74,12 +73,6 @@ export function PreferenceModelSection() {
       ignore = true;
     };
   }, []);
-
-  const radarData = CATEGORY_MAP.map(({ key, label }) => ({
-    subject: label,
-    A: Math.round((tagAffinities[key] ?? 0.5) * 100),
-    fullMark: 100,
-  }));
 
   if (loading) {
     return (
@@ -172,94 +165,23 @@ export function PreferenceModelSection() {
         </div>
       )}
 
-      {/* Grid: Radar + Status on Left, Taste Weights on Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(340px, 1.2fr)', gap: '1.5rem' }}>
-        {/* Left Column: Radar Chart & Macro Engine Status */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div
-            style={{
-              padding: '1.25rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-bg-main)',
-              border: '1px solid var(--color-border)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <span className="font-mono text-muted text-xs">{'// 8-POINT HARMONIC RADAR'}</span>
-              <span className="font-mono text-xs" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-accent-teal-mid)' }}>
-                C++20 UTILITY
-              </span>
-            </div>
-
-            <PreferenceRadar data={radarData} />
-
-            <p className="font-mono text-xs text-muted" style={{ textAlign: 'center', marginTop: '0.75rem', lineHeight: '1.4' }}>
-              Multi-attribute utility projection feeding branch-and-bound optimization.
-            </p>
-          </div>
-
-          {/* Macro Status Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              <span className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '2px' }}>
-                TRAVEL PACE
-              </span>
-              <span className="font-display text-sm font-semibold capitalize" style={{ color: 'var(--color-text-primary)' }}>
-                {pace}
-              </span>
-              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px', margin: 0 }}>
-                {pace === 'leisurely' ? '90-150m dwell' : pace === 'intense' ? '30-60m highlights' : '60-90m baseline'}
-              </p>
-            </div>
-
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              <span className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '2px' }}>
-                BUDGET STRATEGY
-              </span>
-              <span className="font-display text-sm font-semibold capitalize" style={{ color: 'var(--color-text-primary)' }}>
-                {budgetTier}
-              </span>
-              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px', margin: 0 }}>
-                {budgetTier === 'budget' ? 'Cost sensitive' : budgetTier === 'luxury' ? 'Zero penalty' : 'Moderate tolerance'}
-              </p>
-            </div>
-          </div>
+      {/* Live Taste Weight Telemetry */}
+      <div
+        style={{
+          padding: '1.25rem',
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--color-bg-main)',
+          border: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <span className="font-mono text-muted text-xs">{'// LIVE TASTE WEIGHT TELEMETRY'}</span>
+          <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>ACTIVE WEIGHTS</span>
         </div>
 
-        {/* Right Column: Live Taste Weight Telemetry */}
-        <div
-          style={{
-            padding: '1.25rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--color-bg-main)',
-            border: '1px solid var(--color-border)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span className="font-mono text-muted text-xs">{'// LIVE TASTE WEIGHT TELEMETRY'}</span>
-            <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>ACTIVE WEIGHTS</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
             {CATEGORY_MAP.map(({ key, label }) => {
               const val = tagAffinities[key] ?? 0.5;
               const pct = Math.round(val * 100);
@@ -314,6 +236,5 @@ export function PreferenceModelSection() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
