@@ -977,7 +977,11 @@ async def get_trip(
 
     if trip.itinerary_data and isinstance(trip.itinerary_data, dict):
         has_missing_geom = False
-        for day_obj in trip.itinerary_data.get("days", []):
+        raw_days = trip.itinerary_data.get("days")
+        days = raw_days if isinstance(raw_days, list) else []
+        for day_obj in days:
+            if not isinstance(day_obj, dict):
+                continue
             path = day_obj.get("itinerary", {}).get("path", [])
             for p in path:
                 tr = p.get("transit_from_previous")

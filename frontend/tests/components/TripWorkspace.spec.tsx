@@ -32,36 +32,40 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(component.getByText('3')).toBeVisible();  // Collab count badge
   });
 
-  test('TripPlacesSidebar filters places by search text and shows placeholder modal', async ({ mount }) => {
-    const mockPlaces: PlaceItem[] = [
-      { name: 'Blue Lagoon', lat: 63.88, lng: -22.44, category: 'attraction', day: 1 },
-      { name: 'Reykjanes Lighthouse', lat: 63.81, lng: -22.71, category: 'landmark', day: 1 },
-      { name: 'Gullfoss Waterfall', lat: 64.32, lng: -20.12, category: 'attraction', day: 2 },
-    ];
+  test('TripPlacesSidebar renders POI Search Engine, categories, and handles toggling', async ({ mount }) => {
+    let toggled = false;
+    let selectedCategory: string | null = null;
 
     const component = await mount(
       <TripPlacesSidebar
         isOpen={true}
-        onToggle={() => {}}
-        places={mockPlaces}
+        onToggle={() => {
+          toggled = true;
+        }}
+        city="Reykjavik"
+        onCategoryFilterChange={(cat) => {
+          selectedCategory = cat;
+        }}
       />
     );
 
-    await expect(component.getByText('3 PLACES')).toBeVisible();
-    await expect(component.getByText('Blue Lagoon')).toBeVisible();
-    await expect(component.getByText('Gullfoss Waterfall')).toBeVisible();
+    await expect(component.getByText('POI SEARCH ENGINE')).toBeVisible();
+    await expect(component.getByText('Search Places in Reykjavik')).toBeVisible();
 
-    // Type in search
-    const searchInput = component.getByPlaceholder('Search places...');
-    await searchInput.fill('Gullfoss');
-    await expect(component.getByText('Gullfoss Waterfall')).toBeVisible();
-    await expect(component.getByText('Blue Lagoon')).not.toBeVisible();
+    const searchInput = component.getByPlaceholder('Try "El Prado" or "cozy cafes with charm"...');
+    await expect(searchInput).toBeVisible();
 
-    // Clear search and click Add Place / Activity
-    await searchInput.fill('');
-    const addBtn = component.getByRole('button', { name: /Add Place \/ Activity/i });
-    await addBtn.click();
-    await expect(component.getByText('// POI SEARCH INTEGRATION')).toBeVisible();
+    // Verify category chips
+    const museumBtn = component.getByRole('button', { name: 'museum', exact: true });
+    await expect(museumBtn).toBeVisible();
+    await museumBtn.click();
+    expect(selectedCategory).toBe('museum');
+
+    // Toggle collapse button
+    const collapseBtn = component.getByLabel('Collapse POI Search');
+    await expect(collapseBtn).toBeVisible();
+    await collapseBtn.click();
+    expect(toggled).toBe(true);
   });
 
   test('TripTransportsView renders flight boarding passes and arrival/departure airports', async ({ mount }) => {

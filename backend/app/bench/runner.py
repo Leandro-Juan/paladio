@@ -126,6 +126,9 @@ class BenchPoiRepository(IPoiRepository):
     ) -> None:
         pass
 
+    async def check_city_staleness(self, city_name: str) -> tuple[Any, bool]:
+        return (None, False)
+
 
 def _fast_transit_matrix(pois, city, departure_dt=None):
     n = len(pois)

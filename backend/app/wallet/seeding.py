@@ -67,7 +67,8 @@ def extract_itinerary_seeds(
     suggestions: list[AttractionSuggestion] = []
 
     itin = trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
-    days = itin.get("days") or []
+    raw_days = itin.get("days")
+    days = raw_days if isinstance(raw_days, list) else []
 
     # 1. Flights Extraction
     flight_records: list[dict[str, Any]] = []
@@ -86,6 +87,8 @@ def extract_itinerary_seeds(
 
     # Days flight_info
     for d_idx, day in enumerate(days):
+        if not isinstance(day, dict):
+            continue
         day_num = day.get("day", d_idx + 1)
         day_f = day.get("flight_info")
         if day_f:
