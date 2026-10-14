@@ -66,13 +66,14 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
 }
 
 .titleGroup {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .monthTitle {
@@ -126,46 +127,166 @@
   background: rgba(15, 76, 92, 0.05);
 }
 
-.legendGroup {
+/* Control Pills: View Switcher & Interaction Mode Switcher */
+.controlsCluster {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-family: var(--font-body);
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.legendItem {
+.segmentedGroup {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.segmentedBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: all 140ms ease;
 }
 
-.legendPill {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
+.segmentedBtn:hover {
+  color: var(--color-text-primary);
 }
 
-.legendActive {
-  background: var(--color-ocean, #1B8FA6);
+.segmentedBtnActive {
+  background: var(--color-surface-card);
+  color: var(--color-accent-primary);
+  box-shadow: 0 1px 3px rgba(15, 76, 92, 0.1);
+  border: 1px solid var(--color-border);
 }
 
-.legendQueued {
-  border: 1.5px solid var(--color-sky, #7CC4D1);
-  background: rgba(124, 196, 209, 0.2);
+.holidayBtnActive {
+  background: rgba(226, 179, 60, 0.16);
+  color: #7A5A00;
+  border: 1px solid rgba(226, 179, 60, 0.5);
+  font-weight: 700;
 }
 
-.legendArchived {
-  background: rgba(75, 102, 112, 0.25);
+/* Holiday Mode Banner */
+.holidayBanner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(226, 179, 60, 0.1);
+  border: 1px solid rgba(226, 179, 60, 0.35);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  gap: 12px;
 }
 
-.legendToday {
-  width: 10px;
-  height: 10px;
+.holidayBannerText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.holidayBannerDot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--color-sun, #D42A2F);
+  background: var(--color-gold, #E2B33C);
+}
+
+.clearHolidaysBtn {
+  background: transparent;
+  border: 1px solid rgba(226, 179, 60, 0.4);
+  color: var(--color-text-primary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.clearHolidaysBtn:hover {
+  background: rgba(226, 179, 60, 0.2);
+}
+
+/* Palette Legend Strip */
+.paletteLegend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(15, 76, 92, 0.02);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.legendLabel {
+  color: var(--color-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.legendChipsList {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tripLegendChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 120ms;
+}
+
+.tripLegendChip:hover {
+  transform: translateY(-1px);
+}
+
+.legendColorSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.holidaySwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(226, 179, 60, 0.4) 0px,
+    rgba(226, 179, 60, 0.4) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border: 1px solid rgba(226, 179, 60, 0.6);
 }
 
 /* Weekday Strip */
@@ -232,6 +353,17 @@
   background: var(--color-gold, #E2B33C);
 }
 
+.dayCellHoliday {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(226, 179, 60, 0.14) 0px,
+    rgba(226, 179, 60, 0.14) 4px,
+    transparent 4px,
+    transparent 10px
+  ) !important;
+  border: 1px solid rgba(226, 179, 60, 0.4) !important;
+}
+
 .cellTop {
   display: flex;
   justify-content: space-between;
@@ -259,6 +391,17 @@
   box-shadow: 0 2px 6px rgba(212, 42, 47, 0.35);
 }
 
+.holidayBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(226, 179, 60, 0.25);
+  color: #7A5A00;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 /* Continuous Multi-Day Bar Styling */
 .barsContainer {
   display: flex;
@@ -279,11 +422,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
-  transition: opacity 120ms;
+  transition: opacity 120ms, transform 120ms;
+  background: var(--trip-bg, var(--color-ocean, #1B8FA6));
+  border: 1px solid var(--trip-border, #147589);
+  color: var(--trip-text, #FFFFFF);
 }
 
 .tripSpanBar:hover {
-  opacity: 0.88;
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .spanStart {
@@ -312,33 +459,293 @@
   border-radius: 5px;
 }
 
-.activeStatus {
-  background: var(--color-ocean, #1B8FA6);
-  color: #FFFFFF;
+/* 12-Month Panoramic Annual Grid */
+.annualGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
 }
 
-.queuedStatus {
-  background: rgba(124, 196, 209, 0.22);
-  border-top: 1px solid var(--color-sky, #7CC4D1);
-  border-bottom: 1px solid var(--color-sky, #7CC4D1);
+.miniMonthCard {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 140ms;
+}
+
+.miniMonthCard:hover {
+  border-color: var(--color-border-bold);
+}
+
+.miniMonthHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 6px;
+}
+
+.miniMonthTitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+}
+
+.miniMonthFocusBtn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 120ms;
+}
+
+.miniMonthFocusBtn:hover {
+  background: var(--color-bg-main);
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.miniWeekdaysRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.miniWeekdayCol {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.miniDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.miniDayCell {
+  min-height: 32px;
+  padding: 2px;
+  border-radius: 4px;
+  background: var(--color-bg-main);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid transparent;
+  transition: all 100ms ease;
+}
+
+.miniDayCell:hover {
+  border-color: var(--color-accent-primary);
+  transform: scale(1.04);
+  z-index: 5;
+}
+
+.miniDayCellOutside {
+  opacity: 0.22;
+  cursor: default;
+}
+
+.miniDayCellOutside:hover {
+  border-color: transparent;
+  transform: none;
+}
+
+.miniDayCellToday {
+  border: 1px solid var(--color-sun, #D42A2F);
+}
+
+.miniDayCellToday .miniDayNum {
+  color: var(--color-sun, #D42A2F);
+  font-weight: 700;
+}
+
+.miniDayCellHoliday {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(226, 179, 60, 0.22) 0px,
+    rgba(226, 179, 60, 0.22) 3px,
+    transparent 3px,
+    transparent 6px
+  ) !important;
+  border: 1px solid rgba(226, 179, 60, 0.5) !important;
+}
+
+.miniDayNum {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 12px;
+}
+
+.miniTripIndicator {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 1px;
+}
+
+/* Day Planning Anchored Popover */
+.popoverOverlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 100;
+}
+
+.dayPopover {
+  position: fixed;
+  z-index: 101;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 16px;
+  width: 240px;
+  box-shadow: var(--shadow-lg), 0 8px 30px rgba(15, 76, 92, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: popoverFadeIn 140ms ease-out;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.popoverHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popoverTelemetry {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.popoverCloseBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.popoverCloseBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+}
+
+.popoverDateTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.popoverPrompt {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.popoverActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.popoverPrimaryBtn {
+  flex: 1;
+  background: var(--color-accent-primary);
+  color: var(--color-text-on-accent, #FFFFFF);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 120ms;
+}
+
+.popoverPrimaryBtn:hover {
+  opacity: 0.9;
+}
+
+.popoverCancelBtn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 120ms;
+}
+
+.popoverCancelBtn:hover {
+  background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
-.queuedStatus.spanStart {
-  border-left: 1px solid var(--color-sky, #7CC4D1);
+@media (max-width: 1200px) {
+  .annualGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-.queuedStatus.spanEnd {
-  border-right: 1px solid var(--color-sky, #7CC4D1);
+@media (max-width: 900px) {
+  .annualGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.queuedStatus.spanSingle {
-  border: 1px solid var(--color-sky, #7CC4D1);
-}
-
-.archivedStatus {
-  background: rgba(75, 102, 112, 0.16);
-  color: var(--color-text-muted);
+@media (max-width: 560px) {
+  .annualGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {

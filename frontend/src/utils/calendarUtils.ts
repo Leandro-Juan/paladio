@@ -3,15 +3,50 @@ import { isTripCompleted } from '@/utils/tripParser';
 
 export type TripStatus = 'COMPLETED' | 'ACTIVE' | 'UPCOMING';
 
+export interface PaletteColor {
+  id: string;
+  name: string;
+  bg: string;
+  border: string;
+  text: string;
+  hoverBg: string;
+}
+
+export const PALADIO_TRIP_PALETTE: PaletteColor[] = [
+  { id: 'petrol', name: 'Deep Sea', bg: 'var(--color-deep-sea, #0F4C5C)', border: '#0A3642', text: '#FFFFFF', hoverBg: '#13586b' },
+  { id: 'gold', name: 'Amber Gold', bg: 'var(--color-gold, #E2B33C)', border: '#C99E32', text: '#2A2000', hoverBg: '#ebbd48' },
+  { id: 'ocean', name: 'Ocean Teal', bg: 'var(--color-ocean, #1B8FA6)', border: '#147589', text: '#FFFFFF', hoverBg: '#209eb8' },
+  { id: 'sun', name: 'Sun Coral', bg: 'var(--color-sun, #D42A2F)', border: '#B52328', text: '#FFFFFF', hoverBg: '#de3c41' },
+  { id: 'pine', name: 'Forest Pine', bg: 'var(--color-success, #1F7A4D)', border: '#175e3b', text: '#FFFFFF', hoverBg: '#258f5b' },
+  { id: 'sky', name: 'Cerulean Sky', bg: 'var(--color-sky, #7CC4D1)', border: '#5daec0', text: '#0A3642', hoverBg: '#8eccd8' },
+  { id: 'slate', name: 'Slate Muted', bg: 'var(--color-accent-muted, #566B76)', border: '#455760', text: '#FFFFFF', hoverBg: '#647c88' },
+];
+
+export function getTripPaletteColor(trip: Trip, tripIndex?: number): PaletteColor {
+  if (tripIndex !== undefined && tripIndex >= 0) {
+    return PALADIO_TRIP_PALETTE[tripIndex % PALADIO_TRIP_PALETTE.length];
+  }
+  let hash = 0;
+  const str = String(trip.id || trip.destination || '0');
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % PALADIO_TRIP_PALETTE.length;
+  return PALADIO_TRIP_PALETTE[idx];
+}
+
 export interface CalendarDay {
   date: Date;
   dateString: string; // YYYY-MM-DD
   dayNumber: number;
   isCurrentMonth: boolean;
   isToday: boolean;
+  isHoliday?: boolean;
   trips: Array<{
     trip: Trip;
     status: TripStatus;
+    color: PaletteColor;
     isStart: boolean;
     isEnd: boolean;
   }>;
@@ -47,10 +82,34 @@ export function getTripStatus(trip: Trip, now: Date = new Date()): TripStatus {
   return 'ACTIVE';
 }
 
-export function generateMonthGrid(year: number, month: number, trips: Trip[] = []): CalendarDay[] {
+export const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export interface MonthGridData {
+  year: number;
+  month: number;
+  monthName: string;
+  days: CalendarDay[];
+}
+
+export function generateMonthGrid(
+  year: number,
+  month: number,
+  trips: Trip[] = [],
+  holidays?: Set<string>
+): CalendarDay[] {
   const todayStr = formatDateToIsoDay(new Date());
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  // Map trips to colors deterministically
+  const tripColorMap = new Map<string, PaletteColor>();
+  trips.forEach((t, i) => {
+    const key = t.id || `${t.destination}-${t.start_date}`;
+    tripColorMap.set(key, getTripPaletteColor(t, i));
+  });
 
   // Day of week: 0 = Sun, 1 = Mon... We want Monday as index 0
   let startDayOfWeek = firstDayOfMonth.getDay() - 1;
@@ -62,26 +121,46 @@ export function generateMonthGrid(year: number, month: number, trips: Trip[] = [
   const prevMonthLastDate = new Date(year, month, 0).getDate();
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
     const d = new Date(year, month - 1, prevMonthLastDate - i);
-    days.push(createCalendarDay(d, false, todayStr, trips));
+    days.push(createCalendarDay(d, false, todayStr, trips, tripColorMap, holidays));
   }
 
   // Current month days
   for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
     const date = new Date(year, month, d);
-    days.push(createCalendarDay(date, true, todayStr, trips));
+    days.push(createCalendarDay(date, true, todayStr, trips, tripColorMap, holidays));
   }
 
   // Trailing padding days to fill 5 or 6 full 7-day weeks (multiples of 7)
   const remainingDays = (7 - (days.length % 7)) % 7;
   for (let d = 1; d <= remainingDays; d++) {
     const date = new Date(year, month + 1, d);
-    days.push(createCalendarDay(date, false, todayStr, trips));
+    days.push(createCalendarDay(date, false, todayStr, trips, tripColorMap, holidays));
   }
 
   return days;
 }
 
-function createCalendarDay(date: Date, isCurrentMonth: boolean, todayStr: string, trips: Trip[]): CalendarDay {
+export function generateYearGrid(
+  year: number,
+  trips: Trip[] = [],
+  holidays?: Set<string>
+): MonthGridData[] {
+  return Array.from({ length: 12 }, (_, month) => ({
+    year,
+    month,
+    monthName: MONTH_NAMES[month],
+    days: generateMonthGrid(year, month, trips, holidays),
+  }));
+}
+
+function createCalendarDay(
+  date: Date,
+  isCurrentMonth: boolean,
+  todayStr: string,
+  trips: Trip[],
+  tripColorMap: Map<string, PaletteColor>,
+  holidays?: Set<string>
+): CalendarDay {
   const dateString = formatDateToIsoDay(date);
   const isToday = dateString === todayStr;
   const dayTime = date.getTime();
@@ -95,13 +174,18 @@ function createCalendarDay(date: Date, isCurrentMonth: boolean, todayStr: string
   }).map(trip => {
     const startStr = formatDateToIsoDay(parseDayString(trip.start_date));
     const endStr = formatDateToIsoDay(parseDayString(trip.end_date));
+    const key = trip.id || `${trip.destination}-${trip.start_date}`;
+    const color = tripColorMap.get(key) || getTripPaletteColor(trip);
     return {
       trip,
       status: getTripStatus(trip, now),
+      color,
       isStart: dateString === startStr,
       isEnd: dateString === endStr,
     };
   });
+
+  const isHoliday = Boolean(holidays?.has(dateString)) && matchingTrips.length === 0;
 
   return {
     date,
@@ -109,6 +193,7 @@ function createCalendarDay(date: Date, isCurrentMonth: boolean, todayStr: string
     dayNumber: date.getDate(),
     isCurrentMonth,
     isToday,
+    isHoliday,
     trips: matchingTrips,
   };
 }

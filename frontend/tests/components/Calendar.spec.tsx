@@ -31,33 +31,60 @@ test.describe('Calendar Component', () => {
     },
   ];
 
-  test('renders calendar header, telemetry stats, and days grid', async ({ mount }) => {
+  test('renders 12-month annual dispatch grid and telemetry stats by default', async ({ mount }) => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
     // Header and Telemetry checks
     await expect(component.getByText('TOTAL MISSIONS')).toBeVisible();
     await expect(component.getByText('ACTIVE / QUEUED')).toBeVisible();
     await expect(component.getByText('ARCHIVED MISSIONS')).toBeVisible();
+    await expect(component.getByText(`${currentYear} ANNUAL DISPATCH`)).toBeVisible();
 
-    // Weekdays
-    await expect(component.getByText('MON')).toBeVisible();
-    await expect(component.getByText('SUN')).toBeVisible();
+    // Verify all 12 months are rendered in annual view
+    await expect(component.getByText('January')).toBeVisible();
+    await expect(component.getByText('February')).toBeVisible();
+    await expect(component.getByText('March')).toBeVisible();
+    await expect(component.getByText('December')).toBeVisible();
 
-    // Legend items
+    // Legend items and Palette Chips
     await expect(component.getByText('Active', { exact: true })).toBeVisible();
     await expect(component.getByText('Queued', { exact: true })).toBeVisible();
     await expect(component.getByText('Archived', { exact: true })).toBeVisible();
     await expect(component.getByText('Current day', { exact: true })).toBeVisible();
+    await expect(component.getByText('PALETTE:')).toBeVisible();
+    await expect(component.getByText('Tokyo')).toBeVisible();
+    await expect(component.getByText('Berlin')).toBeVisible();
   });
 
-  test('displays trips with correct mission indicators and opens inspector modal on click', async ({ mount }) => {
+  test('switches between Annual (12M) and Month Focus views', async ({ mount }) => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
-    // Berlin is scheduled for this month, should appear in the grid
+    // Click Month Focus view button
+    await component.getByRole('button', { name: 'Month focus view' }).click();
+
+    // Weekdays in Month focus
+    await expect(component.getByText('MON', { exact: true })).toBeVisible();
+    await expect(component.getByText('SUN', { exact: true })).toBeVisible();
+
+    // Month title visible
+    await expect(component.getByText(new RegExp(`${currentYear}`)).first()).toBeVisible();
+
+    // Navigation buttons in month focus
+    await component.getByRole('button', { name: /Next month/i }).click();
+    await component.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect(component.getByText('Current day', { exact: true })).toBeVisible();
+
+    // Switch back to Annual
+    await component.getByRole('button', { name: 'Annual view' }).click();
+    await expect(component.getByText(`${currentYear} ANNUAL DISPATCH`)).toBeVisible();
+  });
+
+  test('displays trips with palette colors and opens inspector modal on click', async ({ mount }) => {
+    const component = await mount(<Calendar trips={mockTrips} />);
+
+    // In Annual view, click the Berlin legend chip or trip bar
     const berlinChip = component.getByText('Berlin').first();
     await expect(berlinChip).toBeVisible();
-
-    // Click Berlin to inspect
     await berlinChip.click();
 
     // Mission Inspector Modal should appear
@@ -71,14 +98,62 @@ test.describe('Calendar Component', () => {
     await expect(component.getByText('EXPORT .ICS (CALENDAR)')).not.toBeVisible();
   });
 
-  test('month navigation switches cycles', async ({ mount }) => {
+  test('pops up day planning box on clicking an empty date in plan mode', async ({ mount }) => {
+    let selectedDateString = '';
+    const component = await mount(
+      <Calendar
+        trips={mockTrips}
+        onSelectDate={(_, dateStr) => {
+          selectedDateString = dateStr;
+        }}
+      />
+    );
+
+    // Switch to Month Focus to test day popover
+    await component.getByRole('button', { name: 'Month focus view' }).click();
+
+    // Find a day cell without trip
+    const dayCells = component.locator('div[title^="Click to plan mission"]');
+    const firstEmptyCell = dayCells.first();
+    await firstEmptyCell.click();
+
+    // Anchored popover appears
+    await expect(component.getByText('// PLAN_MISSION')).toBeVisible();
+    await expect(
+      component.getByText('Would you like to plan an autonomous travel mission starting on this date?')
+    ).toBeVisible();
+
+    // Click "Plan Trip" in the popover
+    await component.getByRole('button', { name: /Plan Trip/ }).last().click();
+    expect(selectedDateString).not.toBe('');
+  });
+
+  test('toggles Holiday Mode to paint holiday days without overlapping trips', async ({ mount }) => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
-    // Click Next month
-    await component.getByRole('button', { name: /Next month/i }).click();
+    // Switch to Mark Holidays mode
+    const holidayToggleBtn = component.getByRole('button', { name: 'Mark holidays mode' });
+    await holidayToggleBtn.click();
 
-    // Click Today to return
-    await component.getByRole('button', { name: 'Today', exact: true }).click();
-    await expect(component.getByText('Current day', { exact: true })).toBeVisible();
+    // Holiday banner should be visible
+    await expect(component.getByText(/Holiday Mode Active/i)).toBeVisible();
+
+    // Switch to Month Focus for clear day interaction
+    await component.getByRole('button', { name: 'Month focus view' }).click();
+
+    // Click on an empty day cell to mark holiday
+    const dayCells = component.locator('div[title^="Click to plan mission"]');
+    const firstEmptyCell = dayCells.first();
+    await firstEmptyCell.click();
+
+    // The cell should now be marked as holiday with badge
+    await expect(component.getByText('HOLIDAY').first()).toBeVisible();
+
+    // Clicking Berlin trip should NOT turn Berlin into a holiday
+    const berlinChip = component.getByText('Berlin').first();
+    await berlinChip.click();
+    // Berlin remains a trip, not holiday
+    await expect(component.getByText('Berlin').first()).toBeVisible();
   });
 });
+
