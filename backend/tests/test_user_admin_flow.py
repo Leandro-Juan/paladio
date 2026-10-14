@@ -176,6 +176,30 @@ async def test_user_admin_bootstrap_and_management(
         me_update.json()["preferences"]["avatar_url"] == "https://example.com/admin.png"
     )
 
+    # 13b. Admin removes own avatar (PFP) via /me with None/null
+    me_remove_pfp = await async_client.patch(
+        "/api/v1/users/me",
+        json={
+            "avatar_url": None,
+        },
+        headers=admin_headers,
+    )
+    assert me_remove_pfp.status_code == 200, me_remove_pfp.text
+    assert "avatar_url" not in me_remove_pfp.json()["preferences"]
+    assert "pfp" not in me_remove_pfp.json()["preferences"]
+
+    # 13c. Admin removes other user's avatar via PATCH /users/{user_id} with empty string
+    other_remove_pfp = await async_client.patch(
+        f"/api/v1/users/{no_email_id}",
+        json={
+            "avatar_url": "",
+        },
+        headers=admin_headers,
+    )
+    assert other_remove_pfp.status_code == 200, other_remove_pfp.text
+    assert "avatar_url" not in other_remove_pfp.json()["preferences"]
+    assert "pfp" not in other_remove_pfp.json()["preferences"]
+
     # 14. Admin deletes traveler and noemailguy
     await async_client.delete(f"/api/v1/users/{traveler_id}", headers=admin_headers)
     await async_client.delete(f"/api/v1/users/{no_email_id}", headers=admin_headers)

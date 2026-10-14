@@ -6,6 +6,7 @@ from app.db.models import UserModel
 from sqlalchemy import or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,8 @@ class SqlUserRepository:
                         setattr(user, key, None)
                     elif val is not None:
                         setattr(user, key, val)
+                        if key == "preferences":
+                            flag_modified(user, "preferences")
             await session.commit()
             await session.refresh(user)
             return user
@@ -234,6 +237,7 @@ class SqlUserRepository:
                 return res_sel.scalar_one_or_none()
 
             user.preferences = preferences
+            flag_modified(user, "preferences")
             await session.commit()
             await session.refresh(user)
             return user

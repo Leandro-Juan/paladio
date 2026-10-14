@@ -162,12 +162,24 @@ async def update_user_me(
     if profile_in.password:
         await repo.update_password(current_user.id, hash_password(profile_in.password))
 
-    if profile_in.avatar_url is not None or profile_in.preferences is not None:
+    if (
+        "avatar_url" in profile_in.model_fields_set
+        or profile_in.preferences is not None
+    ):
         current_prefs = dict(current_user.preferences or {})
         if profile_in.preferences is not None:
             current_prefs.update(profile_in.preferences)
-        if profile_in.avatar_url is not None:
-            current_prefs["avatar_url"] = profile_in.avatar_url
+        if "avatar_url" in profile_in.model_fields_set:
+            if profile_in.avatar_url and profile_in.avatar_url.strip():
+                current_prefs["avatar_url"] = profile_in.avatar_url.strip()
+                current_prefs.pop("pfp", None)
+            else:
+                current_prefs.pop("avatar_url", None)
+                current_prefs.pop("pfp", None)
+        if "avatar_url" in current_prefs and not current_prefs["avatar_url"]:
+            current_prefs.pop("avatar_url", None)
+        if "pfp" in current_prefs and not current_prefs["pfp"]:
+            current_prefs.pop("pfp", None)
         updates["preferences"] = current_prefs
 
     updated_user = await repo.update_user_admin(current_user.id, updates)
@@ -236,12 +248,21 @@ async def update_user_by_admin(
     if update_in.password:
         await repo.update_password(user_id, hash_password(update_in.password))
 
-    if update_in.avatar_url is not None or update_in.preferences is not None:
+    if "avatar_url" in update_in.model_fields_set or update_in.preferences is not None:
         current_prefs = dict(target_user.preferences or {})
         if update_in.preferences is not None:
             current_prefs.update(update_in.preferences)
-        if update_in.avatar_url is not None:
-            current_prefs["avatar_url"] = update_in.avatar_url
+        if "avatar_url" in update_in.model_fields_set:
+            if update_in.avatar_url and update_in.avatar_url.strip():
+                current_prefs["avatar_url"] = update_in.avatar_url.strip()
+                current_prefs.pop("pfp", None)
+            else:
+                current_prefs.pop("avatar_url", None)
+                current_prefs.pop("pfp", None)
+        if "avatar_url" in current_prefs and not current_prefs["avatar_url"]:
+            current_prefs.pop("avatar_url", None)
+        if "pfp" in current_prefs and not current_prefs["pfp"]:
+            current_prefs.pop("pfp", None)
         updates["preferences"] = current_prefs
 
     updated_user = await repo.update_user_admin(user_id, updates)

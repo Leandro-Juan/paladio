@@ -35,7 +35,7 @@ export interface UpdateUserData {
   role?: UserRole;
   is_active?: boolean;
   password?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   preferences?: Record<string, unknown>;
 }
 
@@ -43,6 +43,6 @@ export interface UpdateProfileData {
   username?: string;
   email?: string | null;
   password?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   preferences?: Record<string, unknown>;
 }

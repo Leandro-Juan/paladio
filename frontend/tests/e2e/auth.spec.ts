@@ -212,14 +212,18 @@ test.describe('Authentication & User Management Flow', () => {
 
     await page.route('**/api/v1/users/me', async (route) => {
       const body = JSON.parse(route.request().postData() || '{}');
+      const updatedPrefs = { ...(body.preferences || currentUser.preferences || {}) };
+      if (body.avatar_url === null) {
+        delete updatedPrefs.avatar_url;
+        delete updatedPrefs.pfp;
+      } else if (body.avatar_url) {
+        updatedPrefs.avatar_url = body.avatar_url;
+      }
       currentUser = {
         ...currentUser,
         username: body.username || currentUser.username,
         email: body.email !== undefined ? body.email : currentUser.email,
-        preferences: {
-          ...currentUser.preferences,
-          avatar_url: body.avatar_url || currentUser.preferences?.avatar_url,
-        },
+        preferences: updatedPrefs,
       };
       await route.fulfill({
         status: 200,
@@ -264,5 +268,18 @@ test.describe('Authentication & User Management Flow', () => {
     await expect(page.getByText('User updatedadmin profile updated successfully.')).toBeVisible();
     await expect(userRow.getByText('updatedadmin', { exact: true })).toBeVisible();
     await expect(userRow.getByText('None')).toBeVisible();
+
+    // 7. Remove avatar (PFP) and verify it is completely removed
+    await editBtn.click();
+    await expect(modal).toBeVisible();
+    const removePfpBtn = modal.getByRole('button', { name: 'Remove' });
+    await expect(removePfpBtn).toBeVisible();
+    await removePfpBtn.click();
+    await page.click('button:has-text("SAVE CHANGES")');
+    await expect(modal).not.toBeVisible();
+
+    // 8. Verify avatar image is gone from user row and fallback initial is displayed
+    await expect(userRow.locator('img')).toHaveCount(0);
+    await expect(userRow.getByText('U', { exact: true })).toBeVisible();
   });
 });

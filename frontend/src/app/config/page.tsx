@@ -312,6 +312,7 @@ export default function ConfigPage() {
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
     if (!file.type.startsWith('image/')) {
       setActionError('Please select a valid image file (PNG, JPG, SVG, WebP).');
@@ -383,11 +384,20 @@ export default function ConfigPage() {
     const isSelf = editCandidate.id === currentUser?.id;
     const trimmedEmail = editEmail.trim() || null;
 
-    const currentCandidatePrefs = (editCandidate.preferences || {}) as Record<string, unknown>;
+    const currentCandidatePrefs = { ...((editCandidate.preferences || {}) as Record<string, unknown>) };
+    if (!editAvatarUrl) {
+      delete currentCandidatePrefs.avatar_url;
+      delete currentCandidatePrefs.pfp;
+    } else if (validatedAvatar) {
+      currentCandidatePrefs.avatar_url = validatedAvatar;
+      delete currentCandidatePrefs.pfp;
+    }
     const updatedPreferences = {
       ...currentCandidatePrefs,
       default_currency: editDefaultCurrency,
     };
+
+    const targetAvatar = editAvatarUrl ? validatedAvatar : null;
 
     try {
       if (isSelf) {
@@ -395,7 +405,7 @@ export default function ConfigPage() {
           username: editUsername.trim(),
           email: trimmedEmail,
           password: editPassword || undefined,
-          avatar_url: validatedAvatar || undefined,
+          avatar_url: targetAvatar,
           preferences: updatedPreferences,
         });
         await refreshUser();
@@ -405,15 +415,15 @@ export default function ConfigPage() {
           email: trimmedEmail,
           password: editPassword || undefined,
           role: editRole,
-          avatar_url: validatedAvatar || undefined,
+          avatar_url: targetAvatar,
           preferences: updatedPreferences,
         });
       }
-      setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
-      setEditCandidate(null);
       if (isAdmin) {
         await fetchUsers();
       }
+      setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
+      setEditCandidate(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update user profile';
       setActionError(msg);
