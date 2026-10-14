@@ -576,7 +576,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                 onClick={handleConfirmPlanTrip}
                 className={styles.popoverPrimaryBtn}
               >
-                <span>🚀</span> Plan Trip
+                Plan Trip
               </button>
               <button
                 type="button"
