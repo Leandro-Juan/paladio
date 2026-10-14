@@ -77,6 +77,26 @@ async def _distributed_city_lock(city_key: str):
                 await s.close()
 
 
+def is_valid_embedding(emb: list[float] | None, dim: int = 768) -> bool:
+    """Verifies that an embedding vector is present, 768D, non-zero, and not a uniform dummy."""
+    if not emb or len(emb) != dim:
+        return False
+    target = 1.0 / (dim**0.5)
+    # Check if first and last elements match uniform dummy vector
+    if abs(emb[0] - target) < 1e-4 and abs(emb[-1] - target) < 1e-4:
+        return False
+    return True
+
+
+@dataclass
+class CityCountState:
+    tier1: int
+    tier2: int
+    dining: int
+    embedded_tier12_ratio: float = 0.0
+    embedded_total_ratio: float = 0.0
+
+
 @dataclass
 class CityReadiness:
     city: str
@@ -84,6 +104,8 @@ class CityReadiness:
     tier1: int
     tier2: int
     dining: int
+    embedded_tier12_ratio: float = 0.0
+    embedded_total_ratio: float = 0.0
     geo: CityGeo | None = None
     city_id: str | None = None
     city_entity: City | None = None
@@ -94,12 +116,27 @@ def normalize_city_name(city: str) -> str:
     return " ".join(city.strip().split()).title()
 
 
-async def _count_state(city: str, poi_repo: IPoiRepository) -> tuple[int, int, int]:
+async def _count_state(city: str, poi_repo: IPoiRepository) -> CityCountState:
     tiered = await poi_repo.find_tiered_pois(city, max_tier=2)
     dining = await poi_repo.find_meal_spots(city)
     t1 = sum(1 for p in tiered if p.tier == 1)
     t2 = sum(1 for p in tiered if p.tier == 2)
-    return t1, t2, len(dining)
+
+    tier12 = [p for p in tiered if p.tier in (1, 2)]
+    valid_t12_emb = sum(1 for p in tier12 if is_valid_embedding(p.embedding))
+    emb_t12_ratio = valid_t12_emb / max(1, len(tier12)) if tier12 else 0.0
+
+    all_pois = list(tiered) + list(dining)
+    valid_total_emb = sum(1 for p in all_pois if is_valid_embedding(p.embedding))
+    emb_total_ratio = valid_total_emb / max(1, len(all_pois)) if all_pois else 0.0
+
+    return CityCountState(
+        tier1=t1,
+        tier2=t2,
+        dining=len(dining),
+        embedded_tier12_ratio=round(emb_t12_ratio, 4),
+        embedded_total_ratio=round(emb_total_ratio, 4),
+    )
 
 
 async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadiness:
@@ -117,30 +154,33 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
                 city_repo = SqlCityRepository(session)
                 city_entity = await city_repo.find_by_name_or_alias(name)
 
-        t1, t2, dining = await _count_state(name, poi_repo)
+        state = await _count_state(name, poi_repo)
         if (
             city_entity is not None
-            and t1 >= 2
-            and (t1 + t2) >= MIN_TIERED_SIGHTS
-            and dining >= MIN_DINING_VENUES
+            and state.tier1 >= 2
+            and (state.tier1 + state.tier2) >= MIN_TIERED_SIGHTS
+            and state.dining >= MIN_DINING_VENUES
+            and state.embedded_tier12_ratio >= 0.95
         ):
             if city_entity.timezone:
                 cache_city_timezone(city_entity.name, city_entity.timezone)
             return CityReadiness(
                 city=name,
                 ingested=False,
-                tier1=t1,
-                tier2=t2,
-                dining=dining,
+                tier1=state.tier1,
+                tier2=state.tier2,
+                dining=state.dining,
+                embedded_tier12_ratio=state.embedded_tier12_ratio,
+                embedded_total_ratio=state.embedded_total_ratio,
                 city_id=city_entity.id,
                 city_entity=city_entity,
             )
 
         logger.info(
-            f"City '{name}' not ready (entity={city_entity is not None} T1={t1} T2={t2} dining={dining}); ingesting."
+            f"City '{name}' not ready (entity={city_entity is not None} T1={state.tier1} T2={state.tier2} dining={state.dining} emb_t12={state.embedded_tier12_ratio:.2f}); ingesting/hydrating."
         )
-        need_sights = (t1 + t2) < MIN_TIERED_SIGHTS or t1 < 2
-        need_dining = dining < MIN_DINING_VENUES
+        need_sights = (state.tier1 + state.tier2) < MIN_TIERED_SIGHTS or state.tier1 < 2
+        need_dining = state.dining < MIN_DINING_VENUES
         geo = await geocode_city(city)
 
         country = (geo.country_code or "XX").upper()
@@ -183,20 +223,22 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
 
         await poi_repo.save_tiered_for_city(name, tiered)
 
-        t1, t2, dining = await _count_state(name, poi_repo)
+        final_state = await _count_state(name, poi_repo)
         notes: list[str] = []
-        if dining < MIN_DINING_VENUES:
+        if final_state.dining < MIN_DINING_VENUES:
             notes.append(
-                f"Only {dining} dining venues known: meals will be left at leisure."
+                f"Only {final_state.dining} dining venues known: meals will be left at leisure."
             )
         if city_obj and city_obj.timezone:
             cache_city_timezone(city_obj.name, city_obj.timezone)
         return CityReadiness(
             city=name,
             ingested=True,
-            tier1=t1,
-            tier2=t2,
-            dining=dining,
+            tier1=final_state.tier1,
+            tier2=final_state.tier2,
+            dining=final_state.dining,
+            embedded_tier12_ratio=final_state.embedded_tier12_ratio,
+            embedded_total_ratio=final_state.embedded_total_ratio,
             geo=geo,
             city_id=canon_id,
             city_entity=city_obj,

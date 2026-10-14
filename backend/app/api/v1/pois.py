@@ -252,9 +252,10 @@ async def search_pois(
     # 4. Otherwise, generate embedding for Natural Language / Semantic RAG search
     embedding_provider = OllamaEmbeddingProvider()
     try:
-        query_vector = await embedding_provider.embed_text(clean_query)
-    except Exception as e:
-        logger.error(f"Failed to generate query embedding via Ollama: {e}")
+        query_vector = await embedding_provider.embed_text(
+            clean_query, input_type="query"
+        )
+    except Exception:
         query_vector = None
 
     results: list[PoiSearchItem] = []

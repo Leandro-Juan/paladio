@@ -105,10 +105,25 @@ def importance_raw(sig: dict[str, Any]) -> float:
 def classify_osm_category(tags: dict[str, str]) -> str:
     """Maps raw OSM tags onto the coarse categories used across Paladio."""
     amenity = tags.get("amenity")
-    if amenity == "restaurant":
+    if amenity in ("restaurant", "biergarten", "food_court"):
         return "restaurant"
-    if amenity == "cafe":
+    if amenity in ("cafe", "ice_cream"):
         return "cafe"
+    if amenity in ("bar", "pub"):
+        return "bar"
+    if amenity in ("nightclub",):
+        return "nightlife"
+    if amenity in ("theatre", "arts_centre", "cinema", "music_venue"):
+        return "entertainment"
+    if amenity == "marketplace" or tags.get("building") == "market":
+        return "market"
+
+    shop = tags.get("shop")
+    if shop in ("bakery", "pastry", "coffee", "chocolate", "cheese", "deli"):
+        return "cafe"
+    if shop:
+        return "shop"
+
     tourism = tags.get("tourism")
     if tourism in ("museum", "gallery"):
         return "museum"
@@ -116,10 +131,19 @@ def classify_osm_category(tags: dict[str, str]) -> str:
         return "viewpoint"
     if tourism in ("zoo", "aquarium"):
         return "attraction"
-    if tags.get("leisure") in ("park", "garden"):
+    if tags.get("leisure") in ("park", "garden", "nature_reserve", "beach_resort"):
         return "park"
-    if tags.get("natural") in ("peak", "beach", "waterfall", "cave_entrance"):
+    if tags.get("natural") in (
+        "peak",
+        "beach",
+        "waterfall",
+        "cave_entrance",
+        "cliff",
+        "bay",
+    ):
         return "viewpoint"
+    if tags.get("place") == "square":
+        return "monument"
     if tags.get("historic") or tags.get("amenity") == "place_of_worship":
         return "monument"
     if tags.get("building") in (
@@ -171,6 +195,14 @@ def default_duration_mins(
         return 75
     if category == "cafe":
         return 40
+    if category == "bar":
+        return 60
+    if category in ("nightlife", "entertainment"):
+        return 120
+    if category == "market":
+        return 45
+    if category == "shop":
+        return 30
     return 45
 
 
@@ -189,7 +221,15 @@ def default_cost_eur(tags: dict[str, str], category: str) -> float:
         return 25.0
     if category == "cafe":
         return 8.0
-    if category in ("park", "viewpoint", "monument"):
+    if category == "bar":
+        return 10.0
+    if category == "nightlife":
+        return 15.0
+    if category == "entertainment":
+        return 20.0
+    if category == "market":
+        return 5.0
+    if category in ("park", "viewpoint", "monument", "shop"):
         return 0.0
     return 3.0
 
@@ -204,6 +244,16 @@ def default_hours(category: str, tags: dict[str, str]) -> tuple[list[int], list[
         return [690] * 7, [1380] * 7  # 11:30 - 23:00
     if category == "cafe":
         return [450] * 7, [1200] * 7  # 07:30 - 20:00
+    if category == "bar":
+        return [1020] * 7, [1440] * 7  # 17:00 - 24:00
+    if category == "nightlife":
+        return [1320] * 7, [1440] * 7  # 22:00 - 24:00
+    if category == "entertainment":
+        return [1140] * 7, [1410] * 7  # 19:00 - 23:30
+    if category == "market":
+        return [540] * 7, [900] * 7  # 09:00 - 15:00
+    if category == "shop":
+        return [600] * 7, [1200] * 7  # 10:00 - 20:00
     if category in ("park", "viewpoint") or tags.get("natural"):
         return [420] * 7, [1260] * 7  # 07:00 - 21:00
     if tags.get("amenity") == "place_of_worship":

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Literal
 
 
 class IEmbeddingProvider(ABC):
@@ -8,11 +9,19 @@ class IEmbeddingProvider(ABC):
     """
 
     @abstractmethod
-    async def embed_text(self, text: str) -> list[float]:
+    async def embed_text(
+        self, text: str, input_type: Literal["document", "query"] = "document"
+    ) -> list[float]:
         """Generates a normalized semantic embedding vector for a single text."""
 
     @abstractmethod
-    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+    async def embed_batch(
+        self,
+        texts: list[str],
+        input_type: Literal["document", "query"] = "document",
+        batch_size: int = 128,
+        max_concurrency: int = 4,
+    ) -> list[list[float]]:
         """Generates normalized semantic embedding vectors for a batch of texts."""
 
     @property

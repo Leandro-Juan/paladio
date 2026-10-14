@@ -256,8 +256,15 @@ def classify_poi_taxonomy(
         return "food_culinary", CANONICAL_CATEGORIES["food_culinary"]
     if tourism == "viewpoint":
         return "scenic_views", CANONICAL_CATEGORIES["scenic_views"]
-    if tourism in ("museum", "gallery", "arts_centre"):
+    if tourism in ("museum", "gallery", "arts_centre") or amenity in (
+        "theatre",
+        "cinema",
+        "arts_centre",
+        "music_venue",
+    ):
         return "art_culture", CANONICAL_CATEGORIES["art_culture"]
+    if amenity == "marketplace" or building == "market":
+        return "shopping", CANONICAL_CATEGORIES["shopping"]
     if tourism in ("theme_park", "zoo", "aquarium"):
         return "nature_outdoors", CANONICAL_CATEGORIES["nature_outdoors"]
     if historic == "aqueduct":

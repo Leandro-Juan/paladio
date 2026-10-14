@@ -104,6 +104,31 @@ class AttractionModel(Base):
         "metadata", JSONB, nullable=False
     )  # 'metadata' is a reserved attribute on Base
 
+    # Multi-source enrichment & rich document attributes
+    aliases = Column(ARRAY(String), default=list, nullable=False)
+    neighborhood = Column(String, index=True, nullable=True)
+    wikidata_id = Column(String(32), index=True, nullable=True)
+    wikipedia_title = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    description_source = Column(String(32), nullable=True)
+    doc_quality = Column(String(1), server_default="C", default="C", index=True)
+    facets = Column(JSONB, default=dict, nullable=False)
+    sitelinks_count = Column(Integer, default=0, nullable=False)
+    pageviews_30d = Column(Integer, default=0, nullable=False)
+    hours_known = Column(Boolean, default=False, nullable=False)
+    daily_windows = Column(JSONB, default=list, nullable=False)
+    has_split_hours = Column(Boolean, default=False, nullable=False)
+    embedding_text = Column(Text, nullable=True)
+    embedding_text_hash = Column(String(64), index=True, nullable=True)
+    embedding_model = Column(String(64), nullable=True)
+    embedding_version = Column(Integer, default=0, nullable=False)
+    embedded_at = Column(DateTime(timezone=True), nullable=True)
+    provenance = Column(JSONB, default=dict, nullable=False)
+    hydration_status = Column(
+        String(16), default="RAW", server_default="RAW", index=True
+    )
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -114,6 +139,31 @@ class AttractionModel(Base):
     __table_args__ = (
         Index("idx_city_category", "city", "category"),
         Index("ix_attractions_city_tier", "city", "tier"),
+        Index("ix_attractions_name", "name"),
+        Index("ix_attractions_wikidata_id", "wikidata_id"),
+        Index("ix_attractions_neighborhood", "neighborhood"),
+        Index("ix_attractions_doc_quality", "doc_quality"),
+        Index("ix_attractions_hydration_status", "hydration_status"),
+        Index("ix_attractions_embedding_text_hash", "embedding_text_hash"),
+    )
+
+
+class PoiPriceCatalogModel(Base):
+    __tablename__ = "poi_price_catalog"
+
+    id = Column(String, primary_key=True, index=True)
+    city_id = Column(
+        String, ForeignKey("cities.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    normalized_name = Column(String, nullable=False, index=True)
+    wikidata_id = Column(String(32), nullable=True, index=True)
+    price_eur = Column(Float, nullable=False, default=0.0)
+    is_free = Column(Boolean, nullable=False, default=False)
+    source_url = Column(String, nullable=True)
+    verified_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_poi_price_catalog_city_name", "city_id", "normalized_name"),
     )
 
 

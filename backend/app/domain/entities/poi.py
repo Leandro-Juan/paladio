@@ -66,6 +66,27 @@ class Poi(BaseModel):
     taxonomy_category: str = "art_culture"
     category_id: int = 0
     visit_mode: str = "full"
+    aliases: list[str] = Field(default_factory=list)
+    neighborhood: str | None = None
+    wikidata_id: str | None = None
+    wikipedia_title: str | None = None
+    website: str | None = None
+    description: str | None = None
+    description_source: str | None = None
+    doc_quality: str = "C"
+    facets: dict[str, Any] = Field(default_factory=dict)
+    sitelinks_count: int = 0
+    pageviews_30d: int = 0
+    hours_known: bool = False
+    daily_windows: list[Any] = Field(default_factory=list)
+    has_split_hours: bool = False
+    embedding_text: str | None = None
+    embedding_text_hash: str | None = None
+    embedding_model: str | None = None
+    embedding_version: int = 0
+    embedded_at: datetime | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    hydration_status: str = "RAW"
 
     model_config = ConfigDict(extra="allow")
 

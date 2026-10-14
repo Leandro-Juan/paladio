@@ -50,7 +50,7 @@ class MLScorer:
             anchors: dict[str, list[float]] = {}
             for tag, prompt in CATEGORY_ANCHORS.items():
                 try:
-                    anchors[tag] = await prov.embed_text(prompt)
+                    anchors[tag] = await prov.embed_text(prompt, input_type="query")
                 except Exception as e:
                     logger.debug(f"Could not pre-embed anchor for {tag}: {e}")
             self.semantic_learning_engine = SemanticLearningEngine(anchors)
@@ -122,7 +122,7 @@ class MLScorer:
         # Dynamic taste blending & permanent persistence
         if prompt_text and prompt_text.strip():
             prov = await self._get_embedding_provider()
-            v_prompt = await prov.embed_text(prompt_text)
+            v_prompt = await prov.embed_text(prompt_text, input_type="query")
             engine = await self._get_semantic_engine()
             v_new = engine.apply_ema_update(user_768d, v_prompt, gamma=0.20)
             user_768d = v_new

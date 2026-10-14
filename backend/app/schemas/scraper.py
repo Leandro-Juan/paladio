@@ -112,17 +112,9 @@ class Attraction(BaseModel):
         description="Unique identifier for the attraction (e.g. OSM node ID)"
     )
     type: Literal["attraction"] = "attraction"
-    category: Literal[
-        "museum",
-        "monument",
-        "historic_site",
-        "landmark",
-        "attraction",
-        "restaurant",
-        "cafe",
-        "bar",
-        "pub",
-    ]
+    category: str = Field(
+        description="Category of the attraction (museum, monument, restaurant, etc.)"
+    )
     name: str = Field(description="Name of the attraction")
     location: Location
     schedule: AttractionSchedule

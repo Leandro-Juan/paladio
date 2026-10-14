@@ -1,7 +1,6 @@
 """Unit tests for ensure_city_ready and distributed city lock."""
 
 import pytest
-
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 from app.domain.entities.city import City
@@ -48,6 +47,7 @@ async def test_ensure_city_ready_existing_city(db_session):
             "taxonomy_category": "art_culture",
             "category_id": 0,
             "visit_mode": "full",
+            "embedding": [0.05 + 0.001 * (j % 50) for j in range(768)],
         }
         for i in range(10)
     ]
