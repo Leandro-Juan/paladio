@@ -15,6 +15,10 @@ interface CurrencyWheelPickerProps {
 const ITEM_HEIGHT = 44; // height of each item row in px
 const VISIBLE_COUNT = 5; // number of visible items
 const HALF_VISIBLE = Math.floor(VISIBLE_COUNT / 2);
+const TICKS_PER_ITEM = 4;
+const TICK_SPACING = ITEM_HEIGHT / TICKS_PER_ITEM; // 11px
+const STAGE_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT; // 220px
+const CENTER_Y = STAGE_HEIGHT / 2; // 110px
 
 export function CurrencyWheelPicker({
   isOpen,
@@ -427,7 +431,7 @@ export function CurrencyWheelPicker({
             }}
           />
 
-          {/* Curved Dial Tick Marks Arc along the left side (ends strictly before pill at 46px) */}
+          {/* Curved Dial Tick Marks Arc along the left side (dynamically spins in sync with wheel) */}
           <svg
             style={{
               position: 'absolute',
@@ -441,28 +445,48 @@ export function CurrencyWheelPicker({
             viewBox="0 0 28 220"
             fill="none"
           >
-            {Array.from({ length: 19 }).map((_, i) => {
-              const y = 14 + i * 10.5;
-              const distFromCenter = Math.abs(y - 110);
-              const xCurve = Math.pow(distFromCenter / 110, 2) * 10;
-              const x1 = 10 - xCurve;
-              const x2 = x1 + (i === 9 ? 8 : i % 2 === 0 ? 5 : 3);
-              const opacity = Math.max(0.2, 1 - distFromCenter / 120);
+            {(() => {
+              const centerTick = continuousPos * TICKS_PER_ITEM;
+              const minTick = Math.floor(centerTick - (CENTER_Y + 15) / TICK_SPACING);
+              const maxTick = Math.ceil(centerTick + (CENTER_Y + 15) / TICK_SPACING);
+              const ticks = [];
 
-              return (
-                <line
-                  key={i}
-                  x1={x1}
-                  y1={y}
-                  x2={x2}
-                  y2={y}
-                  stroke="var(--color-text-muted, #9CA3AF)"
-                  strokeWidth={i === 9 ? '1.8' : '1.1'}
-                  strokeLinecap="round"
-                  opacity={opacity}
-                />
-              );
-            })}
+              for (let t = minTick; t <= maxTick; t++) {
+                const y = CENTER_Y + (t - centerTick) * TICK_SPACING;
+                const distFromCenter = Math.abs(y - CENTER_Y);
+                if (distFromCenter > CENTER_Y + 12) continue;
+
+                const xCurve = Math.pow(distFromCenter / CENTER_Y, 2) * 10;
+                const x1 = 10 - xCurve;
+                const tickType = ((t % TICKS_PER_ITEM) + TICKS_PER_ITEM) % TICKS_PER_ITEM;
+                const isMajor = tickType === 0;
+                const isMedium = tickType === 2;
+                const isCenterActive = isMajor && distFromCenter < 5.5;
+
+                const length = isCenterActive ? 9 : isMajor ? 8 : isMedium ? 5 : 3;
+                const x2 = x1 + length;
+                const opacity = Math.max(0.12, 1 - distFromCenter / (CENTER_Y + 10));
+
+                ticks.push(
+                  <line
+                    key={t}
+                    x1={x1}
+                    y1={y}
+                    x2={x2}
+                    y2={y}
+                    stroke={
+                      isCenterActive
+                        ? 'var(--color-accent-teal, var(--color-accent-primary, #0F4C5C))'
+                        : 'var(--color-text-muted, #9CA3AF)'
+                    }
+                    strokeWidth={isCenterActive ? '2.0' : isMajor ? '1.6' : '1.1'}
+                    strokeLinecap="round"
+                    opacity={opacity}
+                  />
+                );
+              }
+              return ticks;
+            })()}
           </svg>
 
           {/* Center Active Pill Capsule (translucent highlight underneath items, starts at 46px) */}

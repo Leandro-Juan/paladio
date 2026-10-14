@@ -19,6 +19,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
+import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -90,6 +91,7 @@ export default function ConfigPage() {
   // Confirm delete GTFS / stop compilation state
   const [deleteGtfsCandidate, setDeleteGtfsCandidate] = useState<CityGtfsItem | null>(null);
   const [deletingGtfs, setDeletingGtfs] = useState(false);
+  const [syncTripsModalOpen, setSyncTripsModalOpen] = useState(false);
 
   const fetchGtfsData = useCallback(async (showLoading: boolean = false) => {
     if (showLoading) {
@@ -1103,8 +1105,8 @@ export default function ConfigPage() {
             </p>
           </div>
           <button
-            onClick={() => fetchGtfsData(true)}
-            disabled={gtfsLoading}
+            data-testid="sync-gtfs-trips-btn"
+            onClick={() => setSyncTripsModalOpen(true)}
             className="font-mono"
             style={{
               padding: '6px 12px',
@@ -1113,13 +1115,13 @@ export default function ConfigPage() {
               border: '1px solid var(--color-border-subtle)',
               background: 'var(--color-surface-card)',
               color: 'var(--color-text-primary)',
-              cursor: gtfsLoading ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
           >
-            {gtfsLoading ? <Spinner size={13} /> : <RefreshIcon size={13} />} REFRESH STATUS
+            <RefreshIcon size={13} /> SYNC WITH PLANNED TRIPS
           </button>
         </div>
 
@@ -2096,6 +2098,16 @@ export default function ConfigPage() {
           </div>
         </div>
       )}
+
+      {/* Sync GTFS with Planned Trips Modal */}
+      <SyncGtfsTripsModal
+        isOpen={syncTripsModalOpen}
+        onClose={() => setSyncTripsModalOpen(false)}
+        onSyncSuccess={(msg) => {
+          setGtfsMessage({ type: 'success', text: msg });
+          fetchGtfsData(false);
+        }}
+      />
     </div>
   );
 }

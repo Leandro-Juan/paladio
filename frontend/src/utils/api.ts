@@ -180,5 +180,35 @@ export const deleteGtfsApi = (city: string): Promise<{ status: string; city: str
   });
 };
 
+export interface PlannedTripTransitItem {
+  trip_id: string;
+  destination: string;
+  city_clean: string;
+  start_date: string;
+  end_date: string;
+  gtfs_status: string;
+  is_downloaded: boolean;
+  is_building: boolean;
+  is_queued: boolean;
+}
+
+export interface SyncPlannedGtfsResponse {
+  triggered: string[];
+  queued: string[];
+  already_ready: string[];
+  message: string;
+}
+
+export const fetchPlannedTripsTransitStatusApi = (): Promise<PlannedTripTransitItem[]> => {
+  return apiFetch<PlannedTripTransitItem[]>('/trips/transit/planned-status');
+};
+
+export const syncPlannedGtfsApi = (cities: string[]): Promise<SyncPlannedGtfsResponse> => {
+  return apiFetch<SyncPlannedGtfsResponse>('/trips/transit/sync-planned', {
+    method: 'POST',
+    body: JSON.stringify({ cities }),
+  });
+};
+
 
 
