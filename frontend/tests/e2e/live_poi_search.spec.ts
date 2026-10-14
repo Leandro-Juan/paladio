@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('POI Search Engine End-to-End Tests', () => {
   test('Exact match, semantic RAG, and not found resolution', async ({ page }) => {
+    test.skip(!process.env.RUN_LIVE_TESTS, 'Skipping live check: requires running full stack on port 3000');
+
     // 0. Setup authentication for AuthGuard
     await page.addInitScript(() => {
       localStorage.setItem('paladio_token', 'mock-valid-token');
