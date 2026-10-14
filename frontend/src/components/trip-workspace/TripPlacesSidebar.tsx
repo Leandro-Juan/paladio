@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { PoiCategoryType } from '@/utils/poiCategory';
+import { EmptyState } from '@/components/EmptyState';
 
 export interface PlaceItem {
   name: string;
@@ -245,9 +246,12 @@ export function TripPlacesSidebar({
               {/* Places List */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {filteredPlaces.length === 0 ? (
-                  <div className="font-mono text-muted" style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '12px' }}>
-                    [ NO MATCHING PLACES FOUND ]
-                  </div>
+                  <EmptyState
+                    type="no-search"
+                    title="No Matching Places"
+                    description="Try adjusting your search query or selecting a different category."
+                    style={{ border: 'none', background: 'transparent', padding: '1.5rem 1rem' }}
+                  />
                 ) : (
                   filteredPlaces.map((place, idx) => (
                     <div

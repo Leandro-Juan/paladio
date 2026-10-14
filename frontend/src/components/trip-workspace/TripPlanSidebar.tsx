@@ -105,11 +105,10 @@ export function TripPlanSidebar({
     if (upgrading || isUpgraded) return;
 
     if (!isGtfsReady) {
-      notify({
-        type: 'info',
-        title: 'GTFS Schedules Compiling',
-        message: 'Real-world transit schedules for this city are currently compiling. Please try again shortly.',
-      });
+      notify.info(
+        'GTFS Schedules Compiling',
+        'Real-world transit schedules for this city are currently compiling. Please try again shortly.'
+      );
       return;
     }
 
@@ -142,18 +141,13 @@ export function TripPlanSidebar({
         }
       }
 
-      notify({
-        type: 'success',
-        title: 'Transit Schedules Applied',
-        message: 'Itinerary upgraded with real-world public transit routes and exact timetables.',
-      });
+      notify.success(
+        'Transit Schedules Applied',
+        'Itinerary upgraded with real-world public transit routes and exact timetables.'
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Transit upgrade failed.';
-      notify({
-        type: 'error',
-        title: 'Transit Upgrade Failed',
-        message: msg,
-      });
+      notify.error('Transit Upgrade Failed', msg);
     } finally {
       setUpgrading(false);
     }
@@ -610,7 +604,6 @@ export function TripPlanSidebar({
                       </div>
                     )}
 
-                    {/* POI Cards */}
                     {path.map((scheduledPoi: ScheduledPoi, poiIdx: number) => {
                       const p = scheduledPoi.poi;
                       const { start: startTime, end: endTime } = getScheduledPoiTimes(scheduledPoi);
@@ -644,7 +637,7 @@ export function TripPlanSidebar({
                                 const isPedestrian = transitFromPrev.mode === 'pedestrian' || transitFromPrev.mode === 'walk';
                                 const line = transitFromPrev.steps?.find((s) => s.transit_line)?.transit_line;
                                 return (
-                                   <>
+                                  <>
                                     {isPedestrian ? (
                                       <WalkIcon size={12} color="var(--color-text-muted)" />
                                     ) : (

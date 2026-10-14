@@ -23,7 +23,7 @@ import { TransitAdvisorySection } from './TransitAdvisorySection';
 import { TicketFormModal } from './modals/TicketFormModal';
 import { TicketDetailModal } from './modals/TicketDetailModal';
 import { ScanReviewModal } from './modals/ScanReviewModal';
-import { TicketIcon } from '@/components/icons';
+import { EmptyState } from '@/components/EmptyState';
 
 interface TripWalletViewProps {
   tripId: string;
@@ -570,60 +570,30 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
 
       {/* Global Empty State */}
       {tickets.length === 0 && !isLoading && (
-        <div
-          style={{
-            padding: '3rem 1.5rem',
-            textAlign: 'center',
-            background: 'var(--color-surface-card)',
-            border: '1px dashed var(--color-border-subtle)',
-            borderRadius: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '50%',
-              width: '56px',
-              height: '56px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <TicketIcon size={28} color="var(--color-accent-primary)" />
-          </div>
-          <div>
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
-              YOUR TRIP WALLET IS EMPTY
-            </h3>
-            <p className="font-mono text-muted text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              Drop documents above, sync from itinerary, or create credentials manually.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => handleOpenCreate()}
-            style={{
-              background: 'var(--color-accent-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '8px 18px',
-              fontSize: '12px',
-              color: 'var(--color-text-on-accent)',
-              cursor: 'pointer',
-              fontWeight: 700,
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            + ADD FIRST TICKET
-          </button>
-        </div>
+        <EmptyState
+          type="no-tickets"
+          title="YOUR TRIP WALLET IS EMPTY"
+          description="Drop documents above, sync from itinerary, or create credentials manually."
+          action={
+            <button
+              type="button"
+              onClick={() => handleOpenCreate()}
+              style={{
+                background: 'var(--color-accent-primary)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 18px',
+                fontSize: '12px',
+                color: 'var(--color-text-on-accent)',
+                cursor: 'pointer',
+                fontWeight: 700,
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              + ADD FIRST TICKET
+            </button>
+          }
+        />
       )}
 
       {/* Modals */}

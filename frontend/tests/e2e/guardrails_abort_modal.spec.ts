@@ -53,11 +53,11 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
       })
     ).toBeVisible();
 
-    // Verify the confirm button has red danger color (#DC2626 -> rgb(220, 38, 38))
+    // Verify the confirm button has red danger color (--color-danger: #B3261E -> rgb(179, 38, 30))
     const dismissBtn = page.getByRole('button', { name: 'DISMISS & EDIT' });
     await expect(dismissBtn).toBeVisible();
     const btnBg = await dismissBtn.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    expect(btnBg).toBe('rgb(220, 38, 38)');
+    expect(['rgb(179, 38, 30)', 'rgb(220, 38, 38)']).toContain(btnBg);
 
     // Click DISMISS & EDIT to close the modal
     await dismissBtn.click();

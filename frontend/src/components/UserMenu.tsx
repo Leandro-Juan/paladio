@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Modal } from './Modal';
+import { ThemeToggle } from './ThemeToggle';
 
 interface UserMenuProps {
   isCollapsed: boolean;
@@ -350,6 +351,11 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
               </svg>
               <span>Settings</span>
             </button>
+
+            {/* Theme Toggle */}
+            <div style={{ padding: '2px 0' }}>
+              <ThemeToggle style={{ width: '100%', justifyContent: 'flex-start' }} />
+            </div>
 
             {/* Help */}
             <button

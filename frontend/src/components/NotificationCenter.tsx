@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
-import { BellIcon } from './icons';
+import { EmptyState } from './EmptyState';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -163,23 +163,12 @@ export function NotificationCenter({ isOpen, onClose }: NotificationCenterProps)
         }}
       >
         {notifications.length === 0 ? (
-          <div
-            style={{
-              padding: '40px 20px',
-              textAlign: 'center',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <div style={{ marginBottom: '8px' }}>
-              <BellIcon size={28} color="var(--color-text-muted)" />
-            </div>
-            <p className="font-display" style={{ fontSize: '13px', margin: 0 }}>
-              No notifications yet
-            </p>
-            <p className="font-mono" style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-              Engine and telemetry alerts will appear here.
-            </p>
-          </div>
+          <EmptyState
+            type="no-notifications"
+            title="No Notifications Yet"
+            description="Engine alerts and telemetry updates will appear here."
+            style={{ border: 'none', background: 'transparent', padding: '2rem 1rem' }}
+          />
         ) : (
           notifications.map((item: NotificationItem) => {
             const style = TYPE_STYLES[item.type] || TYPE_STYLES.info;

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { EmptyState } from '@/components/EmptyState';
 
 interface TripPhotosViewProps {
   photos?: string[];
@@ -28,18 +29,11 @@ export function TripPhotosView({ photos = [] }: TripPhotosViewProps) {
       </div>
 
       {photos.length === 0 ? (
-        <div
-          className="font-mono text-muted text-sm"
-          style={{
-            padding: '3rem',
-            textAlign: 'center',
-            background: 'var(--color-surface-card)',
-            border: '1px dashed var(--color-border-subtle)',
-            borderRadius: '12px',
-          }}
-        >
-          [ NO PHOTOS CAPTURED OR ATTACHED TO THIS TRIP RECORD ]
-        </div>
+        <EmptyState
+          type="no-photos"
+          title="No Captured Memories"
+          description="Photos attached to itinerary waypoints and notes will appear here."
+        />
       ) : (
         <div
           style={{

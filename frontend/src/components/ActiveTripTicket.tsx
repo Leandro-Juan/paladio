@@ -24,10 +24,28 @@ export function ActiveTripTicket({
         <div className={styles.stub}>
           <span className={styles.stubCaption}>PALADIO QUEUE</span>
         </div>
-        <div className={styles.body}>
-          <div>
-            <h3 className={styles.destination}>No Active Protocol</h3>
-            <p className={styles.dates}>Awaiting mission parameters</p>
+        <div className={styles.body} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+            <div>
+              <h3 className={styles.destination}>No Active Protocol</h3>
+              <p className={styles.dates}>Awaiting mission parameters. Initialize your dispatch to start.</p>
+            </div>
+            <svg
+              width="64"
+              height="48"
+              viewBox="0 0 120 80"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              style={{ flexShrink: 0, opacity: 0.8 }}
+            >
+              <path d="M30 32 C 45 28, 75 28, 90 32" stroke="var(--color-accent-coral)" strokeWidth="4" strokeLinecap="round" fill="none" />
+              <line x1="36" y1="38" x2="84" y2="38" stroke="var(--color-accent-teal-mid)" strokeWidth="2.5" />
+              <line x1="44" y1="34" x2="42" y2="68" stroke="var(--color-accent-teal-mid)" strokeWidth="3" strokeLinecap="round" />
+              <line x1="76" y1="34" x2="78" y2="68" stroke="var(--color-accent-teal-mid)" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="60" cy="50" r="10" fill="var(--color-accent-coral)" opacity="0.85" />
+              <line x1="20" y1="68" x2="100" y2="68" stroke="var(--color-border)" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </div>
           <div className={styles.statsRow}>
             <span className={styles.statusChip}>IDLE</span>
@@ -36,6 +54,7 @@ export function ActiveTripTicket({
             </div>
           </div>
         </div>
+        <div className={`seigaiha-bg ${styles.wavePattern}`} aria-hidden="true" />
       </div>
     );
   }

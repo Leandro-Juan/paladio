@@ -120,7 +120,7 @@ export function PreferenceModelSection() {
                 fontWeight: 600,
               }}
             >
-              ● AUTONOMOUS
+              ● [ AUTONOMOUS ]
             </span>
           </div>
           <p className="font-mono text-muted text-xs mt-1">

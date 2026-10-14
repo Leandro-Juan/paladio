@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavItem {
   href: string;
@@ -220,24 +221,24 @@ export function Sidebar() {
         })}
       </ul>
 
-      {/* Footer User Menu */}
-      {user && (
-        <div
-          className="sidebar-footer"
-          style={{
-            marginTop: 'auto',
-            width: '100%',
-            paddingTop: '10px',
-            borderTop: '1px solid var(--color-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'relative',
-          }}
-        >
-          <UserMenu isCollapsed={isCollapsed} />
-        </div>
-      )}
+      {/* Footer Theme Toggle & User Menu */}
+      <div
+        className="sidebar-footer"
+        style={{
+          marginTop: 'auto',
+          width: '100%',
+          paddingTop: '10px',
+          borderTop: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          position: 'relative',
+        }}
+      >
+        <ThemeToggle iconOnly={isCollapsed} style={{ width: isCollapsed ? '36px' : '100%', justifyContent: 'center' }} />
+        {user && <UserMenu isCollapsed={isCollapsed} />}
+      </div>
     </nav>
   );
 }

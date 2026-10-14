@@ -5,9 +5,11 @@ import { useThemeStore } from '@/stores/themeStore';
 
 interface ThemeToggleProps {
   className?: string;
+  style?: React.CSSProperties;
+  iconOnly?: boolean;
 }
 
-export function ThemeToggle({ className = '' }: ThemeToggleProps) {
+export function ThemeToggle({ className = '', style, iconOnly = false }: ThemeToggleProps) {
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
 
@@ -17,12 +19,14 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
       onClick={toggleTheme}
       aria-pressed={isDark}
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       className={className}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: '8px',
-        padding: '6px 10px',
+        padding: iconOnly ? '6px' : '6px 10px',
         borderRadius: '6px',
         border: '1px solid var(--color-border)',
         background: 'var(--color-surface-card)',
@@ -31,6 +35,7 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
         fontSize: '0.8rem',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
+        ...style,
       }}
     >
       {isDark ? (
@@ -50,7 +55,7 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       )}
-      <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+      {!iconOnly && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
     </button>
   );
 }

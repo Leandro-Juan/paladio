@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTrips, Trip, CollaboratorOption } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
+import { EmptyState } from '@/components/EmptyState';
 import { countWaypoints } from '@/utils/tripParser';
 
 export default function TripsPage() {
@@ -109,9 +110,30 @@ export default function TripsPage() {
         {loading ? (
           <p className="font-mono text-muted">LOADING DATA...</p>
         ) : upcomingTrips.length === 0 ? (
-          <div className="bg-surface border-subtle" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)' }}>
-            <p className="font-mono text-muted">NO UPCOMING TRIPS FOUND.</p>
-          </div>
+          <EmptyState
+            type="no-trips"
+            title="No Upcoming Trips"
+            description="Plan a new multi-day journey or initialize an itinerary protocol from the dashboard."
+            action={
+              <Link
+                href="/dashboard"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-accent-teal-deep)',
+                  color: '#FFFFFF',
+                  textDecoration: 'none',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                Go to Dashboard
+              </Link>
+            }
+          />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
             {upcomingTrips.map((trip: Trip, idx: number) => {

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type Theme = 'light' | 'dark';
 
-export const THEME_TOGGLE_ENABLED = false;
+export const THEME_TOGGLE_ENABLED = true;
 
 interface ThemeStore {
   theme: Theme;
@@ -17,6 +17,15 @@ function getInitialTheme(): Theme {
   // Read from data-theme set by the blocking head script
   const attr = document.documentElement.getAttribute('data-theme') as Theme | null;
   if (attr === 'light' || attr === 'dark') return attr;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
+      if (stored === 'light' || stored === 'dark') return stored;
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    } catch {
+      // ignore
+    }
+  }
   return 'light';
 }
 

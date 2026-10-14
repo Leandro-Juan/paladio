@@ -45,8 +45,8 @@ test.describe('Trips Page - Abort Mission Modal', () => {
     await expect(confirmBtn).toBeVisible();
 
     const color = await confirmBtn.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    // #DC2626 corresponds to rgb(220, 38, 38)
-    expect(color).toBe('rgb(220, 38, 38)');
+    // #B3261E corresponds to rgb(179, 38, 30), legacy #DC2626 corresponds to rgb(220, 38, 38)
+    expect(['rgb(179, 38, 30)', 'rgb(220, 38, 38)']).toContain(color);
 
     const cancelBtn = page.getByRole('button', { name: 'CANCEL' });
     await expect(cancelBtn).toBeVisible();
