@@ -8,7 +8,7 @@ import L from 'leaflet';
 import { PoiCategoryBadge } from './PoiCategoryBadge';
 import { classifyPoiCategory, PoiCategoryType } from '@/utils/poiCategory';
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
-import { useThemeStore } from '@/stores/themeStore';
+import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
 
 export interface MapPoiItem {
   name: string;
@@ -178,11 +178,7 @@ export default function LeafletMap({
   activeDay: controlledActiveDay,
   onDayChange,
 }: MapProps) {
-  const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === 'dark';
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const { url: tileUrl, subdomains: tileSubdomains, attribution: tileAttribution, maxZoom: tileMaxZoom } = MAP_TILE_CONFIG;
 
   // Normalize days data: if days not provided, group raw pois as single day
   const effectiveDays: MapDayData[] = useMemo(() => {
@@ -363,12 +359,12 @@ export default function LeafletMap({
         >
           <MapViewportController activePoints={activeBoundsPoints} activeTab={activeTab} />
 
-          {/* CartoDB Voyager / Dark Matter Basemap */}
+          {/* Sovereign Keyless OpenStreetMap Basemap */}
           <TileLayer
-            attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+            attribution={tileAttribution}
             url={tileUrl}
-            subdomains="abcd"
-            maxZoom={19}
+            subdomains={tileSubdomains}
+            maxZoom={tileMaxZoom}
           />
 
           {/* 1. Cluster Region Polygons (Pacific Jazz styled) */}

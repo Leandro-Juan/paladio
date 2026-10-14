@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { useRouter } from 'next/navigation';
 import type { GeoJsonObject, Feature } from 'geojson';
 import { useThemeStore } from '@/stores/themeStore';
+import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
 
 // Self-contained custom marker for Paladio (Pacific Jazz Teal)
 const accentIcon = typeof window !== 'undefined' ? L.divIcon({
@@ -301,9 +302,7 @@ export default function VaultMap({ trips }: VaultMapProps) {
   const router = useRouter();
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const { url: tileUrl, subdomains: tileSubdomains, attribution: tileAttribution, maxZoom: tileMaxZoom } = MAP_TILE_CONFIG;
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
 
   useEffect(() => {
@@ -384,12 +383,12 @@ export default function VaultMap({ trips }: VaultMapProps) {
       zoomControl={false}
       attributionControl={false}
     >
-      {/* CartoDB Voyager / Dark Matter Basemap */}
+      {/* Sovereign Keyless OpenStreetMap Basemap */}
       <TileLayer
-        attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+        attribution={tileAttribution}
         url={tileUrl}
-        subdomains="abcd"
-        maxZoom={19}
+        subdomains={tileSubdomains}
+        maxZoom={tileMaxZoom}
       />
 
       {geoData && (

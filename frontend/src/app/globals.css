@@ -473,6 +473,11 @@ a {
    Leaflet Map Theming (Pacific Jazz)
    ========================================================================== */
 
+/* Dark Mode Basemap Tiles (Harmonized with Pacific Jazz Deep Ocean) */
+[data-theme="dark"] .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
 /* Zoom Controls */
 .leaflet-control-zoom {
   border: 1px solid var(--color-border-subtle) !important;

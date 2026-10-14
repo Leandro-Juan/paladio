@@ -9,7 +9,7 @@ import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/p
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
-import { useThemeStore } from '@/stores/themeStore';
+import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
 
 export interface MapPoi {
   name: string;
@@ -266,11 +266,7 @@ export default function TripMapView({
   onCategoryFilterChange,
   transitMode = 'simple',
 }: TripMapViewProps) {
-  const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === 'dark';
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const { url: tileUrl, subdomains: tileSubdomains, attribution: tileAttribution, maxZoom: tileMaxZoom } = MAP_TILE_CONFIG;
 
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
@@ -539,12 +535,12 @@ export default function TripMapView({
         <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
 
-        {/* CartoDB Voyager / Dark Matter Basemap */}
+        {/* Sovereign Keyless OpenStreetMap Basemap */}
         <TileLayer
-          attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+          attribution={tileAttribution}
           url={tileUrl}
-          subdomains="abcd"
-          maxZoom={19}
+          subdomains={tileSubdomains}
+          maxZoom={tileMaxZoom}
         />
 
         {/* 1. Cluster Region Polygons (Colored convex hulls) */}
