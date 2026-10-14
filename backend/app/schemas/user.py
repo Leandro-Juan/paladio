@@ -42,6 +42,7 @@ class UserPreferences(BaseModel):
         "Balanced traveler enjoying cultural landmarks, local food, and scenic spots."
     )
     disliked_tags: list[str] = Field(default_factory=list)
+    default_currency: str = "EUR"
 
 
 def get_default_user_preferences() -> dict[str, Any]:

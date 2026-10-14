@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.currency import router as currency_router
 from app.api.v1.trips import router as trips_router
 from app.api.v1.users import router as users_router
 from app.api.v1.websockets import router as websockets_router
@@ -82,3 +83,4 @@ app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(websockets_router, prefix="/api/v1", tags=["stream"])
 app.include_router(trips_router, prefix="/api/v1/trips", tags=["trips"])
+app.include_router(currency_router, prefix="/api/v1/currency", tags=["currency"])

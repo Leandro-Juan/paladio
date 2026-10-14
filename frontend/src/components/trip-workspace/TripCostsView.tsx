@@ -11,6 +11,9 @@ import { BalancesWidget } from './costs/BalancesWidget';
 import { CategoryBreakdownWidget } from './costs/CategoryBreakdownWidget';
 import { ExpenseModal } from './costs/ExpenseModal';
 import { SettlementModal } from './costs/SettlementModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveDestinationCurrency, fetchLiveExchangeRate } from '@/utils/currencyResolver';
+import { CurrencyWheelPicker } from './costs/CurrencyWheelPicker';
 import { getCostCategoryMeta } from './costs/costsCategories';
 
 interface TripCostsViewProps {
@@ -48,6 +51,45 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     [trip.participants]
   );
   const currentUserId = participants[0]?.id || '';
+
+  const { user } = useAuth();
+  const userDefaultCurrency = (user?.preferences?.default_currency as string) || 'EUR';
+
+  // Destination country currency
+  const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(trip.destination), [trip.destination]);
+  const destinationCurrency = destCurrencyMeta.currency;
+
+  // Active viewing currency state (defaults to user preference, overridable via wheel picker)
+  const [selectedCurrencyOverride, setSelectedCurrencyOverride] = useState<string | null>(null);
+  const activeCurrency = selectedCurrencyOverride ?? userDefaultCurrency;
+  const [isWheelPickerOpen, setIsWheelPickerOpen] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<number>(1.0);
+  const [isLiveRate, setIsLiveRate] = useState<boolean>(true);
+  const [eurToActiveRate, setEurToActiveRate] = useState<number>(1.0);
+
+  // Fetch live exchange rates dynamically
+  useEffect(() => {
+    let active = true;
+
+    // Rate between active and destination currency
+    fetchLiveExchangeRate(activeCurrency, destinationCurrency).then((res) => {
+      if (active) {
+        setExchangeRate(res.rate);
+        setIsLiveRate(res.isLive);
+      }
+    });
+
+    // Rate between base EUR and active currency
+    fetchLiveExchangeRate('EUR', activeCurrency).then((res) => {
+      if (active) {
+        setEurToActiveRate(res.rate);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [activeCurrency, destinationCurrency]);
 
   // Load backend data
   const loadData = useCallback(async () => {
@@ -224,17 +266,19 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     const myShare = myBalance?.total_share || 0;
     const myPaid = myBalance?.total_paid || 0;
 
+    const rate = eurToActiveRate || 1.0;
+
     return {
-      owe,
-      owed,
+      owe: owe * rate,
+      owed: owed * rate,
       outstanding,
       outstandingCount: unfinishedItems.length,
-      totalSpend,
-      myShare,
-      myPaid,
-      currency: 'EUR',
+      totalSpend: totalSpend * rate,
+      myShare: myShare * rate,
+      myPaid: myPaid * rate,
+      currency: activeCurrency,
     };
-  }, [settlement, allItems, loggedItems, currentUserId]);
+  }, [settlement, allItems, loggedItems, currentUserId, eurToActiveRate, activeCurrency]);
 
   // Group items by date for timeline
   const groupedByDate = useMemo(() => {
@@ -486,8 +530,25 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         </div>
       </div>
 
-      {/* 4 Top KPI Summary Cards */}
-      <CostsSummaryCards totals={totals} />
+      {/* Top KPI Summary Cards with Live Converter & Merged Settlement Card */}
+      <CostsSummaryCards
+        totals={totals}
+        activeCurrency={activeCurrency}
+        destinationCurrency={destinationCurrency}
+        destinationCountryCode={destCurrencyMeta.countryCode}
+        destinationCountryName={destCurrencyMeta.country}
+        exchangeRate={exchangeRate}
+        isLiveRate={isLiveRate}
+        onOpenCurrencyPicker={() => setIsWheelPickerOpen(true)}
+      />
+
+      {/* 3D Cylinder Currency Wheel Picker Modal */}
+      <CurrencyWheelPicker
+        isOpen={isWheelPickerOpen}
+        onClose={() => setIsWheelPickerOpen(false)}
+        selectedCurrency={activeCurrency}
+        onSelectCurrency={(cur) => setSelectedCurrencyOverride(cur.code)}
+      />
 
       {/* Main 2-Column Responsive Layout */}
       <div

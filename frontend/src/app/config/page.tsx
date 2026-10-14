@@ -16,6 +16,9 @@ import {
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 import { useThemeStore } from '@/stores/themeStore';
+import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
+import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
+import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -71,8 +74,14 @@ export default function ConfigPage() {
   const [editPassword, setEditPassword] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('user');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editDefaultCurrency, setEditDefaultCurrency] = useState('EUR');
   const safePreviewAvatarUrl = useMemo(() => getSafeAvatarUrl(editAvatarUrl), [editAvatarUrl]);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Default currency & wheel picker state
+  const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
+  const [savingCurrency, setSavingCurrency] = useState(false);
+  const userDefaultCurrency = (currentUser?.preferences?.default_currency as string) || 'EUR';
 
   // Confirm delete state
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
@@ -271,8 +280,31 @@ export default function ConfigPage() {
     setEditEmail(target.email || '');
     setEditPassword('');
     setEditRole(target.role || 'user');
+    setEditDefaultCurrency((target.preferences?.default_currency as string) || 'EUR');
     const existingAvatar = (target.preferences?.avatar_url || target.preferences?.pfp) as string | undefined;
     setEditAvatarUrl(existingAvatar || '');
+  };
+
+  const handleUpdateDefaultCurrency = async (currency: CurrencyInfo) => {
+    setSavingCurrency(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const currentPrefs = (currentUser?.preferences || {}) as Record<string, unknown>;
+      await updateProfileApi({
+        preferences: {
+          ...currentPrefs,
+          default_currency: currency.code,
+        },
+      });
+      await refreshUser();
+      setActionSuccess(`Default currency updated to ${currency.code} (${currency.symbol}) successfully.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update default currency';
+      setActionError(msg);
+    } finally {
+      setSavingCurrency(false);
+    }
   };
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -349,6 +381,12 @@ export default function ConfigPage() {
     const isSelf = editCandidate.id === currentUser?.id;
     const trimmedEmail = editEmail.trim() || null;
 
+    const currentCandidatePrefs = (editCandidate.preferences || {}) as Record<string, unknown>;
+    const updatedPreferences = {
+      ...currentCandidatePrefs,
+      default_currency: editDefaultCurrency,
+    };
+
     try {
       if (isSelf) {
         await updateProfileApi({
@@ -356,6 +394,7 @@ export default function ConfigPage() {
           email: trimmedEmail,
           password: editPassword || undefined,
           avatar_url: validatedAvatar || undefined,
+          preferences: updatedPreferences,
         });
         await refreshUser();
       } else {
@@ -365,6 +404,7 @@ export default function ConfigPage() {
           password: editPassword || undefined,
           role: editRole,
           avatar_url: validatedAvatar || undefined,
+          preferences: updatedPreferences,
         });
       }
       setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
@@ -626,6 +666,126 @@ export default function ConfigPage() {
           </button>
         </div>
       </div>
+
+      {/* Regional & Currency Preferences */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Regional &amp; Currency Preferences
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// LOCALIZATION & DEFAULT CURRENCY FOR TRIP CALCULATIONS'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsCurrencyWheelOpen(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
+              border: '1px solid var(--color-accent-teal, #0D9488)',
+              color: 'var(--color-accent-teal, #0D9488)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            className="hover:opacity-90 active:scale-98"
+          >
+            <span>Spin Cylinder Dial</span>
+            <span>⚙</span>
+          </button>
+        </div>
+
+        {/* Current Selection Highlight */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderRadius: '8px',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <FlagIcon countryCode={getCurrencyInfo(userDefaultCurrency).countryCode} size={28} />
+            <div>
+              <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontWeight: 600, fontSize: '15px' }}>
+                {getCurrencyInfo(userDefaultCurrency).country} — {getCurrencyInfo(userDefaultCurrency).name}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                Active baseline: {userDefaultCurrency} ({getCurrencyInfo(userDefaultCurrency).symbol})
+              </div>
+            </div>
+          </div>
+
+          <span
+            className="font-mono"
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: 'var(--color-success-soft, rgba(16, 185, 129, 0.12))',
+              color: 'var(--color-success)',
+              letterSpacing: '0.5px',
+            }}
+          >
+            {savingCurrency ? 'SAVING...' : 'DEFAULT CURRENCY'}
+          </span>
+        </div>
+
+        {/* Quick Selection Pills */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {SUPPORTED_CURRENCY_LIST.slice(0, 8).map((cur) => {
+            const isSelected = cur.code === userDefaultCurrency;
+            return (
+              <button
+                key={cur.code}
+                type="button"
+                onClick={() => handleUpdateDefaultCurrency(cur)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: isSelected ? '2px solid var(--color-accent-teal, #0D9488)' : '1px solid var(--color-border-subtle)',
+                  background: isSelected ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))' : 'var(--color-surface-card)',
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '12px',
+                  fontWeight: isSelected ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <FlagIcon countryCode={cur.countryCode} size={16} />
+                <span>{cur.code}</span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>({cur.symbol})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Currency Wheel Picker Modal */}
+      <CurrencyWheelPicker
+        isOpen={isCurrencyWheelOpen}
+        onClose={() => setIsCurrencyWheelOpen(false)}
+        selectedCurrency={userDefaultCurrency}
+        onSelectCurrency={handleUpdateDefaultCurrency}
+        title="Choose Default Currency"
+      />
 
       {/* User Management Section */}
       <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
@@ -1704,6 +1864,31 @@ export default function ConfigPage() {
                   </select>
                 </div>
               )}
+
+              <div>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  DEFAULT CURRENCY
+                </label>
+                <select
+                  value={editDefaultCurrency}
+                  onChange={(e) => setEditDefaultCurrency(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-input)',
+                    fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {SUPPORTED_CURRENCY_LIST.map((cur) => (
+                    <option key={cur.code} value={cur.code}>
+                      {cur.flag} {cur.code} — {cur.name} ({cur.symbol})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button
