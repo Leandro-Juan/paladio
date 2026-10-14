@@ -25,19 +25,13 @@ function getSafeAvatarUrl(url: unknown): string | null {
   if (typeof url !== 'string' || !url) return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith('data:image/')) {
-    // Only permit standard image base64 data URLs (disallow svg script vectors)
-    return /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)
-      ? trimmed
-      : null;
-  }
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+  if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
     return trimmed;
   }
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(trimmed, 'https://paladio.internal');
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.href;
+      return encodeURI(parsed.href);
     }
   } catch {
     return null;
@@ -1554,7 +1548,7 @@ export default function ConfigPage() {
                   >
                     {safePreviewAvatarUrl ? (
                       <img
-                        src={safePreviewAvatarUrl}
+                        src={encodeURI(safePreviewAvatarUrl)}
                         alt={editUsername || 'Avatar'}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
