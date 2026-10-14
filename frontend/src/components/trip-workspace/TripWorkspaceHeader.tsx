@@ -265,13 +265,15 @@ export function TripWorkspaceHeader({
               }}
               type="button"
               onClick={() => onTabChange(tab.id)}
+              aria-label={tab.count ? `${tab.label} (${tab.count})` : tab.label}
+              title={tab.label}
               style={{
                 position: 'relative',
                 zIndex: 2,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '5px 14px',
+                padding: '5px 10px',
                 borderRadius: 'var(--radius-full)',
                 border: '1px solid transparent',
                 background: 'transparent',
@@ -304,7 +306,7 @@ export function TripWorkspaceHeader({
                   transition: 'color 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               />
-              <span>{tab.label}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
               {typeof tab.count === 'number' && tab.count > 0 && (
                 <span
                   style={{

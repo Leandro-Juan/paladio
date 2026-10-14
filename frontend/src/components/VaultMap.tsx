@@ -374,12 +374,35 @@ export default function VaultMap({ trips }: VaultMapProps) {
     t => typeof t.lat === 'number' && !isNaN(t.lat) && typeof t.lng === 'number' && !isNaN(t.lng)
   );
 
+const WORLD_BOUNDS: L.LatLngBoundsExpression = [
+  [-85, -180],
+  [85, 180]
+];
+
+const createClusterCustomIcon = (cluster: { getChildCount?: () => number }) => {
+  const count = typeof cluster.getChildCount === 'function' ? cluster.getChildCount() : 2;
+  return L.divIcon({
+    html: `<div class="paladio-cluster-badge font-mono">${count}</div>`,
+    className: 'paladio-cluster-container',
+    iconSize: L.point(36, 36, true),
+    iconAnchor: [18, 18],
+  });
+};
+
   return (
     <MapContainer 
       center={[30, 0]} 
       zoom={2} 
       minZoom={2}
-      style={{ height: '100%', width: '100%', borderRadius: 'var(--border-radius-md, 8px)', background: 'var(--color-surface-sunken)' }}
+      maxBounds={WORLD_BOUNDS}
+      maxBoundsViscosity={1.0}
+      worldCopyJump={false}
+      style={{
+        height: '100%',
+        width: '100%',
+        borderRadius: 'var(--border-radius-md, 8px)',
+        background: isDark ? '#081C24' : '#CAD2D3',
+      }}
       zoomControl={false}
       attributionControl={false}
     >
@@ -395,7 +418,13 @@ export default function VaultMap({ trips }: VaultMapProps) {
         <GeoJSON data={geoData} style={geoJsonStyle} />
       )}
 
-      <MarkerClusterGroup>
+      <MarkerClusterGroup
+        iconCreateFunction={createClusterCustomIcon}
+        maxClusterRadius={35}
+        disableClusteringAtZoom={5}
+        spiderfyOnMaxZoom={true}
+        showCoverageOnHover={false}
+      >
         {validTrips.map((trip, idx) => (
           <Marker 
             key={trip.id || `${trip.lat}-${trip.lng}-${idx}`} 

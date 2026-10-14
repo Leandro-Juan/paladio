@@ -186,7 +186,7 @@ export function SettleUpWidget({
                     style={{
                       border: 'none',
                       background: 'var(--color-accent-primary)',
-                      color: 'var(--color-text-on-accent)',
+                      color: 'var(--color-text-on-accent, #FFFFFF)',
                       fontFamily: 'var(--font-mono, monospace)',
                       borderRadius: '8px',
                       padding: '5px 10px',

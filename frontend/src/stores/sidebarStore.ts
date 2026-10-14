@@ -4,6 +4,9 @@ interface SidebarStore {
   isCollapsed: boolean;
   toggleSidebar: () => void;
   setCollapsed: (collapsed: boolean) => void;
+  isMobileOpen: boolean;
+  toggleMobile: () => void;
+  setMobileOpen: (open: boolean) => void;
 }
 
 const STORAGE_KEY = 'paladio_sidebar_collapsed';
@@ -42,4 +45,7 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
     }
     set({ isCollapsed: collapsed });
   },
+  isMobileOpen: false,
+  toggleMobile: () => set((state) => ({ isMobileOpen: !state.isMobileOpen })),
+  setMobileOpen: (open: boolean) => set({ isMobileOpen: open }),
 }));

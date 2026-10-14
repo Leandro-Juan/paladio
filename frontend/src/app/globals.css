@@ -8,8 +8,13 @@
   --color-hero-bg: #0F4C5C;
   --color-text-primary: #1A2B32;
   --color-text-muted: #566B76;
+  --color-text-main: #1A2B32;
+  --color-text-on-accent: #FFFFFF;
+  --color-btn-primary-text: #FFFFFF;
   --color-accent-primary: #0F4C5C;
   --color-link: #0F4C5C;
+  --color-accent-teal: #0F4C5C;
+  --color-accent-teal-deep: #0A3642;
   --color-accent-teal-mid: #1B8FA6;
   --color-accent-teal-soft: #7CC4D1;
   --color-accent-secondary: #D42A2F;
@@ -17,12 +22,26 @@
   --color-accent-warning: #E2B33C;
   --color-accent-warning-bg: rgba(226, 179, 60, 0.12);
   --color-accent-warning-border: rgba(226, 179, 60, 0.35);
+  --color-accent-gold: #E2B33C;
+  --color-accent-gold-soft: rgba(226, 179, 60, 0.16);
+  --color-accent-coral: #D42A2F;
+  --color-accent-muted: #566B76;
+  --color-muted: #566B76;
   --color-danger: #B3261E;
+  --color-danger-soft: rgba(179, 38, 30, 0.12);
   --color-success: #1F7A4D;
+  --color-success-soft: rgba(31, 122, 77, 0.12);
   --color-border: #E2D9CC;
   --color-border-input: #7D9099;
   --color-border-bold: rgba(15, 76, 92, 0.18);
+  --color-border-subtle: rgba(15, 76, 92, 0.08);
   --color-focus-ring: #12708A;
+  --color-surface-page: #F5EFEB;
+  --color-surface-sunken: #CAD2D3;
+  --color-surface-muted: rgba(148, 163, 184, 0.15);
+  --color-surface-subtle: #FAF6F0;
+  --color-surface-hover: rgba(15, 76, 92, 0.04);
+  --color-scrim: rgba(15, 76, 92, 0.4);
 
   /* Theme semantic aliases per PLAN.md Section 5 */
   --color-deep-sea: #0F4C5C;
@@ -61,8 +80,13 @@
   --color-hero-bg: #0F3A47;
   --color-text-primary: #F0F6F6;
   --color-text-muted: #8FA8B3;
+  --color-text-main: #F0F6F6;
+  --color-text-on-accent: #FFFFFF;
+  --color-btn-primary-text: #FFFFFF;
   --color-accent-primary: #14788D;
   --color-link: #7CC4D1;
+  --color-accent-teal: #14788D;
+  --color-accent-teal-deep: #0F3A47;
   --color-accent-teal-mid: #7CC4D1;
   --color-accent-teal-soft: #14495A;
   --color-accent-secondary: #D4343A;
@@ -70,12 +94,26 @@
   --color-accent-warning: #E2B33C;
   --color-accent-warning-bg: rgba(226, 179, 60, 0.15);
   --color-accent-warning-border: rgba(226, 179, 60, 0.4);
+  --color-accent-gold: #E2B33C;
+  --color-accent-gold-soft: rgba(226, 179, 60, 0.18);
+  --color-accent-coral: #D4343A;
+  --color-accent-muted: #8FA8B3;
+  --color-muted: #8FA8B3;
   --color-danger: #FF7A7D;
+  --color-danger-soft: rgba(255, 122, 125, 0.15);
   --color-success: #5FC28A;
+  --color-success-soft: rgba(95, 194, 138, 0.15);
   --color-border: #163E4D;
   --color-border-input: #4F7584;
   --color-border-bold: rgba(27, 143, 166, 0.35);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
   --color-focus-ring: #7CC4D1;
+  --color-surface-page: #081C24;
+  --color-surface-sunken: #081C24;
+  --color-surface-muted: rgba(255, 255, 255, 0.08);
+  --color-surface-subtle: #0D2631;
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-scrim: rgba(0, 0, 0, 0.65);
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
@@ -462,12 +500,113 @@ a {
   display: none;
 }
 
-@media (max-width: 767px) {
+.mobile-app-header {
+  display: none;
+}
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+.mobile-sidebar-close-btn {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
   .auth-hero-panel {
     display: none !important;
   }
   .auth-mobile-sun {
     display: flex !important;
+  }
+
+  .layout-container {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .mobile-app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    padding: 0 1rem;
+    background-color: var(--color-deep-sea, #0F4C5C);
+    color: var(--color-cream, #F6F0E1);
+    border-bottom: 1px solid rgba(227, 217, 192, 0.15);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  .mobile-menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-cream, #F6F0E1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+
+  .mobile-menu-btn:hover {
+    background: rgba(246, 240, 225, 0.1);
+  }
+
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 998;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 270px !important;
+    min-width: 270px !important;
+    z-index: 999;
+    transform: translateX(-100%);
+    box-shadow: none;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .mobile-sidebar-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(246, 240, 225, 0.2);
+    border-radius: var(--radius-sm);
+    width: 30px;
+    height: 30px;
+    color: var(--color-cream, #F6F0E1);
+    cursor: pointer;
+  }
+
+  .main-content {
+    padding: 1rem;
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -541,15 +680,46 @@ a {
 .marker-cluster-large,
 .marker-cluster {
   background-color: rgba(15, 76, 92, 0.25) !important;
+  border-radius: 50% !important;
 }
 
 .marker-cluster div {
   background-color: var(--color-accent-primary, #0F4C5C) !important;
   color: #FFFFFF !important;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-mono, monospace) !important;
   font-weight: 700 !important;
   border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: var(--shadow-sm) !important;
+  border-radius: 50% !important;
+}
+
+/* Paladio Dedicated Custom Cluster Badge */
+.paladio-cluster-container {
+  background: transparent !important;
+  border: none !important;
+}
+
+.paladio-cluster-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-accent-primary, #0F4C5C);
+  border: 2px solid var(--color-accent-warning, #E2B33C);
+  color: #FFFFFF !important;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(15, 76, 92, 0.45);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.paladio-cluster-badge:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 18px rgba(15, 76, 92, 0.6);
 }
 
 /* Map Attribution */

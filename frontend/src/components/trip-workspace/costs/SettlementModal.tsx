@@ -298,7 +298,7 @@ export function SettlementModal({
                 borderRadius: '12px',
                 border: 'none',
                 background: 'var(--color-accent-primary)',
-                color: 'var(--color-text-on-accent)',
+                color: 'var(--color-text-on-accent, #FFFFFF)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 cursor: 'pointer',

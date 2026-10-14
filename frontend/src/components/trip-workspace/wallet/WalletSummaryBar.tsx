@@ -193,7 +193,7 @@ export function WalletSummaryBar({
                 background: 'var(--color-accent-primary)',
                 border: '1px solid var(--color-accent-primary)',
                 borderRadius: '6px',
-                color: 'var(--color-text-on-accent)',
+                color: 'var(--color-text-on-accent, #FFFFFF)',
                 padding: '6px 14px',
                 fontSize: '11px',
                 cursor: 'pointer',

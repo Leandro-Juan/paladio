@@ -60,7 +60,7 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
         background: isTotal
           ? 'var(--color-accent-primary)'
           : 'var(--color-surface-card)',
-        color: isTotal ? 'var(--color-text-on-accent)' : 'var(--color-text-main)',
+        color: isTotal ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-main)',
         border: isTotal
           ? '1px solid var(--color-accent-primary)'
           : '1px solid var(--color-border-subtle)',
@@ -84,7 +84,7 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
               background: isTotal
                 ? 'rgba(255, 255, 255, 0.15)'
                 : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
-              color: isTotal ? 'var(--color-text-on-accent)' : accentColor,
+              color: isTotal ? 'var(--color-text-on-accent, #FFFFFF)' : accentColor,
             }}
           >
             {icon}
@@ -96,7 +96,7 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
                 fontSize: '0.88rem',
                 fontWeight: 600,
                 letterSpacing: '-0.01em',
-                color: isTotal ? 'var(--color-text-on-accent)' : 'var(--color-text-main)',
+                color: isTotal ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-main)',
               }}
             >
               {label}
@@ -125,7 +125,7 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
             marginTop: '16px',
             display: 'flex',
             alignItems: 'baseline',
-            color: isTotal ? 'var(--color-text-on-accent)' : accentColor,
+            color: isTotal ? 'var(--color-text-on-accent, #FFFFFF)' : accentColor,
           }}
         >
           <span>{integerPart}</span>

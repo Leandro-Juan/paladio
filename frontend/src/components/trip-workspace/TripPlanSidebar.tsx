@@ -210,7 +210,7 @@ export function TripPlanSidebar({
       {/* Panel Body */}
       <aside
         style={{
-          width: isOpen ? '380px' : '0px',
+          width: isOpen ? 'min(380px, calc(100vw - 32px))' : '0px',
           height: '100%',
           background: 'var(--color-surface-card)',
           backdropFilter: 'blur(20px)',
@@ -226,7 +226,7 @@ export function TripPlanSidebar({
         }}
       >
         {isOpen && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: '380px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: 'min(380px, calc(100vw - 32px))', minWidth: 0 }}>
             {/* Header Toolbar */}
             <div
               style={{

@@ -18,7 +18,12 @@ interface NavItem {
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const { isCollapsed, toggleSidebar } = useSidebarStore();
+  const { isCollapsed, toggleSidebar, isMobileOpen, setMobileOpen } = useSidebarStore();
+
+  // Close mobile drawer on route navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
 
   // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
   useEffect(() => {
@@ -26,11 +31,13 @@ export function Sidebar() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         toggleSidebar();
+      } else if (e.key === 'Escape' && isMobileOpen) {
+        setMobileOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, isMobileOpen, setMobileOpen]);
 
   const navItems: NavItem[] = [
     {
@@ -78,55 +85,76 @@ export function Sidebar() {
   ];
 
   return (
-    <nav className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} aria-label="Main Navigation">
-      {/* Brand header */}
-      {isCollapsed ? (
-        <div className="brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
-          <button
-            onClick={toggleSidebar}
-            className="sidebar-toggle-btn"
-            title="Expand sidebar (Ctrl+B)"
-            aria-label="Expand sidebar"
-            style={{ width: '32px', height: '32px' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-          <Link href="/dashboard" title="Paladio Control Center" aria-label="Paladio Control Center">
-            <div className="logo-mark">
-              <div className="logo-icon-sun" />
-              <div className="logo-ring" />
-            </div>
-          </Link>
-          <NotificationBell />
-        </div>
-      ) : (
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
-          <Link href="/dashboard" title="Paladio Control Center" style={{ textDecoration: 'none' }}>
-            <div className="logo-container">
-              <div className="logo-mark" aria-hidden="true">
-                <div className="logo-icon-sun" />
-                <div className="logo-ring" />
-              </div>
-              <span className="logo-text">PALADIO</span>
-            </div>
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <NotificationBell />
+    <>
+      {isMobileOpen && (
+        <div
+          className="mobile-sidebar-backdrop"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <nav
+        className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}
+        aria-label="Main Navigation"
+      >
+        {/* Brand header */}
+        {isCollapsed ? (
+          <div className="brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '100%' }}>
             <button
               onClick={toggleSidebar}
               className="sidebar-toggle-btn"
-              title="Collapse sidebar (Ctrl+B)"
-              aria-label="Collapse sidebar"
+              title="Expand sidebar (Ctrl+B)"
+              aria-label="Expand sidebar"
+              style={{ width: '32px', height: '32px' }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
+            <Link href="/dashboard" onClick={() => setMobileOpen(false)} title="Paladio Control Center" aria-label="Paladio Control Center">
+              <div className="logo-mark">
+                <div className="logo-icon-sun" />
+                <div className="logo-ring" />
+              </div>
+            </Link>
+            <NotificationBell />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+            <Link href="/dashboard" onClick={() => setMobileOpen(false)} title="Paladio Control Center" style={{ textDecoration: 'none' }}>
+              <div className="logo-container">
+                <div className="logo-mark" aria-hidden="true">
+                  <div className="logo-icon-sun" />
+                  <div className="logo-ring" />
+                </div>
+                <span className="logo-text">PALADIO</span>
+              </div>
+            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <NotificationBell />
+              <button
+                onClick={toggleSidebar}
+                className="sidebar-toggle-btn"
+                title="Collapse sidebar (Ctrl+B)"
+                aria-label="Collapse sidebar"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="mobile-sidebar-close-btn"
+                aria-label="Close navigation menu"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
       {/* Nav links */}
       <ul className="nav-links font-display" style={{ flex: 1, width: '100%' }}>
@@ -137,6 +165,7 @@ export function Sidebar() {
               {isCollapsed ? (
                 <Link
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   className={isActive ? 'active' : ''}
                   title={`${item.label}${item.badge ? ` [${item.badge}]` : ''}`}
                   aria-label={item.label}
@@ -170,6 +199,7 @@ export function Sidebar() {
               ) : (
                 <Link
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   className={isActive ? 'active' : ''}
                   style={{
                     display: 'flex',
@@ -223,5 +253,6 @@ export function Sidebar() {
         {user && <UserMenu isCollapsed={isCollapsed} />}
       </div>
     </nav>
+  </>
   );
 }

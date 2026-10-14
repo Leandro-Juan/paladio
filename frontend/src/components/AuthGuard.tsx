@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSidebarStore } from '@/stores/sidebarStore';
 import { Sidebar } from './Sidebar';
+import { NotificationBell } from './NotificationBell';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setupRequired, isLoading } = useAuth();
+  const { toggleMobile } = useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -78,6 +82,36 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="layout-container">
+      {/* Mobile Top App Bar (visible on <= 768px via CSS) */}
+      <header className="mobile-app-header" aria-label="Mobile Navigation Bar">
+        <button
+          type="button"
+          onClick={() => toggleMobile()}
+          className="mobile-menu-btn"
+          aria-label="Open navigation menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <Link href="/dashboard" style={{ textDecoration: 'none' }} aria-label="Paladio Dashboard">
+          <div className="logo-container">
+            <div className="logo-mark" aria-hidden="true" style={{ width: '26px', height: '26px' }}>
+              <div className="logo-icon-sun" style={{ width: '13px', height: '13px' }} />
+              <div className="logo-ring" />
+            </div>
+            <span className="logo-text" style={{ fontSize: '16px' }}>PALADIO</span>
+          </div>
+        </Link>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <NotificationBell />
+        </div>
+      </header>
+
       <Sidebar />
       <main className="main-content">
         {children}

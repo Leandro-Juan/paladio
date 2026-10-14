@@ -113,7 +113,7 @@ export default function LoginPage() {
                   onClick={() => router.push('/setup')}
                   style={{
                     background: 'var(--color-accent-primary)',
-                    color: 'var(--color-btn-primary-text)',
+                    color: 'var(--color-btn-primary-text, #FFFFFF)',
                     border: 'none',
                     padding: '6px 12px',
                     borderRadius: '4px',
@@ -210,7 +210,7 @@ export default function LoginPage() {
                 marginTop: '0.5rem',
                 padding: '12px',
                 background: 'var(--color-accent-primary)',
-                color: 'var(--color-btn-primary-text)',
+                color: 'var(--color-btn-primary-text, #FFFFFF)',
                 border: 'none',
                 borderRadius: '6px',
                 fontWeight: 600,

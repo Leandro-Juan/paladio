@@ -102,7 +102,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               style={{
                 padding: '8px 16px',
                 background: 'var(--color-accent-primary)',
-                color: 'var(--color-text-on-accent)',
+                color: 'var(--color-text-on-accent, #FFFFFF)',
                 border: 'none',
                 borderRadius: '6px',
                 fontFamily: 'monospace',
@@ -170,7 +170,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               display: 'inline-block',
               padding: '8px 16px',
               background: 'var(--color-accent-primary)',
-              color: 'var(--color-text-on-accent)',
+              color: 'var(--color-text-on-accent, #FFFFFF)',
               border: 'none',
               borderRadius: '6px',
               fontFamily: 'monospace',

@@ -78,7 +78,7 @@ export function WalletFilterBar({
                 borderRadius: '6px',
                 border: 'none',
                 background: isActive ? 'var(--color-accent-primary)' : 'transparent',
-                color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
+                color: isActive ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-muted)',
                 fontSize: '11px',
                 fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
@@ -86,13 +86,13 @@ export function WalletFilterBar({
                 whiteSpace: 'nowrap',
               }}
             >
-              {conf && <span>{conf.renderIcon({ size: 13, color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)' })}</span>}
+              {conf && <span>{conf.renderIcon({ size: 13, color: isActive ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-muted)' })}</span>}
               <span>{cat.label}</span>
               <span
                 style={{
                   fontSize: '10px',
                   background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.05))',
-                  color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
+                  color: isActive ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-muted)',
                   padding: '1px 5px',
                   borderRadius: '10px',
                   fontWeight: 600,

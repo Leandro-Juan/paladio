@@ -189,7 +189,7 @@ export function CostsFilterToolbar({
                 style={{
                   border: 'none',
                   background: active ? 'var(--color-accent-primary)' : 'transparent',
-                  color: active ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
+                  color: active ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-muted)',
                   fontWeight: active ? 700 : 500,
                   fontFamily: 'var(--font-mono, monospace)',
                   fontSize: '0.74rem',

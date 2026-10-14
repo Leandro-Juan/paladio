@@ -122,7 +122,7 @@ export default function EnginePage() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', height: '100%' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 min-h-full">
       {/* Left Pane: Preparation Cockpit / Command Center */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

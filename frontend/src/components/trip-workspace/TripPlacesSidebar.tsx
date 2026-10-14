@@ -118,7 +118,7 @@ export function TripPlacesSidebar({
         {/* Panel Body */}
         <aside
           style={{
-            width: isOpen ? '340px' : '0px',
+            width: isOpen ? 'min(340px, calc(100vw - 32px))' : '0px',
             height: '100%',
             background: 'var(--color-surface-card)',
             backdropFilter: 'blur(24px)',
@@ -134,7 +134,7 @@ export function TripPlacesSidebar({
           }}
         >
           {isOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: '340px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: 'min(340px, calc(100vw - 32px))', minWidth: 0 }}>
               {/* Header Actions */}
               <div
                 style={{

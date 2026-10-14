@@ -404,7 +404,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                 <span className="font-mono text-xs text-muted">ORIGIN CITY</span>
                 <input
@@ -447,7 +447,7 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                 <span className="font-mono text-xs text-muted">DEPARTURE DATE</span>
                 <input

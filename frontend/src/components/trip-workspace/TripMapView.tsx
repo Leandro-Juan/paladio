@@ -528,6 +528,9 @@ export default function TripMapView({
       <MapContainer
         center={centerPosition}
         zoom={13}
+        minZoom={2}
+        maxBounds={[[-85, -180], [85, 180]]}
+        maxBoundsViscosity={1.0}
         zoomControl={false}
         style={{ height: '100%', width: '100%' }}
         attributionControl={false}

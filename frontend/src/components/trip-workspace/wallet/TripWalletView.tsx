@@ -584,7 +584,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 borderRadius: '6px',
                 padding: '8px 18px',
                 fontSize: '12px',
-                color: 'var(--color-text-on-accent)',
+                color: 'var(--color-text-on-accent, #FFFFFF)',
                 cursor: 'pointer',
                 fontWeight: 700,
                 boxShadow: 'var(--shadow-sm)',

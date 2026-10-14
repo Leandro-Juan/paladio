@@ -27,10 +27,35 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('plan');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [isLeftOpen, setIsLeftOpen] = useState(true);
-  const [isRightOpen, setIsRightOpen] = useState(true);
+  const [isRightOpen, setIsRightOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
   const [focusedPlace, setFocusedPlace] = useState<{ lat: number; lng: number } | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
+
+  const handleToggleLeft = useCallback(() => {
+    setIsLeftOpen((prev) => {
+      const next = !prev;
+      if (next && typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsRightOpen(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleRight = useCallback(() => {
+    setIsRightOpen((prev) => {
+      const next = !prev;
+      if (next && typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsLeftOpen(false);
+      }
+      return next;
+    });
+  }, []);
 
   // Query tickets for live count and auto-sync status
   const { tickets: walletTickets } = useTripTickets(trip.id || '');
@@ -166,7 +191,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       airport: airportAnchor,
       daysOutput: daysOutputList,
     };
-  }, [itinerary]);
+  }, [itinerary, trip.destination]);
 
   const handlePlaceClick = useCallback((place: PlaceItem) => {
     setFocusedPlace({ lat: place.lat, lng: place.lng });
@@ -234,7 +259,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           {/* Left Floating Itinerary Sidebar */}
           <TripPlanSidebar
             isOpen={isLeftOpen}
-            onToggle={() => setIsLeftOpen((prev) => !prev)}
+            onToggle={handleToggleLeft}
             days={daysOutput}
             selectedDay={selectedDay}
             onSelectDay={setSelectedDay}
@@ -251,7 +276,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           {/* Right Floating Places Sidebar */}
           <TripPlacesSidebar
             isOpen={isRightOpen}
-            onToggle={() => setIsRightOpen((prev) => !prev)}
+            onToggle={handleToggleRight}
             places={places}
             onPlaceClick={handlePlaceClick}
             categoryFilter={categoryFilter}

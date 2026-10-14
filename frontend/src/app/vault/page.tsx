@@ -80,15 +80,15 @@ export default function VaultPage() {
       <div
         style={{
           position: 'absolute',
-          top: '2rem',
-          left: '2rem',
+          top: '1rem',
+          left: '1rem',
           zIndex: 1000,
           background: 'var(--color-surface-card)',
           border: '1px solid var(--color-border-subtle)',
           borderRadius: '12px',
           padding: '1rem 1.25rem',
           boxShadow: 'var(--shadow-card)',
-          maxWidth: '360px',
+          maxWidth: 'min(360px, calc(100% - 2rem))',
         }}
       >
         <h2 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>ITINERARY VAULT</h2>

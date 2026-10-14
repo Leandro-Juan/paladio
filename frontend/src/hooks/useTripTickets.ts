@@ -135,7 +135,13 @@ export function useTripTickets(tripId: string) {
         setLoading(false);
       } catch (err: unknown) {
         if (signal?.aborted) return;
-        console.error('Failed to load trip tickets:', err);
+        const isForbidden =
+          (err instanceof Error && err.message.toLowerCase().includes('not a collaborator')) ||
+          (err as { status?: number })?.status === 403;
+        if (!isForbidden) {
+          console.error('Failed to load trip tickets:', err);
+        }
+        setTickets([]);
         setLoading(false);
       }
     },
@@ -166,7 +172,13 @@ export function useTripTickets(tripId: string) {
         setLoading(false);
       } catch (err: unknown) {
         if (controller.signal.aborted) return;
-        console.error('Failed to load trip tickets:', err);
+        const isForbidden =
+          (err instanceof Error && err.message.toLowerCase().includes('not a collaborator')) ||
+          (err as { status?: number })?.status === 403;
+        if (!isForbidden) {
+          console.error('Failed to load trip tickets:', err);
+        }
+        setTickets([]);
         setLoading(false);
       }
     }

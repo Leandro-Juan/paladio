@@ -354,6 +354,9 @@ export default function LeafletMap({
         <MapContainer
           center={centerPosition}
           zoom={13}
+          minZoom={2}
+          maxBounds={[[-85, -180], [85, 180]]}
+          maxBoundsViscosity={1.0}
           style={{ height: '100%', width: '100%' }}
           attributionControl={false}
         >
