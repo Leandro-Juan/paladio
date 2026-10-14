@@ -36,7 +36,7 @@ test.describe('Theme Engine (Pacific Jazz)', () => {
 
   test('toggle choice persists across reloads', async ({ page }) => {
     test.skip(!THEME_TOGGLE_ENABLED, 'Theme toggle disabled until Phase 8');
-    await page.goto('/dashboard');
+    await page.goto('/config');
     const toggle = page.getByRole('button', { name: /switch to dark mode/i });
     await expect(toggle).toBeVisible();
     await toggle.click();

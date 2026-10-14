@@ -35,18 +35,19 @@ test.describe('Calendar Component', () => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
     // Header and Telemetry checks
-    await expect(component.getByText('MISSION OPERATIONS CALENDAR')).toBeVisible();
-    await expect(component.getByText('TEMPORAL RADAR')).toBeVisible();
     await expect(component.getByText('TOTAL MISSIONS')).toBeVisible();
     await expect(component.getByText('ACTIVE / QUEUED')).toBeVisible();
-    await expect(component.getByText('ARCHIVED (PAST)')).toBeVisible();
+    await expect(component.getByText('ARCHIVED MISSIONS')).toBeVisible();
 
     // Weekdays
     await expect(component.getByText('MON')).toBeVisible();
     await expect(component.getByText('SUN')).toBeVisible();
 
-    // Today indicator
-    await expect(component.getByText('TODAY', { exact: true })).toBeVisible();
+    // Legend items
+    await expect(component.getByText('Active', { exact: true })).toBeVisible();
+    await expect(component.getByText('Queued', { exact: true })).toBeVisible();
+    await expect(component.getByText('Archived', { exact: true })).toBeVisible();
+    await expect(component.getByText('Current day', { exact: true })).toBeVisible();
   });
 
   test('displays trips with correct mission indicators and opens inspector modal on click', async ({ mount }) => {
@@ -73,11 +74,11 @@ test.describe('Calendar Component', () => {
   test('month navigation switches cycles', async ({ mount }) => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
-    // Click NEXT >
-    await component.getByRole('button', { name: /NEXT >/i }).click();
+    // Click Next month
+    await component.getByRole('button', { name: /Next month/i }).click();
 
-    // Click CYCLE TODAY to return
-    await component.getByRole('button', { name: /CYCLE TODAY/i }).click();
-    await expect(component.getByText('TODAY', { exact: true })).toBeVisible();
+    // Click Today to return
+    await component.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect(component.getByText('Current day', { exact: true })).toBeVisible();
   });
 });

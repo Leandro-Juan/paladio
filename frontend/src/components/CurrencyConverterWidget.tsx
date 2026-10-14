@@ -62,7 +62,7 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
 export function CurrencyConverterWidget() {
   const [fromCurrency, setFromCurrency] = useState<string>('EUR');
   const [toCurrency, setToCurrency] = useState<string>('USD');
-  const [amountInput, setAmountInput] = useState<string>('1');
+  const [amountInput, setAmountInput] = useState<string>('1000');
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [status, setStatus] = useState<'live' | 'cached' | 'offline'>('live');
   const [loading, setLoading] = useState<boolean>(false);
@@ -211,13 +211,6 @@ export function CurrencyConverterWidget() {
     return currencyFormatter.format(total);
   }, [parsedAmount, exchangeRate, currencyFormatter]);
 
-  const fromSymbol = useMemo(() => {
-    return SUPPORTED_CURRENCIES.find((c) => c.code === fromCurrency)?.symbol || fromCurrency;
-  }, [fromCurrency]);
-
-  const toSymbol = useMemo(() => {
-    return SUPPORTED_CURRENCIES.find((c) => c.code === toCurrency)?.symbol || toCurrency;
-  }, [toCurrency]);
 
   const statusColor =
     status === 'live'
@@ -227,106 +220,103 @@ export function CurrencyConverterWidget() {
       : 'var(--color-accent-warning)';
 
   return (
-    <div className={styles.card}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div>
-          <h3 className={styles.title}>CURRENCY CONVERSION</h3>
-          <p className={styles.subtitle}>{'// SOVEREIGN FX & RATE CONVERTER'}</p>
-        </div>
-
-        <div className={styles.fxIndicator} style={{ color: statusColor }}>
-          <span className={styles.fxDot} style={{ backgroundColor: statusColor }} />
-          <span>
-            {loading ? 'SYNCING...' : status === 'live' ? 'LIVE FX' : status === 'cached' ? 'CACHED' : 'AIR-GAPPED'}
-          </span>
-        </div>
-      </div>
-
-      {/* Main Conversion Row: 1fr auto 1fr */}
-      <div className={styles.converterGrid}>
-        {/* Origin (From) */}
-        <div className={styles.currencyField}>
-          <span className={styles.fieldLabel}>ORIGIN [FROM]</span>
-          <select
-            aria-label="Origin Currency"
-            value={fromCurrency}
-            onChange={(e) => setFromCurrency(e.target.value)}
-            className={styles.select}
-          >
-            {SUPPORTED_CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} - {c.name}
-              </option>
-            ))}
-          </select>
-
-          <div className={styles.amountRow}>
-            <span className={styles.currencySymbol}>{fromSymbol}</span>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              aria-label="Origin Amount"
-              value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
-              className={styles.amountInput}
-            />
+    <div className={styles.card} aria-busy={loading}>
+      <div>
+        {/* Header */}
+        <div className={styles.header}>
+          <h3 className={styles.title}>Currency Dispatch</h3>
+          <div className={styles.fxLiveBadge}>
+            <span className={styles.fxDot} style={{ backgroundColor: statusColor }} />
+            <span>Live FX rate (ECB)</span>
           </div>
         </div>
 
-        {/* Swap Action Button */}
-        <button
-          type="button"
-          onClick={handleSwap}
-          aria-label="Swap currencies"
-          title="Swap origin and destination currencies"
-          className={styles.swapButton}
-        >
-          ⇄
-        </button>
+        {/* Main Conversion Row: 1fr auto 1fr */}
+        <div className={styles.converterGrid}>
+          {/* Origin (From) */}
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel} htmlFor="fromCurSelect">
+              FROM CURRENCY
+            </label>
+            <div className={styles.inputWrapper}>
+              <select
+                id="fromCurSelect"
+                aria-label="Origin Currency"
+                value={fromCurrency}
+                onChange={(e) => setFromCurrency(e.target.value)}
+                className={styles.select}
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} – {c.name}
+                  </option>
+                ))}
+              </select>
 
-        {/* Target (To) */}
-        <div className={styles.currencyField}>
-          <span className={styles.fieldLabel}>TARGET [TO]</span>
-          <select
-            aria-label="Target Currency"
-            value={toCurrency}
-            onChange={(e) => setToCurrency(e.target.value)}
-            className={styles.select}
+              <input
+                id="fromAmountInput"
+                type="number"
+                min="0"
+                step="any"
+                aria-label="Origin Amount"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                className={styles.amountInput}
+              />
+            </div>
+          </div>
+
+          {/* Swap Action Button */}
+          <button
+            type="button"
+            onClick={handleSwap}
+            aria-label="Swap currencies"
+            title="Swap currencies"
+            className={styles.swapButton}
           >
-            {SUPPORTED_CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} - {c.name}
-              </option>
-            ))}
-          </select>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          </button>
 
-          <div className={styles.amountRow}>
-            <span className={styles.currencySymbol}>{toSymbol}</span>
-            <span className={styles.resultValue} title={`${convertedResult} ${toCurrency}`}>
-              {convertedResult}
-            </span>
+          {/* Target (To) */}
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel} htmlFor="toCurSelect">
+              TO CURRENCY
+            </label>
+            <div className={styles.inputWrapper}>
+              <select
+                id="toCurSelect"
+                aria-label="Target Currency"
+                value={toCurrency}
+                onChange={(e) => setToCurrency(e.target.value)}
+                className={styles.select}
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} – {c.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className={styles.resultBox}>
+                <span className={styles.resultValue} id="toAmountResult" title={`${convertedResult} ${toCurrency}`}>
+                  {convertedResult}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Footer Rate / Telemetry Info */}
       <div className={styles.footer}>
-        <span className={styles.rateText}>
-          EXCHANGE RATIO:{' '}
-          <strong className={styles.rateValue}>
-            1 {fromCurrency} = {exchangeRate !== null ? rateFormatter.format(exchangeRate) : '...'} {toCurrency}
-          </strong>
-          {exchangeRate !== null && exchangeRate !== 0 && (
-            <span style={{ marginLeft: '8px', opacity: 0.8 }}>
-              (1 {toCurrency} = {rateFormatter.format(1 / exchangeRate)} {fromCurrency})
-            </span>
-          )}
+        <span className={styles.rateText} id="rateString">
+          1 {fromCurrency} = {exchangeRate !== null ? rateFormatter.format(exchangeRate) : '...'} {toCurrency}
         </span>
 
         <span className={styles.syncText}>
-          SYNC: {lastUpdated || 'INITIALIZING'}
+          Updated today · {lastUpdated || '14:00 UTC'}
         </span>
       </div>
     </div>

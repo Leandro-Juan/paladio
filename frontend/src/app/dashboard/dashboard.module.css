@@ -1,10 +1,10 @@
 .container {
-  max-width: 1200px;
+  max-width: 1360px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 0 0.5rem 3rem;
+  gap: 28px;
+  padding: 0 0 3rem;
 }
 
 .header {
@@ -17,8 +17,8 @@
 
 .title {
   font-family: var(--font-display);
-  font-size: 36px;
-  line-height: 42px;
+  font-size: 32px;
+  line-height: 1.2;
   font-weight: 300;
   color: var(--color-text-primary);
   margin: 0;
@@ -28,8 +28,8 @@
 .subtitle {
   font-family: var(--font-body);
   color: var(--color-text-muted);
-  font-size: 0.875rem;
-  margin-top: 0.35rem;
+  font-size: 14px;
+  margin-top: 4px;
   margin-bottom: 0;
 }
 
@@ -43,18 +43,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-success);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 13px;
 }
 
 .telemetryDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background-color: var(--color-success);
+  background-color: var(--color-success, #2F8F5B);
   display: inline-block;
 }
 
@@ -62,10 +60,10 @@
   padding: 8px 16px;
   background-color: var(--color-accent-primary);
   color: #FFFFFF;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-family: var(--font-display);
-  font-size: 0.875rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  font-size: 13px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;

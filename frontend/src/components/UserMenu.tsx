@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Modal } from './Modal';
-import { ThemeToggle } from './ThemeToggle';
 
 interface UserMenuProps {
   isCollapsed: boolean;
@@ -169,7 +168,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
                 style={{
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: 'var(--color-text-main, #0F172A)',
+                  color: 'var(--color-cream, #F6F0E1)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -203,7 +202,7 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="var(--color-text-muted, #64748B)"
+            stroke="rgba(246, 240, 225, 0.65)"
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -352,10 +351,6 @@ export function UserMenu({ isCollapsed }: UserMenuProps) {
               <span>Settings</span>
             </button>
 
-            {/* Theme Toggle */}
-            <div style={{ padding: '2px 0' }}>
-              <ThemeToggle style={{ width: '100%', justifyContent: 'flex-start' }} />
-            </div>
 
             {/* Help */}
             <button

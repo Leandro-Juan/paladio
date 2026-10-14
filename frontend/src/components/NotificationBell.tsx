@@ -17,29 +17,35 @@ export function NotificationBell() {
         title="View Notifications"
         style={{
           position: 'relative',
-          background: isOpen ? 'var(--color-border)' : 'transparent',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-sm)',
-          width: '36px',
-          height: '36px',
+          background: isOpen ? 'rgba(246, 240, 225, 0.15)' : 'transparent',
+          border: 'none',
+          borderRadius: '6px',
+          width: '28px',
+          height: '28px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          color: 'var(--color-text-primary)',
+          color: 'rgba(246, 240, 225, 0.65)',
           transition: 'all 0.15s ease',
         }}
         onMouseOver={(e) => {
-          if (!isOpen) e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+          if (!isOpen) {
+            e.currentTarget.style.color = 'var(--color-cream, #F6F0E1)';
+            e.currentTarget.style.background = 'rgba(246, 240, 225, 0.1)';
+          }
         }}
         onMouseOut={(e) => {
-          if (!isOpen) e.currentTarget.style.borderColor = 'var(--color-border)';
+          if (!isOpen) {
+            e.currentTarget.style.color = 'rgba(246, 240, 225, 0.65)';
+            e.currentTarget.style.background = 'transparent';
+          }
         }}
       >
         {/* Bell Icon SVG */}
         <svg
-          width="18"
-          height="18"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

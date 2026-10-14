@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
-import { ThemeToggle } from './ThemeToggle';
 
 interface NavItem {
   href: string;
@@ -94,40 +93,25 @@ export function Sidebar() {
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
-          <Link href="/dashboard" title="Paladio Control Center">
-            <img
-              src="/logo.png"
-              alt="Paladio Icon"
-              className="brand-logo-light"
-              style={{ height: '28px', width: '28px', objectFit: 'contain', display: 'block' }}
-            />
-            <img
-              src="/logo-white.png"
-              alt="Paladio Icon"
-              className="brand-logo-dark"
-              style={{ height: '28px', width: '28px', objectFit: 'contain', display: 'none' }}
-            />
+          <Link href="/dashboard" title="Paladio Control Center" aria-label="Paladio Control Center">
+            <div className="logo-mark">
+              <div className="logo-icon-sun" />
+              <div className="logo-ring" />
+            </div>
           </Link>
           <NotificationBell />
         </div>
       ) : (
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <div>
-            <Link href="/dashboard" title="Paladio Control Center">
-              <img
-                src="/logo-horizontal.png"
-                alt="Paladio Logo"
-                className="brand-logo-light"
-                style={{ height: '32px', width: 'auto', display: 'block' }}
-              />
-              <img
-                src="/logo-horizontal-dark.png"
-                alt="Paladio Logo"
-                className="brand-logo-dark"
-                style={{ height: '32px', width: 'auto', display: 'none' }}
-              />
-            </Link>
-          </div>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+          <Link href="/dashboard" title="Paladio Control Center" style={{ textDecoration: 'none' }}>
+            <div className="logo-container">
+              <div className="logo-mark" aria-hidden="true">
+                <div className="logo-icon-sun" />
+                <div className="logo-ring" />
+              </div>
+              <span className="logo-text">PALADIO</span>
+            </div>
+          </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <NotificationBell />
             <button
@@ -221,22 +205,20 @@ export function Sidebar() {
         })}
       </ul>
 
-      {/* Footer Theme Toggle & User Menu */}
+      {/* Footer User Menu */}
       <div
         className="sidebar-footer"
         style={{
           marginTop: 'auto',
           width: '100%',
-          paddingTop: '10px',
-          borderTop: '1px solid var(--color-border)',
+          paddingTop: '12px',
+          borderTop: '1px solid rgba(246, 240, 225, 0.08)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
           position: 'relative',
         }}
       >
-        <ThemeToggle iconOnly={isCollapsed} style={{ width: isCollapsed ? '36px' : '100%', justifyContent: 'center' }} />
         {user && <UserMenu isCollapsed={isCollapsed} />}
       </div>
     </nav>

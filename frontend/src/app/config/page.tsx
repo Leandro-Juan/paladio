@@ -15,6 +15,7 @@ import {
   CityGtfsItem,
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
+import { useThemeStore } from '@/stores/themeStore';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -46,6 +47,7 @@ function getSafeAvatarUrl(url: unknown): string | null {
 
 export default function ConfigPage() {
   const { user: currentUser, refreshUser } = useAuth();
+  const { theme, setTheme } = useThemeStore();
   const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState<User[]>([]);
@@ -492,6 +494,144 @@ export default function ConfigPage() {
           {actionSuccess}
         </div>
       )}
+
+      {/* Interface Appearance & Theme Engine */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem' }}>
+          <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+            Interface Appearance
+          </h3>
+          <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+            {'// PACIFIC JAZZ THEME ENGINE & VISUAL ACCENTS'}
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          {/* Light Theme Card */}
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            aria-label="Switch to light mode"
+            aria-pressed={theme === 'light'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: theme === 'light' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: theme === 'light' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </svg>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Pacific Jazz Light</span>
+              </div>
+              {theme === 'light' && (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Daytime operational palette: warm cream and paper background, deep sea sidebar, and sun coral accents.
+            </p>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#F6F0E1', border: '1px solid #D9CEB2' }} title="Cream #F6F0E1" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#FFFBF0', border: '1px solid #D9CEB2' }} title="Paper #FFFBF0" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#0F4C5C' }} title="Deep Sea #0F4C5C" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#D42A2F' }} title="Sun Red #D42A2F" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
+            </div>
+          </button>
+
+          {/* Dark Theme Card */}
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            aria-label="Switch to dark mode"
+            aria-pressed={theme === 'dark'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: theme === 'dark' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: theme === 'dark' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Pacific Jazz Dark</span>
+              </div>
+              {theme === 'dark' && (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Nighttime deep ocean palette: low-glare dark abyss, sky teal highlights, and gold markers.
+            </p>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#08222B', border: '1px solid #1C4553' }} title="Abyss #08222B" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#0F333F', border: '1px solid #1C4553' }} title="Card #0F333F" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#061B22' }} title="Sidebar #061B22" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#7CC4D1' }} title="Sky Teal #7CC4D1" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* User Management Section */}
       <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>

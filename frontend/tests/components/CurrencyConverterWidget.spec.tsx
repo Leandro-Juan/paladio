@@ -6,14 +6,14 @@ test.describe('CurrencyConverterWidget Component', () => {
     const component = await mount(<CurrencyConverterWidget />);
 
     // Verify labels and structure
-    await expect(component.getByText('CURRENCY CONVERSION')).toBeVisible();
-    await expect(component.getByText('// SOVEREIGN FX & RATE CONVERTER')).toBeVisible();
-    await expect(component.getByText('ORIGIN [FROM]')).toBeVisible();
-    await expect(component.getByText('TARGET [TO]')).toBeVisible();
+    await expect(component.getByText('Currency Dispatch')).toBeVisible();
+    await expect(component.getByText('Live FX rate (ECB)')).toBeVisible();
+    await expect(component.getByText('FROM CURRENCY')).toBeVisible();
+    await expect(component.getByText('TO CURRENCY')).toBeVisible();
 
-    // Verify default amount is 1
+    // Verify default amount is 1000
     const originInput = component.getByLabel('Origin Amount');
-    await expect(originInput).toHaveValue('1');
+    await expect(originInput).toHaveValue('1000');
 
     // Verify default selected currencies
     const fromSelect = component.getByLabel('Origin Currency');
