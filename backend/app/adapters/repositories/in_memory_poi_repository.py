@@ -127,3 +127,6 @@ class InMemoryPoiRepository(IPoiRepository):
         self, updates: list[tuple[str, list[float]]]
     ) -> None:
         pass
+
+    async def check_city_staleness(self, city_name: str) -> tuple[Any, bool]:
+        return (None, False)

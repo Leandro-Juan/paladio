@@ -65,6 +65,29 @@ class CompileCityRequest(BaseModel):
     city: str
 
 
+class PlannedTripTransitItem(BaseModel):
+    trip_id: str
+    destination: str
+    city_clean: str
+    start_date: str
+    end_date: str
+    gtfs_status: str
+    is_downloaded: bool
+    is_building: bool
+    is_queued: bool
+
+
+class SyncPlannedGtfsRequest(BaseModel):
+    cities: list[str]
+
+
+class SyncPlannedGtfsResponse(BaseModel):
+    triggered: list[str]
+    queued: list[str]
+    already_ready: list[str]
+    message: str
+
+
 class TripParticipantCreate(BaseModel):
     name: str
     user_id: str | None = None
@@ -381,6 +404,209 @@ async def get_transit_status_by_trip(
         city=city,
         gtfs_status=gtfs_status,
         is_ready=is_ready,
+    )
+
+
+@router.get("/transit/planned-status", response_model=list[PlannedTripTransitItem])
+async def get_planned_trips_transit_status(
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(TripModel).order_by(TripModel.start_date.asc())
+    res = await session.execute(stmt)
+    trips = res.scalars().all()
+
+    dest_cities = {
+        re.sub(r"[^a-z0-9_-]", "", (t.destination or "").strip().lower())
+        for t in trips
+        if t.destination
+    }
+
+    cache_records = {}
+    if dest_cities:
+        stmt_cache = select(TransitCacheModel).where(
+            TransitCacheModel.city.in_(dest_cities)
+        )
+        res_cache = await session.execute(stmt_cache)
+        cache_records = {r.city.lower(): r for r in res_cache.scalars().all()}
+
+    from app.tasks import is_transit_task_alive
+
+    results: list[PlannedTripTransitItem] = []
+    for t in trips:
+        city_raw = t.destination or ""
+        city_clean = re.sub(r"[^a-z0-9_-]", "", city_raw.strip().lower())
+        rec = cache_records.get(city_clean)
+
+        status_val = rec.status if rec else "PENDING"
+        gtfs_status_val = rec.gtfs_status if rec else "PENDING"
+        osm_status_val = rec.osm_status if rec else "PENDING"
+
+        if rec and (
+            gtfs_status_val in ("BUILDING", "QUEUED")
+            or status_val in ("BUILDING", "QUEUED")
+        ):
+            if not is_transit_task_alive(city_clean):
+                gtfs_status_val = "FAILED"
+                status_val = "FAILED"
+
+        is_queued = bool(gtfs_status_val == "QUEUED" or status_val == "QUEUED")
+        is_building = not is_queued and (
+            gtfs_status_val == "BUILDING"
+            or status_val == "BUILDING"
+            or osm_status_val == "BUILDING"
+        )
+        is_ready = bool(rec and gtfs_status_val == "READY")
+        is_downloaded = is_ready
+
+        effective_gtfs_status = gtfs_status_val
+        if not rec:
+            effective_gtfs_status = "NOT_DOWNLOADED"
+        elif is_ready:
+            effective_gtfs_status = "READY"
+        elif is_building:
+            effective_gtfs_status = "BUILDING"
+        elif is_queued:
+            effective_gtfs_status = "QUEUED"
+
+        results.append(
+            PlannedTripTransitItem(
+                trip_id=t.id,
+                destination=t.destination,
+                city_clean=city_clean,
+                start_date=t.start_date,
+                end_date=t.end_date,
+                gtfs_status=effective_gtfs_status,
+                is_downloaded=is_downloaded,
+                is_building=is_building,
+                is_queued=is_queued,
+            )
+        )
+
+    return results
+
+
+@router.post("/transit/sync-planned", response_model=SyncPlannedGtfsResponse)
+async def sync_planned_trips_gtfs(
+    req: SyncPlannedGtfsRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    import os
+    import redis
+    from app.tasks import (
+        _publish_transit_event,
+        build_city_gtfs_task,
+        is_transit_task_alive,
+    )
+
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    r = None
+    try:
+        r = redis.from_url(redis_url)
+    except Exception:
+        pass
+
+    triggered: list[str] = []
+    queued: list[str] = []
+    already_ready: list[str] = []
+
+    unique_cities: list[str] = []
+    for c in req.cities:
+        cleaned = re.sub(r"[^a-z0-9_-]", "", c.strip().lower())
+        if cleaned and cleaned not in unique_cities:
+            unique_cities.append(cleaned)
+
+    for city_clean in unique_cities:
+        stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
+        res = await session.execute(stmt)
+        record = res.scalar_one_or_none()
+
+        if record and record.gtfs_status == "READY":
+            already_ready.append(city_clean)
+            continue
+
+        if record and record.gtfs_status in ("BUILDING", "QUEUED"):
+            if is_transit_task_alive(city_clean):
+                if record.gtfs_status == "QUEUED":
+                    queued.append(city_clean)
+                else:
+                    triggered.append(city_clean)
+                continue
+
+        is_locked = False
+        if r:
+            try:
+                is_locked = r.lock(
+                    "paladio:transit_compiler_lock", timeout=7200
+                ).locked()
+            except Exception:
+                pass
+
+        stmt_active = select(TransitCacheModel).where(
+            TransitCacheModel.city != city_clean,
+            TransitCacheModel.gtfs_status.in_(["BUILDING", "QUEUED"]),
+        )
+        res_active = await session.execute(stmt_active)
+        active_records = res_active.scalars().all()
+        has_active_compilation = any(
+            is_transit_task_alive(ar.city) for ar in active_records
+        )
+
+        should_queue = is_locked or has_active_compilation or len(triggered) > 0
+
+        initial_status = (
+            TransitCacheStatus.QUEUED.value
+            if should_queue
+            else TransitCacheStatus.BUILDING.value
+        )
+        initial_gtfs = "QUEUED" if should_queue else "BUILDING"
+
+        if not record:
+            record = TransitCacheModel(
+                city=city_clean,
+                status=initial_status,
+                osm_status="PENDING",
+                gtfs_status=initial_gtfs,
+            )
+            session.add(record)
+        else:
+            record.status = initial_status
+            record.gtfs_status = initial_gtfs
+        await session.commit()
+
+        try:
+            task = build_city_gtfs_task.delay(city_clean)
+            if r:
+                try:
+                    r.set(f"paladio:transit_task_id:{city_clean}", task.id, ex=86400)
+                except Exception:
+                    pass
+            if should_queue:
+                _publish_transit_event("TRANSIT_QUEUED", city_clean, city_clean.title())
+                queued.append(city_clean)
+            else:
+                _publish_transit_event(
+                    "TRANSIT_DOWNLOAD_STARTED", city_clean, city_clean.title()
+                )
+                triggered.append(city_clean)
+        except Exception as exc:
+            logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
+            if should_queue:
+                queued.append(city_clean)
+            else:
+                triggered.append(city_clean)
+
+    total_initiated = len(triggered) + len(queued)
+    msg = (
+        f"GTFS compilation initiated for {total_initiated} cities ({len(triggered)} active, {len(queued)} queued)."
+        if total_initiated > 0
+        else "All selected trips already have GTFS data or are currently compiling."
+    )
+
+    return SyncPlannedGtfsResponse(
+        triggered=triggered,
+        queued=queued,
+        already_ready=already_ready,
+        message=msg,
     )
 
 

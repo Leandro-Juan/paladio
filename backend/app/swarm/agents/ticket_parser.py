@@ -21,7 +21,7 @@ def get_parser_model():
         ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
 
     MODEL_NAME = os.getenv(
-        "TICKET_PARSER_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5")
+        "TICKET_PARSER_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5:3b")
     )
     actual_model = (
         MODEL_NAME.replace("ollama:", "")
@@ -55,6 +55,9 @@ async def ticket_parser_node(state: dict) -> dict:
         anchors = res.output
     except Exception as e:
         logger.warning(f"Ticket parsing failed: {e}")
+        raw_existing = state.get("booking_anchors")
+        if raw_existing:
+            return {"booking_anchors": raw_existing}
         anchors = BookingAnchors()
 
     # Filter out the dummy 'XXX' segments if model hallucinates them

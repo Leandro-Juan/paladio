@@ -206,6 +206,8 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
                 prompt = content.strip()
                 break
 
+    plan_mode = manual.get("plan_mode", "real")
+
     constraints = TravelConstraints(
         origin_city=origin_city,
         destination_city=destination_city,
@@ -216,6 +218,7 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         meals=meals,
         nodes=nodes,
         prompt=prompt,
+        plan_mode=plan_mode,
     )
 
     logger.info(

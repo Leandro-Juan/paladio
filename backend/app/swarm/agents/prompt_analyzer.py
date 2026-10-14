@@ -24,7 +24,7 @@ def get_prompt_model():
 
     MODEL_NAME = os.getenv(
         "PROMPT_ANALYSIS_MODEL",
-        os.getenv("RAG_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5")),
+        os.getenv("RAG_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5:3b")),
     )
     actual_model = (
         MODEL_NAME.replace("ollama:", "")

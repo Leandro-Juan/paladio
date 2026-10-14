@@ -154,6 +154,7 @@ async def execute_frontend_trip_e2e(
     ws_url: str = DEFAULT_WS_URL,
     api_url: str = DEFAULT_API_URL,
     user_id: str = DEFAULT_USER_ID,
+    plan_mode: str = "real",
     timeout_seconds: float = 300.0,
 ) -> dict:
     """
@@ -229,7 +230,7 @@ async def execute_frontend_trip_e2e(
             "tag_affinities": {"art_culture": 0.8, "food_culinary": 0.7},
             "travel_tastes": ["cultural"],
             "preferred_cuisines": ["tapas"] if "tapas" in prompt.lower() else [],
-            "plan_mode": "real",
+            "plan_mode": plan_mode,
             "test_mode": True,
             "booking_anchors": {
                 "hotel": simulated_hotel,
@@ -457,6 +458,12 @@ def main():
         default=DEFAULT_API_URL,
         help=f"API endpoint (default: {DEFAULT_API_URL})",
     )
+    parser.add_argument(
+        "--plan-mode",
+        default="real",
+        choices=["real", "estimated"],
+        help="Planning mode ('real' requires Valhalla OSM routing tiles; 'estimated' uses spatial estimation for unmapped cities)",
+    )
 
     args = parser.parse_args()
 
@@ -474,6 +481,7 @@ def main():
                 budget_usd=args.budget,
                 ws_url=args.ws_url,
                 api_url=args.api_url,
+                plan_mode=args.plan_mode,
             )
         )
         # Print the final generated itinerary (schedule + full JSON)
