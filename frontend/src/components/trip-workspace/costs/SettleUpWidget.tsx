@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { SettlementTransfer } from '@/hooks/useTrips';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 
 interface SettleUpWidgetProps {
   transfers: SettlementTransfer[];
   isSimplified?: boolean;
+  currency?: string;
   onToggleSimplified?: () => void;
   onAddPayment?: () => void;
   onSettleFlow?: (transfer: SettlementTransfer) => void;
@@ -14,10 +16,12 @@ interface SettleUpWidgetProps {
 export function SettleUpWidget({
   transfers = [],
   isSimplified = false,
+  currency = 'EUR',
   onToggleSimplified,
   onAddPayment,
   onSettleFlow,
 }: SettleUpWidgetProps) {
+  const curInfo = getCurrencyInfo(currency);
   const isSettled = transfers.length === 0;
 
   return (
@@ -207,7 +211,7 @@ export function SettleUpWidget({
                     color: 'var(--color-danger)',
                   }}
                 >
-                  €{t.amount.toFixed(2)}
+                  {curInfo.symbol}{t.amount.toFixed(2)}
                 </span>
 
                 {onSettleFlow && (

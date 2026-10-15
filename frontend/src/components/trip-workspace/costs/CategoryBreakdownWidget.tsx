@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { COST_CATEGORY_LIST, getCostCategoryMeta } from './costsCategories';
 import { DisplayExpenseItem } from './ExpenseRow';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 
 interface CategoryBreakdownWidgetProps {
   items: DisplayExpenseItem[];
@@ -10,14 +11,16 @@ interface CategoryBreakdownWidgetProps {
 }
 
 export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBreakdownWidgetProps) {
-  const currencySymbol = currency === 'EUR' ? '€' : `${currency} `;
+  const currencyInfo = getCurrencyInfo(currency);
+  const currencySymbol = currencyInfo.symbol;
 
   // Aggregate total spent per category
   const categoryTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const item of items) {
       const meta = getCostCategoryMeta(item.category);
-      totals[meta.key] = (totals[meta.key] || 0) + (item.amount || 0);
+      const amt = typeof item.convertedAmount === 'number' ? item.convertedAmount : item.amount;
+      totals[meta.key] = (totals[meta.key] || 0) + (amt || 0);
     }
 
     return COST_CATEGORY_LIST.map((c) => ({

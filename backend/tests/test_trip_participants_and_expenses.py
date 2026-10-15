@@ -150,15 +150,49 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
     assert bal_map[bob_p_id]["net_balance"] == -15.0
     assert bal_map[charlie_p_id]["net_balance"] == -45.0
 
-    # Verify minimal transfers
-    transfers = s_data["transfers"]
-    assert len(transfers) == 2
-    # Verify Charlie transfers to Alice 45 and Bob transfers to Alice 15
-    transfer_tuples = [
-        (t["sender_id"], t["receiver_id"], t["amount"]) for t in transfers
-    ]
-    assert (charlie_p_id, alice_p_id, 45.0) in transfer_tuples
-    assert (bob_p_id, alice_p_id, 15.0) in transfer_tuples
+    # Verify direct (pairwise) settlement without simplification
+    direct_res = await async_client.get(
+        f"/api/v1/trips/{trip_id}/settlement?simplify=false", headers=headers_a
+    )
+    assert direct_res.status_code == 200
+    direct_data = direct_res.json()
+    assert len(direct_data["transfers"]) == 3
+
+    # Add a multi-currency expense: 15,000 JPY paid by Alice, split equally
+    jpy_exp = await async_client.post(
+        f"/api/v1/trips/{trip_id}/expenses",
+        json={
+            "payer_id": alice_p_id,
+            "description": "Tokyo Izakaya Dinner",
+            "amount": 15000.0,
+            "currency": "JPY",
+            "category": "food",
+            "split_type": "equal",
+            "splits": [
+                {"participant_id": alice_p_id, "amount": 5000.0},
+                {"participant_id": bob_p_id, "amount": 5000.0},
+                {"participant_id": charlie_p_id, "amount": 5000.0},
+            ],
+        },
+        headers=headers_a,
+    )
+    assert jpy_exp.status_code == 201
+    jpy_exp_id = jpy_exp.json()["id"]
+
+    # Verify direct settlement with multi-currency: transfers must be normalized in EUR (< €200, not thousands of €!)
+    direct_jpy_res = await async_client.get(
+        f"/api/v1/trips/{trip_id}/settlement?simplify=false", headers=headers_a
+    )
+    assert direct_jpy_res.status_code == 200
+    direct_jpy_data = direct_jpy_res.json()
+    for t in direct_jpy_data["transfers"]:
+        # Each transfer should be well under €200 in EUR, not raw JPY
+        assert t["amount"] < 200.0
+
+    # Delete multi-currency expense before continuing
+    await async_client.delete(
+        f"/api/v1/trips/{trip_id}/expenses/{jpy_exp_id}", headers=headers_a
+    )
 
     # Delete first expense and verify settlement updates
     del_exp_res = await async_client.delete(

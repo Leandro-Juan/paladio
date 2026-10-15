@@ -233,5 +233,128 @@ export async function fetchLiveExchangeRate(
     // continue
   }
 
-  return { rate: 1.0, isLive: false };
+  const fromBase = BASELINE_EUR_RATES[from] || 1.0;
+  const toBase = BASELINE_EUR_RATES[to] || 1.0;
+  return { rate: toBase / fromBase, isLive: false, date: 'Baseline' };
+}
+
+export const BASELINE_EUR_RATES: Record<string, number> = {
+  EUR: 1.0,
+  USD: 1.08,
+  GBP: 0.85,
+  JPY: 162.5,
+  CAD: 1.48,
+  CHF: 0.97,
+  AUD: 1.64,
+  CNY: 7.82,
+  INR: 90.5,
+  BRL: 5.92,
+  MXN: 21.6,
+  SEK: 11.4,
+  NOK: 11.6,
+  DKK: 7.46,
+  NZD: 1.78,
+  SGD: 1.45,
+  KRW: 1480.0,
+  PLN: 4.30,
+  TRY: 37.5,
+  THB: 39.2,
+  AED: 4.00,
+  CZK: 25.2,
+  HUF: 395.0,
+};
+
+let _cachedEurRates: Record<string, number> | null = null;
+let _cachedEurRatesTimestamp = 0;
+
+export async function fetchEurRates(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (_cachedEurRates && now - _cachedEurRatesTimestamp < FX_TTL_MS) {
+    return _cachedEurRates;
+  }
+
+  // 1. Check local storage
+  const cacheKey = `${FX_CACHE_PREFIX}ALL_EUR`;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (now - parsed.timestamp < FX_TTL_MS && parsed.rates) {
+        _cachedEurRates = parsed.rates;
+        _cachedEurRatesTimestamp = parsed.timestamp;
+        return parsed.rates;
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  // 2. Try backend API
+  try {
+    const res = await fetch('/api/v1/currency/rates?base=EUR', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.rates) {
+        const rates = { ...BASELINE_EUR_RATES, ...data.rates, EUR: 1.0 };
+        _cachedEurRates = rates;
+        _cachedEurRatesTimestamp = now;
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ rates, timestamp: now }));
+        } catch {}
+        return rates;
+      }
+    }
+  } catch {}
+
+  // 3. Fallback to Frankfurter
+  try {
+    const res = await fetch('https://api.frankfurter.dev/v1/latest?base=EUR');
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.rates) {
+        const rates = { ...BASELINE_EUR_RATES, ...data.rates, EUR: 1.0 };
+        _cachedEurRates = rates;
+        _cachedEurRatesTimestamp = now;
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ rates, timestamp: now }));
+        } catch {}
+        return rates;
+      }
+    }
+  } catch {}
+
+  _cachedEurRates = BASELINE_EUR_RATES;
+  _cachedEurRatesTimestamp = now;
+  return BASELINE_EUR_RATES;
+}
+
+export function convertCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  rates: Record<string, number> = BASELINE_EUR_RATES
+): number {
+  if (isNaN(amount) || amount === 0) return 0;
+  const from = (fromCurrency || 'EUR').toUpperCase().trim();
+  const to = (toCurrency || 'EUR').toUpperCase().trim();
+  if (from === to) return amount;
+
+  const fromRate = rates[from] || BASELINE_EUR_RATES[from] || 1.0;
+  const toRate = rates[to] || BASELINE_EUR_RATES[to] || 1.0;
+
+  // Amount in EUR
+  const eurAmount = from === 'EUR' ? amount : amount / fromRate;
+  // EUR to target
+  return to === 'EUR' ? eurAmount : eurAmount * toRate;
+}
+
+export function formatCurrencyAmount(amount: number, currency: string = 'EUR'): string {
+  const cur = (currency || 'EUR').toUpperCase().trim();
+  const info = getCurrencyInfo(cur);
+  const formattedNumber = Math.abs(amount).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const prefix = amount < 0 ? '-' : '';
+  return `${prefix}${info.symbol}${formattedNumber}`;
 }

@@ -12,6 +12,8 @@ interface CurrencyWheelPickerProps {
   selectedCurrency: string;
   onSelectCurrency: (currency: CurrencyInfo) => void;
   title?: string;
+  defaultCurrency?: string;
+  destinationCurrency?: string;
 }
 
 const ITEM_HEIGHT = 44; // height of each item row in px
@@ -28,6 +30,8 @@ export function CurrencyWheelPicker({
   selectedCurrency,
   onSelectCurrency,
   title = 'Select Currency',
+  defaultCurrency,
+  destinationCurrency,
 }: CurrencyWheelPickerProps) {
   const isMounted = useIsMounted();
 
@@ -39,10 +43,26 @@ export function CurrencyWheelPicker({
       document.body.style.overflow = originalOverflow;
     };
   }, [isOpen]);
-  // Sort currencies alphabetically by country name
+
+  // Currencies list: 1st is default currency, 2nd is destination currency, followed by rest alphabetically
   const items = useMemo(() => {
-    return [...SUPPORTED_CURRENCY_LIST].sort((a, b) => a.country.localeCompare(b.country));
-  }, []);
+    const list = [...SUPPORTED_CURRENCY_LIST];
+    const defCode = (defaultCurrency || 'EUR').toUpperCase();
+    const destCode = destinationCurrency ? destinationCurrency.toUpperCase() : null;
+
+    const defItem = list.find((i) => i.code.toUpperCase() === defCode);
+    const destItem = destCode && destCode !== defCode ? list.find((i) => i.code.toUpperCase() === destCode) : null;
+
+    const remaining = list
+      .filter((i) => i.code.toUpperCase() !== defCode && (!destCode || i.code.toUpperCase() !== destCode))
+      .sort((a, b) => a.country.localeCompare(b.country));
+
+    const result: CurrencyInfo[] = [];
+    if (defItem) result.push(defItem);
+    if (destItem) result.push(destItem);
+    result.push(...remaining);
+    return result;
+  }, [defaultCurrency, destinationCurrency]);
 
   const initialIndex = useMemo(() => {
     const idx = items.findIndex((i) => i.code.toUpperCase() === selectedCurrency.toUpperCase());

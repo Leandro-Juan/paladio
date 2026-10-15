@@ -6,16 +6,22 @@ import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, ExpenseSplit } from '@/hooks/useTrips';
 import { COST_CATEGORY_LIST, getCostCategoryMeta, CostCategoryKey } from './costsCategories';
 import { DisplayExpenseItem } from './ExpenseRow';
+import { CurrencyWheelPicker } from './CurrencyWheelPicker';
+import { FlagIcon } from './FlagIcon';
+import { getCurrencyInfo, fetchLiveExchangeRate } from '@/utils/currencyResolver';
 
 interface ExpenseModalProps {
   participants: TripParticipant[];
   prefill?: DisplayExpenseItem | null;
   defaultPayerId?: string;
+  defaultCurrency?: string;
+  destinationCurrency?: string;
   onClose: () => void;
   onSave: (data: {
     payer_id: string;
     description: string;
     amount: number;
+    currency: string;
     category: string;
     split_type: string;
     splits: ExpenseSplit[];
@@ -27,6 +33,8 @@ export function ExpenseModal({
   participants,
   prefill,
   defaultPayerId,
+  defaultCurrency = 'EUR',
+  destinationCurrency,
   onClose,
   onSave,
 }: ExpenseModalProps) {
@@ -39,6 +47,27 @@ export function ExpenseModal({
       document.body.style.overflow = originalOverflow;
     };
   }, []);
+
+  const resolvedDefaultCurrency = defaultCurrency || 'EUR';
+  const [currency, setCurrency] = useState(
+    prefill?.currency || destinationCurrency || resolvedDefaultCurrency
+  );
+  const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
+  const [fxRateToDefault, setFxRateToDefault] = useState<number>(1.0);
+
+  useEffect(() => {
+    let active = true;
+    if (currency !== resolvedDefaultCurrency) {
+      fetchLiveExchangeRate(currency, resolvedDefaultCurrency).then((res) => {
+        if (active) {
+          setFxRateToDefault(res.rate);
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [currency, resolvedDefaultCurrency]);
 
   const [description, setDescription] = useState(prefill?.title || '');
   const [amount, setAmount] = useState(prefill ? String(prefill.amount) : '');
@@ -55,16 +84,22 @@ export function ExpenseModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const curInfo = getCurrencyInfo(currency);
+  const defaultCurInfo = getCurrencyInfo(resolvedDefaultCurrency);
+  const numAmount = parseFloat(amount) || 0;
+  const effectiveFxRate = currency === resolvedDefaultCurrency ? 1.0 : fxRateToDefault || 1.0;
+  const convertedAmount = numAmount * effectiveFxRate;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const numAmount = parseFloat(amount);
+    const parsed = parseFloat(amount);
     if (!description.trim()) {
       setError('Please provide an expense description.');
       return;
     }
-    if (isNaN(numAmount) || numAmount <= 0) {
+    if (isNaN(parsed) || parsed <= 0) {
       setError('Please enter a valid positive amount.');
       return;
     }
@@ -79,7 +114,7 @@ export function ExpenseModal({
         setError('At least one traveler must be included in the split.');
         return;
       }
-      const splitAmount = numAmount / selectedParticipants.length;
+      const splitAmount = parsed / selectedParticipants.length;
       finalSplits = selectedParticipants.map((pid) => ({
         participant_id: pid,
         amount: splitAmount,
@@ -94,9 +129,9 @@ export function ExpenseModal({
         })
         .filter((s) => s.amount > 0);
 
-      if (Math.abs(sum - numAmount) > 0.05) {
+      if (Math.abs(sum - parsed) > 0.05) {
         setError(
-          `Custom split total (€${sum.toFixed(2)}) must match the expense amount (€${numAmount.toFixed(2)}).`
+          `Custom split total (${curInfo.symbol}${sum.toFixed(2)}) must match the expense amount (${curInfo.symbol}${parsed.toFixed(2)}).`
         );
         return;
       }
@@ -107,7 +142,8 @@ export function ExpenseModal({
       const ok = await onSave({
         payer_id: payerId,
         description: description.trim(),
-        amount: numAmount,
+        amount: parsed,
+        currency,
         category,
         split_type: splitType,
         splits: finalSplits,
@@ -244,31 +280,105 @@ export function ExpenseModal({
             </div>
 
             {/* Amount & Date row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                  Amount (€)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--color-border-subtle)',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-main)',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    fontFeatureSettings: '"tnum"',
-                  }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
+                    Amount
+                  </label>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
+                    Payment currency
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsCurrencyPickerOpen(true)}
+                    title="Change payment currency"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '9px 10px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border-subtle)',
+                      background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
+                      color: 'var(--color-text-main)',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 650,
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease',
+                    }}
+                    className="hover:border-teal-600 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    <FlagIcon countryCode={curInfo.countryCode} width={18} height={12} />
+                    <span>{curInfo.code}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-text-muted)' }}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--color-text-muted)',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontSize: '0.88rem',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      {curInfo.symbol}
+                    </span>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 28px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--color-border-subtle)',
+                        fontSize: '0.9rem',
+                        outline: 'none',
+                        background: 'var(--color-surface-card)',
+                        color: 'var(--color-text-main)',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontFeatureSettings: '"tnum"',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+                {currency !== resolvedDefaultCurrency && numAmount > 0 && (
+                  <div
+                    style={{
+                      marginTop: '6px',
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>≈</span>
+                    <span>
+                      {defaultCurInfo.symbol}
+                      {convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>
+                      in default currency ({resolvedDefaultCurrency})
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -524,6 +634,19 @@ export function ExpenseModal({
           </div>
         </form>
       </div>
+
+      {/* 3D Cylinder Currency Wheel Picker Modal */}
+      <CurrencyWheelPicker
+        isOpen={isCurrencyPickerOpen}
+        onClose={() => setIsCurrencyPickerOpen(false)}
+        selectedCurrency={currency}
+        defaultCurrency={resolvedDefaultCurrency}
+        destinationCurrency={destinationCurrency}
+        onSelectCurrency={(cur) => {
+          setCurrency(cur.code);
+          setIsCurrencyPickerOpen(false);
+        }}
+      />
     </div>,
     document.body
   );

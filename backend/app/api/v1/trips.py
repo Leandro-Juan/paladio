@@ -1307,22 +1307,40 @@ async def get_trip_settlement(
     )
     expenses = expenses_res.scalars().all()
 
-    total_expenses = sum(e.amount for e in expenses)
+    rates: dict[str, float] = {}
+    try:
+        from app.engine.v2.currency import fetch_live_rates
+
+        rates = await fetch_live_rates("EUR")
+    except Exception as err:
+        logger.warning(f"Failed to fetch live currency rates for settlement: {err}")
+
+    def to_eur(amt: float, cur: str | None) -> float:
+        if not amt:
+            return 0.0
+        c = (cur or "EUR").upper().strip()
+        if c == "EUR":
+            return amt
+        r = rates.get(c, 1.0)
+        return amt / r if r > 0 else amt
+
+    total_expenses = sum(to_eur(e.amount, e.currency) for e in expenses)
 
     paid_map = {p.id: 0.0 for p in participants}
     share_map = {p.id: 0.0 for p in participants}
 
     for e in expenses:
+        e_eur = to_eur(e.amount, e.currency)
         if e.payer_id in paid_map:
-            paid_map[e.payer_id] += e.amount
+            paid_map[e.payer_id] += e_eur
         splits = e.splits or []
         if splits:
             for s in splits:
                 pid = s.get("participant_id")
                 if pid in share_map:
-                    share_map[pid] += float(s.get("amount", 0.0))
+                    share_map[pid] += to_eur(float(s.get("amount", 0.0)), e.currency)
         elif participants:
-            per_p = e.amount / len(participants)
+            per_p = e_eur / len(participants)
             for p in participants:
                 share_map[p.id] += per_p
 
@@ -1394,9 +1412,11 @@ async def get_trip_settlement(
                         and debtor in pairwise
                         and payer in pairwise[debtor]
                     ):
-                        pairwise[debtor][payer] += float(s.get("amount", 0.0))
+                        pairwise[debtor][payer] += to_eur(
+                            float(s.get("amount", 0.0)), e.currency
+                        )
             elif participants and len(participants) > 1:
-                per_p = e.amount / len(participants)
+                per_p = to_eur(e.amount, e.currency) / len(participants)
                 for p in participants:
                     if p.id != payer and p.id in pairwise and payer in pairwise[p.id]:
                         pairwise[p.id][payer] += per_p

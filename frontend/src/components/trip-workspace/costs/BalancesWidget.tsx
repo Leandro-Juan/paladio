@@ -2,13 +2,16 @@
 
 import React from 'react';
 import { ParticipantBalance, TripParticipant } from '@/hooks/useTrips';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 
 interface BalancesWidgetProps {
   balances: ParticipantBalance[];
   participants: TripParticipant[];
+  currency?: string;
 }
 
-export function BalancesWidget({ balances = [], participants = [] }: BalancesWidgetProps) {
+export function BalancesWidget({ balances = [], participants = [], currency = 'EUR' }: BalancesWidgetProps) {
+  const curInfo = getCurrencyInfo(currency);
   const displayRows = participants.map((p) => {
     const b = balances.find((bal) => bal.participant_id === p.id);
     return {
@@ -119,7 +122,7 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
                         color: 'var(--color-text-muted)',
                       }}
                     >
-                      Paid €{row.totalPaid.toFixed(2)}
+                      Paid {curInfo.symbol}{row.totalPaid.toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -135,7 +138,7 @@ export function BalancesWidget({ balances = [], participants = [] }: BalancesWid
                   }}
                 >
                   <div>
-                    {isPositive ? `+€${row.netBalance.toFixed(2)}` : isNegative ? `-€${Math.abs(row.netBalance).toFixed(2)}` : '€0.00'}
+                    {isPositive ? `+${curInfo.symbol}${row.netBalance.toFixed(2)}` : isNegative ? `-${curInfo.symbol}${Math.abs(row.netBalance).toFixed(2)}` : `${curInfo.symbol}0.00`}
                   </div>
                   <div style={{ fontSize: '0.68rem', fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
                     {isPositive ? 'is owed' : isNegative ? 'owes' : 'settled'}

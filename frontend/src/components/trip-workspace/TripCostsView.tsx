@@ -12,7 +12,14 @@ import { CategoryBreakdownWidget } from './costs/CategoryBreakdownWidget';
 import { ExpenseModal } from './costs/ExpenseModal';
 import { SettlementModal } from './costs/SettlementModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { resolveDestinationCurrency, fetchLiveExchangeRate } from '@/utils/currencyResolver';
+import {
+  resolveDestinationCurrency,
+  fetchLiveExchangeRate,
+  getCurrencyInfo,
+  convertCurrency,
+  fetchEurRates,
+  BASELINE_EUR_RATES,
+} from '@/utils/currencyResolver';
 import { CurrencyWheelPicker } from './costs/CurrencyWheelPicker';
 import { getCostCategoryMeta } from './costs/costsCategories';
 
@@ -94,6 +101,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   const [exchangeRate, setExchangeRate] = useState<number>(1.0);
   const [isLiveRate, setIsLiveRate] = useState<boolean>(true);
   const [eurToActiveRate, setEurToActiveRate] = useState<number>(1.0);
+  const [eurRates, setEurRates] = useState<Record<string, number>>(BASELINE_EUR_RATES);
 
   // Fetch live exchange rates dynamically
   useEffect(() => {
@@ -111,6 +119,13 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     fetchLiveExchangeRate('EUR', activeCurrency).then((res) => {
       if (active) {
         setEurToActiveRate(res.rate);
+      }
+    });
+
+    // All rates against base EUR for multi-currency conversion
+    fetchEurRates().then((rates) => {
+      if (active) {
+        setEurRates(rates);
       }
     });
 
@@ -188,6 +203,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               title: p?.name ? `${p.name} admission` : `Day ${dayNum} Admission`,
               category: p?.category || 'activities',
               amount: cost,
+              convertedAmount: convertCurrency(cost, 'EUR', activeCurrency, eurRates),
               currency: 'EUR',
               date: dayDate || `Day ${dayNum}`,
               isUnfinished: true,
@@ -200,19 +216,22 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     });
 
     return items;
-  }, [itinerary, trip.start_date]);
+  }, [itinerary, trip.start_date, activeCurrency, eurRates]);
 
   // Map logged expenses
   const loggedItems = useMemo<DisplayExpenseItem[]>(() => {
     return expenses.map((e) => {
       const payer = participants.find((p) => p.id === e.payer_id);
+      const originalAmount = Number(e.amount);
+      const cur = e.currency || 'EUR';
       return {
         id: e.id,
         source: 'logged',
         title: e.description,
         category: e.category,
-        amount: Number(e.amount),
-        currency: e.currency || 'EUR',
+        amount: originalAmount,
+        convertedAmount: convertCurrency(originalAmount, cur, activeCurrency, eurRates),
+        currency: cur,
         date: e.expense_date || undefined,
         payerId: e.payer_id,
         payerName: payer?.name || e.payer_name || 'Traveler',
@@ -224,7 +243,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         raw: e,
       };
     });
-  }, [expenses, participants]);
+  }, [expenses, participants, activeCurrency, eurRates]);
 
   // Combined item list
   const allItems = useMemo(() => {
@@ -273,40 +292,59 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     return dates.map((d) => ({ value: d, label: d }));
   }, [allItems]);
 
+  // Converted settlement transfers & balances in active currency
+  const settlementTransfers = settlement?.transfers;
+  const settlementBalances = settlement?.balances;
+  const settlementCurrency = settlement?.currency || 'EUR';
+
+  const convertedTransfers = useMemo(() => {
+    if (!settlementTransfers) return [];
+    return settlementTransfers.map((t) => ({
+      ...t,
+      amount: convertCurrency(t.amount, settlementCurrency, activeCurrency, eurRates),
+    }));
+  }, [settlementTransfers, settlementCurrency, activeCurrency, eurRates]);
+
+  const convertedBalances = useMemo(() => {
+    if (!settlementBalances) return [];
+    return settlementBalances.map((b) => ({
+      ...b,
+      total_paid: convertCurrency(b.total_paid, settlementCurrency, activeCurrency, eurRates),
+      total_share: convertCurrency(b.total_share, settlementCurrency, activeCurrency, eurRates),
+      net_balance: convertCurrency(b.net_balance, settlementCurrency, activeCurrency, eurRates),
+    }));
+  }, [settlementBalances, settlementCurrency, activeCurrency, eurRates]);
+
   // Calculate KPI Totals
   const totals = useMemo<CostsTotals>(() => {
     let owe = 0;
     let owed = 0;
 
-    if (settlement?.transfers) {
-      settlement.transfers.forEach((t) => {
-        if (t.sender_id === currentUserId) owe += t.amount;
-        if (t.receiver_id === currentUserId) owed += t.amount;
-      });
-    }
+    convertedTransfers.forEach((t) => {
+      if (t.sender_id === currentUserId) owe += t.amount;
+      if (t.receiver_id === currentUserId) owed += t.amount;
+    });
 
     const unfinishedItems = allItems.filter((i) => i.isUnfinished);
-    const outstanding = unfinishedItems.reduce((acc, i) => acc + i.amount, 0);
+    const outstanding = unfinishedItems.reduce((acc, i) => acc + (i.convertedAmount ?? i.amount), 0);
 
-    const totalSpend = loggedItems.reduce((acc, i) => acc + i.amount, 0);
+    const totalSpend = loggedItems.reduce((acc, i) => acc + (i.convertedAmount ?? i.amount), 0);
 
-    const myBalance = settlement?.balances?.find((b) => b.participant_id === currentUserId);
+    const myBalance = convertedBalances.find((b) => b.participant_id === currentUserId);
     const myShare = myBalance?.total_share || 0;
     const myPaid = myBalance?.total_paid || 0;
 
-    const rate = eurToActiveRate || 1.0;
-
     return {
-      owe: owe * rate,
-      owed: owed * rate,
+      owe,
+      owed,
       outstanding,
       outstandingCount: unfinishedItems.length,
-      totalSpend: totalSpend * rate,
-      myShare: myShare * rate,
-      myPaid: myPaid * rate,
+      totalSpend,
+      myShare,
+      myPaid,
       currency: activeCurrency,
     };
-  }, [settlement, allItems, loggedItems, currentUserId, eurToActiveRate, activeCurrency]);
+  }, [convertedTransfers, convertedBalances, allItems, loggedItems, currentUserId, activeCurrency]);
 
   // Group items by date for timeline
   const groupedByDate = useMemo(() => {
@@ -319,7 +357,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     return Object.entries(groups).map(([date, entries]) => ({
       date,
       entries,
-      subtotal: entries.reduce((sum, e) => sum + e.amount, 0),
+      subtotal: entries.reduce((sum, e) => sum + (e.convertedAmount ?? e.amount), 0),
     }));
   }, [filteredItems]);
 
@@ -341,34 +379,34 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   // Today's spend in active currency
   const todaySpend = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
-    const todayExpenses = expenses.filter((e) => e.expense_date === todayStr);
-    const sumEur = todayExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
-    return sumEur * (eurToActiveRate || 1.0);
-  }, [expenses, eurToActiveRate]);
+    const todayExpenses = loggedItems.filter((e) => e.date === todayStr);
+    return todayExpenses.reduce((acc, e) => acc + (e.convertedAmount ?? e.amount), 0);
+  }, [loggedItems]);
 
   // Planned trip budget in active currency
   const totalBudget = useMemo(() => {
     const itinData = trip.itinerary_data as Record<string, any> | undefined;
     const constraintBudget = itinData?.travel_constraints?.budget_usd ?? (itinerary as any)?.travel_constraints?.budget_usd;
     if (typeof constraintBudget === 'number' && constraintBudget > 0) {
-      return constraintBudget * (eurToActiveRate || 1.0);
+      return convertCurrency(constraintBudget, 'USD', activeCurrency, eurRates);
     }
     if (typeof itinerary?.total_trip_cost === 'number' && itinerary.total_trip_cost > 0) {
-      return itinerary.total_trip_cost * (eurToActiveRate || 1.0);
+      return convertCurrency(itinerary.total_trip_cost, 'EUR', activeCurrency, eurRates);
     }
-    const plannedItemsSum = itineraryItems.reduce((sum, item) => sum + item.amount, 0);
+    const plannedItemsSum = itineraryItems.reduce((sum, item) => sum + (item.convertedAmount ?? item.amount), 0);
     if (plannedItemsSum > 0) {
-      return plannedItemsSum * (eurToActiveRate || 1.0);
+      return plannedItemsSum;
     }
     const days = tripDateMeta?.days || 5;
-    return days * 120 * (eurToActiveRate || 1.0);
-  }, [trip.itinerary_data, itinerary, itineraryItems, eurToActiveRate, tripDateMeta?.days]);
+    return convertCurrency(days * 120, 'EUR', activeCurrency, eurRates);
+  }, [trip.itinerary_data, itinerary, itineraryItems, activeCurrency, eurRates, tripDateMeta?.days]);
 
   // Action handlers
   const handleSaveExpense = async (data: {
     payer_id: string;
     description: string;
     amount: number;
+    currency: string;
     category: string;
     split_type: string;
     splits: { participant_id: string; amount: number }[];
@@ -412,6 +450,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
       payer_id: data.sender_id,
       description: data.description || 'Debt settlement payment',
       amount: data.amount,
+      currency: activeCurrency,
       category: 'other',
       split_type: 'custom',
       splits: [{ participant_id: data.receiver_id, amount: data.amount }],
@@ -606,6 +645,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         isOpen={isWheelPickerOpen}
         onClose={() => setIsWheelPickerOpen(false)}
         selectedCurrency={activeCurrency}
+        defaultCurrency={userDefaultCurrency}
+        destinationCurrency={destinationCurrency}
         onSelectCurrency={(cur) => setSelectedCurrencyOverride(cur.code)}
       />
 
@@ -728,7 +769,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                         fontWeight: 600,
                       }}
                     >
-                      €{group.subtotal.toFixed(2)} spent
+                      {getCurrencyInfo(activeCurrency).symbol}{group.subtotal.toFixed(2)} spent
                     </span>
                   </div>
 
@@ -738,6 +779,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                       <ExpenseRow
                         key={item.id}
                         item={item}
+                        activeCurrency={activeCurrency}
                         onEdit={(it) => {
                           setEditingExpense(it);
                           setShowExpenseModal(true);
@@ -757,8 +799,9 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* 1. Settle Up Widget */}
           <SettleUpWidget
-            transfers={settlement?.transfers || []}
+            transfers={convertedTransfers}
             isSimplified={simplifyDebts}
+            currency={activeCurrency}
             onToggleSimplified={() => setSimplifyDebts((prev) => !prev)}
             onAddPayment={() => {
               setSettlementPrefill(null);
@@ -769,14 +812,15 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
           {/* 2. Balances Widget */}
           <BalancesWidget
-            balances={settlement?.balances || []}
+            balances={convertedBalances}
             participants={participants}
+            currency={activeCurrency}
           />
 
           {/* 3. By Category Graph Widget (User requested!) */}
           <CategoryBreakdownWidget
             items={allItems}
-            currency="EUR"
+            currency={activeCurrency}
           />
         </div>
       </div>
@@ -787,6 +831,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
           participants={participants}
           prefill={editingExpense}
           defaultPayerId={currentUserId}
+          defaultCurrency={userDefaultCurrency}
+          destinationCurrency={destinationCurrency}
           onClose={() => {
             setShowExpenseModal(false);
             setEditingExpense(null);

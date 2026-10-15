@@ -204,6 +204,7 @@ export function useTrips() {
       payer_id: string;
       description: string;
       amount: number;
+      currency?: string;
       category?: string;
       split_type?: string;
       splits?: ExpenseSplit[];

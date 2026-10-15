@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { getCostCategoryMeta } from './costsCategories';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 
 export interface DisplayExpenseItem {
   id: string;
@@ -9,6 +10,7 @@ export interface DisplayExpenseItem {
   title: string;
   category: string;
   amount: number;
+  convertedAmount?: number;
   currency?: string;
   date?: string;
   payerId?: string;
@@ -20,16 +22,22 @@ export interface DisplayExpenseItem {
 
 interface ExpenseRowProps {
   item: DisplayExpenseItem;
+  activeCurrency?: string;
   onEdit?: (item: DisplayExpenseItem) => void;
   onDelete?: (item: DisplayExpenseItem) => void;
   onClaim?: (item: DisplayExpenseItem) => void;
 }
 
-export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps) {
+export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: ExpenseRowProps) {
   const meta = getCostCategoryMeta(item.category);
   const Icon = meta.icon;
   const isUnfinished = item.isUnfinished || !item.payerId || item.source === 'itinerary';
   const currency = item.currency || 'EUR';
+  const viewCurrency = activeCurrency || 'EUR';
+  const activeCurInfo = getCurrencyInfo(viewCurrency);
+  const origCurInfo = getCurrencyInfo(currency);
+  const displayAmount = typeof item.convertedAmount === 'number' ? item.convertedAmount : item.amount;
+  const isDifferentCurrency = currency.toUpperCase() !== viewCurrency.toUpperCase();
 
   return (
     <div
@@ -184,7 +192,7 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               letterSpacing: '-0.02em',
             }}
           >
-            €{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {activeCurInfo.symbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div
             style={{
@@ -193,7 +201,9 @@ export function ExpenseRow({ item, onEdit, onDelete, onClaim }: ExpenseRowProps)
               color: 'var(--color-text-muted)',
             }}
           >
-            {currency}
+            {isDifferentCurrency
+              ? `Paid: ${origCurInfo.symbol}${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+              : viewCurrency}
           </div>
         </div>
 
