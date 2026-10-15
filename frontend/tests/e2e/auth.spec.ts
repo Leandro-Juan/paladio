@@ -125,19 +125,21 @@ test.describe('Authentication & User Management Flow', () => {
     // 2. Redirected to /dashboard
     await expect(page).toHaveURL(/.*\/dashboard/);
 
-    // Sidebar should display user info and role
-    await expect(page.getByText('masteradmin', { exact: true })).toBeVisible();
-    await expect(page.getByText('ADMIN').first()).toBeVisible();
+    // Reveal floating dock by hovering bottom trigger zone
+    const triggerZone = page.locator('[class*="triggerZone"]');
+    await triggerZone.hover();
 
-    // Verify Configuration link is removed from sidebar navigation
-    await expect(page.locator('nav.sidebar').getByRole('link', { name: /Configuration/i })).not.toBeVisible();
-
-    // 3. Navigate to Configuration tab via User Menu Settings
+    // 3. Open UserMenu to verify user info and navigate to Configuration tab
     const userMenuBtn = page.getByRole('button', { name: /User menu/i });
     await expect(userMenuBtn).toBeVisible();
     await userMenuBtn.click();
 
-    const settingsBtn = page.getByRole('menuitem', { name: /Settings/i });
+    const userMenu = page.getByRole('menu', { name: /User navigation/i });
+    await expect(userMenu).toBeVisible();
+    await expect(userMenu.getByText('masteradmin', { exact: true })).toBeVisible();
+    await expect(userMenu.getByText('ADMIN').first()).toBeVisible();
+
+    const settingsBtn = userMenu.getByRole('menuitem', { name: /Settings/i });
     await expect(settingsBtn).toBeVisible();
     await settingsBtn.click();
     await expect(page).toHaveURL(/.*\/config/);
