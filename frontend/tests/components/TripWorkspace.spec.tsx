@@ -154,6 +154,41 @@ test.describe('Trip Workspace Renovated Components', () => {
     expect(selectedDay).toBe('all');
   });
 
+  test('TripPlanSidebar displays carousel arrows for a 5-day trip (Tokyo)', async ({ mount }) => {
+    const mock5Days: DayOutput[] = [
+      { day: 1, theme: 'Asakusa & Ueno', itinerary: { path: [] } },
+      { day: 2, theme: 'Shibuya & Shinjuku', itinerary: { path: [] } },
+      { day: 3, theme: 'Ginza & Akihabara', itinerary: { path: [] } },
+      { day: 4, theme: 'Roppongi & Tokyo Tower', itinerary: { path: [] } },
+      { day: 5, theme: 'Odaiba & Bay Area', itinerary: { path: [] } },
+    ];
+
+    let selectedDay: number | 'all' = 'all';
+
+    const component = await mount(
+      <TripPlanSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        days={mock5Days}
+        selectedDay={selectedDay}
+        onSelectDay={(day) => {
+          selectedDay = day;
+        }}
+      />
+    );
+
+    const prevBtn = component.getByTestId('day-nav-prev');
+    const nextBtn = component.getByTestId('day-nav-next');
+    await expect(prevBtn).toBeVisible();
+    await expect(nextBtn).toBeVisible();
+
+    // Verify day 5 button exists
+    const day5Btn = component.getByTestId('day-tab-5');
+    await expect(day5Btn).toBeVisible();
+    await day5Btn.click();
+    expect(selectedDay).toBe(5);
+  });
+
   test('TripPlanSidebar renders transit route view pill toggle and switches modes', async ({ mount }) => {
     let mode: 'simple' | 'detailed' = 'simple';
     const mockDays: DayOutput[] = [

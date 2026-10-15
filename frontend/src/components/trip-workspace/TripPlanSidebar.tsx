@@ -160,12 +160,14 @@ export function TripPlanSidebar({
   const dayTabsRef = React.useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
+  const [isOverflowing, setIsOverflowing] = React.useState(false);
 
   const checkScroll = React.useCallback(() => {
     const el = dayTabsRef.current;
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 2);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+    setIsOverflowing(el.scrollWidth > el.clientWidth + 2);
   }, []);
 
   React.useEffect(() => {
@@ -193,7 +195,7 @@ export function TripPlanSidebar({
     return days.reduce((sum, d) => sum + (d.itinerary?.total_cost || 0), 0);
   }, [days]);
 
-  const showScrollArrows = days.length > 5;
+  const showScrollArrows = days.length > 4 || isOverflowing;
 
   return (
     <div
@@ -300,6 +302,7 @@ export function TripPlanSidebar({
                 <div
                   ref={dayTabsRef}
                   data-testid="day-selector-tabs"
+                  onScroll={checkScroll}
                   style={{
                     display: 'flex',
                     gap: '4px',
