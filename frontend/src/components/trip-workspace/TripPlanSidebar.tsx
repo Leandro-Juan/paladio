@@ -5,10 +5,20 @@ import { DayOutput, OptimizationResult, ScheduledPoi } from '@/types/domain';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { TransitRecommendationCard } from '@/components/TransitLegView';
-import { Spinner, LightningIcon, WalkIcon, TransitIcon } from '@/components/icons';
+import {
+  Spinner,
+  LightningIcon,
+  WalkIcon,
+  TransitIcon,
+  GripVerticalIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  CpuIcon,
+} from '@/components/icons';
 import { apiFetch } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
+import { useTrips } from '@/hooks/useTrips';
 
 interface TripPlanSidebarProps {
   isOpen: boolean;
@@ -55,6 +65,182 @@ export function TripPlanSidebar({
     return false;
   });
   const [gtfsStatus, setGtfsStatus] = useState<string | null>(null);
+
+  // C++ Route Re-optimization and Drag-Drop state
+  const { updateTrip, reoptimizeTrip } = useTrips();
+  const [reoptimizing, setReoptimizing] = useState(false);
+  const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
+  const [hasManualChanges, setHasManualChanges] = useState(false);
+  const [draggedPoi, setDraggedPoi] = useState<{ day: number; index: number } | null>(null);
+
+  const formatTimeHHMM = (mins: number) => {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const recalculateDayTiming = (path: ScheduledPoi[]) => {
+    let curClock = 540; // 09:00 default
+    for (let k = 0; k < path.length; k++) {
+      const item = path[k];
+      const dur = item.poi?.duration_mins || 60;
+      item.scheduled_start = formatTimeHHMM(curClock);
+      curClock += dur;
+      item.scheduled_end = formatTimeHHMM(curClock);
+      curClock += 15; // default 15m transit buffer between stops
+    }
+  };
+
+  const handleReoptimizeRoute = async () => {
+    if (reoptimizing) return;
+    if (!tripId) {
+      notify.error('No Trip ID', 'Trip must be saved before re-optimizing with C++ engine.');
+      return;
+    }
+
+    setReoptimizing(true);
+    try {
+      const res = await reoptimizeTrip(tripId, itinerary ? { itinerary_data: itinerary } : undefined);
+      const updatedItin = res?.itinerary_data as OptimizationResult | undefined;
+      if (updatedItin && onItineraryUpdate) {
+        onItineraryUpdate(updatedItin);
+      }
+      setHasManualChanges(false);
+      notify.success(
+        'Route Re-optimized',
+        'Deterministic C++20 engine solved TSPTW sequence and time windows.'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'C++ Route Re-optimization failed';
+      notify.error('Re-optimization Failed', msg);
+    } finally {
+      setReoptimizing(false);
+    }
+  };
+
+  const handleMoveStop = (targetDayNum: number, sourceIdx: number, direction: 'up' | 'down') => {
+    if (!itinerary || !onItineraryUpdate) return;
+    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+    const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === targetDayNum);
+    if (!targetDayObj?.itinerary?.path) return;
+
+    const path = targetDayObj.itinerary.path;
+    const destIdx = direction === 'up' ? sourceIdx - 1 : sourceIdx + 1;
+    if (destIdx < 0 || destIdx >= path.length) return;
+
+    const [moved] = path.splice(sourceIdx, 1);
+    path.splice(destIdx, 0, moved);
+
+    recalculateDayTiming(path);
+    onItineraryUpdate(clonedItin);
+    setHasManualChanges(true);
+    if (tripId) {
+      updateTrip(tripId, { itinerary_data: clonedItin });
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDayNum: number, targetIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveDropTarget(null);
+    setDraggedPoi(null);
+
+    const searchDataStr = e.dataTransfer.getData('application/paladio-poi');
+    const itinDataStr = e.dataTransfer.getData('application/paladio-itinerary-poi');
+
+    if (!itinerary || !onItineraryUpdate) return;
+
+    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+    if (!clonedItin.days) clonedItin.days = [];
+
+    let targetDayObj = clonedItin.days.find((d) => (d.day ?? 1) === targetDayNum);
+    if (!targetDayObj) {
+      targetDayObj = { day: targetDayNum, itinerary: { path: [] } };
+      clonedItin.days.push(targetDayObj);
+    }
+    if (!targetDayObj.itinerary) targetDayObj.itinerary = { path: [] };
+    if (!targetDayObj.itinerary.path) targetDayObj.itinerary.path = [];
+
+    if (searchDataStr) {
+      try {
+        const parsed = JSON.parse(searchDataStr);
+        const rawPoi = parsed.poi;
+        const newStop: ScheduledPoi = {
+          poi: {
+            id: rawPoi.id,
+            name: rawPoi.name,
+            city: destinationCity || 'City',
+            category: rawPoi.category || 'attraction',
+            location: rawPoi.location || { latitude: 0, longitude: 0 },
+            duration_mins: rawPoi.duration_mins || 60,
+            cost_eur: rawPoi.cost_eur || 0,
+          },
+          scheduled_start: '09:00',
+          scheduled_end: '10:00',
+        };
+
+        const insertIdx = Math.max(0, Math.min(targetIndex, targetDayObj.itinerary.path.length));
+        targetDayObj.itinerary.path.splice(insertIdx, 0, newStop);
+
+        recalculateDayTiming(targetDayObj.itinerary.path);
+        onItineraryUpdate(clonedItin);
+        setHasManualChanges(true);
+
+        if (tripId) {
+          updateTrip(tripId, { itinerary_data: clonedItin });
+        }
+
+        notify.success(
+          'Place Added to Itinerary',
+          `Added "${rawPoi.name}" to Day ${targetDayNum}. Re-optimize to solve the optimal schedule.`
+        );
+      } catch (err) {
+        console.error('Failed to add dragged POI', err);
+      }
+    } else if (itinDataStr) {
+      try {
+        const parsed = JSON.parse(itinDataStr);
+        const srcDayNum = parsed.day;
+        const srcIdx = parsed.index;
+
+        if (srcDayNum === targetDayNum && (srcIdx === targetIndex || srcIdx === targetIndex - 1)) {
+          return;
+        }
+
+        const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
+        if (!srcDayObj?.itinerary?.path) return;
+
+        const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
+        if (!movedItem) return;
+
+        let adjustedTarget = targetIndex;
+        if (srcDayNum === targetDayNum && srcIdx < targetIndex) {
+          adjustedTarget = Math.max(0, targetIndex - 1);
+        }
+        const insertIdx = Math.max(0, Math.min(adjustedTarget, targetDayObj.itinerary.path.length));
+        targetDayObj.itinerary.path.splice(insertIdx, 0, movedItem);
+
+        recalculateDayTiming(srcDayObj.itinerary.path);
+        if (srcDayNum !== targetDayNum) {
+          recalculateDayTiming(targetDayObj.itinerary.path);
+        }
+
+        onItineraryUpdate(clonedItin);
+        setHasManualChanges(true);
+
+        if (tripId) {
+          updateTrip(tripId, { itinerary_data: clonedItin });
+        }
+
+        notify.info(
+          'Stop Reordered',
+          `Moved "${movedItem.poi?.name}" to Day ${targetDayNum}. Click Re-optimize to solve times.`
+        );
+      } catch (err) {
+        console.error('Failed to reorder itinerary stop', err);
+      }
+    }
+  };
 
   // Poll GTFS status
   useEffect(() => {
@@ -576,6 +762,77 @@ export function TripPlanSidebar({
                   </button>
                 </div>
               )}
+
+              {/* C++ Route Re-Optimization Action Card */}
+              <div
+                style={{
+                  marginTop: '4px',
+                  padding: '8px 10px',
+                  background: 'var(--color-bg-main)',
+                  border: hasManualChanges ? '1.5px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  boxShadow: hasManualChanges ? '0 2px 8px rgba(15, 76, 92, 0.15)' : 'none',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <CpuIcon size={14} color="var(--color-accent-primary)" />
+                    <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary)', fontWeight: 700 }}>
+                      RE-OPTIMIZE ROUTE
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '9.5px',
+                        letterSpacing: '0.06em',
+                        background: 'rgba(15, 76, 92, 0.12)',
+                        color: 'var(--color-accent-primary)',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      C++20 TSPTW
+                    </span>
+                  </div>
+                  {hasManualChanges && (
+                    <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-accent-primary)', fontWeight: 600 }}>
+                      Manual changes made · Solve optimal sequence &amp; times
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReoptimizeRoute}
+                  disabled={reoptimizing}
+                  style={{
+                    padding: '5px 10px',
+                    background: 'var(--color-accent-primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '10.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    cursor: reoptimizing ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    boxShadow: 'var(--shadow-sm)',
+                    whiteSpace: 'nowrap',
+                    opacity: reoptimizing ? 0.75 : 1,
+                  }}
+                  title="Run deterministic C++20 optimization on current stops"
+                >
+                  {reoptimizing ? <Spinner size={11} color="#FFFFFF" /> : <LightningIcon size={12} color="#FFFFFF" />}
+                  <span>{reoptimizing ? 'SOLVING...' : 'SOLVE ROUTE'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Stops & Waypoints List */}
@@ -585,7 +842,7 @@ export function TripPlanSidebar({
                 const transitRec = dayObj.itinerary?.transit_recommendation;
 
                 return (
-                  <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {/* Day Group Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid var(--color-border)', paddingBottom: '4px' }}>
                       <span className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
@@ -601,9 +858,42 @@ export function TripPlanSidebar({
                       <TransitRecommendationCard recommendation={transitRec} />
                     )}
 
+                    {/* Empty Day Drop Target */}
                     {path.length === 0 && (
-                      <div className="font-mono text-muted" style={{ fontSize: '12px', padding: '1rem', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-main)' }}>
-                        No scheduled stops for this day. Free exploration.
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'copy';
+                          setActiveDropTarget({ day: dayObj.day, index: 0 });
+                        }}
+                        onDragLeave={() => {
+                          if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === 0) {
+                            setActiveDropTarget(null);
+                          }
+                        }}
+                        onDrop={(e) => handleDrop(e, dayObj.day, 0)}
+                        className="font-mono text-muted"
+                        style={{
+                          fontSize: '11.5px',
+                          padding: '1.5rem 1rem',
+                          textAlign: 'center',
+                          border: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === 0
+                            ? '2px dashed var(--color-accent-primary)'
+                            : '1px dashed var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          background: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === 0
+                            ? 'rgba(15, 76, 92, 0.08)'
+                            : 'var(--color-bg-main)',
+                          color: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === 0
+                            ? 'var(--color-accent-primary)'
+                            : 'var(--color-text-muted)',
+                          transition: 'all 0.16s ease',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === 0
+                          ? '+ DROP PLACE HERE TO SCHEDULE'
+                          : 'Nothing planned. Drag a place here from the right search tab.'}
                       </div>
                     )}
 
@@ -616,9 +906,67 @@ export function TripPlanSidebar({
 
                       const catType = classifyPoiCategory(p?.category, p?.name).type;
                       const isCatMatch = !categoryFilter || isCategoryMatch(categoryFilter, catType);
+                      const isThisDropSlot = activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx;
+                      const isBeingDragged = draggedPoi?.day === dayObj.day && draggedPoi?.index === poiIdx;
 
                       return (
                         <React.Fragment key={poiIdx}>
+                          {/* Drop insertion slot before this stop */}
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = 'copy';
+                              setActiveDropTarget({ day: dayObj.day, index: poiIdx });
+                            }}
+                            onDragLeave={(e) => {
+                              e.stopPropagation();
+                              if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx) {
+                                setActiveDropTarget(null);
+                              }
+                            }}
+                            onDrop={(e) => handleDrop(e, dayObj.day, poiIdx)}
+                            style={{
+                              height: isThisDropSlot ? '26px' : '6px',
+                              margin: isThisDropSlot ? '2px 0' : '-3px 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease',
+                              zIndex: 10,
+                            }}
+                          >
+                            {isThisDropSlot && (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '2.5px',
+                                  borderRadius: '2px',
+                                  background: 'var(--color-accent-primary)',
+                                  boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <span
+                                  className="font-mono"
+                                  style={{
+                                    fontSize: '9px',
+                                    fontWeight: 700,
+                                    background: 'var(--color-accent-primary)',
+                                    color: '#FFFFFF',
+                                    padding: '1px 6px',
+                                    borderRadius: '3px',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  INSERT STOP #{poiIdx + 1}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
                           {/* Transit leg from previous POI */}
                           {transitFromPrev && (
                             <div
@@ -657,8 +1005,22 @@ export function TripPlanSidebar({
                             </div>
                           )}
 
-                          {/* Waypoint Card */}
+                          {/* Draggable Waypoint Card */}
                           <div
+                            draggable={true}
+                            onDragStart={(e) => {
+                              setDraggedPoi({ day: dayObj.day, index: poiIdx });
+                              e.dataTransfer.setData(
+                                'application/paladio-itinerary-poi',
+                                JSON.stringify({ day: dayObj.day, index: poiIdx })
+                              );
+                              e.dataTransfer.setData('text/plain', p?.name || 'Waypoint');
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => {
+                              setDraggedPoi(null);
+                              setActiveDropTarget(null);
+                            }}
                             style={{
                               background: 'var(--color-bg-main)',
                               border: isCatMatch
@@ -673,12 +1035,27 @@ export function TripPlanSidebar({
                                 isCatMatch && categoryFilter
                                   ? 'var(--shadow-md)'
                                   : 'var(--shadow-sm)',
-                              opacity: isCatMatch ? 1 : 0.35,
+                              opacity: isBeingDragged ? 0.45 : (isCatMatch ? 1 : 0.35),
+                              cursor: 'grab',
+                              transform: isBeingDragged ? 'scale(0.98)' : 'none',
                               transition: 'all 0.15s ease',
                             }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* 6-dot drag grip handle */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    color: 'var(--color-text-muted)',
+                                    cursor: 'grab',
+                                  }}
+                                  title="Drag to reorder stop"
+                                >
+                                  <GripVerticalIcon size={14} color="var(--color-text-muted)" />
+                                </div>
+
                                 <span
                                   style={{
                                     fontFamily: 'var(--font-mono)',
@@ -696,12 +1073,64 @@ export function TripPlanSidebar({
                                   {p?.name || 'Waypoint'}
                                 </h4>
                               </div>
-                              {p?.category && (
-                                <PoiCategoryBadge category={p.category} name={p.name} />
-                              )}
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {p?.category && (
+                                  <PoiCategoryBadge category={p.category} name={p.name} />
+                                )}
+                                {/* Accessible Up/Down Reorder Controls */}
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveStop(dayObj.day, poiIdx, 'up');
+                                    }}
+                                    disabled={poiIdx === 0}
+                                    style={{
+                                      background: 'none',
+                                      border: '1px solid var(--color-border)',
+                                      borderRadius: '3px',
+                                      padding: '2px',
+                                      cursor: poiIdx === 0 ? 'not-allowed' : 'pointer',
+                                      opacity: poiIdx === 0 ? 0.3 : 0.8,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      color: 'var(--color-text-muted)',
+                                    }}
+                                    title="Move stop up"
+                                    aria-label={`Move stop ${p?.name || 'Waypoint'} up`}
+                                  >
+                                    <ChevronUpIcon size={11} color="currentColor" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveStop(dayObj.day, poiIdx, 'down');
+                                    }}
+                                    disabled={poiIdx === path.length - 1}
+                                    style={{
+                                      background: 'none',
+                                      border: '1px solid var(--color-border)',
+                                      borderRadius: '3px',
+                                      padding: '2px',
+                                      cursor: poiIdx === path.length - 1 ? 'not-allowed' : 'pointer',
+                                      opacity: poiIdx === path.length - 1 ? 0.3 : 0.8,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      color: 'var(--color-text-muted)',
+                                    }}
+                                    title="Move stop down"
+                                    aria-label={`Move stop ${p?.name || 'Waypoint'} down`}
+                                  >
+                                    <ChevronDownIcon size={11} color="currentColor" />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px', paddingLeft: '22px' }}>
                               <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {startTime}
                                 {' '}&rarr;{' '}
@@ -716,7 +1145,7 @@ export function TripPlanSidebar({
                             </div>
 
                             {openHours && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '-2px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '-2px', paddingLeft: '22px' }}>
                                 <span style={{ color: 'var(--color-text-muted)' }}>&bull;</span>
                                 <span>{openHours}</span>
                               </div>
@@ -725,6 +1154,63 @@ export function TripPlanSidebar({
                         </React.Fragment>
                       );
                     })}
+
+                    {/* Drop insertion slot at the end of the day */}
+                    {path.length > 0 && (
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.dataTransfer.dropEffect = 'copy';
+                          setActiveDropTarget({ day: dayObj.day, index: path.length });
+                        }}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                          if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length) {
+                            setActiveDropTarget(null);
+                          }
+                        }}
+                        onDrop={(e) => handleDrop(e, dayObj.day, path.length)}
+                        style={{
+                          height: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length ? '26px' : '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                          marginTop: '2px',
+                        }}
+                      >
+                        {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length && (
+                          <div
+                            style={{
+                              width: '100%',
+                              height: '2.5px',
+                              borderRadius: '2px',
+                              background: 'var(--color-accent-primary)',
+                              boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <span
+                              className="font-mono"
+                              style={{
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                background: 'var(--color-accent-primary)',
+                                color: '#FFFFFF',
+                                padding: '1px 6px',
+                                borderRadius: '3px',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              APPEND AT END OF DAY {dayObj.day}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

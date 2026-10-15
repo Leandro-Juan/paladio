@@ -137,6 +137,34 @@ export function useTrips() {
     return null;
   };
 
+  const updateTrip = async (id: string, updates: Partial<Omit<Trip, 'id' | 'created_at'>>) => {
+    try {
+      const updated = await apiFetch<Trip>(`/trips/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      setTrips(prev => prev.map(t => t.id === id ? updated : t));
+      return updated;
+    } catch (e) {
+      console.error("Failed to update trip", e);
+    }
+    return null;
+  };
+
+  const reoptimizeTrip = async (id: string, updates?: Partial<Omit<Trip, 'id' | 'created_at'>>) => {
+    try {
+      const updated = await apiFetch<Trip>(`/trips/${id}/reoptimize`, {
+        method: 'POST',
+        body: updates ? JSON.stringify(updates) : undefined,
+      });
+      setTrips(prev => prev.map(t => t.id === id ? updated : t));
+      return updated;
+    } catch (e) {
+      console.error("Failed to reoptimize trip", e);
+      throw e;
+    }
+  };
+
   const deleteTrip = async (id: string) => {
     try {
       await apiFetch(`/trips/${id}`, {
@@ -262,6 +290,8 @@ export function useTrips() {
     upcomingTrips,
     loading,
     saveTrip,
+    updateTrip,
+    reoptimizeTrip,
     deleteTrip,
     fetchTrips,
     getTrip,

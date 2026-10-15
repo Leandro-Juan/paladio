@@ -221,6 +221,13 @@ class TripCreate(BaseModel):
     itinerary_data: dict[str, Any]
 
 
+class TripUpdate(BaseModel):
+    destination: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    itinerary_data: dict[str, Any] | None = None
+
+
 class TripResponse(TripCreate):
     id: str
     user_id: str | None = None
@@ -1013,6 +1020,117 @@ async def get_trip(
                 logger.warning(
                     f"Could not lazily enrich walking geometries for trip {trip.id}: {e}"
                 )
+
+    return TripResponse(
+        id=trip.id,
+        user_id=trip.user_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        created_at=trip.created_at.isoformat()
+        if trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+        participants=parts,
+        tickets_count=t_count,
+    )
+
+
+@router.put("/{trip_id}", response_model=TripResponse)
+async def update_trip(
+    trip_id: str,
+    update_data: TripUpdate,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if update_data.destination is not None:
+        trip.destination = update_data.destination
+    if update_data.start_date is not None:
+        trip.start_date = update_data.start_date
+    if update_data.end_date is not None:
+        trip.end_date = update_data.end_date
+    if update_data.itinerary_data is not None:
+        itin_data = update_data.itinerary_data
+        try:
+            from app.services.transit_service import ensure_walking_legs_populated
+
+            itin_data = await ensure_walking_legs_populated(
+                itin_data, city=trip.destination or ""
+            )
+        except Exception as e:
+            logger.warning(f"Could not ensure walking legs in update_trip: {e}")
+        trip.itinerary_data = itin_data
+
+    session.add(trip)
+    await session.commit()
+    await session.refresh(trip)
+
+    parts_models = await _ensure_trip_participants(trip, session)
+    parts = [_participant_to_response(p) for p in parts_models]
+    t_count = await _get_trip_tickets_count(trip.id, session)
+
+    return TripResponse(
+        id=trip.id,
+        user_id=trip.user_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        created_at=trip.created_at.isoformat()
+        if trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+        participants=parts,
+        tickets_count=t_count,
+    )
+
+
+@router.post("/{trip_id}/reoptimize", response_model=TripResponse)
+async def reoptimize_trip_route(
+    trip_id: str,
+    update_data: TripUpdate | None = None,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    from app.services.trip_reoptimization_service import TripReoptimizationService
+
+    current_itin = (
+        update_data.itinerary_data
+        if (update_data and update_data.itinerary_data is not None)
+        else trip.itinerary_data
+    )
+    if not current_itin or not isinstance(current_itin, dict):
+        raise HTTPException(
+            status_code=400, detail="Trip has no valid itinerary data to re-optimize"
+        )
+
+    try:
+        optimized_itin = await TripReoptimizationService.reoptimize_trip_itinerary(
+            itinerary_data=current_itin,
+            destination_city=trip.destination or "",
+        )
+        trip.itinerary_data = optimized_itin
+        session.add(trip)
+        await session.commit()
+        await session.refresh(trip)
+    except Exception as e:
+        logger.error(f"Failed to re-optimize trip {trip_id} with C++ engine: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"C++ Route Re-optimization failed: {e}"
+        ) from e
+
+    parts_models = await _ensure_trip_participants(trip, session)
+    parts = [_participant_to_response(p) for p in parts_models]
+    t_count = await _get_trip_tickets_count(trip.id, session)
 
     return TripResponse(
         id=trip.id,

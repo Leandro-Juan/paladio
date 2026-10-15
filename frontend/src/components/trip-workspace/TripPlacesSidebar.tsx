@@ -11,6 +11,7 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   InfoIcon,
+  GripVerticalIcon,
 } from '@/components/icons';
 
 export interface PlaceItem {
@@ -578,6 +579,26 @@ export function TripPlacesSidebar({
                 {/* 5. Exact Match Highlight Card */}
                 {searchData?.exact_match && !isLoading && (
                   <div
+                    draggable={true}
+                    onDragStart={(e) => {
+                      const poiPayload = {
+                        source: 'search',
+                        poi: {
+                          id: searchData.exact_match!.id,
+                          name: searchData.exact_match!.name,
+                          location: {
+                            latitude: searchData.exact_match!.lat,
+                            longitude: searchData.exact_match!.lng,
+                          },
+                          category: searchData.exact_match!.category,
+                          duration_mins: searchData.exact_match!.duration_mins,
+                          cost_eur: searchData.exact_match!.cost_eur,
+                        },
+                      };
+                      e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
+                      e.dataTransfer.setData('text/plain', searchData.exact_match!.name);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
                     style={{
                       padding: '12px',
                       background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 76, 92, 0.04) 100%)',
@@ -588,7 +609,9 @@ export function TripPlacesSidebar({
                       flexDirection: 'column',
                       gap: '8px',
                       animation: 'searchItemFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                      cursor: 'grab',
                     }}
+                    title="Drag into itinerary or click Focus on Map"
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span
@@ -608,9 +631,12 @@ export function TripPlacesSidebar({
                         <CheckIcon size={12} color="#10b981" />
                         <span>EXACT MATCH IN DATABASE</span>
                       </span>
-                      <span className="font-mono text-muted" style={{ fontSize: '10.5px' }}>
-                        100% MATCH
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="font-mono text-muted" style={{ fontSize: '10.5px' }}>
+                          100% MATCH
+                        </span>
+                        <GripVerticalIcon size={14} color="#10b981" />
+                      </div>
                     </div>
 
                     <div>
@@ -719,6 +745,26 @@ export function TripPlacesSidebar({
                       return (
                         <div
                           key={poi.id}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            const poiPayload = {
+                              source: 'search',
+                              poi: {
+                                id: poi.id,
+                                name: poi.name,
+                                location: {
+                                  latitude: poi.lat,
+                                  longitude: poi.lng,
+                                },
+                                category: poi.category,
+                                duration_mins: poi.duration_mins,
+                                cost_eur: poi.cost_eur,
+                              },
+                            };
+                            e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
+                            e.dataTransfer.setData('text/plain', poi.name);
+                            e.dataTransfer.effectAllowed = 'copy';
+                          }}
                           onClick={() =>
                             onPlaceClick?.({
                               id: poi.id,
@@ -737,7 +783,7 @@ export function TripPlacesSidebar({
                             border: '1px solid var(--color-border)',
                             borderRadius: 'var(--radius-md)',
                             boxShadow: 'var(--shadow-sm)',
-                            cursor: 'pointer',
+                            cursor: 'grab',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '8px',
@@ -745,6 +791,7 @@ export function TripPlacesSidebar({
                             animation: 'searchItemFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
                             animationDelay: `${Math.min(idx * 30, 300)}ms`,
                           }}
+                          title="Drag into itinerary or click to focus on map"
                           onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translateY(-2px)';
                             e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
@@ -756,7 +803,12 @@ export function TripPlacesSidebar({
                             e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            {/* Grip Icon */}
+                            <div style={{ display: 'flex', alignItems: 'center', height: '30px', color: 'var(--color-text-muted)' }}>
+                              <GripVerticalIcon size={14} color="var(--color-text-muted)" />
+                            </div>
+
                             {/* Rank Number Badge */}
                             <div
                               style={{
