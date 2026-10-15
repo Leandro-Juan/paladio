@@ -124,7 +124,7 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
             border: '1px solid var(--color-danger)',
             borderRadius: '8px',
             color: 'var(--color-danger)',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '0.85rem',
           }}
         >
@@ -241,7 +241,7 @@ export function TripCollabView({ trip, onTripUpdated }: TripCollabViewProps) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontFamily: 'monospace',
+                    fontFamily: 'var(--font-mono)',
                   }}
                 >
                   {p.name.substring(0, 2).toUpperCase()}

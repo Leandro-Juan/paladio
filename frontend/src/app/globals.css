@@ -55,10 +55,11 @@
   --shadow-md: 0 4px 12px rgba(15, 76, 92, 0.08);
   --shadow-lg: 0 8px 24px rgba(15, 76, 92, 0.12);
 
-  --font-display: var(--font-jost, 'Jost', sans-serif);
+  /* Typography System Defaults (Inter Universal) */
+  --font-display: var(--font-inter, 'Inter', sans-serif);
   --font-body: var(--font-inter, 'Inter', sans-serif);
   --font-mono: var(--font-inter, 'Inter', sans-serif);
-  --font-code: var(--font-mono, 'JetBrains Mono', monospace);
+  --font-code: var(--font-inter, 'Inter', monospace);
 
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -120,10 +121,30 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+/* Typography Engine Mode Variables */
+:root,
+[data-typography="inter"] {
+  --font-display: var(--font-inter, 'Inter', sans-serif);
+  --font-body: var(--font-inter, 'Inter', sans-serif);
+  --font-mono: var(--font-inter, 'Inter', sans-serif);
+  --font-code: var(--font-inter, 'Inter', monospace);
+}
+
+[data-typography="classic"] {
+  --font-display: var(--font-jost, 'Jost', sans-serif);
+  --font-body: var(--font-inter, 'Inter', sans-serif);
+  --font-mono: var(--font-inter, 'Inter', sans-serif);
+  --font-code: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {
@@ -155,6 +176,40 @@ h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 500;
   line-height: 1.3;
+}
+
+/* Universal Inter typography enforcement (ALL ALL WORDS) */
+[data-typography="inter"],
+[data-typography="inter"] body,
+[data-typography="inter"] h1,
+[data-typography="inter"] h2,
+[data-typography="inter"] h3,
+[data-typography="inter"] h4,
+[data-typography="inter"] h5,
+[data-typography="inter"] h6,
+[data-typography="inter"] button,
+[data-typography="inter"] input,
+[data-typography="inter"] select,
+[data-typography="inter"] textarea,
+[data-typography="inter"] .font-display,
+[data-typography="inter"] .font-mono,
+[data-typography="inter"] .font-code {
+  font-family: var(--font-inter, 'Inter', sans-serif) !important;
+}
+
+/* Classic Typography enforcement (Jost for display, JetBrains Mono for code) */
+[data-typography="classic"] h1,
+[data-typography="classic"] h2,
+[data-typography="classic"] h3,
+[data-typography="classic"] h4,
+[data-typography="classic"] h5,
+[data-typography="classic"] h6,
+[data-typography="classic"] .font-display {
+  font-family: var(--font-jost, 'Jost', sans-serif) !important;
+}
+
+[data-typography="classic"] .font-code {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
 }
 
 a {

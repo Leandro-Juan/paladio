@@ -135,7 +135,7 @@ export function TicketDetailModal({
         <span
           style={{
             marginTop: '10px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '11px',
             color: 'var(--color-text-muted, #64748B)',
             wordBreak: 'break-all',

@@ -113,7 +113,7 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span
                     style={{
-                      fontFamily: 'monospace',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: '11px',
                       color: 'var(--color-accent-teal)',
                       background: 'var(--color-accent-teal-soft)',
@@ -152,7 +152,7 @@ export function TripTransportsView({ itinerary }: TripTransportsViewProps) {
                     borderTop: '1px solid var(--color-border-subtle)',
                     paddingTop: '0.5rem',
                     fontSize: '11px',
-                    fontFamily: 'monospace',
+                    fontFamily: 'var(--font-mono)',
                     color: 'var(--color-text-muted)',
                     display: 'flex',
                     justifyContent: 'space-between',

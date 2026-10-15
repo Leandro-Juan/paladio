@@ -293,7 +293,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 borderRadius: '8px',
                 color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               No flight passes in wallet. Drop a PDF boarding pass or add one manually.
@@ -355,7 +355,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 borderRadius: '8px',
                 color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               No accommodations recorded. Add door codes, key PINs, or Wi-Fi passwords here.
@@ -417,7 +417,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 borderRadius: '8px',
                 color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               No museum passes or entry tickets. Tickets synced from itinerary will appear here.
@@ -479,7 +479,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 borderRadius: '8px',
                 color: 'var(--color-text-muted, #64748B)',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               No rail or transit passes. Renfe, metro passes and regional rail tickets appear here.

@@ -16,6 +16,7 @@ import {
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 import { useThemeStore } from '@/stores/themeStore';
+import { useTypographyStore } from '@/stores/typographyStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
@@ -46,6 +47,7 @@ function getSafeAvatarUrl(url: unknown): string | null {
 export default function ConfigPage() {
   const { user: currentUser, refreshUser } = useAuth();
   const { theme, setTheme } = useThemeStore();
+  const { typography, setTypography, toggleTypography } = useTypographyStore();
   const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState<User[]>([]);
@@ -674,6 +676,168 @@ export default function ConfigPage() {
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#061B22' }} title="Sidebar #061B22" />
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#7CC4D1' }} title="Sky Teal #7CC4D1" />
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Interface Typography Engine */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Interface Typography Engine
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// SYSTEM-WIDE TYPOGRAPHY SELECTION & FONT PAIRING'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={toggleTypography}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: typography === 'inter' 
+                ? 'var(--color-surface-card)' 
+                : 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            className="hover:opacity-90 active:scale-98"
+            aria-label={typography === 'inter' ? 'Switch to classic typography' : 'Switch to Inter typography'}
+          >
+            <span>{typography === 'inter' ? 'Switch to Classic Typography' : 'Switch to Inter Typography'}</span>
+            <span>⇄</span>
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          {/* Inter (Universal) Card */}
+          <button
+            type="button"
+            onClick={() => setTypography('inter')}
+            aria-label="Set typography to Inter (Universal)"
+            aria-pressed={typography === 'inter'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: typography === 'inter' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: typography === 'inter' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-inter, sans-serif)' }}>Aa</span>
+                <span style={{ fontWeight: 600, fontSize: '15px', fontFamily: 'var(--font-inter, sans-serif)' }}>Inter (Universal)</span>
+              </div>
+              {typography === 'inter' && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                    fontFamily: 'var(--font-inter, sans-serif)',
+                  }}
+                >
+                  ACTIVE (DEFAULT)
+                </span>
+              )}
+            </div>
+            <p className="text-muted" style={{ fontSize: '12px', margin: 0, fontFamily: 'var(--font-inter, sans-serif)' }}>
+              Modern, unified neo-grotesque typography across all headings, titles, telemetry labels, and body text.
+            </p>
+            <div style={{ 
+              padding: '8px 12px', 
+              borderRadius: '6px', 
+              background: 'var(--color-surface-page, rgba(0,0,0,0.03))', 
+              border: '1px solid var(--color-border-subtle)',
+              fontFamily: 'var(--font-inter, sans-serif)',
+              fontSize: '11px',
+              color: 'var(--color-text-primary)'
+            }}>
+              <div>The quick brown fox jumps over the lazy dog</div>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px' }}>All words • All headings • All telemetry</div>
+            </div>
+          </button>
+
+          {/* Classic Typography Card */}
+          <button
+            type="button"
+            onClick={() => setTypography('classic')}
+            aria-label="Set typography to Classic Editorial"
+            aria-pressed={typography === 'classic'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: typography === 'classic' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: typography === 'classic' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>Aa</span>
+                <span style={{ fontWeight: 600, fontSize: '15px', fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>Classic Editorial</span>
+              </div>
+              {typography === 'classic' && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Original Paladio pairing: geometric Jost for editorial headings, Inter for body, and JetBrains Mono for telemetry.
+            </p>
+            <div style={{ 
+              padding: '8px 12px', 
+              borderRadius: '6px', 
+              background: 'var(--color-surface-page, rgba(0,0,0,0.03))', 
+              border: '1px solid var(--color-border-subtle)',
+              fontSize: '11px',
+              color: 'var(--color-text-primary)'
+            }}>
+              <div style={{ fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>The quick brown fox jumps over the lazy dog</div>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono, monospace)' }}>Jost Headings • Inter Body • JetBrains Mono</div>
             </div>
           </button>
         </div>

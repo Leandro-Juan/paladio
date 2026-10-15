@@ -92,7 +92,7 @@ export function AttractionPassCard({
                   borderRadius: '4px',
                   padding: '3px 6px',
                   fontSize: '9px',
-                  fontFamily: 'monospace',
+                  fontFamily: 'var(--font-mono)',
                   cursor: 'pointer',
                   fontWeight: 600,
                 }}

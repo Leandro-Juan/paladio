@@ -573,7 +573,7 @@ export default function TripMapView({
                 color: isSelected ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                 cursor: 'pointer',
                 fontSize: '11px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontWeight: 600,
                 transition: 'all 0.15s ease',
               }}
@@ -687,7 +687,7 @@ export default function TripMapView({
                   </span>
                 </Tooltip>
                 <Popup>
-                  <div style={{ minWidth: '150px', fontFamily: 'monospace', fontSize: '11px' }}>
+                  <div style={{ minWidth: '150px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span
                         style={{
@@ -824,7 +824,7 @@ export default function TripMapView({
                           {poi.name}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', fontFamily: 'monospace' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
                         {poi.arrivalTime && (
                           <div style={{ color: 'var(--color-text-muted)' }}>
                             Time: {formatPoiTime(poi.arrivalTime)} &rarr; {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
@@ -863,7 +863,7 @@ export default function TripMapView({
             alignItems: 'center',
             gap: '12px',
             boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '11px',
             pointerEvents: 'auto',
           }}

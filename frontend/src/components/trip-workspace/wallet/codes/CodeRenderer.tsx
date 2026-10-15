@@ -77,7 +77,7 @@ export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRe
             background: '#F1F5F9',
             color: '#0F172A',
             fontSize: '10px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             textAlign: 'center',
             padding: '4px',
             wordBreak: 'break-all',
@@ -89,7 +89,7 @@ export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRe
       <span
         style={{
           fontSize: '9px',
-          fontFamily: 'monospace',
+          fontFamily: 'var(--font-mono)',
           color: '#475569',
           marginTop: '2px',
           fontWeight: 700,

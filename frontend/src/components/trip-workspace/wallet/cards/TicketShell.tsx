@@ -157,7 +157,7 @@ export function TicketShell({
                 padding: '3px 8px',
                 cursor: 'pointer',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 outline: 'none',
               }}
             >

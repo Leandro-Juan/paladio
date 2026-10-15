@@ -29,7 +29,7 @@ export const chartTheme: ChartTheme = {
   axisLabel: {
     fill: 'var(--color-text-muted, #64748B)',
     fontSize: 12,
-    fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+    fontFamily: 'var(--font-mono, "Inter", sans-serif)',
   },
   series: [
     'var(--color-accent-primary, #0F4C5C)',
@@ -43,7 +43,7 @@ export const chartTheme: ChartTheme = {
     borderColor: 'var(--color-border, #E2E8F0)',
     color: 'var(--color-text-primary, #0F172A)',
     borderRadius: 'var(--border-radius-md, 8px)',
-    fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+    fontFamily: 'var(--font-mono, "Inter", sans-serif)',
     boxShadow: 'var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1))',
   },
 };
@@ -60,7 +60,7 @@ export function getResolvedChartTheme(): ChartTheme {
       axisLabel: {
         fill: '#64748B',
         fontSize: 12,
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: 'Inter, sans-serif',
       },
       series: ['#0F4C5C', '#14788D', '#D42A2F', '#E2B33C', '#7CC4D1'],
       tooltip: {
@@ -68,7 +68,7 @@ export function getResolvedChartTheme(): ChartTheme {
         borderColor: '#E2E8F0',
         color: '#0F172A',
         borderRadius: '8px',
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: 'Inter, sans-serif',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
       },
     };
@@ -86,7 +86,7 @@ export function getResolvedChartTheme(): ChartTheme {
     axisLabel: {
       fill: resolve('--color-text-muted', '#64748B'),
       fontSize: 12,
-      fontFamily: resolve('--font-mono', 'JetBrains Mono, monospace'),
+      fontFamily: resolve('--font-mono', 'Inter, sans-serif'),
     },
     series: [
       resolve('--color-accent-primary', '#0F4C5C'),
@@ -100,7 +100,7 @@ export function getResolvedChartTheme(): ChartTheme {
       borderColor: resolve('--color-border', '#E2E8F0'),
       color: resolve('--color-text-primary', '#0F172A'),
       borderRadius: resolve('--border-radius-md', '8px'),
-      fontFamily: resolve('--font-mono', 'JetBrains Mono, monospace'),
+      fontFamily: resolve('--font-mono', 'Inter, sans-serif'),
       boxShadow: resolve('--shadow-md', '0 4px 6px -1px rgba(0, 0, 0, 0.1)'),
     },
   };
