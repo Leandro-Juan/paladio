@@ -247,6 +247,32 @@ struct OptimizationResult {
                                               int start_node = 0, int end_node = -1,
                                               bool fixed_end = false);
 
+/**
+ * @brief Computes a global Traveling Salesperson Problem with Time Windows (TSPTW) tour.
+ *
+ * Uses multi-start heuristic initialization and local search (2-opt + Or-opt) to minimize
+ * total transit duration plus quadratic soft penalties for arriving outside [window_starts[i],
+ * window_ends[i]].
+ *
+ * @param transit_durations Flattened N x N matrix of transit times in minutes.
+ * @param n Number of nodes (stops).
+ * @param dwell_times Array of length n containing dwell/stay durations in minutes.
+ * @param window_starts Array of length n containing earliest allowable arrival times in minutes
+ * from midnight.
+ * @param window_ends Array of length n containing latest allowable arrival times in minutes from
+ * midnight.
+ * @param start_node Index of the starting depot node (default 0).
+ * @param end_node Index of the ending depot node (default -1 for unanchored).
+ * @param fixed_end Whether the ending node is strictly pinned to the end of the tour.
+ * @param penalty_weight Multiplier for quadratic lateness/earliness penalties (default 100.0).
+ * @return std::vector<int> Optimized permutation of node indices of length n.
+ */
+[[nodiscard]] std::vector<int> solve_tsptw(const int *transit_durations, int n,
+                                           const int *dwell_times, const int *window_starts,
+                                           const int *window_ends, int start_node = 0,
+                                           int end_node = -1, bool fixed_end = false,
+                                           double penalty_weight = 100.0);
+
 #ifdef PALADIO_TESTING
 /**
  * @brief Testing convenience overload accepting vector of TransitInfo structs.

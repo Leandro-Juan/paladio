@@ -190,8 +190,99 @@ except ImportError:
                 tour.append(end_node)
             return tour
 
+    def mock_solve_tsptw(
+        durations,
+        n,
+        dwell_times,
+        window_starts,
+        window_ends,
+        start_node=0,
+        end_node=-1,
+        fixed_end=False,
+        penalty_weight=100.0,
+    ):
+        import itertools
+
+        if n <= 1:
+            return list(range(n))
+        effective_fixed_end = fixed_end and (
+            end_node >= 0 and end_node < n and end_node != start_node
+        )
+        middle_nodes = [
+            i
+            for i in range(n)
+            if i != start_node and (not effective_fixed_end or i != end_node)
+        ]
+
+        def evaluate_cost(tour):
+            total_transit = sum(
+                durations[tour[k] * n + tour[k + 1]] for k in range(len(tour) - 1)
+            )
+            total_penalty = 0.0
+            curr_time = window_starts[tour[0]] + dwell_times[tour[0]]
+            for k in range(1, len(tour)):
+                node = tour[k]
+                transit = durations[tour[k - 1] * n + node]
+                reach = curr_time + transit
+                win_end = window_ends[node]
+                win_start = window_starts[node]
+                if reach > win_end:
+                    late = float(reach - win_end)
+                    total_penalty += penalty_weight * late * late
+                elif reach < win_start:
+                    early = float(win_start - reach)
+                    total_penalty += 0.5 * early
+                arr = max(reach, win_start)
+                curr_time = arr + dwell_times[node]
+            return total_transit + total_penalty
+
+        if len(middle_nodes) <= 7:
+            best_tour = None
+            best_cost = float("inf")
+            for perm in itertools.permutations(middle_nodes):
+                tour = [start_node] + list(perm)
+                if effective_fixed_end:
+                    tour.append(end_node)
+                cost = evaluate_cost(tour)
+                if cost < best_cost:
+                    best_cost = cost
+                    best_tour = tour
+            return best_tour or (
+                [start_node]
+                + middle_nodes
+                + ([end_node] if effective_fixed_end else [])
+            )
+        else:
+            tour = [start_node]
+            unvisited = set(middle_nodes)
+            curr = start_node
+            curr_time = window_starts[start_node] + dwell_times[start_node]
+            while unvisited:
+
+                def node_metric(v):
+                    transit = durations[curr * n + v]
+                    reach = curr_time + transit
+                    if reach > window_ends[v]:
+                        penalty = penalty_weight * (reach - window_ends[v]) ** 2
+                    elif reach < window_starts[v]:
+                        penalty = 0.5 * (window_starts[v] - reach)
+                    else:
+                        penalty = 0.0
+                    return transit + penalty
+
+                nxt = min(unvisited, key=node_metric)
+                tour.append(nxt)
+                unvisited.remove(nxt)
+                reach = curr_time + durations[curr * n + nxt]
+                curr_time = max(reach, window_starts[nxt]) + dwell_times[nxt]
+                curr = nxt
+            if effective_fixed_end:
+                tour.append(end_node)
+            return tour
+
     mock_paladio_core.optimize_itinerary = mock_optimize_itinerary
     mock_paladio_core.solve_tsp_tour = mock_solve_tsp_tour
+    mock_paladio_core.solve_tsptw = mock_solve_tsptw
     sys.modules["paladio_core"] = mock_paladio_core
 
 

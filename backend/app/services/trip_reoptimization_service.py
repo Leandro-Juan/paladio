@@ -152,9 +152,6 @@ class TripReoptimizationService:
                     "LODGING",
                 ) or any(k in name for k in ("hotel", "airport"))
 
-            # Fixed anchors strictly pinned at the exact locations dropped by user
-            anchor_indices = [i for i in range(n_pois) if is_anchor(i)]
-
             # Fetch live transit matrix between all POIs in the day
             matrix_pois = [
                 {
@@ -177,96 +174,102 @@ class TripReoptimizationService:
                     "paladio_core C++ engine is required for tour re-optimization"
                 )
 
-            real_indices = list(range(n_pois))
+            durations, _ = flatten_transit_matrix(transit_matrix)
 
-            if not anchor_indices:
-                # No anchors on this day; optimize all POIs starting at node 0
-                if n_pois > 2:
-                    durations, _ = flatten_transit_matrix(transit_matrix)
-                    real_indices = await asyncio.to_thread(
-                        paladio_core.solve_tsp_tour,
-                        durations,
-                        n_pois,
-                        0,
-                        -1,
-                        False,
-                    )
-            else:
-                # Anchors are strictly preserved at their exact indices
-                # 1. Before first anchor (if any non-anchor POIs precede it)
-                if anchor_indices[0] > 1:
-                    a0 = anchor_indices[0]
-                    sub_nodes = list(range(a0)) + [a0]
-                    K = len(sub_nodes)
-                    sub_durations = np.zeros(K * K, dtype=np.int32)
-                    for i in range(K):
-                        for j in range(K):
-                            sub_durations[i * K + j] = int(
-                                transit_matrix[sub_nodes[i]][sub_nodes[j]].get(
-                                    "duration_mins", 0
-                                )
-                            )
-                    sub_solved = await asyncio.to_thread(
-                        paladio_core.solve_tsp_tour,
-                        sub_durations,
-                        K,
-                        0,
-                        K - 1,
-                        True,
-                    )
-                    for pos, sub_idx in enumerate(sub_solved[:-1]):
-                        real_indices[pos] = sub_nodes[sub_idx]
+            # Build TSPTW arrays: dwell times, window starts, and window ends
+            dwell_times = np.zeros(n_pois, dtype=np.int32)
+            window_starts = np.zeros(n_pois, dtype=np.int32)
+            window_ends = np.zeros(n_pois, dtype=np.int32)
+            day_end_mins = 1440
+            epsilon = 15  # Default +/- 15 min tolerance window for locked POIs
 
-                # 2. Between consecutive anchors
-                for r in range(len(anchor_indices) - 1):
-                    a_start = anchor_indices[r]
-                    a_end = anchor_indices[r + 1]
-                    pois_between = list(range(a_start + 1, a_end))
-                    if len(pois_between) >= 2:
-                        sub_nodes = [a_start] + pois_between + [a_end]
-                        K = len(sub_nodes)
-                        sub_durations = np.zeros(K * K, dtype=np.int32)
-                        for i in range(K):
-                            for j in range(K):
-                                sub_durations[i * K + j] = int(
-                                    transit_matrix[sub_nodes[i]][sub_nodes[j]].get(
-                                        "duration_mins", 0
-                                    )
-                                )
-                        sub_solved = await asyncio.to_thread(
-                            paladio_core.solve_tsp_tour,
-                            sub_durations,
-                            K,
-                            0,
-                            K - 1,
-                            True,
+            for i in range(n_pois):
+                raw_item = poi_indices_map[i]
+                raw_p = raw_item.get("poi") or {}
+                p_cat = str(raw_p.get("category") or "").upper()
+                p_name = str(raw_p.get("name") or "").lower()
+                is_anchor_node = p_cat in ("HOTEL", "AIRPORT", "FLIGHT") or any(
+                    k in p_name for k in ("hotel", "airport")
+                )
+
+                if is_anchor_node:
+                    dwell = (
+                        int(raw_p.get("duration_mins") or 0)
+                        if (i == 0 or i == n_pois - 1)
+                        else int(raw_p.get("duration_mins") or 30)
+                    )
+                else:
+                    dwell = max(15, int(raw_p.get("duration_mins") or 60))
+                dwell_times[i] = dwell
+
+                if i == 0:
+                    window_starts[0] = day_start_mins
+                    window_ends[0] = day_start_mins
+                elif i == n_pois - 1 and is_anchor(i):
+                    # Final depot of the day: can be reached anytime after visits conclude
+                    window_starts[n_pois - 1] = day_start_mins
+                    window_ends[n_pois - 1] = day_end_mins
+                elif is_anchor(i):
+                    sched_str = raw_item.get("scheduled_start")
+                    target_time = (
+                        _parse_time_to_minutes(sched_str)
+                        if sched_str
+                        else (day_start_mins + i * 90)
+                    )
+                    window_starts[i] = max(day_start_mins, target_time - epsilon)
+                    window_ends[i] = min(day_end_mins, target_time + epsilon)
+                else:
+                    sched_str = raw_item.get("scheduled_start")
+                    if sched_str:
+                        target_time = _parse_time_to_minutes(sched_str)
+                        window_starts[i] = max(day_start_mins, target_time - 120)
+                        window_ends[i] = min(day_end_mins, target_time + 120)
+                    else:
+                        open_times = (
+                            raw_p.get("open_time_mins_by_day") or [day_start_mins] * 7
                         )
-                        for offset, sub_idx in enumerate(sub_solved[1:-1]):
-                            real_indices[a_start + 1 + offset] = sub_nodes[sub_idx]
+                        close_times = (
+                            raw_p.get("close_time_mins_by_day") or [day_end_mins] * 7
+                        )
+                        w_start = (
+                            open_times[0]
+                            if isinstance(open_times, list) and open_times
+                            else day_start_mins
+                        )
+                        w_end = (
+                            close_times[0]
+                            if isinstance(close_times, list) and close_times
+                            else day_end_mins
+                        )
+                        window_starts[i] = max(day_start_mins, int(w_start))
+                        window_ends[i] = min(day_end_mins, int(w_end))
 
-                # 3. After last anchor (if any non-anchor POIs follow it)
-                if anchor_indices[-1] < n_pois - 2:
-                    a_last = anchor_indices[-1]
-                    sub_nodes = [a_last] + list(range(a_last + 1, n_pois))
-                    K = len(sub_nodes)
-                    sub_durations = np.zeros(K * K, dtype=np.int32)
-                    for i in range(K):
-                        for j in range(K):
-                            sub_durations[i * K + j] = int(
-                                transit_matrix[sub_nodes[i]][sub_nodes[j]].get(
-                                    "duration_mins", 0
-                                )
-                            )
-                    sub_solved = await asyncio.to_thread(
-                        paladio_core.solve_tsp_tour,
-                        sub_durations,
-                        K,
-                        0,
-                        -1,
-                        False,
-                    )
-                    for offset, sub_idx in enumerate(sub_solved[1:]):
-                        real_indices[a_last + 1 + offset] = sub_nodes[sub_idx]
+            start_node = 0
+            fixed_end = is_anchor(n_pois - 1)
+            end_node = (n_pois - 1) if fixed_end else -1
+
+            if hasattr(paladio_core, "solve_tsptw"):
+                real_indices = await asyncio.to_thread(
+                    paladio_core.solve_tsptw,
+                    durations,
+                    n_pois,
+                    dwell_times,
+                    window_starts,
+                    window_ends,
+                    start_node,
+                    end_node,
+                    fixed_end,
+                    100.0,
+                )
+            else:
+                real_indices = await asyncio.to_thread(
+                    paladio_core.solve_tsp_tour,
+                    durations,
+                    n_pois,
+                    start_node,
+                    end_node,
+                    fixed_end,
+                )
 
             # Reconstruct day path with clean sequential timestamps and transit legs
             new_path: list[dict[str, Any]] = []
@@ -275,19 +278,7 @@ class TripReoptimizationService:
             for step, node_idx in enumerate(real_indices):
                 orig_item = poi_indices_map[node_idx]
                 cloned_item = copy.deepcopy(orig_item)
-                poi_dict = cloned_item.get("poi") or {}
-                cat_upper = str(poi_dict.get("category") or "").upper()
-                name_lower = str(poi_dict.get("name") or "").lower()
-                is_anchor_node = cat_upper in ("HOTEL", "AIRPORT", "FLIGHT") or any(
-                    k in name_lower for k in ("hotel", "airport")
-                )
-                if is_anchor_node:
-                    if step == 0 or step == len(real_indices) - 1:
-                        dur = int(poi_dict.get("duration_mins") or 0)
-                    else:
-                        dur = int(poi_dict.get("duration_mins") or 30)
-                else:
-                    dur = max(15, int(poi_dict.get("duration_mins") or 60))
+                dur = int(dwell_times[node_idx])
 
                 if step > 0:
                     prev_node_idx = real_indices[step - 1]
@@ -296,7 +287,10 @@ class TripReoptimizationService:
                     t_cost = float(cell.get("cost_eur", 0.0))
                     t_dist = float(cell.get("distance_meters", 1000))
 
-                    cur_clock += int(t_mins)
+                    reach_time = cur_clock + int(t_mins)
+                    w_start = int(window_starts[node_idx])
+                    cur_clock = max(reach_time, w_start)
+
                     cloned_item["transit_from_previous"] = {
                         "mode": "walk" if t_mins <= 20 else "transit",
                         "duration_mins": t_mins,

@@ -674,3 +674,92 @@ async def test_trip_reoptimization_unlocked_hotel():
     # to index 1 (before Bernabeu) rather than keeping it at index 2!
     assert day1_path[1]["poi"]["name"] == "Midday Hotel Luggage Drop"
     assert day1_path[2]["poi"]["name"] == "Santiago Bernabeu"
+
+
+@pytest.mark.asyncio
+async def test_trip_reoptimization_global_tsptw_tight_window():
+    """Verifies that global TSPTW strictly honors locked POI time windows without hard array partitioning."""
+    city = "Madrid"
+    hotel_start = {
+        "id": "h_s",
+        "name": "Hotel Start",
+        "category": "HOTEL",
+        "location": {"latitude": 40.4168, "longitude": -3.7038},
+    }
+    near_poi = {
+        "id": "p_near",
+        "name": "Near Landmark Sol",
+        "category": "LANDMARK",
+        "location": {"latitude": 40.4170, "longitude": -3.7035},
+        "duration_mins": 45,
+    }
+    mid_poi = {
+        "id": "p_mid",
+        "name": "Midway Cultural Center",
+        "category": "ATTRACTION",
+        "location": {"latitude": 40.4350, "longitude": -3.6950},
+        "duration_mins": 45,
+    }
+    locked_lunch = {
+        "id": "p_locked_lunch",
+        "name": "Locked Midday Feast",
+        "category": "RESTAURANT",
+        "location": {"latitude": 40.4500, "longitude": -3.6900},
+        "duration_mins": 60,
+    }
+    afternoon_poi = {
+        "id": "p_afternoon",
+        "name": "Afternoon Stadium",
+        "category": "ATTRACTION",
+        "location": {"latitude": 40.4530, "longitude": -3.6883},
+        "duration_mins": 60,
+    }
+    hotel_end = {
+        "id": "h_e",
+        "name": "Hotel End",
+        "category": "HOTEL",
+        "location": {"latitude": 40.4168, "longitude": -3.7038},
+    }
+
+    # Setup with intentional reverse order in the morning (Midway before Near Landmark Sol)
+    stops = [
+        {"poi": hotel_start, "scheduled_start": "09:00", "scheduled_end": "09:00"},
+        {"poi": mid_poi, "scheduled_start": "09:30", "scheduled_end": "10:15"},
+        {"poi": near_poi, "scheduled_start": "10:30", "scheduled_end": "11:15"},
+        {
+            "poi": locked_lunch,
+            "locked": True,
+            "scheduled_start": "12:30",
+            "scheduled_end": "13:30",
+        },
+        {"poi": afternoon_poi, "scheduled_start": "14:00", "scheduled_end": "15:00"},
+        {"poi": hotel_end, "scheduled_start": "18:00", "scheduled_end": "18:00"},
+    ]
+
+    itinerary = {
+        "city": city,
+        "days": [{"day": 1, "date": "2026-11-01", "itinerary": {"path": stops}}],
+    }
+
+    reoptimized = await TripReoptimizationService.reoptimize_trip_itinerary(
+        itinerary_data=itinerary,
+        destination_city=city,
+        target_day=1,
+    )
+
+    day1_path = reoptimized["days"][0]["itinerary"]["path"]
+    assert len(day1_path) == 6
+
+    # 1. Global TSP distance optimization: Near Landmark Sol should come before Midway Cultural Center
+    assert day1_path[1]["poi"]["name"] == "Near Landmark Sol"
+    assert day1_path[2]["poi"]["name"] == "Midway Cultural Center"
+
+    # 2. Locked Lunch arrives strictly within [12:30 - 15m, 12:30 + 15m]
+    lunch_item = day1_path[3]
+    assert lunch_item["poi"]["name"] == "Locked Midday Feast"
+    assert lunch_item["locked"] is True
+    from app.services.trip_reoptimization_service import _parse_time_to_minutes
+
+    start_mins = _parse_time_to_minutes(lunch_item["scheduled_start"])
+    target_mins = 12 * 60 + 30  # 750
+    assert abs(start_mins - target_mins) <= 15

@@ -2065,6 +2065,8 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             )
 
         logger.info(f"Executing Valhalla extract tiles for {city_lower}...")
+        container.exec_run("chown -R valhalla:valhalla /custom_files", user="root")
+        container.exec_run("rm -f /custom_files/valhalla_tiles.tar")
         res_extract = container.exec_run(
             "valhalla_build_extract -c /custom_files/valhalla.json -v --overwrite"
         )

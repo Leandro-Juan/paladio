@@ -951,4 +951,244 @@ std::vector<int> solve_tsp_tour(const int *transit_durations, int n, int start_n
   return best_global_tour;
 }
 
+std::vector<int> solve_tsptw(const int *transit_durations, int n, const int *dwell_times,
+                             const int *window_starts, const int *window_ends, int start_node,
+                             int end_node, bool fixed_end, double penalty_weight) {
+  if (n <= 0) {
+    return {};
+  }
+  if (n == 1) {
+    return {0};
+  }
+
+  if (start_node < 0 || start_node >= n) {
+    start_node = 0;
+  }
+
+  bool effective_fixed_end = fixed_end && (end_node >= 0 && end_node < n && end_node != start_node);
+
+  if (n == 2) {
+    if (effective_fixed_end) {
+      return {start_node, end_node};
+    }
+    int other = (start_node == 0) ? 1 : 0;
+    return {start_node, other};
+  }
+
+  auto get_dist = [&](int u, int v) -> int { return transit_durations[u * n + v]; };
+
+  // Forward timeline cost evaluator: transit + penalty for late arrival beyond window_end
+  auto evaluate_tour_cost = [&](const std::vector<int> &tour) -> double {
+    int total_transit = 0;
+    double total_penalty = 0.0;
+
+    int curr_time = window_starts[tour[0]];
+    int curr_dep = curr_time + dwell_times[tour[0]];
+
+    for (size_t k = 1; k < tour.size(); ++k) {
+      int prev_node = tour[k - 1];
+      int node = tour[k];
+      int transit = get_dist(prev_node, node);
+      total_transit += transit;
+
+      int reach_time = curr_dep + transit;
+      int win_start = window_starts[node];
+      int win_end = window_ends[node];
+
+      if (reach_time > win_end) {
+        double lateness = static_cast<double>(reach_time - win_end);
+        total_penalty += penalty_weight * lateness * lateness;
+      } else if (reach_time < win_start) {
+        double earliness = static_cast<double>(win_start - reach_time);
+        total_penalty += 0.5 * earliness;
+      }
+
+      int arr_time = (reach_time < win_start) ? win_start : reach_time;
+      curr_dep = arr_time + dwell_times[node];
+    }
+
+    return static_cast<double>(total_transit) + total_penalty;
+  };
+
+  std::vector<int> candidates;
+  candidates.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    if (i != start_node && (!effective_fixed_end || i != end_node)) {
+      candidates.push_back(i);
+    }
+  }
+
+  std::vector<std::vector<int>> initial_tours;
+
+  // Strategy 1: Earliest Deadline First (EDF)
+  {
+    std::vector<int> edf_tour;
+    edf_tour.reserve(n);
+    edf_tour.push_back(start_node);
+    std::vector<int> sorted_by_deadline = candidates;
+    std::sort(sorted_by_deadline.begin(), sorted_by_deadline.end(), [&](int a, int b) {
+      if (window_starts[a] != window_starts[b]) {
+        return window_starts[a] < window_starts[b];
+      }
+      return window_ends[a] < window_ends[b];
+    });
+    for (int node : sorted_by_deadline) {
+      edf_tour.push_back(node);
+    }
+    if (effective_fixed_end) {
+      edf_tour.push_back(end_node);
+    }
+    initial_tours.push_back(std::move(edf_tour));
+  }
+
+  // Strategy 2: Multi-start nearest neighbors with time-window metric
+  std::vector<std::pair<int, int>> sorted_neighbors;
+  sorted_neighbors.reserve(candidates.size());
+  for (int v : candidates) {
+    sorted_neighbors.emplace_back(get_dist(start_node, v), v);
+  }
+  std::sort(sorted_neighbors.begin(), sorted_neighbors.end());
+
+  int num_starts = std::min(4, static_cast<int>(sorted_neighbors.size()));
+  std::vector<uint8_t> visited(n, 0);
+
+  for (int s = 0; s < num_starts; ++s) {
+    std::vector<int> tour;
+    tour.reserve(n);
+    std::fill(visited.begin(), visited.end(), 0);
+
+    tour.push_back(start_node);
+    visited[start_node] = 1;
+    if (effective_fixed_end) {
+      visited[end_node] = 1;
+    }
+
+    int first_choice = sorted_neighbors[s].second;
+    tour.push_back(first_choice);
+    visited[first_choice] = 1;
+
+    int curr_time = window_starts[start_node] + dwell_times[start_node];
+    int reach_first = curr_time + get_dist(start_node, first_choice);
+    curr_time = std::max(reach_first, window_starts[first_choice]) + dwell_times[first_choice];
+
+    int target_len = effective_fixed_end ? (n - 1) : n;
+    while (static_cast<int>(tour.size()) < target_len) {
+      int curr = tour.back();
+      int best_next = -1;
+      double best_metric = std::numeric_limits<double>::max();
+
+      for (int v : candidates) {
+        if (!visited[v]) {
+          int transit = get_dist(curr, v);
+          int reach = curr_time + transit;
+          double lateness_penalty = 0.0;
+          if (reach > window_ends[v]) {
+            double late = static_cast<double>(reach - window_ends[v]);
+            lateness_penalty = penalty_weight * late * late;
+          } else if (reach < window_starts[v]) {
+            double early = static_cast<double>(window_starts[v] - reach);
+            lateness_penalty = 0.5 * early;
+          }
+          double metric = static_cast<double>(transit) + lateness_penalty;
+          if (metric < best_metric) {
+            best_metric = metric;
+            best_next = v;
+          }
+        }
+      }
+
+      if (best_next == -1) {
+        for (int v : candidates) {
+          if (!visited[v]) {
+            best_next = v;
+            break;
+          }
+        }
+      }
+
+      tour.push_back(best_next);
+      visited[best_next] = 1;
+      int reach = curr_time + get_dist(curr, best_next);
+      curr_time = std::max(reach, window_starts[best_next]) + dwell_times[best_next];
+    }
+
+    if (effective_fixed_end) {
+      tour.push_back(end_node);
+    }
+
+    initial_tours.push_back(std::move(tour));
+  }
+
+  // Local Search (2-Opt and Or-Opt) across each initial solution
+  std::vector<int> best_global_tour;
+  double best_global_cost = std::numeric_limits<double>::max();
+
+  int max_idx = effective_fixed_end ? (n - 2) : (n - 1);
+
+  for (auto &tour : initial_tours) {
+    bool improved = true;
+    int iterations = 0;
+    while (improved && iterations < 100) {
+      improved = false;
+      iterations++;
+
+      // 2-Opt
+      for (int i = 1; i < max_idx; ++i) {
+        for (int j = i + 1; j <= max_idx; ++j) {
+          std::reverse(tour.begin() + i, tour.begin() + j + 1);
+          double new_cost = evaluate_tour_cost(tour);
+          std::reverse(tour.begin() + i, tour.begin() + j + 1);
+
+          double old_cost = evaluate_tour_cost(tour);
+          if (new_cost < old_cost - 1e-4) {
+            std::reverse(tour.begin() + i, tour.begin() + j + 1);
+            improved = true;
+            break;
+          }
+        }
+        if (improved) {
+          break;
+        }
+      }
+
+      if (improved) {
+        continue;
+      }
+
+      // Or-Opt (Relocate 1 or 2 nodes)
+      for (int L = 1; L <= 2 && !improved; ++L) {
+        for (int i = 1; i + L - 1 <= max_idx; ++i) {
+          for (int j = 1; j <= max_idx + 1; ++j) {
+            if (j >= i && j <= i + L) {
+              continue;
+            }
+            std::vector<int> test_tour = tour;
+            std::vector<int> block(test_tour.begin() + i, test_tour.begin() + i + L);
+            test_tour.erase(test_tour.begin() + i, test_tour.begin() + i + L);
+            int insert_pos = (j > i) ? (j - L) : j;
+            test_tour.insert(test_tour.begin() + insert_pos, block.begin(), block.end());
+
+            if (evaluate_tour_cost(test_tour) < evaluate_tour_cost(tour) - 1e-4) {
+              tour = std::move(test_tour);
+              improved = true;
+              break;
+            }
+          }
+          if (improved) {
+            break;
+          }
+        }
+      }
+    }
+
+    double cost = evaluate_tour_cost(tour);
+    if (cost < best_global_cost) {
+      best_global_cost = cost;
+      best_global_tour = std::move(tour);
+    }
+  }
+
+  return best_global_tour;
+}
+
 }  // namespace paladio::core
