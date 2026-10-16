@@ -11,7 +11,6 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [reloadSignal, setReloadSignal] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -43,12 +42,20 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
     return () => {
       isMounted = false;
     };
-  }, [id, reloadSignal]);
+  }, [id]);
 
-  const loadTrip = useCallback(() => {
-    setLoading(true);
-    setReloadSignal((s) => s + 1);
-  }, []);
+  const loadTrip = useCallback(async () => {
+    try {
+      const apiUrl = getApiBaseUrl();
+      const res = await fetch(`${apiUrl}/trips/${id}`);
+      if (res.ok) {
+        const data: Trip = await res.json();
+        setTrip(data);
+      }
+    } catch (e) {
+      console.error('Failed to reload trip in background', e);
+    }
+  }, [id]);
 
   if (loading) {
     return (

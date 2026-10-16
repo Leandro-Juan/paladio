@@ -115,16 +115,19 @@ export function TripPlacesSidebar({
 
     const handleGlobalDragEnd = () => {
       setActiveDragPlace(null);
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi;
+      }
     };
 
     window.addEventListener('dragover', handleGlobalDragOver, { capture: true });
-    window.addEventListener('dragend', handleGlobalDragEnd, { capture: true });
-    window.addEventListener('drop', handleGlobalDragEnd, { capture: true });
+    window.addEventListener('dragend', handleGlobalDragEnd, { capture: false });
+    window.addEventListener('drop', handleGlobalDragEnd, { capture: false });
 
     return () => {
       window.removeEventListener('dragover', handleGlobalDragOver, { capture: true });
-      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: true });
-      window.removeEventListener('drop', handleGlobalDragEnd, { capture: true });
+      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: false });
+      window.removeEventListener('drop', handleGlobalDragEnd, { capture: false });
     };
   }, []);
 
@@ -641,14 +644,22 @@ export function TripPlacesSidebar({
                           cost_eur: searchData.exact_match!.cost_eur,
                         },
                       };
+                      if (typeof window !== 'undefined') {
+                        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = poiPayload;
+                      }
                       e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
-                      e.dataTransfer.setData('text/plain', searchData.exact_match!.name);
-                      e.dataTransfer.effectAllowed = 'copy';
+                      e.dataTransfer.effectAllowed = 'copyMove';
 
-                      const canvas = document.createElement('canvas');
-                      canvas.width = 1;
-                      canvas.height = 1;
-                      e.dataTransfer.setDragImage(canvas, 0, 0);
+                      let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
+                      if (!blankImg || !blankImg.src) {
+                        blankImg = new Image();
+                        blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                      }
+                      try {
+                        e.dataTransfer.setDragImage(blankImg, 0, 0);
+                      } catch {
+                        // ignore
+                      }
 
                       const rect = e.currentTarget.getBoundingClientRect();
                       const offsetX = e.clientX - rect.left;
@@ -829,14 +840,22 @@ export function TripPlacesSidebar({
                                 cost_eur: poi.cost_eur,
                               },
                             };
+                            if (typeof window !== 'undefined') {
+                              (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = poiPayload;
+                            }
                             e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
-                            e.dataTransfer.setData('text/plain', poi.name);
-                            e.dataTransfer.effectAllowed = 'copy';
+                            e.dataTransfer.effectAllowed = 'copyMove';
 
-                            const canvas = document.createElement('canvas');
-                            canvas.width = 1;
-                            canvas.height = 1;
-                            e.dataTransfer.setDragImage(canvas, 0, 0);
+                            let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
+                            if (!blankImg || !blankImg.src) {
+                              blankImg = new Image();
+                              blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                            }
+                            try {
+                              e.dataTransfer.setDragImage(blankImg, 0, 0);
+                            } catch {
+                              // ignore
+                            }
 
                             const rect = e.currentTarget.getBoundingClientRect();
                             const offsetX = e.clientX - rect.left;

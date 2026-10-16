@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from 'react';
+import NextImage from 'next/image';
 import { Trip } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput } from '@/types/domain';
 import { RouteItineraryData } from '@/app/vault/[id]/page';
@@ -72,8 +73,22 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setActiveTab(resolvedTab);
   }, []);
 
-  // Cast itinerary data
-  const itinerary = trip.itinerary_data as RouteItineraryData | null | undefined;
+  // Local reactive itinerary data
+  const [prevItineraryProp, setPrevItineraryProp] = useState(trip.itinerary_data);
+  const [currentItinerary, setCurrentItinerary] = useState<RouteItineraryData | null | undefined>(
+    trip.itinerary_data as RouteItineraryData | null | undefined
+  );
+
+  if (trip.itinerary_data !== prevItineraryProp) {
+    setPrevItineraryProp(trip.itinerary_data);
+    setCurrentItinerary(trip.itinerary_data as RouteItineraryData | null | undefined);
+  }
+
+  const itinerary = currentItinerary;
+
+  const handleItineraryUpdate = useCallback((updated: OptimizationResult) => {
+    setCurrentItinerary(updated as unknown as RouteItineraryData);
+  }, []);
 
   // Extract structured days and waypoints
   const { mapDays, places, hotel, airport, daysOutput } = useMemo(() => {
@@ -266,7 +281,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             tripId={trip.id}
             destinationCity={trip.destination}
             itinerary={itinerary as OptimizationResult}
-            onItineraryUpdate={onTripUpdated}
+            onItineraryUpdate={handleItineraryUpdate}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
@@ -313,6 +328,25 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           </div>
         )}
       </div>
+
+      {/* Pre-rendered 1x1 transparent image for suppressing native browser drag ghost/file icons */}
+      <NextImage
+        id="paladio-drag-blank-img"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+        alt=""
+        width={1}
+        height={1}
+        unoptimized
+        style={{
+          position: 'fixed',
+          left: -9999,
+          top: -9999,
+          width: 1,
+          height: 1,
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   );
 }

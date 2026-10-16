@@ -96,10 +96,12 @@ export function TripPlanSidebar({
   } | null>(null);
 
   const activeDragItemRef = useRef<typeof activeDragItem>(null);
+  const draggedPoiRef = useRef<typeof draggedPoi>(null);
 
   useEffect(() => {
     activeDragItemRef.current = activeDragItem;
-  }, [activeDragItem]);
+    draggedPoiRef.current = draggedPoi;
+  }, [activeDragItem, draggedPoi]);
 
   const stopAutoScroll = useCallback(() => {
     scrollVelocityRef.current = 0;
@@ -174,13 +176,13 @@ export function TripPlanSidebar({
     };
 
     window.addEventListener('dragover', handleGlobalDragOver, { capture: true });
-    window.addEventListener('dragend', handleGlobalDragEnd, { capture: true });
-    window.addEventListener('drop', handleGlobalDragEnd, { capture: true });
+    window.addEventListener('dragend', handleGlobalDragEnd, { capture: false });
+    window.addEventListener('drop', handleGlobalDragEnd, { capture: false });
 
     return () => {
       window.removeEventListener('dragover', handleGlobalDragOver, { capture: true });
-      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: true });
-      window.removeEventListener('drop', handleGlobalDragEnd, { capture: true });
+      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: false });
+      window.removeEventListener('drop', handleGlobalDragEnd, { capture: false });
       stopAutoScroll();
     };
   }, [handlePointerDragScroll, stopAutoScroll]);
@@ -251,7 +253,13 @@ export function TripPlanSidebar({
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, targetDayNum: number, targetIndex: number) => {
+  const handleDrop = async (
+    e: React.DragEvent,
+    targetDayNum: number,
+    targetIndex: number,
+    cardPoiIdx?: number,
+    isTopHalf?: boolean
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     stopAutoScroll();
@@ -261,6 +269,9 @@ export function TripPlanSidebar({
 
     const searchDataStr = e.dataTransfer.getData('application/paladio-poi');
     const itinDataStr = e.dataTransfer.getData('application/paladio-itinerary-poi');
+    const windowSearchPoi = typeof window !== 'undefined'
+      ? (window as unknown as { __paladioActiveSearchPoi?: { poi?: unknown } }).__paladioActiveSearchPoi
+      : null;
 
     if (!itinerary || !onItineraryUpdate) return;
 
@@ -275,10 +286,12 @@ export function TripPlanSidebar({
     if (!targetDayObj.itinerary) targetDayObj.itinerary = { path: [] };
     if (!targetDayObj.itinerary.path) targetDayObj.itinerary.path = [];
 
-    if (searchDataStr) {
+    if (searchDataStr || windowSearchPoi) {
       try {
-        const parsed = JSON.parse(searchDataStr);
-        const rawPoi = parsed.poi;
+        const parsed = searchDataStr ? JSON.parse(searchDataStr) : windowSearchPoi;
+        const rawPoi = parsed?.poi;
+        if (!rawPoi) return;
+
         const newStop: ScheduledPoi = {
           poi: {
             id: rawPoi.id,
@@ -293,7 +306,11 @@ export function TripPlanSidebar({
           scheduled_end: '10:00',
         };
 
-        const insertIdx = Math.max(0, Math.min(targetIndex, targetDayObj.itinerary.path.length));
+        let insertIdx = targetIndex;
+        if (cardPoiIdx !== undefined) {
+          insertIdx = isTopHalf ? cardPoiIdx : cardPoiIdx + 1;
+        }
+        insertIdx = Math.max(0, Math.min(insertIdx, targetDayObj.itinerary.path.length));
         targetDayObj.itinerary.path.splice(insertIdx, 0, newStop);
 
         recalculateDayTiming(targetDayObj.itinerary.path);
@@ -310,34 +327,93 @@ export function TripPlanSidebar({
         );
       } catch (err) {
         console.error('Failed to add dragged POI', err);
+      } finally {
+        if (typeof window !== 'undefined') {
+          delete (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi;
+        }
       }
-    } else if (itinDataStr) {
+    } else if (itinDataStr || draggedPoiRef.current) {
       try {
-        const parsed = JSON.parse(itinDataStr);
+        const raw = itinDataStr || (draggedPoiRef.current ? JSON.stringify(draggedPoiRef.current) : null);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
         const srcDayNum = parsed.day;
         const srcIdx = parsed.index;
-
-        if (srcDayNum === targetDayNum && (srcIdx === targetIndex || srcIdx === targetIndex - 1)) {
-          return;
-        }
 
         const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
         if (!srcDayObj?.itinerary?.path) return;
 
+        // If dragging within the same day
+        if (srcDayNum === targetDayNum) {
+          const path = srcDayObj.itinerary.path;
+          let newTargetIndex: number;
+
+          if (cardPoiIdx !== undefined) {
+            // Dropped directly on a card
+            if (srcIdx === cardPoiIdx) {
+              return;
+            }
+            if (srcIdx < cardPoiIdx) {
+              // Dragging DOWN onto cardPoiIdx
+              if (cardPoiIdx === srcIdx + 1) {
+                // Adjacent item -> swap
+                newTargetIndex = cardPoiIdx;
+              } else {
+                newTargetIndex = isTopHalf ? cardPoiIdx - 1 : cardPoiIdx;
+              }
+            } else {
+              // Dragging UP onto cardPoiIdx
+              if (cardPoiIdx === srcIdx - 1) {
+                // Adjacent item -> swap
+                newTargetIndex = cardPoiIdx;
+              } else {
+                newTargetIndex = isTopHalf ? cardPoiIdx : cardPoiIdx + 1;
+              }
+            }
+          } else {
+            // Dropped on a slot between cards or at end
+            newTargetIndex = srcIdx < targetIndex ? targetIndex - 1 : targetIndex;
+          }
+
+          newTargetIndex = Math.max(0, Math.min(newTargetIndex, path.length - 1));
+
+          if (newTargetIndex === srcIdx) {
+            return;
+          }
+
+          const [movedItem] = path.splice(srcIdx, 1);
+          if (!movedItem) return;
+          path.splice(newTargetIndex, 0, movedItem);
+
+          recalculateDayTiming(path);
+          onItineraryUpdate(clonedItin);
+          setHasManualChanges(true);
+
+          if (tripId) {
+            updateTrip(tripId, { itinerary_data: clonedItin });
+          }
+
+          notify.info(
+            'Stop Reordered',
+            `Moved "${movedItem.poi?.name}" to position ${newTargetIndex + 1}.`
+          );
+          return;
+        }
+
+        // Cross-day move
         const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
         if (!movedItem) return;
 
-        let adjustedTarget = targetIndex;
-        if (srcDayNum === targetDayNum && srcIdx < targetIndex) {
-          adjustedTarget = Math.max(0, targetIndex - 1);
+        let insertIdx = targetIndex;
+        if (cardPoiIdx !== undefined) {
+          insertIdx = isTopHalf ? cardPoiIdx : cardPoiIdx + 1;
         }
-        const insertIdx = Math.max(0, Math.min(adjustedTarget, targetDayObj.itinerary.path.length));
+        insertIdx = Math.max(0, Math.min(insertIdx, targetDayObj.itinerary.path.length));
+
         targetDayObj.itinerary.path.splice(insertIdx, 0, movedItem);
 
         recalculateDayTiming(srcDayObj.itinerary.path);
-        if (srcDayNum !== targetDayNum) {
-          recalculateDayTiming(targetDayObj.itinerary.path);
-        }
+        recalculateDayTiming(targetDayObj.itinerary.path);
 
         onItineraryUpdate(clonedItin);
         setHasManualChanges(true);
@@ -347,8 +423,8 @@ export function TripPlanSidebar({
         }
 
         notify.info(
-          'Stop Reordered',
-          `Moved "${movedItem.poi?.name}" to Day ${targetDayNum}. Click Re-optimize to solve times.`
+          'Stop Moved',
+          `Moved "${movedItem.poi?.name}" to Day ${targetDayNum}.`
         );
       } catch (err) {
         console.error('Failed to reorder itinerary stop', err);
@@ -984,7 +1060,7 @@ export function TripPlanSidebar({
                       <div
                         onDragOver={(e) => {
                           e.preventDefault();
-                          e.dataTransfer.dropEffect = 'copy';
+                          e.dataTransfer.dropEffect = 'move';
                           setActiveDropTarget({ day: dayObj.day, index: 0 });
                         }}
                         onDragLeave={() => {
@@ -1037,7 +1113,7 @@ export function TripPlanSidebar({
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              e.dataTransfer.dropEffect = 'copy';
+                              e.dataTransfer.dropEffect = 'move';
                               setActiveDropTarget({ day: dayObj.day, index: poiIdx });
                             }}
                             onDragLeave={(e) => {
@@ -1126,23 +1202,30 @@ export function TripPlanSidebar({
                             </div>
                           )}
 
-                          {/* Draggable Waypoint Card */}
+                          {/* Draggable Waypoint Card & Drop Target */}
                           <div
                             draggable={true}
                             onDragStart={(e) => {
-                              setDraggedPoi({ day: dayObj.day, index: poiIdx });
+                              const poiInfo = { day: dayObj.day, index: poiIdx };
+                              setDraggedPoi(poiInfo);
+                              draggedPoiRef.current = poiInfo;
                               e.dataTransfer.setData(
                                 'application/paladio-itinerary-poi',
-                                JSON.stringify({ day: dayObj.day, index: poiIdx })
+                                JSON.stringify(poiInfo)
                               );
-                              e.dataTransfer.setData('text/plain', p?.name || 'Waypoint');
-                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.effectAllowed = 'copyMove';
 
-                              // Suppress browser translucent ghost using 1x1 transparent canvas
-                              const canvas = document.createElement('canvas');
-                              canvas.width = 1;
-                              canvas.height = 1;
-                              e.dataTransfer.setDragImage(canvas, 0, 0);
+                              // Suppress browser translucent ghost & file icon using pre-rendered 1x1 image
+                              let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
+                              if (!blankImg || !blankImg.src) {
+                                blankImg = new Image();
+                                blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                              }
+                              try {
+                                e.dataTransfer.setDragImage(blankImg, 0, 0);
+                              } catch {
+                                // ignore
+                              }
 
                               const rect = e.currentTarget.getBoundingClientRect();
                               const offsetX = e.clientX - rect.left;
@@ -1164,10 +1247,28 @@ export function TripPlanSidebar({
                                 offsetY,
                               });
                             }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = 'move';
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const isTopHalf = e.clientY < rect.top + rect.height / 2;
+                              const targetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              setActiveDropTarget({ day: dayObj.day, index: targetIdx });
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const isTopHalf = e.clientY < rect.top + rect.height / 2;
+                              const targetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              handleDrop(e, dayObj.day, targetIdx, poiIdx, isTopHalf);
+                            }}
                             onDragEnd={() => {
                               stopAutoScroll();
                               setActiveDragItem(null);
                               setDraggedPoi(null);
+                              draggedPoiRef.current = null;
                               setActiveDropTarget(null);
                             }}
                             style={{
@@ -1314,7 +1415,7 @@ export function TripPlanSidebar({
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          e.dataTransfer.dropEffect = 'copy';
+                          e.dataTransfer.dropEffect = 'move';
                           setActiveDropTarget({ day: dayObj.day, index: path.length });
                         }}
                         onDragLeave={(e) => {
