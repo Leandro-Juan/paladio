@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.db.models import AttractionModel
 from app.db.session import async_session
-from app.engine.v2.tiering import classify_poi_tier
+from app.engine.tiering import classify_poi_tier
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -42,7 +42,7 @@ async def tier_attractions(city: str | None = None, batch_size: int = 100):
         source_counts: dict[str, int] = {"seed": 0, "heuristic": 0}
         tax_counts: dict[str, int] = {}
 
-        from app.engine.v2.tiering import tier_city_attractions
+        from app.engine.tiering import tier_city_attractions
 
         records = [
             {

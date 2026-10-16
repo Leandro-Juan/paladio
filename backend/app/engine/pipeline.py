@@ -17,13 +17,13 @@ from typing import Any
 
 from app.domain.entities.poi import Poi, PoiLocation
 from app.domain.interfaces.poi_repository import IPoiRepository
-from app.engine.v2.budget import allocate_trip_budget
-from app.engine.v2.candidate_pool import CandidatePoi, build_candidate_pool
-from app.engine.v2.day_assignment import DayAssignmentResult, assign_pois_to_days
-from app.engine.v2.rhythm import compute_city_rhythm_profile
-from app.engine.v2.selection import DroppedPoi, SelectedPoi, select_trip_pois
-from app.engine.v2.solver import DaySolveResult, solve_trip_v2
-from app.engine.v2.trip_frame import TripFrame, build_trip_frame
+from app.engine.budget import allocate_trip_budget
+from app.engine.candidate_pool import CandidatePoi, build_candidate_pool
+from app.engine.day_assignment import DayAssignmentResult, assign_pois_to_days
+from app.engine.rhythm import compute_city_rhythm_profile
+from app.engine.selection import DroppedPoi, SelectedPoi, select_trip_pois
+from app.engine.solver import DaySolveResult, solve_trip_v2
+from app.engine.trip_frame import TripFrame, build_trip_frame
 from app.schemas.itinerary import TravelConstraints
 from pydantic import BaseModel, Field
 
@@ -241,3 +241,9 @@ async def run_itinerary_v2_pipeline(
         dropped_pois=dropped_pois,
         summary=summary,
     )
+
+
+# Canonical names
+run_itinerary_pipeline = run_itinerary_v2_pipeline
+ItineraryResult = ItineraryV2Result
+TripSummary = TripV2Summary

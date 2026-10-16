@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 from app.engine.transit_matrix import haversine_distance
-from app.engine.v2.exceptions import RoutingUnavailable
+from app.engine.exceptions import RoutingUnavailable
 from app.services.transit_fare_service import TransitFareService
 
 logger = logging.getLogger(__name__)

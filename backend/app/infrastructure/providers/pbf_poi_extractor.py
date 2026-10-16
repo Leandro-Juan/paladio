@@ -21,7 +21,7 @@ try:
 except ImportError:
     osmium = None
 
-from app.engine.v2.osm_signals import (
+from app.engine.osm_signals import (
     classify_osm_category,
     count_name_languages,
     default_cost_eur,

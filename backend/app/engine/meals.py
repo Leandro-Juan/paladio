@@ -13,10 +13,10 @@ from app.domain.entities.poi import (
     TransitLeg,
 )
 from app.engine.transit_matrix import haversine_distance
-from app.engine.v2.candidate_pool import CandidatePoi
-from app.engine.v2.exceptions import ItineraryInfeasible
-from app.engine.v2.rhythm import RhythmProfile, get_meal_time_window
-from app.engine.v2.taxonomy import CANONICAL_CATEGORIES
+from app.engine.candidate_pool import CandidatePoi
+from app.engine.exceptions import ItineraryInfeasible
+from app.engine.rhythm import RhythmProfile, get_meal_time_window
+from app.engine.taxonomy import CANONICAL_CATEGORIES
 from app.schemas.itinerary import TravelConstraints
 
 MAX_MEAL_RADIUS_KM = 2.5

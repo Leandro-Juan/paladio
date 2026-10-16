@@ -15,7 +15,7 @@ from app.db.session import async_session
 from app.domain.entities.city import City
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.domain.reference.iso_currencies import get_country_currency
-from app.engine.v2.tiering import tier_city_attractions
+from app.engine.tiering import tier_city_attractions
 from app.infrastructure.providers.osm_city_ingest import (
     CityGeo,
     fetch_city_records,

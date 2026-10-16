@@ -5,12 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.auth import router as auth_router
-from app.api.v1.currency import router as currency_router
-from app.api.v1.pois import router as pois_router
-from app.api.v1.trips import router as trips_router
-from app.api.v1.users import router as users_router
-from app.api.v1.websockets import router as websockets_router
+from app.api.auth import router as auth_router
+from app.api.currency import router as currency_router
+from app.api.pois import router as pois_router
+from app.api.trips import router as trips_router
+from app.api.users import router as users_router
+from app.api.websockets import router as websockets_router
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.swarm.graph import create_swarm
 
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
     # Dynamically fetch live currency exchange rates
     try:
-        from app.engine.v2.currency import fetch_live_rates
+        from app.engine.currency import fetch_live_rates
 
         rates = await fetch_live_rates("USD")
         app.state.exchange_rate_usd_eur = rates.get("EUR", 1.0)
@@ -79,10 +79,33 @@ async def health_check():
     return {"status": "ok", "service": "Paladio Gateway"}
 
 
-# Include routers
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
-app.include_router(websockets_router, prefix="/api/v1", tags=["stream"])
-app.include_router(trips_router, prefix="/api/v1/trips", tags=["trips"])
-app.include_router(currency_router, prefix="/api/v1/currency", tags=["currency"])
-app.include_router(pois_router, prefix="/api/v1/pois", tags=["pois"])
+# Include canonical unversioned routers
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(users_router, prefix="/api/users", tags=["users"])
+app.include_router(websockets_router, prefix="/api", tags=["stream"])
+app.include_router(trips_router, prefix="/api/trips", tags=["trips"])
+app.include_router(currency_router, prefix="/api/currency", tags=["currency"])
+app.include_router(pois_router, prefix="/api/pois", tags=["pois"])
+
+# Legacy /api/v1 aliases for backward compatibility (hidden from OpenAPI schema)
+app.include_router(
+    auth_router, prefix="/api/v1/auth", tags=["auth"], include_in_schema=False
+)
+app.include_router(
+    users_router, prefix="/api/v1/users", tags=["users"], include_in_schema=False
+)
+app.include_router(
+    websockets_router, prefix="/api/v1", tags=["stream"], include_in_schema=False
+)
+app.include_router(
+    trips_router, prefix="/api/v1/trips", tags=["trips"], include_in_schema=False
+)
+app.include_router(
+    currency_router,
+    prefix="/api/v1/currency",
+    tags=["currency"],
+    include_in_schema=False,
+)
+app.include_router(
+    pois_router, prefix="/api/v1/pois", tags=["pois"], include_in_schema=False
+)

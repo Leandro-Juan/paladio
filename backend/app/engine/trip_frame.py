@@ -7,8 +7,8 @@ pace preferences, arrival/departure flight buffers, meal windows, and budget sha
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from app.engine.v2.currency import eur_to_usd, usd_to_eur
-from app.engine.v2.rhythm import RhythmProfile
+from app.engine.currency import eur_to_usd, usd_to_eur
+from app.engine.rhythm import RhythmProfile
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field

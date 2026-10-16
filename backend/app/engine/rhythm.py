@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from statistics import median
 
 from app.domain.entities.poi import Poi
-from app.engine.v2.candidate_pool import CandidatePoi
+from app.engine.candidate_pool import CandidatePoi
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)

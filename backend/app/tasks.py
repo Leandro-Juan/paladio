@@ -99,7 +99,7 @@ async def _run_ingest_city_pois(city_name: str, force: bool = False) -> dict[str
     from app.domain.entities.city import City
     from app.domain.reference.iso_currencies import get_country_currency
     from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
-    from app.engine.v2.tiering import tier_city_attractions
+    from app.engine.tiering import tier_city_attractions
     from app.infrastructure.providers.osm_city_ingest import (
         fetch_city_records,
         geocode_city,

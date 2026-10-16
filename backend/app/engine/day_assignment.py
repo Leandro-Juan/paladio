@@ -13,8 +13,8 @@ from typing import Any
 
 import numpy as np
 from app.engine.transit_matrix import haversine_distance
-from app.engine.v2.selection import SelectedPoi
-from app.engine.v2.trip_frame import DayFrame, TripFrame
+from app.engine.selection import SelectedPoi
+from app.engine.trip_frame import DayFrame, TripFrame
 from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field
 from scipy.optimize import linear_sum_assignment
@@ -665,7 +665,7 @@ def assign_pois_to_days(
 
     # 5. Populate zone surplus candidates (for full-day solver orienteering)
     if candidate_pool:
-        from app.engine.v2.selection import SelectionReasonCode
+        from app.engine.selection import SelectionReasonCode
 
         scheduled_ids = {p.poi.id for p in selected_pois}
         scheduled_names = {p.poi.name.strip().lower() for p in selected_pois}

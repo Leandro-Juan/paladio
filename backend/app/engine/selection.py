@@ -10,8 +10,8 @@ Selects the global set of POIs for the entire trip before day assignment:
 import math
 from enum import Enum
 
-from app.engine.v2.candidate_pool import CandidatePoi
-from app.engine.v2.trip_frame import TripFrame
+from app.engine.candidate_pool import CandidatePoi
+from app.engine.trip_frame import TripFrame
 from pydantic import BaseModel
 
 

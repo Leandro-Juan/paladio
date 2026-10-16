@@ -10,7 +10,7 @@ from app.adapters.repositories.in_memory_poi_repository import InMemoryPoiReposi
 from app.domain.entities.poi import Poi, PoiLocation
 from app.domain.interfaces.optimization_engine import IOptimizationEngine
 from app.domain.interfaces.poi_repository import IPoiRepository
-from app.engine.v2.pipeline import ItineraryV2Result, run_itinerary_v2_pipeline
+from app.engine.pipeline import ItineraryResult, run_itinerary_pipeline
 from app.schemas.itinerary import TravelConstraints
 from app.services.routing_service import RoutingService
 
@@ -196,7 +196,7 @@ class OptimizeDailyItineraryUseCase:
                     SqlPoiRepository,
                 )
                 from app.db.session import async_session
-                from app.engine.v2.city_readiness import ensure_city_ready
+                from app.engine.city_readiness import ensure_city_ready
 
                 async with async_session() as session:
                     sql_repo = SqlPoiRepository(session)
@@ -219,8 +219,8 @@ class OptimizeDailyItineraryUseCase:
 
             matrix_fn = _default_matrix
 
-        # Execute V2 Pipeline
-        v2_res: ItineraryV2Result = await run_itinerary_v2_pipeline(
+        # Execute Optimization Pipeline
+        v2_res: ItineraryResult = await run_itinerary_pipeline(
             city=city,
             constraints=constraints,
             poi_repo=repo,

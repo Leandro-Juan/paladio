@@ -52,7 +52,7 @@ class LodgingScorer(Protocol):
 
 
 class ItineraryGate(Protocol):
-    """Wraps run_itinerary_v2_pipeline + evaluate_itinerary_quality."""
+    """Wraps run_itinerary_pipeline + evaluate_itinerary_quality."""
 
     async def evaluate(
         self, package: dict[str, Any], taste: Any | None

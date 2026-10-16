@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from app.engine.v2.taxonomy import CANONICAL_CATEGORIES, classify_poi_taxonomy
+from app.engine.taxonomy import CANONICAL_CATEGORIES, classify_poi_taxonomy
 
 SEEDS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "city_seeds"
 
@@ -52,7 +52,7 @@ def compute_unified_iconicity_raw(poi: dict[str, Any]) -> float:
 
     osm_raw = float(sig.get("importance_raw") or poi.get("importance_raw") or 0.0)
     if osm_raw == 0.0 and tags:
-        from app.engine.v2.osm_signals import extract_osm_signals
+        from app.engine.osm_signals import extract_osm_signals
 
         extracted = extract_osm_signals(tags)
         osm_raw = float(extracted.get("importance_raw", 0.0))

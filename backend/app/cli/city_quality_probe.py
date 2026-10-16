@@ -21,8 +21,8 @@ from typing import Any
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 from app.bench.runner import _fast_transit_matrix
 from app.db.session import async_session
-from app.engine.v2.city_readiness import ensure_city_ready
-from app.engine.v2.pipeline import ItineraryV2Result, run_itinerary_v2_pipeline
+from app.engine.city_readiness import ensure_city_ready
+from app.engine.pipeline import ItineraryResult, run_itinerary_pipeline
 from app.schemas.itinerary import (
     BookingAnchors,
     FlightSegment,
@@ -122,7 +122,7 @@ def build_constraints(city: str, plan: Plan, mandatory: list[str]) -> TravelCons
 
 
 def evaluate(
-    result: ItineraryV2Result,
+    result: ItineraryResult,
     plan: Plan,
     t1_available: int,
     total_available: int = 100,
@@ -254,7 +254,7 @@ def evaluate(
     return issues, stats
 
 
-def render(result: ItineraryV2Result) -> list[str]:
+def render(result: ItineraryResult) -> list[str]:
     lines: list[str] = []
     for d in result.days:
         lines.append(
@@ -314,7 +314,7 @@ async def probe(
                 )
                 t1 = time.perf_counter()
                 try:
-                    res = await run_itinerary_v2_pipeline(
+                    res = await run_itinerary_pipeline(
                         city=ready.city,
                         constraints=constraints,
                         poi_repo=repo,
