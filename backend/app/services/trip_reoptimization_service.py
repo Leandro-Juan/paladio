@@ -83,6 +83,51 @@ class TripReoptimizationService:
                     path[0]["scheduled_end"] = _format_time_hh_mm(start_mins + dur)
                 continue
 
+            # Sanitize path to deduplicate consecutive identical stops and redundant un-locked depot stops
+            sanitized_path: list[dict[str, Any]] = []
+            if len(path) > 2:
+                start_stop = path[0]
+                end_stop = path[-1]
+                mid_stops = path[1:-1]
+
+                start_p = start_stop.get("poi") or {}
+                start_name = str(start_p.get("name") or "").strip().lower()
+                start_id = str(start_p.get("id") or "").strip()
+
+                cleaned_mid: list[dict[str, Any]] = []
+                prev_name = start_name
+                prev_id = start_id
+
+                for item in mid_stops:
+                    raw_p = item.get("poi") or {}
+                    p_name = str(raw_p.get("name") or "").strip().lower()
+                    p_id = str(raw_p.get("id") or "").strip()
+                    is_locked = (
+                        item.get("locked") is True or raw_p.get("locked") is True
+                    )
+
+                    # Consecutive identical stops are redundant artifacts unless explicitly locked
+                    if not is_locked and (
+                        (p_id and p_id == prev_id) or (p_name and p_name == prev_name)
+                    ):
+                        continue
+
+                    # Un-locked duplicate copies of the accommodation depot are redundant
+                    if not is_locked and (
+                        (p_id and p_id == start_id) or (p_name and p_name == start_name)
+                    ):
+                        continue
+
+                    cleaned_mid.append(item)
+                    prev_name = p_name
+                    prev_id = p_id
+
+                sanitized_path = [start_stop] + cleaned_mid + [end_stop]
+            else:
+                sanitized_path = path
+
+            path = sanitized_path
+
             # Determine day start time
             first_item = path[0]
             existing_start_str = first_item.get("scheduled_start", "09:00")
@@ -142,16 +187,15 @@ class TripReoptimizationService:
                 if raw_item.get("locked") is False or raw_p.get("locked") is False:
                     return False
 
+                # Start and end depot of the day are anchors by default
+                if idx == 0 or idx == n_pois - 1:
+                    return True
+
                 p = poi_entities[idx]
                 cat = (p.category or "").upper()
                 name = (p.name or "").lower()
-                return cat in (
-                    "HOTEL",
-                    "AIRPORT",
-                    "FLIGHT",
-                    "ACCOMMODATION",
-                    "LODGING",
-                ) or any(k in name for k in ("hotel", "airport"))
+                # Intermediate airports / flights are anchors by default
+                return cat in ("AIRPORT", "FLIGHT") or "airport" in name
 
             # Fetch live transit matrix between all POIs in the day
             matrix_pois = [
@@ -220,28 +264,43 @@ class TripReoptimizationService:
                     window_starts[i] = max(day_start_mins, target_time - epsilon)
                     window_ends[i] = min(day_end_mins, target_time + epsilon)
                 else:
+                    # Unlocked POI: derive window from operating hours and scheduled time
+                    open_times = (
+                        raw_p.get("open_time_mins_by_day") or [day_start_mins] * 7
+                    )
+                    close_times = (
+                        raw_p.get("close_time_mins_by_day") or [day_end_mins] * 7
+                    )
+                    w_idx = d_idx % 7
+                    w_start = (
+                        open_times[w_idx]
+                        if isinstance(open_times, list)
+                        and len(open_times) > w_idx
+                        and open_times[w_idx] > 0
+                        else day_start_mins
+                    )
+                    w_end = (
+                        close_times[w_idx]
+                        if isinstance(close_times, list)
+                        and len(close_times) > w_idx
+                        and close_times[w_idx] > 0
+                        else day_end_mins
+                    )
                     sched_str = raw_item.get("scheduled_start")
-                    if sched_str:
-                        target_time = _parse_time_to_minutes(sched_str)
-                        window_starts[i] = max(day_start_mins, target_time - 120)
-                        window_ends[i] = min(day_end_mins, target_time + 120)
+                    target_time = _parse_time_to_minutes(sched_str) if sched_str else -1
+                    # If scheduled time is valid (within day bounds), allow +/- 120m flexibility
+                    if target_time >= day_start_mins:
+                        c_start = max(day_start_mins, target_time - 120)
+                        c_end = min(day_end_mins, target_time + 120)
+                        eff_start = max(c_start, int(w_start))
+                        eff_end = min(c_end, int(w_end))
+                        if eff_start < eff_end:
+                            window_starts[i] = eff_start
+                            window_ends[i] = eff_end
+                        else:
+                            window_starts[i] = max(day_start_mins, int(w_start))
+                            window_ends[i] = min(day_end_mins, int(w_end))
                     else:
-                        open_times = (
-                            raw_p.get("open_time_mins_by_day") or [day_start_mins] * 7
-                        )
-                        close_times = (
-                            raw_p.get("close_time_mins_by_day") or [day_end_mins] * 7
-                        )
-                        w_start = (
-                            open_times[0]
-                            if isinstance(open_times, list) and open_times
-                            else day_start_mins
-                        )
-                        w_end = (
-                            close_times[0]
-                            if isinstance(close_times, list) and close_times
-                            else day_end_mins
-                        )
                         window_starts[i] = max(day_start_mins, int(w_start))
                         window_ends[i] = min(day_end_mins, int(w_end))
 

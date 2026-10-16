@@ -763,3 +763,71 @@ async def test_trip_reoptimization_global_tsptw_tight_window():
     start_mins = _parse_time_to_minutes(lunch_item["scheduled_start"])
     target_mins = 12 * 60 + 30  # 750
     assert abs(start_mins - target_mins) <= 15
+
+
+@pytest.mark.asyncio
+async def test_trip_reoptimization_prunes_consecutive_duplicate_depot_hotels():
+    """
+    Verifies that un-locked duplicate and consecutive copies of the accommodation depot
+    are automatically pruned during re-optimization, preventing ghost hotels and midnight shifts.
+    """
+    city = "Tokyo"
+    hotel_depot = {
+        "id": "h_tokyo",
+        "name": "Hotel Gracery Shinjuku",
+        "category": "HOTEL",
+        "location": {"latitude": 35.6953, "longitude": 139.7020},
+    }
+    poi_a = {
+        "id": "p_a",
+        "name": "Fuglen Asakusa",
+        "category": "CAFE",
+        "location": {"latitude": 35.7142, "longitude": 139.7964},
+        "duration_mins": 45,
+    }
+    poi_b = {
+        "id": "p_b",
+        "name": "Sensō-ji",
+        "category": "MONUMENT",
+        "location": {"latitude": 35.7148, "longitude": 139.7967},
+        "duration_mins": 60,
+    }
+
+    # Simulate path cluttered with duplicate depot entries and midnight-wrapped timestamps
+    stops = [
+        {"poi": hotel_depot, "scheduled_start": "08:15", "scheduled_end": "08:15"},
+        {"poi": hotel_depot, "scheduled_start": "08:16", "scheduled_end": "08:46"},
+        {"poi": hotel_depot, "scheduled_start": "08:47", "scheduled_end": "09:17"},
+        {"poi": poi_a, "scheduled_start": "12:00", "scheduled_end": "12:45"},
+        {
+            "poi": poi_b,
+            "scheduled_start": "01:30",
+            "scheduled_end": "02:30",
+        },  # corrupted midnight wrap
+        {"poi": hotel_depot, "scheduled_start": "23:00", "scheduled_end": "23:30"},
+        {"poi": hotel_depot, "scheduled_start": "04:00", "scheduled_end": "04:00"},
+    ]
+
+    itinerary = {
+        "city": city,
+        "days": [{"day": 1, "date": "2026-10-22", "itinerary": {"path": stops}}],
+    }
+
+    reoptimized = await TripReoptimizationService.reoptimize_trip_itinerary(
+        itinerary_data=itinerary,
+        destination_city=city,
+        target_day=1,
+    )
+
+    day1_path = reoptimized["days"][0]["itinerary"]["path"]
+    # Pruned: exactly 4 stops (Hotel -> POI A -> POI B -> Hotel)
+    assert len(day1_path) == 4
+    assert day1_path[0]["poi"]["name"] == "Hotel Gracery Shinjuku"
+    assert day1_path[-1]["poi"]["name"] == "Hotel Gracery Shinjuku"
+    poi_names = {day1_path[1]["poi"]["name"], day1_path[2]["poi"]["name"]}
+    assert poi_names == {"Fuglen Asakusa", "Sensō-ji"}
+
+    # Timestamps are non-corrupted and daytime (between 08:15 and 22:00)
+    for step in day1_path:
+        start_h = int(step["scheduled_start"].split(":")[0])
+        assert 8 <= start_h <= 22
