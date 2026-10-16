@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { DayOutput, OptimizationResult, ScheduledPoi } from '@/types/domain';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
@@ -73,6 +74,117 @@ export function TripPlanSidebar({
   const [hasManualChanges, setHasManualChanges] = useState(false);
   const [draggedPoi, setDraggedPoi] = useState<{ day: number; index: number } | null>(null);
 
+  // Auto-scroll and solid drag preview refs & state
+  const scrollListRef = useRef<HTMLDivElement>(null);
+  const scrollVelocityRef = useRef<number>(0);
+  const scrollRafRef = useRef<number | null>(null);
+  const dragPreviewRef = useRef<HTMLDivElement>(null);
+  const [activeDragItem, setActiveDragItem] = useState<{
+    name: string;
+    stopNum: string;
+    category?: string;
+    startTime: string;
+    endTime: string;
+    durationMins?: number;
+    costEur?: number;
+    openHours?: string | null;
+    width: number;
+    initialX: number;
+    initialY: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  const activeDragItemRef = useRef<typeof activeDragItem>(null);
+
+  useEffect(() => {
+    activeDragItemRef.current = activeDragItem;
+  }, [activeDragItem]);
+
+  const stopAutoScroll = useCallback(() => {
+    scrollVelocityRef.current = 0;
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    }
+  }, []);
+
+  const startAutoScrollLoop = useCallback(() => {
+    if (scrollRafRef.current !== null) return;
+    const step = () => {
+      if (scrollVelocityRef.current !== 0 && scrollListRef.current) {
+        scrollListRef.current.scrollTop += scrollVelocityRef.current;
+        scrollRafRef.current = requestAnimationFrame(step);
+      } else {
+        scrollRafRef.current = null;
+      }
+    };
+    scrollRafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  const handlePointerDragScroll = useCallback((clientY: number, clientX: number) => {
+    const container = scrollListRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+
+    // Check horizontal bounds (allow 60px tolerance outside container)
+    if (clientX < rect.left - 60 || clientX > rect.right + 60) {
+      if (scrollVelocityRef.current !== 0) {
+        scrollVelocityRef.current = 0;
+      }
+      return;
+    }
+
+    const edgeZone = 80;
+    if (clientY > rect.bottom - edgeZone && clientY <= rect.bottom + 120) {
+      // Dragging down near or slightly below bottom edge
+      const intensity = Math.min(1.8, Math.max(0.1, (clientY - (rect.bottom - edgeZone)) / edgeZone));
+      scrollVelocityRef.current = Math.round(intensity * 18);
+      startAutoScrollLoop();
+    } else if (clientY < rect.top + edgeZone && clientY >= rect.top - 100) {
+      // Dragging up near or slightly above top edge
+      const intensity = Math.min(1.8, Math.max(0.1, ((rect.top + edgeZone) - clientY) / edgeZone));
+      scrollVelocityRef.current = -Math.round(intensity * 18);
+      startAutoScrollLoop();
+    } else {
+      scrollVelocityRef.current = 0;
+    }
+  }, [startAutoScrollLoop]);
+
+  useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (e.clientX === 0 && e.clientY === 0) return;
+
+      // Update position of solid preview card if active
+      if (dragPreviewRef.current && activeDragItemRef.current) {
+        const left = e.clientX - activeDragItemRef.current.offsetX;
+        const top = e.clientY - activeDragItemRef.current.offsetY;
+        dragPreviewRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+      }
+
+      // Check auto-scroll for itinerary list
+      handlePointerDragScroll(e.clientY, e.clientX);
+    };
+
+    const handleGlobalDragEnd = () => {
+      stopAutoScroll();
+      setActiveDragItem(null);
+      setDraggedPoi(null);
+      setActiveDropTarget(null);
+    };
+
+    window.addEventListener('dragover', handleGlobalDragOver, { capture: true });
+    window.addEventListener('dragend', handleGlobalDragEnd, { capture: true });
+    window.addEventListener('drop', handleGlobalDragEnd, { capture: true });
+
+    return () => {
+      window.removeEventListener('dragover', handleGlobalDragOver, { capture: true });
+      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: true });
+      window.removeEventListener('drop', handleGlobalDragEnd, { capture: true });
+      stopAutoScroll();
+    };
+  }, [handlePointerDragScroll, stopAutoScroll]);
+
   const formatTimeHHMM = (mins: number) => {
     const h = Math.floor(mins / 60) % 24;
     const m = mins % 60;
@@ -142,6 +254,8 @@ export function TripPlanSidebar({
   const handleDrop = async (e: React.DragEvent, targetDayNum: number, targetIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
+    stopAutoScroll();
+    setActiveDragItem(null);
     setActiveDropTarget(null);
     setDraggedPoi(null);
 
@@ -836,7 +950,14 @@ export function TripPlanSidebar({
             </div>
 
             {/* Stops & Waypoints List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div
+              ref={scrollListRef}
+              onDragOver={(e) => {
+                e.preventDefault();
+                handlePointerDragScroll(e.clientY, e.clientX);
+              }}
+              style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
               {displayedDays.map((dayObj) => {
                 const path = dayObj.itinerary?.path || [];
                 const transitRec = dayObj.itinerary?.transit_recommendation;
@@ -1016,25 +1137,57 @@ export function TripPlanSidebar({
                               );
                               e.dataTransfer.setData('text/plain', p?.name || 'Waypoint');
                               e.dataTransfer.effectAllowed = 'move';
+
+                              // Suppress browser translucent ghost using 1x1 transparent canvas
+                              const canvas = document.createElement('canvas');
+                              canvas.width = 1;
+                              canvas.height = 1;
+                              e.dataTransfer.setDragImage(canvas, 0, 0);
+
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const offsetX = e.clientX - rect.left;
+                              const offsetY = e.clientY - rect.top;
+
+                              setActiveDragItem({
+                                name: p?.name || 'Waypoint',
+                                stopNum,
+                                category: p?.category,
+                                startTime,
+                                endTime,
+                                durationMins: p?.duration_mins,
+                                costEur: p?.cost_eur,
+                                openHours,
+                                width: rect.width,
+                                initialX: e.clientX,
+                                initialY: e.clientY,
+                                offsetX,
+                                offsetY,
+                              });
                             }}
                             onDragEnd={() => {
+                              stopAutoScroll();
+                              setActiveDragItem(null);
                               setDraggedPoi(null);
                               setActiveDropTarget(null);
                             }}
                             style={{
-                              background: 'var(--color-bg-main)',
-                              border: isCatMatch
-                                ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
-                                : '1px dashed var(--color-border)',
+                              background: isBeingDragged ? 'rgba(15, 76, 92, 0.04)' : 'var(--color-bg-main)',
+                              border: isBeingDragged
+                                ? '1.5px dashed var(--color-accent-teal-soft)'
+                                : isCatMatch
+                                  ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
+                                  : '1px dashed var(--color-border)',
                               borderRadius: 'var(--radius-md)',
                               padding: '10px 12px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '6px',
                               boxShadow:
-                                isCatMatch && categoryFilter
-                                  ? 'var(--shadow-md)'
-                                  : 'var(--shadow-sm)',
+                                isBeingDragged
+                                  ? 'none'
+                                  : isCatMatch && categoryFilter
+                                    ? 'var(--shadow-md)'
+                                    : 'var(--shadow-sm)',
                               opacity: isBeingDragged ? 0.45 : (isCatMatch ? 1 : 0.35),
                               cursor: 'grab',
                               transform: isBeingDragged ? 'scale(0.98)' : 'none',
@@ -1268,6 +1421,92 @@ export function TripPlanSidebar({
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </button>
+      {/* 100% Solid Drag Preview Overlay */}
+      {activeDragItem && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={dragPreviewRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: `${activeDragItem.width}px`,
+            pointerEvents: 'none',
+            zIndex: 99999,
+            transform: `translate3d(${activeDragItem.initialX - activeDragItem.offsetX}px, ${activeDragItem.initialY - activeDragItem.offsetY}px, 0)`,
+            background: 'var(--color-surface-card, #FAF6F0)',
+            backgroundColor: '#FAF6F0',
+            border: '1.5px solid var(--color-accent-primary, #0F4C5C)',
+            borderRadius: 'var(--radius-md, 8px)',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12)',
+            opacity: 1,
+            willChange: 'transform',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                <GripVerticalIcon size={14} color="var(--color-text-muted)" />
+              </div>
+
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  background: 'var(--color-accent-primary)',
+                  color: '#FFFFFF',
+                  padding: '2px 6px',
+                  borderRadius: 'var(--radius-sm)',
+                  flexShrink: 0,
+                }}
+              >
+                {activeDragItem.stopNum}
+              </span>
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activeDragItem.name}
+              </h4>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {activeDragItem.category && (
+                <PoiCategoryBadge category={activeDragItem.category} name={activeDragItem.name} />
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px', paddingLeft: '22px' }}>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {activeDragItem.startTime}
+              {' '}&rarr;{' '}
+              {activeDragItem.endTime}
+              {activeDragItem.durationMins ? ` (${activeDragItem.durationMins}m)` : ''}
+            </span>
+            {typeof activeDragItem.costEur === 'number' && activeDragItem.costEur > 0 && (
+              <span style={{ color: 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {activeDragItem.costEur.toFixed(2)} &euro;
+              </span>
+            )}
+          </div>
+
+          {activeDragItem.openHours && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '-2px', paddingLeft: '22px' }}>
+              <span style={{ color: 'var(--color-text-muted)' }}>&bull;</span>
+              <span>{activeDragItem.openHours}</span>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

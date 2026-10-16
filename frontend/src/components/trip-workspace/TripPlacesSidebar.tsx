@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { EmptyState } from '@/components/EmptyState';
@@ -81,6 +82,51 @@ export function TripPlacesSidebar({
   const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Solid Drag Preview overlay
+  const dragPreviewRef = useRef<HTMLDivElement>(null);
+  const [activeDragPlace, setActiveDragPlace] = useState<{
+    name: string;
+    category?: string;
+    durationMins?: number;
+    costEur?: number;
+    width: number;
+    initialX: number;
+    initialY: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  const activeDragPlaceRef = useRef<typeof activeDragPlace>(null);
+
+  useEffect(() => {
+    activeDragPlaceRef.current = activeDragPlace;
+  }, [activeDragPlace]);
+
+  useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (e.clientX === 0 && e.clientY === 0) return;
+      if (dragPreviewRef.current && activeDragPlaceRef.current) {
+        const left = e.clientX - activeDragPlaceRef.current.offsetX;
+        const top = e.clientY - activeDragPlaceRef.current.offsetY;
+        dragPreviewRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+      }
+    };
+
+    const handleGlobalDragEnd = () => {
+      setActiveDragPlace(null);
+    };
+
+    window.addEventListener('dragover', handleGlobalDragOver, { capture: true });
+    window.addEventListener('dragend', handleGlobalDragEnd, { capture: true });
+    window.addEventListener('drop', handleGlobalDragEnd, { capture: true });
+
+    return () => {
+      window.removeEventListener('dragover', handleGlobalDragOver, { capture: true });
+      window.removeEventListener('dragend', handleGlobalDragEnd, { capture: true });
+      window.removeEventListener('drop', handleGlobalDragEnd, { capture: true });
+    };
+  }, []);
 
   const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
   if (categoryFilter !== prevCategoryFilter) {
@@ -598,7 +644,29 @@ export function TripPlacesSidebar({
                       e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
                       e.dataTransfer.setData('text/plain', searchData.exact_match!.name);
                       e.dataTransfer.effectAllowed = 'copy';
+
+                      const canvas = document.createElement('canvas');
+                      canvas.width = 1;
+                      canvas.height = 1;
+                      e.dataTransfer.setDragImage(canvas, 0, 0);
+
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const offsetX = e.clientX - rect.left;
+                      const offsetY = e.clientY - rect.top;
+
+                      setActiveDragPlace({
+                        name: searchData.exact_match!.name,
+                        category: searchData.exact_match!.category,
+                        durationMins: searchData.exact_match!.duration_mins,
+                        costEur: searchData.exact_match!.cost_eur,
+                        width: rect.width,
+                        initialX: e.clientX,
+                        initialY: e.clientY,
+                        offsetX,
+                        offsetY,
+                      });
                     }}
+                    onDragEnd={() => setActiveDragPlace(null)}
                     style={{
                       padding: '12px',
                       background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 76, 92, 0.04) 100%)',
@@ -764,7 +832,29 @@ export function TripPlacesSidebar({
                             e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
                             e.dataTransfer.setData('text/plain', poi.name);
                             e.dataTransfer.effectAllowed = 'copy';
+
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 1;
+                            canvas.height = 1;
+                            e.dataTransfer.setDragImage(canvas, 0, 0);
+
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const offsetX = e.clientX - rect.left;
+                            const offsetY = e.clientY - rect.top;
+
+                            setActiveDragPlace({
+                              name: poi.name,
+                              category: poi.category,
+                              durationMins: poi.duration_mins,
+                              costEur: poi.cost_eur,
+                              width: rect.width,
+                              initialX: e.clientX,
+                              initialY: e.clientY,
+                              offsetX,
+                              offsetY,
+                            });
                           }}
+                          onDragEnd={() => setActiveDragPlace(null)}
                           onClick={() =>
                             onPlaceClick?.({
                               id: poi.id,
@@ -946,6 +1036,62 @@ export function TripPlacesSidebar({
           )}
         </aside>
       </div>
+
+      {/* 100% Solid Drag Preview Overlay for Search Places */}
+      {activeDragPlace && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={dragPreviewRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: `${activeDragPlace.width}px`,
+            pointerEvents: 'none',
+            zIndex: 99999,
+            transform: `translate3d(${activeDragPlace.initialX - activeDragPlace.offsetX}px, ${activeDragPlace.initialY - activeDragPlace.offsetY}px, 0)`,
+            background: 'var(--color-surface-card, #FAF6F0)',
+            backgroundColor: '#FAF6F0',
+            border: '1.5px solid var(--color-accent-primary, #0F4C5C)',
+            borderRadius: 'var(--radius-md, 8px)',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12)',
+            opacity: 1,
+            willChange: 'transform',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                <GripVerticalIcon size={14} color="var(--color-text-muted)" />
+              </div>
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activeDragPlace.name}
+              </h4>
+            </div>
+            {activeDragPlace.category && (
+              <PoiCategoryBadge category={activeDragPlace.category} name={activeDragPlace.name} />
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px', paddingLeft: '22px' }}>
+            {activeDragPlace.durationMins ? <span>~{activeDragPlace.durationMins} min</span> : <span>Place</span>}
+            {typeof activeDragPlace.costEur === 'number' && activeDragPlace.costEur > 0 && (
+              <span style={{ color: 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {activeDragPlace.costEur.toFixed(2)} &euro;
+              </span>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
