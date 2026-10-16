@@ -165,6 +165,53 @@ async def verify_constraints_node(state: SwarmState) -> dict:
         except Exception as e:
             logger.error(f"Validation error on resumed user input: {e}")
 
+        if (
+            constraints.destination_city
+            and constraints.destination_city.lower() != "unknown"
+        ):
+            needs_anchors = (
+                not constraints.booking_anchors
+                or not constraints.booking_anchors.hotel
+                or not constraints.booking_anchors.outbound_flight
+                or not constraints.booking_anchors.return_flight
+            )
+            if needs_anchors:
+                from app.utils.mock_tickets import generate_mock_tickets
+
+                diff_days = 5
+                if constraints.start_date and constraints.end_date:
+                    d = (constraints.end_date - constraints.start_date).days
+                    if d > 0:
+                        diff_days = d
+                orig = (
+                    constraints.origin_city
+                    if (
+                        constraints.origin_city
+                        and constraints.origin_city.lower() != "unknown"
+                    )
+                    else "Madrid"
+                )
+                mock_res = generate_mock_tickets(
+                    orig,
+                    constraints.destination_city,
+                    duration_days=diff_days,
+                    start_date=constraints.start_date,
+                )
+                constraints.booking_anchors = mock_res["booking_anchors"]
+                if not constraints.start_date and mock_res.get("start_date"):
+                    from app.swarm.nodes.constraint_builder import _parse_date
+
+                    constraints.start_date = _parse_date(mock_res["start_date"])
+                if not constraints.end_date and mock_res.get("end_date"):
+                    from app.swarm.nodes.constraint_builder import _parse_date
+
+                    constraints.end_date = _parse_date(mock_res["end_date"])
+                if (
+                    not constraints.origin_city
+                    or constraints.origin_city.lower() == "unknown"
+                ):
+                    constraints.origin_city = orig
+
     return {
         "validated_itinerary": constraints.model_dump(mode="json"),
         "verification_completed": True,

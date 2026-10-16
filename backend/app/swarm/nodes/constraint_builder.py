@@ -166,17 +166,27 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         if parsed_e:
             end_date = parsed_e
 
-    # Re-anchor booking if destination city was changed/overridden and contradicts the hotel anchor
-    if booking and destination_city and destination_city != "Unknown":
+    # Re-anchor booking if destination city was changed/overridden and contradicts the hotel anchor,
+    # or if destination city is known but booking anchors are missing/incomplete.
+    if destination_city and destination_city != "Unknown":
         hotel_city = (
-            booking.hotel.city if (booking.hotel and booking.hotel.city) else ""
+            booking.hotel.city
+            if (booking and booking.hotel and booking.hotel.city)
+            else ""
         )
-        if (
-            hotel_city
-            and hotel_city.strip().lower() != destination_city.strip().lower()
-        ):
+        needs_anchoring = (
+            booking is None
+            or booking.hotel is None
+            or booking.outbound_flight is None
+            or booking.return_flight is None
+            or (
+                hotel_city
+                and hotel_city.strip().lower() != destination_city.strip().lower()
+            )
+        )
+        if needs_anchoring:
             logger.info(
-                f"Booking anchor hotel city '{hotel_city}' mismatches destination '{destination_city}'. Re-anchoring to {destination_city}."
+                f"Booking anchor hotel city '{hotel_city}' missing or mismatches destination '{destination_city}'. Anchoring to {destination_city}."
             )
             from app.utils.mock_tickets import generate_mock_tickets
 
@@ -186,7 +196,9 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
                 if diff > 0:
                     diff_days = diff
 
-            orig = origin_city if origin_city != "Unknown" else "Madrid"
+            orig = (
+                origin_city if (origin_city and origin_city != "Unknown") else "Madrid"
+            )
             mock_res = generate_mock_tickets(
                 orig,
                 destination_city,
@@ -194,6 +206,12 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
                 start_date=start_date,
             )
             booking = mock_res["booking_anchors"]
+            if not start_date and mock_res.get("start_date"):
+                start_date = _parse_date(mock_res["start_date"])
+            if not end_date and mock_res.get("end_date"):
+                end_date = _parse_date(mock_res["end_date"])
+            if origin_city == "Unknown" and mock_res.get("origin_city"):
+                origin_city = mock_res["origin_city"]
 
     prompt = manual.get("prompt") or state.get("prompt")
     if not prompt:
