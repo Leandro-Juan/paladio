@@ -3,6 +3,7 @@
 import React from 'react';
 import { SettlementTransfer } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { ArrowRightIcon } from '@/components/icons';
 
 interface SettleUpWidgetProps {
   transfers: SettlementTransfer[];
@@ -186,7 +187,7 @@ export function SettleUpWidget({
                   }}
                 >
                   <span>{t.sender_name || 'Traveler'}</span>
-                  <span style={{ color: 'var(--color-text-muted)', margin: '0 6px' }}>➔</span>
+                  <ArrowRightIcon size={12} color="var(--color-text-muted)" style={{ margin: '0 6px' }} />
                   <span>{t.receiver_name || 'Traveler'}</span>
                 </div>
                 <div

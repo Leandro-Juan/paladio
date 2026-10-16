@@ -126,6 +126,9 @@ async def search_pois(
     category: str | None = Query(
         None, description="Optional category filter (e.g. museum, cafe, restaurant)"
     ),
+    trip_id: str | None = Query(
+        None, description="Optional trip ID to fetch trip-specific hotel and airport"
+    ),
     limit: int = Query(15, ge=1, le=50, description="Max results to return"),
     session: AsyncSession = Depends(get_db),
 ):
@@ -146,6 +149,189 @@ async def search_pois(
     city_obj = await city_repo.find_by_name_or_alias(city)
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
+
+    norm_query = _normalize_text(clean_query)
+    stripped_query = _strip_articles(clean_query)
+
+    is_hotel_query = any(
+        k in norm_query for k in ("hotel", "hoteles", "lodging", "alojamiento")
+    )
+    is_airport_query = any(
+        k in norm_query for k in ("airport", "aeropuerto", "aeropuertos", "flight")
+    )
+
+    # Check for trip-specific hotel / airport anchor
+    if trip_id and (is_hotel_query or is_airport_query):
+        from app.db.models import TripModel
+
+        trip_obj = await session.get(TripModel, trip_id)
+        if trip_obj and isinstance(trip_obj.itinerary_data, dict):
+            itin = trip_obj.itinerary_data
+            if is_hotel_query:
+                h_info = (itin.get("travel_constraints") or {}).get(
+                    "hotel"
+                ) or itin.get("hotel")
+                h_name = h_info.get("name") if isinstance(h_info, dict) else None
+                h_loc = (
+                    h_info.get("location") if isinstance(h_info, dict) else None
+                ) or {}
+                h_lat = float(
+                    h_loc.get("latitude")
+                    or (h_info.get("lat") if isinstance(h_info, dict) else None)
+                    or 0.0
+                )
+                h_lng = float(
+                    h_loc.get("longitude")
+                    or (h_info.get("lng") if isinstance(h_info, dict) else None)
+                    or 0.0
+                )
+                if not h_name:
+                    for d in itin.get("days", []):
+                        for sp in d.get("itinerary", {}).get("path") or []:
+                            p = sp.get("poi") or {}
+                            cat_p = str(p.get("category", "")).upper()
+                            nm_p = str(p.get("name", ""))
+                            if (
+                                cat_p in ("HOTEL", "LODGING", "ACCOMMODATION")
+                                or "hotel" in nm_p.lower()
+                            ):
+                                h_name = nm_p
+                                loc = p.get("location") or {}
+                                h_lat = float(
+                                    loc.get("latitude") or p.get("lat") or 0.0
+                                )
+                                h_lng = float(
+                                    loc.get("longitude") or p.get("lng") or 0.0
+                                )
+                                break
+                        if h_name:
+                            break
+                if h_name:
+                    hotel_item = PoiSearchItem(
+                        id=f"trip_hotel_{trip_id}",
+                        name=h_name,
+                        category="HOTEL",
+                        lat=h_lat,
+                        lng=h_lng,
+                        duration_mins=30,
+                        cost_eur=0.0,
+                        similarity=1.0,
+                        match_type="trip_hotel_base",
+                        description=f"Booked Hotel for trip to {city_name}",
+                    )
+                    return PoiSearchResponse(
+                        city=city_name,
+                        query=clean_query,
+                        search_type="trip_hotel_base",
+                        exact_match_found=True,
+                        exact_match=hotel_item,
+                        results=[hotel_item],
+                    )
+            elif is_airport_query:
+                a_info = (itin.get("travel_constraints") or {}).get(
+                    "airport"
+                ) or itin.get("airport")
+                a_name = a_info.get("name") if isinstance(a_info, dict) else None
+                a_loc = (
+                    a_info.get("location") if isinstance(a_info, dict) else None
+                ) or {}
+                a_lat = float(
+                    a_loc.get("latitude")
+                    or (a_info.get("lat") if isinstance(a_info, dict) else None)
+                    or 0.0
+                )
+                a_lng = float(
+                    a_loc.get("longitude")
+                    or (a_info.get("lng") if isinstance(a_info, dict) else None)
+                    or 0.0
+                )
+                if not a_name:
+                    for d in itin.get("days", []):
+                        for sp in d.get("itinerary", {}).get("path") or []:
+                            p = sp.get("poi") or {}
+                            cat_p = str(p.get("category", "")).upper()
+                            nm_p = str(p.get("name", ""))
+                            if (
+                                cat_p in ("AIRPORT", "FLIGHT")
+                                or "airport" in nm_p.lower()
+                            ):
+                                a_name = nm_p
+                                loc = p.get("location") or {}
+                                a_lat = float(
+                                    loc.get("latitude") or p.get("lat") or 0.0
+                                )
+                                a_lng = float(
+                                    loc.get("longitude") or p.get("lng") or 0.0
+                                )
+                                break
+                        if a_name:
+                            break
+                if a_name:
+                    airport_item = PoiSearchItem(
+                        id=f"trip_airport_{trip_id}",
+                        name=a_name,
+                        category="AIRPORT",
+                        lat=a_lat,
+                        lng=a_lng,
+                        duration_mins=60,
+                        cost_eur=0.0,
+                        similarity=1.0,
+                        match_type="trip_airport_gateway",
+                        description=f"Airport gateway for {city_name}",
+                    )
+                    return PoiSearchResponse(
+                        city=city_name,
+                        query=clean_query,
+                        search_type="trip_airport_gateway",
+                        exact_match_found=True,
+                        exact_match=airport_item,
+                        results=[airport_item],
+                    )
+
+    # Database search for hotels/airports by name pattern if querying hotel/airport
+    if is_hotel_query or is_airport_query:
+        from sqlalchemy import or_, select
+        from app.db.models import AttractionModel
+
+        pattern = "%hotel%" if is_hotel_query else "%airport%"
+        pattern_es = "%hotel%" if is_hotel_query else "%aeropuerto%"
+        stmt = (
+            select(AttractionModel)
+            .where(
+                AttractionModel.city.ilike(city_name),
+                or_(
+                    AttractionModel.name.ilike(pattern),
+                    AttractionModel.name.ilike(pattern_es),
+                    AttractionModel.category.ilike(pattern),
+                ),
+            )
+            .limit(limit)
+        )
+        db_matches = (await session.execute(stmt)).scalars().all()
+        if db_matches:
+            match_results = [
+                PoiSearchItem(
+                    id=str(m.id),
+                    name=m.name,
+                    category="HOTEL" if is_hotel_query else "AIRPORT",
+                    lat=float(m.latitude),
+                    lng=float(m.longitude),
+                    duration_mins=30 if is_hotel_query else 60,
+                    cost_eur=0.0,
+                    similarity=1.0,
+                    match_type="exact_name",
+                    description=f"{'Hotel' if is_hotel_query else 'Airport'} in {city_name}",
+                )
+                for m in db_matches
+            ]
+            return PoiSearchResponse(
+                city=city_name,
+                query=clean_query,
+                search_type="exact_match",
+                exact_match_found=True,
+                exact_match=match_results[0],
+                results=match_results,
+            )
 
     # 2. Check for exact / fuzzy name match via Trigram RRF
     lexical_candidates = await HybridRetriever.search_hybrid(

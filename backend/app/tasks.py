@@ -1101,8 +1101,8 @@ def _publish_transit_started_event(
 def is_transit_task_alive(city_clean: str) -> bool:
     """
     Checks if a GTFS/transit task for city_clean is genuinely active.
-    Returns False if the Celery task has terminated with FAILURE or REVOKED,
-    or if cancelled flag is active in Redis.
+    Returns False if the Celery task has terminated (ready()),
+    if no task_id is tracked, or if cancelled flag is active in Redis.
     """
     try:
         import redis
@@ -1123,13 +1123,25 @@ def is_transit_task_alive(city_clean: str) -> bool:
                 else str(task_id)
             )
             res = AsyncResult(task_id_str, app=celery_app)
-            if res.ready() and res.state in ("FAILURE", "REVOKED"):
+            if res.ready():
                 return False
+            return True
 
-        return True
+        curr = r.get("paladio:transit_compiler_current_city")
+        if curr and (
+            (
+                hasattr(curr, "decode")
+                and curr.decode("utf-8", errors="ignore") == city_clean
+            )
+            or curr == city_clean
+            or curr == city_clean.encode()
+        ):
+            return True
+
+        return False
     except Exception as exc:
         logger.warning(f"Error checking transit task liveness for {city_clean}: {exc}")
-        return True
+        return False
 
 
 async def async_trigger_next_queued_city(session: Any | None = None) -> str | None:
@@ -1900,7 +1912,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             from app.services.osm_map_service import OSMMapService
 
             dynamic_bounds = _run_async(
-                OSMMapService.get_city_extract_bounds(city_lower)
+                OSMMapService.get_city_extract_bounds(city_name)
             )
 
             center_lat, center_lon = None, None
@@ -1928,7 +1940,8 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                         geocode_city,
                     )
 
-                    geo = _run_async(geocode_city(city_lower))
+                    query_name = city_name.strip().replace("_", " ").replace("-", " ")
+                    geo = _run_async(geocode_city(query_name))
                     center_lat, center_lon = geo.lat, geo.lon
                 except Exception as geo_err:
                     logger.debug(f"Geocoding skipped for GTFS pruning: {geo_err}")

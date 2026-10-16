@@ -226,6 +226,27 @@ struct OptimizationResult {
                                                     const double *transit_costs,
                                                     const OptimizationConfig &config);
 
+/**
+ * @brief Computes an untangled, minimal-duration TSP tour over n nodes.
+ *
+ * Guarantees visiting 100% of candidate stops without dropping any nodes.
+ * Node @p start_node is pinned at index 0.
+ * If @p fixed_end is true, @p end_node is pinned at index n-1.
+ *
+ * Uses Multi-Start Nearest-Neighbor construction followed by 2-opt edge inversions
+ * and Or-opt block relocations. Runs deterministically in C++20 with sub-millisecond latency.
+ *
+ * @param transit_durations Flattened row-major n x n transit duration matrix in minutes.
+ * @param n Number of nodes (stops).
+ * @param start_node Index of the start node.
+ * @param end_node Index of the end node.
+ * @param fixed_end Whether the end node is strictly fixed at the end of the tour.
+ * @return std::vector<int> Optimized permutation of node indices of length n.
+ */
+[[nodiscard]] std::vector<int> solve_tsp_tour(const int *transit_durations, int n,
+                                              int start_node = 0, int end_node = -1,
+                                              bool fixed_end = false);
+
 #ifdef PALADIO_TESTING
 /**
  * @brief Testing convenience overload accepting vector of TransitInfo structs.

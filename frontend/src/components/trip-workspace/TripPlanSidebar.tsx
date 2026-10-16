@@ -15,8 +15,13 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   CpuIcon,
+  LockIcon,
+  UnlockIcon,
+  AnchorIcon,
+  CloseIcon,
+  AlertTriangleIcon,
 } from '@/components/icons';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { useTrips } from '@/hooks/useTrips';
@@ -73,6 +78,12 @@ export function TripPlanSidebar({
   const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
   const [hasManualChanges, setHasManualChanges] = useState(false);
   const [draggedPoi, setDraggedPoi] = useState<{ day: number; index: number } | null>(null);
+  const [unlockConfirmAnchor, setUnlockConfirmAnchor] = useState<{
+    dayNum: number;
+    poiIdx: number;
+    name: string;
+    type: string;
+  } | null>(null);
 
   // Auto-scroll and solid drag preview refs & state
   const scrollListRef = useRef<HTMLDivElement>(null);
@@ -202,6 +213,16 @@ export function TripPlanSidebar({
       curClock += dur;
       item.scheduled_end = formatTimeHHMM(curClock);
       curClock += 15; // default 15m transit buffer between stops
+
+      if (k === 0) {
+        item.transit_from_previous = null;
+      } else if (item.transit_from_previous) {
+        item.transit_from_previous = {
+          ...item.transit_from_previous,
+          steps: [],
+          geometry: undefined,
+        };
+      }
     }
   };
 
@@ -212,24 +233,206 @@ export function TripPlanSidebar({
       return;
     }
 
+    const targetDay = selectedDay === 'all' ? undefined : selectedDay;
+
     setReoptimizing(true);
     try {
-      const res = await reoptimizeTrip(tripId, itinerary ? { itinerary_data: itinerary } : undefined);
+      const res = await reoptimizeTrip(
+        tripId,
+        itinerary ? { itinerary_data: itinerary } : undefined,
+        targetDay
+      );
       const updatedItin = res?.itinerary_data as OptimizationResult | undefined;
       if (updatedItin && onItineraryUpdate) {
         onItineraryUpdate(updatedItin);
       }
       setHasManualChanges(false);
       notify.success(
-        'Route Re-optimized',
-        'Deterministic C++20 engine solved TSPTW sequence and time windows.'
+        targetDay !== undefined ? `Day ${targetDay} Re-optimized` : 'All Days Re-optimized',
+        'Deterministic engine solved optimal sequence and transit timing.'
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'C++ Route Re-optimization failed';
+      const msg = err instanceof Error ? err.message : 'Route re-optimization failed';
       notify.error('Re-optimization Failed', msg);
     } finally {
       setReoptimizing(false);
     }
+  };
+
+  const isAnchorEntity = (poi?: { name?: string; category?: string } | null): {
+    isAirport: boolean;
+    isHotel: boolean;
+    isAnchor: boolean;
+  } => {
+    if (!poi) return { isAirport: false, isHotel: false, isAnchor: false };
+    const cat = (poi.category || '').toUpperCase();
+    const name = (poi.name || '').toLowerCase();
+    const isAirport = cat === 'AIRPORT' || cat === 'FLIGHT' || name.includes('airport');
+    const isHotel = cat === 'HOTEL' || cat === 'ACCOMMODATION' || cat === 'LODGING' || name.includes('hotel');
+    return { isAirport, isHotel, isAnchor: isAirport || isHotel };
+  };
+
+  const checkFixedAnchor = (
+    item: ScheduledPoi | { name?: string; category?: string; locked?: boolean } | undefined,
+    idx: number,
+    pathLength: number,
+    dayNum: number,
+    totalDays: number
+  ): { isFixed: boolean; isAnchor: boolean; type?: 'airport' | 'hotel' | 'custom'; label?: string } => {
+    if (!item) return { isFixed: false, isAnchor: false };
+    const poi = (item as ScheduledPoi).poi || item;
+    const { isAirport, isHotel } = isAnchorEntity(poi);
+    const isExplicitlyLocked = (item as any).locked === true || (poi as any).locked === true;
+    const isExplicitlyUnlocked = (item as any).locked === false || (poi as any).locked === false;
+
+    let defaultAnchorType: 'airport' | 'hotel' | undefined = undefined;
+    let defaultLabel: string | undefined = undefined;
+
+    if (isAirport) {
+      if (dayNum === 1 && idx === 0) {
+        defaultAnchorType = 'airport';
+        defaultLabel = 'TRIP ARRIVAL';
+      } else if (dayNum === totalDays && idx === pathLength - 1) {
+        defaultAnchorType = 'airport';
+        defaultLabel = 'TRIP DEPARTURE';
+      } else if (idx === 0) {
+        defaultAnchorType = 'airport';
+        defaultLabel = 'AIRPORT ARRIVAL';
+      } else if (idx === pathLength - 1) {
+        defaultAnchorType = 'airport';
+        defaultLabel = 'AIRPORT DEPARTURE';
+      } else {
+        defaultAnchorType = 'airport';
+        defaultLabel = 'AIRPORT STOP';
+      }
+    } else if (isHotel) {
+      if (idx === 0) {
+        defaultAnchorType = 'hotel';
+        defaultLabel = 'DAY ORIGIN';
+      } else if (idx === pathLength - 1) {
+        defaultAnchorType = 'hotel';
+        defaultLabel = 'DAY DESTINATION';
+      } else if (dayNum === 1 && idx === 1) {
+        defaultAnchorType = 'hotel';
+        defaultLabel = 'HOTEL BASE';
+      } else if (dayNum === totalDays && idx === pathLength - 2 && pathLength > 2) {
+        defaultAnchorType = 'hotel';
+        defaultLabel = 'HOTEL BASE';
+      } else {
+        defaultAnchorType = 'hotel';
+        defaultLabel = 'HOTEL STOP';
+      }
+    }
+
+    const isDefaultAnchor = Boolean(defaultAnchorType);
+
+    // If explicitly unlocked by user, it is NOT fixed even if it's a hotel or airport
+    if (isExplicitlyUnlocked) {
+      return { isFixed: false, isAnchor: isDefaultAnchor, type: defaultAnchorType, label: defaultLabel };
+    }
+
+    // If explicitly locked by user, it IS fixed (whether default anchor or custom POI)
+    if (isExplicitlyLocked) {
+      return {
+        isFixed: true,
+        isAnchor: isDefaultAnchor,
+        type: defaultAnchorType || 'custom',
+        label: defaultLabel || 'LOCKED STOP',
+      };
+    }
+
+    // Default: Anchors are fixed by default; regular POIs are not fixed
+    if (isDefaultAnchor) {
+      return { isFixed: true, isAnchor: true, type: defaultAnchorType, label: defaultLabel };
+    }
+
+    return { isFixed: false, isAnchor: false };
+  };
+
+  const getMovableBounds = (path: ScheduledPoi[], dayNum: number, totalDays: number): {
+    minIdx: number;
+    maxIdx: number;
+  } => {
+    const len = path.length;
+    if (len <= 1) return { minIdx: 0, maxIdx: Math.max(0, len - 1) };
+
+    let minIdx = 0;
+    while (minIdx < len && checkFixedAnchor(path[minIdx], minIdx, len, dayNum, totalDays).isFixed) {
+      minIdx++;
+    }
+
+    let maxIdx = len - 1;
+    while (maxIdx >= 0 && checkFixedAnchor(path[maxIdx], maxIdx, len, dayNum, totalDays).isFixed) {
+      maxIdx--;
+    }
+
+    return { minIdx: Math.min(minIdx, len - 1), maxIdx: Math.max(0, maxIdx) };
+  };
+
+  const handleToggleLock = (
+    dayNum: number,
+    poiIdx: number,
+    scheduledPoi: ScheduledPoi,
+    anchorInfo: { isFixed: boolean; isAnchor: boolean; type?: string; label?: string }
+  ) => {
+    if (!itinerary || !onItineraryUpdate) return;
+
+    // If it's a fixed anchor (hotel/airport), prompt confirmation before unlocking
+    if (anchorInfo.isFixed && anchorInfo.isAnchor) {
+      setUnlockConfirmAnchor({
+        dayNum,
+        poiIdx,
+        name: scheduledPoi.poi?.name || 'Trip Anchor',
+        type: anchorInfo.type || 'anchor',
+      });
+      return;
+    }
+
+    // Otherwise toggle lock state directly
+    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+    const targetDay = clonedItin.days?.find((d) => (d.day ?? 1) === dayNum);
+    if (!targetDay?.itinerary?.path?.[poiIdx]) return;
+
+    const currentItem = targetDay.itinerary.path[poiIdx];
+    const newLockState = !anchorInfo.isFixed;
+    (currentItem as any).locked = newLockState;
+    if (currentItem.poi) {
+      (currentItem.poi as any).locked = newLockState;
+    }
+
+    onItineraryUpdate(clonedItin);
+    setHasManualChanges(true);
+    if (tripId) {
+      updateTrip(tripId, { itinerary_data: clonedItin });
+    }
+    notify.info(
+      newLockState ? 'Waypoint Locked' : 'Waypoint Unlocked',
+      newLockState
+        ? `"${scheduledPoi.poi?.name || 'Waypoint'}" is pinned and will not move during re-routing.`
+        : `"${scheduledPoi.poi?.name || 'Waypoint'}" is now flexible.`
+    );
+  };
+
+  const handleConfirmUnlockAnchor = () => {
+    if (!unlockConfirmAnchor || !itinerary || !onItineraryUpdate) return;
+    const { dayNum, poiIdx, name } = unlockConfirmAnchor;
+
+    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+    const targetDay = clonedItin.days?.find((d) => (d.day ?? 1) === dayNum);
+    if (targetDay?.itinerary?.path?.[poiIdx]) {
+      const currentItem = targetDay.itinerary.path[poiIdx];
+      (currentItem as any).locked = false;
+      if (currentItem.poi) {
+        (currentItem.poi as any).locked = false;
+      }
+      onItineraryUpdate(clonedItin);
+      setHasManualChanges(true);
+      if (tripId) {
+        updateTrip(tripId, { itinerary_data: clonedItin });
+      }
+      notify.info('Anchor Unlocked', `"${name}" can now be moved or re-sequenced.`);
+    }
+    setUnlockConfirmAnchor(null);
   };
 
   const handleMoveStop = (targetDayNum: number, sourceIdx: number, direction: 'up' | 'down') => {
@@ -239,8 +442,18 @@ export function TripPlanSidebar({
     if (!targetDayObj?.itinerary?.path) return;
 
     const path = targetDayObj.itinerary.path;
+    const anchor = checkFixedAnchor(path[sourceIdx], sourceIdx, path.length, targetDayNum, days.length);
+    if (anchor.isFixed) {
+      notify.warning('Waypoint Locked', 'This waypoint is locked. Click the lock icon to unlock before moving.');
+      return;
+    }
+
+    const bounds = getMovableBounds(path, targetDayNum, days.length);
+    if (direction === 'up' && sourceIdx <= bounds.minIdx) return;
+    if (direction === 'down' && sourceIdx >= bounds.maxIdx) return;
+
     const destIdx = direction === 'up' ? sourceIdx - 1 : sourceIdx + 1;
-    if (destIdx < 0 || destIdx >= path.length) return;
+    if (destIdx < bounds.minIdx || destIdx > bounds.maxIdx) return;
 
     const [moved] = path.splice(sourceIdx, 1);
     path.splice(destIdx, 0, moved);
@@ -306,11 +519,12 @@ export function TripPlanSidebar({
           scheduled_end: '10:00',
         };
 
+        const targetBounds = getMovableBounds(targetDayObj.itinerary.path, targetDayNum, days.length);
         let insertIdx = targetIndex;
         if (cardPoiIdx !== undefined) {
           insertIdx = isTopHalf ? cardPoiIdx : cardPoiIdx + 1;
         }
-        insertIdx = Math.max(0, Math.min(insertIdx, targetDayObj.itinerary.path.length));
+        insertIdx = Math.max(targetBounds.minIdx, Math.min(insertIdx, targetBounds.maxIdx + 1));
         targetDayObj.itinerary.path.splice(insertIdx, 0, newStop);
 
         recalculateDayTiming(targetDayObj.itinerary.path);
@@ -343,9 +557,25 @@ export function TripPlanSidebar({
         const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
         if (!srcDayObj?.itinerary?.path) return;
 
+        const srcAnchor = checkFixedAnchor(
+          srcDayObj.itinerary.path[srcIdx],
+          srcIdx,
+          srcDayObj.itinerary.path.length,
+          srcDayNum,
+          days.length
+        );
+        if (srcAnchor.isFixed) {
+          notify.warning(
+            'Waypoint Locked',
+            'This waypoint is locked. Click the lock icon to unlock before moving.'
+          );
+          return;
+        }
+
         // If dragging within the same day
         if (srcDayNum === targetDayNum) {
           const path = srcDayObj.itinerary.path;
+          const bounds = getMovableBounds(path, targetDayNum, days.length);
           let newTargetIndex: number;
 
           if (cardPoiIdx !== undefined) {
@@ -375,7 +605,7 @@ export function TripPlanSidebar({
             newTargetIndex = srcIdx < targetIndex ? targetIndex - 1 : targetIndex;
           }
 
-          newTargetIndex = Math.max(0, Math.min(newTargetIndex, path.length - 1));
+          newTargetIndex = Math.max(bounds.minIdx, Math.min(newTargetIndex, bounds.maxIdx));
 
           if (newTargetIndex === srcIdx) {
             return;
@@ -404,11 +634,12 @@ export function TripPlanSidebar({
         const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
         if (!movedItem) return;
 
+        const targetBounds = getMovableBounds(targetDayObj.itinerary.path, targetDayNum, days.length);
         let insertIdx = targetIndex;
         if (cardPoiIdx !== undefined) {
           insertIdx = isTopHalf ? cardPoiIdx : cardPoiIdx + 1;
         }
-        insertIdx = Math.max(0, Math.min(insertIdx, targetDayObj.itinerary.path.length));
+        insertIdx = Math.max(targetBounds.minIdx, Math.min(insertIdx, targetBounds.maxIdx + 1));
 
         targetDayObj.itinerary.path.splice(insertIdx, 0, movedItem);
 
@@ -448,10 +679,20 @@ export function TripPlanSidebar({
           return;
         }
 
-        const data = await apiFetch<{ status?: string; is_ready?: boolean; message?: string }>(endpoint);
+        const data = await apiFetch<{
+          city?: string;
+          gtfs_status?: string;
+          status?: string;
+          is_ready?: boolean;
+          message?: string;
+        }>(endpoint);
         if (!isMounted) return;
 
-        const currentStatus = (data.status || (data.is_ready ? 'READY' : 'NOT_READY')).toUpperCase();
+        const currentStatus = (
+          data.gtfs_status ||
+          data.status ||
+          (data.is_ready ? 'READY' : 'NOT_READY')
+        ).toUpperCase();
         setGtfsStatus(currentStatus);
 
         if (currentStatus === 'READY' && intervalId) {
@@ -473,9 +714,29 @@ export function TripPlanSidebar({
     };
   }, [tripId, destinationCity]);
 
+  const [compiling, setCompiling] = useState(false);
+
   const isUpgraded = Boolean(itinerary?.metadata && (itinerary.metadata as Record<string, unknown>).transit_upgraded) || upgraded;
   const isGtfsReady = gtfsStatus === 'READY';
   const showUpgradeToolbar = !isUpgraded && gtfsStatus !== 'NOT_SUPPORTED';
+
+  const handleTriggerCompile = async () => {
+    if (compiling || !destinationCity) return;
+    setCompiling(true);
+    try {
+      await triggerGtfsCompileApi(destinationCity);
+      setGtfsStatus('BUILDING');
+      notify.info(
+        'GTFS Compilation Started',
+        `Downloading and compiling public transit timetables for ${destinationCity}...`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Could not trigger GTFS compilation.';
+      notify.error('Compilation Error', msg);
+    } finally {
+      setCompiling(false);
+    }
+  };
 
   const handleUpgradeTransit = async () => {
     if (upgrading || isUpgraded) return;
@@ -927,29 +1188,87 @@ export function TripPlanSidebar({
                       REAL PUBLIC TRANSIT
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleUpgradeTransit}
-                    disabled={upgrading || !isGtfsReady}
-                    style={{
-                      padding: '3px 8px',
-                      background: 'var(--color-accent-primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      cursor: isGtfsReady ? 'pointer' : 'not-allowed',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      opacity: upgrading ? 0.7 : 1,
-                    }}
-                  >
-                    {upgrading ? <Spinner size={10} color="#FFFFFF" /> : null}
-                    <span>{upgrading ? 'UPGRADING...' : 'APPLY GTFS'}</span>
-                  </button>
+                  {gtfsStatus === 'BUILDING' || gtfsStatus === 'QUEUED' ? (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        background: 'rgba(15, 76, 92, 0.08)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        color: 'var(--color-accent-primary)',
+                      }}
+                    >
+                      <Spinner size={10} color="var(--color-accent-primary)" />
+                      <span>{gtfsStatus === 'QUEUED' ? 'GTFS QUEUED...' : 'COMPILING GTFS...'}</span>
+                    </div>
+                  ) : isGtfsReady ? (
+                    <button
+                      type="button"
+                      onClick={handleUpgradeTransit}
+                      disabled={upgrading}
+                      style={{
+                        padding: '3px 8px',
+                        background: 'var(--color-accent-primary)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        opacity: upgrading ? 0.7 : 1,
+                      }}
+                    >
+                      {upgrading ? <Spinner size={10} color="#FFFFFF" /> : null}
+                      <span>{upgrading ? 'UPGRADING...' : 'APPLY GTFS'}</span>
+                    </button>
+                  ) : gtfsStatus === 'FAILED' || gtfsStatus === 'UNAVAILABLE' ? (
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: 'var(--color-text-muted)',
+                        padding: '3px 6px',
+                        background: 'rgba(0, 0, 0, 0.05)',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      TRANSIT UNAVAILABLE
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleTriggerCompile}
+                      disabled={compiling}
+                      style={{
+                        padding: '3px 8px',
+                        background: 'transparent',
+                        color: 'var(--color-accent-primary)',
+                        border: '1px solid var(--color-accent-primary)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        opacity: compiling ? 0.7 : 1,
+                      }}
+                    >
+                      {compiling ? <Spinner size={10} color="var(--color-accent-primary)" /> : null}
+                      <span>{compiling ? 'STARTING...' : 'COMPILE GTFS'}</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1017,10 +1336,20 @@ export function TripPlanSidebar({
                     whiteSpace: 'nowrap',
                     opacity: reoptimizing ? 0.75 : 1,
                   }}
-                  title="Run deterministic C++20 optimization on current stops"
+                  title={
+                    selectedDay === 'all'
+                      ? 'Run deterministic optimization on all days'
+                      : `Run deterministic optimization on Day ${selectedDay} stops`
+                  }
                 >
                   {reoptimizing ? <Spinner size={11} color="#FFFFFF" /> : <LightningIcon size={12} color="#FFFFFF" />}
-                  <span>{reoptimizing ? 'SOLVING...' : 'SOLVE ROUTE'}</span>
+                  <span>
+                    {reoptimizing
+                      ? 'SOLVING...'
+                      : selectedDay === 'all'
+                        ? 'SOLVE ALL DAYS'
+                        : `SOLVE DAY ${selectedDay}`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1106,63 +1435,69 @@ export function TripPlanSidebar({
                       const isThisDropSlot = activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx;
                       const isBeingDragged = draggedPoi?.day === dayObj.day && draggedPoi?.index === poiIdx;
 
+                      const anchorInfo = checkFixedAnchor(scheduledPoi, poiIdx, path.length, dayObj.day, days.length);
+                      const bounds = getMovableBounds(path, dayObj.day, days.length);
+                      const canDropBefore = poiIdx >= bounds.minIdx && poiIdx <= bounds.maxIdx + 1;
+
                       return (
                         <React.Fragment key={poiIdx}>
-                          {/* Drop insertion slot before this stop */}
-                          <div
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.dataTransfer.dropEffect = 'move';
-                              setActiveDropTarget({ day: dayObj.day, index: poiIdx });
-                            }}
-                            onDragLeave={(e) => {
-                              e.stopPropagation();
-                              if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx) {
-                                setActiveDropTarget(null);
-                              }
-                            }}
-                            onDrop={(e) => handleDrop(e, dayObj.day, poiIdx)}
-                            style={{
-                              height: isThisDropSlot ? '26px' : '6px',
-                              margin: isThisDropSlot ? '2px 0' : '-3px 0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.15s ease',
-                              zIndex: 10,
-                            }}
-                          >
-                            {isThisDropSlot && (
-                              <div
-                                style={{
-                                  width: '100%',
-                                  height: '2.5px',
-                                  borderRadius: '2px',
-                                  background: 'var(--color-accent-primary)',
-                                  boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <span
-                                  className="font-mono"
+                          {/* Drop insertion slot before this stop - only allowed within movable bounds */}
+                          {canDropBefore && (
+                            <div
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                                setActiveDropTarget({ day: dayObj.day, index: poiIdx });
+                              }}
+                              onDragLeave={(e) => {
+                                e.stopPropagation();
+                                if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx) {
+                                  setActiveDropTarget(null);
+                                }
+                              }}
+                              onDrop={(e) => handleDrop(e, dayObj.day, poiIdx)}
+                              style={{
+                                height: isThisDropSlot ? '26px' : '6px',
+                                margin: isThisDropSlot ? '2px 0' : '-3px 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                zIndex: 10,
+                              }}
+                            >
+                              {isThisDropSlot && (
+                                <div
                                   style={{
-                                    fontSize: '9px',
-                                    fontWeight: 700,
+                                    width: '100%',
+                                    height: '2.5px',
+                                    borderRadius: '2px',
                                     background: 'var(--color-accent-primary)',
-                                    color: '#FFFFFF',
-                                    padding: '1px 6px',
-                                    borderRadius: '3px',
-                                    letterSpacing: '0.04em',
+                                    boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                   }}
                                 >
-                                  INSERT STOP #{poiIdx + 1}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                                  <span
+                                    className="font-mono"
+                                    style={{
+                                      fontSize: '9px',
+                                      fontWeight: 700,
+                                      background: 'var(--color-accent-primary)',
+                                      color: '#FFFFFF',
+                                      padding: '1px 6px',
+                                      borderRadius: '3px',
+                                      letterSpacing: '0.04em',
+                                    }}
+                                  >
+                                    INSERT STOP #{poiIdx + 1}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Transit leg from previous POI */}
                           {transitFromPrev && (
@@ -1204,8 +1539,12 @@ export function TripPlanSidebar({
 
                           {/* Draggable Waypoint Card & Drop Target */}
                           <div
-                            draggable={true}
+                            draggable={!anchorInfo.isFixed}
                             onDragStart={(e) => {
+                              if (anchorInfo.isFixed) {
+                                e.preventDefault();
+                                return;
+                              }
                               const poiInfo = { day: dayObj.day, index: poiIdx };
                               setDraggedPoi(poiInfo);
                               draggedPoiRef.current = poiInfo;
@@ -1253,7 +1592,8 @@ export function TripPlanSidebar({
                               e.dataTransfer.dropEffect = 'move';
                               const rect = e.currentTarget.getBoundingClientRect();
                               const isTopHalf = e.clientY < rect.top + rect.height / 2;
-                              const targetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              const rawTargetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              const targetIdx = Math.max(bounds.minIdx, Math.min(rawTargetIdx, bounds.maxIdx + 1));
                               setActiveDropTarget({ day: dayObj.day, index: targetIdx });
                             }}
                             onDrop={(e) => {
@@ -1261,7 +1601,8 @@ export function TripPlanSidebar({
                               e.stopPropagation();
                               const rect = e.currentTarget.getBoundingClientRect();
                               const isTopHalf = e.clientY < rect.top + rect.height / 2;
-                              const targetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              const rawTargetIdx = isTopHalf ? poiIdx : poiIdx + 1;
+                              const targetIdx = Math.max(bounds.minIdx, Math.min(rawTargetIdx, bounds.maxIdx + 1));
                               handleDrop(e, dayObj.day, targetIdx, poiIdx, isTopHalf);
                             }}
                             onDragEnd={() => {
@@ -1272,12 +1613,18 @@ export function TripPlanSidebar({
                               setActiveDropTarget(null);
                             }}
                             style={{
-                              background: isBeingDragged ? 'rgba(15, 76, 92, 0.04)' : 'var(--color-bg-main)',
+                              background: isBeingDragged
+                                ? 'rgba(15, 76, 92, 0.04)'
+                                : anchorInfo.isFixed
+                                  ? 'var(--color-bg-card, #FFFFFF)'
+                                  : 'var(--color-bg-main)',
                               border: isBeingDragged
                                 ? '1.5px dashed var(--color-accent-teal-soft)'
-                                : isCatMatch
-                                  ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
-                                  : '1px dashed var(--color-border)',
+                                : anchorInfo.isFixed
+                                  ? '1.5px solid rgba(15, 76, 92, 0.28)'
+                                  : isCatMatch
+                                    ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
+                                    : '1px dashed var(--color-border)',
                               borderRadius: 'var(--radius-md)',
                               padding: '10px 12px',
                               display: 'flex',
@@ -1286,29 +1633,92 @@ export function TripPlanSidebar({
                               boxShadow:
                                 isBeingDragged
                                   ? 'none'
-                                  : isCatMatch && categoryFilter
-                                    ? 'var(--shadow-md)'
-                                    : 'var(--shadow-sm)',
+                                  : anchorInfo.isFixed
+                                    ? '0 1px 3px rgba(15, 76, 92, 0.08)'
+                                    : isCatMatch && categoryFilter
+                                      ? 'var(--shadow-md)'
+                                      : 'var(--shadow-sm)',
                               opacity: isBeingDragged ? 0.45 : (isCatMatch ? 1 : 0.35),
-                              cursor: 'grab',
+                              cursor: anchorInfo.isFixed ? 'default' : 'grab',
                               transform: isBeingDragged ? 'scale(0.98)' : 'none',
                               transition: 'all 0.15s ease',
                             }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {/* 6-dot drag grip handle */}
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    color: 'var(--color-text-muted)',
-                                    cursor: 'grab',
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {/* Drag handle when not fixed */}
+                                {!anchorInfo.isFixed && (
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      color: 'var(--color-text-muted)',
+                                      cursor: 'grab',
+                                    }}
+                                    title="Drag to reorder stop"
+                                  >
+                                    <GripVerticalIcon size={14} color="var(--color-text-muted)" />
+                                  </div>
+                                )}
+
+                                {/* Anchor Badge with AnchorIcon instead of emoji */}
+                                {anchorInfo.label && (
+                                  <span
+                                    style={{
+                                      fontFamily: 'var(--font-mono)',
+                                      fontSize: '9px',
+                                      fontWeight: 700,
+                                      background: anchorInfo.isFixed ? 'rgba(15, 76, 92, 0.08)' : 'rgba(86, 107, 118, 0.08)',
+                                      color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                                      border: anchorInfo.isFixed ? '1px solid rgba(15, 76, 92, 0.25)' : '1px solid var(--color-border)',
+                                      padding: '2px 5px',
+                                      borderRadius: 'var(--radius-sm)',
+                                      letterSpacing: '0.04em',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={anchorInfo.isFixed ? "Fixed anchor (locked in re-routing)" : "Unlocked anchor (flexible in re-routing)"}
+                                  >
+                                    <AnchorIcon size={9} color={anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)'} />
+                                    {anchorInfo.label}
+                                  </span>
+                                )}
+
+                                {/* Lock / Unlock interactive button */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
                                   }}
-                                  title="Drag to reorder stop"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: '2px 3px',
+                                    cursor: 'pointer',
+                                    color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    borderRadius: 'var(--radius-sm)',
+                                    opacity: anchorInfo.isFixed ? 1 : 0.6,
+                                    transition: 'opacity 0.15s ease',
+                                  }}
+                                  title={
+                                    anchorInfo.isFixed
+                                      ? anchorInfo.isAnchor
+                                        ? 'Click to unlock anchor (confirmation required)'
+                                        : 'Click to unlock waypoint'
+                                      : 'Click to lock waypoint in place (pins during re-routing)'
+                                  }
                                 >
-                                  <GripVerticalIcon size={14} color="var(--color-text-muted)" />
-                                </div>
+                                  {anchorInfo.isFixed ? (
+                                    <LockIcon size={12} color="var(--color-accent-primary)" />
+                                  ) : (
+                                    <UnlockIcon size={12} color="var(--color-text-muted)" />
+                                  )}
+                                </button>
 
                                 <span
                                   style={{
@@ -1332,55 +1742,57 @@ export function TripPlanSidebar({
                                 {p?.category && (
                                   <PoiCategoryBadge category={p.category} name={p.name} />
                                 )}
-                                {/* Accessible Up/Down Reorder Controls */}
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMoveStop(dayObj.day, poiIdx, 'up');
-                                    }}
-                                    disabled={poiIdx === 0}
-                                    style={{
-                                      background: 'none',
-                                      border: '1px solid var(--color-border)',
-                                      borderRadius: '3px',
-                                      padding: '2px',
-                                      cursor: poiIdx === 0 ? 'not-allowed' : 'pointer',
-                                      opacity: poiIdx === 0 ? 0.3 : 0.8,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      color: 'var(--color-text-muted)',
-                                    }}
-                                    title="Move stop up"
-                                    aria-label={`Move stop ${p?.name || 'Waypoint'} up`}
-                                  >
-                                    <ChevronUpIcon size={11} color="currentColor" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMoveStop(dayObj.day, poiIdx, 'down');
-                                    }}
-                                    disabled={poiIdx === path.length - 1}
-                                    style={{
-                                      background: 'none',
-                                      border: '1px solid var(--color-border)',
-                                      borderRadius: '3px',
-                                      padding: '2px',
-                                      cursor: poiIdx === path.length - 1 ? 'not-allowed' : 'pointer',
-                                      opacity: poiIdx === path.length - 1 ? 0.3 : 0.8,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      color: 'var(--color-text-muted)',
-                                    }}
-                                    title="Move stop down"
-                                    aria-label={`Move stop ${p?.name || 'Waypoint'} down`}
-                                  >
-                                    <ChevronDownIcon size={11} color="currentColor" />
-                                  </button>
-                                </div>
+                                {/* Accessible Up/Down Reorder Controls - omitted for fixed anchors */}
+                                {!anchorInfo.isFixed && (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveStop(dayObj.day, poiIdx, 'up');
+                                      }}
+                                      disabled={poiIdx <= bounds.minIdx}
+                                      style={{
+                                        background: 'none',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '3px',
+                                        padding: '2px',
+                                        cursor: poiIdx <= bounds.minIdx ? 'not-allowed' : 'pointer',
+                                        opacity: poiIdx <= bounds.minIdx ? 0.3 : 0.8,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: 'var(--color-text-muted)',
+                                      }}
+                                      title="Move stop up"
+                                      aria-label={`Move stop ${p?.name || 'Waypoint'} up`}
+                                    >
+                                      <ChevronUpIcon size={11} color="currentColor" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMoveStop(dayObj.day, poiIdx, 'down');
+                                      }}
+                                      disabled={poiIdx >= bounds.maxIdx}
+                                      style={{
+                                        background: 'none',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '3px',
+                                        padding: '2px',
+                                        cursor: poiIdx >= bounds.maxIdx ? 'not-allowed' : 'pointer',
+                                        opacity: poiIdx >= bounds.maxIdx ? 0.3 : 0.8,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: 'var(--color-text-muted)',
+                                      }}
+                                      title="Move stop down"
+                                      aria-label={`Move stop ${p?.name || 'Waypoint'} down`}
+                                    >
+                                      <ChevronDownIcon size={11} color="currentColor" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1409,62 +1821,62 @@ export function TripPlanSidebar({
                       );
                     })}
 
-                    {/* Drop insertion slot at the end of the day */}
-                    {path.length > 0 && (
+                    {/* Drop insertion slot at the end of the day - only if not capped by a fixed end anchor */}
+                    {path.length > 0 && getMovableBounds(path, dayObj.day, days.length).maxIdx >= path.length - 1 && (
                       <div
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          e.dataTransfer.dropEffect = 'move';
-                          setActiveDropTarget({ day: dayObj.day, index: path.length });
-                        }}
-                        onDragLeave={(e) => {
-                          e.stopPropagation();
-                          if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length) {
-                            setActiveDropTarget(null);
-                          }
-                        }}
-                        onDrop={(e) => handleDrop(e, dayObj.day, path.length)}
-                        style={{
-                          height: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length ? '26px' : '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.15s ease',
-                          marginTop: '2px',
-                        }}
-                      >
-                        {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length && (
-                          <div
-                            style={{
-                              width: '100%',
-                              height: '2.5px',
-                              borderRadius: '2px',
-                              background: 'var(--color-accent-primary)',
-                              boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <span
-                              className="font-mono"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.dataTransfer.dropEffect = 'move';
+                            setActiveDropTarget({ day: dayObj.day, index: path.length });
+                          }}
+                          onDragLeave={(e) => {
+                            e.stopPropagation();
+                            if (activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length) {
+                              setActiveDropTarget(null);
+                            }
+                          }}
+                          onDrop={(e) => handleDrop(e, dayObj.day, path.length)}
+                          style={{
+                            height: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length ? '26px' : '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                            marginTop: '2px',
+                          }}
+                        >
+                          {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length && (
+                            <div
                               style={{
-                                fontSize: '9px',
-                                fontWeight: 700,
+                                width: '100%',
+                                height: '2.5px',
+                                borderRadius: '2px',
                                 background: 'var(--color-accent-primary)',
-                                color: '#FFFFFF',
-                                padding: '1px 6px',
-                                borderRadius: '3px',
-                                letterSpacing: '0.04em',
+                                boxShadow: '0 0 8px rgba(15, 76, 92, 0.4)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                               }}
                             >
-                              APPEND AT END OF DAY {dayObj.day}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                              <span
+                                className="font-mono"
+                                style={{
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  background: 'var(--color-accent-primary)',
+                                  color: '#FFFFFF',
+                                  padding: '1px 6px',
+                                  borderRadius: '3px',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                APPEND AT END OF DAY {dayObj.day}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 );
               })}
@@ -1605,6 +2017,115 @@ export function TripPlanSidebar({
               <span>{activeDragItem.openHours}</span>
             </div>
           )}
+        </div>,
+        document.body
+      )}
+
+      {/* Modal for Confirming Anchor Unlock */}
+      {unlockConfirmAnchor && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(8, 28, 36, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px',
+          }}
+          onClick={() => setUnlockConfirmAnchor(null)}
+        >
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-lg, 8px)',
+              padding: '20px 24px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangleIcon size={16} color="var(--color-accent-warning, #E2B33C)" />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-code, var(--font-mono))',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {'// UNLOCK TRIP ANCHOR'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnlockConfirmAnchor(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+
+            <p style={{ margin: '0 0 8px 0', fontSize: '13.5px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              Unlock &ldquo;{unlockConfirmAnchor.name}&rdquo;?
+            </p>
+
+            <p style={{ margin: '0 0 20px 0', fontSize: '12px', lineHeight: '1.5', color: 'var(--color-text-muted)' }}>
+              Hotels and airports serve as critical baseline anchors for transit schedules and re-routing.
+              Unlocking this waypoint allows you to freely drag, reorder, or let the optimization solver alter its position.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setUnlockConfirmAnchor(null)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-sm, 4px)',
+                  border: '1px solid var(--color-border)',
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-code, var(--font-mono))',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Keep Locked
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmUnlockAnchor}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-sm, 4px)',
+                  border: 'none',
+                  background: 'var(--color-accent-primary)',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-code, var(--font-mono))',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <UnlockIcon size={12} color="#FFFFFF" />
+                Unlock Anchor
+              </button>
+            </div>
+          </div>
         </div>,
         document.body
       )}

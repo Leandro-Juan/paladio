@@ -9,6 +9,7 @@ import { DisplayExpenseItem } from './ExpenseRow';
 import { CurrencyWheelPicker } from './CurrencyWheelPicker';
 import { FlagIcon } from './FlagIcon';
 import { getCurrencyInfo, fetchLiveExchangeRate } from '@/utils/currencyResolver';
+import { CloseIcon } from '@/components/icons';
 
 interface ExpenseModalProps {
   participants: TripParticipant[];
@@ -232,7 +233,7 @@ export function ExpenseModal({
               placeItems: 'center',
             }}
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         </div>
 

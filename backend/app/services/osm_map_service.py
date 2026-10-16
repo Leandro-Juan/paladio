@@ -109,7 +109,8 @@ class OSMMapService:
             try:
                 from app.infrastructure.providers.osm_city_ingest import geocode_city
 
-                geo = await geocode_city(city_clean)
+                query_city = city_name.strip().replace("_", " ").replace("-", " ")
+                geo = await geocode_city(query_city)
                 center_lat, center_lon = geo.lat, geo.lon
             except Exception as geo_exc:
                 logger.debug(f"Geocoding skipped for OSM PBF: {geo_exc}")

@@ -8,7 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+
+try:
+    from httpx import ASGITransport, AsyncClient
+except ImportError:
+    from httpx import AsyncClient
+
+    ASGITransport = None
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -140,7 +146,52 @@ except ImportError:
         result.total_time = 60 * len(result.path)
         return result
 
+    def mock_solve_tsp_tour(durations, n, start_node=0, end_node=-1, fixed_end=False):
+        import itertools
+
+        if n <= 1:
+            return list(range(n))
+        effective_fixed_end = fixed_end and (
+            end_node >= 0 and end_node < n and end_node != start_node
+        )
+        middle_nodes = [
+            i
+            for i in range(n)
+            if i != start_node and (not effective_fixed_end or i != end_node)
+        ]
+        if len(middle_nodes) <= 7:
+            best_tour = None
+            best_cost = float("inf")
+            for perm in itertools.permutations(middle_nodes):
+                tour = [start_node] + list(perm)
+                if effective_fixed_end:
+                    tour.append(end_node)
+                cost = sum(
+                    durations[tour[k] * n + tour[k + 1]] for k in range(len(tour) - 1)
+                )
+                if cost < best_cost:
+                    best_cost = cost
+                    best_tour = tour
+            return best_tour or (
+                [start_node]
+                + middle_nodes
+                + ([end_node] if effective_fixed_end else [])
+            )
+        else:
+            tour = [start_node]
+            unvisited = set(middle_nodes)
+            curr = start_node
+            while unvisited:
+                nxt = min(unvisited, key=lambda v: durations[curr * n + v])
+                tour.append(nxt)
+                unvisited.remove(nxt)
+                curr = nxt
+            if effective_fixed_end:
+                tour.append(end_node)
+            return tour
+
     mock_paladio_core.optimize_itinerary = mock_optimize_itinerary
+    mock_paladio_core.solve_tsp_tour = mock_solve_tsp_tour
     sys.modules["paladio_core"] = mock_paladio_core
 
 
@@ -226,9 +277,12 @@ async def async_client(
         app.state.ml_model = MagicMock()
         app.state.ml_params = MagicMock()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    client_kwargs = (
+        {"transport": ASGITransport(app=app), "base_url": "http://test"}
+        if ASGITransport is not None
+        else {"app": app, "base_url": "http://test"}
+    )
+    async with AsyncClient(**client_kwargs) as client:
         yield client
 
     app.dependency_overrides.clear()

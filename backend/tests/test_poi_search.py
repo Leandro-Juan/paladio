@@ -149,3 +149,57 @@ async def test_poi_search_not_found(async_client: AsyncClient):
         assert data["exact_match"] is None
         assert data["message"] is not None
         assert "Statue of Liberty" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_poi_search_hotel_and_airport_anchors(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """Verifies that querying 'hotel' or 'airport' returns trip-specific anchors."""
+    import uuid
+    from app.db.models import TripModel
+
+    trip_id = f"test-trip-anchors-{uuid.uuid4()}"
+    trip = TripModel(
+        id=trip_id,
+        destination="Madrid",
+        start_date="2026-11-01",
+        end_date="2026-11-05",
+        itinerary_data={
+            "hotel": {
+                "name": "Gran Hotel Madrid Anchor",
+                "lat": 40.4180,
+                "lng": -3.7030,
+            },
+            "airport": {
+                "name": "Barajas Airport Terminal 4",
+                "lat": 40.4900,
+                "lng": -3.5700,
+            },
+            "days": [],
+        },
+    )
+    db_session.add(trip)
+    await db_session.commit()
+
+    # Search for hotel with trip_id
+    resp_hotel = await async_client.get(
+        "/api/v1/pois/search",
+        params={"city": "Madrid", "query": "hotel", "trip_id": trip.id},
+    )
+    assert resp_hotel.status_code == 200
+    hotel_data = resp_hotel.json()
+    assert hotel_data["exact_match_found"] is True
+    assert hotel_data["exact_match"]["name"] == "Gran Hotel Madrid Anchor"
+    assert hotel_data["exact_match"]["category"].upper() == "HOTEL"
+
+    # Search for airport with trip_id
+    resp_airport = await async_client.get(
+        "/api/v1/pois/search",
+        params={"city": "Madrid", "query": "airport", "trip_id": trip.id},
+    )
+    assert resp_airport.status_code == 200
+    airport_data = resp_airport.json()
+    assert airport_data["exact_match_found"] is True
+    assert airport_data["exact_match"]["name"] == "Barajas Airport Terminal 4"
+    assert airport_data["exact_match"]["category"].upper() == "AIRPORT"

@@ -106,8 +106,14 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         if (Array.isArray(day?.itinerary?.path)) {
           day.itinerary.path.forEach((scheduledPoi) => {
             const p = scheduledPoi?.poi;
-            const lat = p?.location?.latitude;
-            const lng = p?.location?.longitude;
+            const lat =
+              p?.location?.latitude ??
+              (p as unknown as { lat?: number })?.lat ??
+              (p as unknown as { latitude?: number })?.latitude;
+            const lng =
+              p?.location?.longitude ??
+              (p as unknown as { lng?: number })?.lng ??
+              (p as unknown as { longitude?: number })?.longitude;
 
             if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
               const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi);
@@ -197,6 +203,28 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           })),
         },
       });
+    }
+
+    if (!hotelAnchor) {
+      const hInfo = (itinerary as unknown as { hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number } })?.hotel ||
+        (itinerary as unknown as { travel_constraints?: { hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number } } })?.travel_constraints?.hotel;
+      if (hInfo) {
+        const lat = hInfo.lat ?? hInfo.location?.latitude;
+        const lng = hInfo.lng ?? hInfo.location?.longitude;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          hotelAnchor = { name: hInfo.name || 'Hotel Base Camp', lat, lng };
+        }
+      }
+    }
+    if (!airportAnchor) {
+      const aInfo = (itinerary as unknown as { airport?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number } })?.airport;
+      if (aInfo) {
+        const lat = aInfo.lat ?? aInfo.location?.latitude;
+        const lng = aInfo.lng ?? aInfo.location?.longitude;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          airportAnchor = { name: aInfo.name || 'Transit Airport', lat, lng };
+        }
+      }
     }
 
     return {
@@ -297,6 +325,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onPlaceClick={handlePlaceClick}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
+            hotelAnchor={hotel}
+            airportAnchor={airport}
+            tripId={trip.id}
           />
         </div>
 

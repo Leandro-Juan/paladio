@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
+import { ArrowRightIcon } from '@/components/icons';
 
 interface SummaryCardProps {
   label: string;
@@ -760,8 +761,10 @@ function CurrencyConverterDoubleCard({
               <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.92rem', fontWeight: 600 }}>
                 Live Currency Exchange
               </div>
-              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-                {activeInfo.country} ➔ {displayDestCountry}
+              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>{activeInfo.country}</span>
+                <ArrowRightIcon size={10} color="var(--color-text-muted)" />
+                <span>{displayDestCountry}</span>
               </div>
             </div>
           </div>
@@ -842,8 +845,8 @@ function CurrencyConverterDoubleCard({
                 </svg>
               </button>
 
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontFamily: 'var(--font-mono, monospace)' }}>
-                ➔
+              <span style={{ color: 'var(--color-text-muted)', display: 'inline-flex', alignItems: 'center' }}>
+                <ArrowRightIcon size={12} color="var(--color-text-muted)" />
               </span>
 
               <div

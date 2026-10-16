@@ -134,4 +134,30 @@ PYBIND11_MODULE(paladio_core, m) {
       },
       "Optimize travel constraints (TSPTW + Knapsack). Releases GIL during "
       "computation.");
+
+  m.def(
+      "solve_tsp_tour",
+      [](py::array_t<int, py::array::c_style | py::array::forcecast> durations, int n,
+         int start_node, int end_node, bool fixed_end) -> std::vector<int> {
+        py::buffer_info dur_buf = durations.request();
+        if (dur_buf.ndim != 1) {
+          throw py::value_error("Transit duration matrix must be a flattened 1D array.");
+        }
+        size_t expected_size = static_cast<size_t>(n) * static_cast<size_t>(n);
+        if (dur_buf.shape[0] != static_cast<py::ssize_t>(expected_size)) {
+          throw py::value_error("Transit matrix must have size exactly equal to N*N.");
+        }
+        const int *d_ptr = static_cast<const int *>(dur_buf.ptr);
+
+        std::vector<int> result;
+        {
+          py::gil_scoped_release release;
+          result = solve_tsp_tour(d_ptr, n, start_node, end_node, fixed_end);
+        }
+        return result;
+      },
+      py::arg("durations"), py::arg("n"), py::arg("start_node") = 0, py::arg("end_node") = -1,
+      py::arg("fixed_end") = false,
+      "Computes a non-crossing, minimal-duration TSP tour over n nodes using C++20 local search. "
+      "Releases GIL during computation.");
 }

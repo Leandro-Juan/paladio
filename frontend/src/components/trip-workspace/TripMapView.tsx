@@ -145,21 +145,30 @@ function getCategorySvg(type: PoiCategoryType): string {
   }
 }
 
-function createWaypointIcon(categoryType: PoiCategoryType, stopNumber: number): L.DivIcon {
+const DAY_COLORS = ['#0F4C5C', '#2563EB', '#D97706', '#7C3AED', '#059669', '#DC2626', '#DB2777', '#0891B2'];
+export function getDayColor(dayNum: number): string {
+  if (!dayNum || dayNum < 1) return '#0F4C5C';
+  return DAY_COLORS[(dayNum - 1) % DAY_COLORS.length];
+}
+
+function createWaypointIcon(categoryType: PoiCategoryType, stopNumber: number, dayNumber?: number): L.DivIcon {
   const svg = getCategorySvg(categoryType);
   const formattedNum = String(stopNumber).padStart(2, '0');
+  const dayPrefix = dayNumber ? `D${dayNumber}·` : '';
+  const dayColor = dayNumber ? getDayColor(dayNumber) : 'var(--color-accent-primary, #0F4C5C)';
+  const borderColor = dayNumber ? dayColor : 'var(--color-accent-teal-mid, #14788D)';
   return L.divIcon({
     className: 'paladio-waypoint-icon',
     html: `
-      <div style="display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid var(--color-accent-teal-mid, #14788D);border-radius:14px;box-shadow:var(--shadow-sm);padding:2px 6px 2px 3px;gap:4px;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;">
+      <div style="display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid ${borderColor};border-radius:14px;box-shadow:var(--shadow-sm);padding:2px 6px 2px 3px;gap:4px;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
+        <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${dayColor};color:#FFFFFF;">
           ${svg}
         </div>
-        <span style="font-family:var(--font-mono, monospace);font-size:10px;font-weight:700;color:var(--color-text-primary, #FFFFFF);line-height:1;letter-spacing:0.5px;">${formattedNum}</span>
+        <span style="font-family:var(--font-mono, monospace);font-size:10px;font-weight:700;color:var(--color-text-primary, #FFFFFF);line-height:1;letter-spacing:0.5px;">${dayPrefix}${formattedNum}</span>
       </div>
     `,
-    iconSize: [46, 24],
-    iconAnchor: [23, 12],
+    iconSize: [dayNumber ? 58 : 46, 24],
+    iconAnchor: [dayNumber ? 29 : 23, 12],
     popupAnchor: [0, -14],
   });
 }
@@ -670,7 +679,7 @@ export default function TripMapView({
           <>
             {detailedSegments.map((seg) => (
               <Polyline
-                key={seg.key}
+                key={`seg-${seg.key}-${seg.positions.map((p) => `${p[0]},${p[1]}`).join(';')}`}
                 positions={seg.positions}
                 pathOptions={{
                   color: seg.color,
@@ -722,7 +731,7 @@ export default function TripMapView({
             {/* Station nodes for transfers and boardings */}
             {stationNodes.map((node) => (
               <CircleMarker
-                key={node.key}
+                key={`node-${node.key}-${node.position[0]},${node.position[1]}`}
                 center={node.position}
                 radius={4.5}
                 pathOptions={{
@@ -740,17 +749,35 @@ export default function TripMapView({
               </CircleMarker>
             ))}
           </>
-        ) : (
-          activeDay !== 'all' && activePolyline.length > 1 && (
+        ) : activeDay !== 'all' ? (
+          activePolyline.length > 1 && (
             <Polyline
+              key={`active-poly-d${activeDay}-${activePolyline.map((p) => `${p[0]},${p[1]}`).join(';')}`}
               positions={activePolyline}
               pathOptions={{
-                color: '#14788D',
-                weight: 3.5,
-                opacity: 0.9,
+                color: getDayColor(activeDay as number),
+                weight: 4,
+                opacity: 0.95,
               }}
             />
           )
+        ) : (
+          /* In ALL DAYS view: render each day's polyline in its distinctive day color */
+          days.map((d) => {
+            const poly = d.pois.map((p) => [p.lat, p.lng] as [number, number]);
+            if (poly.length < 2) return null;
+            return (
+              <Polyline
+                key={`all-poly-d${d.dayNumber}-${poly.map((p) => `${p[0]},${p[1]}`).join(';')}`}
+                positions={poly}
+                pathOptions={{
+                  color: getDayColor(d.dayNumber),
+                  weight: 3.5,
+                  opacity: 0.85,
+                }}
+              />
+            );
+          })
         )}
 
         {/* 4. Hotel Base Camp Anchor Marker */}
@@ -787,20 +814,27 @@ export default function TripMapView({
           </Marker>
         )}
 
-        {/* 6. Active Day Waypoint Markers */}
-        {activeDay !== 'all' &&
-          activeDayData &&
-          (() => {
+        {/* 6. Waypoint Markers (Both ALL DAYS and Single Day views) */}
+        {(() => {
+          const daysToRender = activeDay !== 'all'
+            ? (activeDayData ? [activeDayData] : [])
+            : days;
+
+          return daysToRender.flatMap((dayGroup) => {
             let stopCounter = 0;
-            return activeDayData.pois.map((poi, idx) => {
+            return dayGroup.pois.map((poi, idx) => {
               const categoryType = classifyPoiCategory(poi.category, poi.name).type;
               const isHotel = categoryType === 'hotel' || poi.name.toLowerCase().includes('hotel');
-              const isAirport = categoryType === 'airport' || categoryType === 'flight' || poi.name.toLowerCase().includes('airport');
+              const isAirport =
+                categoryType === 'airport' || categoryType === 'flight' || poi.name.toLowerCase().includes('airport');
 
-              if (isHotel && hotel) return null;
-              if (isAirport && airport) return null;
+              // Suppress duplicate static markers only in ALL DAYS overview; in single day view, show all route stops
+              if (activeDay === 'all') {
+                if (isHotel && hotel) return null;
+                if (isAirport && airport) return null;
+              }
 
-              if (!isHotel && !isAirport) stopCounter++;
+              stopCounter++;
 
               if (activeCategory && !isCategoryMatch(activeCategory, categoryType)) {
                 return null;
@@ -810,24 +844,51 @@ export default function TripMapView({
                 ? createHotelIcon()
                 : isAirport
                 ? createAirportIcon()
-                : createWaypointIcon(categoryType, stopCounter);
+                : createWaypointIcon(
+                    categoryType,
+                    stopCounter,
+                    activeDay === 'all' ? dayGroup.dayNumber : undefined
+                  );
 
               return (
-                <Marker key={`${poi.lat}-${poi.lng}-${idx}`} position={[poi.lat, poi.lng]} icon={markerIcon}>
+                <Marker
+                  key={`marker-d${dayGroup.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
+                  position={[poi.lat, poi.lng]}
+                  icon={markerIcon}
+                  eventHandlers={{
+                    click: () => {
+                      if (activeDay === 'all') {
+                        onDayChange(dayGroup.dayNumber);
+                      }
+                    },
+                  }}
+                >
                   <Popup>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
                       <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
                         <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
-                          STOP {String(stopCounter).padStart(2, '0')}
+                          DAY {dayGroup.dayNumber} · STOP {String(stopCounter).padStart(2, '0')}
                         </span>
-                        <div className="font-display" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        <div
+                          className="font-display"
+                          style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}
+                        >
                           {poi.name}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          fontSize: '11px',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
                         {poi.arrivalTime && (
                           <div style={{ color: 'var(--color-text-muted)' }}>
-                            Time: {formatPoiTime(poi.arrivalTime)} &rarr; {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
+                            Time: {formatPoiTime(poi.arrivalTime)} &rarr;{' '}
+                            {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
                           </div>
                         )}
                         {typeof poi.costEur === 'number' && (
@@ -841,7 +902,8 @@ export default function TripMapView({
                 </Marker>
               );
             });
-          })()}
+          });
+        })()}
       </MapContainer>
 
       {/* Floating Detailed Transit Route Legend */}

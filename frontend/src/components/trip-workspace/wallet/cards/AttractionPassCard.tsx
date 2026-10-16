@@ -5,7 +5,7 @@ import { TripTicket } from '@/hooks/useTripTickets';
 import { TicketShell } from './TicketShell';
 import { CodeRenderer } from '../codes/CodeRenderer';
 import { CopyButton } from '../parts/CopyButton';
-import { MuseumIcon, PinIcon } from '@/components/icons';
+import { MuseumIcon, PinIcon, CheckIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
 
 interface AttractionPassCardProps {
@@ -185,9 +185,13 @@ export function AttractionPassCard({
               padding: '2px 6px',
               borderRadius: '4px',
               fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            ✓ FAST-TRACK / SKIP LINE
+            <CheckIcon size={11} color="var(--color-success)" />
+            FAST-TRACK / SKIP LINE
           </span>
         )}
         {audioGuide && (
@@ -201,9 +205,13 @@ export function AttractionPassCard({
               padding: '2px 6px',
               borderRadius: '4px',
               fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            ✓ AUDIO GUIDE INCLUDED
+            <CheckIcon size={11} color="#0284C7" />
+            AUDIO GUIDE INCLUDED
           </span>
         )}
       </div>

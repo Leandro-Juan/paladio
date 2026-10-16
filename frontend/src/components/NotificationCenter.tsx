@@ -7,17 +7,19 @@ import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
 import { EmptyState } from './EmptyState';
 
+import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from '@/components/icons';
+
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
   placement?: 'top' | 'bottom';
 }
 
-const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: string }> = {
-  info: { color: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', label: 'INFO', icon: 'ℹ' },
-  success: { color: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', label: 'SUCCESS', icon: '✓' },
-  warning: { color: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', label: 'ALERT', icon: '▲' },
-  error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: '✕' },
+const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
+  info: { color: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', label: 'INFO', icon: <InfoIcon size={12} /> },
+  success: { color: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', label: 'SUCCESS', icon: <CheckIcon size={12} /> },
+  warning: { color: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', label: 'ALERT', icon: <AlertTriangleIcon size={12} /> },
+  error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: <CloseIcon size={12} /> },
 };
 
 export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: NotificationCenterProps) {

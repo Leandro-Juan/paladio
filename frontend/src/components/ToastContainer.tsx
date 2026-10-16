@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { ToastItem, NotificationType } from '@/types/notification';
 import { formatRelativeTime } from '@/utils/date';
+import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from '@/components/icons';
 
-const TOAST_THEMES: Record<NotificationType, { border: string; bg: string; icon: string; text: string }> = {
-  info: { border: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', icon: 'ℹ', text: 'var(--color-link)' },
-  success: { border: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', icon: '✓', text: 'var(--color-success)' },
-  warning: { border: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', icon: '▲', text: 'var(--color-accent-warning)' },
-  error: { border: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', icon: '✕', text: 'var(--color-danger)' },
+const TOAST_THEMES: Record<NotificationType, { border: string; bg: string; icon: React.ReactNode; text: string }> = {
+  info: { border: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', icon: <InfoIcon size={12} />, text: 'var(--color-link)' },
+  success: { border: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', icon: <CheckIcon size={12} />, text: 'var(--color-success)' },
+  warning: { border: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', icon: <AlertTriangleIcon size={12} />, text: 'var(--color-accent-warning)' },
+  error: { border: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', icon: <CloseIcon size={12} />, text: 'var(--color-danger)' },
 };
 
 function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {

@@ -5,6 +5,7 @@ import { useTrips, Trip, CollaboratorOption } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
 import { EmptyState } from '@/components/EmptyState';
 import { countWaypoints } from '@/utils/tripParser';
+import { CheckIcon, CloseIcon } from '@/components/icons';
 
 export default function TripsPage() {
   const { upcomingTrips, loading, deleteTrip, addParticipant, removeParticipant, getCollaboratorOptions } = useTrips();
@@ -181,7 +182,8 @@ export default function TripsPage() {
                           fontWeight: 600,
                         }}
                       >
-                        ✓ CONFIRMED
+                        <CheckIcon size={12} color="var(--color-success)" />
+                        CONFIRMED
                       </span>
                     </div>
 
@@ -349,7 +351,7 @@ export default function TripsPage() {
                   color: 'var(--color-text-muted)',
                 }}
               >
-                ✕
+                <CloseIcon size={14} />
               </button>
             </div>
 

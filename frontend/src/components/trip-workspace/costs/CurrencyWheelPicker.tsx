@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { CurrencyInfo, SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
+import { CloseIcon } from '@/components/icons';
 
 interface CurrencyWheelPickerProps {
   isOpen: boolean;
@@ -423,7 +424,7 @@ export function CurrencyWheelPicker({
                 fontSize: '11px',
               }}
             >
-              ✕
+              <CloseIcon size={11} />
             </button>
           )}
         </div>

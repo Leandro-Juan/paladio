@@ -730,7 +730,7 @@ async def trigger_city_gtfs_compile(
     req: CompileCityRequest,
     session: AsyncSession = Depends(get_db),
 ):
-    city_clean = req.city.strip().lower()
+    city_clean = re.sub(r"[^a-z0-9_-]", "", req.city.strip().lower())
     from app.db.models import TransitCacheStatus
 
     import os
@@ -741,6 +741,7 @@ async def trigger_city_gtfs_compile(
     try:
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         r = redis.from_url(redis_url)
+        r.delete(f"paladio:transit_cancelled:{city_clean}")
         is_locked = r.lock("paladio:transit_compiler_lock", timeout=7200).locked()
     except (redis.RedisError, OSError):
         pass
@@ -1093,6 +1094,10 @@ async def update_trip(
 async def reoptimize_trip_route(
     trip_id: str,
     update_data: TripUpdate | None = None,
+    day: int | None = Query(
+        None,
+        description="Specific day number to re-optimize (1-indexed). If omitted, all days are re-optimized.",
+    ),
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
@@ -1117,6 +1122,7 @@ async def reoptimize_trip_route(
         optimized_itin = await TripReoptimizationService.reoptimize_trip_itinerary(
             itinerary_data=current_itin,
             destination_city=trip.destination or "",
+            target_day=day,
         )
         trip.itinerary_data = optimized_itin
         session.add(trip)

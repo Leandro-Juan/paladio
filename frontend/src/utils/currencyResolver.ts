@@ -90,7 +90,7 @@ export function getCurrencyInfo(code?: string): CurrencyInfo {
     name: c,
     country: c,
     countryCode: c.slice(0, 2),
-    flag: '🌐',
+    flag: '',
     symbol: c,
   };
 }

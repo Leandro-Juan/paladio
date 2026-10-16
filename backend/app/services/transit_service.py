@@ -512,7 +512,9 @@ def synthesize_fallback_transit_leg(
 
 
 async def ensure_walking_legs_populated(
-    itinerary: dict[str, Any], city: str = ""
+    itinerary: dict[str, Any],
+    city: str = "",
+    target_day: int | str | None = None,
 ) -> dict[str, Any]:
     """
     Enriches all walkable legs in an itinerary with real turn-by-turn pedestrian routing
@@ -527,6 +529,10 @@ async def ensure_walking_legs_populated(
     for d_idx, day_obj in enumerate(days):
         if not isinstance(day_obj, dict):
             continue
+        if target_day is not None and str(target_day).lower() != "all":
+            day_num = day_obj.get("day", d_idx + 1)
+            if str(day_num) != str(target_day):
+                continue
         day_itin = day_obj.get("itinerary", {})
         if not isinstance(day_itin, dict):
             continue

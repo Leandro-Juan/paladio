@@ -151,9 +151,14 @@ export function useTrips() {
     return null;
   };
 
-  const reoptimizeTrip = async (id: string, updates?: Partial<Omit<Trip, 'id' | 'created_at'>>) => {
+  const reoptimizeTrip = async (
+    id: string,
+    updates?: Partial<Omit<Trip, 'id' | 'created_at'>>,
+    day?: number
+  ) => {
     try {
-      const updated = await apiFetch<Trip>(`/trips/${id}/reoptimize`, {
+      const endpoint = day !== undefined ? `/trips/${id}/reoptimize?day=${day}` : `/trips/${id}/reoptimize`;
+      const updated = await apiFetch<Trip>(endpoint, {
         method: 'POST',
         body: updates ? JSON.stringify(updates) : undefined,
       });

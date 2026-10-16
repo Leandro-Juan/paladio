@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Trip } from '@/hooks/useTrips';
 import { countWaypoints } from '@/utils/tripParser';
 import { TripStatus, calculateTripDurationDays, downloadTripIcs } from '@/utils/calendarUtils';
+import { CloseIcon } from '@/components/icons';
 
 interface MissionInspectorModalProps {
   isOpen: boolean;
@@ -102,7 +103,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
               lineHeight: 1,
             }}
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         </div>
 

@@ -13,6 +13,7 @@ import {
   getTripPaletteColor,
 } from '@/utils/calendarUtils';
 import { MissionInspectorModal } from './MissionInspectorModal';
+import { PlaneIcon, UmbrellaIcon, CloseIcon } from '@/components/icons';
 import styles from './Calendar.module.css';
 
 interface CalendarProps {
@@ -296,7 +297,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                 className={`${styles.segmentedBtn} ${interactionMode === 'PLAN' ? styles.segmentedBtnActive : ''}`}
                 aria-label="Plan trips mode"
               >
-                <span>✈</span> Plan
+                <PlaneIcon size={13} style={{ marginRight: '5px' }} /> Plan
               </button>
               <button
                 type="button"
@@ -307,7 +308,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                 className={`${styles.segmentedBtn} ${interactionMode === 'HOLIDAY' ? styles.holidayBtnActive : ''}`}
                 aria-label="Mark holidays mode"
               >
-                <span>🏖</span> Mark Holidays ({telemetry.holidayDays}d)
+                <UmbrellaIcon size={13} style={{ marginRight: '5px' }} /> Mark Holidays ({telemetry.holidayDays}d)
               </button>
             </div>
           </div>
@@ -563,7 +564,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                 className={styles.popoverCloseBtn}
                 aria-label="Close"
               >
-                ✕
+                <CloseIcon size={14} />
               </button>
             </div>
             <h4 className={styles.popoverDateTitle}>{activePopover.dateString}</h4>

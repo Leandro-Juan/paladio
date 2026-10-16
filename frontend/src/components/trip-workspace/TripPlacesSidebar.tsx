@@ -13,6 +13,7 @@ import {
   AlertTriangleIcon,
   InfoIcon,
   GripVerticalIcon,
+  CloseIcon,
 } from '@/components/icons';
 
 export interface PlaceItem {
@@ -36,6 +37,9 @@ interface TripPlacesSidebarProps {
   onPlaceClick?: (place: PlaceItem) => void;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
+  hotelAnchor?: { name: string; lat: number; lng: number };
+  airportAnchor?: { name: string; lat: number; lng: number };
+  tripId?: string;
 }
 
 interface PoiApiItem {
@@ -61,6 +65,8 @@ interface PoiSearchResponseData {
 }
 
 const SUGGESTION_PROMPTS = [
+  'Hotel',
+  'Airport',
   'El Prado',
   'Good and cozy cafes with charm',
   'Museums of modern art',
@@ -75,6 +81,9 @@ export function TripPlacesSidebar({
   onPlaceClick,
   categoryFilter,
   onCategoryFilterChange,
+  hotelAnchor,
+  airportAnchor,
+  tripId,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -156,16 +165,56 @@ export function TripPlacesSidebar({
 
       try {
         const catParam = cat && cat !== 'all' ? `&category=${encodeURIComponent(cat)}` : '';
+        const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
         const baseUrl = getApiBaseUrl();
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             city
-          )}&query=${encodeURIComponent(q)}${catParam}&limit=16`
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=16`
         );
         if (!res.ok) {
           throw new Error(`Search failed (HTTP ${res.status})`);
         }
         const data: PoiSearchResponseData = await res.json();
+
+        // Inject trip-specific anchors when user queries "hotel" or "airport"
+        const normQ = q.toLowerCase();
+        if (hotelAnchor && normQ.includes('hot')) {
+          const hotelItem: PoiApiItem = {
+            id: `trip-hotel-anchor-${tripId || 'hotel'}`,
+            name: hotelAnchor.name,
+            category: 'hotel',
+            lat: hotelAnchor.lat,
+            lng: hotelAnchor.lng,
+            duration_mins: 30,
+            cost_eur: 0,
+            similarity: 1.0,
+            match_type: 'trip_hotel_base',
+          };
+          data.exact_match = hotelItem;
+          data.exact_match_found = true;
+          if (!data.results.some((r) => r.name.toLowerCase() === hotelAnchor.name.toLowerCase())) {
+            data.results.unshift(hotelItem);
+          }
+        } else if (airportAnchor && (normQ.includes('air') || normQ.includes('aero') || normQ.includes('flight'))) {
+          const airportItem: PoiApiItem = {
+            id: `trip-airport-anchor-${tripId || 'airport'}`,
+            name: airportAnchor.name,
+            category: 'airport',
+            lat: airportAnchor.lat,
+            lng: airportAnchor.lng,
+            duration_mins: 60,
+            cost_eur: 0,
+            similarity: 1.0,
+            match_type: 'trip_airport_gateway',
+          };
+          data.exact_match = airportItem;
+          data.exact_match_found = true;
+          if (!data.results.some((r) => r.name.toLowerCase() === airportAnchor.name.toLowerCase())) {
+            data.results.unshift(airportItem);
+          }
+        }
+
         setSearchData(data);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
@@ -174,7 +223,7 @@ export function TripPlacesSidebar({
         setIsLoading(false);
       }
     },
-    [city]
+    [city, tripId, hotelAnchor, airportAnchor]
   );
 
   // Debounced auto-search when query changes
@@ -443,7 +492,7 @@ export function TripPlacesSidebar({
                       }}
                       title="Clear"
                     >
-                      ✕
+                      <CloseIcon size={12} />
                     </button>
                   )}
                 </div>

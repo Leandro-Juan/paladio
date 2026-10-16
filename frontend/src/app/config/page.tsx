@@ -14,7 +14,7 @@ import {
   GtfsRegistryResponse,
   CityGtfsItem,
 } from '@/utils/api';
-import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
+import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon, SettingsIcon } from '@/components/icons';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
@@ -875,7 +875,7 @@ export default function ConfigPage() {
             className="hover:opacity-90 active:scale-98"
           >
             <span>Spin Cylinder Dial</span>
-            <span>⚙</span>
+            <SettingsIcon size={14} />
           </button>
         </div>
 
@@ -1461,9 +1461,6 @@ export default function ConfigPage() {
                           {isItemQueued && (
                             <ClockIcon size={14} color="var(--color-accent-gold)" />
                           )}
-                          {isItemCompiling && (
-                            <Spinner size={14} color="var(--color-accent-gold)" />
-                          )}
                           <div>
                             <span>{cityItem.display_name}</span>
                             <div className="font-mono text-muted" style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px' }}>
@@ -1536,7 +1533,7 @@ export default function ConfigPage() {
                           </span>
                         ) : isItemCompiling ? (
                           <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Spinner size={12} color="var(--color-accent-gold)" /> IN PROGRESS
+                            IN PROGRESS
                           </span>
                         ) : (
                           <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

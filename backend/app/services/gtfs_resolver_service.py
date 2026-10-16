@@ -299,12 +299,15 @@ class GTFSResolverService:
         # 5. Text relevance to city name
         muni_lower = feed.municipality.lower()
         subdiv_lower = feed.subdivision.lower()
+        muni_clean = re.sub(r"[^a-z0-9]", "", muni_lower)
+        subdiv_clean = re.sub(r"[^a-z0-9]", "", subdiv_lower)
+        desc_clean = re.sub(r"[^a-z0-9]", "", desc_text)
 
-        if city_lower in muni_lower:
+        if city_lower in muni_lower or city_lower in muni_clean:
             score += 90.0
-        elif city_lower in subdiv_lower:
+        elif city_lower in subdiv_lower or city_lower in subdiv_clean:
             score += 50.0
-        elif city_lower in desc_text:
+        elif city_lower in desc_text or city_lower in desc_clean:
             score += 35.0
 
         # 6. Official Transit Authority boost
@@ -356,11 +359,12 @@ class GTFSResolverService:
             try:
                 from app.infrastructure.providers.osm_city_ingest import geocode_city
 
-                geo = await geocode_city(city_clean)
+                query_name = city_name.strip().replace("_", " ").replace("-", " ")
+                geo = await geocode_city(query_name)
                 city_country = geo.country_code.upper() if geo.country_code else None
                 center_lat, center_lon = geo.lat, geo.lon
             except Exception:
-                bounds = await OSMMapService.get_city_extract_bounds(city_clean)
+                bounds = await OSMMapService.get_city_extract_bounds(city_name)
                 if bounds:
                     center_lat = (bounds["min_lat"] + bounds["max_lat"]) / 2.0
                     center_lon = (bounds["min_lon"] + bounds["max_lon"]) / 2.0

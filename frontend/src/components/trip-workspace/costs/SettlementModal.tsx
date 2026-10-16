@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, SettlementTransfer } from '@/hooks/useTrips';
+import { CloseIcon } from '@/components/icons';
 
 interface SettlementModalProps {
   participants: TripParticipant[];
@@ -163,7 +164,7 @@ export function SettlementModal({
               placeItems: 'center',
             }}
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         </div>
 
