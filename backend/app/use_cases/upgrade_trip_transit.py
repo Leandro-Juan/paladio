@@ -16,16 +16,17 @@ logger = logging.getLogger(__name__)
 def parse_time_to_minutes(time_str: str) -> int:
     """Converts 'HH:MM' string to total minutes from midnight."""
     try:
-        parts = time_str.split(":")
-        return int(parts[0]) * 60 + int(parts[1])
+        parts = str(time_str).split(":")
+        return int(float(parts[0])) * 60 + int(float(parts[1]))
     except (ValueError, IndexError):
         return 540  # 09:00 default
 
 
-def minutes_to_time_str(total_minutes: int) -> str:
+def minutes_to_time_str(total_minutes: int | float) -> str:
     """Converts total minutes from midnight to 'HH:MM'."""
-    hrs = (total_minutes // 60) % 24
-    mins = total_minutes % 60
+    mins_total = int(round(float(total_minutes)))
+    hrs = (mins_total // 60) % 24
+    mins = mins_total % 60
     return f"{hrs:02d}:{mins:02d}"
 
 
@@ -160,6 +161,21 @@ class UpgradeTripTransitUseCase:
                                 path_items[k - 1].get("scheduled_end", "09:00")
                             )
                             leg_dur_mins = max(15, old_start_mins - prev_old_end)
+
+                leg_dur_mins = int(round(float(leg_dur_mins)))
+                if (
+                    isinstance(path_items[k].get("transit_from_previous"), dict)
+                    and "duration_mins" in path_items[k]["transit_from_previous"]
+                    and path_items[k]["transit_from_previous"]["duration_mins"]
+                    is not None
+                ):
+                    path_items[k]["transit_from_previous"]["duration_mins"] = int(
+                        round(
+                            float(
+                                path_items[k]["transit_from_previous"]["duration_mins"]
+                            )
+                        )
+                    )
 
                 # Calculate dwell time at current POI based on original schedule
                 old_start_mins = parse_time_to_minutes(

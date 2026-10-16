@@ -122,11 +122,13 @@ class CppOptimizationAdapter(IOptimizationEngine):
                     earliest_open = getattr(pois[idx], "open_time_mins", 0) or 0
                     current_time = max(current_time, earliest_open)
 
-                    start_h = current_time // 60
-                    start_m = current_time % 60
+                    start_total = int(round(float(current_time)))
+                    start_h = (start_total // 60) % 24
+                    start_m = start_total % 60
                     current_time += duration
-                    end_h = current_time // 60
-                    end_m = current_time % 60
+                    end_total = int(round(float(current_time)))
+                    end_h = (end_total // 60) % 24
+                    end_m = end_total % 60
 
                 path_details.append(
                     ScheduledPoi(

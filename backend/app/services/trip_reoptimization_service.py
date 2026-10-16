@@ -19,9 +19,10 @@ except ImportError:
     paladio_core = None
 
 
-def _format_time_hh_mm(mins: int) -> str:
-    h = (mins // 60) % 24
-    m = mins % 60
+def _format_time_hh_mm(mins: int | float) -> str:
+    mins_total = int(round(float(mins)))
+    h = (mins_total // 60) % 24
+    m = mins_total % 60
     return f"{h:02d}:{m:02d}"
 
 
@@ -283,7 +284,7 @@ class TripReoptimizationService:
                 if step > 0:
                     prev_node_idx = real_indices[step - 1]
                     cell = transit_matrix[prev_node_idx][node_idx]
-                    t_mins = float(cell.get("duration_mins", 15))
+                    t_mins = int(round(float(cell.get("duration_mins", 15))))
                     t_cost = float(cell.get("cost_eur", 0.0))
                     t_dist = float(cell.get("distance_meters", 1000))
 

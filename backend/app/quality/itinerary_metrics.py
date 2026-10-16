@@ -47,11 +47,12 @@ def _time_str_to_mins(t_str: str | None) -> int | None:
         return None
 
 
-def _mins_to_time_str(mins: int | None) -> str:
+def _mins_to_time_str(mins: int | float | None) -> str:
     if mins is None:
         return "--:--"
-    h = mins // 60
-    m = mins % 60
+    mins_total = int(round(float(mins)))
+    h = (mins_total // 60) % 24
+    m = mins_total % 60
     return f"{h:02d}:{m:02d}"
 
 

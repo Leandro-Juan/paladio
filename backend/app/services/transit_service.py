@@ -598,9 +598,9 @@ async def ensure_walking_legs_populated(
                 # Public transit leg: retain/provide estimated transit placeholder
                 dest_name = curr_poi.get("name", "Stop")
                 trans_dur = (
-                    existing_transit.get("duration_mins", 20)
+                    int(round(float(existing_transit.get("duration_mins", 20))))
                     if isinstance(existing_transit, dict)
-                    and existing_transit.get("duration_mins")
+                    and existing_transit.get("duration_mins") is not None
                     else 20
                 )
                 fare_info = TransitFareService.get_city_transit_fare(city)

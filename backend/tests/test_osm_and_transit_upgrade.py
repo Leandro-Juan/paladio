@@ -17,6 +17,10 @@ def test_time_parsing_and_formatting():
     assert parse_time_to_minutes("14:30") == 870
     assert minutes_to_time_str(540) == "09:00"
     assert minutes_to_time_str(870) == "14:30"
+    # Float inputs from re-optimization or metrics calculations must not raise ValueError
+    assert minutes_to_time_str(540.0) == "09:00"
+    assert minutes_to_time_str(589.4) == "09:49"
+    assert minutes_to_time_str(870.0) == "14:30"
 
 
 @pytest.mark.asyncio
@@ -236,6 +240,87 @@ async def test_upgrade_trip_transit_handles_none_transit_from_previous():
         assert path[1]["scheduled_end"] == "15:00"
         # Leg 2 upgraded with 12 mins transit
         assert path[2]["transit_from_previous"]["duration_mins"] == 12
+
+
+@pytest.mark.asyncio
+async def test_upgrade_trip_transit_handles_float_duration_mins_from_reoptimization():
+    """
+    When a trip day was re-optimized via paladio_core, transit_from_previous
+    durations may be stored as floats (e.g. 49.0). Upgrading transit must
+    cleanly handle float durations without raising 'Unknown format code d for object of type float'.
+    """
+    mock_trip = MagicMock()
+    mock_trip.id = "trip-float-test"
+    mock_trip.destination = "Tokyo"
+    mock_trip.itinerary_data = {
+        "days": [
+            {
+                "day": 1,
+                "date": "2026-10-16",
+                "itinerary": {
+                    "path": [
+                        {
+                            "poi": {"name": "Haneda Airport", "category": "AIRPORT"},
+                            "scheduled_start": "09:00",
+                            "scheduled_end": "10:00",
+                        },
+                        {
+                            "poi": {"name": "Hotel Gracery", "category": "HOTEL"},
+                            "scheduled_start": "10:49",
+                            "scheduled_end": "11:19",
+                            "transit_from_previous": {
+                                "duration_mins": 49.0,  # float from re-optimization!
+                                "cost_eur": 4.5,
+                                "mode": "transit",
+                            },
+                        },
+                        {
+                            "poi": {"name": "Meiji Shrine", "category": "LANDMARK"},
+                            "scheduled_start": "11:34",
+                            "scheduled_end": "12:34",
+                            "transit_from_previous": {
+                                "duration_mins": 15.0,  # float from re-optimization!
+                                "cost_eur": 2.0,
+                                "mode": "transit",
+                            },
+                        },
+                    ]
+                },
+            }
+        ]
+    }
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_trip
+    mock_session.execute.return_value = mock_result
+
+    upgraded_leg = TransitLeg(
+        duration_mins=15,
+        cost_eur=2.0,
+        cost_is_estimated=False,
+        price_source="tokyo_metro",
+        mode="transit",
+        steps=[],
+    )
+
+    # First leg fails (retains previous float duration), second leg succeeds
+    with patch(
+        "app.use_cases.upgrade_trip_transit.get_detailed_transit_leg",
+        side_effect=[None, upgraded_leg],
+    ):
+        use_case = UpgradeTripTransitUseCase(mock_session)
+        res = await use_case.execute("trip-float-test")
+        assert res["status"] == "success"
+        path = mock_trip.itinerary_data["days"][0]["itinerary"]["path"]
+        assert path[1]["scheduled_start"] == "10:49"
+        assert path[1]["scheduled_end"] == "11:19"
+        assert isinstance(path[1]["transit_from_previous"]["duration_mins"], int)
+        assert path[1]["transit_from_previous"]["duration_mins"] == 49
+        assert path[2]["scheduled_start"] == "11:34"
+        assert path[2]["scheduled_end"] == "12:34"
+        assert isinstance(path[2]["transit_from_previous"]["duration_mins"], int)
+        assert path[2]["transit_from_previous"]["duration_mins"] == 15
 
 
 @pytest.mark.slow
