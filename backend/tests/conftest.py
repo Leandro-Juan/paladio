@@ -326,7 +326,30 @@ async def db_engine():
 
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(
+                text(
+                    "ALTER TABLE trips ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'saved';"
+                )
+            )
+            await conn.execute(
+                text(
+                    "SELECT create_hypertable('market_price_ticks', 'observed_at', "
+                    "chunk_time_interval => INTERVAL '3 days', if_not_exists => TRUE);"
+                )
+            )
+            try:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE market_price_ticks SET ("
+                        "timescaledb.compress, "
+                        "timescaledb.compress_segmentby = 'asset_type, origin_iata, destination_code', "
+                        "timescaledb.compress_orderby = 'observed_at DESC');"
+                    )
+                )
+            except Exception:
+                pass
     except (SQLAlchemyError, OSError) as e:
         logging.getLogger(__name__).warning(
             f"Could not initialize test DB tables. Ensure test DB exists. {e}"

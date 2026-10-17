@@ -21,15 +21,15 @@ from app.domain.entities.poi import (
     ScoredPoi,
     TransitLeg,
 )
-from app.engine.v2.budget import redistribute_budget_slack
-from app.engine.v2.day_assignment import AssignedDay
-from app.engine.v2.feasibility import probe_mandatory_feasibility
-from app.engine.v2.meals import (
+from app.engine.budget import redistribute_budget_slack
+from app.engine.day_assignment import AssignedDay
+from app.engine.feasibility import probe_mandatory_feasibility
+from app.engine.meals import (
     select_daily_meal_candidates,
     snap_corridor_meals,
     verify_day_schedule,
 )
-from app.engine.v2.rhythm import RhythmProfile
+from app.engine.rhythm import RhythmProfile
 from app.infrastructure.engine.struct_mapper import (
     build_cpp_pois,
     build_optimization_config,
@@ -250,7 +250,7 @@ async def solve_day_v2(
             p_id = str(p.id or p.name)
             if p_id in probe_res.infeasible_mandatory_ids:
                 if getattr(p, "is_user_mandatory", False):
-                    from app.engine.v2.exceptions import ItineraryInfeasible
+                    from app.engine.exceptions import ItineraryInfeasible
 
                     raise ItineraryInfeasible(
                         f"Mandatory attraction '{p.name}' cannot be scheduled on {assigned_day.calendar_date or f'Day {assigned_day.day_index}'} (closed or insufficient day duration)."

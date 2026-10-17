@@ -80,7 +80,7 @@ def compute_taste_score(
     if (not tax_cat or tax_cat in ("unknown", "art_culture")) and (
         poi.name or poi.category
     ):
-        from app.engine.v2.taxonomy import classify_poi_taxonomy
+        from app.engine.taxonomy import classify_poi_taxonomy
 
         meta_dict = (
             poi.metadata
@@ -166,7 +166,7 @@ def _poi_to_candidate(
     if (not tax_cat or tax_cat in ("unknown", "art_culture")) and (
         poi.name or poi.category
     ):
-        from app.engine.v2.taxonomy import classify_poi_taxonomy
+        from app.engine.taxonomy import classify_poi_taxonomy
 
         meta_dict = (
             poi.metadata

@@ -7,9 +7,9 @@ export const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol;
     const host = window.location.hostname;
-    return `${protocol}//${host}:8000/api/v1`;
+    return `${protocol}//${host}:8000/api`;
   }
-  return 'http://localhost:8000/api/v1';
+  return 'http://localhost:8000/api';
 };
 
 const TOKEN_KEY = 'paladio_token';

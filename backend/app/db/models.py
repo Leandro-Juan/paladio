@@ -3,14 +3,17 @@ import enum
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -202,6 +205,7 @@ class TripModel(Base):
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)
     itinerary_data = Column(JSONB, nullable=False)
+    status = Column(String, default="active", nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -523,3 +527,249 @@ class TripTicketAttachmentModel(Base):
     )
 
     ticket = relationship("TripTicketModel", back_populates="attachments")
+
+
+# ==============================================================================
+# Paladio Deal Engine Storage Layer Models (Phase 1)
+# ==============================================================================
+
+
+class MarketPriceTickModel(Base):
+    """
+    Raw ingested price observation for flights or lodging.
+    Backed by a TimescaleDB hypertable partitioned on observed_at.
+    """
+
+    __tablename__ = "market_price_ticks"
+
+    id = Column(String, primary_key=True)
+    observed_at = Column(DateTime(timezone=True), primary_key=True, nullable=False)
+    asset_type = Column(String, nullable=False)  # 'flight' | 'lodging'
+    origin_iata = Column(String(3), nullable=True)
+    destination_code = Column(String, nullable=False, index=True)
+    dest_airport_iata = Column(String(3), nullable=True)
+    depart_date = Column(Date, nullable=False)
+    return_date = Column(Date, nullable=False)
+    nights = Column(Integer, nullable=False)
+    lead_time_days = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default="EUR")
+    base_price_cents = Column(BigInteger, nullable=False)
+    landed_price_cents = Column(BigInteger, nullable=True)
+    stat = Column(String, nullable=False, default="single")
+    sample_n = Column(Integer, nullable=True)
+    quality_tier = Column(String, nullable=True)
+    source = Column(String, nullable=False)
+    source_class = Column(String, nullable=False, default="cache")
+    is_aggregated = Column(Boolean, nullable=False, default=False)
+    source_observed_at = Column(DateTime(timezone=True), nullable=True)
+    content_hash = Column(LargeBinary, nullable=False)
+    ingest_run_id = Column(String, nullable=True)
+    is_exploration = Column(Boolean, nullable=False, default=False)
+    metadata_json = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "ix_ticks_route_date_desc",
+            "asset_type",
+            "origin_iata",
+            "destination_code",
+            "depart_date",
+            observed_at.desc(),
+        ),
+        Index(
+            "uq_ticks_content_hash_obs",
+            "content_hash",
+            "observed_at",
+            unique=True,
+        ),
+    )
+
+
+class PriceDailyModel(Base):
+    """
+    Rollup of daily minimum base prices per itinerary.
+    Unit of observation for route statistical baselines.
+    """
+
+    __tablename__ = "price_daily"
+
+    bucket = Column(Date, primary_key=True)
+    asset_type = Column(String, primary_key=True)
+    origin_iata = Column(String(3), primary_key=True, default="")
+    destination_code = Column(String, primary_key=True)
+    depart_date = Column(Date, primary_key=True)
+    nights = Column(Integer, primary_key=True)
+    source_class = Column(String, primary_key=True)
+    source = Column(String, primary_key=True)
+    currency = Column(String(3), primary_key=True, default="EUR")
+    min_base = Column(BigInteger, nullable=False)
+    n_ticks = Column(Integer, nullable=False)
+
+
+class RouteBaselineModel(Base):
+    """
+    Statistical distribution baselines (quantiles) computed by nightly SQL rollup.
+    """
+
+    __tablename__ = "route_baselines"
+
+    asset_type = Column(String, primary_key=True)
+    origin_iata = Column(String(3), primary_key=True, default="")
+    destination_code = Column(String, primary_key=True)
+    depart_month = Column(Integer, primary_key=True, default=0)
+    lead_bucket = Column(String, primary_key=True, default="all")
+    source_class = Column(String, primary_key=True)
+    currency = Column(String(3), primary_key=True, default="EUR")
+    level = Column(String, primary_key=True)  # 'full', 'drop_lead', 'drop_month'
+    n_rows = Column(Integer, nullable=False)
+    n_obs_days = Column(Integer, nullable=False)
+    n_depart_dates = Column(Integer, nullable=False)
+    q02 = Column(BigInteger, nullable=False)
+    q05 = Column(BigInteger, nullable=False)
+    q10 = Column(BigInteger, nullable=False)
+    q25 = Column(BigInteger, nullable=False)
+    q50 = Column(BigInteger, nullable=False)
+    q75 = Column(BigInteger, nullable=False)
+    window_start = Column(Date, nullable=False)
+    window_end = Column(Date, nullable=False)
+    computed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class FeeModel(Base):
+    """Learned landed / base ratio from live verified ticks."""
+
+    __tablename__ = "fee_models"
+
+    asset_type = Column(String, primary_key=True)
+    source = Column(String, primary_key=True)
+    destination_code = Column(String, primary_key=True, default="ALL")
+    ratio_p50 = Column(Numeric(5, 3), nullable=False)
+    n = Column(Integer, nullable=False)
+    computed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DestinationAirportModel(Base):
+    """Maps destination cities to airport IATA codes."""
+
+    __tablename__ = "destination_airports"
+
+    city_id = Column(
+        String, ForeignKey("cities.id", ondelete="CASCADE"), primary_key=True
+    )
+    iata = Column(String(3), primary_key=True)
+    is_primary = Column(Boolean, default=True, nullable=False)
+
+
+class DealWatchAlertModel(Base):
+    """User proactive deal watch alert parameters."""
+
+    __tablename__ = "deal_watch_alerts"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    origin_iata = Column(String(3), nullable=False)
+    destinations = Column(ARRAY(String), nullable=False)
+    earliest_date = Column(Date, nullable=False)
+    latest_date = Column(Date, nullable=False)
+    min_nights = Column(Integer, default=1, nullable=False)
+    max_nights = Column(Integer, default=7, nullable=False)
+    travelers = Column(Integer, default=1, nullable=False)
+    bags_needed = Column(Integer, default=0, nullable=False)
+    max_budget_cents = Column(BigInteger, nullable=False)
+    currency = Column(String(3), default="EUR", nullable=False)
+    max_package_ratio = Column(Numeric(4, 2), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+    last_scanned_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "earliest_date <= latest_date", name="ck_deal_watch_alerts_dates"
+        ),
+        CheckConstraint("min_nights <= max_nights", name="ck_deal_watch_alerts_nights"),
+        CheckConstraint("max_budget_cents > 0", name="ck_deal_watch_alerts_budget"),
+        CheckConstraint(
+            "travelers >= 1 AND travelers <= 2", name="ck_deal_watch_alerts_travelers"
+        ),
+        Index("ix_deal_watch_alerts_gin_dest", "destinations", postgresql_using="gin"),
+        Index(
+            "ix_deal_watch_alerts_scan",
+            "origin_iata",
+            "is_active",
+            "earliest_date",
+            "latest_date",
+        ),
+    )
+
+
+class DealCandidateModel(Base):
+    """Candidate deal package identified by statistical detection."""
+
+    __tablename__ = "deal_candidates"
+
+    id = Column(String, primary_key=True, index=True)
+    idempotency_key = Column(String, unique=True, nullable=False, index=True)
+    asset_type = Column(String, default="package", nullable=False)
+    origin_iata = Column(String(3), nullable=False)
+    destination_code = Column(String, nullable=False)
+    depart_date = Column(Date, nullable=False)
+    return_date = Column(Date, nullable=False)
+    currency = Column(String(3), default="EUR", nullable=False)
+    cached_flight_base_cents = Column(BigInteger, nullable=False)
+    lodging_estimate_cents = Column(BigInteger, nullable=False)
+    est_total_cents = Column(BigInteger, nullable=False)
+    est_savings_cents = Column(BigInteger, nullable=False)
+    package_ratio = Column(Numeric(5, 3), nullable=False)
+    baseline_level_used = Column(String, nullable=False)
+    confidence = Column(String, default="medium", nullable=False)
+    detector_version = Column(String, default="v3", nullable=False)
+    status = Column(String, default="candidate", nullable=False)
+    reject_reason = Column(String, nullable=True)
+    live_queries_used = Column(Integer, default=0, nullable=False)
+    live_cost_cents = Column(BigInteger, default=0, nullable=False)
+    verification_json = Column(JSONB, nullable=True)
+    is_exploration = Column(Boolean, default=False, nullable=False)
+    detected_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class DealEventModel(Base):
+    """Event matching a deal candidate to an active user alert."""
+
+    __tablename__ = "deal_events"
+
+    id = Column(String, primary_key=True, index=True)
+    candidate_id = Column(
+        String, ForeignKey("deal_candidates.id", ondelete="CASCADE"), nullable=False
+    )
+    alert_id = Column(
+        String, ForeignKey("deal_watch_alerts.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String, default="pending", nullable=False)
+    package_json = Column(JSONB, nullable=False)
+    alerted_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    user_feedback = Column(String, nullable=True)
+    feedback_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_deal_events_alert_candidate", "alert_id", "candidate_id", unique=True
+        ),
+        Index("ix_deal_events_status_alerted", "status", "alerted_at"),
+    )

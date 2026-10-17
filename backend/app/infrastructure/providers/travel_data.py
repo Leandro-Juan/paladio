@@ -44,7 +44,7 @@ class DefaultTravelDataProvider(TravelDataProvider):
         try:
             from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
             from app.db.session import async_session
-            from app.engine.v2.city_readiness import ensure_city_ready
+            from app.engine.city_readiness import ensure_city_ready
             from app.infrastructure.providers.overpass_provider import (
                 OverpassProviderAdapter,
             )
@@ -81,7 +81,7 @@ class DefaultTravelDataProvider(TravelDataProvider):
 
         from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
         from app.db.session import async_session
-        from app.engine.v2.city_readiness import ensure_city_ready
+        from app.engine.city_readiness import ensure_city_ready
         from app.services.travel_data_service import fetch_restaurants
 
         try:

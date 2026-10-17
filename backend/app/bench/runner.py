@@ -19,8 +19,8 @@ from app.bench.scenarios import (
 from app.domain.entities.poi import Poi, PoiLocation, TransitLeg, TransitStep
 from app.domain.interfaces.poi_repository import IPoiRepository
 from app.engine.transit_matrix import haversine_distance
-from app.engine.v2.pipeline import run_itinerary_v2_pipeline
-from app.engine.v2.tiering import classify_poi_tier
+from app.engine.pipeline import run_itinerary_v2_pipeline
+from app.engine.tiering import classify_poi_tier
 from app.infrastructure.engine.bridge_adapter import CppOptimizationAdapter
 from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase

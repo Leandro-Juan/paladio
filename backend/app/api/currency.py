@@ -7,7 +7,7 @@ from app.domain.reference.iso_currencies import (
     COUNTRY_TO_CURRENCY,
     get_country_currency,
 )
-from app.engine.v2.currency import fetch_live_rates
+from app.engine.currency import fetch_live_rates
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession

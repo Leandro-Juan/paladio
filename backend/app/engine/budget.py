@@ -6,8 +6,8 @@ Implements pro-rata daily budget allocation, single FX conversion function
 
 from collections.abc import Sequence
 
-from app.engine.v2.currency import convert_currency, get_cached_rate
-from app.engine.v2.day_assignment import AssignedDay
+from app.engine.currency import convert_currency, get_cached_rate
+from app.engine.day_assignment import AssignedDay
 
 
 def allocate_trip_budget(

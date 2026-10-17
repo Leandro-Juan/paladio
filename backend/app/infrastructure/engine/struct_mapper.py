@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 from app.domain.entities.poi import ScoredPoi
-from app.engine.v2.rhythm import RhythmProfile
+from app.engine.rhythm import RhythmProfile
 from app.schemas.itinerary import TravelConstraints
 from app.utils.text import is_poi_mandatory
 
@@ -84,7 +84,7 @@ def build_cpp_pois(
                     if hasattr(poi, "metadata") and isinstance(poi.metadata, dict)
                     else {}
                 )
-                from app.engine.v2.osm_signals import default_hours
+                from app.engine.osm_signals import default_hours
 
                 d_open, d_close = default_hours(poi.category, tags)
                 o_min, c_min = d_open[day_weekday], d_close[day_weekday]
@@ -109,7 +109,7 @@ def build_cpp_pois(
                 getattr(poi, "close_time_mins", 1200),
             )
             if o_min == -2 or c_min == -2:
-                from app.engine.v2.osm_signals import default_hours
+                from app.engine.osm_signals import default_hours
 
                 d_open, d_close = default_hours(poi.category, {})
                 o_min, c_min = d_open[day_weekday], d_close[day_weekday]

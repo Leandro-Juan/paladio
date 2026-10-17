@@ -178,7 +178,7 @@ export async function fetchLiveExchangeRate(
 
   // 2. Fetch live via local backend API first (100% self-hosted & resilient)
   try {
-    const res = await fetch(`/api/v1/currency/rates?base=${from}`, { cache: 'no-store' });
+    const res = await fetch(`/api/currency/rates?base=${from}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data?.rates && typeof data.rates[to] === 'number') {
@@ -291,7 +291,7 @@ export async function fetchEurRates(): Promise<Record<string, number>> {
 
   // 2. Try backend API
   try {
-    const res = await fetch('/api/v1/currency/rates?base=EUR', { cache: 'no-store' });
+    const res = await fetch('/api/currency/rates?base=EUR', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data?.rates) {

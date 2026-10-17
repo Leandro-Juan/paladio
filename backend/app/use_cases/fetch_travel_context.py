@@ -245,11 +245,11 @@ class FetchTravelContextUseCase:
         )
 
         # Stage 1-4: V2 Selection and Day Assignment (Agency-Grade Pipeline)
-        from app.engine.v2.candidate_pool import CandidatePoi
-        from app.engine.v2.day_assignment import assign_pois_to_days
-        from app.engine.v2.selection import select_trip_pois
-        from app.engine.v2.tiering import classify_poi_tier
-        from app.engine.v2.trip_frame import build_trip_frame
+        from app.engine.candidate_pool import CandidatePoi
+        from app.engine.day_assignment import assign_pois_to_days
+        from app.engine.selection import select_trip_pois
+        from app.engine.tiering import classify_poi_tier
+        from app.engine.trip_frame import build_trip_frame
         from app.utils.text import is_poi_mandatory
 
         candidate_pool: list[CandidatePoi] = []

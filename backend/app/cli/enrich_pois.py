@@ -24,7 +24,7 @@ from sqlalchemy import select
 from app.db.models import AttractionModel
 from app.db.session import async_session
 from app.engine.hydration.facet_extractor import FacetExtractor
-from app.engine.v2.tiering import tier_city_attractions
+from app.engine.tiering import tier_city_attractions
 from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
 from app.infrastructure.providers.wikimedia_enrichment_provider import (
     WikimediaEnrichmentProvider,

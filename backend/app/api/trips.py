@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
-from app.api.v1.tickets import router as tickets_router
+from app.api.tickets import router as tickets_router
 from app.db.models import (
     TransitCacheModel,
     TransitCacheStatus,
@@ -1433,7 +1433,7 @@ async def get_trip_settlement(
 
     rates: dict[str, float] = {}
     try:
-        from app.engine.v2.currency import fetch_live_rates
+        from app.engine.currency import fetch_live_rates
 
         rates = await fetch_live_rates("EUR")
     except Exception as err:

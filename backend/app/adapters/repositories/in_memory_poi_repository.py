@@ -5,7 +5,7 @@ from typing import Any
 
 from app.domain.entities.poi import Poi, PoiLocation
 from app.domain.interfaces.poi_repository import IPoiRepository
-from app.engine.v2.tiering import classify_poi_tier
+from app.engine.tiering import classify_poi_tier
 
 logger = logging.getLogger(__name__)
 
