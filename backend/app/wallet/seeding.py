@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import TripModel, TripTicketModel
 from app.schemas.ticket import AttractionSuggestion
+from app.services.airport_service import get_airport_service
 from app.utils.timezone_utils import (
-    IATA_TIMEZONES,
     get_timezone_for_city,
     parse_flexible_datetime,
 )
@@ -35,9 +35,12 @@ def _safe_parse_aware_datetime(
 
     if iata_or_city:
         clean = iata_or_city.strip().upper()
-        if len(clean) == 3 and clean in IATA_TIMEZONES:
-            tz_str = IATA_TIMEZONES[clean]
-            tz_info = ZoneInfo(tz_str)
+        airport_svc = get_airport_service()
+        if airport_svc.is_valid_iata(clean):
+            ap = airport_svc.get_airport(clean)
+            if ap and ap.timezone:
+                tz_str = ap.timezone
+                tz_info = ap.zoneinfo
         else:
             try:
                 tz_info = get_timezone_for_city(iata_or_city)

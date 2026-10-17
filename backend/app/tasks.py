@@ -2148,3 +2148,44 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             trigger_next_queued_city()
         except Exception as q_err:
             logger.debug(f"Queue advancement note for {city_name}: {q_err}")
+
+
+@app.task(name="app.tasks.periodic_market_scan_task")
+def periodic_market_scan_task() -> dict[str, Any]:
+    """
+    Periodic Celery Beat task scanning and ingesting live flight & lodging ticks
+    for active deal watch alerts, and running statistical deal detection.
+    """
+    from app.engine.market.detector import run_deal_detection_scan
+    from app.engine.market.ingest import scan_and_ingest_watched_routes
+
+    async def _scan():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                ingest_res = await scan_and_ingest_watched_routes(session)
+                detected = await run_deal_detection_scan(session)
+                return {
+                    "ingested": ingest_res,
+                    "deals_detected": len(detected),
+                }
+            finally:
+                await engine.dispose()
+
+    return _run_async(_scan())
+
+
+@app.task(name="app.tasks.periodic_baseline_compute_task")
+def periodic_baseline_compute_task() -> int:
+    """Nightly Celery Beat task calculating route statistical baselines and fee ratios."""
+    from app.engine.market.baselines import compute_route_baselines
+
+    async def _compute():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                return await compute_route_baselines(session)
+            finally:
+                await engine.dispose()
+
+    return _run_async(_compute())

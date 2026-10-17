@@ -1,0 +1,417 @@
+.container, .emptyContainer {
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: var(--border-radius-xl, 14px);
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.emptyContainer {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+}
+
+.emptyText {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #64748B);
+  margin-top: 0.5rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.telemetryTag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted, #64748B);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0;
+}
+
+.routeLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--color-accent-primary, #0F4C5C);
+  margin-top: 0.125rem;
+  display: block;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.monthsToggle {
+  display: flex;
+  background: var(--color-bg-main, #F8FAFC);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #E2E8F0);
+}
+
+.toggleBtn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #64748B);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggleBtn:hover {
+  color: var(--color-text-primary, #0F172A);
+}
+
+.activeToggleBtn {
+  background: var(--color-surface-card, #FFFFFF);
+  color: var(--color-accent-primary, #0F4C5C);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.legendRibbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-main, #F8FAFC);
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #E2E8F0);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #64748B);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.legendBox {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.monthsGrid {
+  display: grid;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.monthColumn {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.monthHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--color-border, #E2E8F0);
+}
+
+.monthName {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  letter-spacing: -0.01em;
+}
+
+.monthYear {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #64748B);
+}
+
+.weekdayRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.weekdayCell {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.625rem;
+  color: var(--color-text-muted, #64748B);
+  text-align: center;
+  padding: 2px 0;
+  font-weight: 600;
+}
+
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.emptyDayCell {
+  aspect-ratio: 1;
+}
+
+.dayCell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--color-bg-main, #F8FAFC);
+}
+
+.dayCell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-accent-primary, #0F4C5C);
+  z-index: 2;
+}
+
+.selectedDay {
+  outline: 2px solid var(--color-accent-primary, #0F4C5C);
+  outline-offset: 1px;
+}
+
+.dayNum {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-text-muted, #64748B);
+}
+
+.dayPrice {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-top: 1px;
+}
+
+/* Color Tiers */
+.tierDeal {
+  background: rgba(20, 120, 141, 0.18) !important;
+  border-color: rgba(20, 120, 141, 0.4) !important;
+  color: var(--color-accent-teal-mid, #14788D);
+}
+
+.tierDeal .dayNum {
+  color: var(--color-accent-teal-mid, #14788D);
+}
+
+.tierFair {
+  background: rgba(15, 76, 92, 0.08) !important;
+  border-color: rgba(15, 76, 92, 0.2) !important;
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.tierFair .dayNum {
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.tierStandard {
+  background: rgba(226, 179, 60, 0.12) !important;
+  border-color: rgba(226, 179, 60, 0.3) !important;
+  color: #8C6A00;
+}
+
+.tierPeak {
+  background: rgba(212, 42, 47, 0.1) !important;
+  border-color: rgba(212, 42, 47, 0.25) !important;
+  color: var(--color-accent-secondary, #D42A2F);
+}
+
+.tierNoData {
+  background: var(--color-bg-main, #F8FAFC) !important;
+  border-color: transparent !important;
+  color: var(--color-text-muted, #64748B);
+  opacity: 0.6;
+}
+
+/* Day Inspector Card */
+.dayInspectorCard {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-main, #F8FAFC);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 10px;
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inspectorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.inspectorTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inspectorDate {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.inspectorTierBadge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.tier_deal {
+  background: rgba(20, 120, 141, 0.15);
+  color: var(--color-accent-teal-mid, #14788D);
+}
+
+.tier_fair {
+  background: rgba(15, 76, 92, 0.1);
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.tier_standard {
+  background: rgba(226, 179, 60, 0.15);
+  color: #8C6A00;
+}
+
+.tier_peak {
+  background: rgba(212, 42, 47, 0.12);
+  color: var(--color-accent-secondary, #D42A2F);
+}
+
+.tier_no_data {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--color-text-muted, #64748B);
+}
+
+.closeInspectorBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #64748B);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeInspectorBtn:hover {
+  color: var(--color-text-primary, #0F172A);
+}
+
+.inspectorBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inspectorFare {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.inspectorFareLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748B);
+}
+
+.inspectorFareValue {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.inspectorMetaRow {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.75rem;
+}
+
+.metaCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.metaLabel {
+  color: var(--color-text-muted, #64748B);
+  font-size: 0.6875rem;
+}
+
+.metaVal {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.bookingLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent-primary, #0F4C5C);
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.bookingLink:hover {
+  background: var(--color-accent-primary, #0F4C5C);
+  color: #FFFFFF;
+}

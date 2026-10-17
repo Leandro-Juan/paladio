@@ -130,7 +130,7 @@ class SwarmSessionAdapter(ISwarmSession):
         if "end_date" in data:
             manual_constraints["end_date"] = data["end_date"]
 
-        # Support Test Mode auto-mock tickets using iata_mapping and custom/default dates
+        # Support Test Mode auto-mock tickets using airport_service and custom/default dates
         origin = manual_constraints.get("origin_city") or data.get("origin_city")
         dest = manual_constraints.get("destination_city") or data.get(
             "destination_city"

@@ -37,6 +37,8 @@ dependencies = [
     "pypdf>=5.0.0",
     "zxing-cpp>=2.0.0",
     "osmium>=4.0.0",
+    "airportsdata>=20240101",
+    "geonamescache>=3.0.0",
 ]
 
 [project.optional-dependencies]

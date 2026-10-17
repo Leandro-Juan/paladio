@@ -24,7 +24,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (pathname !== '/setup') {
         router.replace('/setup');
       }
-    } else if (setupRequired === false) {
+    } else {
       if (!user) {
         if (pathname !== '/login') {
           router.replace('/login');
@@ -78,9 +78,31 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If not logged in and not yet redirected, block rendering protected content
+  // If not logged in and not yet redirected, render transition state instead of blank void
   if (!user) {
-    return null;
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: 'var(--color-bg-main)',
+          gap: '1rem',
+        }}
+      >
+        <img
+          src="/logo-horizontal.png"
+          alt="Paladio Logo"
+          className="brand-logo-light"
+          style={{ height: '44px', width: 'auto', display: 'block' }}
+        />
+        <p className="font-mono text-muted" style={{ fontSize: '12px' }}>
+          {'// REDIRECTING TO AUTHENTICATION...'}
+        </p>
+      </div>
+    );
   }
 
   return (

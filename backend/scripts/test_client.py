@@ -173,7 +173,7 @@ async def test_websocket():
         "I need to visit the Louvre and Eiffel Tower. i love french and indian cuisine with relaxed bars",
     )
 
-    from app.utils.iata_mapping import get_iata_code
+    from app.services.airport_service import get_iata_code
 
     orig_iata = get_iata_code(origin)
     dest_iata = get_iata_code(destination)

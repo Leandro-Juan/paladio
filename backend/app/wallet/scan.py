@@ -18,7 +18,7 @@ except ImportError:
     HAS_ZXING = False
 
 from app.schemas.ticket import ScanDraft
-from app.utils.timezone_utils import IATA_TIMEZONES
+from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +354,8 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     if best_score >= 2 and best_type == "flight":
         # Extract IATAs
         iatas = re.findall(r"\b([A-Z]{3})\b", text)
-        valid_iatas = [i for i in iatas if i in IATA_TIMEZONES]
+        airport_svc = get_airport_service()
+        valid_iatas = [i for i in iatas if airport_svc.is_valid_iata(i)]
         orig = valid_iatas[0] if len(valid_iatas) > 0 else "MAD"
         dest = valid_iatas[1] if len(valid_iatas) > 1 else "SVQ"
 

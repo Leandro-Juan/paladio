@@ -41,5 +41,14 @@ app.conf.update(
         },
     },
     # Configure periodic tasks (Celery Beat)
-    beat_schedule={},
+    beat_schedule={
+        "periodic-route-market-scan": {
+            "task": "app.tasks.periodic_market_scan_task",
+            "schedule": 7200.0,  # every 2 hours
+        },
+        "periodic-route-baselines-rollup": {
+            "task": "app.tasks.periodic_baseline_compute_task",
+            "schedule": 86400.0,  # daily
+        },
+    },
 )

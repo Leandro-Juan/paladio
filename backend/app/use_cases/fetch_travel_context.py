@@ -177,52 +177,21 @@ class FetchTravelContextUseCase:
 
         if outbound_flight:
             iata = outbound_flight.destination_iata
-            from app.utils.iata_mapping import get_city_from_iata
+            from app.services.airport_service import get_airport_service
 
-            airport_city = get_city_from_iata(iata.upper())
-            if (
-                airport_city
-                and airport_city.lower() != "unknown"
-                and airport_city.lower() != city.strip().lower()
-            ):
-                logger.warning(
-                    f"Outbound flight destination airport '{iata}' ({airport_city}) mismatches destination city '{city}'. Ignoring misaligned airport."
+            airport_svc = get_airport_service()
+            airport_info = airport_svc.get_airport(iata)
+            if airport_info:
+                airport_name = airport_info.name
+                airport_lat = airport_info.latitude
+                airport_lon = airport_info.longitude
+                logger.info(
+                    f"Resolved airport {iata} ({airport_name}) to {airport_lat}, {airport_lon}"
                 )
-                outbound_flight = None
-                return_flight = None
             else:
-                airport_name = f"{iata.upper()} Airport"
-                query = f"{iata} airport"
-                try:
-                    import urllib.parse
-                    import httpx
-
-                    q = urllib.parse.quote(query)
-                    url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(
-                            url, headers={"User-Agent": "PaladioApp/1.0"}
-                        )
-                        if resp.status_code == 200 and resp.json():
-                            data = resp.json()[0]
-                            airport_lat = float(data["lat"])
-                            airport_lon = float(data["lon"])
-                            logger.info(
-                                f"Geocoded airport {iata} to {airport_lat}, {airport_lon}"
-                            )
-                        else:
-                            logger.warning(
-                                f"Nominatim returned no results for airport: {query}. Snapping to city center."
-                            )
-                except (
-                    httpx.HTTPError,
-                    TimeoutError,
-                    ValueError,
-                    KeyError,
-                    RuntimeError,
-                    OSError,
-                ) as e:
-                    logger.warning(f"Failed to geocode airport {iata}: {e}")
+                logger.warning(
+                    f"Unknown airport code '{iata}'. Snapping to city center."
+                )
 
         # Calculate trip duration strictly from real dates
         if not constraints.start_date or not constraints.end_date:

@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from app.schemas.itinerary import BookingAnchors, FlightSegment, HotelAnchor
-from app.utils.iata_mapping import get_iata_code
+from app.services.airport_service import get_iata_code
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def generate_mock_tickets(
 ) -> dict[str, Any]:
     """
     Generates mock tickets for a trip between origin and destination cities:
-    - Resolves real airport IATA codes via iata_mapping.py
+    - Resolves real airport IATA codes via AirportService
     - Defaults departure date to 7 days ahead (next week) relative to today's date
     - Returns round-trip flight segments and hotel accommodation anchor
     - Generates natural confirmation text matching parser expectations

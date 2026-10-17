@@ -1,144 +1,35 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
+
+from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
-# Common airport IATA code to IANA timezone name
-IATA_TIMEZONES: dict[str, str] = {
-    # Spain & Portugal
-    "MAD": "Europe/Madrid",
-    "BCN": "Europe/Madrid",
-    "VLC": "Europe/Madrid",
-    "SVQ": "Europe/Madrid",
-    "AGP": "Europe/Madrid",
-    "BIO": "Europe/Madrid",
-    "IBZ": "Europe/Madrid",
-    "PMI": "Europe/Madrid",
-    "LIS": "Europe/Lisbon",
-    "OPO": "Europe/Lisbon",
-    "FAO": "Europe/Lisbon",
-    # France
-    "CDG": "Europe/Paris",
-    "ORY": "Europe/Paris",
-    "BVA": "Europe/Paris",
-    "NCE": "Europe/Paris",
-    "LYS": "Europe/Paris",
-    "MRS": "Europe/Paris",
-    "BOD": "Europe/Paris",
-    "TLS": "Europe/Paris",
-    # UK & Ireland
-    "LHR": "Europe/London",
-    "LGW": "Europe/London",
-    "STN": "Europe/London",
-    "LTN": "Europe/London",
-    "MAN": "Europe/London",
-    "EDI": "Europe/London",
-    "GLA": "Europe/London",
-    "BHX": "Europe/London",
-    "DUB": "Europe/Dublin",
-    "SNN": "Europe/Dublin",
-    "ORK": "Europe/Dublin",
-    # Italy
-    "FCO": "Europe/Rome",
-    "CIA": "Europe/Rome",
-    "MXP": "Europe/Rome",
-    "LIN": "Europe/Rome",
-    "BGY": "Europe/Rome",
-    "VCE": "Europe/Rome",
-    "FLR": "Europe/Rome",
-    "NAP": "Europe/Rome",
-    "BLQ": "Europe/Rome",
-    # Germany, Austria, Switzerland
-    "BER": "Europe/Berlin",
-    "FRA": "Europe/Berlin",
-    "MUC": "Europe/Berlin",
-    "HAM": "Europe/Berlin",
-    "DUS": "Europe/Berlin",
-    "CGN": "Europe/Berlin",
-    "STR": "Europe/Berlin",
-    "VIE": "Europe/Vienna",
-    "SZG": "Europe/Vienna",
-    "INN": "Europe/Vienna",
-    "ZRH": "Europe/Zurich",
-    "GVA": "Europe/Zurich",
-    "BSL": "Europe/Zurich",
-    # Benelux
-    "AMS": "Europe/Amsterdam",
-    "RTM": "Europe/Amsterdam",
-    "EIN": "Europe/Amsterdam",
-    "BRU": "Europe/Brussels",
-    "CRL": "Europe/Brussels",
-    # Nordics & Eastern Europe
-    "CPH": "Europe/Copenhagen",
-    "ARN": "Europe/Stockholm",
-    "OSL": "Europe/Oslo",
-    "HEL": "Europe/Helsinki",
-    "PRG": "Europe/Prague",
-    "WAW": "Europe/Warsaw",
-    "KRK": "Europe/Warsaw",
-    "BUD": "Europe/Budapest",
-    "ATH": "Europe/Athens",
-    "IST": "Europe/Istanbul",
-    "SAW": "Europe/Istanbul",
-    # North America
-    "JFK": "America/New_York",
-    "EWR": "America/New_York",
-    "LGA": "America/New_York",
-    "BOS": "America/New_York",
-    "PHL": "America/New_York",
-    "IAD": "America/New_York",
-    "DCA": "America/New_York",
-    "ATL": "America/New_York",
-    "MIA": "America/New_York",
-    "MCO": "America/New_York",
-    "CLT": "America/New_York",
-    "DTW": "America/New_York",
-    "ORD": "America/Chicago",
-    "MDW": "America/Chicago",
-    "DFW": "America/Chicago",
-    "IAH": "America/Chicago",
-    "MSP": "America/Chicago",
-    "DEN": "America/Denver",
-    "SLC": "America/Denver",
-    "PHX": "America/Phoenix",
-    "LAX": "America/Los_Angeles",
-    "SFO": "America/Los_Angeles",
-    "SEA": "America/Los_Angeles",
-    "SAN": "America/Los_Angeles",
-    "PDX": "America/Los_Angeles",
-    "LAS": "America/Los_Angeles",
-    "YYZ": "America/Toronto",
-    "YUL": "America/Toronto",
-    "YVR": "America/Vancouver",
-    "MEX": "America/Mexico_City",
-    # Asia & Middle East
-    "DXB": "Asia/Dubai",
-    "AUH": "Asia/Dubai",
-    "DOH": "Asia/Qatar",
-    "HND": "Asia/Tokyo",
-    "NRT": "Asia/Tokyo",
-    "KIX": "Asia/Tokyo",
-    "ICN": "Asia/Seoul",
-    "SIN": "Asia/Singapore",
-    "HKG": "Asia/Hong_Kong",
-    "BKK": "Asia/Bangkok",
-    "PVG": "Asia/Shanghai",
-    "PEK": "Asia/Shanghai",
-    # South America
-    "GRU": "America/Sao_Paulo",
-    "GIG": "America/Sao_Paulo",
-    "EZE": "America/Argentina/Buenos_Aires",
-    "AEP": "America/Argentina/Buenos_Aires",
-    "SCL": "America/Santiago",
-    "BOG": "America/Bogota",
-    # Australia & NZ
-    "SYD": "Australia/Sydney",
-    "MEL": "Australia/Melbourne",
-    "BNE": "Australia/Brisbane",
-    "PER": "Australia/Perth",
-    "AKL": "Pacific/Auckland",
-}
+
+class _IataTimezonesProxy(dict):
+    """Backward-compatible proxy mapping IATA codes to IANA timezone strings via AirportService."""
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str):
+            return False
+        return get_airport_service().is_valid_iata(key)
+
+    def __getitem__(self, key: str) -> str:
+        ap = get_airport_service().get_airport(key)
+        if ap and ap.timezone:
+            return ap.timezone
+        raise KeyError(key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        ap = get_airport_service().get_airport(key)
+        if ap and ap.timezone:
+            return ap.timezone
+        return default
+
+
+IATA_TIMEZONES = _IataTimezonesProxy()
 
 _CITY_TZ_CACHE: dict[str, str] = {}
 
@@ -165,26 +56,10 @@ def get_timezone_for_city(city: str) -> ZoneInfo:
 
 def get_timezone_for_iata(iata_code: str | None) -> ZoneInfo:
     """
-    Returns the ZoneInfo for an airport IATA code using standard IATA tables or dynamic lookup.
+    Returns the ZoneInfo for an airport IATA code using AirportService.
     """
     if iata_code:
-        clean = iata_code.strip().upper()
-        if clean in IATA_TIMEZONES:
-            try:
-                return ZoneInfo(IATA_TIMEZONES[clean])
-            except Exception:
-                pass
-
-        # Try looking up city name
-        try:
-            from app.utils.iata_mapping import get_city_from_iata
-
-            city = get_city_from_iata(clean)
-            if city and city.lower() != "unknown":
-                return get_timezone_for_city(city)
-        except Exception:
-            pass
-
+        return get_airport_service().get_timezone_from_iata(iata_code)
     return ZoneInfo("UTC")
 
 

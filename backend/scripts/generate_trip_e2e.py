@@ -28,6 +28,7 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
+
 logger = logging.getLogger("paladio.e2e")
 
 DEFAULT_WS_URL = os.getenv("PALADIO_WS_URL", "ws://127.0.0.1:8000/api/v1/ws/stream")

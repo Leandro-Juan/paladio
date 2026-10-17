@@ -9,7 +9,7 @@ from app.schemas.itinerary import (
     TravelConstraints,
 )
 from app.swarm.state import SwarmState
-from app.utils.iata_mapping import get_city_from_iata
+from app.services.airport_service import get_city_from_iata
 
 logger = logging.getLogger(__name__)
 
