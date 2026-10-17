@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { Sidebar } from './Sidebar';
+import { useNavigationStore } from '@/stores/navigationStore';
+import { AppSidebar } from './AppSidebar';
+import { FloatingDock } from './FloatingDock';
 import { NotificationBell } from './NotificationBell';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setupRequired, isLoading } = useAuth();
   const { toggleMobile } = useSidebarStore();
+  const { navStyle } = useNavigationStore();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -112,7 +115,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <Sidebar />
+      {navStyle === 'dock' ? <FloatingDock /> : <AppSidebar />}
       <main className="main-content">
         {children}
       </main>

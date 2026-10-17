@@ -17,6 +17,7 @@ import {
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon, SettingsIcon } from '@/components/icons';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
+import { useNavigationStore } from '@/stores/navigationStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
@@ -48,6 +49,7 @@ export default function ConfigPage() {
   const { user: currentUser, refreshUser } = useAuth();
   const { theme, setTheme } = useThemeStore();
   const { typography, setTypography, toggleTypography } = useTypographyStore();
+  const { navStyle, setNavStyle } = useNavigationStore();
   const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState<User[]>([]);
@@ -838,6 +840,152 @@ export default function ConfigPage() {
             }}>
               <div style={{ fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>The quick brown fox jumps over the lazy dog</div>
               <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono, monospace)' }}>Jost Headings • Inter Body • JetBrains Mono</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Navigation Layout Engine */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Navigation Layout Engine
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// SYSTEM NAVIGATION MODE & WORKSPACE SHELL PRESENTATION'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          {/* Sidebar Layout Card */}
+          <button
+            type="button"
+            onClick={() => setNavStyle('sidebar')}
+            aria-label="Set navigation to Sidebar"
+            aria-pressed={navStyle === 'sidebar'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: navStyle === 'sidebar' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: navStyle === 'sidebar' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                </svg>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Sidebar Navigation</span>
+              </div>
+              {navStyle === 'sidebar' && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  DEFAULT • ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Sleek left navigation sidebar with clean typography, right-aligned icons, quick collapse shortcut, and full workspace focus.
+            </p>
+            <div style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              background: 'var(--color-surface-page, rgba(0,0,0,0.03))',
+              border: '1px solid var(--color-border-subtle)',
+              fontSize: '11px',
+              color: 'var(--color-text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-gold, #E2B33C)' }} />
+              <span>Left Rail • Collapsible (Ctrl+B) • Persistent</span>
+            </div>
+          </button>
+
+          {/* Floating Dock Layout Card */}
+          <button
+            type="button"
+            onClick={() => setNavStyle('dock')}
+            aria-label="Set navigation to Floating Bottom Dock"
+            aria-pressed={navStyle === 'dock'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: navStyle === 'dock' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: navStyle === 'dock' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="17" x2="21" y2="17" />
+                </svg>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Floating Bottom Dock</span>
+              </div>
+              {navStyle === 'dock' && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#0A2A35',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Dynamic auto-hiding dock pinned to the bottom of the screen with hover label expansion.
+            </p>
+            <div style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              background: 'var(--color-surface-page, rgba(0,0,0,0.03))',
+              border: '1px solid var(--color-border-subtle)',
+              fontSize: '11px',
+              color: 'var(--color-text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-accent-teal, #1B8FA6)' }} />
+              <span>Bottom Floating • Auto-Hide • Spring Expansion</span>
             </div>
           </button>
         </div>

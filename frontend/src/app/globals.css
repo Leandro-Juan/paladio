@@ -353,6 +353,10 @@ a {
 }
 
 .sidebar {
+  display: flex;
+}
+
+[data-nav-style="dock"] .sidebar {
   display: contents;
 }
 
@@ -487,11 +491,14 @@ a {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-xl);
-  padding-bottom: 96px;
   background-color: var(--color-bg-main);
   min-width: 0;
   width: 100%;
   transition: padding 0.25s ease;
+}
+
+[data-nav-style="dock"] .main-content {
+  padding-bottom: 96px;
 }
 
 .engine-active {

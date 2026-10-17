@@ -1,3 +1,4 @@
 "use client";
 
-export { FloatingDock, FloatingDock as Sidebar } from './FloatingDock';
+export { AppSidebar, AppSidebar as Sidebar } from './AppSidebar';
+export { FloatingDock } from './FloatingDock';

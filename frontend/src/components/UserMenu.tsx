@@ -126,8 +126,8 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '6px 8px',
-            background: isOpen ? 'rgba(124, 196, 209, 0.12)' : 'transparent',
+            padding: '7px 10px',
+            background: isOpen ? 'var(--color-surface-hover, rgba(15, 76, 92, 0.08))' : 'transparent',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
@@ -135,7 +135,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
             textAlign: 'left',
           }}
           onMouseOver={(e) => {
-            if (!isOpen) e.currentTarget.style.background = 'rgba(124, 196, 209, 0.12)';
+            if (!isOpen) e.currentTarget.style.background = 'var(--color-surface-hover, rgba(15, 76, 92, 0.05))';
           }}
           onMouseOut={(e) => {
             if (!isOpen) e.currentTarget.style.background = 'transparent';
@@ -149,7 +149,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
                 height: '32px',
                 borderRadius: '50%',
                 background: 'var(--color-ocean, #1B8FA6)',
-                border: '1px solid rgba(246, 240, 225, 0.25)',
+                border: '1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.1))',
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
@@ -174,7 +174,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
                 style={{
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: 'var(--color-cream, #F6F0E1)',
+                  color: 'var(--color-text-primary, #1A2B32)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -189,9 +189,9 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
                     fontSize: '9px',
                     padding: '2px 5px',
                     borderRadius: '4px',
-                    background: 'rgba(124, 196, 209, 0.15)',
-                    color: 'var(--color-sky, #7CC4D1)',
-                    border: '1px solid rgba(124, 196, 209, 0.3)',
+                    background: 'var(--color-accent-gold-soft, rgba(226, 179, 60, 0.15))',
+                    color: 'var(--color-accent-warning, #B8860B)',
+                    border: '1px solid var(--color-accent-warning-border, rgba(226, 179, 60, 0.35))',
                     fontWeight: 700,
                     letterSpacing: '0.5px',
                     flexShrink: 0,
@@ -209,7 +209,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="rgba(246, 240, 225, 0.65)"
+            stroke="var(--color-text-muted, #566B76)"
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"

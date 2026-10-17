@@ -46,7 +46,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var storedTheme=localStorage.getItem('paladio-theme');var theme=storedTheme||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',theme);var storedTypo=localStorage.getItem('paladio-typography');var typo=(storedTypo==='classic')?'classic':'inter';document.documentElement.setAttribute('data-typography',typo);}catch(e){document.documentElement.setAttribute('data-theme','light');document.documentElement.setAttribute('data-typography','inter');}})();`,
+            __html: `(function(){try{var storedTheme=localStorage.getItem('paladio-theme');var theme=storedTheme||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',theme);var storedTypo=localStorage.getItem('paladio-typography');var typo=(storedTypo==='classic')?'classic':'inter';document.documentElement.setAttribute('data-typography',typo);var storedNav=localStorage.getItem('paladio-nav-style');var navStyle=(storedNav==='dock')?'dock':'sidebar';document.documentElement.setAttribute('data-nav-style',navStyle);}catch(e){document.documentElement.setAttribute('data-theme','light');document.documentElement.setAttribute('data-typography','inter');document.documentElement.setAttribute('data-nav-style','sidebar');}})();`,
           }}
         />
       </head>

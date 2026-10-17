@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { NotificationCenter } from './NotificationCenter';
 
@@ -10,18 +10,21 @@ interface NotificationBellProps {
 
 export function NotificationBell({ placement = 'bottom' }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
         aria-label={`Notifications (${unreadCount} unread)`}
         aria-expanded={isOpen}
         title="View Notifications"
         style={{
           position: 'relative',
-          background: isOpen ? 'rgba(246, 240, 225, 0.15)' : 'transparent',
+          background: isOpen ? 'var(--color-surface-hover, rgba(15, 76, 92, 0.08))' : 'transparent',
           border: 'none',
           borderRadius: '6px',
           width: '28px',
@@ -30,18 +33,18 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          color: 'rgba(246, 240, 225, 0.65)',
+          color: 'var(--color-text-muted, #566B76)',
           transition: 'all 0.15s ease',
         }}
         onMouseOver={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.color = 'var(--color-cream, #F6F0E1)';
-            e.currentTarget.style.background = 'rgba(246, 240, 225, 0.1)';
+            e.currentTarget.style.color = 'var(--color-text-primary, #1A2B32)';
+            e.currentTarget.style.background = 'var(--color-surface-hover, rgba(15, 76, 92, 0.05))';
           }
         }}
         onMouseOut={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.color = 'rgba(246, 240, 225, 0.65)';
+            e.currentTarget.style.color = 'var(--color-text-muted, #566B76)';
             e.currentTarget.style.background = 'transparent';
           }
         }}
@@ -67,20 +70,20 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
             className="font-mono"
             style={{
               position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              background: 'var(--color-accent-secondary)',
+              top: '-3px',
+              right: '-3px',
+              background: 'var(--color-accent-secondary, #D42A2F)',
               color: '#FFFFFF',
-              fontSize: '10px',
+              fontSize: '9px',
               fontWeight: 700,
-              minWidth: '16px',
-              height: '16px',
+              minWidth: '15px',
+              height: '15px',
               borderRadius: '8px',
-              padding: '0 4px',
+              padding: '0 3px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 0 2px var(--color-bg-main)',
+              boxShadow: '0 0 0 2px var(--color-surface-card, #FAF6F0)',
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -88,7 +91,12 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
         )}
       </button>
 
-      <NotificationCenter isOpen={isOpen} onClose={() => setIsOpen(false)} placement={placement} />
+      <NotificationCenter
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        placement={placement}
+        triggerRef={buttonRef}
+      />
     </div>
   );
 }

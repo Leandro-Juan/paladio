@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { NotificationItem, NotificationType } from '@/types/notification';
@@ -9,10 +10,13 @@ import { EmptyState } from './EmptyState';
 
 import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from '@/components/icons';
 
+const emptySubscribe = () => () => {};
+
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
   placement?: 'top' | 'bottom';
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
@@ -22,7 +26,7 @@ const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: 
   error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: <CloseIcon size={12} /> },
 };
 
-export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: NotificationCenterProps) {
+export function NotificationCenter({ isOpen, onClose, placement = 'bottom', triggerRef }: NotificationCenterProps) {
   const {
     notifications,
     unreadCount,
@@ -32,14 +36,98 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: No
     clearAll,
   } = useNotificationStore();
 
-  const panelRef = useRef<HTMLDivElement>(null);
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
-  // Close on Escape or click outside
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [stylePos, setStylePos] = useState<React.CSSProperties>({
+    position: 'fixed',
+    top: '60px',
+    left: '20px',
+    zIndex: 1000,
+  });
+
+  // Calculate coordinates based on triggerRef
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePos = () => {
+      if (!triggerRef?.current) {
+        setStylePos({
+          position: 'fixed',
+          top: '60px',
+          left: '20px',
+          width: '380px',
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: '520px',
+          zIndex: 1000,
+        });
+        return;
+      }
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      const panelWidth = Math.min(380, window.innerWidth - 32);
+
+      if (placement === 'top') {
+        const bottom = window.innerHeight - rect.top + 10;
+        let left = rect.left;
+        if (left + panelWidth > window.innerWidth - 16) {
+          left = window.innerWidth - panelWidth - 16;
+        }
+        if (left < 16) left = 16;
+
+        setStylePos({
+          position: 'fixed',
+          bottom: `${bottom}px`,
+          left: `${left}px`,
+          width: `${panelWidth}px`,
+          maxHeight: '520px',
+          zIndex: 1000,
+        });
+      } else {
+        const top = rect.bottom + 8;
+        let left = rect.left;
+        // In sidebar header, adjust so panel doesn't overflow rightwards awkwardly
+        if (rect.left < 260) {
+          left = Math.max(12, Math.min(rect.left - 40, window.innerWidth - panelWidth - 16));
+        } else if (left + panelWidth > window.innerWidth - 16) {
+          left = window.innerWidth - panelWidth - 16;
+        }
+        if (left < 16) left = 16;
+
+        setStylePos({
+          position: 'fixed',
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${panelWidth}px`,
+          maxHeight: '520px',
+          zIndex: 1000,
+        });
+      }
+    };
+
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [isOpen, triggerRef, placement]);
+
+  // Close on Escape or click outside (ignoring clicks on the trigger button)
   useEffect(() => {
     if (!isOpen) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (triggerRef?.current && triggerRef.current.contains(target)) {
+        return;
+      }
+      if (panelRef.current && !panelRef.current.contains(target)) {
         onClose();
       }
     }
@@ -56,33 +144,24 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: No
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isClient) return null;
 
-  return (
+  return createPortal(
     <div
       ref={panelRef}
       role="dialog"
       aria-label="Notifications"
       aria-modal="false"
       style={{
-        position: 'absolute',
-        bottom: placement === 'top' ? 'calc(100% + 14px)' : 'auto',
-        top: placement === 'top' ? 'auto' : '100%',
-        right: placement === 'top' ? 0 : 'auto',
-        left: placement === 'top' ? 'auto' : 0,
-        marginTop: placement === 'top' ? 0 : '8px',
-        width: '380px',
-        maxWidth: 'calc(100vw - 32px)',
-        maxHeight: '520px',
+        ...stylePos,
         background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border)',
         borderRadius: '12px',
-        boxShadow: 'var(--shadow-lg)',
+        boxShadow: 'var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.16))',
         display: 'flex',
         flexDirection: 'column',
-        zIndex: 1000,
         overflow: 'hidden',
       }}
     >
@@ -352,6 +431,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom' }: No
           })
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
