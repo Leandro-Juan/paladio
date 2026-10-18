@@ -215,7 +215,17 @@ class BookingScraperProvider(BaseQuoteProvider):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=self.timeout_sec + 20.0
+            )
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            raise ProviderBlockedError("Playwright booking scraper timed out")
+
         if proc.returncode != 0:
             err_text = stderr.decode()[:300]
             raise ProviderBlockedError(f"Playwright booking scraper failed: {err_text}")
