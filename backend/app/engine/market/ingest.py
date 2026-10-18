@@ -197,20 +197,70 @@ async def ingest_lodging_ticks(
         "open_lodging",
     )
 
+    # Persist authentic lodging offer if property details present
+    offer_id = str(uuid.uuid4())
+    offer_stmt = text("""
+        INSERT INTO lodging_offers (
+            id, destination_code, city, provider, property_id, name,
+            stars, review_score, review_count, latitude, longitude,
+            check_in, check_out, adults, price_total_cents, currency,
+            taxes_included, deep_link, observed_at, content_hash, is_live
+        ) VALUES (
+            :id, :destination_code, :city, :provider, :property_id, :name,
+            :stars, :review_score, :review_count, :latitude, :longitude,
+            :check_in, :check_out, 2, :price_total_cents, :currency,
+            :taxes_included, :deep_link, :observed_at, :content_hash, :is_live
+        ) ON CONFLICT (content_hash, observed_at) DO NOTHING
+    """)
+    await session.execute(
+        offer_stmt,
+        {
+            "id": offer_id,
+            "destination_code": destination_code,
+            "city": quote.property_name or destination_code,
+            "provider": quote.source,
+            "property_id": quote.property_id or offer_id,
+            "name": quote.property_name or f"Hotel in {destination_code}",
+            "stars": quote.stars,
+            "review_score": quote.review_score,
+            "review_count": quote.review_count,
+            "latitude": quote.latitude,
+            "longitude": quote.longitude,
+            "check_in": check_in,
+            "check_out": check_out,
+            "price_total_cents": quote.base_price_per_night_cents * nights,
+            "currency": quote.currency,
+            "taxes_included": quote.taxes_included,
+            "deep_link": quote.deep_link,
+            "observed_at": now,
+            "content_hash": h,
+            "is_live": quote.is_live,
+        },
+    )
+
     tick_id = str(uuid.uuid4())
     stmt = text("""
         INSERT INTO market_price_ticks (
             id, observed_at, asset_type, origin_iata, destination_code,
             depart_date, return_date, nights, lead_time_days, currency, base_price_cents,
             stat, sample_n, quality_tier, source, source_class, is_aggregated, is_exploration,
-            content_hash, ingest_run_id
+            content_hash, ingest_run_id, metadata_json
         ) VALUES (
             :id, :observed_at, 'lodging', null, :destination_code,
             :depart_date, :return_date, :nights, :lead_time_days, :currency, :base_price_cents,
-            'median', 15, 'standard', 'open_lodging', 'cache', true, false,
-            :content_hash, :ingest_run_id
+            'single', 1, null, :source, :source_class, false, false,
+            :content_hash, :ingest_run_id, :metadata_json
         ) ON CONFLICT (content_hash, observed_at) DO NOTHING
     """)
+
+    meta_json = json.dumps(
+        {
+            "lodging_offer_id": offer_id,
+            "property_name": quote.property_name,
+            "deep_link": quote.deep_link,
+            "is_live": quote.is_live,
+        }
+    )
 
     res = await session.execute(
         stmt,
@@ -224,8 +274,11 @@ async def ingest_lodging_ticks(
             "lead_time_days": lead_time,
             "currency": quote.currency,
             "base_price_cents": quote.base_price_per_night_cents,
+            "source": quote.source,
+            "source_class": "live" if quote.is_live else "derived",
             "content_hash": h,
             "ingest_run_id": ingest_run_id,
+            "metadata_json": meta_json,
         },
     )
 
@@ -236,7 +289,7 @@ async def ingest_lodging_ticks(
             nights, source_class, source, currency, min_base, n_ticks
         ) VALUES (
             :bucket, 'lodging', '', :destination_code, :depart_date,
-            :nights, 'cache', 'open_lodging', :currency, :base_price_cents, 1
+            :nights, :source_class, :source, :currency, :base_price_cents, 1
         )
         ON CONFLICT (bucket, asset_type, origin_iata, destination_code, depart_date, nights, source_class, source, currency)
         DO UPDATE SET 
@@ -250,6 +303,8 @@ async def ingest_lodging_ticks(
             "destination_code": destination_code,
             "depart_date": check_in,
             "nights": nights,
+            "source_class": "live" if quote.is_live else "derived",
+            "source": quote.source,
             "currency": quote.currency,
             "base_price_cents": quote.base_price_per_night_cents,
         },

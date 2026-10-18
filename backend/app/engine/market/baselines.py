@@ -162,16 +162,32 @@ async def compute_route_baselines(session: AsyncSession) -> int:
         )
         computed_count += 1
 
-    # Populate default fee_models
-    fee_stmt = text("""
-        INSERT INTO fee_models (asset_type, source, destination_code, ratio_p50, n, computed_at)
-        VALUES 
-            ('flight', 'ryanair', 'ALL', 1.20, 100, :now),
-            ('lodging', 'open_lodging', 'ALL', 1.15, 100, :now)
+    # 3. Dynamically learn fee models from observed pairs in market_price_ticks
+    fee_learn_stmt = text("""
+        INSERT INTO fee_models (asset_type, source, destination_code, provider, ratio_p50, n, n_pairs, computed_at)
+        SELECT 
+            asset_type,
+            source,
+            destination_code,
+            source as provider,
+            PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY (landed_price_cents::float / base_price_cents::float)) as ratio_p50,
+            COUNT(*) as n,
+            COUNT(*) as n_pairs,
+            :now as computed_at
+        FROM market_price_ticks
+        WHERE landed_price_cents IS NOT NULL 
+          AND base_price_cents > 0 
+          AND landed_price_cents >= base_price_cents
+        GROUP BY asset_type, source, destination_code
+        HAVING COUNT(*) >= 5
         ON CONFLICT (asset_type, source, destination_code)
-        DO UPDATE SET ratio_p50 = EXCLUDED.ratio_p50, n = EXCLUDED.n, computed_at = EXCLUDED.computed_at
+        DO UPDATE SET 
+            ratio_p50 = EXCLUDED.ratio_p50, 
+            n = EXCLUDED.n, 
+            n_pairs = EXCLUDED.n_pairs, 
+            computed_at = EXCLUDED.computed_at
     """)
-    await session.execute(fee_stmt, {"now": now})
+    await session.execute(fee_learn_stmt, {"now": now})
 
     await session.commit()
     logger.info(
@@ -190,8 +206,9 @@ async def resolve_baseline_median(
     currency: str = "EUR",
 ) -> tuple[int | None, str | None]:
     """
-    Finds the appropriate baseline median (q50) following the fallback hierarchy:
+    Finds the appropriate statistical baseline median (q50) following the fallback hierarchy:
     full -> drop_lead -> drop_month.
+    Enforces minimum observation thresholds so deals are never declared on single unverified ticks.
     """
     dep_month = depart_date.month
     lead_days = max((depart_date - observation_date).days, 0)
@@ -213,7 +230,8 @@ async def resolve_baseline_median(
         )
         res = await session.execute(stmt)
         row = res.scalar_one_or_none()
-        if row and row.n_rows >= 1:  # Usable baseline
+        # Enforce statistical significance
+        if row and row.n_rows >= config.MIN_BASELINE_ROWS:
             return row.q50, level
 
     return None, None

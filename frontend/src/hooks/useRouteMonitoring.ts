@@ -113,14 +113,34 @@ export interface DealFlight {
   base_price_eur: number;
   landed_price_eur: number;
   booking_url?: string | null;
+  source?: string;
+  is_live?: boolean;
+  ancillaries_excluded?: boolean;
 }
 
 export interface DealLodging {
   property_name: string;
   nightly_base_eur: number;
   landed_total_eur: number;
-  quality_score: number;
+  quality_score?: number | null;
+  stars?: number | null;
+  review_score?: number | null;
+  review_count?: number | null;
   booking_url?: string | null;
+  source?: string;
+  is_live?: boolean;
+  taxes_included?: boolean;
+}
+
+export interface ProviderHealth {
+  provider: string;
+  asset_type: string;
+  status: string;
+  last_ok_at?: string | null;
+  failure_count: number;
+  consecutive_failures: number;
+  last_error?: string | null;
+  updated_at: string;
 }
 
 export interface DealPackage {

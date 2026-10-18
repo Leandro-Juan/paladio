@@ -645,8 +645,10 @@ class FeeModel(Base):
     asset_type = Column(String, primary_key=True)
     source = Column(String, primary_key=True)
     destination_code = Column(String, primary_key=True, default="ALL")
+    provider = Column(String, nullable=False, default="all")
     ratio_p50 = Column(Numeric(5, 3), nullable=False)
     n = Column(Integer, nullable=False)
+    n_pairs = Column(Integer, nullable=False, default=0)
     computed_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -681,6 +683,7 @@ class DealWatchAlertModel(Base):
     max_nights = Column(Integer, default=7, nullable=False)
     travelers = Column(Integer, default=1, nullable=False)
     bags_needed = Column(Integer, default=0, nullable=False)
+    baggage_budget_cents = Column(BigInteger, nullable=True)
     max_budget_cents = Column(BigInteger, nullable=False)
     currency = Column(String(3), default="EUR", nullable=False)
     max_package_ratio = Column(Numeric(4, 2), nullable=True)
@@ -772,4 +775,97 @@ class DealEventModel(Base):
             "uq_deal_events_alert_candidate", "alert_id", "candidate_id", unique=True
         ),
         Index("ix_deal_events_status_alerted", "status", "alerted_at"),
+    )
+
+
+class LodgingOfferModel(Base):
+    """
+    Authentic individual scraped / partner hotel offer.
+    Captures live property name, stars, review scores, coordinates, total price, and deep links.
+    """
+
+    __tablename__ = "lodging_offers"
+
+    id = Column(String, primary_key=True)
+    destination_code = Column(String, nullable=False, index=True)
+    city = Column(String, nullable=False)
+    provider = Column(String, nullable=False)  # 'booking', 'google_travel', etc.
+    property_id = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    stars = Column(Float, nullable=True)
+    review_score = Column(Float, nullable=True)
+    review_count = Column(Integer, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    check_in = Column(Date, nullable=False)
+    check_out = Column(Date, nullable=False)
+    adults = Column(Integer, default=2, nullable=False)
+    price_total_cents = Column(BigInteger, nullable=False)
+    currency = Column(String(3), default="EUR", nullable=False)
+    taxes_included = Column(Boolean, default=True, nullable=False)
+    deep_link = Column(Text, nullable=True)
+    observed_at = Column(DateTime(timezone=True), nullable=False)
+    content_hash = Column(LargeBinary, nullable=False)
+    is_live = Column(Boolean, default=True, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_lodging_offers_dest_dates",
+            "destination_code",
+            "check_in",
+            "check_out",
+            observed_at.desc(),
+        ),
+        Index(
+            "uq_lodging_offers_hash_obs",
+            "content_hash",
+            "observed_at",
+            unique=True,
+        ),
+    )
+
+
+class ProviderHealthModel(Base):
+    """
+    Provider availability, breaker state, and error telemetry.
+    """
+
+    __tablename__ = "provider_health"
+
+    provider = Column(String, primary_key=True)
+    asset_type = Column(String, primary_key=True)  # 'flight' | 'lodging'
+    status = Column(
+        String, default="ok", nullable=False
+    )  # 'ok', 'degraded', 'blocked', 'open_breaker'
+    last_ok_at = Column(DateTime(timezone=True), nullable=True)
+    failure_count = Column(Integer, default=0, nullable=False)
+    consecutive_failures = Column(Integer, default=0, nullable=False)
+    last_error = Column(Text, nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class FxRateModel(Base):
+    """
+    Daily foreign exchange rate relative to EUR from European Central Bank.
+    """
+
+    __tablename__ = "fx_rates"
+
+    base_currency = Column(String(3), primary_key=True)
+    quote_currency = Column(String(3), primary_key=True)
+    rate = Column(Numeric(12, 6), nullable=False)
+    as_of = Column(Date, primary_key=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
     )

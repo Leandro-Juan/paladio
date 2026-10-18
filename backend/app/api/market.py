@@ -212,14 +212,23 @@ class DealFlightItem(BaseModel):
     base_price_eur: float
     landed_price_eur: float
     booking_url: str | None = None
+    source: str = "ryanair"
+    is_live: bool = True
+    ancillaries_excluded: bool = True
 
 
 class DealLodgingItem(BaseModel):
     property_name: str
     nightly_base_eur: float
     landed_total_eur: float
-    quality_score: float
+    quality_score: float | None = None
+    stars: float | None = None
+    review_score: float | None = None
+    review_count: int | None = None
     booking_url: str | None = None
+    source: str = "booking"
+    is_live: bool = True
+    taxes_included: bool = True
 
 
 class DealPackageItem(BaseModel):
@@ -243,6 +252,17 @@ class DealPackageItem(BaseModel):
     detected_at: str
     flight: DealFlightItem
     lodging: DealLodgingItem
+
+
+class ProviderHealthItem(BaseModel):
+    provider: str
+    asset_type: str
+    status: str
+    last_ok_at: str | None
+    failure_count: int
+    consecutive_failures: int
+    last_error: str | None
+    updated_at: str
 
 
 # Endpoints
@@ -1071,7 +1091,7 @@ async def _format_deal_package_item(
     nights = pkg.get("nights", 3)
 
     flight_info = pkg.get("flight") or {}
-    fl_airline = flight_info.get("airline") or "Ryanair"
+    fl_airline = flight_info.get("airline") or "Carrier"
     fl_number = flight_info.get("flight_number") or ""
     fl_dep_time = flight_info.get("depart_time") or ""
     fl_arr_time = flight_info.get("arrival_time") or ""
@@ -1083,14 +1103,12 @@ async def _format_deal_package_item(
     )
 
     lodging_info = pkg.get("lodging") or {}
-    lg_name = (
-        lodging_info.get("property_name") or f"{dest_name} City Center Boutique Hotel"
-    )
+    lg_name = lodging_info.get("property_name") or f"Hotel in {dest_name}"
     lg_nightly_cents = lodging_info.get("base_nightly_cents", 0)
     lg_landed_cents = lodging_info.get("landed_total_cents") or (
         lg_nightly_cents * nights
     )
-    lg_quality = lodging_info.get("quality_score", 78.0)
+    lg_quality = lodging_info.get("quality_score")
     lg_url = (
         lodging_info.get("deep_link")
         or f"https://www.booking.com/searchresults.html?ss={dest_name}&checkin={dep_date}&checkout={ret_date}&group_adults=2&no_rooms=1"
@@ -1141,13 +1159,22 @@ async def _format_deal_package_item(
             base_price_eur=round(fl_base_cents / 100.0, 2),
             landed_price_eur=round(fl_landed_cents / 100.0, 2),
             booking_url=fl_url,
+            source=flight_info.get("source", "carrier"),
+            is_live=flight_info.get("is_live", True),
+            ancillaries_excluded=True,
         ),
         lodging=DealLodgingItem(
             property_name=lg_name,
             nightly_base_eur=round(lg_nightly_cents / 100.0, 2),
             landed_total_eur=round(lg_landed_cents / 100.0, 2),
-            quality_score=float(lg_quality),
+            quality_score=float(lg_quality) if lg_quality is not None else None,
+            stars=lodging_info.get("stars"),
+            review_score=lodging_info.get("review_score"),
+            review_count=lodging_info.get("review_count"),
             booking_url=lg_url,
+            source=lodging_info.get("source", "booking"),
+            is_live=lodging_info.get("is_live", True),
+            taxes_included=lodging_info.get("taxes_included", True),
         ),
     )
 
@@ -1190,3 +1217,29 @@ async def list_route_deals(
         if item:
             items.append(item)
     return items
+
+
+@router.get("/providers/health", response_model=list[ProviderHealthItem])
+async def list_provider_health(
+    session: AsyncSession = Depends(get_db),
+):
+    from app.db.models import ProviderHealthModel
+
+    stmt = select(ProviderHealthModel).order_by(
+        ProviderHealthModel.asset_type, ProviderHealthModel.provider
+    )
+    res = await session.execute(stmt)
+    rows = res.scalars().all()
+    return [
+        ProviderHealthItem(
+            provider=r.provider,
+            asset_type=r.asset_type,
+            status=r.status,
+            last_ok_at=r.last_ok_at.isoformat() if r.last_ok_at else None,
+            failure_count=r.failure_count,
+            consecutive_failures=r.consecutive_failures,
+            last_error=r.last_error,
+            updated_at=r.updated_at.isoformat(),
+        )
+        for r in rows
+    ]

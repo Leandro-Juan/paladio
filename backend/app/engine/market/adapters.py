@@ -9,7 +9,6 @@ import os
 from datetime import date, datetime, timezone
 from typing import Any
 
-import httpx
 from app.engine.market.config import config
 from app.engine.market.ports import (
     FlightFeed,
@@ -22,17 +21,10 @@ from app.engine.market.ports import (
     LodgingScorer,
     Notifier,
 )
-from app.db.models import (
-    CityModel,
-    DestinationAirportModel,
-    MarketPriceTickModel,
-    PriceDailyModel,
-)
 from app.db.session import async_session
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.quality.itinerary_metrics import evaluate_itinerary_quality
 from redis.asyncio import Redis
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -40,216 +32,115 @@ logger = logging.getLogger(__name__)
 
 class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
     """
-    Tier 1 & Live Flight Provider using Ryanair's public fare finder API.
-    Zero API keys required. Provides real live fares, schedules, and IATA codes.
+    Flight provider backed by ProviderRouter with Tier 1 (Ryanair) and Tier 2 (Google Flights).
+    Zero API keys required. Provides authentic fares, schedules, and carrier confirmation.
     """
 
-    BASE_URL = "https://www.ryanair.com/api/farfnd/v4/oneWayFares"
-
     def __init__(self, timeout_sec: float = 12.0):
-        self.timeout_sec = timeout_sec
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Paladio/1.0",
-            "Accept": "application/json",
-        }
+        from app.engine.market.providers.google_flights import GoogleFlightsProvider
+        from app.engine.market.providers.router import ProviderRouter
+        from app.engine.market.providers.ryanair import RyanairProvider
+
+        self.primary = RyanairProvider(timeout_sec=timeout_sec)
+        self.secondary = GoogleFlightsProvider(timeout_sec=timeout_sec)
+        self.router = ProviderRouter(
+            asset_type="flight", providers=[self.primary, self.secondary]
+        )
 
     async def fetch_cached_flights(
-        self, origin_iata: str, dest_iata: str, date_from: date, date_to: date
+        self,
+        origin_iata: str,
+        dest_iata: str,
+        date_from: date,
+        date_to: date,
+        session: Any | None = None,
     ) -> list[FlightQuote]:
-        params = {
-            "departureAirportIataCode": origin_iata,
-            "arrivalAirportIataCode": dest_iata,
-            "language": "en",
-            "limit": 100,
-            "market": "en-gb",
-            "offset": 0,
-            "outboundDepartureDateFrom": date_from.isoformat(),
-            "outboundDepartureDateTo": date_to.isoformat(),
-        }
-        quotes: list[FlightQuote] = []
-        try:
-            async with httpx.AsyncClient(headers=self.headers) as client:
-                resp = await client.get(
-                    self.BASE_URL, params=params, timeout=self.timeout_sec
-                )
-                if resp.status_code != 200:
-                    logger.warning(
-                        f"Ryanair feed returned HTTP {resp.status_code} for {origin_iata}->{dest_iata}"
-                    )
-                    return []
-                data = resp.json()
-                for fare in data.get("fares", []):
-                    out = fare.get("outbound", {})
-                    p_info = out.get("price", {})
-                    val = p_info.get("value")
-                    curr = p_info.get("currencyCode", "EUR")
-                    dep_str = out.get("departureDate")
-                    arr_str = out.get("arrivalDate")
-                    if val is None or not dep_str or not arr_str:
-                        continue
-
-                    dep_dt = datetime.fromisoformat(dep_str)
-                    arr_dt = datetime.fromisoformat(arr_str)
-                    price_cents = int(round(float(val) * 100))
-
-                    quotes.append(
-                        FlightQuote(
-                            origin_iata=origin_iata,
-                            destination_iata=dest_iata,
-                            destination_city_id=dest_iata,  # Default city code mapping
-                            depart_time=dep_dt,
-                            arrival_time=arr_dt,
-                            base_price_cents=price_cents,
-                            currency=curr,
-                            carrier="Ryanair",
-                            flight_number=out.get("flightNumber"),
-                            stops=0,
-                            deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={dep_dt.date().isoformat()}",
-                        )
-                    )
-        except Exception as e:
-            logger.error(f"Error querying Ryanair flight feed: {e}")
-        return quotes
+        if session is not None:
+            return await self.router.execute_ladder(
+                session,
+                "fetch_cached_flights",
+                origin_iata,
+                dest_iata,
+                date_from,
+                date_to,
+            )
+        async with async_session() as local_session:
+            return await self.router.execute_ladder(
+                local_session,
+                "fetch_cached_flights",
+                origin_iata,
+                dest_iata,
+                date_from,
+                date_to,
+            )
 
     async def verify_flight(
-        self, quote: FlightQuote
+        self, quote: FlightQuote, session: Any | None = None
     ) -> tuple[bool, int, dict[str, Any]]:
-        """Live verification check for exact departure date."""
-        dep_date = quote.depart_time.date()
-        live_quotes = await self.fetch_cached_flights(
-            quote.origin_iata, quote.destination_iata, dep_date, dep_date
-        )
-        if not live_quotes:
-            return False, 0, {"reason": "Flight not found on live re-check"}
-
-        # Find matching departure flight
-        matching = [
-            q
-            for q in live_quotes
-            if abs((q.depart_time - quote.depart_time).total_seconds()) < 7200
-        ]
-        if not matching:
-            matching = live_quotes
-
-        live_quote = matching[0]
-        tolerance = config.VERIFY_TOLERANCE
-        max_acceptable = quote.base_price_cents * (1.0 + tolerance)
-
-        if live_quote.base_price_cents <= max_acceptable:
-            # Baggage fee estimate (1 carry-on bag = 20.00 EUR default)
-            baggage_fee_cents = 2000
-            landed_cents = live_quote.base_price_cents + baggage_fee_cents
-            return (
-                True,
-                landed_cents,
-                {
-                    "verified_base_cents": live_quote.base_price_cents,
-                    "baggage_fee_cents": baggage_fee_cents,
-                    "landed_cents": landed_cents,
-                    "carrier": live_quote.carrier,
-                    "flight_number": live_quote.flight_number,
-                },
+        if session is not None:
+            return await self.router.execute_ladder(session, "verify_flight", quote)
+        async with async_session() as local_session:
+            return await self.router.execute_ladder(
+                local_session, "verify_flight", quote
             )
-        return (
-            False,
-            live_quote.base_price_cents,
-            {
-                "reason": f"Live price {live_quote.base_price_cents} exceeds tolerance over cached {quote.base_price_cents}"
-            },
-        )
 
     async def verify_lodging(
         self, quote: LodgingQuote
     ) -> tuple[bool, int, dict[str, Any]]:
-        # Delegated to lodging provider
         return (
             True,
-            int(quote.base_price_per_night_cents * quote.estimated_fee_ratio),
-            {},
+            quote.base_price_per_night_cents,
+            {"verified": True},
         )
 
 
 class OpenLodgingFeed(LodgingFeed):
     """
-    Tier 1 & Live Lodging Provider using dynamic destination rates from PostgreSQL.
-    Zero API keys required. Computes destination-level price medians and minimums dynamically.
+    Lodging provider backed by ProviderRouter with Tier 1 (Booking.com Scraper),
+    Tier 2 (Google Travel Hotels), and Tier 3 (Real History DB).
+    Zero hardcoded hotel names or prices; fails fast with NoDataError if all tiers fail.
     """
 
-    async def _resolve_city_name(self, session: AsyncSession, code: str) -> str:
-        # Check DestinationAirportModel mapped to CityModel
-        stmt = (
-            select(CityModel.name)
-            .join(
-                DestinationAirportModel, DestinationAirportModel.city_id == CityModel.id
+    def __init__(self, timeout_sec: float = 15.0):
+        from app.engine.market.providers.booking_scraper import BookingScraperProvider
+        from app.engine.market.providers.google_travel import GoogleTravelHotelsProvider
+        from app.engine.market.providers.history import HistoryQuoteProvider
+        from app.engine.market.providers.router import ProviderRouter
+
+        self.t1 = BookingScraperProvider(timeout_sec=timeout_sec)
+        self.t2 = GoogleTravelHotelsProvider(timeout_sec=timeout_sec)
+        self.t3 = HistoryQuoteProvider(asset_type="lodging")
+        self.router = ProviderRouter(
+            asset_type="lodging",
+            providers=[self.t1, self.t2, self.t3],
+        )
+
+    async def search_offers(
+        self,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        adults: int = 2,
+        session: AsyncSession | None = None,
+    ) -> list[LodgingQuote]:
+        if session is not None:
+            return await self.router.execute_ladder(
+                session,
+                "search_offers",
+                destination_code,
+                check_in,
+                check_out,
+                adults=adults,
             )
-            .where(DestinationAirportModel.iata == code.upper())
-            .limit(1)
-        )
-        res = await session.execute(stmt)
-        name = res.scalar_one_or_none()
-        if name:
-            return name
-
-        stmt_city = (
-            select(CityModel.name)
-            .where(
-                (CityModel.id.ilike(f"{code}%")) | (CityModel.name.ilike(f"{code}%"))
+        async with async_session() as local_session:
+            return await self.router.execute_ladder(
+                local_session,
+                "search_offers",
+                destination_code,
+                check_in,
+                check_out,
+                adults=adults,
             )
-            .limit(1)
-        )
-        res_city = await session.execute(stmt_city)
-        name_city = res_city.scalar_one_or_none()
-        if name_city:
-            return name_city
-
-        return code.upper()
-
-    async def _get_dynamic_base_rate(
-        self, session: AsyncSession, destination_code: str
-    ) -> tuple[int, str]:
-        dest_upper = destination_code.upper()
-        city_name = await self._resolve_city_name(session, dest_upper)
-
-        # 1. Check recent lodging ticks in market_price_ticks
-        tick_stmt = select(func.avg(MarketPriceTickModel.base_price_cents)).where(
-            MarketPriceTickModel.asset_type == "lodging",
-            MarketPriceTickModel.destination_code == dest_upper,
-        )
-        tick_res = await session.execute(tick_stmt)
-        avg_tick = tick_res.scalar()
-        if avg_tick and avg_tick > 0:
-            return int(round(float(avg_tick))), city_name
-
-        # 2. Check price_daily rollups for lodging
-        daily_stmt = select(func.avg(PriceDailyModel.min_base)).where(
-            PriceDailyModel.asset_type == "lodging",
-            PriceDailyModel.destination_code == dest_upper,
-        )
-        daily_res = await session.execute(daily_stmt)
-        avg_daily = daily_res.scalar()
-        if avg_daily and avg_daily > 0:
-            return int(round(float(avg_daily))), city_name
-
-        # 3. Check CityModel profile for dynamic typical lodging price
-        city_stmt = (
-            select(CityModel)
-            .where(
-                (CityModel.id.ilike(f"{dest_upper}%"))
-                | (CityModel.name.ilike(f"{city_name}%"))
-            )
-            .limit(1)
-        )
-        city_res = await session.execute(city_stmt)
-        city = city_res.scalar_one_or_none()
-        if city and city.profile:
-            lodging_eur = city.profile.get("typical_lodging_eur") or city.profile.get(
-                "lodging_median_eur"
-            )
-            if lodging_eur:
-                return int(round(float(lodging_eur) * 100)), city.name
-
-        # 4. Fallback rate dynamically if no prior ticks or profile
-        return 7500, city_name
 
     async def fetch_destination_summary(
         self,
@@ -259,44 +150,21 @@ class OpenLodgingFeed(LodgingFeed):
         session: AsyncSession | None = None,
     ) -> LodgingQuote:
         if session is not None:
-            base_rate, dest_name = await self._get_dynamic_base_rate(
-                session, destination_code
+            return await self.router.execute_ladder(
+                session,
+                "fetch_destination_summary",
+                destination_code,
+                check_in,
+                check_out,
             )
-        else:
-            async with async_session() as local_session:
-                base_rate, dest_name = await self._get_dynamic_base_rate(
-                    local_session, destination_code
-                )
-
-        # Seasonal and weekend adjustments
-        month = check_in.month
-        month_factor = (
-            1.15 if month in (6, 7, 8, 12) else (0.85 if month in (1, 2, 11) else 1.0)
-        )
-        day_of_week = check_in.weekday()
-        weekend_factor = 1.10 if day_of_week in (4, 5) else 0.95
-
-        adjusted_nightly = int(round(base_rate * month_factor * weekend_factor))
-        fee_ratio = 1.15  # 15% estimated tourist taxes and service fees
-
-        # Real direct booking search URL for this exact destination and dates
-        booking_url = (
-            f"https://www.booking.com/searchresults.html?ss={dest_name}"
-            f"&checkin={check_in.isoformat()}&checkout={check_out.isoformat()}"
-            f"&group_adults=2&no_rooms=1"
-        )
-
-        return LodgingQuote(
-            destination_code=destination_code,
-            check_in=check_in,
-            check_out=check_out,
-            base_price_per_night_cents=adjusted_nightly,
-            currency="EUR",
-            quality_score=78.0,
-            property_name=f"{dest_name} City Center Boutique Hotel",
-            estimated_fee_ratio=fee_ratio,
-            deep_link=booking_url,
-        )
+        async with async_session() as local_session:
+            return await self.router.execute_ladder(
+                local_session,
+                "fetch_destination_summary",
+                destination_code,
+                check_in,
+                check_out,
+            )
 
 
 class SovereignLodgingScorer(LodgingScorer):
@@ -312,8 +180,14 @@ class SovereignLodgingScorer(LodgingScorer):
             return []
         scores = []
         for prop in properties:
-            # Baseline quality score modulated by property attributes
-            score_val = prop.quality_score
+            # Baseline quality score modulated by real property attributes
+            score_val = (
+                prop.quality_score
+                if prop.quality_score is not None
+                else (
+                    prop.review_score * 10.0 if prop.review_score is not None else 0.0
+                )
+            )
             scores.append(float(score_val))
         return scores
 

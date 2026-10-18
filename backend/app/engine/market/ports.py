@@ -21,6 +21,11 @@ class FlightQuote:
     flight_number: str | None = None
     stops: int = 0
     deep_link: str | None = None
+    source: str = "carrier"
+    observed_at: datetime | None = None
+    is_live: bool = True
+    confidence: str = "high"
+    ancillaries_excluded: bool = True
 
 
 @dataclass
@@ -30,11 +35,21 @@ class LodgingQuote:
     check_out: date
     base_price_per_night_cents: int
     currency: str
-    quality_score: float = 75.0
+    quality_score: float | None = None
     property_name: str | None = None
     property_id: str | None = None
-    estimated_fee_ratio: float = 1.15
+    stars: float | None = None
+    review_score: float | None = None
+    review_count: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    taxes_included: bool = True
+    estimated_fee_ratio: float | None = None
     deep_link: str | None = None
+    source: str = "booking"
+    observed_at: datetime | None = None
+    is_live: bool = True
+    confidence: str = "high"
 
 
 @dataclass
@@ -69,7 +84,7 @@ class Notifier(Protocol):
 
 
 class FlightFeed(Protocol):
-    """Tier 1 Flight Feed port."""
+    """Flight Feed port."""
 
     async def fetch_cached_flights(
         self, origin_iata: str, dest_iata: str, date_from: date, date_to: date
@@ -77,7 +92,7 @@ class FlightFeed(Protocol):
 
 
 class LodgingFeed(Protocol):
-    """Tier 1 Lodging Feed port."""
+    """Lodging Feed port."""
 
     async def fetch_destination_summary(
         self,
@@ -87,9 +102,18 @@ class LodgingFeed(Protocol):
         session: Any | None = None,
     ) -> LodgingQuote: ...
 
+    async def search_offers(
+        self,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        adults: int = 2,
+        session: Any | None = None,
+    ) -> list[LodgingQuote]: ...
+
 
 class LiveQuoteProvider(Protocol):
-    """Tier 2 / Tier 3 live quote verification port."""
+    """Live quote verification port."""
 
     async def verify_flight(
         self, quote: FlightQuote

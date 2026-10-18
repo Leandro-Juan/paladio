@@ -265,7 +265,7 @@ export default function MonitoringPage() {
                       Accommodation
                     </span>
                     <span className={styles.componentCarrierBadge}>
-                      ★ {deal.lodging.quality_score.toFixed(0)}/100 Quality
+                      {deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)}/100 Quality` : (deal.lodging.stars ? `★ ${deal.lodging.stars} Stars` : 'Verified Stay')}
                     </span>
                   </div>
                   <div className={styles.componentDetails}>

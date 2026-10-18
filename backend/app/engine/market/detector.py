@@ -110,11 +110,12 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     session, "lodging", "", dest, dep_date, today, "EUR"
                 )
 
-                if flight_median is None:
-                    flight_median = ft.base_price_cents + 3500
-                    fl_level = "cold_start"
-                if lodging_median is None:
-                    lodging_median = lodging_quote.base_price_per_night_cents + 2500
+                # Strictly require real baselines from empirical observations
+                if flight_median is None or lodging_median is None:
+                    logger.debug(
+                        f"[Detector] Route {orig}->{dest} in learning baseline state (fl={flight_median}, ldg={lodging_median}). Deal evaluation paused."
+                    )
+                    continue
 
                 baseline_package_total = flight_median + (lodging_median * nights)
                 package_ratio = total_package_base / max(baseline_package_total, 1)
@@ -189,10 +190,12 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 # -------------------------------------------------------------
                 # Stage 4: Affordable & Still Cheap (Landed Arithmetic)
                 # -------------------------------------------------------------
-                landed_lodging_cents = int(
-                    round(total_lodging_base * lodging_quote.estimated_fee_ratio)
+                landed_lodging_cents = total_lodging_base
+                # Append user-configured baggage budget if present
+                user_baggage_budget = alert.baggage_budget_cents or 0
+                landed_total_cents = (
+                    landed_flight_cents + landed_lodging_cents + user_baggage_budget
                 )
-                landed_total_cents = landed_flight_cents + landed_lodging_cents
 
                 if landed_total_cents > alert.max_budget_cents:
                     logger.debug(
@@ -200,9 +203,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     )
                     continue
 
-                landed_baseline_est = int(
-                    round(flight_median * 1.20 + (lodging_median * nights * 1.15))
-                )
+                landed_baseline_est = flight_median + (lodging_median * nights)
                 landed_savings_cents = max(landed_baseline_est - landed_total_cents, 0)
                 logger.debug(
                     f"[Detector] Landed Total: {landed_total_cents}, Landed Base Est: {landed_baseline_est}, Landed Savings: {landed_savings_cents}"
