@@ -31,6 +31,8 @@ from app.engine.market.ingest import (
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+pytestmark = [pytest.mark.live_integration]
+
 
 @pytest.mark.asyncio
 async def test_ryanair_feed_live_without_api_keys():
