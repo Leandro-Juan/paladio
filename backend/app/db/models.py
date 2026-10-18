@@ -879,22 +879,3 @@ class ProviderHealthModel(Base):
         server_default=func.now(),
         nullable=False,
     )
-
-
-class FxRateModel(Base):
-    """
-    Daily foreign exchange rate relative to EUR from European Central Bank.
-    """
-
-    __tablename__ = "fx_rates"
-
-    base_currency = Column(String(3), primary_key=True)
-    quote_currency = Column(String(3), primary_key=True)
-    rate = Column(Numeric(12, 6), nullable=False)
-    as_of = Column(Date, primary_key=True)
-    updated_at = Column(
-        DateTime(timezone=True),
-        onupdate=func.now(),
-        server_default=func.now(),
-        nullable=False,
-    )

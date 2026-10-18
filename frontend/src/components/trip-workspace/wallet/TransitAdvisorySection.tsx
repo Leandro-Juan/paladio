@@ -1,8 +1,7 @@
 "use client";
 
 import React from 'react';
-import { RouteItineraryData } from '@/app/vault/[id]/page';
-import { TransitRecommendation } from '@/types/domain';
+import { RouteItineraryData, TransitRecommendation } from '@/types/domain';
 import { BulbIcon, TicketIcon } from '@/components/icons';
 
 interface TransitAdvisorySectionProps {

@@ -3,15 +3,6 @@ export interface PoiLocation {
     longitude: number;
 }
 
-export interface PoiSchedule {
-    open_time_mins: number;
-    close_time_mins: number;
-    recommended_duration_minutes?: number;
-}
-
-export interface PoiFinancials {
-    estimated_cost: number;
-}
 
 export interface PoiScoring {
     google_rating?: number;
@@ -153,27 +144,48 @@ export interface ManualConstraints {
     nodes?: Array<{ poi_id: string; mandatory?: boolean; min_duration_minutes?: number }>;
 }
 
-export interface FlightSegment {
-    origin_iata: string;
-    destination_iata: string;
-    departure_time: string;
-    arrival_time?: string;
-    flight_duration_minutes?: number;
-    flight_number?: string;
-    airline?: string;
-}
-
-export interface HotelAnchor {
-    name: string;
-    address?: string;
-    city: string;
-    check_in_date?: string;
-    check_in_time?: string;
-    check_out_date?: string;
-}
-
-export interface BookingAnchors {
-    outbound_flight?: FlightSegment;
-    return_flight?: FlightSegment;
-    hotel?: HotelAnchor;
+export interface RouteItineraryData {
+  metadata?: {
+    engine?: string;
+    version?: string;
+    nodes_evaluated?: number;
+    transit_upgraded?: boolean;
+  };
+  days?: Array<{
+    day: number;
+    flight_info?: {
+      origin_iata?: string;
+      destination_iata?: string;
+      departure_time?: string;
+      arrival_time?: string;
+    };
+    itinerary?: {
+      day_index?: number;
+      path?: Array<{
+        poi?: {
+          name?: string;
+          city?: string;
+          category?: string;
+          cost_eur?: number;
+          duration_mins?: number;
+          location?: { latitude?: number; longitude?: number };
+        };
+        arrival_time?: string;
+        scheduled_start?: string;
+        departure_time?: string;
+        transit_from_previous?: TransitLeg | null;
+      }>;
+      total_cost?: number;
+      transit_recommendation?: TransitRecommendation | null;
+    };
+  }>;
+  pois?: Array<{
+    name?: string;
+    lat?: number;
+    lng?: number;
+    location?: { latitude?: number; longitude?: number };
+  }>;
+  photos?: string[];
+  tickets?: Array<{ title: string; subtitle: string }>;
+  total_trip_cost?: number;
 }

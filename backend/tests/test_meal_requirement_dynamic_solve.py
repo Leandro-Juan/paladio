@@ -3,9 +3,9 @@ from typing import Any
 import pytest
 
 from app.domain.entities.poi import Poi, PoiLocation
-from app.engine.v2.day_assignment import AssignedDay
-from app.engine.v2.solver import _normalize_meal_slot, solve_day_v2
-from app.engine.v2.trip_frame import build_trip_frame
+from app.engine.day_assignment import AssignedDay
+from app.engine.solver import _normalize_meal_slot, solve_day_v2
+from app.engine.trip_frame import build_trip_frame
 from app.schemas.itinerary import MealRequirement, PacePreference, TravelConstraints
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 
@@ -41,8 +41,8 @@ async def test_solve_day_v2_with_meal_requirements():
         cost_eur=0.0,
     )
 
-    from app.engine.v2.candidate_pool import CandidatePoi
-    from app.engine.v2.selection import SelectedPoi, SelectionReasonCode
+    from app.engine.candidate_pool import CandidatePoi
+    from app.engine.selection import SelectedPoi, SelectionReasonCode
 
     c_poi = CandidatePoi(
         id="poi_alcazar",

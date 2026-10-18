@@ -3,12 +3,12 @@
 from datetime import date
 
 from app.domain.entities.poi import Poi
-from app.engine.v2.rhythm import (
+from app.engine.rhythm import (
     RhythmProfile,
     compute_city_rhythm_profile,
     get_meal_time_window,
 )
-from app.engine.v2.trip_frame import build_trip_frame
+from app.engine.trip_frame import build_trip_frame
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
 

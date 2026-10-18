@@ -150,7 +150,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {trip.id && (
             <Link
-              href={`/vault/${trip.id}`}
+              href={`/trips/${trip.id}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',

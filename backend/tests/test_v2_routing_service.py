@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from app.engine.v2.exceptions import RoutingUnavailable
+from app.engine.exceptions import RoutingUnavailable
 from app.services.routing_service import UNREACHABLE_DURATION_MINS, RoutingService
 from app.services.transit_fare_service import TransitFareService
 

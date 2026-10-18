@@ -3,8 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import NextImage from 'next/image';
 import { Trip } from '@/hooks/useTrips';
-import { OptimizationResult, DayOutput } from '@/types/domain';
-import { RouteItineraryData } from '@/app/vault/[id]/page';
+import { OptimizationResult, DayOutput, RouteItineraryData } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
 

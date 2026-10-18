@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/experimental-ct-react';
 import { TripWorkspaceHeader } from '../../src/components/trip-workspace/TripWorkspaceHeader';
 import { TripPlacesSidebar, PlaceItem } from '../../src/components/trip-workspace/TripPlacesSidebar';
-import { TripTransportsView } from '../../src/components/trip-workspace/TripTransportsView';
 import { TripPlanSidebar } from '../../src/components/trip-workspace/TripPlanSidebar';
 import { DayOutput } from '../../src/types/domain';
 
@@ -66,31 +65,6 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(collapseBtn).toBeVisible();
     await collapseBtn.click();
     expect(toggled).toBe(true);
-  });
-
-  test('TripTransportsView renders flight boarding passes and arrival/departure airports', async ({ mount }) => {
-    const mockItinerary = {
-      days: [
-        {
-          day: 1,
-          flight_info: {
-            origin_iata: 'KEF',
-            destination_iata: 'RVK',
-            flight_number: 'FI-101',
-            departure_time: '2027-09-12T08:00:00Z',
-            arrival_time: '2027-09-12T09:15:00Z',
-          },
-        },
-      ],
-    };
-
-    const component = await mount(
-      <TripTransportsView itinerary={mockItinerary as any} />
-    );
-
-    await expect(component.getByText('KEF')).toBeVisible();
-    await expect(component.getByText('RVK')).toBeVisible();
-    await expect(component.getByText('FI-101')).toBeVisible();
   });
 
   test('TripPlanSidebar displays and allows selecting all days when a trip has more than 4 days', async ({ mount }) => {

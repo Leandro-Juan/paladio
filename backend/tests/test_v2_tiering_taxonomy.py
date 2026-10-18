@@ -1,13 +1,12 @@
 """Unit tests for Paladio Itinerary v2 Taxonomy and Tiering."""
 
-import pytest
 from app.db.models import AttractionModel, PoiTravelCacheModel
-from app.engine.v2.taxonomy import (
+from app.engine.taxonomy import (
     CANONICAL_CATEGORIES,
     CATEGORY_ID_TO_NAME,
     classify_poi_taxonomy,
 )
-from app.engine.v2.tiering import classify_poi_tier
+from app.engine.tiering import classify_poi_tier
 
 
 def test_taxonomy_canonical_categories():
@@ -77,7 +76,7 @@ def test_classify_poi_tier_with_osm_signals():
 
 def test_tier_city_attractions_relative_ranking():
     """Verify that tier_city_attractions ranks sights by importance and creates balanced tiers."""
-    from app.engine.v2.tiering import tier_city_attractions
+    from app.engine.tiering import tier_city_attractions
 
     batch = [
         {
@@ -197,74 +196,9 @@ def test_poi_travel_cache_model():
     assert entry.distance_km == 4.8
 
 
-@pytest.mark.asyncio
-async def test_sql_poi_travel_cache_repository(db_session):
-    """Verify SqlPoiTravelCacheRepository saves and retrieves pairwise cached travel."""
-    import uuid
-
-    from app.adapters.repositories.sql_poi_travel_cache_repository import (
-        SqlPoiTravelCacheRepository,
-    )
-
-    uid1 = f"test-cache-poi-{uuid.uuid4().hex[:8]}"
-    uid2 = f"test-cache-poi-{uuid.uuid4().hex[:8]}"
-
-    p1 = AttractionModel(
-        id=uid1,
-        city="Paris",
-        name="Test Cache POI 1",
-        category="attraction",
-        location={"latitude": 48.85, "longitude": 2.35},
-        scoring={"rating": 0.0, "reviews": 0},
-        metadata_field={"source": "test"},
-    )
-    p2 = AttractionModel(
-        id=uid2,
-        city="Paris",
-        name="Test Cache POI 2",
-        category="attraction",
-        location={"latitude": 48.86, "longitude": 2.36},
-        scoring={"rating": 0.0, "reviews": 0},
-        metadata_field={"source": "test"},
-    )
-    db_session.add_all([p1, p2])
-    await db_session.flush()
-
-    repo = SqlPoiTravelCacheRepository(db_session)
-
-    # Save test pair
-    test_entries = [
-        {
-            "origin_id": p1.id,
-            "destination_id": p2.id,
-            "mode": "transit",
-            "duration_mins": 18.5,
-            "cost_eur": 2.10,
-            "distance_km": 3.4,
-        },
-        {
-            "origin_id": p2.id,
-            "destination_id": p1.id,
-            "mode": "transit",
-            "duration_mins": 19.0,
-            "cost_eur": 2.10,
-            "distance_km": 3.4,
-        },
-    ]
-    await repo.save_travel_pairs(test_entries)
-
-    # Retrieve
-    cached = await repo.get_cached_pairs([p1.id, p2.id], mode="transit")
-    assert (p1.id, p2.id) in cached
-    assert cached[(p1.id, p2.id)]["duration_mins"] == 18.5
-    assert cached[(p1.id, p2.id)]["cost_eur"] == 2.10
-    assert (p2.id, p1.id) in cached
-    assert cached[(p2.id, p1.id)]["duration_mins"] == 19.0
-
-
 def test_taxonomy_tag_first_classification_and_unknown_fallback():
     """Verify structured OSM tags take precedence over name patterns, and unknown venues fallback cleanly."""
-    from app.engine.v2.taxonomy import UNKNOWN_CATEGORY, UNKNOWN_CATEGORY_ID
+    from app.engine.taxonomy import UNKNOWN_CATEGORY, UNKNOWN_CATEGORY_ID
 
     # 1. Structured tag override: name contains 'Art' and category 'museum', but amenity tag is 'bar'
     tax_name, tax_id = classify_poi_taxonomy(
@@ -298,7 +232,7 @@ def test_taxonomy_tag_first_classification_and_unknown_fallback():
 def test_python_cpp_category_id_agreement():
     """Verify Python category IDs strictly conform to C++ solver bounds (0..15) and sentinel 255."""
     import paladio_core
-    from app.engine.v2.taxonomy import CANONICAL_CATEGORIES, UNKNOWN_CATEGORY_ID
+    from app.engine.taxonomy import CANONICAL_CATEGORIES, UNKNOWN_CATEGORY_ID
 
     # Check all canonical category IDs in [0, 15]
     for cat_name, cat_id in CANONICAL_CATEGORIES.items():

@@ -4,7 +4,7 @@ import pytest
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 from app.domain.entities.city import City
-from app.engine.v2.city_readiness import ensure_city_ready
+from app.engine.city_readiness import ensure_city_ready
 
 
 @pytest.mark.asyncio

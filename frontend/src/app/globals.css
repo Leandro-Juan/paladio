@@ -360,41 +360,6 @@ a {
   display: contents;
 }
 
-.sidebar-toggle-btn {
-  background: transparent;
-  border: 1px solid rgba(246, 240, 225, 0.2);
-  border-radius: var(--radius-sm);
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgba(246, 240, 225, 0.7);
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.sidebar-toggle-btn:hover {
-  background: rgba(246, 240, 225, 0.1);
-  border-color: rgba(246, 240, 225, 0.4);
-  color: var(--color-cream, #F6F0E1);
-}
-
-.brand {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.sidebar.collapsed .brand {
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
 .logo-container {
   display: flex;
   align-items: center;
@@ -441,50 +406,6 @@ a {
 
 .sidebar.collapsed .logo-text {
   display: none;
-}
-
-.nav-links {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.nav-links li a {
-  color: rgba(246, 240, 225, 0.65);
-  transition: all 0.2s ease;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.6rem;
-  text-decoration: none;
-  border-left: 2px solid transparent;
-}
-
-.sidebar.collapsed .nav-links li a {
-  padding: 0.6rem;
-  justify-content: center;
-}
-
-.nav-links li a:hover {
-  color: var(--color-cream, #F6F0E1);
-  background-color: rgba(124, 196, 209, 0.12);
-}
-
-[data-theme="dark"] .nav-links li a:hover {
-  background-color: rgba(124, 196, 209, 0.15);
-}
-
-.nav-links li a.active {
-  color: var(--color-cream, #F6F0E1);
-  background-color: rgba(124, 196, 209, 0.12);
-  border-left: 2px solid var(--color-gold, #E2B33C);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  font-weight: 600;
-}
-
-[data-theme="dark"] .nav-links li a.active {
-  background-color: rgba(124, 196, 209, 0.16);
 }
 
 .main-content {
@@ -552,10 +473,6 @@ a {
 }
 
 .mobile-sidebar-backdrop {
-  display: none;
-}
-
-.mobile-sidebar-close-btn {
   display: none;
 }
 
@@ -635,19 +552,6 @@ a {
   .sidebar.mobile-open {
     transform: translateX(0);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
-  }
-
-  .mobile-sidebar-close-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid rgba(246, 240, 225, 0.2);
-    border-radius: var(--radius-sm);
-    width: 30px;
-    height: 30px;
-    color: var(--color-cream, #F6F0E1);
-    cursor: pointer;
   }
 
   .main-content {

@@ -1,7 +1,0 @@
-<svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100%" height="100%" fill="#0f172a" />
-  <text x="300.0" y="30" text-anchor="middle" font-size="14" font-weight="bold" fill="#f8fafc" font-family="sans-serif">Price Distribution: MAD->FCO</text>
-  <line x1="50" y1="250" x2="550" y2="250" stroke="#334155" stroke-width="1" />
-  <rect x="50.0" y="50.0" width="162.7" height="200.0" fill="#3b82f6" rx="2" opacity="0.85" /><rect x="216.7" y="50.0" width="162.7" height="200.0" fill="#3b82f6" rx="2" opacity="0.85" /><rect x="383.3" y="50.0" width="162.7" height="200.0" fill="#3b82f6" rx="2" opacity="0.85" />
-  <text x="133.3" y="268" text-anchor="middle" font-size="10" fill="#64748b" font-family="sans-serif">21€</text><text x="300.0" y="268" text-anchor="middle" font-size="10" fill="#64748b" font-family="sans-serif">24€</text><text x="466.7" y="268" text-anchor="middle" font-size="10" fill="#64748b" font-family="sans-serif">27€</text>
-</svg>

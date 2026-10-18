@@ -42,18 +42,6 @@ export function countWaypoints(itineraryData: any): number {
   return 0;
 }
 
-export function getSafeDate(dateString?: string): string {
-  try {
-    if (dateString) {
-      const d = new Date(dateString);
-      if (!isNaN(d.getTime())) return d.toISOString();
-    }
-    return new Date().toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
-
 /**
  * Extracts and calculates the precise return date and time for a trip.
  * Handles ISO timestamps, date-only strings, and return flight/POI times in itinerary_data.

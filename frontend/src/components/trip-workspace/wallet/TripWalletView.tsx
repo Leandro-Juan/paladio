@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { RouteItineraryData } from '@/app/vault/[id]/page';
+import { RouteItineraryData } from '@/types/domain';
 import {
   TripTicket,
   TicketType,

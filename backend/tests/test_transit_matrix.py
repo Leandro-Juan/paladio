@@ -239,7 +239,7 @@ async def test_get_transit_matrix_when_ensure_transit_ready_times_out():
 @pytest.mark.asyncio
 async def test_get_transit_matrix_when_compilation_fails():
     """Verify that get_transit_matrix strictly raises RoutingUnavailable in real mode when Valhalla is down."""
-    from app.engine.v2.exceptions import RoutingUnavailable
+    from app.engine.exceptions import RoutingUnavailable
 
     pois = [
         {"name": "Eiffel", "location": {"latitude": 48.8584, "longitude": 2.2945}},

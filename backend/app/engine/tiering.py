@@ -5,35 +5,9 @@ with high confidence, and applies deterministic heuristic scoring for unseeded P
 """
 
 import math
-from pathlib import Path
 from typing import Any
 
 from app.engine.taxonomy import CANONICAL_CATEGORIES, classify_poi_taxonomy
-
-SEEDS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "city_seeds"
-
-
-class CitySeedStore:
-    """Deprecated: Seed store kept for backward-compatibility only.
-    All POI tiering and ingestion is 100% automatic and dynamic across all cities.
-    """
-
-    def __init__(self, seeds_dir: Path | None = None):
-        self._cache: dict[str, dict[str, dict[str, Any]]] = {}
-
-    def get_seed(self, city: str, name: str) -> dict[str, Any] | None:
-        return None
-
-
-# Global singleton instance (deprecated stub)
-_GLOBAL_SEED_STORE: CitySeedStore | None = None
-
-
-def get_seed_store() -> CitySeedStore:
-    global _GLOBAL_SEED_STORE
-    if _GLOBAL_SEED_STORE is None:
-        _GLOBAL_SEED_STORE = CitySeedStore()
-    return _GLOBAL_SEED_STORE
 
 
 def compute_unified_iconicity_raw(poi: dict[str, Any]) -> float:
@@ -99,7 +73,6 @@ def compute_unified_iconicity_raw(poi: dict[str, Any]) -> float:
 def classify_poi_tier(
     poi: dict[str, Any],
     city: str,
-    seed_store: CitySeedStore | None = None,
 ) -> dict[str, Any]:
     """Compute tier, taxonomy, iconicity, and visit mode for a POI automatically.
 
@@ -208,7 +181,6 @@ def _osm_tag_words(sig: dict[str, Any]) -> list[str]:
 def tier_city_attractions(
     records: list[dict[str, Any]],
     city: str,
-    seed_store: CitySeedStore | None = None,
 ) -> list[dict[str, Any]]:
     """Assign tiers relative to the city itself using unified OSM + Wikimedia signals.
 
@@ -286,15 +258,6 @@ def tier_city_attractions(
         tier_source = (
             "osm_signals" if (sig or rec.get("wikidata_id")) else "unified_signals"
         )
-        if seed_store is not None:
-            seed = seed_store.get_seed(city, rec.get("name", ""))
-            if seed and seed.get("tier") is not None and seed["tier"] < tier:
-                tier = seed["tier"]
-                tier_source = "seed_override"
-                if tier == 1:
-                    iconicity = max(0.90, iconicity)
-                elif tier == 2:
-                    iconicity = max(0.75, iconicity)
 
         dur = rec.get("duration_mins", 60)
         if (

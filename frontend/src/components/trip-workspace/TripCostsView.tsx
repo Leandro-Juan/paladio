@@ -1,8 +1,7 @@
 "use client";
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Trip, TripParticipant, TripExpense, TripSettlement, SettlementTransfer, useTrips } from '@/hooks/useTrips';
-import type { RouteItineraryData } from '@/app/vault/[id]/page';
+import type { RouteItineraryData } from '@/types/domain';
 import { CostsSummaryCards, CostsTotals } from './costs/CostsSummaryCards';
 import { CostsFilterToolbar, FilterScope } from './costs/CostsFilterToolbar';
 import { ExpenseRow, DisplayExpenseItem } from './costs/ExpenseRow';

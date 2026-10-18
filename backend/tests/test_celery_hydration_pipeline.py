@@ -101,7 +101,7 @@ async def test_run_ingest_city_pois():
             new_callable=AsyncMock,
         ) as mock_nr,
         patch(
-            "app.engine.v2.tiering.tier_city_attractions",
+            "app.engine.tiering.tier_city_attractions",
             side_effect=lambda recs, c: recs,
         ),
         patch(

@@ -1,5 +1,5 @@
 import math
-from app.engine.v2.tiering import (
+from app.engine.tiering import (
     compute_unified_iconicity_raw,
     tier_city_attractions,
 )

@@ -1,23 +1,20 @@
 import logging
 
 from app.schemas.itinerary import TravelConstraints
+from app.swarm.agents.prompt_analyzer import prompt_analyzer_node
 from app.swarm.agents.ticket_parser import ticket_parser_node
+from app.swarm.critic import planner_critic_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
 from app.swarm.nodes.guardrails import guardrails_node
-from app.swarm.nodes.prompt_analyzer import prompt_analyzer_node
 from app.swarm.nodes.verify_constraints import verify_constraints_node
-from app.swarm.state import SwarmState
-from app.swarm.critic import planner_critic_node
 from app.swarm.repair import planner_repair_node
+from app.swarm.state import SwarmState
 from app.use_cases.fetch_travel_context import FetchTravelContextUseCase
 from app.use_cases.optimize_daily_itinerary import OptimizeDailyItineraryUseCase
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
 logger = logging.getLogger(__name__)
-
-# Backwards compatibility alias
-check_missing_fields_node = verify_constraints_node
 
 
 async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict:
@@ -45,9 +42,9 @@ async def planner_scrape_node(state: SwarmState, config: RunnableConfig) -> dict
     try:
         context = await use_case.execute(constraints, test_data, user_id=user_id)
         return context
-    except Exception as e:
+    except (RuntimeError, ValueError, TypeError, KeyError) as e:
         logger.error(f"Failed to fetch context: {e}")
-        raise RuntimeError(f"Context fetching failed: {e}")
+        raise RuntimeError(f"Context fetching failed: {e}") from e
 
 
 async def planner_optimize_node(state: SwarmState, config: RunnableConfig) -> dict:
@@ -69,9 +66,9 @@ async def planner_optimize_node(state: SwarmState, config: RunnableConfig) -> di
             state.get("return_flight"),
         )
         return {"final_itinerary": final_itinerary}
-    except Exception as e:
+    except (RuntimeError, ValueError, TypeError, KeyError) as e:
         logger.error(f"Optimization failed: {e}")
-        raise RuntimeError(f"Optimization failed: {e}")
+        raise RuntimeError(f"Optimization failed: {e}") from e
 
 
 def route_guardrails(state: SwarmState) -> str:

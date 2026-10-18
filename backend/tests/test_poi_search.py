@@ -109,7 +109,7 @@ async def test_poi_search_natural_language(async_client: AsyncClient):
     mock_vec[2] = 1.0  # aligns closely with Café Central
 
     with patch(
-        "app.api.v1.pois.OllamaEmbeddingProvider.embed_text",
+        "app.api.pois.OllamaEmbeddingProvider.embed_text",
         new=AsyncMock(return_value=mock_vec),
     ):
         resp = await async_client.get(
@@ -136,7 +136,7 @@ async def test_poi_search_not_found(async_client: AsyncClient):
     mock_vec[5] = 1.0
 
     with patch(
-        "app.api.v1.pois.OllamaEmbeddingProvider.embed_text",
+        "app.api.pois.OllamaEmbeddingProvider.embed_text",
         new=AsyncMock(return_value=mock_vec),
     ):
         resp = await async_client.get(

@@ -419,7 +419,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           'Real Transit Available',
           `Official public transit network for ${cityName} is now ready to upgrade.`,
           {
-            actionLink: payload.trip_id ? `/vault/${payload.trip_id}` : '/engine',
+            actionLink: payload.trip_id ? `/trips/${payload.trip_id}` : '/engine',
             actionLabel: 'View Trip',
           }
         );

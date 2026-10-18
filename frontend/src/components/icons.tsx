@@ -936,31 +936,6 @@ export function ArrowRightIcon({ size = 14, className, style, color = 'currentCo
 }
 
 /**
- * Globe pictogram for international currencies and global locales.
- */
-export function GlobeIcon({ size = 14, className, style, color = 'currentColor' }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
-
-/**
  * Settings / Gear pictogram.
  */
 export function SettingsIcon({ size = 14, className, style, color = 'currentColor' }: IconProps) {
@@ -1035,30 +1010,6 @@ export function RadarIcon({ size = 14, className, style, color = 'currentColor' 
       <path d="M20 12h2" />
       <path d="m6.34 17.66-1.41 1.41" />
       <path d="m19.07 4.93-1.41 1.41" />
-    </svg>
-  );
-}
-
-/**
- * Gauge / Meter speed and quantile indicator.
- */
-export function GaugeIcon({ size = 14, className, style, color = 'currentColor' }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
-      aria-hidden="true"
-    >
-      <path d="m12 14 4-4" />
-      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
     </svg>
   );
 }

@@ -90,7 +90,6 @@
   flex-direction: column;
 }
 
-.currencyCol,
 .radarCol {
   grid-column: span 5;
   display: flex;
@@ -102,7 +101,6 @@
     grid-template-columns: 1fr;
   }
   .heroCol,
-  .currencyCol,
   .radarCol {
     grid-column: span 1;
   }

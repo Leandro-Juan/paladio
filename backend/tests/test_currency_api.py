@@ -1,7 +1,7 @@
 import pytest
-from app.schemas.user import UserPreferences
-from app.api.v1.currency import get_live_rates, CITY_TO_COUNTRY_CODE
+from app.api.currency import CITY_TO_COUNTRY_CODE, get_live_rates
 from app.domain.reference.iso_currencies import get_country_currency
+from app.schemas.user import UserPreferences
 
 
 def test_user_preferences_default_currency():

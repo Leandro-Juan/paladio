@@ -30,11 +30,6 @@ PYBIND11_MODULE(paladio_core, m) {
       .value("BAR", NodeType::BAR)
       .export_values();
 
-  py::class_<TransitInfo>(m, "TransitInfo", "Travel edge connecting two POIs.")
-      .def(py::init<int, double>())
-      .def_readwrite("duration", &TransitInfo::duration, "Travel duration in minutes.")
-      .def_readwrite("cost", &TransitInfo::cost, "Financial cost of travel.");
-
   py::class_<POI>(m, "POI", "A Point of Interest node in the itinerary network.")
       .def(py::init<NodeType, double, double, int, int, int, bool, uint8_t>(), py::arg("type"),
            py::arg("cost"), py::arg("score"), py::arg("earliest_time"), py::arg("latest_time"),

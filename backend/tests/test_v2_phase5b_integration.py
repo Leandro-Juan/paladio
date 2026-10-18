@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock
 import pytest
 from app.domain.entities.poi import Poi, PoiLocation
 from app.domain.interfaces.poi_repository import IPoiRepository
-from app.engine.v2.budget import (
+from app.engine.budget import (
     allocate_trip_budget,
     convert_currency,
     redistribute_budget_slack,
 )
-from app.engine.v2.candidate_pool import CandidatePoi, _poi_to_candidate
-from app.engine.v2.day_assignment import AssignedDay
-from app.engine.v2.feasibility import probe_mandatory_feasibility
-from app.engine.v2.meals import select_daily_meal_candidates
-from app.engine.v2.pipeline import run_itinerary_v2_pipeline
-from app.engine.v2.selection import SelectedPoi, SelectionReasonCode
-from app.engine.v2.solver import solve_day_v2
+from app.engine.candidate_pool import CandidatePoi, _poi_to_candidate
+from app.engine.day_assignment import AssignedDay
+from app.engine.feasibility import probe_mandatory_feasibility
+from app.engine.meals import select_daily_meal_candidates
+from app.engine.pipeline import run_itinerary_v2_pipeline
+from app.engine.selection import SelectedPoi, SelectionReasonCode
+from app.engine.solver import solve_day_v2
 from app.schemas.itinerary import PacePreference, TravelConstraints
 
 
@@ -384,7 +384,7 @@ async def test_solve_day_v2_schedules_surplus_and_virtual_meals():
 @pytest.mark.asyncio
 async def test_solve_day_v2_fail_fast_on_infeasible_mandatory():
     """Verify solve_day_v2 raises ItineraryInfeasible if user mandatory is impossible."""
-    from app.engine.v2.exceptions import ItineraryInfeasible
+    from app.engine.exceptions import ItineraryInfeasible
 
     depot = Poi(
         id="hotel",

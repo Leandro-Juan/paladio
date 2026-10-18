@@ -3,15 +3,15 @@
 from datetime import date
 
 from app.domain.entities.poi import Poi, PoiLocation
-from app.engine.v2.candidate_pool import _poi_to_candidate
-from app.engine.v2.day_assignment import (
+from app.engine.candidate_pool import _poi_to_candidate
+from app.engine.day_assignment import (
     _select_anchor_seeds,
     assign_pois_to_days,
     bundle_nearby_pois,
     get_effective_time_window,
 )
-from app.engine.v2.selection import SelectedPoi, SelectionReasonCode
-from app.engine.v2.trip_frame import DayFrame, TripFrame
+from app.engine.selection import SelectedPoi, SelectionReasonCode
+from app.engine.trip_frame import DayFrame, TripFrame
 from app.schemas.itinerary import PacePreference, TravelConstraints
 
 
@@ -286,7 +286,7 @@ def test_integrated_day_assignment_paris():
 
 def test_dynamic_bundling_threshold_scales():
     """Verify dynamic bundling threshold adapts to spatial dispersion."""
-    from app.engine.v2.day_assignment import compute_dynamic_bundling_threshold
+    from app.engine.day_assignment import compute_dynamic_bundling_threshold
 
     # Dense historic center POIs (100-200m apart)
     dense_pois = [
@@ -327,7 +327,7 @@ def test_taste_aware_anchor_seed_selection():
 
 def test_zone_sprawl_penalty_prevents_distant_bundle_merging():
     """Verify _calculate_insertion_cost strongly penalizes sprawling distant bundles (>2.8km)."""
-    from app.engine.v2.day_assignment import _calculate_insertion_cost
+    from app.engine.day_assignment import _calculate_insertion_cost
 
     df = DayFrame(day_index=0, target_active_mins=360, max_anchors=4)
 
@@ -390,7 +390,7 @@ def test_hotel_proximity_matches_arrival_day():
 
 def test_zone_surplus_candidates_populated():
     """Verify assign_pois_to_days populates zone_candidates from candidate_pool for full-day solver."""
-    from app.engine.v2.candidate_pool import CandidatePoi
+    from app.engine.candidate_pool import CandidatePoi
 
     # 1 primary POI per day
     p1 = _make_poi("Louvre", 48.8606, 2.3376)

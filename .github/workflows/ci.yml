@@ -14,11 +14,11 @@ jobs:
     name: C++ Core Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake g++ libgtest-dev
       - name: Configure CMake
-        run: cmake -S cpp_core -B cpp_core/build
+        run: cmake -S cpp_core -B cpp_core/build -DPALADIO_BUILD_TESTS=ON
       - name: Build C++ Core
         run: cmake --build cpp_core/build -j $(nproc)
       - name: Run CTest
@@ -57,9 +57,9 @@ jobs:
       POSTGRES_HOST: 127.0.0.1
       REDIS_URL: redis://127.0.0.1:6379/0
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -91,9 +91,9 @@ jobs:
     name: Frontend Playwright Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'

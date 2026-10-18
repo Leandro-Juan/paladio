@@ -8,16 +8,16 @@ from app.domain.entities.poi import (
     ScheduledPoi,
     TransitLeg,
 )
-from app.engine.v2.candidate_pool import CandidatePoi, _poi_to_candidate
-from app.engine.v2.day_assignment import AssignedDay
-from app.engine.v2.exceptions import ItineraryInfeasible
-from app.engine.v2.meals import (
+from app.engine.candidate_pool import CandidatePoi, _poi_to_candidate
+from app.engine.day_assignment import AssignedDay
+from app.engine.exceptions import ItineraryInfeasible
+from app.engine.meals import (
     _cand_to_meal_poi,
     snap_corridor_meals,
     verify_day_schedule,
 )
-from app.engine.v2.selection import SelectedPoi, SelectionReasonCode
-from app.engine.v2.solver import solve_day_v2
+from app.engine.selection import SelectedPoi, SelectionReasonCode
+from app.engine.solver import solve_day_v2
 from app.quality.itinerary_metrics import _has_data_provenance
 from app.schemas.itinerary import PacePreference, TravelConstraints
 

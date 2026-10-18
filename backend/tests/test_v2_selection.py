@@ -3,12 +3,12 @@
 from datetime import date
 
 import pytest
-from app.engine.v2.candidate_pool import CandidatePoi, build_candidate_pool
-from app.engine.v2.selection import (
+from app.engine.candidate_pool import CandidatePoi, build_candidate_pool
+from app.engine.selection import (
     SelectionReasonCode,
     select_trip_pois,
 )
-from app.engine.v2.trip_frame import (
+from app.engine.trip_frame import (
     DayFrame,
     TripFrame,
     build_trip_frame,
@@ -462,7 +462,7 @@ def test_submodular_selection_prompt_taste_driven_nightlife_and_views():
 def test_compute_taste_score_from_constraints():
     """Verify that compute_taste_score dynamically adjusts scores based on constraints."""
     from app.domain.entities.poi import Poi
-    from app.engine.v2.candidate_pool import compute_taste_score
+    from app.engine.candidate_pool import compute_taste_score
 
     poi_museum = Poi(
         name="Classical Art Museum",
