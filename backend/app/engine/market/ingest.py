@@ -57,7 +57,9 @@ async def ingest_flight_ticks(
     if ingest_run_id is None:
         ingest_run_id = str(uuid.uuid4())
 
-    quotes = await feed.fetch_cached_flights(origin_iata, dest_iata, date_from, date_to)
+    quotes = await feed.fetch_cached_flights(
+        origin_iata, dest_iata, date_from, date_to, session=session
+    )
     if not quotes:
         logger.info(
             f"No flight quotes returned for {origin_iata}->{dest_iata} ({date_from} to {date_to})"

@@ -137,11 +137,7 @@ test.describe('Notification UI in Browser', () => {
 
     await page.goto('/dashboard');
 
-    // Reveal floating dock by hovering bottom trigger zone
-    const triggerZone = page.locator('[class*="triggerZone"]');
-    await triggerZone.hover();
-
-    // Find the notification bell button
+    // Find the notification bell button in the sidebar (default navigation layout)
     const bell = page.getByRole('button', { name: /Notifications/i });
     await expect(bell).toBeVisible();
 

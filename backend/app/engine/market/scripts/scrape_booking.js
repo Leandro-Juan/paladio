@@ -4,7 +4,18 @@
  * Outputs JSON array of authentic scraped hotel offers.
  */
 
-const { chromium } = require('/home/leandro/Code/Projects/Paladio/frontend/node_modules/playwright');
+const path = require('path');
+let chromium;
+try {
+  chromium = require('playwright').chromium;
+} catch (e1) {
+  try {
+    const frontendPlaywright = path.resolve(__dirname, '../../../../../frontend/node_modules/playwright');
+    chromium = require(frontendPlaywright).chromium;
+  } catch (e2) {
+    chromium = require('playwright-core').chromium;
+  }
+}
 
 async function main() {
   const city = process.argv[2] || 'Rome';

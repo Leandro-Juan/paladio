@@ -140,7 +140,7 @@ class BookingScraperProvider(BaseQuoteProvider):
                                         latitude=None,
                                         longitude=None,
                                         taxes_included=True,
-                                        estimated_fee_ratio=None,
+                                        estimated_fee_ratio=1.0,
                                         deep_link=p_url or self.SEARCH_URL,
                                         source="booking",
                                         observed_at=now,
@@ -194,7 +194,12 @@ class BookingScraperProvider(BaseQuoteProvider):
         return quotes
 
     async def _scrape_with_playwright(
-        self, city: str, check_in: date, check_out: date, adults: int = 2
+        self,
+        city: str,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        adults: int = 2,
     ) -> list[LodgingQuote]:
         import asyncio
         import os
@@ -258,7 +263,7 @@ class BookingScraperProvider(BaseQuoteProvider):
                 nightly_cents = int(round(total_cents / nights))
                 quotes.append(
                     LodgingQuote(
-                        destination_code=city[:3].upper(),
+                        destination_code=destination_code,
                         check_in=check_in,
                         check_out=check_out,
                         base_price_per_night_cents=nightly_cents,
@@ -272,7 +277,7 @@ class BookingScraperProvider(BaseQuoteProvider):
                         latitude=None,
                         longitude=None,
                         taxes_included=True,
-                        estimated_fee_ratio=None,
+                        estimated_fee_ratio=1.0,
                         deep_link=link or self.SEARCH_URL,
                         source="booking_playwright",
                         observed_at=now,
@@ -323,7 +328,11 @@ class BookingScraperProvider(BaseQuoteProvider):
                         f"[Booking] HTTP challenged ({resp.status_code}); escalating to headless Playwright worker..."
                     )
                     return await self._scrape_with_playwright(
-                        city_name, check_in, check_out, adults=adults
+                        city_name,
+                        destination_code,
+                        check_in,
+                        check_out,
+                        adults=adults,
                     )
 
                 if resp.status_code != 200:
@@ -336,7 +345,11 @@ class BookingScraperProvider(BaseQuoteProvider):
                 )
                 if not quotes:
                     return await self._scrape_with_playwright(
-                        city_name, check_in, check_out, adults=adults
+                        city_name,
+                        destination_code,
+                        check_in,
+                        check_out,
+                        adults=adults,
                     )
                 return quotes
         except ProviderBlockedError:
@@ -346,7 +359,11 @@ class BookingScraperProvider(BaseQuoteProvider):
                 f"Booking HTTP failed ({e}); falling back to headless Playwright..."
             )
             return await self._scrape_with_playwright(
-                city_name, check_in, check_out, adults=adults
+                city_name,
+                destination_code,
+                check_in,
+                check_out,
+                adults=adults,
             )
 
     async def fetch_destination_summary(
@@ -363,6 +380,8 @@ class BookingScraperProvider(BaseQuoteProvider):
             raise NoDataError(
                 f"Booking.com returned 0 live properties for {destination_code}"
             )
-        # Return the best value offer
-        offers.sort(key=lambda x: x.base_price_per_night_cents)
-        return offers[0]
+        # Return the best value offer preferring verified quality score
+        valid_offers = [o for o in offers if (o.quality_score or 0) >= 70.0]
+        candidates = valid_offers if valid_offers else offers
+        candidates.sort(key=lambda x: x.base_price_per_night_cents)
+        return candidates[0]

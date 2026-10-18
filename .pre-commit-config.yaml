@@ -9,9 +9,10 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: bash -c 'cd frontend && npm run lint'
+        entry: bash -c 'cd frontend && files=() && for f in "$@"; do files+=("${f#frontend/}"); done && NODE_OPTIONS="--max-old-space-size=2048" npx eslint --no-warn-ignored "${files[@]}"' _
         language: system
-        files: \.[jt]sx?$
+        files: ^frontend/.*\.[jt]sx?$
+        pass_filenames: true
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v18.1.3
     hooks:

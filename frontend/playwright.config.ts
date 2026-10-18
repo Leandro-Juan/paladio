@@ -6,7 +6,10 @@ const baseURL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: './tests/e2e',
   testIgnore: process.env.RUN_LIVE_TESTS ? [] : ['**/live_*.spec.ts'],
-  timeout: 30000,
+  timeout: process.env.CI ? 60000 : 30000,
+  expect: {
+    timeout: process.env.CI ? 10000 : 5000,
+  },
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,

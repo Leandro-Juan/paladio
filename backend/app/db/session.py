@@ -1,7 +1,9 @@
 import os
+import sys
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 
 # The docker-compose provides postgresql+asyncpg://postgres:postgres@db:5432/paladio
 # But if running locally outside docker, it might be localhost.
@@ -13,12 +15,28 @@ DATABASE_URL = os.getenv(
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Create the async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    future=True,
+# Determine if running under pytest test suite
+is_test = bool(
+    os.getenv("PYTEST_CURRENT_TEST")
+    or os.getenv("TESTING") == "1"
+    or "pytest" in sys.modules
 )
+
+# Create the async engine
+if is_test:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        future=True,
+        poolclass=NullPool,
+    )
+else:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        future=True,
+        pool_pre_ping=True,
+    )
 
 # Create the session factory
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

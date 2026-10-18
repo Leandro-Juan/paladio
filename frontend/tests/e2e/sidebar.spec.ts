@@ -88,6 +88,41 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
     await settingsBtn.click();
     await expect(page).toHaveURL(/.*\/config/);
   });
+
+  test('does not render sidebar on trip details page', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    // Mock specific trip details response from backend API
+    await page.route(/.*:8000\/api\/trips\/mock-trip-123/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'mock-trip-123',
+          destination: 'Tokyo',
+          start_date: '2026-10-21',
+          end_date: '2026-10-25',
+          status: 'confirmed',
+          itinerary_data: { days: [] },
+          participants: [],
+        }),
+      });
+    });
+
+    // 1. Visit trips index: sidebar should be visible
+    await page.goto('/trips');
+    const sidebar = page.locator('nav.sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 15000 });
+
+    // 2. Navigate to trip details page: sidebar should not be visible
+    await page.goto('/trips/mock-trip-123');
+    await expect(sidebar).not.toBeVisible({ timeout: 15000 });
+    await expect(page.locator('header.mobile-app-header')).not.toBeVisible();
+
+    // 3. Trip workspace header should be visible with its back button to trips
+    const backBtn = page.getByRole('link', { name: /TRIPS/i });
+    await expect(backBtn).toBeVisible({ timeout: 15000 });
+  });
 });
 
 test.describe('Navigation Style Configuration Switching', () => {

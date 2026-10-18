@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication & User Management Flow', () => {
   test('unauthenticated visit to root redirects to /login', async ({ page }) => {
-    await page.route('**/api/v1/auth/setup-status', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -24,7 +24,7 @@ test.describe('Authentication & User Management Flow', () => {
   });
 
   test('first-run instance redirects unauthenticated user to /setup', async ({ page }) => {
-    await page.route('**/api/v1/auth/setup-status', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -43,7 +43,7 @@ test.describe('Authentication & User Management Flow', () => {
   });
 
   test('logs in successfully and allows Master Admin to access /config and provision user', async ({ page }) => {
-    let mockUsers = [
+    const mockUsers = [
       {
         id: 'admin-id-01',
         username: 'masteradmin',
@@ -54,7 +54,7 @@ test.describe('Authentication & User Management Flow', () => {
       },
     ];
 
-    await page.route('**/api/v1/auth/setup-status', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -62,7 +62,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/auth/login', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/login/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -74,7 +74,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/auth/me', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/me/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -82,7 +82,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/users/', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/?$/, async (route) => {
       if (route.request().method() === 'POST') {
         const body = JSON.parse(route.request().postData() || '{}');
         const newUser = {
@@ -108,7 +108,7 @@ test.describe('Authentication & User Management Flow', () => {
       }
     });
 
-    await page.route('**/api/v1/trips/**', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips.*/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -124,10 +124,6 @@ test.describe('Authentication & User Management Flow', () => {
 
     // 2. Redirected to /dashboard
     await expect(page).toHaveURL(/.*\/dashboard/);
-
-    // Reveal floating dock by hovering bottom trigger zone
-    const triggerZone = page.locator('[class*="triggerZone"]');
-    await triggerZone.hover();
 
     // 3. Open UserMenu to verify user info and navigate to Configuration tab
     const userMenuBtn = page.getByRole('button', { name: /User menu/i });
@@ -188,7 +184,7 @@ test.describe('Authentication & User Management Flow', () => {
       localStorage.setItem('paladio_token', 'mock-valid-token');
     });
 
-    await page.route('**/api/v1/auth/setup-status', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -196,7 +192,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/auth/me', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/me/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -204,7 +200,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/users/', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/?$/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -212,7 +208,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/users/me', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/me/, async (route) => {
       const body = JSON.parse(route.request().postData() || '{}');
       const updatedPrefs = { ...(body.preferences || currentUser.preferences || {}) };
       if (body.avatar_url === null) {
@@ -234,7 +230,7 @@ test.describe('Authentication & User Management Flow', () => {
       });
     });
 
-    await page.route('**/api/v1/trips/**', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips.*/, async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 

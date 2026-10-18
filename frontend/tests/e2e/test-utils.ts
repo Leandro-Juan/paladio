@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 
 export async function mockPaladioWebSocket(page: Page) {
-  await page.routeWebSocket(/.*\/api\/v1\/ws\/stream.*/, (ws) => {
+  await page.routeWebSocket(/.*\/api(\/v1)?\/ws\/stream.*/, (ws) => {
     ws.onMessage((message) => {
       try {
         const parsed = JSON.parse(typeof message === 'string' ? message : message.toString());
@@ -22,7 +22,7 @@ export async function mockAuthenticatedUser(page: Page, role: 'admin' | 'user' =
 
   await mockPaladioWebSocket(page);
 
-  await page.route('**/api/v1/auth/setup-status', async (route) => {
+  await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -30,7 +30,7 @@ export async function mockAuthenticatedUser(page: Page, role: 'admin' | 'user' =
     });
   });
 
-  await page.route(/.*\/api\/v1\/trips.*/, async (route) => {
+  await page.route(/.*\/api(\/v1)?\/trips.*/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -38,7 +38,7 @@ export async function mockAuthenticatedUser(page: Page, role: 'admin' | 'user' =
     });
   });
 
-  await page.route('**/api/v1/auth/me', async (route) => {
+  await page.route(/.*\/api(\/v1)?\/auth\/me/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

@@ -24,7 +24,7 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       localStorage.setItem('paladio_token', 'mock-token');
     });
 
-    await page.route('**/api/v1/auth/setup-status', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -32,7 +32,7 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       });
     });
 
-    await page.route('**/api/v1/auth/me', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/auth\/me/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -48,7 +48,7 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       });
     });
 
-    await page.route('**/api/v1/users/me/embedding', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/me\/embedding/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -60,7 +60,7 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       });
     });
 
-    await page.route('**/api/v1/users/me/preferences', async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/me\/preferences/, async (route) => {
       if (route.request().method() === 'PUT') {
         const body = JSON.parse(route.request().postData() || '{}');
         currentPrefs = body.preferences || currentPrefs;

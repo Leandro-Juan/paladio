@@ -45,7 +45,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       },
     ];
 
-    await page.route(/.*\/api\/v1\/users.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -53,7 +53,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       });
     });
 
-    await page.route(/.*\/api\/v1\/trips\/transit\/planned-status/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/transit\/planned-status/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -61,7 +61,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       });
     });
 
-    await page.route(/.*\/api\/v1\/trips\/transit\/sync-planned/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/transit\/sync-planned/, async (route) => {
       syncPayload = JSON.parse(route.request().postData() || '{}');
       await route.fulfill({
         status: 200,
@@ -75,7 +75,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       });
     });
 
-    await page.route(/.*\/api\/v1\/trips\/transit\/registry/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/transit\/registry/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

@@ -10,7 +10,7 @@ test.describe('Trips Page - Abort Mission Modal', () => {
     const startDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    await page.route(/.*\/api\/v1\/trips\/?(\?.*)?$/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,

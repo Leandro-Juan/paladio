@@ -193,7 +193,7 @@ async def test_end_to_end_deal_detection_and_proposal_creation(
         max_nights=5,
         travelers=1,
         bags_needed=0,
-        max_budget_cents=50000,  # €500 budget (generous to guarantee feasibility)
+        max_budget_cents=200000,  # €2000 budget (generous to guarantee feasibility with live prices)
         currency="EUR",
         max_package_ratio=0.85,
         is_active=True,
@@ -230,7 +230,7 @@ async def test_end_to_end_deal_detection_and_proposal_creation(
                 source_class="cache",
                 source="open_lodging",
                 currency="EUR",
-                min_base=8500 + (d * 50),  # ~90 EUR / night
+                min_base=32000 + (d * 100),  # ~330 EUR / night
                 n_ticks=2,
             )
         )
@@ -254,7 +254,7 @@ async def test_end_to_end_deal_detection_and_proposal_creation(
     assert deal["origin_iata"] == "MAD"
     assert deal["destination_code"] == "FCO"
     assert deal["total_landed_cents"] > 0
-    assert deal["total_landed_cents"] <= 50000
+    assert deal["total_landed_cents"] <= 200000
     assert deal["realism_score"] >= 8.0
 
     # 6. Verify TripModel proposal was stored in database

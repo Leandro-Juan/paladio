@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: timescale/timescaledb:latest-pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -38,7 +38,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -77,11 +77,17 @@ jobs:
                   exists = await conn.fetchval('SELECT 1 FROM pg_database WHERE datname = \$1', db)
                   if not exists:
                       await conn.execute(f'CREATE DATABASE {db}')
+                  db_conn = await asyncpg.connect(f'postgresql://postgres:postgres@127.0.0.1:5432/{db}')
+                  await db_conn.execute('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;')
+                  await db_conn.execute('CREATE EXTENSION IF NOT EXISTS vector CASCADE;')
+                  await db_conn.close()
               await conn.close()
           asyncio.run(init())
           "
       - name: Run Alembic migrations
-        run: alembic upgrade head
+        run: |
+          alembic upgrade head
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/paladio_test alembic upgrade head
         working-directory: backend
       - name: Run Pytest
         run: pytest tests --maxfail=5

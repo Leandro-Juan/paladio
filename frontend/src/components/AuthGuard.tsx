@@ -105,6 +105,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Trip details pages (/trips/[id]) do not render the main app sidebar or global navigation
+  const isTripDetailsPage = Boolean(pathname && /^\/trips\/[^\/]+/.test(pathname));
+  if (isTripDetailsPage) {
+    return (
+      <main className="trip-details-layout" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="layout-container">
       {/* Mobile Top App Bar (visible on <= 768px via CSS) */}

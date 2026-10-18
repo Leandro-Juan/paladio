@@ -8,7 +8,7 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
 
   test('displays red popup window with violation details when GUARDRAILS_ABORTED is received', async ({ page }) => {
     // Intercept websocket and send GUARDRAILS_ABORTED event on message
-    await page.routeWebSocket(/.*\/api\/v1\/ws\/stream.*/, (ws) => {
+    await page.routeWebSocket(/.*\/api(\/v1)?\/ws\/stream.*/, (ws) => {
       ws.onMessage((msg) => {
         try {
           const parsed = JSON.parse(typeof msg === 'string' ? msg : msg.toString());

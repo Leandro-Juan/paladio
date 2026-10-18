@@ -26,6 +26,13 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
   itinerary.days.forEach((day, index) => {
     const rec = day.itinerary?.transit_recommendation;
     if (rec) {
+      // Omit advisory if there are no transit legs scheduled or no transit pass price
+      const hasMissingFareData = !rec.single_tickets_total_eur || rec.single_tickets_total_eur <= 0.001;
+      const hasMissingPassData = !rec.pass_price_eur || rec.pass_price_eur <= 0.001;
+      if (hasMissingFareData || hasMissingPassData) {
+        return;
+      }
+
       const key = `${rec.type}-${rec.single_tickets_total_eur}-${rec.pass_price_eur}-${rec.savings_eur}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
@@ -55,8 +62,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {recEntries.map(({ dayNumber, date, recommendation: rec }, idx) => {
-          const hasMissingFareData = rec.single_tickets_total_eur <= 0.001;
-          const isPassRecommended = !hasMissingFareData && rec.type === '24H_PASS_RECOMMENDED';
+          const isPassRecommended = rec.type === '24H_PASS_RECOMMENDED';
 
           return (
             <div
@@ -112,8 +118,6 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                   >
                     {isPassRecommended
                       ? 'TRANSIT PASS ADVISORY: 24H PASS RECOMMENDED'
-                      : hasMissingFareData
-                      ? 'TRANSIT FARE NOTICE: INSUFFICIENT FARE DATA'
                       : 'TRANSIT FARE SUMMARY'}
                   </span>
                 </div>
@@ -174,9 +178,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                       color: 'var(--color-text-primary, #0F172A)',
                     }}
                   >
-                    {hasMissingFareData
-                      ? 'N/A'
-                      : `€${Number(rec.single_tickets_total_eur).toFixed(2)}`}
+                    €{Number(rec.single_tickets_total_eur).toFixed(2)}
                   </span>
                 </div>
 
@@ -220,9 +222,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                       color: isPassRecommended ? '#059669' : 'var(--color-text-muted, #64748B)',
                     }}
                   >
-                    {hasMissingFareData
-                      ? 'N/A'
-                      : isPassRecommended
+                    {isPassRecommended
                       ? `+€${Number(rec.savings_eur).toFixed(2)}`
                       : `€${Number(rec.savings_eur).toFixed(2)}`}
                   </span>

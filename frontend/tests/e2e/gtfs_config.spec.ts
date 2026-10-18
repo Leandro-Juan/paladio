@@ -62,7 +62,7 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
 
     let deletedCity: string | null = null;
 
-    await page.route(/.*\/api\/v1\/users.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -70,7 +70,7 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
       });
     });
 
-    await page.route(/.*\/api\/v1\/trips\/transit\/.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/transit\/.*/, async (route) => {
       const url = route.request().url();
       if (route.request().method() === 'DELETE') {
         const city = url.split('/').pop();
