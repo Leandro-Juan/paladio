@@ -74,6 +74,28 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
                 date_to,
             )
 
+    async def fetch_month_cheapest_per_day(
+        self,
+        origin_iata: str,
+        dest_iata: str,
+        month_start: date,
+        session: Any | None = None,
+    ) -> list[FlightQuote]:
+        return await self.primary.fetch_month_cheapest_per_day(
+            origin_iata, dest_iata, month_start, session=session
+        )
+
+    async def fetch_calendar_horizon(
+        self,
+        origin_iata: str,
+        dest_iata: str,
+        months_ahead: int = 11,
+        session: Any | None = None,
+    ) -> list[FlightQuote]:
+        return await self.primary.fetch_calendar_horizon(
+            origin_iata, dest_iata, months_ahead=months_ahead, session=session
+        )
+
     async def verify_flight(
         self, quote: FlightQuote, session: Any | None = None
     ) -> tuple[bool, int, dict[str, Any]]:

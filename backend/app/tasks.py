@@ -2189,3 +2189,26 @@ def periodic_baseline_compute_task() -> int:
                 await engine.dispose()
 
     return _run_async(_compute())
+
+
+@app.task(name="app.tasks.backfill_route_corpus_task")
+def backfill_route_corpus_task(
+    origin_iata: str, destination_code: str, months_ahead: int | None = None
+) -> dict[str, Any]:
+    """Celery background task performing multi-month forward calendar sweep for a route."""
+    from app.engine.market.corpus import backfill_route_corpus
+
+    async def _backfill():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                return await backfill_route_corpus(
+                    session=session,
+                    origin_iata=origin_iata,
+                    destination_code=destination_code,
+                    months_ahead=months_ahead,
+                )
+            finally:
+                await engine.dispose()
+
+    return _run_async(_backfill())

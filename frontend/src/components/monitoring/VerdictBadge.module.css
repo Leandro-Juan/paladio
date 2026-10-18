@@ -1,0 +1,109 @@
+.badgeWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs, 6px);
+  font-family: var(--font-code, monospace);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--radius-sm, 4px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  transition: all 150ms ease;
+}
+
+.sizeSm {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.sizeMd {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.sizeLg {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* Verdict Tiers */
+.verdictGreat {
+  background: var(--color-success-soft, rgba(31, 122, 77, 0.12));
+  color: var(--color-success, #1F7A4D);
+  border-color: rgba(31, 122, 77, 0.28);
+}
+
+.verdictGood {
+  background: rgba(15, 76, 92, 0.10);
+  color: var(--color-accent-teal, #0F4C5C);
+  border-color: rgba(15, 76, 92, 0.24);
+}
+
+[data-theme="dark"] .verdictGood {
+  background: rgba(20, 120, 141, 0.15);
+  color: var(--color-accent-teal-soft, #7CC4D1);
+  border-color: rgba(124, 196, 209, 0.3);
+}
+
+.verdictTypical {
+  background: rgba(86, 107, 118, 0.08);
+  color: var(--color-text-muted, #566B76);
+  border-color: var(--color-border, #E2D9CC);
+}
+
+.verdictHigh {
+  background: rgba(226, 179, 60, 0.14);
+  color: #7A5A00;
+  border-color: rgba(226, 179, 60, 0.4);
+}
+
+[data-theme="dark"] .verdictHigh {
+  background: rgba(226, 179, 60, 0.18);
+  color: #F6D06F;
+  border-color: rgba(226, 179, 60, 0.35);
+}
+
+.verdictPeak {
+  background: var(--color-danger-soft, rgba(179, 38, 30, 0.12));
+  color: var(--color-danger, #B3261E);
+  border-color: rgba(179, 38, 30, 0.3);
+}
+
+.confidencePill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm, 4px);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  background: var(--color-surface-sunken, #CAD2D3);
+  color: var(--color-text-primary, #1A2B32);
+  opacity: 0.85;
+}
+
+[data-theme="dark"] .confidencePill {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted, #8FA8B3);
+}
+
+.confidenceProvisional {
+  border-left: 2px solid var(--color-accent-gold, #E2B33C);
+}
+
+.confidenceEstablished {
+  border-left: 2px solid var(--color-success, #1F7A4D);
+}
+
+.confidenceBuilding {
+  border-left: 2px solid var(--color-text-muted, #566B76);
+}

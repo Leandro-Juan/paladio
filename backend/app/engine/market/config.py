@@ -17,7 +17,8 @@ class MarketConfig:
         (22, 60),
         (61, None),
     )
-    BASELINE_QUANTILES: tuple[float, ...] = (0.02, 0.05, 0.10, 0.25, 0.50, 0.75)
+    BASELINE_QUANTILES: tuple[float, ...] = (0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)
+    CORPUS_HORIZON_MONTHS: int = int(os.getenv("MARKET_CORPUS_HORIZON_MONTHS", "11"))
     BASELINE_WINDOW_DAYS: int = 540
     MIN_BASELINE_ROWS: int = int(os.getenv("MARKET_MIN_BASELINE_ROWS", "200"))
     MIN_BASELINE_OBS_DAYS: int = int(os.getenv("MARKET_MIN_BASELINE_OBS_DAYS", "21"))
@@ -65,3 +66,4 @@ class MarketConfig:
 
 
 config = MarketConfig()
+CORPUS_HORIZON_MONTHS = config.CORPUS_HORIZON_MONTHS

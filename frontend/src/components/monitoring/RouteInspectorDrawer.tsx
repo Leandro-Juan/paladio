@@ -142,6 +142,9 @@ export function RouteInspectorDrawer({
                 p10Deal={history.p10_deal_eur}
                 p50Median={history.p50_median_eur}
                 p90Peak={history.p90_peak_eur}
+                forwardCurve={history.forward_curve}
+                corpus={history.corpus}
+                verdict={history.verdict}
                 onRangeChange={onHistoryRangeChange}
               />
             </div>

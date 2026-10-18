@@ -630,11 +630,40 @@ class RouteBaselineModel(Base):
     q25 = Column(BigInteger, nullable=False)
     q50 = Column(BigInteger, nullable=False)
     q75 = Column(BigInteger, nullable=False)
+    q90 = Column(BigInteger, nullable=True)
+    confidence = Column(String(32), default="provisional", nullable=True)
     window_start = Column(Date, nullable=False)
     window_end = Column(Date, nullable=False)
     computed_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class RouteCorpusStatusModel(Base):
+    """
+    Tracks corpus health, departure date coverage, and baseline confidence
+    for a monitored or pre-warmed route pair.
+    """
+
+    __tablename__ = "route_corpus_status"
+
+    origin_iata = Column(String(3), primary_key=True)
+    destination_code = Column(String, primary_key=True)
+    status = Column(
+        String(32), default="building", nullable=False
+    )  # 'building', 'ready', 'failed'
+    confidence = Column(
+        String(32), default="provisional", nullable=False
+    )  # 'building', 'provisional', 'established'
+    ticks_ingested = Column(Integer, default=0, nullable=False)
+    depart_dates_count = Column(Integer, default=0, nullable=False)
+    min_price_cents = Column(BigInteger, nullable=True)
+    max_price_cents = Column(BigInteger, nullable=True)
+    median_price_cents = Column(BigInteger, nullable=True)
+    last_backfill_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    error_message = Column(Text, nullable=True)
 
 
 class FeeModel(Base):

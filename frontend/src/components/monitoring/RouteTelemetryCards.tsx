@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { RouteStats, RouteHistory, RouteItem } from '@/hooks/useRouteMonitoring';
+import { VerdictBadge } from './VerdictBadge';
 import styles from './RouteTelemetryCards.module.css';
 
 interface RouteTelemetryCardsProps {
@@ -164,9 +165,18 @@ export function RouteTelemetryCards({
             <span className={styles.cardValue}>
               {currentPrice !== null ? `${symbol}${currentPrice.toFixed(0)}` : '--'}
             </span>
-            <span className={styles.cardUnit}>
-              {history?.p50_median_eur ? `Median: ${symbol}${history.p50_median_eur.toFixed(0)}` : 'Active fare'}
-            </span>
+            {(history?.verdict?.verdict || stats?.verdict) ? (
+              <VerdictBadge
+                verdict={(history?.verdict?.verdict ?? stats?.verdict)!}
+                percentile={history?.verdict?.percentile ?? stats?.current_percentile}
+                confidence={history?.verdict?.confidence ?? stats?.verdict_confidence}
+                compact
+              />
+            ) : (
+              <span className={styles.cardUnit}>
+                {history?.p50_median_eur ? `Median: ${symbol}${history.p50_median_eur.toFixed(0)}` : 'Active fare'}
+              </span>
+            )}
           </div>
 
           <div className={styles.sparklineContainer} aria-hidden="true">
@@ -183,7 +193,7 @@ export function RouteTelemetryCards({
           </div>
 
           <div className={styles.cardFooter}>
-            <span>{prices.length} observation(s)</span>
+            <span>{stats?.depart_dates_count ?? prices.length} observation(s)</span>
             <span>Next scan: ~{stats?.next_scan_minutes ?? 120}m</span>
           </div>
         </div>

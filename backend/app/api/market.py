@@ -25,8 +25,14 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.engine.market.adapters import RyanairFlightFeed
+from app.engine.market.baselines import (
+    resolve_route_baseline_quantiles,
+)
+from app.engine.market.config import CORPUS_HORIZON_MONTHS
+from app.engine.market.corpus import backfill_route_corpus, get_route_corpus_status
 from app.engine.market.detector import run_deal_detection_scan
 from app.engine.market.ingest import ingest_flight_ticks
+from app.engine.market.verdict import classify_price
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, func, select
@@ -123,6 +129,10 @@ class RouteItemResponse(BaseModel):
     discount_pct: float | None
     last_scanned_at: str | None
     ticks_count: int
+    verdict: str | None = None
+    verdict_percentile: float | None = None
+    verdict_confidence: str | None = None
+    corpus_status: str | None = None
 
 
 class MarketSummaryResponse(BaseModel):
@@ -141,12 +151,36 @@ class HistoryPoint(BaseModel):
     carrier: str
 
 
+class ForwardPricePoint(BaseModel):
+    depart_date: str
+    price_eur: float
+    verdict: str | None = None
+    percentile: float | None = None
+    carrier: str | None = None
+
+
+class CorpusInfo(BaseModel):
+    status: str
+    confidence: str
+    ticks_ingested: int
+    depart_dates_count: int
+    min_price_eur: float | None = None
+    max_price_eur: float | None = None
+    median_price_eur: float | None = None
+    last_backfill_at: str | None = None
+
+
 class HistoryResponse(BaseModel):
     points: list[HistoryPoint]
+    forward_curve: list[ForwardPricePoint] = Field(default_factory=list)
     p10_deal_eur: float | None
+    p25_eur: float | None = None
     p50_median_eur: float | None
+    p75_eur: float | None = None
     p90_peak_eur: float | None
     lowest_ever_eur: float | None
+    verdict: dict[str, Any] | None = None
+    corpus: CorpusInfo | None = None
     currency: str = "EUR"
 
 
@@ -182,7 +216,9 @@ class RouteStatsResponse(BaseModel):
     current_price_eur: float | None
     current_percentile: float | None
     p10_deal_eur: float | None
+    p25_eur: float | None = None
     p50_median_eur: float | None
+    p75_eur: float | None = None
     p90_peak_eur: float | None
     lowest_ever_eur: float | None
     lowest_ever_date: str | None
@@ -192,6 +228,10 @@ class RouteStatsResponse(BaseModel):
     itinerary_realism_score: float | None
     deal_savings_eur: float | None
     deal_savings_pct: float | None
+    verdict: str | None = None
+    verdict_confidence: str | None = None
+    corpus_status: str | None = None
+    depart_dates_count: int | None = None
 
 
 class RouteEventItem(BaseModel):
@@ -348,16 +388,26 @@ async def list_monitored_routes(
         tick_res = await session.execute(tick_stmt)
         latest_tick = tick_res.scalar_one_or_none()
 
-        base_stmt = (
-            select(RouteBaselineModel)
-            .where(
-                RouteBaselineModel.origin_iata == a.origin_iata,
-                RouteBaselineModel.destination_code == dest_code,
-            )
-            .limit(1)
+        # Resolve empirical baseline quantiles hierarchically
+        today = datetime.now(timezone.utc).date()
+        quantiles, b_level, b_conf = await resolve_route_baseline_quantiles(
+            session=session,
+            origin_iata=a.origin_iata,
+            destination_code=dest_code,
+            depart_date=a.earliest_date,
+            observation_date=today,
         )
-        base_res = await session.execute(base_stmt)
-        baseline = base_res.scalar_one_or_none()
+
+        p50_eur = (
+            round(quantiles["q50"] / 100.0, 2)
+            if quantiles and "q50" in quantiles
+            else None
+        )
+        p10_eur = (
+            round(quantiles["q10"] / 100.0, 2)
+            if quantiles and "q10" in quantiles
+            else None
+        )
 
         cnt_stmt = select(func.count(MarketPriceTickModel.id)).where(
             MarketPriceTickModel.origin_iata == a.origin_iata,
@@ -376,21 +426,24 @@ async def list_monitored_routes(
         current_eur = (
             round(latest_tick.base_price_cents / 100.0, 2) if latest_tick else None
         )
-        p50_eur = (
-            round(float(baseline.q50) / 100.0, 2)
-            if (baseline and baseline.q50 is not None)
-            else None
-        )
-        p10_eur = (
-            round(float(baseline.q10) / 100.0, 2)
-            if (baseline and baseline.q10 is not None)
-            else None
-        )
         lowest_eur = round(min_cents / 100.0, 2) if min_cents is not None else None
+
+        # Check corpus status
+        c_status = await get_route_corpus_status(session, a.origin_iata, dest_code)
+        corpus_state = c_status.get("status", "building")
 
         discount = None
         is_deal = False
-        if current_eur and p50_eur and current_eur < p50_eur:
+        verdict_label = None
+        verdict_pct = None
+
+        if latest_tick and quantiles:
+            pv = classify_price(latest_tick.base_price_cents, quantiles, b_conf)
+            verdict_label = pv.verdict
+            verdict_pct = pv.percentile
+            discount = pv.vs_median_pct if pv.vs_median_pct > 0 else None
+            is_deal = pv.verdict in ("GREAT", "GOOD")
+        elif current_eur and p50_eur and current_eur < p50_eur:
             discount = round(((p50_eur - current_eur) / p50_eur) * 100, 1)
             if (p10_eur and current_eur <= p10_eur) or discount >= 30.0:
                 is_deal = True
@@ -425,6 +478,10 @@ async def list_monitored_routes(
                     a.last_scanned_at.isoformat() if a.last_scanned_at else None
                 ),
                 ticks_count=total_ticks,
+                verdict=verdict_label,
+                verdict_percentile=verdict_pct,
+                verdict_confidence=b_conf,
+                corpus_status=corpus_state,
             )
         )
     return items
@@ -468,10 +525,33 @@ async def create_monitored_route(
     await session.commit()
     await session.refresh(alert)
 
-    # Ingest real live flight ticks immediately on creation from RyanairFlightFeed
+    # Ingest forward calendar horizon corpus immediately for day-zero market intelligence
     ticks_ingested = 0
+    corpus_status_str = "building"
     try:
-        ticks_ingested = await ingest_flight_ticks(
+        corpus_res = await backfill_route_corpus(
+            session=session,
+            origin_iata=alert.origin_iata,
+            destination_code=alert.destinations[0],
+            months_ahead=CORPUS_HORIZON_MONTHS,
+        )
+        ticks_ingested = corpus_res.get("ticks_ingested", 0)
+        corpus_status_str = corpus_res.get("status", "ready")
+        alert.last_scanned_at = datetime.now(timezone.utc)
+        await session.commit()
+    except Exception as e:
+        logger.warning(f"Initial route corpus backfill error: {e}")
+        # Enqueue background task fallback
+        try:
+            from app.tasks import backfill_route_corpus_task
+
+            backfill_route_corpus_task.delay(alert.origin_iata, alert.destinations[0])
+        except Exception:
+            pass
+
+    # Also ingest specific monitored window ticks
+    try:
+        window_ticks = await ingest_flight_ticks(
             session=session,
             origin_iata=alert.origin_iata,
             dest_iata=alert.destinations[0],
@@ -480,10 +560,9 @@ async def create_monitored_route(
             date_to=min(alert.earliest_date + timedelta(days=45), alert.latest_date),
             run_id=f"init-{new_id[:8]}",
         )
-        alert.last_scanned_at = datetime.now(timezone.utc)
-        await session.commit()
+        ticks_ingested += window_ticks
     except Exception as e:
-        logger.warning(f"Initial flight tick ingestion error: {e}")
+        logger.warning(f"Initial flight window tick ingestion note: {e}")
 
     # Re-query latest ingested tick
     tick_stmt = (
@@ -501,6 +580,33 @@ async def create_monitored_route(
         round(latest_tick.base_price_cents / 100.0, 2) if latest_tick else None
     )
 
+    # Resolve instant baseline and verdict
+    today = datetime.now(timezone.utc).date()
+    quantiles, b_level, b_conf = await resolve_route_baseline_quantiles(
+        session=session,
+        origin_iata=alert.origin_iata,
+        destination_code=alert.destinations[0],
+        depart_date=alert.earliest_date,
+        observation_date=today,
+    )
+    p50_eur = (
+        round(quantiles["q50"] / 100.0, 2) if quantiles and "q50" in quantiles else None
+    )
+    p10_eur = (
+        round(quantiles["q10"] / 100.0, 2) if quantiles and "q10" in quantiles else None
+    )
+
+    verdict_label = None
+    verdict_pct = None
+    discount = None
+    is_deal = False
+    if latest_tick and quantiles:
+        pv = classify_price(latest_tick.base_price_cents, quantiles, b_conf)
+        verdict_label = pv.verdict
+        verdict_pct = pv.percentile
+        discount = pv.vs_median_pct if pv.vs_median_pct > 0 else None
+        is_deal = pv.verdict in ("GREAT", "GOOD")
+
     dest_name = await _resolve_city_name(session, alert.destinations[0])
     return RouteItemResponse(
         id=alert.id,
@@ -514,17 +620,21 @@ async def create_monitored_route(
         max_budget_eur=round(alert.max_budget_cents / 100.0, 2),
         currency=alert.currency,
         is_active=alert.is_active,
-        schedule="Every 2h",
-        status="ACTIVE" if current_eur else "PENDING",
+        schedule="Every 2h" if is_deal else "Daily",
+        status="DEAL" if is_deal else ("ACTIVE" if current_eur else "PENDING"),
         current_price_eur=current_eur,
-        baseline_p50_eur=None,
-        baseline_p10_eur=None,
+        baseline_p50_eur=p50_eur,
+        baseline_p10_eur=p10_eur,
         lowest_ever_eur=current_eur,
-        discount_pct=None,
+        discount_pct=discount,
         last_scanned_at=alert.last_scanned_at.isoformat()
         if alert.last_scanned_at
         else None,
         ticks_count=ticks_ingested,
+        verdict=verdict_label,
+        verdict_percentile=verdict_pct,
+        verdict_confidence=b_conf,
+        corpus_status=corpus_status_str,
     )
 
 
@@ -679,44 +789,159 @@ async def get_route_price_history(
                 )
             )
 
-    # Fetch RouteBaselineModel
-    base_stmt = (
-        select(RouteBaselineModel)
-        .where(
-            RouteBaselineModel.origin_iata == alert.origin_iata,
-            RouteBaselineModel.destination_code == dest_code,
+    # Fetch forward departure date curve (cheapest fare per departure day across the horizon)
+    today = datetime.now(timezone.utc).date()
+    fwd_stmt = (
+        select(
+            PriceDailyModel.depart_date,
+            func.min(PriceDailyModel.min_base).label("min_price"),
+            PriceDailyModel.source,
         )
-        .limit(1)
+        .where(
+            PriceDailyModel.origin_iata == alert.origin_iata,
+            PriceDailyModel.destination_code == dest_code,
+            PriceDailyModel.depart_date >= today,
+        )
+        .group_by(PriceDailyModel.depart_date, PriceDailyModel.source)
+        .order_by(PriceDailyModel.depart_date.asc())
     )
-    base_res = await session.execute(base_stmt)
-    baseline = base_res.scalar_one_or_none()
+    fwd_res = await session.execute(fwd_stmt)
+    fwd_rows = fwd_res.all()
+
+    # Resolve baseline quantiles
+    quantiles, b_level, b_conf = await resolve_route_baseline_quantiles(
+        session=session,
+        origin_iata=alert.origin_iata,
+        destination_code=dest_code,
+        depart_date=alert.earliest_date,
+        observation_date=today,
+    )
 
     p10 = (
-        round(float(baseline.q10) / 100.0, 2)
-        if baseline and baseline.q10 is not None
-        else None
+        round(quantiles["q10"] / 100.0, 2) if quantiles and "q10" in quantiles else None
+    )
+    p25 = (
+        round(quantiles["q25"] / 100.0, 2) if quantiles and "q25" in quantiles else None
     )
     p50 = (
-        round(float(baseline.q50) / 100.0, 2)
-        if baseline and baseline.q50 is not None
-        else None
+        round(quantiles["q50"] / 100.0, 2) if quantiles and "q50" in quantiles else None
+    )
+    p75 = (
+        round(quantiles["q75"] / 100.0, 2) if quantiles and "q75" in quantiles else None
     )
     p90 = (
-        round(float(baseline.q75) * 1.2 / 100.0, 2)
-        if baseline and baseline.q75 is not None
-        else None
+        round(quantiles["q90"] / 100.0, 2) if quantiles and "q90" in quantiles else None
     )
 
-    min_pt = min([p.min_price_eur for p in points]) if points else None
+    forward_curve: list[ForwardPricePoint] = []
+    for f_date, min_p, src in fwd_rows:
+        pv_label = None
+        pv_pct = None
+        if quantiles:
+            pv = classify_price(min_p, quantiles, b_conf)
+            pv_label = pv.verdict
+            pv_pct = pv.percentile
+        forward_curve.append(
+            ForwardPricePoint(
+                depart_date=f_date.isoformat(),
+                price_eur=round(min_p / 100.0, 2),
+                verdict=pv_label,
+                percentile=pv_pct,
+                carrier=src,
+            )
+        )
+
+    # Determine latest tick and verdict
+    latest_stmt = (
+        select(MarketPriceTickModel)
+        .where(
+            MarketPriceTickModel.origin_iata == alert.origin_iata,
+            MarketPriceTickModel.destination_code == dest_code,
+        )
+        .order_by(desc(MarketPriceTickModel.observed_at))
+        .limit(1)
+    )
+    latest_res = await session.execute(latest_stmt)
+    latest_tick = latest_res.scalar_one_or_none()
+
+    verdict_dict = None
+    if latest_tick and quantiles:
+        verdict_dict = classify_price(
+            latest_tick.base_price_cents, quantiles, b_conf
+        ).to_dict()
+
+    # Fetch corpus status
+    c_status = await get_route_corpus_status(session, alert.origin_iata, dest_code)
+    corpus_info = CorpusInfo(
+        status=c_status.get("status", "ready" if forward_curve else "building"),
+        confidence=b_conf,
+        ticks_ingested=c_status.get("ticks_ingested", len(points) + len(forward_curve)),
+        depart_dates_count=c_status.get("depart_dates_count", len(forward_curve)),
+        min_price_eur=c_status.get("min_price_eur"),
+        max_price_eur=c_status.get("max_price_eur"),
+        median_price_eur=c_status.get("median_price_eur"),
+        last_backfill_at=c_status.get("last_backfill_at"),
+    )
+
+    all_prices = [p.min_price_eur for p in points] + [
+        f.price_eur for f in forward_curve
+    ]
+    min_pt = min(all_prices) if all_prices else None
 
     return HistoryResponse(
         points=points,
+        forward_curve=forward_curve,
         p10_deal_eur=p10,
+        p25_eur=p25,
         p50_median_eur=p50,
+        p75_eur=p75,
         p90_peak_eur=p90,
         lowest_ever_eur=min_pt,
+        verdict=verdict_dict,
+        corpus=corpus_info,
         currency="EUR",
     )
+
+
+@router.post("/routes/{route_id}/backfill")
+async def trigger_route_backfill(
+    route_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Triggers an on-demand forward calendar sweep backfill for the route,
+    pulling ~300 daily fares and recalculating all quantiles and corpus status.
+    """
+    stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
+    res = await session.execute(stmt)
+    alert = res.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Route not found")
+
+    dest_code = alert.destinations[0] if alert.destinations else ""
+    corpus_res = await backfill_route_corpus(
+        session=session,
+        origin_iata=alert.origin_iata,
+        destination_code=dest_code,
+        months_ahead=CORPUS_HORIZON_MONTHS,
+    )
+    return corpus_res
+
+
+@router.get("/routes/{route_id}/corpus")
+async def get_route_corpus(
+    route_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """Returns the market corpus ingestion and baseline status for the route."""
+    stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
+    res = await session.execute(stmt)
+    alert = res.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Route not found")
+
+    dest_code = alert.destinations[0] if alert.destinations else ""
+    return await get_route_corpus_status(session, alert.origin_iata, dest_code)
 
 
 @router.get("/routes/{route_id}/calendar", response_model=CalendarResponse)
@@ -896,30 +1121,28 @@ async def get_route_stats(
 
     dest_code = alert.destinations[0]
 
-    base_stmt = (
-        select(RouteBaselineModel)
-        .where(
-            RouteBaselineModel.origin_iata == alert.origin_iata,
-            RouteBaselineModel.destination_code == dest_code,
-        )
-        .limit(1)
+    today = datetime.now(timezone.utc).date()
+    quantiles, b_level, b_conf = await resolve_route_baseline_quantiles(
+        session=session,
+        origin_iata=alert.origin_iata,
+        destination_code=dest_code,
+        depart_date=alert.earliest_date,
+        observation_date=today,
     )
-    base_res = await session.execute(base_stmt)
-    baseline = base_res.scalar_one_or_none()
     p10 = (
-        round(float(baseline.q10) / 100.0, 2)
-        if baseline and baseline.q10 is not None
-        else None
+        round(quantiles["q10"] / 100.0, 2) if quantiles and "q10" in quantiles else None
+    )
+    p25 = (
+        round(quantiles["q25"] / 100.0, 2) if quantiles and "q25" in quantiles else None
     )
     p50 = (
-        round(float(baseline.q50) / 100.0, 2)
-        if baseline and baseline.q50 is not None
-        else None
+        round(quantiles["q50"] / 100.0, 2) if quantiles and "q50" in quantiles else None
+    )
+    p75 = (
+        round(quantiles["q75"] / 100.0, 2) if quantiles and "q75" in quantiles else None
     )
     p90 = (
-        round(float(baseline.q75) * 1.25 / 100.0, 2)
-        if baseline and baseline.q75 is not None
-        else None
+        round(quantiles["q90"] / 100.0, 2) if quantiles and "q90" in quantiles else None
     )
 
     # Latest tick
@@ -962,7 +1185,12 @@ async def get_route_stats(
     total_observations = cnt_res.scalar() or 0
 
     pct = None
-    if (
+    verdict_str = None
+    if latest_tick and quantiles:
+        pv = classify_price(latest_tick.base_price_cents, quantiles, b_conf)
+        pct = pv.percentile
+        verdict_str = pv.verdict
+    elif (
         curr_eur is not None
         and lowest_eur is not None
         and p90 is not None
@@ -981,6 +1209,9 @@ async def get_route_stats(
         savings = round(p50 - curr_eur, 2)
         savings_pct = round((savings / p50) * 100.0, 1)
 
+    # Fetch corpus status
+    c_status = await get_route_corpus_status(session, alert.origin_iata, dest_code)
+
     # Next scan countdown
     mins = 60
     if alert.last_scanned_at:
@@ -993,7 +1224,9 @@ async def get_route_stats(
         current_price_eur=curr_eur,
         current_percentile=pct,
         p10_deal_eur=p10,
+        p25_eur=p25,
         p50_median_eur=p50,
+        p75_eur=p75,
         p90_peak_eur=p90,
         lowest_ever_eur=lowest_eur,
         lowest_ever_date=lowest_date,
@@ -1003,6 +1236,10 @@ async def get_route_stats(
         itinerary_realism_score=10.0 if total_observations > 0 else None,
         deal_savings_eur=savings,
         deal_savings_pct=savings_pct,
+        verdict=verdict_str,
+        verdict_confidence=b_conf,
+        corpus_status=c_status.get("status"),
+        depart_dates_count=c_status.get("depart_dates_count"),
     )
 
 

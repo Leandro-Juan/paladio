@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRouteMonitoring } from '@/hooks/useRouteMonitoring';
 import { RouteFullScreenView } from '@/components/monitoring/RouteFullScreenView';
 import { NewRouteModal } from '@/components/monitoring/NewRouteModal';
+import { VerdictBadge } from '@/components/monitoring/VerdictBadge';
 import {
   RadarIcon,
   Spinner,
@@ -26,12 +27,14 @@ export default function MonitoringPage() {
     events,
     isLoading,
     isScanning,
+    isBackfilling,
     error,
     selectRoute,
     createRoute,
     toggleRouteActive,
     deleteRoute,
     triggerScan,
+    triggerBackfill,
     fetchOverview,
     fetchRouteDetail,
   } = useRouteMonitoring();
@@ -91,8 +94,10 @@ export default function MonitoringPage() {
           calendar={calendar}
           events={events}
           isScanning={isScanning}
+          isBackfilling={isBackfilling}
           onBack={() => selectRoute(null)}
           onTriggerScan={triggerScan}
+          onTriggerBackfill={triggerBackfill}
           onToggleActive={toggleRouteActive}
           onDelete={deleteRoute}
           onHistoryRangeChange={handleRangeChange}
@@ -435,15 +440,25 @@ export default function MonitoringPage() {
                       </td>
 
                       <td>
-                        <span
-                          className={`${styles.statusPill} ${
-                            isDeal ? styles.pillDeal : isPaused ? styles.pillPaused : styles.pillActive
-                          }`}
-                        >
-                          <span className={styles.statusDot} />
-                          {r.status}
-                          {isDeal && r.discount_pct && ` (-${r.discount_pct.toFixed(0)}%)`}
-                        </span>
+                        <div className={styles.statusCellStack}>
+                          <span
+                            className={`${styles.statusPill} ${
+                              isDeal ? styles.pillDeal : isPaused ? styles.pillPaused : styles.pillActive
+                            }`}
+                          >
+                            <span className={styles.statusDot} />
+                            {r.status}
+                            {isDeal && r.discount_pct && ` (-${r.discount_pct.toFixed(0)}%)`}
+                          </span>
+                          {r.verdict && (
+                            <VerdictBadge
+                              verdict={r.verdict}
+                              percentile={r.verdict_percentile}
+                              confidence={r.verdict_confidence}
+                              compact
+                            />
+                          )}
+                        </div>
                       </td>
 
                       <td className={styles.scheduleCell}>

@@ -24,6 +24,10 @@ export interface RouteItem {
   discount_pct: number | null;
   last_scanned_at: string | null;
   ticks_count: number;
+  verdict?: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
+  verdict_percentile?: number | null;
+  verdict_confidence?: 'building' | 'provisional' | 'established' | null;
+  corpus_status?: 'building' | 'ready' | 'failed' | null;
 }
 
 export interface MarketSummary {
@@ -42,12 +46,50 @@ export interface HistoryPoint {
   carrier: string;
 }
 
+export interface ForwardPricePoint {
+  depart_date: string;
+  price_eur: number;
+  verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
+  percentile: number | null;
+  carrier: string | null;
+}
+
+export interface CorpusInfo {
+  status: 'building' | 'ready' | 'failed';
+  confidence: 'building' | 'provisional' | 'established';
+  ticks_ingested: number;
+  depart_dates_count: number;
+  min_price_eur: number | null;
+  max_price_eur: number | null;
+  median_price_eur: number | null;
+  last_backfill_at: string | null;
+}
+
+export interface PriceVerdictInfo {
+  verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK';
+  percentile: number;
+  vs_median_pct: number;
+  price_eur: number;
+  baseline_p10_eur: number | null;
+  baseline_p25_eur: number | null;
+  baseline_p50_eur: number | null;
+  baseline_p75_eur: number | null;
+  baseline_p90_eur: number | null;
+  confidence: 'building' | 'provisional' | 'established';
+  explanation: string;
+}
+
 export interface RouteHistory {
   points: HistoryPoint[];
+  forward_curve?: ForwardPricePoint[];
   p10_deal_eur: number | null;
+  p25_eur?: number | null;
   p50_median_eur: number | null;
+  p75_eur?: number | null;
   p90_peak_eur: number | null;
   lowest_ever_eur: number | null;
+  verdict?: PriceVerdictInfo | null;
+  corpus?: CorpusInfo | null;
   currency: string;
 }
 
@@ -83,7 +125,9 @@ export interface RouteStats {
   current_price_eur: number | null;
   current_percentile: number | null;
   p10_deal_eur: number | null;
+  p25_eur?: number | null;
   p50_median_eur: number | null;
+  p75_eur?: number | null;
   p90_peak_eur: number | null;
   lowest_ever_eur: number | null;
   lowest_ever_date: string | null;
@@ -93,6 +137,10 @@ export interface RouteStats {
   itinerary_realism_score: number | null;
   deal_savings_eur: number | null;
   deal_savings_pct: number | null;
+  verdict?: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
+  verdict_confidence?: 'building' | 'provisional' | 'established' | null;
+  corpus_status?: 'building' | 'ready' | 'failed' | null;
+  depart_dates_count?: number | null;
 }
 
 export interface RouteEvent {
@@ -179,6 +227,7 @@ export function useRouteMonitoring() {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isBackfilling, setIsBackfilling] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch summary and routes
@@ -333,6 +382,19 @@ export function useRouteMonitoring() {
     }
   };
 
+  const triggerBackfill = async (id: string) => {
+    setIsBackfilling(true);
+    try {
+      await apiFetch(`/market/routes/${id}/backfill`, {
+        method: 'POST',
+      });
+      await fetchOverview();
+      await fetchRouteDetail(id);
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   const selectedRoute = routes.find((r) => r.id === selectedRouteId) || null;
 
   return {
@@ -347,12 +409,14 @@ export function useRouteMonitoring() {
     events,
     isLoading,
     isScanning,
+    isBackfilling,
     error,
     selectRoute,
     createRoute,
     toggleRouteActive,
     deleteRoute,
     triggerScan,
+    triggerBackfill,
     fetchOverview,
     fetchRouteDetail,
   };

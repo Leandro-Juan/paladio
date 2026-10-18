@@ -13,6 +13,7 @@ import {
 import { PriceTrendGraph } from './PriceTrendGraph';
 import { RouteTelemetryCards } from './RouteTelemetryCards';
 import { MonitoringCalendar } from './MonitoringCalendar';
+import { VerdictBadge } from './VerdictBadge';
 import { Spinner, RadarIcon, TrendingDownIcon } from '@/components/icons';
 import styles from './RouteFullScreenView.module.css';
 import monitoringStyles from '@/app/monitoring/Monitoring.module.css';
@@ -25,8 +26,10 @@ interface RouteFullScreenViewProps {
   calendar: RouteCalendar | null;
   events: RouteEvent[];
   isScanning: boolean;
+  isBackfilling?: boolean;
   onBack: () => void;
   onTriggerScan: (id: string) => Promise<void>;
+  onTriggerBackfill?: (id: string) => Promise<void>;
   onToggleActive: (id: string, is_active: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onHistoryRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
@@ -41,8 +44,10 @@ export function RouteFullScreenView({
   calendar,
   events,
   isScanning,
+  isBackfilling,
   onBack,
   onTriggerScan,
+  onTriggerBackfill,
   onToggleActive,
   onDelete,
   onHistoryRangeChange,
@@ -89,6 +94,14 @@ export function RouteFullScreenView({
               >
                 {isDeal ? 'DEAL ACTIVE' : route.status || 'MONITORING'}
               </span>
+
+              {(history?.verdict?.verdict || route.verdict) && (
+                <VerdictBadge
+                  verdict={(history?.verdict?.verdict ?? route.verdict)!}
+                  percentile={history?.verdict?.percentile ?? route.verdict_percentile}
+                  confidence={history?.verdict?.confidence ?? route.verdict_confidence}
+                />
+              )}
             </div>
             <span className={styles.routeSub}>
               {route.destination_name} · RID-{route.id.slice(0, 8)}
@@ -295,8 +308,13 @@ export function RouteFullScreenView({
             p10Deal={history?.p10_deal_eur ?? null}
             p50Median={history?.p50_median_eur ?? null}
             p90Peak={history?.p90_peak_eur ?? null}
+            forwardCurve={history?.forward_curve}
+            corpus={history?.corpus}
+            verdict={history?.verdict}
             currency="EUR"
             onRangeChange={onHistoryRangeChange}
+            onTriggerBackfill={onTriggerBackfill ? () => onTriggerBackfill(route.id) : undefined}
+            isBackfilling={isBackfilling}
           />
         </div>
 

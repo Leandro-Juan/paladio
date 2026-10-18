@@ -145,8 +145,14 @@ class RyanairProvider(BaseQuoteProvider):
                     curr = price_obj.get("currencyCode", "EUR")
                     if val is None:
                         continue
-                    dep_dt = datetime.fromisoformat(f"{day_str}T10:00:00")
-                    arr_dt = dep_dt + timedelta(hours=2, minutes=30)
+                    dep_raw = f.get("departureDate")
+                    arr_raw = f.get("arrivalDate")
+                    if dep_raw and arr_raw:
+                        dep_dt = datetime.fromisoformat(dep_raw)
+                        arr_dt = datetime.fromisoformat(arr_raw)
+                    else:
+                        dep_dt = datetime.fromisoformat(f"{day_str}T10:00:00")
+                        arr_dt = dep_dt + timedelta(hours=2, minutes=30)
                     price_cents = int(round(float(val) * 100))
                     quotes.append(
                         FlightQuote(
@@ -158,7 +164,7 @@ class RyanairProvider(BaseQuoteProvider):
                             base_price_cents=price_cents,
                             currency=curr,
                             carrier="Ryanair",
-                            flight_number=None,
+                            flight_number=f.get("flightNumber"),
                             stops=0,
                             deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
                             source="ryanair",
@@ -175,6 +181,50 @@ class RyanairProvider(BaseQuoteProvider):
                 f"CheapestPerDay endpoint failed for {origin_iata}->{dest_iata}: {e}"
             )
         return quotes
+
+    async def fetch_calendar_horizon(
+        self,
+        origin_iata: str,
+        dest_iata: str,
+        months_ahead: int = 11,
+        session: Any = None,
+    ) -> list[FlightQuote]:
+        """
+        Sweeps cheapestPerDay across up to `months_ahead` forward calendar months.
+        Gathers ~300 real daily market prices across seasons, weekdays, and lead times.
+        Politely batched with concurrency limit.
+        """
+        import asyncio
+
+        now = datetime.now(timezone.utc)
+        sem = asyncio.Semaphore(3)
+
+        async def _fetch_single(m_date: date) -> list[FlightQuote]:
+            async with sem:
+                await asyncio.sleep(0.05)
+                return await self.fetch_month_cheapest_per_day(
+                    origin_iata, dest_iata, m_date, session=session
+                )
+
+        month_dates = []
+        for i in range(months_ahead):
+            y = now.year + (now.month - 1 + i) // 12
+            m = (now.month - 1 + i) % 12 + 1
+            month_dates.append(date(y, m, 1))
+
+        tasks = [_fetch_single(m_date) for m_date in month_dates]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        all_quotes: list[FlightQuote] = []
+        for res in results:
+            if isinstance(res, list):
+                all_quotes.extend(res)
+            elif isinstance(res, Exception):
+                logger.warning(
+                    f"Error in calendar horizon sweep for {origin_iata}->{dest_iata}: {res}"
+                )
+
+        return all_quotes
 
     async def verify_flight(
         self, quote: FlightQuote, session: Any = None
