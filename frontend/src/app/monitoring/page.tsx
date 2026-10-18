@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouteMonitoring } from '@/hooks/useRouteMonitoring';
-import { RouteInspectorDrawer } from '@/components/monitoring/RouteInspectorDrawer';
+import { RouteFullScreenView } from '@/components/monitoring/RouteFullScreenView';
 import { NewRouteModal } from '@/components/monitoring/NewRouteModal';
 import {
   RadarIcon,
@@ -16,6 +16,7 @@ export default function MonitoringPage() {
     routes,
     summary,
     selectedRoute,
+    selectedRouteId,
     stats,
     history,
     calendar,
@@ -78,8 +79,25 @@ export default function MonitoringPage() {
 
   return (
     <div className={styles.pageContainer}>
-      {/* Top Telemetry Header */}
-      <header className={styles.pageHeader}>
+      {selectedRoute ? (
+        <RouteFullScreenView
+          route={selectedRoute}
+          stats={stats}
+          history={history}
+          calendar={calendar}
+          events={events}
+          isScanning={isScanning}
+          onBack={() => selectRoute(null)}
+          onTriggerScan={triggerScan}
+          onToggleActive={toggleRouteActive}
+          onDelete={deleteRoute}
+          onHistoryRangeChange={handleRangeChange}
+          onMonthsCountChange={handleMonthsCountChange}
+        />
+      ) : (
+        <>
+          {/* Top Telemetry Header */}
+          <header className={styles.pageHeader}>
         <div className={styles.headerTitleGroup}>
           <div className={styles.titleWithBadge}>
             <span className={styles.telemetryTag} aria-hidden="true">{"// AIRFARE_DEAL_RADAR"}</span>
@@ -115,8 +133,6 @@ export default function MonitoringPage() {
           </div>
         </div>
 
-        <div className={styles.kpiDivider} aria-hidden="true" />
-
         <div className={styles.kpiCell}>
           <span className={styles.kpiLabel}>Open Deal Alerts</span>
           <div className={styles.kpiValueRow}>
@@ -127,8 +143,6 @@ export default function MonitoringPage() {
           </div>
         </div>
 
-        <div className={styles.kpiDivider} aria-hidden="true" />
-
         <div className={styles.kpiCell}>
           <span className={styles.kpiLabel}>Ticks Scanned Today</span>
           <div className={styles.kpiValueRow}>
@@ -138,8 +152,6 @@ export default function MonitoringPage() {
             <span className={styles.kpiUnit}>Live Observations</span>
           </div>
         </div>
-
-        <div className={styles.kpiDivider} aria-hidden="true" />
 
         <div className={styles.kpiCell}>
           <span className={styles.kpiLabel}>Average Savings</span>
@@ -251,7 +263,7 @@ export default function MonitoringPage() {
                 {filteredRoutes.map((r) => {
                   const isDeal = r.status === 'DEAL';
                   const isPaused = !r.is_active;
-                  const isSelected = selectedRoute?.id === r.id;
+                  const isSelected = selectedRouteId === r.id;
 
                   return (
                     <tr
@@ -332,24 +344,8 @@ export default function MonitoringPage() {
           </div>
         )}
       </main>
-
-      {/* Slide-Over Inspector Drawer */}
-      {selectedRoute && (
-        <RouteInspectorDrawer
-          route={selectedRoute}
-          stats={stats}
-          history={history}
-          calendar={calendar}
-          events={events}
-          isScanning={isScanning}
-          onClose={() => selectRoute(null)}
-          onTriggerScan={triggerScan}
-          onToggleActive={toggleRouteActive}
-          onDelete={deleteRoute}
-          onHistoryRangeChange={handleRangeChange}
-          onMonthsCountChange={handleMonthsCountChange}
-        />
-      )}
+    </>
+  )}
 
       {/* New Route Modal */}
       <NewRouteModal

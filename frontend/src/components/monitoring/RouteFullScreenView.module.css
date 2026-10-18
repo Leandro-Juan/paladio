@@ -1,0 +1,272 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.5rem;
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.backBtn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #334155);
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 8px;
+  padding: 0.5rem 0.875rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.backBtn:hover {
+  background: var(--color-bg-main, #F8FAFC);
+  color: var(--color-accent-primary, #0F4C5C);
+  border-color: var(--color-accent-primary, #0F4C5C);
+}
+
+.routeTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.routeHeadingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.routeIata {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.routeSub {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748B);
+}
+
+.statusBadge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statusPending {
+  background: rgba(226, 179, 60, 0.12);
+  color: #B45309;
+  border: 1px solid rgba(226, 179, 60, 0.3);
+}
+
+.statusActive {
+  background: rgba(20, 120, 141, 0.1);
+  color: var(--color-accent-teal-mid, #14788D);
+  border: 1px solid rgba(20, 120, 141, 0.25);
+}
+
+.statusDeal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.statusPaused {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748B;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.actionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.budgetBadge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.scanBtn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: var(--color-accent-primary, #0F4C5C);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.scanBtn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.scanBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pauseBtn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 8px;
+  padding: 0.5rem 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pauseBtn:hover {
+  background: var(--color-bg-main, #F8FAFC);
+}
+
+.deleteBtn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #DC2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 8px;
+  padding: 0.5rem 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.deleteBtn:hover {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.contentStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.sectionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auditSection {
+  background: var(--color-surface-card, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: var(--border-radius-xl, 14px);
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.auditHeader {
+  margin-bottom: 0.875rem;
+}
+
+.auditTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0;
+}
+
+.auditSubtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748B);
+  margin: 0.125rem 0 0 0;
+  font-family: var(--font-mono, monospace);
+}
+
+.eventsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.eventRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  background: var(--color-bg-main, #F8FAFC);
+  border: 1px solid var(--color-border, #E2E8F0);
+}
+
+.eventInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.eventTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.eventMeta {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #64748B);
+}
+
+.eventPriceTag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-accent-teal-mid, #14788D);
+}
+
+.emptyEvents {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #64748B);
+  font-style: italic;
+  margin: 0;
+}

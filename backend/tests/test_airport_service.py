@@ -2,6 +2,9 @@ import time
 from zoneinfo import ZoneInfo
 
 from app.services.airport_service import (
+    get_airport,
+    get_airport_by_icao,
+    get_airport_by_name,
     get_airport_service,
     get_city_from_iata,
     get_iata_code,
@@ -193,11 +196,12 @@ def test_unknown_city_and_invalid_iata_fallbacks():
     assert get_city_from_iata(None) == "Unknown"
 
     svc = get_airport_service()
-    assert svc.is_valid_iata("FOO") is False
+    assert svc.is_valid_iata("ZZZ") is False
+    assert svc.is_valid_iata("FAKE") is False
     assert svc.is_valid_iata("") is False
     assert svc.is_valid_iata(None) is False
-    assert svc.get_airport("FOO") is None
-    assert svc.get_timezone_from_iata("FOO") == ZoneInfo("UTC")
+    assert svc.get_airport("ZZZ") is None
+    assert svc.get_timezone_from_iata("ZZZ") == ZoneInfo("UTC")
 
 
 def test_spatial_proximity_radius_search():
@@ -244,3 +248,58 @@ def test_generate_mock_tickets_integration():
     assert res["origin_iata"] == "SVQ"
     assert res["destination_iata"] == "XXX"
     assert "booking_text" in res
+
+
+def test_bidirectional_iata_and_airport_lookups():
+    """Verifies that every IATA maps to an Airport and vice-versa (via Airport Name or ICAO)."""
+    # 1. IATA -> Airport & City
+    for iata in ["MAD", "LHR", "CDG", "AMS", "JFK", "HND", "DXB", "SIN"]:
+        ap = get_airport(iata)
+        assert ap is not None
+        assert ap.iata == iata
+        assert ap.name != ""
+        assert ap.latitude != 0.0
+        assert ap.longitude != 0.0
+
+    # 2. Airport Name -> IATA & Airport (Vice-Versa)
+    name_to_iata = {
+        "Heathrow": "LHR",
+        "Schiphol": "AMS",
+        "Gatwick": "LGW",
+        "Charles de Gaulle": "CDG",
+        "Barajas": "MAD",
+        "Narita": "NRT",
+    }
+    for name, expected_iata in name_to_iata.items():
+        # Via get_airport_by_name
+        ap = get_airport_by_name(name)
+        assert ap is not None, f"Airport '{name}' not found by name"
+        assert ap.iata == expected_iata
+
+    # Airport queries via get_iata_code
+    airport_queries = {
+        "London Heathrow": "LHR",
+        "Heathrow Airport": "LHR",
+        "Schiphol": "AMS",
+        "Gatwick": "LGW",
+        "Charles de Gaulle": "CDG",
+        "Barajas": "MAD",
+        "Narita": "NRT",
+    }
+    for query, expected_iata in airport_queries.items():
+        assert get_iata_code(query) == expected_iata
+
+    # 3. ICAO -> IATA & Airport (Vice-Versa)
+    icao_to_iata = {
+        "EGLL": "LHR",
+        "LFPG": "CDG",
+        "EHAM": "AMS",
+        "LEMD": "MAD",
+        "KJFK": "JFK",
+        "RJAA": "NRT",
+    }
+    for icao, expected_iata in icao_to_iata.items():
+        ap = get_airport_by_icao(icao)
+        assert ap is not None, f"Airport with ICAO '{icao}' not found"
+        assert ap.iata == expected_iata
+        assert get_iata_code(icao) == expected_iata

@@ -116,18 +116,24 @@
 .legendLineSolid {
   width: 14px;
   height: 2px;
-  background: var(--color-accent-primary, #0F4C5C);
+  background: #0284C7;
   border-radius: 1px;
 }
 
 .legendLineDeal {
   width: 14px;
   height: 2px;
-  border-top: 2px dashed var(--color-accent-teal-mid, #14788D);
+  border-top: 2px dashed #D97706;
 }
 
 .legendLineMedian {
   width: 14px;
   height: 2px;
-  border-top: 2px dashed var(--color-accent-gold, #E2B33C);
+  border-top: 2px dashed #64748B;
+}
+
+.legendLinePeak {
+  width: 14px;
+  height: 2px;
+  border-top: 2px dashed #E11D48;
 }

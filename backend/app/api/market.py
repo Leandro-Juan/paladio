@@ -519,7 +519,7 @@ async def trigger_route_scan(
             dest_iata=dest_code,
             dest_code=dest_code,
             date_from=alert.earliest_date,
-            date_to=min(alert.earliest_date + timedelta(days=45), alert.latest_date),
+            date_to=min(alert.earliest_date + timedelta(days=90), alert.latest_date),
             run_id=f"scan-{route_id[:8]}",
         )
         alert.last_scanned_at = datetime.now(timezone.utc)

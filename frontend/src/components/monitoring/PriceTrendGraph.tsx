@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  CartesianGrid,
 } from 'recharts';
 import { HistoryPoint } from '@/hooks/useRouteMonitoring';
 import styles from './PriceTrendGraph.module.css';
@@ -58,7 +59,7 @@ export function PriceTrendGraph({
       <div className={styles.header}>
         <div>
           <span className={styles.telemetryTag} aria-hidden="true">{"// PRICE_FLUCTUATION_CURVE"}</span>
-          <h4 className={styles.title}>Historical Price Trend</h4>
+          <h4 className={styles.title}>Historical Price Trajectory</h4>
         </div>
         <div className={styles.rangeSelector}>
           {(['24h', '7d', '30d', '90d'] as const).map((r) => (
@@ -75,14 +76,16 @@ export function PriceTrendGraph({
       </div>
 
       <div className={styles.chartWrapper}>
-        <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={chartData} margin={{ top: 15, right: 15, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="priceTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-accent-primary, #0F4C5C)" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="var(--color-accent-primary, #0F4C5C)" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="#0284C7" stopOpacity={0.22} />
+                <stop offset="95%" stopColor="#0284C7" stopOpacity={0.02} />
               </linearGradient>
             </defs>
+
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2E8F0)" opacity={0.6} />
 
             <XAxis
               dataKey="displayTime"
@@ -114,14 +117,14 @@ export function PriceTrendGraph({
               }}
             />
 
-            {p10Deal !== null && (
+            {p90Peak !== null && (
               <ReferenceLine
-                y={p10Deal}
-                stroke="var(--color-accent-teal-mid, #14788D)"
+                y={p90Peak}
+                stroke="#E11D48"
                 strokeDasharray="4 4"
                 label={{
-                  value: `P10: €${p10Deal.toFixed(0)}`,
-                  fill: 'var(--color-accent-teal-mid, #14788D)',
+                  value: `P90 Peak: ${symbol}${p90Peak.toFixed(0)}`,
+                  fill: '#E11D48',
                   fontSize: 10,
                   position: 'insideTopRight',
                   fontFamily: 'var(--font-mono, monospace)',
@@ -132,13 +135,28 @@ export function PriceTrendGraph({
             {p50Median !== null && (
               <ReferenceLine
                 y={p50Median}
-                stroke="var(--color-accent-gold, #E2B33C)"
+                stroke="#64748B"
+                strokeDasharray="2 4"
+                label={{
+                  value: `P50 Median: ${symbol}${p50Median.toFixed(0)}`,
+                  fill: '#64748B',
+                  fontSize: 10,
+                  position: 'insideRight',
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              />
+            )}
+
+            {p10Deal !== null && (
+              <ReferenceLine
+                y={p10Deal}
+                stroke="#D97706"
                 strokeDasharray="4 4"
                 label={{
-                  value: `P50: €${p50Median.toFixed(0)}`,
-                  fill: 'var(--color-accent-gold, #E2B33C)',
+                  value: `P10 Deal Target: ${symbol}${p10Deal.toFixed(0)}`,
+                  fill: '#D97706',
                   fontSize: 10,
-                  position: 'insideTopRight',
+                  position: 'insideBottomRight',
                   fontFamily: 'var(--font-mono, monospace)',
                 }}
               />
@@ -147,10 +165,10 @@ export function PriceTrendGraph({
             <Area
               type="monotone"
               dataKey="price"
-              stroke="var(--color-accent-primary, #0F4C5C)"
-              strokeWidth={2}
+              stroke="#0284C7"
+              strokeWidth={2.5}
               fill="url(#priceTrendGradient)"
-              activeDot={{ r: 5, fill: 'var(--color-accent-primary, #0F4C5C)', stroke: '#FFF', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -164,13 +182,19 @@ export function PriceTrendGraph({
         {p10Deal !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineDeal} />
-            <span>P10 Target (Deal)</span>
+            <span>P10 Deal Target</span>
           </div>
         )}
         {p50Median !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineMedian} />
-            <span>P50 Baseline (Median)</span>
+            <span>P50 Median</span>
+          </div>
+        )}
+        {p90Peak !== null && (
+          <div className={styles.legendItem}>
+            <span className={styles.legendLinePeak} />
+            <span>P90 Peak Ceiling</span>
           </div>
         )}
       </div>

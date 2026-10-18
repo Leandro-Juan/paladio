@@ -130,17 +130,13 @@ export function useRouteMonitoring() {
       ]);
       setSummary(sumData);
       setRoutes(routesData);
-
-      if (routesData.length > 0 && !selectedRouteId) {
-        setSelectedRouteId(routesData[0].id);
-      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';
       setError(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedRouteId]);
+  }, []);
 
   // Fetch detail for selected route
   const fetchRouteDetail = useCallback(async (routeId: string, historyRange = '30d', monthsCount = 4) => {
@@ -171,9 +167,6 @@ export function useRouteMonitoring() {
         if (!isMounted) return;
         setSummary(sumData);
         setRoutes(routesData);
-        if (routesData.length > 0) {
-          setSelectedRouteId((prev) => prev ?? routesData[0].id);
-        }
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';

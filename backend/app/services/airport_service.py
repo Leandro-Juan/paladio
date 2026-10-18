@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import math
+import re
 import unicodedata
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -97,6 +98,8 @@ class AirportService:
         raw_airports = airportsdata.load("IATA")
 
         self._by_iata: dict[str, AirportInfo] = {}
+        self._by_icao: dict[str, AirportInfo] = {}
+        self._by_name: dict[str, AirportInfo] = {}
         self._city_to_airports: dict[str, list[AirportInfo]] = {}
         self._commercial_airports: list[AirportInfo] = []
 
@@ -132,6 +135,13 @@ class AirportService:
             )
 
             self._by_iata[iata] = info
+            if info.icao:
+                self._by_icao[info.icao.upper()] = info
+
+            norm_name = _normalize_name(info.name)
+            if norm_name:
+                self._by_name[norm_name] = info
+
             self._commercial_airports.append(info)
 
             city_name = info.city
@@ -165,15 +175,20 @@ class AirportService:
         self._city_cache: dict[str, AirportInfo | None] = {}
         self._gc_index: dict[str, list[dict[str, Any]]] | None = None
         self._country_lookup: dict[str, str] | None = None
+        self._capitals_lookup: dict[str, str] | None = None
 
     def _ensure_geonames_loaded(
         self,
-    ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+    ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str], dict[str, str]]:
         """
-        Lazy-loads GeoNames world cities database (234,000+ cities/towns worldwide)
-        and global country name/code lookup table.
+        Lazy-loads GeoNames world cities database (234,000+ cities/towns worldwide),
+        global country name/code lookup table, and national capital table.
         """
-        if self._gc_index is None or self._country_lookup is None:
+        if (
+            self._gc_index is None
+            or self._country_lookup is None
+            or self._capitals_lookup is None
+        ):
             logger.info("Initializing dynamic GeoNames world cities index...")
             import geonamescache
 
@@ -191,23 +206,29 @@ class AirportService:
                     if norm_alt and len(norm_alt) > 1:
                         indexed.setdefault(norm_alt, []).append(c)
 
-            # Build country lookup table
+            # Build country lookup table and national capitals lookup table dynamically
             countries = gc.get_countries()
             c_map: dict[str, str] = {}
+            capitals: dict[str, str] = {}
             for iso2, c_data in countries.items():
                 c_map[_normalize_name(c_data["name"])] = iso2
                 c_map[iso2.lower()] = iso2
                 iso3 = c_data.get("iso3")
                 if iso3:
                     c_map[iso3.lower()] = iso2
+                cap = c_data.get("capital")
+                if cap:
+                    capitals[_normalize_name(cap)] = iso2
+
             # Common abbreviations
             c_map["uk"] = "GB"
             c_map["usa"] = "US"
 
             self._gc_index = indexed
             self._country_lookup = c_map
+            self._capitals_lookup = capitals
 
-        return self._gc_index, self._country_lookup
+        return self._gc_index, self._country_lookup, self._capitals_lookup
 
     def is_valid_iata(self, iata_code: str | None) -> bool:
         """Returns True if the 3-letter IATA code corresponds to a known airport."""
@@ -220,6 +241,58 @@ class AirportService:
         if not iata_code:
             return None
         return self._by_iata.get(iata_code.strip().upper())
+
+    def get_airport_by_icao(self, icao_code: str | None) -> AirportInfo | None:
+        """Returns full AirportInfo for a given 4-letter ICAO code, or None."""
+        if not icao_code:
+            return None
+        return self._by_icao.get(icao_code.strip().upper())
+
+    def get_airport_by_name(self, airport_name: str | None) -> AirportInfo | None:
+        """
+        Returns AirportInfo matching an airport name
+        (e.g. 'Heathrow', 'Charles de Gaulle', 'Schiphol', 'Barajas', 'Gatwick').
+        """
+        if not airport_name or not airport_name.strip():
+            return None
+        norm = _normalize_name(airport_name)
+        if norm in self._by_name:
+            return self._by_name[norm]
+
+        # Distinctive whole-word match (e.g. 'Heathrow' in 'London Heathrow Airport')
+        pattern = re.compile(r"\b" + re.escape(norm) + r"\b")
+        matches = [
+            ap
+            for ap in self._commercial_airports
+            if pattern.search(_normalize_name(ap.name))
+        ]
+        if not matches:
+            # Token subset matching (e.g. 'Amsterdam Schiphol' in 'Amsterdam Airport Schiphol')
+            tokens = set(norm.split())
+            tokens.discard("airport")
+            tokens.discard("international")
+            if tokens:
+                matches = [
+                    ap
+                    for ap in self._commercial_airports
+                    if tokens.issubset(set(_normalize_name(ap.name).split()))
+                ]
+
+        if not matches:
+            matches = [
+                ap
+                for ap in self._commercial_airports
+                if norm in _normalize_name(ap.name)
+            ]
+        if matches:
+            matches.sort(
+                key=lambda x: (
+                    len(x.name),
+                    0 if "international" in x.name.lower() else 1,
+                )
+            )
+            return matches[0]
+        return None
 
     def get_city_from_iata(self, iata_code: str | None) -> str:
         """Returns the city name for a given IATA code (or 'Unknown')."""
@@ -312,7 +385,7 @@ class AirportService:
             parts = clean_query.split(",")
             clean_query = parts[0].strip()
             hint_str = _normalize_name(parts[-1].strip())
-            _, c_lookup = self._ensure_geonames_loaded()
+            _, c_lookup, _ = self._ensure_geonames_loaded()
             if hint_str in c_lookup:
                 target_country = c_lookup[hint_str]
 
@@ -320,8 +393,21 @@ class AirportService:
         if cache_key in self._city_cache:
             return self._city_cache[cache_key]
 
+        # 0. Direct IATA code check (e.g. 'JFK', 'MAD', 'LHR')
+        clean_upper = clean_query.upper()
+        if len(clean_upper) == 3 and clean_upper in self._by_iata:
+            ap_direct = self._by_iata[clean_upper]
+            self._city_cache[cache_key] = ap_direct
+            return ap_direct
+
+        # 0.1 Direct ICAO code check (e.g. 'KJFK', 'EGLL', 'LEMD')
+        if len(clean_upper) == 4 and clean_upper in self._by_icao:
+            ap_direct = self._by_icao[clean_upper]
+            self._city_cache[cache_key] = ap_direct
+            return ap_direct
+
         norm = _normalize_name(clean_query)
-        gc_index, _ = self._ensure_geonames_loaded()
+        gc_index, _, capitals_lookup = self._ensure_geonames_loaded()
 
         if norm in gc_index:
             candidates = gc_index[norm]
@@ -333,14 +419,19 @@ class AirportService:
                 if country_filtered:
                     candidates = country_filtered
 
-            # Prioritize candidates whose CANONICAL name matches over alias-only matches
-            canonical_matches = [
-                c for c in candidates if _normalize_name(c.get("name", "")) == norm
-            ]
-            pool = canonical_matches if canonical_matches else candidates
+            # Disambiguate candidates:
+            # - Canonical national capitals get top priority (e.g. Dili in TL over Delhi in IN)
+            # - Canonical city names receive full population
+            # - Multilingual alternate names / abbreviations receive 0.05x factor
+            def _score_city(c: dict[str, Any]) -> float:
+                pop = c.get("population", 0)
+                is_canonical = _normalize_name(c.get("name", "")) == norm
+                is_capital = c.get("countrycode") == capitals_lookup.get(norm)
+                if is_canonical and is_capital:
+                    return float(pop) * 1000.0
+                return float(pop) if is_canonical else float(pop) * 0.05
 
-            # Disambiguate by population (e.g. Paris FR vs Paris TX; London UK vs London CA)
-            best_city = max(pool, key=lambda c: c.get("population", 0))
+            best_city = max(candidates, key=_score_city)
             lat = best_city.get("latitude")
             lon = best_city.get("longitude")
             cc = best_city.get("countrycode")
@@ -390,11 +481,17 @@ class AirportService:
                     self._city_cache[cache_key] = resolved
                     return resolved
 
-        # Fallback: Check if city is directly named in airports dataset
+        # Fallback 1: Check if city is directly named in airports dataset
         if norm in self._city_to_airports:
             resolved = self._city_to_airports[norm][0]
             self._city_cache[cache_key] = resolved
             return resolved
+
+        # Fallback 2: Check if input matches an airport name directly (e.g. 'Schiphol', 'Gatwick')
+        ap_by_name = self.get_airport_by_name(clean_query)
+        if ap_by_name:
+            self._city_cache[cache_key] = ap_by_name
+            return ap_by_name
 
         self._city_cache[cache_key] = None
         return None
@@ -432,3 +529,18 @@ def get_iata_code(city_name: str, country_code: str | None = None) -> str:
 def get_city_from_iata(iata_code: str) -> str:
     """Returns the city name for a given IATA code ('Unknown' if unmapped)."""
     return get_airport_service().get_city_from_iata(iata_code)
+
+
+def get_airport(iata_code: str) -> AirportInfo | None:
+    """Returns AirportInfo for a given 3-letter IATA code."""
+    return get_airport_service().get_airport(iata_code)
+
+
+def get_airport_by_name(airport_name: str) -> AirportInfo | None:
+    """Returns AirportInfo for a given airport name (e.g. 'Heathrow', 'Schiphol')."""
+    return get_airport_service().get_airport_by_name(airport_name)
+
+
+def get_airport_by_icao(icao_code: str) -> AirportInfo | None:
+    """Returns AirportInfo for a given 4-letter ICAO code."""
+    return get_airport_service().get_airport_by_icao(icao_code)
