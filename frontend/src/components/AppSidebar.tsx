@@ -138,8 +138,8 @@ export function AppSidebar() {
               title="Paladio Control Center"
             >
               <div className="logo-mark" aria-hidden="true" style={{ width: '26px', height: '26px' }}>
-                <div className="logo-icon-sun" style={{ width: '15px', height: '15px' }} />
-                <div className="logo-ring" style={{ width: '24px', height: '24px' }} />
+                <div className="logo-icon-sun" style={{ width: '22px', height: '22px' }} />
+                <div className="logo-ring" style={{ width: '26px', height: '26px' }} />
               </div>
               <span className={styles.brandTitle}>Paladio</span>
             </button>

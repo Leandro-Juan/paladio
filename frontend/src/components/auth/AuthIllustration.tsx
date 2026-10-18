@@ -35,15 +35,12 @@ export function WaveAndSunIllustration() {
 
 export function SunMark({ size = 32 }: { size?: number }) {
   return (
-    <svg
+    <img
+      src="/logo.png"
+      alt="Paladio Logo"
       width={size}
       height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <circle cx="16" cy="16" r="14" fill="var(--color-accent-secondary, #D42A2F)" />
-    </svg>
+      style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain', display: 'block' }}
+    />
   );
 }

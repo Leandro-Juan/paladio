@@ -135,7 +135,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <Link href="/dashboard" style={{ textDecoration: 'none' }} aria-label="Paladio Dashboard">
           <div className="logo-container">
             <div className="logo-mark" aria-hidden="true" style={{ width: '26px', height: '26px' }}>
-              <div className="logo-icon-sun" style={{ width: '13px', height: '13px' }} />
+              <div className="logo-icon-sun" style={{ width: '22px', height: '22px' }} />
               <div className="logo-ring" />
             </div>
             <span className="logo-text" style={{ fontSize: '16px' }}>PALADIO</span>

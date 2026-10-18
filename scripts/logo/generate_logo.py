@@ -1,4 +1,12 @@
+"""
+Canonical Paladio Logo Generator
+Generates the circular ASCII art logo and distributes all asset variants
+(mark, horizontal lockups, masks, and favicons) across the repository.
+"""
+
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
 # Matriz corregida (10 filas x 17 columnas) para silueta circular
 ascii_art = [
@@ -13,21 +21,6 @@ ascii_art = [
     "     ......::*   ",
 ]
 
-# Configuración del lienzo
-img_size = 1024
-target_diameter = 740  # Diámetro exacto del círculo en píxeles (1:1)
-img = Image.new("RGB", (img_size, img_size), "white")
-draw = ImageDraw.Draw(img)
-
-# Cargar fuente monoespaciada
-font_size = 76
-try:
-    font = ImageFont.truetype(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", font_size
-    )
-except IOError:
-    font = ImageFont.load_default()
-
 # Paleta de azules (sombra suave abajo-izquierda -> foco intenso arriba-derecha)
 colors = {
     ".": "#99C2FF",  # Azul claro
@@ -36,30 +29,165 @@ colors = {
     "@": "#002B80",  # Azul marino intenso
 }
 
-rows = len(ascii_art)
-cols = max(len(line) for line in ascii_art)
+FONT_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSansMono-Bold.ttf",
+]
 
-# Forzamos que el bloque entero mida exactamente target_diameter x target_diameter
-char_w = target_diameter / cols
-char_h = target_diameter / rows
 
-# Centrado matemático en el lienzo de 1024x1024
-start_x = (img_size - target_diameter) / 2
-start_y = (img_size - target_diameter) / 2
+def get_font(size: int):
+    for fp in FONT_PATHS:
+        try:
+            return ImageFont.truetype(fp, size)
+        except IOError:
+            continue
+    return ImageFont.load_default()
 
-for row_idx, line in enumerate(ascii_art):
-    for col_idx, char in enumerate(line):
-        if char in colors:
-            x = start_x + col_idx * char_w
-            y = start_y + row_idx * char_h
-            # anchor="mm" centra cada carácter exactamente en su celda
-            draw.text(
-                (x + char_w / 2, y + char_h / 2),
-                char,
-                fill=colors[char],
-                font=font,
-                anchor="mm",
-            )
 
-img.save("logo_ascii.png")
-print("Guardado como logo_ascii.png (proporción 1:1)")
+def render_mark(
+    canvas_size: int = 2048,
+    target_diameter: float | None = None,
+    transparent: bool = True,
+    monochrome_color: str | None = None,
+    bg_color: str = "white",
+) -> Image.Image:
+    if target_diameter is None:
+        target_diameter = canvas_size * (740.0 / 1024.0)
+
+    mode = "RGBA" if transparent else "RGB"
+    bg = (0, 0, 0, 0) if transparent else bg_color
+    img = Image.new(mode, (canvas_size, canvas_size), bg)
+    draw = ImageDraw.Draw(img)
+
+    font_size = int(target_diameter * (76.0 / 740.0))
+    font = get_font(font_size)
+
+    rows = len(ascii_art)
+    cols = max(len(line) for line in ascii_art)
+    char_w = target_diameter / cols
+    char_h = target_diameter / rows
+
+    start_x = (canvas_size - target_diameter) / 2
+    start_y = (canvas_size - target_diameter) / 2
+
+    for row_idx, line in enumerate(ascii_art):
+        for col_idx, char in enumerate(line):
+            if char in colors:
+                x = start_x + col_idx * char_w
+                y = start_y + row_idx * char_h
+                fill = (
+                    monochrome_color if monochrome_color is not None else colors[char]
+                )
+                draw.text(
+                    (x + char_w / 2, y + char_h / 2),
+                    char,
+                    fill=fill,
+                    font=font,
+                    anchor="mm",
+                )
+
+    return img
+
+
+def generate_all():
+    script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent.parent
+    assets_dir = script_dir / "assets"
+
+    # 1. logo_ascii.png (1024x1024 white RGB)
+    logo_ascii = render_mark(canvas_size=1024, transparent=False, bg_color="white")
+    logo_ascii.save(script_dir.parent / "logo_ascii.png")
+    print("Guardado como logo_ascii.png (proporción 1:1)")
+
+    # 2. logo.png (2048x2048 RGBA transparent)
+    logo_png = render_mark(canvas_size=2048, transparent=True)
+
+    # 3. logo.jpeg (2048x2048 RGB white)
+    logo_jpeg = render_mark(canvas_size=2048, transparent=False, bg_color="white")
+
+    # 4. logo-white.png (2048x2048 RGBA pure white)
+    logo_white = render_mark(
+        canvas_size=2048, transparent=True, monochrome_color="#FFFFFF"
+    )
+
+    # 5. Horizontal lockups
+    mark_horiz_color = render_mark(
+        canvas_size=600, target_diameter=600, transparent=True
+    )
+    mark_horiz_white = render_mark(
+        canvas_size=600,
+        target_diameter=600,
+        transparent=True,
+        monochrome_color="#FFFFFF",
+    )
+    mark_pos = (80, 150)
+
+    # Load typography lockups
+    text_title = Image.open(assets_dir / "text_title.png")
+    text_title_dark = Image.open(assets_dir / "text_title_dark.png")
+    text_caps = Image.open(assets_dir / "text_caps.png")
+    text_caps_dark = Image.open(assets_dir / "text_caps_dark.png")
+
+    # logo-horizontal (Title Case light)
+    h_title = Image.new("RGBA", (2709, 900), (0, 0, 0, 0))
+    h_title.paste(mark_horiz_color, mark_pos, mark_horiz_color)
+    h_title.paste(text_title, (813, 0), text_title)
+
+    # logo-horizontal-dark (Title Case dark)
+    h_title_dark = Image.new("RGBA", (2709, 900), (0, 0, 0, 0))
+    h_title_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
+    h_title_dark.paste(text_title_dark, (813, 0), text_title_dark)
+
+    # logo-horizontal-caps (All Caps light)
+    h_caps = Image.new("RGBA", (3126, 900), (0, 0, 0, 0))
+    h_caps.paste(mark_horiz_color, mark_pos, mark_horiz_color)
+    h_caps.paste(text_caps, (813, 0), text_caps)
+
+    # logo-horizontal-caps-dark (All Caps dark)
+    h_caps_dark = Image.new("RGBA", (3126, 900), (0, 0, 0, 0))
+    h_caps_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
+    h_caps_dark.paste(text_caps_dark, (813, 0), text_caps_dark)
+
+    # 6. Favicon 48x48
+    arr = np.array(logo_png)
+    alpha = arr[:, :, 3]
+    ys, xs = np.where(alpha > 0)
+    cropped = logo_png.crop((xs.min(), ys.min(), xs.max(), ys.max()))
+    favicon = cropped.resize((48, 48), Image.Resampling.LANCZOS)
+
+    # Save to all target locations
+    targets = [
+        repo_root / "frontend" / "public",
+        repo_root / "docs" / "assets",
+        repo_root / "cpp_core" / "assets",
+        repo_root / "site" / "assets",
+    ]
+
+    for target in targets:
+        target.mkdir(parents=True, exist_ok=True)
+        logo_png.save(target / "logo.png")
+        logo_jpeg.save(target / "logo.jpeg", quality=95)
+        logo_white.save(target / "logo-white.png")
+        h_title.save(target / "logo-horizontal.png")
+        h_title.save(target / "logo_horizontal.png")
+        h_title_dark.save(target / "logo-horizontal-dark.png")
+        h_title_dark.save(target / "logo_horizontal_dark.png")
+        h_caps.save(target / "logo-horizontal-caps.png")
+        h_caps.save(target / "logo_horizontal_caps.png")
+        h_caps_dark.save(target / "logo-horizontal-caps-dark.png")
+        h_caps_dark.save(target / "logo_horizontal_caps_dark.png")
+
+    # Favicons
+    fav_targets = [
+        repo_root / "site" / "assets" / "images" / "favicon.png",
+        repo_root / "cpp_core" / "site" / "assets" / "images" / "favicon.png",
+    ]
+    for ft in fav_targets:
+        ft.parent.mkdir(parents=True, exist_ok=True)
+        favicon.save(ft)
+
+    print("Se han actualizado todos los recursos de logo en el proyecto exitosamente.")
+
+
+if __name__ == "__main__":
+    generate_all()
