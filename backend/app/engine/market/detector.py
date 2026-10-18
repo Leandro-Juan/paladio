@@ -327,6 +327,54 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     "discount_pct": round(max((1.0 - package_ratio) * 100, 0.0), 1),
                 }
 
+                # Check for existing active deals for this alert to handle auto-substitution
+                existing_ev_stmt = select(DealEventModel).filter(
+                    DealEventModel.alert_id == alert.id,
+                    DealEventModel.status.in_(["alerted", "pending", "active"]),
+                )
+                existing_ev_res = await session.execute(existing_ev_stmt)
+                existing_events = existing_ev_res.scalars().all()
+
+                if existing_events:
+                    # Determine whether newly verified package is superior
+                    best_existing = min(
+                        existing_events,
+                        key=lambda e: (
+                            e.package_json.get("total_landed_cents", float("inf")),
+                            -e.package_json.get("landed_savings_cents", 0),
+                        ),
+                    )
+                    best_pkg = best_existing.package_json or {}
+                    best_price = best_pkg.get("total_landed_cents", float("inf"))
+                    best_savings = best_pkg.get("landed_savings_cents", 0)
+
+                    is_better = (landed_total_cents < best_price) or (
+                        landed_total_cents == best_price
+                        and landed_savings_cents > best_savings
+                    )
+
+                    if not is_better:
+                        logger.info(
+                            f"Skipping package {orig}->{dest} (€{landed_total_cents/100:.2f}): existing active package (€{best_price/100:.2f}) is already superior."
+                        )
+                        continue
+
+                    # Superior package found: substitute existing active deals and proposals
+                    logger.info(
+                        f"Substituting deal package for {orig}->{dest}: new €{landed_total_cents/100:.2f} replaces old €{best_price/100:.2f}"
+                    )
+                    for ev in existing_events:
+                        ev.status = "superseded"
+
+                    old_trips_stmt = select(TripModel).filter(
+                        TripModel.user_id == alert.user_id,
+                        TripModel.status == "deal_proposal",
+                        TripModel.destination == dest,
+                    )
+                    old_trips_res = await session.execute(old_trips_stmt)
+                    for old_t in old_trips_res.scalars().all():
+                        old_t.status = "superseded"
+
                 event_id = str(uuid.uuid4())
                 event = DealEventModel(
                     id=event_id,

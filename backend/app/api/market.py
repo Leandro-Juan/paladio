@@ -21,6 +21,7 @@ from app.db.models import (
     MarketPriceTickModel,
     PriceDailyModel,
     RouteBaselineModel,
+    TripModel,
     UserModel,
 )
 from app.db.session import get_db
@@ -324,12 +325,19 @@ async def get_market_summary(
     )
     ticks_cnt = ticks_res.scalar() or 0
 
-    deals_res = await session.execute(
-        select(func.count(DealCandidateModel.id)).where(
-            DealCandidateModel.status == "verified"
+    deals_ev_res = await session.execute(
+        select(func.count(DealEventModel.id)).where(
+            DealEventModel.status.in_(["alerted", "pending", "active"])
         )
     )
-    deals_cnt = deals_res.scalar() or 0
+    deals_cnt = deals_ev_res.scalar() or 0
+    if deals_cnt == 0:
+        deals_res = await session.execute(
+            select(func.count(DealCandidateModel.id)).where(
+                DealCandidateModel.status == "verified"
+            )
+        )
+        deals_cnt = deals_res.scalar() or 0
 
     savings_res = await session.execute(
         select(func.avg(DealCandidateModel.est_savings_cents)).where(
@@ -737,18 +745,24 @@ async def get_route_price_history(
 
     start_date = datetime.now(timezone.utc).date() - timedelta(days=days_back)
 
-    # Fetch daily price rollups
+    # Fetch daily price rollups (grouped by observation bucket to avoid duplicate points per day)
     p_stmt = (
-        select(PriceDailyModel)
+        select(
+            PriceDailyModel.bucket,
+            func.min(PriceDailyModel.min_base).label("min_base"),
+            func.sum(PriceDailyModel.n_ticks).label("n_ticks"),
+            PriceDailyModel.source,
+        )
         .where(
             PriceDailyModel.origin_iata == alert.origin_iata,
             PriceDailyModel.destination_code == dest_code,
             PriceDailyModel.bucket >= start_date,
         )
+        .group_by(PriceDailyModel.bucket, PriceDailyModel.source)
         .order_by(PriceDailyModel.bucket.asc())
     )
     p_res = await session.execute(p_stmt)
-    daily_records = p_res.scalars().all()
+    daily_records = p_res.all()
 
     points: list[HistoryPoint] = []
     for d in daily_records:
@@ -1421,27 +1435,9 @@ async def list_active_deals(
     session: AsyncSession = Depends(get_db),
     limit: int = Query(10, ge=1, le=50),
 ):
-    stmt = select(DealEventModel).order_by(desc(DealEventModel.alerted_at)).limit(limit)
-    res = await session.execute(stmt)
-    events = res.scalars().all()
-
-    items: list[DealPackageItem] = []
-    for ev in events:
-        item = await _format_deal_package_item(session, ev)
-        if item:
-            items.append(item)
-    return items
-
-
-@router.get("/routes/{route_id}/deals", response_model=list[DealPackageItem])
-async def list_route_deals(
-    route_id: str,
-    session: AsyncSession = Depends(get_db),
-    limit: int = Query(5, ge=1, le=20),
-):
     stmt = (
         select(DealEventModel)
-        .where(DealEventModel.alert_id == route_id)
+        .where(DealEventModel.status.in_(["alerted", "pending", "active"]))
         .order_by(desc(DealEventModel.alerted_at))
         .limit(limit)
     )
@@ -1453,7 +1449,70 @@ async def list_route_deals(
         item = await _format_deal_package_item(session, ev)
         if item:
             items.append(item)
+    items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
     return items
+
+
+@router.get("/routes/{route_id}/deals", response_model=list[DealPackageItem])
+async def list_route_deals(
+    route_id: str,
+    session: AsyncSession = Depends(get_db),
+    limit: int = Query(5, ge=1, le=20),
+):
+    stmt = (
+        select(DealEventModel)
+        .where(
+            DealEventModel.alert_id == route_id,
+            DealEventModel.status.in_(["alerted", "pending", "active"]),
+        )
+        .order_by(desc(DealEventModel.alerted_at))
+        .limit(limit)
+    )
+    res = await session.execute(stmt)
+    events = res.scalars().all()
+
+    items: list[DealPackageItem] = []
+    for ev in events:
+        item = await _format_deal_package_item(session, ev)
+        if item:
+            items.append(item)
+    items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
+    return items
+
+
+@router.post("/deals/{deal_id}/discard")
+async def discard_deal_event(
+    deal_id: str,
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(DealEventModel).where(DealEventModel.id == deal_id)
+    res = await session.execute(stmt)
+    deal = res.scalar_one_or_none()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+
+    deal.status = "discarded"
+    deal.user_feedback = "discarded"
+    deal.feedback_at = datetime.now(timezone.utc)
+
+    # Also archive any matching TripModel proposal for this user and route
+    pkg = deal.package_json or {}
+    dest_code = pkg.get("destination_code")
+    dep_date = pkg.get("depart_date")
+    if dest_code and dep_date:
+        trip_stmt = select(TripModel).where(
+            TripModel.user_id == deal.user_id,
+            TripModel.status == "deal_proposal",
+            TripModel.destination == dest_code,
+            TripModel.start_date == dep_date,
+        )
+        trip_res = await session.execute(trip_stmt)
+        trips = trip_res.scalars().all()
+        for t in trips:
+            t.status = "discarded"
+
+    await session.commit()
+    return {"status": "discarded", "deal_id": deal_id}
 
 
 @router.get("/providers/health", response_model=list[ProviderHealthItem])

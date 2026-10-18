@@ -33,6 +33,7 @@ export default function MonitoringPage() {
     createRoute,
     toggleRouteActive,
     deleteRoute,
+    discardDeal,
     triggerScan,
     triggerBackfill,
     fetchOverview,
@@ -100,6 +101,7 @@ export default function MonitoringPage() {
           onTriggerBackfill={triggerBackfill}
           onToggleActive={toggleRouteActive}
           onDelete={deleteRoute}
+          onDiscardDeal={discardDeal}
           onHistoryRangeChange={handleRangeChange}
           onMonthsCountChange={handleMonthsCountChange}
         />
@@ -304,19 +306,28 @@ export default function MonitoringPage() {
                 <span className={styles.dealFooterPrompt}>
                   Verified flight + hotel deal package ready for autonomous trip creation.
                 </span>
-                <button
-                  type="button"
-                  className={styles.makeTripBtn}
-                  onClick={() =>
-                    router.push(
-                      `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
-                        deal.origin_name
-                      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
-                    )
-                  }
-                >
-                  Make it a Trip ➔
-                </button>
+                <div className={styles.dealFooterActions}>
+                  <button
+                    type="button"
+                    className={styles.discardDealBtn}
+                    onClick={() => discardDeal(deal.id)}
+                  >
+                    Discard Offer
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.makeTripBtn}
+                    onClick={() =>
+                      router.push(
+                        `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
+                          deal.origin_name
+                        )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
+                      )
+                    }
+                  >
+                    Make it a Trip ➔
+                  </button>
+                </div>
               </div>
             </div>
           ))}

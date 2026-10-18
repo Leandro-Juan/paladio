@@ -807,3 +807,32 @@
   box-shadow: 0 4px 12px rgba(15, 76, 92, 0.35);
 }
 
+.dealFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.discardDealBtn {
+  font-family: var(--font-display, inherit);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-text-muted, #566B76);
+  border: 1px solid var(--color-border, #E2D9CC);
+  border-radius: 8px;
+  padding: 0.5625rem 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.discardDealBtn:hover {
+  background: var(--color-danger-soft, rgba(179, 38, 30, 0.08));
+  color: var(--color-danger, #B3261E);
+  border-color: var(--color-danger, #B3261E);
+}
+
+

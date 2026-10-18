@@ -32,6 +32,7 @@ interface RouteFullScreenViewProps {
   onTriggerBackfill?: (id: string) => Promise<void>;
   onToggleActive: (id: string, is_active: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onDiscardDeal?: (id: string) => Promise<void> | void;
   onHistoryRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
   onMonthsCountChange?: (count: number) => void;
 }
@@ -50,6 +51,7 @@ export function RouteFullScreenView({
   onTriggerBackfill,
   onToggleActive,
   onDelete,
+  onDiscardDeal,
   onHistoryRangeChange,
   onMonthsCountChange,
 }: RouteFullScreenViewProps) {
@@ -284,19 +286,30 @@ export function RouteFullScreenView({
               <span className={monitoringStyles.dealFooterPrompt}>
                 Verified flight + hotel deal package ready for autonomous trip creation.
               </span>
-              <button
-                type="button"
-                className={monitoringStyles.makeTripBtn}
-                onClick={() =>
-                  router.push(
-                    `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
-                      deal.origin_name
-                    )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
-                  )
-                }
-              >
-                Make it a Trip ➔
-              </button>
+              <div className={monitoringStyles.dealFooterActions}>
+                {onDiscardDeal && (
+                  <button
+                    type="button"
+                    className={monitoringStyles.discardDealBtn}
+                    onClick={() => onDiscardDeal(deal.id)}
+                  >
+                    Discard Offer
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={monitoringStyles.makeTripBtn}
+                  onClick={() =>
+                    router.push(
+                      `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
+                        deal.origin_name
+                      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
+                    )
+                  }
+                >
+                  Make it a Trip ➔
+                </button>
+              </div>
             </div>
           </div>
         )}

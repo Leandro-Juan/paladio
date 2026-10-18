@@ -240,9 +240,10 @@ export function useRouteMonitoring() {
         apiFetch<RouteItem[]>('/market/routes'),
         apiFetch<DealPackage[]>('/market/deals'),
       ]);
+      const sortedDeals = [...dealsData].sort((a, b) => b.discount_pct - a.discount_pct || a.total_price_eur - b.total_price_eur);
       setSummary(sumData);
       setRoutes(routesData);
-      setDeals(dealsData);
+      setDeals(sortedDeals);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';
       setError(msg);
@@ -279,9 +280,10 @@ export function useRouteMonitoring() {
           apiFetch<DealPackage[]>('/market/deals'),
         ]);
         if (!isMounted) return;
+        const sortedDeals = [...dealsData].sort((a, b) => b.discount_pct - a.discount_pct || a.total_price_eur - b.total_price_eur);
         setSummary(sumData);
         setRoutes(routesData);
-        setDeals(dealsData);
+        setDeals(sortedDeals);
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';
@@ -369,6 +371,22 @@ export function useRouteMonitoring() {
     }
   };
 
+  const discardDeal = async (dealId: string) => {
+    // Optimistically remove from state immediately
+    setDeals((prev) => prev.filter((d) => d.id !== dealId));
+    try {
+      await apiFetch(`/market/deals/${dealId}/discard`, {
+        method: 'POST',
+      });
+      // Refresh summary deal counter
+      const sumData = await apiFetch<MarketSummary>('/market/summary');
+      setSummary(sumData);
+    } catch (err: unknown) {
+      loggerError('Failed to discard deal', err);
+      await fetchOverview();
+    }
+  };
+
   const triggerScan = async (id: string) => {
     setIsScanning(true);
     try {
@@ -415,6 +433,7 @@ export function useRouteMonitoring() {
     createRoute,
     toggleRouteActive,
     deleteRoute,
+    discardDeal,
     triggerScan,
     triggerBackfill,
     fetchOverview,
