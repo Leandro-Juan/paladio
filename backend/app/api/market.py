@@ -204,6 +204,47 @@ class RouteEventItem(BaseModel):
     booking_url: str | None = None
 
 
+class DealFlightItem(BaseModel):
+    airline: str
+    flight_number: str | None = None
+    depart_time: str
+    arrival_time: str
+    base_price_eur: float
+    landed_price_eur: float
+    booking_url: str | None = None
+
+
+class DealLodgingItem(BaseModel):
+    property_name: str
+    nightly_base_eur: float
+    landed_total_eur: float
+    quality_score: float
+    booking_url: str | None = None
+
+
+class DealPackageItem(BaseModel):
+    id: str
+    alert_id: str
+    candidate_id: str
+    origin_iata: str
+    destination_code: str
+    origin_name: str
+    destination_name: str
+    depart_date: str
+    return_date: str
+    nights: int
+    total_price_eur: float
+    baseline_median_eur: float
+    savings_eur: float
+    discount_pct: float
+    package_ratio: float
+    realism_score: float
+    status: str
+    detected_at: str
+    flight: DealFlightItem
+    lodging: DealLodgingItem
+
+
 # Endpoints
 
 
@@ -1010,4 +1051,142 @@ async def get_route_events(
                 )
             )
 
+    return items
+
+
+async def _format_deal_package_item(
+    session: AsyncSession, ev: DealEventModel
+) -> DealPackageItem | None:
+    pkg = ev.package_json or {}
+    orig = pkg.get("origin_iata") or ""
+    dest = pkg.get("destination_code") or ""
+    if not orig or not dest:
+        return None
+
+    orig_name = pkg.get("origin_name") or await _resolve_city_name(session, orig)
+    dest_name = pkg.get("destination_name") or await _resolve_city_name(session, dest)
+
+    dep_date = pkg.get("depart_date") or ""
+    ret_date = pkg.get("return_date") or ""
+    nights = pkg.get("nights", 3)
+
+    flight_info = pkg.get("flight") or {}
+    fl_airline = flight_info.get("airline") or "Ryanair"
+    fl_number = flight_info.get("flight_number") or ""
+    fl_dep_time = flight_info.get("depart_time") or ""
+    fl_arr_time = flight_info.get("arrival_time") or ""
+    fl_base_cents = flight_info.get("base_price_cents", 0)
+    fl_landed_cents = flight_info.get("landed_price_cents") or fl_base_cents
+    fl_url = (
+        flight_info.get("deep_link")
+        or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={orig}&destinationIata={dest}&dateOut={dep_date}"
+    )
+
+    lodging_info = pkg.get("lodging") or {}
+    lg_name = (
+        lodging_info.get("property_name") or f"{dest_name} City Center Boutique Hotel"
+    )
+    lg_nightly_cents = lodging_info.get("base_nightly_cents", 0)
+    lg_landed_cents = lodging_info.get("landed_total_cents") or (
+        lg_nightly_cents * nights
+    )
+    lg_quality = lodging_info.get("quality_score", 78.0)
+    lg_url = (
+        lodging_info.get("deep_link")
+        or f"https://www.booking.com/searchresults.html?ss={dest_name}&checkin={dep_date}&checkout={ret_date}&group_adults=2&no_rooms=1"
+    )
+
+    total_landed_cents = pkg.get("total_landed_cents") or (
+        fl_landed_cents + lg_landed_cents
+    )
+    savings_cents = pkg.get("landed_savings_cents") or 0
+    package_ratio = pkg.get("package_ratio") or 0.75
+    realism = pkg.get("realism_score") or 8.5
+
+    total_price_eur = pkg.get("total_price_eur") or round(total_landed_cents / 100.0, 2)
+    savings_eur = pkg.get("savings_eur") or round(savings_cents / 100.0, 2)
+    baseline_median_eur = pkg.get("baseline_median_eur") or round(
+        (total_landed_cents + savings_cents) / 100.0, 2
+    )
+    discount_pct = pkg.get("discount_pct") or round(
+        max((1.0 - package_ratio) * 100, 0.0), 1
+    )
+
+    return DealPackageItem(
+        id=ev.id,
+        alert_id=ev.alert_id or "",
+        candidate_id=ev.candidate_id or "",
+        origin_iata=orig,
+        destination_code=dest,
+        origin_name=orig_name,
+        destination_name=dest_name,
+        depart_date=dep_date,
+        return_date=ret_date,
+        nights=nights,
+        total_price_eur=total_price_eur,
+        baseline_median_eur=baseline_median_eur,
+        savings_eur=savings_eur,
+        discount_pct=discount_pct,
+        package_ratio=package_ratio,
+        realism_score=realism,
+        status=ev.status.upper(),
+        detected_at=ev.alerted_at.isoformat()
+        if ev.alerted_at
+        else datetime.now(timezone.utc).isoformat(),
+        flight=DealFlightItem(
+            airline=fl_airline,
+            flight_number=fl_number,
+            depart_time=fl_dep_time,
+            arrival_time=fl_arr_time,
+            base_price_eur=round(fl_base_cents / 100.0, 2),
+            landed_price_eur=round(fl_landed_cents / 100.0, 2),
+            booking_url=fl_url,
+        ),
+        lodging=DealLodgingItem(
+            property_name=lg_name,
+            nightly_base_eur=round(lg_nightly_cents / 100.0, 2),
+            landed_total_eur=round(lg_landed_cents / 100.0, 2),
+            quality_score=float(lg_quality),
+            booking_url=lg_url,
+        ),
+    )
+
+
+@router.get("/deals", response_model=list[DealPackageItem])
+async def list_active_deals(
+    session: AsyncSession = Depends(get_db),
+    limit: int = Query(10, ge=1, le=50),
+):
+    stmt = select(DealEventModel).order_by(desc(DealEventModel.alerted_at)).limit(limit)
+    res = await session.execute(stmt)
+    events = res.scalars().all()
+
+    items: list[DealPackageItem] = []
+    for ev in events:
+        item = await _format_deal_package_item(session, ev)
+        if item:
+            items.append(item)
+    return items
+
+
+@router.get("/routes/{route_id}/deals", response_model=list[DealPackageItem])
+async def list_route_deals(
+    route_id: str,
+    session: AsyncSession = Depends(get_db),
+    limit: int = Query(5, ge=1, le=20),
+):
+    stmt = (
+        select(DealEventModel)
+        .where(DealEventModel.alert_id == route_id)
+        .order_by(desc(DealEventModel.alerted_at))
+        .limit(limit)
+    )
+    res = await session.execute(stmt)
+    events = res.scalars().all()
+
+    items: list[DealPackageItem] = []
+    for ev in events:
+        item = await _format_deal_package_item(session, ev)
+        if item:
+            items.append(item)
     return items

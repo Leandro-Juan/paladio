@@ -93,9 +93,9 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 nights = min(max(ft.nights, alert.min_nights), alert.max_nights)
                 ret_date = dep_date + timedelta(days=nights)
 
-                # Fetch lodging quote for this window
+                # Fetch lodging quote dynamically for this window
                 lodging_quote = await lodging_feed.fetch_destination_summary(
-                    dest, dep_date, ret_date
+                    dest, dep_date, ret_date, session=session
                 )
                 total_lodging_base = lodging_quote.base_price_per_night_cents * nights
                 total_package_base = ft.base_price_cents + total_lodging_base
@@ -314,11 +314,16 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                         "base_nightly_cents": lodging_quote.base_price_per_night_cents,
                         "landed_total_cents": landed_lodging_cents,
                         "quality_score": quality_score,
+                        "deep_link": lodging_quote.deep_link,
                     },
                     "total_landed_cents": landed_total_cents,
                     "landed_savings_cents": landed_savings_cents,
                     "package_ratio": round(package_ratio, 3),
                     "realism_score": gate_res.realism,
+                    "total_price_eur": round(landed_total_cents / 100.0, 2),
+                    "baseline_median_eur": round(landed_baseline_est / 100.0, 2),
+                    "savings_eur": round(landed_savings_cents / 100.0, 2),
+                    "discount_pct": round(max((1.0 - package_ratio) * 100, 0.0), 1),
                 }
 
                 event_id = str(uuid.uuid4())

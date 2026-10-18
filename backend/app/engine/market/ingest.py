@@ -180,7 +180,9 @@ async def ingest_lodging_ticks(
     if ingest_run_id is None:
         ingest_run_id = str(uuid.uuid4())
 
-    quote = await feed.fetch_destination_summary(destination_code, check_in, check_out)
+    quote = await feed.fetch_destination_summary(
+        destination_code, check_in, check_out, session=session
+    )
     now = datetime.now(timezone.utc)
     nights = max((check_out - check_in).days, 1)
     lead_time = max((check_in - now.date()).days, 0)

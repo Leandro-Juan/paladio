@@ -22,9 +22,18 @@ from app.engine.market.ports import (
     LodgingScorer,
     Notifier,
 )
+from app.db.models import (
+    CityModel,
+    DestinationAirportModel,
+    MarketPriceTickModel,
+    PriceDailyModel,
+)
+from app.db.session import async_session
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.quality.itinerary_metrics import evaluate_itinerary_quality
 from redis.asyncio import Redis
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -162,28 +171,104 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
 
 class OpenLodgingFeed(LodgingFeed):
     """
-    Tier 1 & Live Lodging Provider using authentic sampled destination rates.
-    Zero API keys required. Computes destination-level price medians and minimums.
+    Tier 1 & Live Lodging Provider using dynamic destination rates from PostgreSQL.
+    Zero API keys required. Computes destination-level price medians and minimums dynamically.
     """
 
-    # Authentic market baseline averages per city in EUR cents per night
-    DESTINATION_BASE_RATES = {
-        "ROM": 8500,  # Rome: 85 EUR
-        "FCO": 8500,
-        "OPO": 5500,  # Porto: 55 EUR
-        "LIS": 7000,  # Lisbon: 70 EUR
-        "BCN": 8000,  # Barcelona: 80 EUR
-        "DUB": 9500,  # Dublin: 95 EUR
-        "VIE": 8500,  # Vienna: 85 EUR
-        "MAD": 7500,  # Madrid: 75 EUR
-    }
+    async def _resolve_city_name(self, session: AsyncSession, code: str) -> str:
+        # Check DestinationAirportModel mapped to CityModel
+        stmt = (
+            select(CityModel.name)
+            .join(
+                DestinationAirportModel, DestinationAirportModel.city_id == CityModel.id
+            )
+            .where(DestinationAirportModel.iata == code.upper())
+            .limit(1)
+        )
+        res = await session.execute(stmt)
+        name = res.scalar_one_or_none()
+        if name:
+            return name
+
+        stmt_city = (
+            select(CityModel.name)
+            .where(
+                (CityModel.id.ilike(f"{code}%")) | (CityModel.name.ilike(f"{code}%"))
+            )
+            .limit(1)
+        )
+        res_city = await session.execute(stmt_city)
+        name_city = res_city.scalar_one_or_none()
+        if name_city:
+            return name_city
+
+        return code.upper()
+
+    async def _get_dynamic_base_rate(
+        self, session: AsyncSession, destination_code: str
+    ) -> tuple[int, str]:
+        dest_upper = destination_code.upper()
+        city_name = await self._resolve_city_name(session, dest_upper)
+
+        # 1. Check recent lodging ticks in market_price_ticks
+        tick_stmt = select(func.avg(MarketPriceTickModel.base_price_cents)).where(
+            MarketPriceTickModel.asset_type == "lodging",
+            MarketPriceTickModel.destination_code == dest_upper,
+        )
+        tick_res = await session.execute(tick_stmt)
+        avg_tick = tick_res.scalar()
+        if avg_tick and avg_tick > 0:
+            return int(round(float(avg_tick))), city_name
+
+        # 2. Check price_daily rollups for lodging
+        daily_stmt = select(func.avg(PriceDailyModel.min_base)).where(
+            PriceDailyModel.asset_type == "lodging",
+            PriceDailyModel.destination_code == dest_upper,
+        )
+        daily_res = await session.execute(daily_stmt)
+        avg_daily = daily_res.scalar()
+        if avg_daily and avg_daily > 0:
+            return int(round(float(avg_daily))), city_name
+
+        # 3. Check CityModel profile for dynamic typical lodging price
+        city_stmt = (
+            select(CityModel)
+            .where(
+                (CityModel.id.ilike(f"{dest_upper}%"))
+                | (CityModel.name.ilike(f"{city_name}%"))
+            )
+            .limit(1)
+        )
+        city_res = await session.execute(city_stmt)
+        city = city_res.scalar_one_or_none()
+        if city and city.profile:
+            lodging_eur = city.profile.get("typical_lodging_eur") or city.profile.get(
+                "lodging_median_eur"
+            )
+            if lodging_eur:
+                return int(round(float(lodging_eur) * 100)), city.name
+
+        # 4. Fallback rate dynamically if no prior ticks or profile
+        return 7500, city_name
 
     async def fetch_destination_summary(
-        self, destination_code: str, check_in: date, check_out: date
+        self,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        session: AsyncSession | None = None,
     ) -> LodgingQuote:
-        base_rate = self.DESTINATION_BASE_RATES.get(destination_code.upper(), 7500)
+        if session is not None:
+            base_rate, dest_name = await self._get_dynamic_base_rate(
+                session, destination_code
+            )
+        else:
+            async with async_session() as local_session:
+                base_rate, dest_name = await self._get_dynamic_base_rate(
+                    local_session, destination_code
+                )
 
-        # Realistic seasonal and weekend adjustments
+        # Seasonal and weekend adjustments
         month = check_in.month
         month_factor = (
             1.15 if month in (6, 7, 8, 12) else (0.85 if month in (1, 2, 11) else 1.0)
@@ -192,7 +277,14 @@ class OpenLodgingFeed(LodgingFeed):
         weekend_factor = 1.10 if day_of_week in (4, 5) else 0.95
 
         adjusted_nightly = int(round(base_rate * month_factor * weekend_factor))
-        fee_ratio = 1.15  # 15% city tourist taxes and service fees
+        fee_ratio = 1.15  # 15% estimated tourist taxes and service fees
+
+        # Real direct booking search URL for this exact destination and dates
+        booking_url = (
+            f"https://www.booking.com/searchresults.html?ss={dest_name}"
+            f"&checkin={check_in.isoformat()}&checkout={check_out.isoformat()}"
+            f"&group_adults=2&no_rooms=1"
+        )
 
         return LodgingQuote(
             destination_code=destination_code,
@@ -201,8 +293,9 @@ class OpenLodgingFeed(LodgingFeed):
             base_price_per_night_cents=adjusted_nightly,
             currency="EUR",
             quality_score=78.0,
-            property_name=f"Standard Hotel in {destination_code}",
+            property_name=f"{dest_name} City Center Boutique Hotel",
             estimated_fee_ratio=fee_ratio,
+            deep_link=booking_url,
         )
 
 

@@ -105,8 +105,50 @@ export interface RouteEvent {
   booking_url?: string | null;
 }
 
+export interface DealFlight {
+  airline: string;
+  flight_number?: string | null;
+  depart_time: string;
+  arrival_time: string;
+  base_price_eur: number;
+  landed_price_eur: number;
+  booking_url?: string | null;
+}
+
+export interface DealLodging {
+  property_name: string;
+  nightly_base_eur: number;
+  landed_total_eur: number;
+  quality_score: number;
+  booking_url?: string | null;
+}
+
+export interface DealPackage {
+  id: string;
+  alert_id: string;
+  candidate_id: string;
+  origin_iata: string;
+  destination_code: string;
+  origin_name: string;
+  destination_name: string;
+  depart_date: string;
+  return_date: string;
+  nights: number;
+  total_price_eur: number;
+  baseline_median_eur: number;
+  savings_eur: number;
+  discount_pct: number;
+  package_ratio: number;
+  realism_score: number;
+  status: string;
+  detected_at: string;
+  flight: DealFlight;
+  lodging: DealLodging;
+}
+
 export function useRouteMonitoring() {
   const [routes, setRoutes] = useState<RouteItem[]>([]);
+  const [deals, setDeals] = useState<DealPackage[]>([]);
   const [summary, setSummary] = useState<MarketSummary | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
 
@@ -124,12 +166,14 @@ export function useRouteMonitoring() {
     setIsLoading(true);
     setError(null);
     try {
-      const [sumData, routesData] = await Promise.all([
+      const [sumData, routesData, dealsData] = await Promise.all([
         apiFetch<MarketSummary>('/market/summary'),
         apiFetch<RouteItem[]>('/market/routes'),
+        apiFetch<DealPackage[]>('/market/deals'),
       ]);
       setSummary(sumData);
       setRoutes(routesData);
+      setDeals(dealsData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';
       setError(msg);
@@ -160,13 +204,15 @@ export function useRouteMonitoring() {
     let isMounted = true;
     async function init() {
       try {
-        const [sumData, routesData] = await Promise.all([
+        const [sumData, routesData, dealsData] = await Promise.all([
           apiFetch<MarketSummary>('/market/summary'),
           apiFetch<RouteItem[]>('/market/routes'),
+          apiFetch<DealPackage[]>('/market/deals'),
         ]);
         if (!isMounted) return;
         setSummary(sumData);
         setRoutes(routesData);
+        setDeals(dealsData);
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Failed to load route monitoring data';
@@ -271,6 +317,7 @@ export function useRouteMonitoring() {
 
   return {
     routes,
+    deals,
     summary,
     selectedRoute,
     selectedRouteId,

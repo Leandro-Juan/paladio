@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { usePaladioSocket } from '@/hooks/usePaladioSocket';
 import { TripTimeline } from '@/components/TripTimeline';
 import { useTrips } from '@/hooks/useTrips';
@@ -26,6 +27,13 @@ export default function EnginePage() {
   } = usePaladioSocket();
   const { logs, clearLogs } = useLogStore();
   const { saveTrip } = useTrips();
+  const searchParams = useSearchParams();
+  const queryDest = searchParams.get('destination') || undefined;
+  const queryOrigin = searchParams.get('origin') || undefined;
+  const queryStart = searchParams.get('start_date') || undefined;
+  const queryEnd = searchParams.get('end_date') || undefined;
+  const queryBudget = searchParams.get('budget') ? Math.round(Number(searchParams.get('budget'))) : undefined;
+
   const [activeTab, setActiveTab] = useState<'prep' | 'telemetry'>('prep');
   const [input, setInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -197,8 +205,14 @@ export default function EnginePage() {
             }}
           >
             <TripPreparationForm
+              key={`${queryDest}-${queryOrigin}-${queryStart}-${queryEnd}-${queryBudget}`}
               onSubmit={handlePrepSubmit}
               disabled={status === 'disconnected' || status === 'inferencing'}
+              initialDestination={queryDest}
+              initialOrigin={queryOrigin}
+              initialStartDate={queryStart}
+              initialEndDate={queryEnd}
+              initialBudget={queryBudget}
             />
           </div>
         ) : (

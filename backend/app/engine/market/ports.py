@@ -34,6 +34,7 @@ class LodgingQuote:
     property_name: str | None = None
     property_id: str | None = None
     estimated_fee_ratio: float = 1.15
+    deep_link: str | None = None
 
 
 @dataclass
@@ -79,7 +80,11 @@ class LodgingFeed(Protocol):
     """Tier 1 Lodging Feed port."""
 
     async def fetch_destination_summary(
-        self, destination_code: str, check_in: date, check_out: date
+        self,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        session: Any | None = None,
     ) -> LodgingQuote: ...
 
 

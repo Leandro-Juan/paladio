@@ -7,6 +7,12 @@ import { PlaneIcon } from './icons';
 interface TripPreparationFormProps {
   onSubmit: (prompt: string, extras: Record<string, unknown>) => void;
   disabled?: boolean;
+  initialDestination?: string;
+  initialOrigin?: string;
+  initialStartDate?: string;
+  initialEndDate?: string;
+  initialBudget?: number;
+  initialPrompt?: string;
 }
 
 const formatDateOffset = (offsetDays: number): string => {
@@ -15,14 +21,24 @@ const formatDateOffset = (offsetDays: number): string => {
   return d.toISOString().split('T')[0];
 };
 
-export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparationFormProps) {
+export function TripPreparationForm({
+  onSubmit,
+  disabled = false,
+  initialDestination,
+  initialOrigin,
+  initialStartDate,
+  initialEndDate,
+  initialBudget,
+  initialPrompt,
+}: TripPreparationFormProps) {
   // 1. Natural Language Intent Prompt
   const [prompt, setPrompt] = useState(
-    'Visit the main cultural landmarks and museums. Love traditional bistros and relaxed cafes.'
+    initialPrompt ||
+      'Visit the main cultural landmarks and museums. Love traditional bistros and relaxed cafes.'
   );
 
   // 2. Financial Budget Ceiling
-  const [budgetUsd, setBudgetUsd] = useState(1500);
+  const [budgetUsd, setBudgetUsd] = useState(initialBudget ?? 1500);
 
   // 3. Meal Constraints (Breakfast, Lunch & Dinner by default as supported by solver)
   const [meals, setMeals] = useState<MealRequirement[]>([
@@ -35,10 +51,12 @@ export function TripPreparationForm({ onSubmit, disabled = false }: TripPreparat
   const [anchorMode, setAnchorMode] = useState<'simulated' | 'direct'>('simulated');
 
   // Simulated Anchors (Test Mode) fields
-  const [originCity, setOriginCity] = useState('Madrid');
-  const [destinationCity, setDestinationCity] = useState('Paris');
-  const [startDate, setStartDate] = useState(() => formatDateOffset(7));
-  const [endDate, setEndDate] = useState(() => formatDateOffset(12));
+  const [originCity, setOriginCity] = useState(initialOrigin || 'Madrid');
+  const [destinationCity, setDestinationCity] = useState(initialDestination || 'Paris');
+  const [startDate, setStartDate] = useState(() => initialStartDate || formatDateOffset(7));
+  const [endDate, setEndDate] = useState(() => initialEndDate || formatDateOffset(12));
+
+
 
   const tripDurationDays = useMemo(() => {
     if (!startDate || !endDate) return 5;
