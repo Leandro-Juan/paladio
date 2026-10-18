@@ -52,7 +52,7 @@ def render_mark(
     bg_color: str = "white",
 ) -> Image.Image:
     if target_diameter is None:
-        target_diameter = canvas_size * (740.0 / 1024.0)
+        target_diameter = canvas_size * 0.95
 
     mode = "RGBA" if transparent else "RGB"
     bg = (0, 0, 0, 0) if transparent else bg_color
@@ -78,15 +78,33 @@ def render_mark(
                 fill = (
                     monochrome_color if monochrome_color is not None else colors[char]
                 )
+                # Optical stroke weighting to prevent subpixel downsampling fade
+                sw = 0
+                if char == ".":
+                    sw = max(2, int(font_size * 0.12))
+                elif char in (":", "-"):
+                    sw = max(1, int(font_size * 0.06))
+
                 draw.text(
                     (x + char_w / 2, y + char_h / 2),
                     char,
                     fill=fill,
                     font=font,
                     anchor="mm",
+                    stroke_width=sw,
+                    stroke_fill=fill if sw > 0 else None,
                 )
 
     return img
+
+
+def apply_alpha_threshold(image: Image.Image, threshold: int = 20) -> Image.Image:
+    """Ensure anti-aliased subpixel dots (e.g. periods) have solid 100% mask opacity."""
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    arr = np.array(image)
+    arr[:, :, 3] = np.where(arr[:, :, 3] > threshold, 255, 0)
+    return Image.fromarray(arr)
 
 
 def generate_all():
@@ -105,10 +123,11 @@ def generate_all():
     # 3. logo.jpeg (2048x2048 RGB white)
     logo_jpeg = render_mark(canvas_size=2048, transparent=False, bg_color="white")
 
-    # 4. logo-white.png (2048x2048 RGBA pure white)
+    # 4. logo-white.png (2048x2048 RGBA pure white with alpha thresholding for crisp mask rendering)
     logo_white = render_mark(
         canvas_size=2048, transparent=True, monochrome_color="#FFFFFF"
     )
+    logo_white = apply_alpha_threshold(logo_white, threshold=20)
 
     # 5. Horizontal lockups
     mark_horiz_color = render_mark(
