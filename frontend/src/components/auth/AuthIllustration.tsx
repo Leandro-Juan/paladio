@@ -35,12 +35,17 @@ export function WaveAndSunIllustration() {
 
 export function SunMark({ size = 32 }: { size?: number }) {
   return (
-    <img
-      src="/logo.png"
-      alt="Paladio Logo"
-      width={size}
-      height={size}
-      style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain', display: 'block' }}
+    <div
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        backgroundColor: 'var(--color-sun, #D42A2F)',
+        WebkitMask: "url('/logo-white.png') no-repeat center / contain",
+        mask: "url('/logo-white.png') no-repeat center / contain",
+        filter: 'drop-shadow(0 0 8px rgba(212, 42, 47, 0.45))',
+        display: 'block',
+      }}
+      aria-label="Paladio Logo"
     />
   );
 }

@@ -148,12 +148,13 @@ def generate_all():
     h_caps_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
     h_caps_dark.paste(text_caps_dark, (813, 0), text_caps_dark)
 
-    # 6. Favicon 48x48
-    arr = np.array(logo_png)
-    alpha = arr[:, :, 3]
-    ys, xs = np.where(alpha > 0)
-    cropped = logo_png.crop((xs.min(), ys.min(), xs.max(), ys.max()))
-    favicon = cropped.resize((48, 48), Image.Resampling.LANCZOS)
+    # 6. Favicon 48x48 (White)
+    arr_white = np.array(logo_white)
+    alpha_white = arr_white[:, :, 3]
+    ys_w, xs_w = np.where(alpha_white > 0)
+    cropped_white = logo_white.crop((xs_w.min(), ys_w.min(), xs_w.max(), ys_w.max()))
+    favicon = cropped_white.resize((48, 48), Image.Resampling.LANCZOS)
+    favicon_ico = cropped_white.resize((32, 32), Image.Resampling.LANCZOS)
 
     # Save to all target locations
     targets = [
@@ -177,14 +178,17 @@ def generate_all():
         h_caps_dark.save(target / "logo-horizontal-caps-dark.png")
         h_caps_dark.save(target / "logo_horizontal_caps_dark.png")
 
-    # Favicons
+    # Favicons (White)
     fav_targets = [
         repo_root / "site" / "assets" / "images" / "favicon.png",
         repo_root / "cpp_core" / "site" / "assets" / "images" / "favicon.png",
+        repo_root / "frontend" / "public" / "favicon.png",
     ]
     for ft in fav_targets:
         ft.parent.mkdir(parents=True, exist_ok=True)
         favicon.save(ft)
+
+    favicon_ico.save(repo_root / "frontend" / "public" / "favicon.ico")
 
     print("Se han actualizado todos los recursos de logo en el proyecto exitosamente.")
 
