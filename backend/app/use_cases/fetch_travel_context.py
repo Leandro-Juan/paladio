@@ -89,6 +89,7 @@ class FetchTravelContextUseCase:
         if center_lat is None or center_lon is None:
             try:
                 import urllib.parse
+
                 import httpx
 
                 query = urllib.parse.quote(city)
@@ -152,12 +153,10 @@ class FetchTravelContextUseCase:
                         data = resp.json()[0]
                         hotel_lat = float(data["lat"])
                         hotel_lon = float(data["lon"])
-                        logger.info(
-                            f"Geocoded hotel {hotel_name} to {hotel_lat}, {hotel_lon}"
-                        )
+                        logger.info(f"Geocoded hotel {hotel_name}")
                     else:
                         logger.warning(
-                            f"Nominatim returned no results for hotel: {query}"
+                            f"Nominatim returned no results for hotel: {hotel_name}"
                         )
             except (
                 httpx.HTTPError,
@@ -185,9 +184,7 @@ class FetchTravelContextUseCase:
                 airport_name = airport_info.name
                 airport_lat = airport_info.latitude
                 airport_lon = airport_info.longitude
-                logger.info(
-                    f"Resolved airport {iata} ({airport_name}) to {airport_lat}, {airport_lon}"
-                )
+                logger.info(f"Resolved airport {iata} ({airport_name})")
             else:
                 logger.warning(
                     f"Unknown airport code '{iata}'. Snapping to city center."
