@@ -1,9 +1,9 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 from typing import Any
 
 from app.db.models import UserModel
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -62,20 +62,26 @@ class SqlUserRepository:
             return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> UserModel | None:
-        stmt = select(UserModel).where(UserModel.email == email)
+        clean_email = email.strip().lower()
+        stmt = select(UserModel).where(func.lower(UserModel.email) == clean_email)
         async with self._get_session() as session:
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> UserModel | None:
-        stmt = select(UserModel).where(UserModel.username == username)
+        clean_username = username.strip().lower()
+        stmt = select(UserModel).where(func.lower(UserModel.username) == clean_username)
         async with self._get_session() as session:
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
     async def get_by_username_or_email(self, identifier: str) -> UserModel | None:
+        clean_identifier = identifier.strip().lower()
         stmt = select(UserModel).where(
-            or_(UserModel.username == identifier, UserModel.email == identifier)
+            or_(
+                func.lower(UserModel.username) == clean_identifier,
+                func.lower(UserModel.email) == clean_identifier,
+            )
         )
         async with self._get_session() as session:
             result = await session.execute(stmt)

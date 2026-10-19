@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from typing import Any
@@ -19,6 +20,8 @@ from app.schemas.user import (
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -151,17 +154,36 @@ async def login(
     login_in: UserLogin,
     session: AsyncSession = Depends(get_db),
 ) -> Any:
+    identifier = login_in.username_or_email.strip()
+    logger.info(f"[AUTH] Login attempt received for identifier={identifier!r}")
     repo = SqlUserRepository(session)
-    user = await repo.get_by_username_or_email(login_in.username_or_email)
+    user = await repo.get_by_username_or_email(identifier)
 
-    if not user or not user.hashed_password:
+    if not user:
+        logger.warning(
+            f"[AUTH] Authentication failed: user not found for identifier={identifier!r}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not verify_password(login_in.password, user.hashed_password):
+    if not user.hashed_password:
+        logger.warning(
+            f"[AUTH] Authentication failed: user {user.username} (id={user.id}) has no password configured"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    pwd_valid = verify_password(login_in.password, user.hashed_password)
+    if not pwd_valid:
+        logger.warning(
+            f"[AUTH] Authentication failed: invalid password for user={user.username!r}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
