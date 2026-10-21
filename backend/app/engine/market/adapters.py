@@ -118,24 +118,16 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
 
 class OpenLodgingFeed(LodgingFeed):
     """
-    Lodging provider backed by ProviderRouter with Tier 1 (Booking.com Scraper),
-    Tier 2 (Google Travel Hotels), and Tier 3 (Real History DB).
-    Zero hardcoded hotel names or prices; fails fast with NoDataError if all tiers fail.
+    Lodging provider backed by multi-provider LodgingAggregator.
+    Runs active providers (Booking, Google Travel, Trip.com, Agoda) in parallel,
+    performs entity resolution, persists append-only observations, and tracks coverage.
+    Zero hardcoded hotel names or prices; fails fast with NoDataError if no data obtainable.
     """
 
     def __init__(self, timeout_sec: float = 15.0):
-        from app.engine.market.providers.booking_scraper import BookingScraperProvider
-        from app.engine.market.providers.google_travel import GoogleTravelHotelsProvider
-        from app.engine.market.providers.history import HistoryQuoteProvider
-        from app.engine.market.providers.router import ProviderRouter
+        from app.engine.market.lodging.aggregator import LodgingAggregator
 
-        self.t1 = BookingScraperProvider(timeout_sec=timeout_sec)
-        self.t2 = GoogleTravelHotelsProvider(timeout_sec=timeout_sec)
-        self.t3 = HistoryQuoteProvider(asset_type="lodging")
-        self.router = ProviderRouter(
-            asset_type="lodging",
-            providers=[self.t2, self.t1, self.t3],
-        )
+        self.aggregator = LodgingAggregator()
 
     async def search_offers(
         self,
@@ -146,18 +138,16 @@ class OpenLodgingFeed(LodgingFeed):
         session: AsyncSession | None = None,
     ) -> list[LodgingQuote]:
         if session is not None:
-            return await self.router.execute_ladder(
+            return await self.aggregator.ingest_destination_hotels(
                 session,
-                "search_offers",
                 destination_code,
                 check_in,
                 check_out,
                 adults=adults,
             )
         async with async_session() as local_session:
-            return await self.router.execute_ladder(
+            return await self.aggregator.ingest_destination_hotels(
                 local_session,
-                "search_offers",
                 destination_code,
                 check_in,
                 check_out,
@@ -171,22 +161,22 @@ class OpenLodgingFeed(LodgingFeed):
         check_out: date,
         session: AsyncSession | None = None,
     ) -> LodgingQuote:
-        if session is not None:
-            return await self.router.execute_ladder(
-                session,
-                "fetch_destination_summary",
-                destination_code,
-                check_in,
-                check_out,
+        offers = await self.search_offers(
+            destination_code,
+            check_in,
+            check_out,
+            adults=2,
+            session=session,
+        )
+        if not offers:
+            from app.engine.market.providers.base import NoDataError
+
+            raise NoDataError(
+                f"No verified lodging data obtainable across providers for {destination_code}"
             )
-        async with async_session() as local_session:
-            return await self.router.execute_ladder(
-                local_session,
-                "fetch_destination_summary",
-                destination_code,
-                check_in,
-                check_out,
-            )
+        # Returns lowest verified price offer
+        offers.sort(key=lambda x: x.base_price_per_night_cents)
+        return offers[0]
 
 
 class SovereignLodgingScorer(LodgingScorer):

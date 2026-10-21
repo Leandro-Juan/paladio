@@ -8,8 +8,8 @@ from app.schemas.itinerary import (
     NodeConstraint,
     TravelConstraints,
 )
-from app.swarm.state import SwarmState
 from app.services.airport_service import get_city_from_iata
+from app.swarm.state import SwarmState
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,13 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
 
     # Derive from tickets if present
     if booking:
-        # Destination city is strictly where the hotel is located
+        # Destination city: primary source is hotel location, with fallback to flight destination
         if booking.hotel and booking.hotel.city:
             destination_city = booking.hotel.city
+        elif booking.outbound_flight and booking.outbound_flight.destination_iata:
+            d_city = get_city_from_iata(booking.outbound_flight.destination_iata)
+            if d_city and d_city != "Unknown":
+                destination_city = d_city
 
         # Origin city from outbound flight origin IATA
         if booking.outbound_flight and booking.outbound_flight.origin_iata:

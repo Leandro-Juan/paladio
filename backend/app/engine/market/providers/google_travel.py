@@ -4,6 +4,7 @@ Meta-search query directly for accommodation offers in destination municipality.
 Zero cloud LLMs; zero hardcoded fake hotel data.
 """
 
+import json
 import logging
 import re
 import urllib.parse
@@ -51,6 +52,10 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
         return True
 
     async def _resolve_city_name(self, session: AsyncSession | None, code: str) -> str:
+        code_clean = (code or "").strip().upper()
+        if not code_clean:
+            return code
+
         if session is not None:
             try:
                 stmt = (
@@ -59,7 +64,7 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                         DestinationAirportModel,
                         DestinationAirportModel.city_id == CityModel.id,
                     )
-                    .where(DestinationAirportModel.iata == code.upper())
+                    .where(DestinationAirportModel.iata == code_clean)
                     .limit(1)
                 )
                 res = await session.execute(stmt)
@@ -70,8 +75,8 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                 stmt_city = (
                     select(CityModel.name)
                     .where(
-                        (CityModel.id.ilike(f"{code}%"))
-                        | (CityModel.name.ilike(f"{code}%"))
+                        (CityModel.id.ilike(f"{code_clean}%"))
+                        | (CityModel.name.ilike(f"{code_clean}%"))
                     )
                     .limit(1)
                 )
@@ -82,17 +87,13 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
             except Exception:
                 pass
 
-        try:
-            import airportsdata
+        from app.services.airport_service import get_city_from_iata
 
-            airports = airportsdata.load("IATA")
-            info = airports.get(code.upper())
-            if info and info.get("city"):
-                return info["city"]
-        except Exception:
-            pass
+        city = get_city_from_iata(code_clean)
+        if city and city != "Unknown":
+            return city
 
-        return code.upper()
+        return code_clean
 
     async def search_offers(
         self,
@@ -134,12 +135,15 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                 html = resp.text
                 deep_link = f"https://www.google.com/travel/search?q={urllib.parse.quote(query_str)}&checkin={check_in.isoformat()}&checkout={check_out.isoformat()}"
 
-                # Primary extraction: Google Travel hotel card structure
+                from app.engine.market.lodging.normalize import parse_money
+
+                # Primary extraction: Google Travel hotel card structure with AF5RIe
                 card_pattern = re.compile(
-                    r"<div class=\"[^\"]*AF5RIe\">([^<]+)</div>\s*<div class=\"[^\"]*\">€([0-9\.,]+)</div>(.*?)(?=<div class=\"[^\"]*AF5RIe\"|\Z)",
+                    r"<div class=\"[^\"]*AF5RIe\">([^<]+)</div>\s*<div class=\"[^\"]*\">([^<]+)</div>(.*?)(?=<div class=\"[^\"]*AF5RIe\"|\Z)",
                     re.DOTALL,
                 )
 
+                seen_properties = set()
                 for match in card_pattern.finditer(html):
                     h_name = (
                         match.group(1)
@@ -147,24 +151,22 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                         .replace("&#39;", "'")
                         .replace("&amp;", "&")
                     )
-                    raw_price = match.group(2).replace(",", "").replace(".", "")
-                    try:
-                        price_num = float(raw_price)
-                        total_cents = int(round(price_num * 100))
-                        # In Google Travel with dates, displayed price is total stay
-                        nightly_cents = (
-                            int(round(total_cents / nights))
-                            if nights > 1
-                            else total_cents
-                        )
-                    except (ValueError, TypeError):
+                    raw_price_str = match.group(2)
+                    price_val, curr = parse_money(raw_price_str, default_currency="EUR")
+                    if price_val is None or price_val <= 0:
                         continue
+
+                    total_cents = int(round(price_val * 100))
+                    # In Google Travel with dates, displayed price is total stay
+                    nightly_cents = (
+                        int(round(total_cents / nights)) if nights > 1 else total_cents
+                    )
 
                     card_chunk = match.group(3)
                     rating_val = None
                     reviews_cnt = None
                     rev_m = re.search(
-                        r"aria-label=\"([0-9\.]+)\s*out of 5 stars from ([0-9\.,]+) reviews\"",
+                        r"aria-label=\"([0-9\.,]+)\s*out of 5 stars from ([0-9\.,]+) reviews\"",
                         card_chunk,
                     )
                     if rev_m:
@@ -187,16 +189,21 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                         except (ValueError, TypeError):
                             pass
 
+                    p_id = re.sub(r"[^a-z0-9]", "_", h_name.lower())[:64]
+                    if p_id in seen_properties:
+                        continue
+                    seen_properties.add(p_id)
+
                     quotes.append(
                         LodgingQuote(
                             destination_code=destination_code,
                             check_in=check_in,
                             check_out=check_out,
                             base_price_per_night_cents=nightly_cents,
-                            currency="EUR",
+                            currency=curr,
                             quality_score=rating_val * 10.0 if rating_val else None,
                             property_name=h_name,
-                            property_id=h_name.lower().replace(" ", "_")[:64],
+                            property_id=p_id,
                             stars=stars,
                             review_score=rating_val,
                             review_count=reviews_cnt,
@@ -211,10 +218,79 @@ class GoogleTravelHotelsProvider(BaseQuoteProvider):
                             confidence="high",
                         )
                     )
+
+                # Secondary extraction: JSON-LD or structured data if primary yielded minimal quotes
+                if not quotes:
+                    json_ld_pattern = re.compile(
+                        r'<script\s+type=["\']application/ld\+json["\']>(.*?)</script>',
+                        re.DOTALL | re.IGNORECASE,
+                    )
+                    for match in json_ld_pattern.finditer(html):
+                        try:
+                            data = json.loads(match.group(1).strip())
+                            items = (
+                                data
+                                if isinstance(data, list)
+                                else data.get("itemListElement", [])
+                            )
+                            for item in items:
+                                it = (
+                                    item.get("item", item)
+                                    if isinstance(item, dict)
+                                    else {}
+                                )
+                                if it.get("@type") in (
+                                    "Hotel",
+                                    "LodgingBusiness",
+                                    "Hostel",
+                                    "Resort",
+                                ):
+                                    name_val = it.get("name")
+                                    offers = it.get("offers", {})
+                                    price_raw = offers.get("price")
+                                    curr = offers.get("priceCurrency", "EUR")
+                                    if name_val and price_raw:
+                                        p_val, _ = parse_money(
+                                            str(price_raw), default_currency=curr
+                                        )
+                                        if p_val and p_val > 0:
+                                            tot = int(round(p_val * 100))
+                                            q_nightly = int(round(tot / nights))
+                                            quotes.append(
+                                                LodgingQuote(
+                                                    destination_code=destination_code,
+                                                    check_in=check_in,
+                                                    check_out=check_out,
+                                                    base_price_per_night_cents=q_nightly,
+                                                    currency=curr,
+                                                    quality_score=None,
+                                                    property_name=name_val,
+                                                    property_id=re.sub(
+                                                        r"[^a-z0-9]",
+                                                        "_",
+                                                        name_val.lower(),
+                                                    )[:64],
+                                                    stars=None,
+                                                    review_score=None,
+                                                    review_count=None,
+                                                    latitude=None,
+                                                    longitude=None,
+                                                    taxes_included=True,
+                                                    estimated_fee_ratio=1.0,
+                                                    deep_link=deep_link,
+                                                    source="google_travel",
+                                                    observed_at=now,
+                                                    is_live=True,
+                                                    confidence="high",
+                                                )
+                                            )
+                        except Exception:
+                            continue
         except ProviderBlockedError:
             raise
         except Exception as e:
-            logger.debug(f"Google travel hotels search error: {e}")
+            logger.warning(f"Google travel hotels search error: {e}")
+            raise ParseDriftError(f"Google Travel parse error: {e}") from e
 
         return quotes
 

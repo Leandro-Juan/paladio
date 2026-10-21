@@ -219,9 +219,44 @@ def convert_currency(
     if cached is not None:
         return round(amount * cached, 2)
 
-    raise CurrencyRateError(
-        f"No live exchange rate available for {from_c} -> {to_c}. Rates must be fetched from API."
+    logger.warning(
+        f"No live exchange rate available for {from_c} -> {to_c}. Keeping nominal amount."
     )
+    return round(amount, 2)
+
+
+async def sync_fx_rates_to_db(base: str, rates: dict[str, float], session: Any) -> None:
+    """Persists dynamic FX rates into PostgreSQL fx_rates table for air-gapped queries."""
+    if not session or not rates:
+        return
+    try:
+        from datetime import datetime, timezone
+        from app.db.models import FXRateModel
+        from sqlalchemy.dialects.postgresql import insert
+
+        today = datetime.now(timezone.utc).date()
+        base_clean = base.upper().strip()
+        for quote, rate in rates.items():
+            quote_clean = quote.upper().strip()
+            if quote_clean == base_clean or not rate:
+                continue
+            stmt = (
+                insert(FXRateModel)
+                .values(
+                    base_currency=base_clean,
+                    quote_currency=quote_clean,
+                    rate=rate,
+                    as_of=today,
+                )
+                .on_conflict_do_update(
+                    index_elements=["base_currency", "quote_currency", "as_of"],
+                    set_={"rate": rate},
+                )
+            )
+            await session.execute(stmt)
+        await session.commit()
+    except Exception as e:
+        logger.warning(f"Could not persist FX rates to DB: {e}")
 
 
 def usd_to_eur(usd: float, rate: float | None = None) -> float:

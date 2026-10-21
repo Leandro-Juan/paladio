@@ -83,14 +83,21 @@ export interface PriceVerdictInfo {
 
 export interface LodgingPricePoint {
   date: string;
-  nightly_price_eur: number;
-  total_stay_eur: number;
-  property_name: string;
+  nightly_price_eur?: number | null;
+  total_stay_eur?: number | null;
+  property_name?: string | null;
+  property_id?: string | null;
   stars?: number | null;
   review_score?: number | null;
   review_count?: number | null;
   booking_url?: string | null;
   source?: string;
+  min_eur?: number | null;
+  median_eur?: number | null;
+  p25_eur?: number | null;
+  p75_eur?: number | null;
+  n_properties?: number;
+  coverage_ratio?: number | null;
 }
 
 export interface RouteHistory {

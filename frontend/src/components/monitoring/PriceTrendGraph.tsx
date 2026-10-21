@@ -57,6 +57,8 @@ interface ChartDataItem {
   propertyName: string | null;
   stars: number | null;
   reviewScore: number | null;
+  bookingUrl: string | null;
+  nProperties: number;
   // Package Total
   packagePrice: number | null;
 }
@@ -152,6 +154,8 @@ export function PriceTrendGraph({
         propertyName: lodging?.property_name ?? null,
         stars: lodging?.stars ?? null,
         reviewScore: lodging?.review_score ?? null,
+        bookingUrl: lodging?.booking_url ?? null,
+        nProperties: lodging?.n_properties ?? (nightly !== null ? 1 : 0),
         packagePrice,
       };
     });
@@ -235,6 +239,11 @@ export function PriceTrendGraph({
             {d.propertyName && (
               <div className={styles.tooltipHotelName} title={d.propertyName}>
                 {d.propertyName} {d.reviewScore ? `(★ ${d.reviewScore.toFixed(1)})` : ''}
+              </div>
+            )}
+            {d.nProperties > 1 && (
+              <div className={styles.tooltipCarrierText} style={{ marginTop: '2px', color: '#0F4C5C' }}>
+                {d.nProperties} verified properties scanned
               </div>
             )}
             {d.totalStayPrice !== null && (
@@ -484,6 +493,7 @@ export function PriceTrendGraph({
                   strokeWidth={2}
                   fill="url(#hotelTrendGradient)"
                   isAnimationActive={false}
+                  connectNulls={false}
                   activeDot={{ r: 4, fill: '#0F4C5C', stroke: '#FFFFFF', strokeWidth: 2 }}
                 />
               </AreaChart>

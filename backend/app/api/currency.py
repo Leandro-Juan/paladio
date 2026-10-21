@@ -89,13 +89,22 @@ class DestinationCurrencyResponse(BaseModel):
 
 
 @router.get("/rates", response_model=LiveRatesResponse)
-async def get_live_rates(base: str = Query(default="EUR", max_length=5)) -> Any:
+async def get_live_rates(
+    base: str = Query(default="EUR", max_length=5),
+    session: AsyncSession = Depends(get_db),
+) -> Any:
     """Dynamically fetches real live exchange rates from European Central Bank (via Frankfurter API)
     with air-gapped cache fallback.
     """
     base_clean = base.upper().strip()
     try:
         rates = await fetch_live_rates(base_clean)
+        try:
+            from app.engine.currency import sync_fx_rates_to_db
+
+            await sync_fx_rates_to_db(base_clean, rates, session)
+        except Exception:
+            pass
         return LiveRatesResponse(base=base_clean, rates=rates)
     except Exception as e:
         logger.warning(f"Failed to fetch live rates for {base_clean}: {e}")

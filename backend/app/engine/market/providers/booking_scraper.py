@@ -47,12 +47,16 @@ class BookingScraperProvider(BaseQuoteProvider):
         return True
 
     async def _resolve_city_name(self, session: AsyncSession, code: str) -> str:
+        code_clean = (code or "").strip().upper()
+        if not code_clean:
+            return code
+
         stmt = (
             select(CityModel.name)
             .join(
                 DestinationAirportModel, DestinationAirportModel.city_id == CityModel.id
             )
-            .where(DestinationAirportModel.iata == code.upper())
+            .where(DestinationAirportModel.iata == code_clean)
             .limit(1)
         )
         res = await session.execute(stmt)
@@ -63,13 +67,23 @@ class BookingScraperProvider(BaseQuoteProvider):
         stmt_city = (
             select(CityModel.name)
             .where(
-                (CityModel.id.ilike(f"{code}%")) | (CityModel.name.ilike(f"{code}%"))
+                (CityModel.id.ilike(f"{code_clean}%"))
+                | (CityModel.name.ilike(f"{code_clean}%"))
             )
             .limit(1)
         )
         res_city = await session.execute(stmt_city)
         name_city = res_city.scalar_one_or_none()
-        return name_city or code.upper()
+        if name_city:
+            return name_city
+
+        from app.services.airport_service import get_city_from_iata
+
+        city = get_city_from_iata(code_clean)
+        if city and city != "Unknown":
+            return city
+
+        return code_clean
 
     def _parse_html_offers(
         self, html: str, destination_code: str, check_in: date, check_out: date
@@ -208,6 +222,10 @@ class BookingScraperProvider(BaseQuoteProvider):
         if not shutil.which("node"):
             raise ProviderBlockedError("Node.js binary not available in environment")
 
+        from app.engine.market.lodging.browser_pool import browser_pool
+        from app.engine.market.lodging.normalize import parse_money
+
+        proxy_url = browser_pool.get_next_proxy() or ""
         script_path = os.path.join(
             os.path.dirname(__file__), "..", "scripts", "scrape_booking.js"
         )
@@ -218,6 +236,9 @@ class BookingScraperProvider(BaseQuoteProvider):
             check_in.isoformat(),
             check_out.isoformat(),
             str(adults),
+            "0",  # offset
+            "",  # stars
+            proxy_url,
         ]
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -254,43 +275,43 @@ class BookingScraperProvider(BaseQuoteProvider):
             raw_p = off.get("priceText") or ""
             score_val = off.get("score")
             rev_cnt = off.get("reviewCount")
+            stars_val = off.get("stars")
+            prop_id = off.get("propertyId")
             link = off.get("link")
             if not title or not raw_p:
                 continue
 
-            cleaned_p = (
-                re.sub(r"[^\d,\.]", "", raw_p).replace(".", "").replace(",", ".")
-            )
-            try:
-                total_eur = float(cleaned_p)
-                total_cents = int(round(total_eur * 100))
-                nightly_cents = int(round(total_cents / nights))
-                quotes.append(
-                    LodgingQuote(
-                        destination_code=destination_code,
-                        check_in=check_in,
-                        check_out=check_out,
-                        base_price_per_night_cents=nightly_cents,
-                        currency="EUR",
-                        quality_score=score_val * 10.0 if score_val else None,
-                        property_name=title,
-                        property_id=title.lower().replace(" ", "_")[:64],
-                        stars=None,
-                        review_score=score_val,
-                        review_count=rev_cnt,
-                        latitude=None,
-                        longitude=None,
-                        taxes_included=True,
-                        estimated_fee_ratio=1.0,
-                        deep_link=link or self.SEARCH_URL,
-                        source="booking_playwright",
-                        observed_at=now,
-                        is_live=True,
-                        confidence="high",
-                    )
-                )
-            except Exception:
+            price_num, curr = parse_money(raw_p, default_currency="EUR")
+            if price_num is None or price_num <= 0:
                 continue
+
+            total_cents = int(round(price_num * 100))
+            nightly_cents = int(round(total_cents / nights))
+            p_id = prop_id if prop_id else re.sub(r"[^a-z0-9]", "_", title.lower())[:64]
+            quotes.append(
+                LodgingQuote(
+                    destination_code=destination_code,
+                    check_in=check_in,
+                    check_out=check_out,
+                    base_price_per_night_cents=nightly_cents,
+                    currency=curr,
+                    quality_score=score_val * 10.0 if score_val else None,
+                    property_name=title,
+                    property_id=p_id,
+                    stars=float(stars_val) if stars_val else None,
+                    review_score=score_val,
+                    review_count=rev_cnt,
+                    latitude=None,
+                    longitude=None,
+                    taxes_included=True,
+                    estimated_fee_ratio=1.0,
+                    deep_link=link or self.SEARCH_URL,
+                    source="booking_playwright",
+                    observed_at=now,
+                    is_live=True,
+                    confidence="high",
+                )
+            )
 
         return quotes
 

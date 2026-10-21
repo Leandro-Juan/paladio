@@ -879,3 +879,187 @@ class ProviderHealthModel(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class HotelPropertyModel(Base):
+    """
+    Canonical hotel/lodging property entity.
+    Maintains stable identity across scans and multiple providers.
+    """
+
+    __tablename__ = "hotel_properties"
+
+    id = Column(String, primary_key=True)
+    destination_code = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    name_norm = Column(String, nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    geohash7 = Column(String(12), nullable=True, index=True)
+    stars = Column(Float, nullable=True)
+    property_type = Column(String(32), default="hotel", nullable=False)
+    osm_id = Column(String(64), nullable=True)
+    address = Column(Text, nullable=True)
+    first_seen = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_seen = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_hotel_properties_name_norm", "destination_code", "name_norm"),
+    )
+
+
+class HotelPropertySourceModel(Base):
+    """
+    Maps provider-specific hotel IDs and deep links to canonical hotel_properties.
+    """
+
+    __tablename__ = "hotel_property_sources"
+
+    id = Column(String, primary_key=True)
+    property_id = Column(
+        String,
+        ForeignKey("hotel_properties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider = Column(String(32), nullable=False)
+    provider_property_id = Column(String(128), nullable=False)
+    deep_link = Column(Text, nullable=True)
+    confidence = Column(Float, default=1.0, nullable=False)
+    last_seen = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_hotel_provider_source", "provider", "provider_property_id", unique=True
+        ),
+    )
+
+
+class HotelRateObservationModel(Base):
+    """
+    Append-only time-series observation of hotel rates for a specific stay.
+    """
+
+    __tablename__ = "hotel_rate_observations"
+
+    id = Column(String, primary_key=True)
+    property_id = Column(
+        String,
+        ForeignKey("hotel_properties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    destination_code = Column(String, nullable=False, index=True)
+    provider = Column(String(32), nullable=False)
+    scan_run_id = Column(String(64), nullable=False, index=True)
+    check_in = Column(Date, nullable=False)
+    check_out = Column(Date, nullable=False)
+    nights = Column(Integer, nullable=False)
+    adults = Column(Integer, default=2, nullable=False)
+    price_total_cents = Column(BigInteger, nullable=False)
+    price_nightly_cents = Column(BigInteger, nullable=False)
+    currency = Column(String(3), default="EUR", nullable=False)
+    taxes_included = Column(Boolean, default=True, nullable=False)
+    free_cancellation = Column(Boolean, nullable=True)
+    board = Column(String(32), nullable=True)
+    room_type = Column(String(128), nullable=True)
+    review_score = Column(Float, nullable=True)
+    review_count = Column(Integer, nullable=True)
+    available = Column(Boolean, default=True, nullable=False)
+    deep_link = Column(Text, nullable=True)
+    content_hash = Column(LargeBinary, nullable=False)
+    confidence = Column(String(16), default="high", nullable=False)
+    observed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_hotel_obs_dest_dates",
+            "destination_code",
+            "check_in",
+            "nights",
+            observed_at.desc(),
+        ),
+        Index("ix_hotel_obs_hash_obs", "content_hash", "observed_at"),
+    )
+
+
+class HotelScanRunModel(Base):
+    """
+    Tracks execution telemetry and coverage for a hotel stay scan.
+    """
+
+    __tablename__ = "hotel_scan_runs"
+
+    id = Column(String(64), primary_key=True)
+    destination_code = Column(String, nullable=False, index=True)
+    check_in = Column(Date, nullable=False)
+    check_out = Column(Date, nullable=False)
+    stay_spec = Column(JSONB, nullable=True)
+    started_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(32), default="running", nullable=False)
+    provider_counts = Column(JSONB, nullable=True)
+    properties_seen = Column(Integer, default=0, nullable=False)
+    universe_size = Column(Integer, nullable=True)
+    coverage_ratio = Column(Float, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+
+class LodgingProviderModel(Base):
+    """
+    Registry and runtime configuration for lodging scrapers and quote providers.
+    """
+
+    __tablename__ = "lodging_providers"
+
+    name = Column(String(32), primary_key=True)
+    enabled = Column(Boolean, default=True, nullable=False)
+    priority = Column(Integer, default=1, nullable=False)
+    daily_budget = Column(Integer, default=1000, nullable=False)
+    rate_limit_per_min = Column(Integer, default=30, nullable=False)
+    min_parse_yield = Column(Float, default=0.5, nullable=False)
+    last_yield = Column(Float, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class FXRateModel(Base):
+    """
+    Foreign exchange rate table (ECB reference rates).
+    """
+
+    __tablename__ = "fx_rates"
+
+    base_currency = Column(String(3), primary_key=True)
+    quote_currency = Column(String(3), primary_key=True)
+    rate = Column(Numeric(12, 6), nullable=False)
+    as_of = Column(Date, primary_key=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

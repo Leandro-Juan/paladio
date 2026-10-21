@@ -18,6 +18,8 @@ from app.db.models import (
     DealEventModel,
     DealWatchAlertModel,
     DestinationAirportModel,
+    HotelPropertyModel,
+    HotelRateObservationModel,
     MarketPriceTickModel,
     PriceDailyModel,
     RouteBaselineModel,
@@ -25,7 +27,7 @@ from app.db.models import (
     UserModel,
 )
 from app.db.session import get_db
-from app.engine.market.adapters import OpenLodgingFeed, RyanairFlightFeed
+from app.engine.market.adapters import RyanairFlightFeed
 from app.engine.market.baselines import (
     resolve_baseline_median,
     resolve_route_baseline_quantiles,
@@ -46,12 +48,16 @@ router = APIRouter()
 
 
 async def _resolve_city_name(session: AsyncSession, code: str) -> str:
-    """Dynamically resolves city display name from CityModel or DestinationAirportModel."""
+    """Dynamically resolves city display name from CityModel, DestinationAirportModel, or AirportService."""
+    code_clean = (code or "").strip().upper()
+    if not code_clean:
+        return code
+
     # First check DestinationAirportModel mapped to CityModel
     stmt = (
         select(CityModel.name)
         .join(DestinationAirportModel, DestinationAirportModel.city_id == CityModel.id)
-        .where(DestinationAirportModel.iata == code)
+        .where(DestinationAirportModel.iata == code_clean)
         .limit(1)
     )
     res = await session.execute(stmt)
@@ -62,7 +68,10 @@ async def _resolve_city_name(session: AsyncSession, code: str) -> str:
     # Next check CityModel by id or name match
     stmt_city = (
         select(CityModel.name)
-        .where((CityModel.id.ilike(f"{code}%")) | (CityModel.name.ilike(f"{code}%")))
+        .where(
+            (CityModel.id.ilike(f"{code_clean}%"))
+            | (CityModel.name.ilike(f"{code_clean}%"))
+        )
         .limit(1)
     )
     res_city = await session.execute(stmt_city)
@@ -70,15 +79,12 @@ async def _resolve_city_name(session: AsyncSession, code: str) -> str:
     if name_city:
         return name_city
 
-    try:
-        import airportsdata
+    # Use centralized AirportService
+    from app.services.airport_service import get_city_from_iata
 
-        airports = airportsdata.load("IATA")
-        info = airports.get(code.upper())
-        if info and info.get("city"):
-            return info["city"]
-    except Exception:
-        pass
+    city = get_city_from_iata(code_clean)
+    if city and city != "Unknown":
+        return city
 
     return code
 
@@ -103,6 +109,18 @@ async def _get_or_create_user_id(session: AsyncSession, user: UserModel | None) 
     return new_user.id
 
 
+def _cvt_money(val: float | None, target_curr: str) -> float | None:
+    """Converts a EUR amount dynamically to target currency using live FX rates."""
+    if val is None:
+        return None
+    t_clean = (target_curr or "EUR").upper().strip()
+    if t_clean in ("EUR", ""):
+        return round(float(val), 2)
+    from app.engine.currency import convert_currency
+
+    return convert_currency(float(val), from_currency="EUR", to_currency=t_clean)
+
+
 # Pydantic Request / Response Schemas
 class RouteCreateRequest(BaseModel):
     origin_iata: str = Field(..., min_length=3, max_length=3)
@@ -113,6 +131,7 @@ class RouteCreateRequest(BaseModel):
     max_nights: int = 7
     travelers: int = 1
     max_budget_eur: float = Field(..., gt=0)
+    currency: str | None = None
 
 
 class RouteUpdateRequest(BaseModel):
@@ -186,14 +205,21 @@ class CorpusInfo(BaseModel):
 
 class LodgingPricePoint(BaseModel):
     date: str
-    nightly_price_eur: float
-    total_stay_eur: float
-    property_name: str
+    nightly_price_eur: float | None = None
+    total_stay_eur: float | None = None
+    property_name: str | None = None
+    property_id: str | None = None
     stars: int | None = None
     review_score: float | None = None
     review_count: int | None = None
     booking_url: str | None = None
-    source: str = "google_travel"
+    source: str = "aggregator"
+    min_eur: float | None = None
+    median_eur: float | None = None
+    p25_eur: float | None = None
+    p75_eur: float | None = None
+    n_properties: int = 0
+    coverage_ratio: float | None = None
 
 
 class HistoryResponse(BaseModel):
@@ -265,6 +291,7 @@ class CalendarResponse(BaseModel):
     view: str = "roundtrip"
     pricing: str = "package"
     top_dates: list[str] = []
+    currency: str = "EUR"
 
 
 class HolidayMatchesRequest(BaseModel):
@@ -369,6 +396,46 @@ class DealPackageItem(BaseModel):
     flight: DealFlightItem
     return_flight: DealFlightItem | None = None
     lodging: DealLodgingItem
+    currency: str = "EUR"
+
+
+def _convert_deal_package_item(
+    item: DealPackageItem, target_curr: str
+) -> DealPackageItem:
+    if target_curr == "EUR" and item.currency == "EUR":
+        return item
+    if item.currency == target_curr:
+        return item
+    item.currency = target_curr
+    item.total_price_eur = (
+        _cvt_money(item.total_price_eur, target_curr) or item.total_price_eur
+    )
+    item.baseline_median_eur = (
+        _cvt_money(item.baseline_median_eur, target_curr) or item.baseline_median_eur
+    )
+    item.savings_eur = _cvt_money(item.savings_eur, target_curr) or item.savings_eur
+    if item.flight:
+        item.flight.base_price_eur = (
+            _cvt_money(item.flight.base_price_eur, target_curr) or 0.0
+        )
+        item.flight.landed_price_eur = (
+            _cvt_money(item.flight.landed_price_eur, target_curr) or 0.0
+        )
+    if item.return_flight:
+        item.return_flight.base_price_eur = (
+            _cvt_money(item.return_flight.base_price_eur, target_curr) or 0.0
+        )
+        item.return_flight.landed_price_eur = (
+            _cvt_money(item.return_flight.landed_price_eur, target_curr) or 0.0
+        )
+    if item.lodging:
+        item.lodging.nightly_base_eur = (
+            _cvt_money(item.lodging.nightly_base_eur, target_curr) or 0.0
+        )
+        item.lodging.landed_total_eur = (
+            _cvt_money(item.lodging.landed_total_eur, target_curr) or 0.0
+        )
+    return item
 
 
 class ProviderHealthItem(BaseModel):
@@ -445,6 +512,7 @@ async def get_market_summary(
 
 @router.get("/routes", response_model=list[RouteItemResponse])
 async def list_monitored_routes(
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
@@ -453,6 +521,18 @@ async def list_monitored_routes(
     )
     res = await session.execute(stmt)
     alerts = res.scalars().all()
+
+    user_currency = (
+        currency_param
+        or (
+            current_user.preferences.get("default_currency")
+            if current_user and current_user.preferences
+            else None
+        )
+        or None
+    )
+    if user_currency:
+        user_currency = user_currency.upper().strip()
 
     items: list[RouteItemResponse] = []
     for a in alerts:
@@ -559,6 +639,14 @@ async def list_monitored_routes(
             else ("DEAL" if is_deal else ("ACTIVE" if current_eur else "PENDING"))
         )
 
+        target_curr = user_currency or a.currency or "EUR"
+        budget_nominal = round(a.max_budget_cents / 100.0, 2)
+        budget_disp = (
+            _cvt_money(budget_nominal, target_curr)
+            if (a.currency or "EUR") == "EUR"
+            else budget_nominal
+        )
+
         items.append(
             RouteItemResponse(
                 id=a.id,
@@ -569,15 +657,15 @@ async def list_monitored_routes(
                 latest_date=a.latest_date.isoformat(),
                 min_nights=a.min_nights,
                 max_nights=a.max_nights,
-                max_budget_eur=round(a.max_budget_cents / 100.0, 2),
-                currency=a.currency,
+                max_budget_eur=budget_disp,
+                currency=target_curr,
                 is_active=a.is_active,
                 schedule="Every 2h" if is_deal else "Daily",
                 status=status_label,
-                current_price_eur=current_eur,
-                baseline_p50_eur=p50_eur,
-                baseline_p10_eur=p10_eur,
-                lowest_ever_eur=lowest_eur,
+                current_price_eur=_cvt_money(current_eur, target_curr),
+                baseline_p50_eur=_cvt_money(p50_eur, target_curr),
+                baseline_p10_eur=_cvt_money(p10_eur, target_curr),
+                lowest_ever_eur=_cvt_money(lowest_eur, target_curr),
                 discount_pct=discount,
                 last_scanned_at=(
                     a.last_scanned_at.isoformat() if a.last_scanned_at else None
@@ -610,6 +698,20 @@ async def create_monitored_route(
             status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
         )
 
+    target_currency = (
+        (
+            req.currency
+            or (
+                current_user.preferences.get("default_currency")
+                if current_user and current_user.preferences
+                else None
+            )
+            or "EUR"
+        )
+        .upper()
+        .strip()
+    )
+
     alert = DealWatchAlertModel(
         id=new_id,
         user_id=user_id,
@@ -622,7 +724,7 @@ async def create_monitored_route(
         travelers=req.travelers,
         bags_needed=0,
         max_budget_cents=int(round(req.max_budget_eur * 100)),
-        currency="EUR",
+        currency=target_currency,
         is_active=True,
         last_scanned_at=datetime.now(timezone.utc),
     )
@@ -823,13 +925,30 @@ async def trigger_route_scan(
 async def get_route_price_history(
     route_id: str,
     range_param: str = Query("30d", alias="range"),
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
     res = await session.execute(stmt)
     alert = res.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
+
+    target_currency = (
+        (
+            currency_param
+            or (
+                current_user.preferences.get("default_currency")
+                if current_user and current_user.preferences
+                else None
+            )
+            or alert.currency
+            or "EUR"
+        )
+        .upper()
+        .strip()
+    )
 
     dest_code = alert.destinations[0]
     days_back = 30
@@ -1085,88 +1204,226 @@ async def get_route_price_history(
     ]
     min_pt = min(all_prices) if all_prices else None
 
-    # Fetch dynamic destination lodging quotes and database ticks for lodging curve
+    # Fetch authentic destination lodging observations from database
     lodging_curve: list[LodgingPricePoint] = []
 
-    # Query direct lodging ticks stored in database
+    # 1. Query rich hotel rate observations
+    obs_stmt = (
+        select(
+            HotelRateObservationModel.check_in,
+            func.min(HotelRateObservationModel.price_nightly_cents),
+            func.avg(HotelRateObservationModel.price_nightly_cents),
+            func.count(HotelRateObservationModel.id),
+        )
+        .where(
+            HotelRateObservationModel.destination_code == dest_code,
+            HotelRateObservationModel.check_in >= today,
+        )
+        .group_by(HotelRateObservationModel.check_in)
+    )
+    obs_rows = (await session.execute(obs_stmt)).all()
+    obs_stats_by_date = {
+        row[0]: {
+            "min_cents": row[1],
+            "avg_cents": row[2],
+            "count": row[3],
+        }
+        for row in obs_rows
+    }
+
+    # Fetch top property details for dates with observations
+    best_props_by_date = {}
+    if obs_rows:
+        prop_stmt = (
+            select(
+                HotelRateObservationModel.check_in,
+                HotelRateObservationModel.price_nightly_cents,
+                HotelRateObservationModel.property_id,
+                HotelPropertyModel.name,
+                HotelPropertyModel.stars,
+                HotelRateObservationModel.review_score,
+                HotelRateObservationModel.review_count,
+                HotelRateObservationModel.deep_link,
+                HotelRateObservationModel.provider,
+            )
+            .join(
+                HotelPropertyModel,
+                HotelPropertyModel.id == HotelRateObservationModel.property_id,
+            )
+            .where(
+                HotelRateObservationModel.destination_code == dest_code,
+                HotelRateObservationModel.check_in >= today,
+            )
+            .order_by(
+                HotelRateObservationModel.check_in.asc(),
+                HotelRateObservationModel.price_nightly_cents.asc(),
+            )
+        )
+        p_res = await session.execute(prop_stmt)
+        for p_row in p_res.all():
+            cin = p_row[0]
+            if cin not in best_props_by_date:
+                best_props_by_date[cin] = {
+                    "nightly_cents": p_row[1],
+                    "property_id": p_row[2],
+                    "name": p_row[3],
+                    "stars": int(p_row[4]) if p_row[4] else None,
+                    "review_score": p_row[5],
+                    "review_count": p_row[6],
+                    "deep_link": p_row[7],
+                    "provider": p_row[8],
+                }
+
+    # Also fallback to existing market_price_ticks if older scan ticks exist
     db_l_stmt = (
         select(MarketPriceTickModel)
         .where(
             MarketPriceTickModel.destination_code == dest_code,
             MarketPriceTickModel.asset_type == "lodging",
+            MarketPriceTickModel.depart_date >= today,
         )
         .order_by(MarketPriceTickModel.depart_date.asc())
     )
     db_l_ticks = (await session.execute(db_l_stmt)).scalars().all()
     db_l_by_date = {}
     for t in db_l_ticks:
-        meta = t.metadata_json or {}
-        db_l_by_date[t.depart_date] = (
-            round(t.base_price_cents / 100.0, 2),
-            meta.get("property_name") or f"Accommodation in {dest_code}",
-            meta.get("stars"),
-            meta.get("review_score"),
-            meta.get("review_count"),
-            meta.get("deep_link"),
-        )
-
-    l_feed = OpenLodgingFeed()
-    try:
-        l_quotes = await l_feed.search_offers(
-            dest_code,
-            today + timedelta(days=21),
-            today + timedelta(days=21 + alert.min_nights),
-            session=session,
-        )
-    except Exception as e:
-        logger.debug(f"[Market] Lodging search error in history: {e}")
-        l_quotes = []
+        if t.depart_date not in db_l_by_date:
+            meta = t.metadata_json or {}
+            db_l_by_date[t.depart_date] = {
+                "nightly_cents": t.base_price_cents,
+                "property_id": meta.get("property_id"),
+                "name": meta.get("property_name"),
+                "stars": int(meta["stars"]) if meta.get("stars") else None,
+                "review_score": meta.get("review_score"),
+                "review_count": meta.get("review_count"),
+                "deep_link": meta.get("deep_link"),
+                "provider": t.source,
+            }
 
     stay_n = alert.min_nights or 3
     for f_date in all_fwd_dates:
-        if f_date in db_l_by_date:
-            rate_val, prop_val, stars_val, rev_score_val, rev_cnt_val, link_val = (
-                db_l_by_date[f_date]
+        if f_date in best_props_by_date:
+            bp = best_props_by_date[f_date]
+            stat = obs_stats_by_date.get(f_date, {})
+            rate_val = round(float(bp["nightly_cents"]) / 100.0, 2)
+            med_val = round(
+                float(stat.get("avg_cents") or bp["nightly_cents"]) / 100.0, 2
             )
             lodging_curve.append(
                 LodgingPricePoint(
                     date=f_date.isoformat(),
                     nightly_price_eur=rate_val,
                     total_stay_eur=round(rate_val * stay_n, 2),
-                    property_name=prop_val,
-                    stars=stars_val,
-                    review_score=rev_score_val,
-                    review_count=rev_cnt_val,
-                    booking_url=link_val,
-                    source="google_travel",
+                    property_name=bp["name"],
+                    property_id=bp["property_id"],
+                    stars=bp["stars"],
+                    review_score=bp["review_score"],
+                    review_count=bp["review_count"],
+                    booking_url=bp["deep_link"],
+                    source=bp["provider"],
+                    min_eur=rate_val,
+                    median_eur=med_val,
+                    n_properties=stat.get("count", 1),
                 )
             )
-        elif l_quotes:
-            q = l_quotes[f_date.day % len(l_quotes)]
-            rate_val = round(q.base_price_per_night_cents / 100.0, 2)
+        elif f_date in db_l_by_date:
+            lp = db_l_by_date[f_date]
+            rate_val = round(float(lp["nightly_cents"]) / 100.0, 2)
             lodging_curve.append(
                 LodgingPricePoint(
                     date=f_date.isoformat(),
                     nightly_price_eur=rate_val,
                     total_stay_eur=round(rate_val * stay_n, 2),
-                    property_name=q.property_name,
-                    stars=q.stars,
-                    review_score=q.review_score,
-                    review_count=q.review_count,
-                    booking_url=q.deep_link,
-                    source="google_travel",
+                    property_name=lp["name"],
+                    property_id=lp["property_id"],
+                    stars=lp["stars"],
+                    review_score=lp["review_score"],
+                    review_count=lp["review_count"],
+                    booking_url=lp["deep_link"],
+                    source=lp["provider"],
+                    min_eur=rate_val,
+                    median_eur=rate_val,
+                    n_properties=1,
                 )
             )
         else:
+            # ZERO fake data: do NOT rotate day % len and do NOT fake with 0.0
             lodging_curve.append(
                 LodgingPricePoint(
                     date=f_date.isoformat(),
-                    nightly_price_eur=0.0,
-                    total_stay_eur=0.0,
-                    property_name=f"Accommodation in {dest_code}",
-                    source="google_travel",
+                    nightly_price_eur=None,
+                    total_stay_eur=None,
+                    property_name=None,
+                    source="none",
+                    n_properties=0,
                 )
             )
+
+    if target_currency != "EUR":
+        points = [
+            HistoryPoint(
+                date=p.date,
+                timestamp=p.timestamp,
+                min_price_eur=_cvt_money(p.min_price_eur, target_currency) or 0.0,
+                median_price_eur=_cvt_money(p.median_price_eur, target_currency) or 0.0,
+                ticks_count=p.ticks_count,
+                carrier=p.carrier,
+            )
+            for p in points
+        ]
+        return_points = [
+            HistoryPoint(
+                date=p.date,
+                timestamp=p.timestamp,
+                min_price_eur=_cvt_money(p.min_price_eur, target_currency) or 0.0,
+                median_price_eur=_cvt_money(p.median_price_eur, target_currency) or 0.0,
+                ticks_count=p.ticks_count,
+                carrier=p.carrier,
+            )
+            for p in return_points
+        ]
+        forward_curve = [
+            ForwardPricePoint(
+                depart_date=f.depart_date,
+                price_eur=_cvt_money(f.price_eur, target_currency) or 0.0,
+                price_return_eur=_cvt_money(f.price_return_eur, target_currency),
+                verdict=f.verdict,
+                percentile=f.percentile,
+                carrier=f.carrier,
+                return_carrier=f.return_carrier,
+            )
+            for f in forward_curve
+        ]
+        lodging_curve = [
+            LodgingPricePoint(
+                date=lc.date,
+                nightly_price_eur=_cvt_money(lc.nightly_price_eur, target_currency),
+                total_stay_eur=_cvt_money(lc.total_stay_eur, target_currency),
+                property_name=lc.property_name,
+                property_id=lc.property_id,
+                stars=lc.stars,
+                review_score=lc.review_score,
+                review_count=lc.review_count,
+                booking_url=lc.booking_url,
+                source=lc.source,
+                min_eur=_cvt_money(lc.min_eur, target_currency),
+                median_eur=_cvt_money(lc.median_eur, target_currency),
+                p25_eur=_cvt_money(lc.p25_eur, target_currency),
+                p75_eur=_cvt_money(lc.p75_eur, target_currency),
+                n_properties=lc.n_properties,
+                coverage_ratio=lc.coverage_ratio,
+            )
+            for lc in lodging_curve
+        ]
+        p10 = _cvt_money(p10, target_currency)
+        p25 = _cvt_money(p25, target_currency)
+        p50 = _cvt_money(p50, target_currency)
+        p75 = _cvt_money(p75, target_currency)
+        p90 = _cvt_money(p90, target_currency)
+        inbound_p10 = _cvt_money(inbound_p10, target_currency)
+        inbound_p50 = _cvt_money(inbound_p50, target_currency)
+        inbound_p90 = _cvt_money(inbound_p90, target_currency)
+        min_pt = _cvt_money(min_pt, target_currency)
 
     return HistoryResponse(
         points=points,
@@ -1184,7 +1441,7 @@ async def get_route_price_history(
         lowest_ever_eur=min_pt,
         verdict=verdict_dict,
         corpus=corpus_info,
-        currency="EUR",
+        currency=target_currency,
     )
 
 
@@ -1295,13 +1552,30 @@ async def get_route_calendar(
     months_count: int = Query(4, ge=1, le=12, alias="months"),
     view: str = Query("roundtrip", pattern="^(outbound|inbound|roundtrip)$"),
     pricing: str = Query("package", pattern="^(flights|package)$"),
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
     res = await session.execute(stmt)
     alert = res.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
+
+    target_currency = (
+        (
+            currency_param
+            or (
+                current_user.preferences.get("default_currency")
+                if current_user and current_user.preferences
+                else None
+            )
+            or alert.currency
+            or "EUR"
+        )
+        .upper()
+        .strip()
+    )
 
     dest_code = alert.destinations[0]
     dest_name = await _resolve_city_name(session, dest_code)
@@ -1434,18 +1708,30 @@ async def get_route_calendar(
             session, "lodging", "", dest_code, alert.earliest_date, now.date(), "EUR"
         )
         if lodging_median:
-            hotel_rate_eur = round(lodging_median / 100.0, 2)
+            hotel_rate_eur = round(float(lodging_median) / 100.0, 2)
         else:
-            try:
-                l_quote = await OpenLodgingFeed().fetch_destination_summary(
-                    dest_code,
-                    now.date() + timedelta(days=21),
-                    now.date() + timedelta(days=21 + alert.min_nights),
-                    session=session,
+            avg_obs_stmt = select(
+                func.avg(HotelRateObservationModel.price_nightly_cents)
+            ).where(
+                HotelRateObservationModel.destination_code == dest_code,
+                HotelRateObservationModel.check_in >= now.date(),
+            )
+            avg_cents = await session.scalar(avg_obs_stmt)
+            if avg_cents is not None:
+                hotel_rate_eur = round(float(avg_cents) / 100.0, 2)
+            else:
+                tick_stmt = select(
+                    func.avg(MarketPriceTickModel.base_price_cents)
+                ).where(
+                    MarketPriceTickModel.destination_code == dest_code,
+                    MarketPriceTickModel.asset_type == "lodging",
+                    MarketPriceTickModel.depart_date >= now.date(),
                 )
-                hotel_rate_eur = round(l_quote.base_price_per_night_cents / 100.0, 2)
-            except Exception:
-                hotel_rate_eur = 0.0
+                tick_avg = await session.scalar(tick_stmt)
+                if tick_avg is not None:
+                    hotel_rate_eur = round(float(tick_avg) / 100.0, 2)
+                else:
+                    hotel_rate_eur = 0.0
 
     # Effective quantiles for tiering
     if view == "roundtrip":
@@ -1695,6 +1981,31 @@ async def get_route_calendar(
     valid_days.sort(key=lambda x: x[0])
     top_dates = [x[1] for x in valid_days[:3]]
 
+    if target_currency != "EUR":
+        effective_p10 = _cvt_money(effective_p10, target_currency)
+        effective_p50 = _cvt_money(effective_p50, target_currency)
+        effective_p90 = _cvt_money(effective_p90, target_currency)
+        for m in months_list:
+            for day in m.days:
+                day.price_eur = _cvt_money(day.price_eur, target_currency)
+                if day.outbound_flight and day.outbound_flight.price_eur is not None:
+                    day.outbound_flight.price_eur = _cvt_money(
+                        day.outbound_flight.price_eur, target_currency
+                    )
+                if day.return_flight and day.return_flight.price_eur is not None:
+                    day.return_flight.price_eur = _cvt_money(
+                        day.return_flight.price_eur, target_currency
+                    )
+                if day.lodging:
+                    day.lodging.price_per_night_eur = (
+                        _cvt_money(day.lodging.price_per_night_eur, target_currency)
+                        or 0.0
+                    )
+                    day.lodging.total_lodging_eur = (
+                        _cvt_money(day.lodging.total_lodging_eur, target_currency)
+                        or 0.0
+                    )
+
     return CalendarResponse(
         months=months_list,
         route_label=route_label,
@@ -1704,6 +2015,7 @@ async def get_route_calendar(
         view=view,
         pricing=pricing,
         top_dates=top_dates,
+        currency=target_currency,
     )
 
 
@@ -2039,7 +2351,19 @@ async def _format_deal_package_item(
 async def list_active_deals(
     session: AsyncSession = Depends(get_db),
     limit: int = Query(10, ge=1, le=50),
+    currency_param: str | None = Query(None, alias="currency"),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
+    target_curr = (
+        currency_param
+        or (
+            current_user.preferences.get("default_currency")
+            if current_user and current_user.preferences
+            else None
+        )
+        or "EUR"
+    ).upper()
+
     stmt = (
         select(DealEventModel)
         .where(DealEventModel.status.in_(["alerted", "pending", "active"]))
@@ -2069,11 +2393,13 @@ async def list_active_deals(
             .all()
         )
         for a in alerts:
-            route_pkgs = await list_route_deals(a.id, session=session, limit=3)
+            route_pkgs = await list_route_deals(
+                a.id, session=session, limit=3, currency_param="EUR"
+            )
             items.extend(route_pkgs)
 
     items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
-    return items[:limit]
+    return [_convert_deal_package_item(item, target_curr) for item in items[:limit]]
 
 
 @router.get("/routes/{route_id}/deals", response_model=list[DealPackageItem])
@@ -2081,7 +2407,18 @@ async def list_route_deals(
     route_id: str,
     session: AsyncSession = Depends(get_db),
     limit: int = Query(5, ge=1, le=20),
+    currency_param: str | None = Query(None, alias="currency"),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
+    target_curr = (
+        currency_param
+        or (
+            current_user.preferences.get("default_currency")
+            if current_user and current_user.preferences
+            else None
+        )
+        or "EUR"
+    ).upper()
     stmt = (
         select(DealEventModel)
         .where(
@@ -2143,16 +2480,47 @@ async def list_route_deals(
                 for row in (await session.execute(fwd_ret_stmt)).all()
             }
 
-            l_feed = OpenLodgingFeed()
-            try:
-                l_quotes = await l_feed.search_offers(
-                    dest_code,
-                    today + timedelta(days=21),
-                    today + timedelta(days=21 + alert.min_nights),
-                    session=session,
+            prop_stmt = (
+                select(
+                    HotelRateObservationModel.price_nightly_cents,
+                    HotelPropertyModel.name,
+                    HotelPropertyModel.stars,
+                    HotelRateObservationModel.review_score,
+                    HotelRateObservationModel.review_count,
+                    HotelRateObservationModel.deep_link,
+                    HotelRateObservationModel.provider,
                 )
-            except Exception:
-                l_quotes = []
+                .join(
+                    HotelPropertyModel,
+                    HotelPropertyModel.id == HotelRateObservationModel.property_id,
+                )
+                .where(
+                    HotelRateObservationModel.destination_code == dest_code,
+                    HotelRateObservationModel.check_in >= today,
+                )
+                .order_by(HotelRateObservationModel.price_nightly_cents.asc())
+                .limit(20)
+            )
+            prop_rows = (await session.execute(prop_stmt)).all()
+
+            tick_props = []
+            if not prop_rows:
+                tick_stmt = (
+                    select(MarketPriceTickModel)
+                    .where(
+                        MarketPriceTickModel.destination_code == dest_code,
+                        MarketPriceTickModel.asset_type == "lodging",
+                        MarketPriceTickModel.depart_date >= today,
+                    )
+                    .order_by(MarketPriceTickModel.base_price_cents.asc())
+                    .limit(20)
+                )
+                tick_props = (await session.execute(tick_stmt)).scalars().all()
+
+            db_lodging_median, _ = await resolve_baseline_median(
+                session, "lodging", "", dest_code, alert.earliest_date, today, "EUR"
+            )
+            fallback_hotel_cents = int(db_lodging_median) if db_lodging_median else 0
 
             quantiles, _, _ = await resolve_route_baseline_quantiles(
                 session=session,
@@ -2161,7 +2529,11 @@ async def list_route_deals(
                 depart_date=alert.earliest_date,
                 observation_date=today,
             )
-            median_fl_cents = quantiles.get("q50", 5000) if quantiles else 5000
+            median_fl_cents = quantiles.get("q50") if quantiles else None
+            if median_fl_cents is None:
+                median_fl_cents = (
+                    int(sum(r[1] for r in fwd_out) / len(fwd_out)) if fwd_out else 0
+                )
 
             cand_packages = []
             seen_dates: set[tuple[date, date]] = set()
@@ -2185,17 +2557,63 @@ async def list_route_deals(
                 seen_dates.add((dep_dt, best_ret[2]))
 
                 cand_idx = len(cand_packages)
-                l_quote = l_quotes[cand_idx % len(l_quotes)] if l_quotes else None
+                p_row = prop_rows[cand_idx % len(prop_rows)] if prop_rows else None
+                t_row = (
+                    tick_props[cand_idx % len(tick_props)]
+                    if (not p_row and tick_props)
+                    else None
+                )
+
+                if p_row:
+                    hotel_nightly_cents = int(p_row[0])
+                    prop_name = p_row[1] or f"Hotel in {dest_name}"
+                    prop_stars = float(p_row[2]) if p_row[2] else None
+                    prop_rev_score = float(p_row[3]) if p_row[3] is not None else None
+                    prop_rev_count = int(p_row[4]) if p_row[4] is not None else None
+                    prop_link = (
+                        p_row[5]
+                        or f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
+                    )
+                    prop_src = p_row[6] or "lodging"
+                elif t_row:
+                    hotel_nightly_cents = int(t_row.base_price_cents)
+                    meta = t_row.metadata_json or {}
+                    prop_name = meta.get("property_name") or f"Hotel in {dest_name}"
+                    prop_stars = float(meta["stars"]) if meta.get("stars") else None
+                    prop_rev_score = (
+                        float(meta["review_score"])
+                        if meta.get("review_score") is not None
+                        else None
+                    )
+                    prop_rev_count = (
+                        int(meta["review_count"])
+                        if meta.get("review_count") is not None
+                        else None
+                    )
+                    prop_link = (
+                        meta.get("deep_link")
+                        or f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
+                    )
+                    prop_src = t_row.source or "lodging"
+                else:
+                    hotel_nightly_cents = fallback_hotel_cents
+                    prop_name = f"Lodging in {dest_name}"
+                    prop_stars = None
+                    prop_rev_score = None
+                    prop_rev_count = None
+                    prop_link = (
+                        f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
+                    )
+                    prop_src = "lodging"
 
                 total_fl_cents = out_cents + best_ret[0]
-                hotel_nightly_cents = (
-                    l_quote.base_price_per_night_cents if l_quote else 4800
-                )
                 total_hotel_cents = hotel_nightly_cents * best_nights
                 total_package_cents = total_fl_cents + total_hotel_cents
 
-                baseline_pkg_cents = (median_fl_cents * 2) + int(
-                    hotel_nightly_cents * best_nights * 1.5
+                baseline_pkg_cents = (
+                    (median_fl_cents * 2) + int(hotel_nightly_cents * best_nights * 1.5)
+                    if median_fl_cents and hotel_nightly_cents
+                    else total_package_cents
                 )
                 savings_cents = max(0, int(baseline_pkg_cents - total_package_cents))
                 discount_pct = round(
@@ -2249,25 +2667,17 @@ async def list_route_deals(
                             ancillaries_excluded=True,
                         ),
                         lodging=DealLodgingItem(
-                            property_name=l_quote.property_name
-                            if l_quote
-                            else f"Hotel in {dest_name}",
+                            property_name=prop_name,
                             nightly_base_eur=round(hotel_nightly_cents / 100.0, 2),
                             landed_total_eur=round(total_hotel_cents / 100.0, 2),
-                            quality_score=l_quote.quality_score
-                            if l_quote and l_quote.quality_score
-                            else 85.0,
-                            stars=l_quote.stars if l_quote and l_quote.stars else 4,
-                            review_score=l_quote.review_score
-                            if l_quote and l_quote.review_score
-                            else 4.3,
-                            review_count=l_quote.review_count
-                            if l_quote and l_quote.review_count
-                            else 712,
-                            booking_url=l_quote.deep_link
-                            if l_quote
-                            else f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}",
-                            source=l_quote.source if l_quote else "google_travel",
+                            quality_score=round(prop_rev_score * 20.0, 1)
+                            if prop_rev_score
+                            else None,
+                            stars=prop_stars,
+                            review_score=prop_rev_score,
+                            review_count=prop_rev_count,
+                            booking_url=prop_link,
+                            source=prop_src,
                             is_live=True,
                             taxes_included=True,
                         ),
@@ -2278,7 +2688,7 @@ async def list_route_deals(
             items = cand_packages[:limit]
 
     items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
-    return items
+    return [_convert_deal_package_item(item, target_curr) for item in items]
 
 
 @router.post("/deals/{deal_id}/discard")
@@ -2418,15 +2828,23 @@ async def get_holiday_matched_packages(
             else p50
         )
 
-        # Hotel benchmark
-        hotel_rate_eur = 55.0
+        # Dynamic Hotel benchmark (zero hardcoded values)
+        hotel_rate_eur = 0.0
         if body.pricing == "package":
             lodging_median, _ = await resolve_baseline_median(
                 session, "lodging", "", dest_code, today, today, "EUR"
             )
-            hotel_rate_eur = (
-                round(lodging_median / 100.0, 2) if lodging_median else 55.0
-            )
+            if lodging_median:
+                hotel_rate_eur = round(lodging_median / 100.0, 2)
+            else:
+                obs_m_stmt = select(
+                    func.min(HotelRateObservationModel.price_nightly_cents)
+                ).where(
+                    HotelRateObservationModel.destination_code == dest_code,
+                    HotelRateObservationModel.check_in >= today,
+                )
+                m_cents = (await session.execute(obs_m_stmt)).scalar_one_or_none()
+                hotel_rate_eur = round(m_cents / 100.0, 2) if m_cents else 0.0
 
         outbound_quotes = await _fetch_corridor_quotes(
             origin=alert.origin_iata,
