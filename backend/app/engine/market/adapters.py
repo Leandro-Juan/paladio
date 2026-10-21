@@ -30,22 +30,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
+class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
     """
-    Flight provider backed by ProviderRouter with Tier 1 (Ryanair) and Tier 2 (Google Flights).
-    Zero API keys required. Provides authentic fares, schedules, and carrier confirmation.
+    Sovereign Multi-Provider Flight Feed backed by dynamic regional routing.
+    Dispatches to appropriate provider ladders (Americas, Europe, Intercontinental)
+    using Ryanair, Google Flights, Kiwi, and Trip.com with zero API keys.
     """
 
-    def __init__(self, timeout_sec: float = 12.0):
+    def __init__(self, timeout_sec: float = 16.0):
         from app.engine.market.providers.google_flights import GoogleFlightsProvider
-        from app.engine.market.providers.router import ProviderRouter
+        from app.engine.market.providers.kiwi import KiwiFlightProvider
         from app.engine.market.providers.ryanair import RyanairProvider
+        from app.engine.market.providers.trip_com_flights import TripComFlightProvider
 
-        self.primary = RyanairProvider(timeout_sec=timeout_sec)
-        self.secondary = GoogleFlightsProvider(timeout_sec=timeout_sec)
-        self.router = ProviderRouter(
-            asset_type="flight", providers=[self.primary, self.secondary]
-        )
+        self.timeout_sec = timeout_sec
+        self.ryanair = RyanairProvider(timeout_sec=timeout_sec)
+        self.google_flights = GoogleFlightsProvider(timeout_sec=timeout_sec)
+        self.kiwi = KiwiFlightProvider(timeout_sec=timeout_sec)
+        self.trip_com = TripComFlightProvider(timeout_sec=timeout_sec)
+
+    def _get_router(self, origin_iata: str, dest_iata: str):
+        from app.engine.market.flights.classifier import route_classifier
+        from app.engine.market.providers.router import ProviderRouter
+
+        classification = route_classifier.classify_corridor(origin_iata, dest_iata)
+        if classification.is_americas and not classification.is_europe:
+            providers = [self.google_flights, self.kiwi, self.trip_com]
+        elif classification.is_europe:
+            providers = [self.ryanair, self.google_flights, self.kiwi, self.trip_com]
+        else:
+            providers = [self.google_flights, self.kiwi, self.trip_com]
+        return ProviderRouter(asset_type="flight", providers=providers)
 
     async def fetch_cached_flights(
         self,
@@ -55,8 +70,9 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
         date_to: date,
         session: Any | None = None,
     ) -> list[FlightQuote]:
+        router = self._get_router(origin_iata, dest_iata)
         if session is not None:
-            return await self.router.execute_ladder(
+            return await router.execute_ladder(
                 session,
                 "fetch_cached_flights",
                 origin_iata,
@@ -65,7 +81,7 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
                 date_to,
             )
         async with async_session() as local_session:
-            return await self.router.execute_ladder(
+            return await router.execute_ladder(
                 local_session,
                 "fetch_cached_flights",
                 origin_iata,
@@ -81,9 +97,23 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
         month_start: date,
         session: Any | None = None,
     ) -> list[FlightQuote]:
-        return await self.primary.fetch_month_cheapest_per_day(
-            origin_iata, dest_iata, month_start, session=session
-        )
+        router = self._get_router(origin_iata, dest_iata)
+        if session is not None:
+            return await router.execute_ladder(
+                session,
+                "fetch_month_cheapest_per_day",
+                origin_iata,
+                dest_iata,
+                month_start,
+            )
+        async with async_session() as local_session:
+            return await router.execute_ladder(
+                local_session,
+                "fetch_month_cheapest_per_day",
+                origin_iata,
+                dest_iata,
+                month_start,
+            )
 
     async def fetch_calendar_horizon(
         self,
@@ -92,19 +122,32 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
         months_ahead: int = 11,
         session: Any | None = None,
     ) -> list[FlightQuote]:
-        return await self.primary.fetch_calendar_horizon(
-            origin_iata, dest_iata, months_ahead=months_ahead, session=session
-        )
+        router = self._get_router(origin_iata, dest_iata)
+        if session is not None:
+            return await router.execute_ladder(
+                session,
+                "fetch_calendar_horizon",
+                origin_iata,
+                dest_iata,
+                months_ahead=months_ahead,
+            )
+        async with async_session() as local_session:
+            return await router.execute_ladder(
+                local_session,
+                "fetch_calendar_horizon",
+                origin_iata,
+                dest_iata,
+                months_ahead=months_ahead,
+            )
 
     async def verify_flight(
         self, quote: FlightQuote, session: Any | None = None
     ) -> tuple[bool, int, dict[str, Any]]:
+        router = self._get_router(quote.origin_iata, quote.destination_iata)
         if session is not None:
-            return await self.router.execute_ladder(session, "verify_flight", quote)
+            return await router.execute_ladder(session, "verify_flight", quote)
         async with async_session() as local_session:
-            return await self.router.execute_ladder(
-                local_session, "verify_flight", quote
-            )
+            return await router.execute_ladder(local_session, "verify_flight", quote)
 
     async def verify_lodging(
         self, quote: LodgingQuote
@@ -114,6 +157,10 @@ class RyanairFlightFeed(FlightFeed, LiveQuoteProvider):
             quote.base_price_per_night_cents,
             {"verified": True},
         )
+
+
+# Backwards compatibility alias
+RyanairFlightFeed = CompositeFlightFeed
 
 
 class OpenLodgingFeed(LodgingFeed):

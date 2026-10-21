@@ -23,9 +23,9 @@ from app.db.models import (
     TripModel,
 )
 from app.engine.market.adapters import (
+    CompositeFlightFeed,
     OpenLodgingFeed,
     RedisWebSocketNotifier,
-    RyanairFlightFeed,
     SovereignItineraryGate,
     SovereignLodgingScorer,
 )
@@ -57,7 +57,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
         logger.info("No active deal watch alerts for detection scan.")
         return []
 
-    flight_feed = RyanairFlightFeed()
+    flight_feed = CompositeFlightFeed()
     lodging_feed = OpenLodgingFeed()
     lodging_scorer = SovereignLodgingScorer()
     itinerary_gate = SovereignItineraryGate()
@@ -249,7 +249,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     arrival_time=arr_dt,
                     base_price_cents=ft.base_price_cents,
                     currency=ft.currency,
-                    carrier=meta.get("carrier", "Ryanair"),
+                    carrier=meta.get("carrier") or ft.source or "Airline",
                     flight_number=meta.get("flightNumber"),
                     deep_link=meta.get("deep_link"),
                 )

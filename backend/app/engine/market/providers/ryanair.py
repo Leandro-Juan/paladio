@@ -41,6 +41,12 @@ class RyanairProvider(BaseQuoteProvider):
         date_to: date,
         session: Any = None,
     ) -> list[FlightQuote]:
+        from app.engine.market.flights.classifier import route_classifier
+
+        classification = route_classifier.classify_corridor(origin_iata, dest_iata)
+        if not classification.is_europe:
+            return []
+
         params = {
             "departureAirportIataCode": origin_iata,
             "arrivalAirportIataCode": dest_iata,
@@ -116,6 +122,12 @@ class RyanairProvider(BaseQuoteProvider):
         """
         Queries Ryanair cheapestPerDay endpoint for bulk baseline bootstrapping.
         """
+        from app.engine.market.flights.classifier import route_classifier
+
+        classification = route_classifier.classify_corridor(origin_iata, dest_iata)
+        if not classification.is_europe:
+            return []
+
         url = f"https://www.ryanair.com/api/farfnd/v4/oneWayFares/{origin_iata}/{dest_iata}/cheapestPerDay"
         params = {
             "outboundMonthOfDate": month_start.strftime("%Y-%m-01"),
@@ -194,6 +206,12 @@ class RyanairProvider(BaseQuoteProvider):
         Gathers ~300 real daily market prices across seasons, weekdays, and lead times.
         Politely batched with concurrency limit.
         """
+        from app.engine.market.flights.classifier import route_classifier
+
+        classification = route_classifier.classify_corridor(origin_iata, dest_iata)
+        if not classification.is_europe:
+            return []
+
         import asyncio
 
         now = datetime.now(timezone.utc)

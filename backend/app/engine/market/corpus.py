@@ -14,7 +14,7 @@ from app.db.models import (
     RouteBaselineModel,
     RouteCorpusStatusModel,
 )
-from app.engine.market.adapters import RyanairFlightFeed
+from app.engine.market.adapters import CompositeFlightFeed
 from app.engine.market.baselines import compute_route_baseline
 from app.engine.market.config import config
 from app.engine.market.ingest import compute_content_hash
@@ -29,11 +29,11 @@ async def backfill_route_corpus(
     origin_iata: str,
     destination_code: str,
     months_ahead: int | None = None,
-    feed: RyanairFlightFeed | None = None,
+    feed: Any | None = None,
     bidirectional: bool = True,
 ) -> dict[str, Any]:
     """
-    Performs forward calendar sweep for (origin, destination), ingests ~300 real daily fares
+    Performs forward calendar sweep for (origin, destination), ingests real daily fares
     into market_price_ticks and price_daily, computes empirical baselines immediately,
     and updates RouteCorpusStatusModel. If bidirectional=True, also sweeps reverse route.
     """
@@ -71,7 +71,7 @@ async def backfill_route_corpus(
 
     # 2. Fetch forward calendar horizon of real daily fares
     if feed is None:
-        feed = RyanairFlightFeed()
+        feed = CompositeFlightFeed()
 
     try:
         quotes = await feed.fetch_calendar_horizon(
@@ -115,6 +115,7 @@ async def backfill_route_corpus(
         unique_dates.add(dep_date)
         prices.append(q.base_price_cents)
 
+        q_source = q.source or "flight_feed"
         h = compute_content_hash(
             "flight",
             origin,
@@ -122,7 +123,7 @@ async def backfill_route_corpus(
             dep_date,
             ret_date,
             q.base_price_cents,
-            "ryanair",
+            q_source,
             source_observed_at=q.observed_at,
         )
 
@@ -145,7 +146,7 @@ async def backfill_route_corpus(
             ) VALUES (
                 :id, :observed_at, 'flight', :origin_iata, :dest_code, :dest_iata,
                 :depart_date, :return_date, 0, :lead_time_days, :currency, :base_price_cents,
-                'min', 1, 'standard', 'ryanair', 'calendar_sweep', false, false,
+                'min', 1, 'standard', :source, 'calendar_sweep', false, false,
                 :content_hash, :metadata_json, :ingest_run_id
             ) ON CONFLICT (content_hash, observed_at) DO NOTHING
         """)
@@ -162,6 +163,7 @@ async def backfill_route_corpus(
                 "lead_time_days": lead_time,
                 "currency": q.currency,
                 "base_price_cents": q.base_price_cents,
+                "source": q_source,
                 "content_hash": h,
                 "metadata_json": json.dumps(meta),
                 "ingest_run_id": ingest_run_id,
@@ -175,7 +177,7 @@ async def backfill_route_corpus(
                 nights, source_class, source, currency, min_base, n_ticks
             ) VALUES (
                 :bucket, 'flight', :origin_iata, :dest_code, :depart_date,
-                0, 'calendar_sweep', 'ryanair', :currency, :base_price_cents, 1
+                0, 'calendar_sweep', :source, :currency, :base_price_cents, 1
             )
             ON CONFLICT (bucket, asset_type, origin_iata, destination_code, depart_date, nights, source_class, source, currency)
             DO UPDATE SET 
@@ -189,6 +191,7 @@ async def backfill_route_corpus(
                 "origin_iata": origin,
                 "dest_code": dest,
                 "depart_date": dep_date,
+                "source": q_source,
                 "currency": q.currency,
                 "base_price_cents": q.base_price_cents,
             },

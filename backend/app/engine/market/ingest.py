@@ -10,11 +10,12 @@ import json
 import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from typing import Any
 
 from app.db.models import (
     DealWatchAlertModel,
 )
-from app.engine.market.adapters import OpenLodgingFeed, RyanairFlightFeed
+from app.engine.market.adapters import CompositeFlightFeed, OpenLodgingFeed
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,18 +45,18 @@ async def ingest_flight_ticks(
     dest_code: str,
     date_from: date,
     date_to: date,
-    feed: RyanairFlightFeed | None = None,
+    feed: Any | None = None,
     ingest_run_id: str | None = None,
+    run_id: str | None = None,
 ) -> int:
     """
     Polls live flight fares for origin -> destination across date window,
     inserts into market_price_ticks with duplicate suppression,
-    and updates price_daily.
+    and updates price_daily. Fully dynamic source, currency, and provider ladder.
     """
     if feed is None:
-        feed = RyanairFlightFeed()
-    if ingest_run_id is None:
-        ingest_run_id = str(uuid.uuid4())
+        feed = CompositeFlightFeed()
+    effective_run_id = ingest_run_id or run_id or str(uuid.uuid4())
 
     quotes = await feed.fetch_cached_flights(
         origin_iata, dest_iata, date_from, date_to, session=session
@@ -74,6 +75,8 @@ async def ingest_flight_ticks(
         ret_date = dep_date + timedelta(days=4)  # Default 4-night stay window
         nights = (ret_date - dep_date).days
         lead_time = max((dep_date - now.date()).days, 0)
+        source = quote.source or "flight_feed"
+        source_class = "live" if quote.is_live else "cache"
 
         h = compute_content_hash(
             "flight",
@@ -82,7 +85,8 @@ async def ingest_flight_ticks(
             dep_date,
             ret_date,
             quote.base_price_cents,
-            "ryanair",
+            source,
+            source_observed_at=quote.observed_at,
         )
 
         meta = {
@@ -105,7 +109,7 @@ async def ingest_flight_ticks(
             ) VALUES (
                 :id, :observed_at, 'flight', :origin_iata, :destination_code, :dest_airport_iata,
                 :depart_date, :return_date, :nights, :lead_time_days, :currency, :base_price_cents,
-                'single', 'ryanair', 'cache', false, false, :content_hash,
+                'single', :source, :source_class, false, false, :content_hash,
                 :ingest_run_id, :metadata_json
             ) ON CONFLICT (content_hash, observed_at) DO NOTHING
         """)
@@ -124,8 +128,10 @@ async def ingest_flight_ticks(
                 "lead_time_days": lead_time,
                 "currency": quote.currency,
                 "base_price_cents": quote.base_price_cents,
+                "source": source,
+                "source_class": source_class,
                 "content_hash": h,
-                "ingest_run_id": ingest_run_id,
+                "ingest_run_id": effective_run_id,
                 "metadata_json": json.dumps(meta),
             },
         )
@@ -139,7 +145,7 @@ async def ingest_flight_ticks(
                 nights, source_class, source, currency, min_base, n_ticks
             ) VALUES (
                 :bucket, 'flight', :origin_iata, :destination_code, :depart_date,
-                :nights, 'cache', 'ryanair', :currency, :base_price_cents, 1
+                :nights, :source_class, :source, :currency, :base_price_cents, 1
             )
             ON CONFLICT (bucket, asset_type, origin_iata, destination_code, depart_date, nights, source_class, source, currency)
             DO UPDATE SET 
@@ -154,6 +160,8 @@ async def ingest_flight_ticks(
                 "destination_code": dest_code,
                 "depart_date": dep_date,
                 "nights": nights,
+                "source_class": source_class,
+                "source": source,
                 "currency": quote.currency,
                 "base_price_cents": quote.base_price_cents,
             },
@@ -359,7 +367,7 @@ async def scan_and_ingest_watched_routes(session: AsyncSession) -> dict[str, int
                     max(cur_latest, alert.latest_date),
                 )
 
-    flight_feed = RyanairFlightFeed()
+    flight_feed = CompositeFlightFeed()
     lodging_feed = OpenLodgingFeed()
     total_flights = 0
     total_lodging = 0

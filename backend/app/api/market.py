@@ -27,7 +27,7 @@ from app.db.models import (
     UserModel,
 )
 from app.db.session import get_db
-from app.engine.market.adapters import RyanairFlightFeed
+from app.engine.market.adapters import CompositeFlightFeed, RyanairFlightFeed
 from app.engine.market.baselines import (
     resolve_baseline_median,
     resolve_route_baseline_quantiles,
@@ -1686,7 +1686,7 @@ async def _fetch_corridor_quotes(
     dest: str,
     date_from: date,
     date_to: date,
-    feed: RyanairFlightFeed,
+    feed: CompositeFlightFeed,
     session: AsyncSession,
 ) -> dict[str, dict[str, Any]]:
     quotes_by_date: dict[str, dict[str, Any]] = {}
@@ -1710,7 +1710,7 @@ async def _fetch_corridor_quotes(
                     ),
                     "departure_time": q.depart_time.strftime("%H:%M"),
                     "booking_url": q.deep_link
-                    or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin}&destinationIata={dest}",
+                    or f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
                     "carrier": q.carrier,
                 }
     except Exception as e:
@@ -1730,12 +1730,14 @@ async def _fetch_corridor_quotes(
         d_str = st.depart_date.isoformat()
         fare = round(st.base_price_cents / 100.0, 2)
         if d_str not in quotes_by_date or fare < quotes_by_date[d_str]["price_eur"]:
+            st_meta = st.metadata_json or {}
             quotes_by_date[d_str] = {
                 "price_eur": fare,
-                "flight_number": None,
+                "flight_number": st_meta.get("flight_number"),
                 "duration_mins": None,
                 "departure_time": None,
-                "booking_url": f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin}&destinationIata={dest}",
+                "booking_url": st_meta.get("deep_link")
+                or f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
                 "carrier": st.source,
             }
     return quotes_by_date
