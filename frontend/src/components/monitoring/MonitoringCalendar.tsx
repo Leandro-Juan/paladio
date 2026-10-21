@@ -26,11 +26,44 @@ export function MonitoringCalendar({
   const [hoveredDay, setHoveredDay] = useState<CalendarDay | null>(null);
   const [monthsCount, setMonthsCount] = useState<number>(4);
   const [currentView, setCurrentView] = useState<'outbound' | 'inbound' | 'roundtrip'>(
-    calendar?.view || 'outbound'
+    calendar?.view || 'roundtrip'
   );
   const [currentPricing, setCurrentPricing] = useState<'flights' | 'package'>(
-    calendar?.pricing || 'flights'
+    calendar?.pricing || 'package'
   );
+
+  // User marked holidays from Dashboard Calendar
+  const userHolidays = useMemo(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const stored = localStorage.getItem('paladio_user_holidays');
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  }, []);
+
+  // Top 3 best package dates
+  const top3Dates = useMemo(() => {
+    if (calendar?.top_dates && calendar.top_dates.length > 0) {
+      return new Map<string, number>(
+        calendar.top_dates.slice(0, 3).map((dt, idx) => [dt, idx + 1])
+      );
+    }
+    if (!calendar?.months) return new Map<string, number>();
+    const valid: { date: string; price: number }[] = [];
+    calendar.months.forEach((m) => {
+      m.days.forEach((d) => {
+        if (d.price_eur !== null) {
+          valid.push({ date: d.date, price: d.price_eur });
+        }
+      });
+    });
+    valid.sort((a, b) => a.price - b.price);
+    return new Map<string, number>(
+      valid.slice(0, 3).map((item, idx) => [item.date, idx + 1])
+    );
+  }, [calendar]);
 
   const activeStayRange = useMemo(() => {
     const target = hoveredDay || selectedDay;
@@ -166,10 +199,9 @@ export function MonitoringCalendar({
 
       {/* Multi-Month Grid Container */}
       <div
-        className={styles.monthsGrid}
-        style={{
-          gridTemplateColumns: `repeat(${Math.min(calendar.months.length, monthsCount)}, minmax(180px, 1fr))`,
-        }}
+        className={`${styles.monthsGrid} ${
+          monthsCount === 4 ? styles.monthsGrid4M : styles.monthsGridFull
+        }`}
       >
         {calendar.months.slice(0, monthsCount).map((m) => (
           <div key={`${m.year}-${m.month}`} className={styles.monthColumn}>
@@ -208,6 +240,24 @@ export function MonitoringCalendar({
                 const isInRange = Boolean(
                   activeStayRange && d.date >= activeStayRange.start && d.date <= activeStayRange.end
                 );
+                const topRank = top3Dates.get(d.date);
+                const isUserHoliday = userHolidays.has(d.date);
+                let fitsHolidayWindow = false;
+                if (d.nights && d.return_date && isUserHoliday) {
+                  const depD = new Date(d.date);
+                  const retD = new Date(d.return_date);
+                  let allCovered = true;
+                  const cur = new Date(depD);
+                  while (cur <= retD) {
+                    const s = cur.toISOString().split('T')[0];
+                    if (!userHolidays.has(s)) {
+                      allCovered = false;
+                      break;
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                  }
+                  fitsHolidayWindow = allCovered;
+                }
 
                 return (
                   <button
@@ -215,7 +265,7 @@ export function MonitoringCalendar({
                     type="button"
                     className={`${styles.dayCell} ${tierClass} ${isSelected ? styles.selectedDay : ''} ${
                       isInRange ? styles.inRangeDay : ''
-                    }`}
+                    } ${topRank ? styles[`topDay${topRank}`] : ''}`}
                     onClick={() => setSelectedDay(d)}
                     onMouseEnter={() => {
                       if (d.nights && d.return_date) {
@@ -225,9 +275,22 @@ export function MonitoringCalendar({
                     onMouseLeave={() => setHoveredDay(null)}
                     title={`${d.date}: ${d.price_eur ? `€${d.price_eur.toFixed(2)}` : 'No direct flight'}${
                       d.nights ? ` · ${d.nights}N stay until ${d.return_date}` : ''
+                    }${topRank ? ` · #${topRank} Best Value Package` : ''}${
+                      isUserHoliday ? ' · User Holiday / Vacation' : ''
                     }`}
                     aria-label={`${d.date}, ${d.price_eur ? `price €${d.price_eur.toFixed(2)}` : 'no flight'}`}
                   >
+                    {isUserHoliday && (
+                      <span className={styles.holidayMarker} title="Marked as Vacation / PTO in Dashboard" />
+                    )}
+                    {topRank && (
+                      <span className={`${styles.topRankBadge} ${styles[`topRank${topRank}`]}`}>
+                        #{topRank}
+                      </span>
+                    )}
+                    {fitsHolidayWindow && (
+                      <span className={styles.fitsHolidayBadge}>PTO</span>
+                    )}
                     <span className={styles.dayNum}>{d.day}</span>
                     <span className={styles.dayPrice}>
                       {d.price_eur !== null ? `€${Math.round(d.price_eur)}` : '—'}
@@ -253,6 +316,14 @@ export function MonitoringCalendar({
               <span className={`${styles.inspectorTierBadge} ${styles[`tier_${selectedDay.price_tier}`]}`}>
                 {selectedDay.price_tier.toUpperCase()}
               </span>
+              {top3Dates.has(selectedDay.date) && (
+                <span className={styles.topRankPill}>
+                  TOP #{top3Dates.get(selectedDay.date)} BEST VALUE
+                </span>
+              )}
+              {userHolidays.has(selectedDay.date) && (
+                <span className={styles.holidayBadgePill}>SCHEDULED PTO</span>
+              )}
             </div>
             <button
               type="button"
@@ -265,6 +336,11 @@ export function MonitoringCalendar({
           </div>
 
           <div className={styles.inspectorBody}>
+            {selectedDay.nights && selectedDay.return_date && userHolidays.has(selectedDay.date) && (
+              <div className={styles.holidayMatchBanner}>
+                <span>ALL TRAVEL DATES FIT YOUR MARKED VACATION / PTO</span>
+              </div>
+            )}
             <div className={styles.inspectorFare}>
               <span className={styles.inspectorFareLabel}>
                 {selectedDay.nights

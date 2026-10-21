@@ -291,7 +291,7 @@ interface ChartDataItem {
       )}
 
       {/* Chart */}
-      <div key={`${activeView}-${activeRange}-${directionView}`} className={styles.chartWrapper}>
+      <div key={`${activeView}-${activeRange}`} className={styles.chartWrapper}>
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={chartData} margin={{ top: 15, right: 20, left: 5, bottom: 0 }}>
             <defs>
@@ -301,9 +301,9 @@ interface ChartDataItem {
                 <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
               </linearGradient>
               <linearGradient id="returnTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#9333EA" stopOpacity={0.45} />
-                <stop offset="40%" stopColor="#9333EA" stopOpacity={0.20} />
-                <stop offset="100%" stopColor="#9333EA" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="#D97706" stopOpacity={0.45} />
+                <stop offset="40%" stopColor="#D97706" stopOpacity={0.20} />
+                <stop offset="100%" stopColor="#D97706" stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
@@ -345,7 +345,7 @@ interface ChartDataItem {
                     )}
                     {d.returnPrice !== null && (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ color: '#9333EA', fontSize: '0.75rem', fontWeight: 600 }}>RETURN:</span>
+                        <span style={{ color: '#D97706', fontSize: '0.75rem', fontWeight: 600 }}>RETURN:</span>
                         <span className={styles.tooltipPrice}>
                           {symbol}{typeof d.returnPrice === 'number' ? d.returnPrice.toFixed(2) : d.returnPrice}
                         </span>
@@ -386,7 +386,7 @@ interface ChartDataItem {
             {activeP50 !== null && (
               <ReferenceLine
                 y={activeP50}
-                stroke="#F59E0B"
+                stroke="#64748B"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
               />
@@ -401,43 +401,43 @@ interface ChartDataItem {
               />
             )}
 
-            {(directionView === 'both' || directionView === 'outbound') && (
-              <Area
-                type="monotone"
-                dataKey="outboundPrice"
-                name="Outbound"
-                stroke="#0284C7"
-                strokeWidth={2.5}
-                fill="url(#outboundTrendGradient)"
-                isAnimationActive={false}
-                activeDot={{ r: 5, fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2 }}
-              />
-            )}
+            <Area
+              type="monotone"
+              dataKey="outboundPrice"
+              name="Outbound"
+              stroke="#0284C7"
+              strokeOpacity={directionView === 'return' ? 0.2 : 1}
+              strokeWidth={directionView === 'outbound' ? 2.5 : 2}
+              strokeDasharray={directionView === 'return' ? '3 3' : undefined}
+              fill={directionView === 'return' ? 'none' : 'url(#outboundTrendGradient)'}
+              isAnimationActive={false}
+              activeDot={directionView === 'return' ? false : { r: 5, fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2 }}
+            />
 
-            {(directionView === 'both' || directionView === 'return') && (
-              <Area
-                type="monotone"
-                dataKey="returnPrice"
-                name="Return"
-                stroke="#9333EA"
-                strokeWidth={2.5}
-                fill="url(#returnTrendGradient)"
-                isAnimationActive={false}
-                activeDot={{ r: 5, fill: '#9333EA', stroke: '#FFFFFF', strokeWidth: 2 }}
-              />
-            )}
+            <Area
+              type="monotone"
+              dataKey="returnPrice"
+              name="Return"
+              stroke="#D97706"
+              strokeOpacity={directionView === 'outbound' ? 0.2 : 1}
+              strokeWidth={directionView === 'return' ? 2.5 : 2}
+              strokeDasharray={directionView === 'outbound' ? '3 3' : undefined}
+              fill={directionView === 'outbound' ? 'none' : 'url(#returnTrendGradient)'}
+              isAnimationActive={false}
+              activeDot={directionView === 'outbound' ? false : { r: 5, fill: '#D97706', stroke: '#FFFFFF', strokeWidth: 2 }}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Legend */}
       <div className={styles.legendRow}>
-        <div className={styles.legendItem}>
+        <div className={styles.legendItem} style={{ opacity: directionView === 'return' ? 0.35 : 1 }}>
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#0284C7' }} />
           <span>Outbound</span>
         </div>
-        <div className={styles.legendItem}>
-          <span className={styles.legendLineSolid} style={{ backgroundColor: '#9333EA' }} />
+        <div className={styles.legendItem} style={{ opacity: directionView === 'outbound' ? 0.35 : 1 }}>
+          <span className={styles.legendLineSolid} style={{ backgroundColor: '#D97706' }} />
           <span>Return</span>
         </div>
         {activeP10 !== null && (

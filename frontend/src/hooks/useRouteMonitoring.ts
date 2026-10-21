@@ -145,8 +145,26 @@ export interface RouteCalendar {
   route_label: string;
   p10_deal_eur: number | null;
   p50_median_eur: number | null;
+  p90_peak_eur?: number | null;
   view?: 'outbound' | 'inbound' | 'roundtrip';
   pricing?: 'flights' | 'package';
+  top_dates?: string[];
+}
+
+export interface HolidayMatchedPackage {
+  route_id: string;
+  origin_iata: string;
+  destination_code: string;
+  destination_name: string;
+  depart_date: string;
+  return_date: string;
+  nights: number;
+  total_price_eur: number;
+  price_tier: string;
+  pricing: string;
+  outbound_flight: FlightSummary;
+  return_flight: FlightSummary;
+  lodging?: LodgingSummary | null;
 }
 
 export interface RouteStats {
@@ -286,7 +304,7 @@ export function useRouteMonitoring() {
       const [sData, hData, cData, eData] = await Promise.all([
         apiFetch<RouteStats>(`/market/routes/${routeId}/stats`),
         apiFetch<RouteHistory>(`/market/routes/${routeId}/history?range=${historyRange}`),
-        apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?months=${monthsCount}`),
+        apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?view=roundtrip&pricing=package&months=${monthsCount}`),
         apiFetch<RouteEvent[]>(`/market/routes/${routeId}/events`),
       ]);
       setStats(sData);
@@ -301,8 +319,8 @@ export function useRouteMonitoring() {
   // Fetch calendar for selected route with specific view and pricing
   const fetchCalendar = useCallback(async (
     routeId?: string,
-    view: 'outbound' | 'inbound' | 'roundtrip' = 'outbound',
-    pricing: 'flights' | 'package' = 'flights',
+    view: 'outbound' | 'inbound' | 'roundtrip' = 'roundtrip',
+    pricing: 'flights' | 'package' = 'package',
     monthsCount = 4
   ) => {
     const targetId = routeId || selectedRouteId;
@@ -316,6 +334,24 @@ export function useRouteMonitoring() {
       loggerError('Failed to fetch calendar view', err);
     }
   }, [selectedRouteId]);
+
+  // Fetch packages fitting user's marked vacation/holiday windows
+  const fetchHolidayMatches = useCallback(async (
+    holidayDates: string[],
+    pricing: 'flights' | 'package' = 'package'
+  ): Promise<HolidayMatchedPackage[]> => {
+    if (!holidayDates || holidayDates.length === 0) return [];
+    try {
+      const res = await apiFetch<HolidayMatchedPackage[]>('/market/holiday-matches', {
+        method: 'POST',
+        body: JSON.stringify({ holiday_dates: holidayDates, pricing }),
+      });
+      return res || [];
+    } catch (err: unknown) {
+      loggerError('Failed to fetch holiday matches', err);
+      return [];
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -486,6 +522,7 @@ export function useRouteMonitoring() {
     fetchOverview,
     fetchRouteDetail,
     fetchCalendar,
+    fetchHolidayMatches,
   };
 }
 

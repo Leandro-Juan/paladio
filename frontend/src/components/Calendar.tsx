@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Trip } from '@/hooks/useTrips';
+import { apiFetch } from '@/utils/api';
+import type { HolidayMatchedPackage } from '@/hooks/useRouteMonitoring';
 import {
   generateMonthGrid,
   generateYearGrid,
@@ -25,6 +28,7 @@ const WEEKDAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const MINI_WEEKDAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function Calendar({ trips, onSelectDate }: CalendarProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'ANNUAL' | 'MONTH'>('ANNUAL');
   const [interactionMode, setInteractionMode] = useState<'PLAN' | 'HOLIDAY'>('PLAN');
@@ -49,6 +53,49 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
       return new Set();
     }
   });
+
+  // Deal packages matching user's marked vacation windows
+  const [holidayPackages, setHolidayPackages] = useState<HolidayMatchedPackage[]>([]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadHolidayMatches() {
+      if (holidays.size === 0) {
+        setHolidayPackages([]);
+        return;
+      }
+      try {
+        const matches = await apiFetch<HolidayMatchedPackage[]>('/market/holiday-matches', {
+          method: 'POST',
+          body: JSON.stringify({
+            holiday_dates: Array.from(holidays),
+            pricing: 'package',
+          }),
+        });
+        if (!isCancelled && Array.isArray(matches)) {
+          setHolidayPackages(matches);
+        }
+      } catch {
+        if (!isCancelled) setHolidayPackages([]);
+      }
+    }
+    loadHolidayMatches();
+    return () => {
+      isCancelled = true;
+    };
+  }, [holidays]);
+
+  // Index packages by depart date for fast calendar cell lookup
+  const holidayPackagesByDepartDate = useMemo(() => {
+    const map: Record<string, HolidayMatchedPackage[]> = {};
+    holidayPackages.forEach((pkg) => {
+      if (!map[pkg.depart_date]) {
+        map[pkg.depart_date] = [];
+      }
+      map[pkg.depart_date].push(pkg);
+    });
+    return map;
+  }, [holidayPackages]);
 
   const saveHolidays = (nextHolidays: Set<string>) => {
     setHolidays(nextHolidays);
@@ -357,6 +404,16 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
               <span className={styles.holidaySwatch} />
               <span>Holiday / PTO ({telemetry.holidayDays}d)</span>
             </div>
+            {holidayPackages.length > 0 && (
+              <div
+                className={styles.tripLegendChip}
+                style={{ borderColor: '#F59E0B', background: '#FEF3C7', color: '#92400E' }}
+                title={`${holidayPackages.length} monitored deal package(s) fit completely within your marked holidays`}
+              >
+                <span className={styles.legendColorSwatch} style={{ background: '#F59E0B' }} />
+                <span>Monitored Deals ({holidayPackages.length})</span>
+              </div>
+            )}
             {/* Status Legend indicators for backward compatibility */}
             <div className={styles.tripLegendChip} style={{ cursor: 'default' }}>
               <span className={`${styles.legendColorSwatch} ${styles.legendActive}`} style={{ background: 'var(--color-ocean, #1B8FA6)' }} />
@@ -432,14 +489,20 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                         title={title}
                       >
                         <span className={styles.miniDayNum}>{day.dayNumber}</span>
-                        {hasTrips && (
+                        {hasTrips ? (
                           <div
                             className={styles.miniTripIndicator}
                             style={{
                               background: day.trips[0].color?.bg || 'var(--color-ocean)',
                             }}
                           />
-                        )}
+                        ) : holidayPackagesByDepartDate[day.dateString]?.length > 0 ? (
+                          <div
+                            className={styles.miniDealIndicator}
+                            style={{ background: '#F59E0B' }}
+                            title={`Matching Deal: ${holidayPackagesByDepartDate[day.dateString][0].origin_iata} -> ${holidayPackagesByDepartDate[day.dateString][0].destination_code} €${Math.round(holidayPackagesByDepartDate[day.dateString][0].total_price_eur)}`}
+                          />
+                        ) : null}
                       </div>
                     );
                   })}
@@ -528,6 +591,22 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                           </div>
                         );
                       })}
+
+                      {/* Monitored Route Deals matching this holiday window */}
+                      {holidayPackagesByDepartDate[day.dateString]?.map((pkg) => (
+                        <div
+                          key={`${pkg.route_id}-${pkg.depart_date}-${pkg.return_date}`}
+                          className={styles.holidayPackageBar}
+                          title={`Monitored Deal: ${pkg.origin_iata} -> ${pkg.destination_code} (${pkg.nights}N) - €${Math.round(pkg.total_price_eur)}\nDeparts: ${pkg.depart_date}, Returns: ${pkg.return_date}\nClick to view in Route Telemetry`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/monitoring?route=${pkg.route_id}`);
+                          }}
+                        >
+                          <span style={{ marginRight: 4, opacity: 0.85 }}>[DEAL]</span>
+                          <span>{pkg.destination_code} €{Math.round(pkg.total_price_eur)} ({pkg.nights}N)</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );

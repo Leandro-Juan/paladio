@@ -62,6 +62,26 @@ async def test_market_api_lifecycle():
         assert "months" in cal
         assert len(cal["months"]) == 3
         assert len(cal["months"][0]["days"]) >= 28
+        assert cal["view"] == "roundtrip"
+        assert cal["pricing"] == "package"
+        assert "top_dates" in cal
+        assert isinstance(cal["top_dates"], list)
+
+        # 6b. Holiday matches
+        hol_res = await client.post(
+            "/api/market/holiday-matches",
+            json={
+                "holiday_dates": [
+                    "2026-10-23",
+                    "2026-10-24",
+                    "2026-10-25",
+                    "2026-10-26",
+                ],
+                "pricing": "package",
+            },
+        )
+        assert hol_res.status_code == 200
+        assert isinstance(hol_res.json(), list)
 
         # 7. Update route
         patch_res = await client.patch(
