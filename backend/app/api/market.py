@@ -273,6 +273,7 @@ class LodgingSummary(BaseModel):
     review_count: int | None = None
     booking_url: str | None = None
     source: str | None = None
+    currency: str = "EUR"
 
 
 class CalendarDayItem(BaseModel):
@@ -316,6 +317,7 @@ class CalendarResponse(BaseModel):
 class HolidayMatchesRequest(BaseModel):
     holiday_dates: list[str]
     pricing: str = "package"
+    currency: str | None = None
 
 
 class HolidayMatchedPackage(BaseModel):
@@ -329,6 +331,7 @@ class HolidayMatchedPackage(BaseModel):
     total_price_eur: float
     price_tier: str
     pricing: str
+    currency: str = "EUR"
     outbound_flight: FlightSummary
     return_flight: FlightSummary
     lodging: LodgingSummary | None = None
@@ -354,6 +357,7 @@ class RouteStatsResponse(BaseModel):
     verdict_confidence: str | None = None
     corpus_status: str | None = None
     depart_dates_count: int | None = None
+    currency: str = "EUR"
 
 
 class RouteEventItem(BaseModel):
@@ -455,6 +459,37 @@ def _convert_deal_package_item(
             _cvt_money(item.lodging.landed_total_eur, target_curr) or 0.0
         )
     return item
+
+
+def _convert_holiday_matched_package(
+    pkg: HolidayMatchedPackage, target_curr: str
+) -> HolidayMatchedPackage:
+    if target_curr in ("EUR", "") and pkg.currency in ("EUR", ""):
+        return pkg
+    if pkg.currency == target_curr:
+        return pkg
+    pkg.currency = target_curr
+    pkg.total_price_eur = (
+        _cvt_money(pkg.total_price_eur, target_curr) or pkg.total_price_eur
+    )
+    if pkg.outbound_flight and pkg.outbound_flight.price_eur is not None:
+        pkg.outbound_flight.price_eur = _cvt_money(
+            pkg.outbound_flight.price_eur, target_curr
+        )
+    if pkg.return_flight and pkg.return_flight.price_eur is not None:
+        pkg.return_flight.price_eur = _cvt_money(
+            pkg.return_flight.price_eur, target_curr
+        )
+    if pkg.lodging:
+        pkg.lodging.price_per_night_eur = (
+            _cvt_money(pkg.lodging.price_per_night_eur, target_curr)
+            or pkg.lodging.price_per_night_eur
+        )
+        pkg.lodging.total_lodging_eur = (
+            _cvt_money(pkg.lodging.total_lodging_eur, target_curr)
+            or pkg.lodging.total_lodging_eur
+        )
+    return pkg
 
 
 class ProviderHealthItem(BaseModel):
@@ -1498,7 +1533,9 @@ async def get_route_lodging_for_date(
     check_in: date = Query(..., description="Check-in date (YYYY-MM-DD)"),
     nights: int = Query(3, ge=1, le=14, description="Stay duration in nights"),
     adults: int = Query(2, ge=1, le=4, description="Number of guests"),
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     """
     On-demand hotel observation endpoint for a specific route and travel date.
@@ -1513,9 +1550,37 @@ async def get_route_lodging_for_date(
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
 
+    target_currency = _resolve_target_currency(
+        currency_param, current_user, default=alert.currency or "EUR"
+    )
+
     dest_code = alert.destinations[0] if alert.destinations else ""
     if not dest_code:
         raise HTTPException(status_code=400, detail="Route has no destination code")
+
+    def _build_lodging_summary(
+        nightly_cents_val: int | float,
+        p_name: str | None,
+        p_stars: int | None,
+        r_score: float | None,
+        r_count: int | None,
+        b_url: str | None,
+        src: str | None,
+    ) -> LodgingSummary:
+        raw_eur = round(float(nightly_cents_val) / 100.0, 2)
+        converted_nightly = _cvt_money(raw_eur, target_currency) or raw_eur
+        return LodgingSummary(
+            nights=nights,
+            price_per_night_eur=converted_nightly,
+            total_lodging_eur=round(converted_nightly * nights, 2),
+            property_name=p_name,
+            stars=p_stars,
+            review_score=r_score,
+            review_count=r_count,
+            booking_url=b_url,
+            source=src,
+            currency=target_currency,
+        )
 
     # 1. Query existing authentic hotel rate observations for this destination & check_in
     obs_stmt = (
@@ -1540,20 +1605,15 @@ async def get_route_lodging_for_date(
         .limit(1)
     )
     obs_row = (await session.execute(obs_stmt)).first()
-
     if obs_row:
-        nightly_cents = obs_row[0]
-        nightly_eur = round(float(nightly_cents) / 100.0, 2)
-        return LodgingSummary(
-            nights=nights,
-            price_per_night_eur=nightly_eur,
-            total_lodging_eur=round(nightly_eur * nights, 2),
-            property_name=obs_row[1],
-            stars=int(obs_row[2]) if obs_row[2] else None,
-            review_score=float(obs_row[3]) if obs_row[3] is not None else None,
-            review_count=int(obs_row[4]) if obs_row[4] is not None else None,
-            booking_url=obs_row[5],
-            source=obs_row[6],
+        return _build_lodging_summary(
+            obs_row[0],
+            obs_row[1],
+            int(obs_row[2]) if obs_row[2] else None,
+            float(obs_row[3]) if obs_row[3] is not None else None,
+            int(obs_row[4]) if obs_row[4] is not None else None,
+            obs_row[5],
+            obs_row[6],
         )
 
     # 2. Also check market_price_ticks if tick exists
@@ -1569,22 +1629,17 @@ async def get_route_lodging_for_date(
     )
     t_row = (await session.execute(t_stmt)).scalar_one_or_none()
     if t_row:
-        nightly_eur = round(float(t_row.base_price_cents) / 100.0, 2)
         meta = t_row.metadata_json or {}
-        return LodgingSummary(
-            nights=nights,
-            price_per_night_eur=nightly_eur,
-            total_lodging_eur=round(nightly_eur * nights, 2),
-            property_name=meta.get("property_name"),
-            stars=int(meta["stars"]) if meta.get("stars") else None,
-            review_score=float(meta["review_score"])
+        return _build_lodging_summary(
+            t_row.base_price_cents,
+            meta.get("property_name"),
+            int(meta["stars"]) if meta.get("stars") else None,
+            float(meta["review_score"])
             if meta.get("review_score") is not None
             else None,
-            review_count=int(meta["review_count"])
-            if meta.get("review_count") is not None
-            else None,
-            booking_url=meta.get("deep_link"),
-            source=t_row.source,
+            int(meta["review_count"]) if meta.get("review_count") is not None else None,
+            meta.get("deep_link"),
+            t_row.source,
         )
 
     # 3. Live on-demand multi-provider ingest if no observations cached
@@ -1609,22 +1664,14 @@ async def get_route_lodging_for_date(
     # Re-query after ingestion
     obs_row_after = (await session.execute(obs_stmt)).first()
     if obs_row_after:
-        nightly_cents = obs_row_after[0]
-        nightly_eur = round(float(nightly_cents) / 100.0, 2)
-        return LodgingSummary(
-            nights=nights,
-            price_per_night_eur=nightly_eur,
-            total_lodging_eur=round(nightly_eur * nights, 2),
-            property_name=obs_row_after[1],
-            stars=int(obs_row_after[2]) if obs_row_after[2] else None,
-            review_score=float(obs_row_after[3])
-            if obs_row_after[3] is not None
-            else None,
-            review_count=int(obs_row_after[4])
-            if obs_row_after[4] is not None
-            else None,
-            booking_url=obs_row_after[5],
-            source=obs_row_after[6],
+        return _build_lodging_summary(
+            obs_row_after[0],
+            obs_row_after[1],
+            int(obs_row_after[2]) if obs_row_after[2] else None,
+            float(obs_row_after[3]) if obs_row_after[3] is not None else None,
+            int(obs_row_after[4]) if obs_row_after[4] is not None else None,
+            obs_row_after[5],
+            obs_row_after[6],
         )
 
     # ZERO synthetic data fallback: raise 404 if no authentic provider data could be fetched
@@ -1754,12 +1801,12 @@ async def get_route_calendar(
     p10 = (
         round(float(baseline.q10) / 100.0, 2)
         if baseline and baseline.q10 is not None
-        else alert.baseline_p10_eur
+        else None
     )
     p50 = (
         round(float(baseline.q50) / 100.0, 2)
         if baseline and baseline.q50 is not None
-        else alert.baseline_p50_eur
+        else None
     )
     p90 = (
         round(float(baseline.q90) / 100.0, 2)
@@ -2159,13 +2206,19 @@ async def get_route_calendar(
 @router.get("/routes/{route_id}/stats", response_model=RouteStatsResponse)
 async def get_route_stats(
     route_id: str,
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
     res = await session.execute(stmt)
     alert = res.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
+
+    target_currency = _resolve_target_currency(
+        currency_param, current_user, default=alert.currency or "EUR"
+    )
 
     dest_code = alert.destinations[0]
 
@@ -2268,6 +2321,16 @@ async def get_route_stats(
         ).total_seconds() / 60.0
         mins = max(int(120 - elapsed), 0)
 
+    if target_currency != "EUR":
+        curr_eur = _cvt_money(curr_eur, target_currency)
+        lowest_eur = _cvt_money(lowest_eur, target_currency)
+        p10 = _cvt_money(p10, target_currency)
+        p25 = _cvt_money(p25, target_currency)
+        p50 = _cvt_money(p50, target_currency)
+        p75 = _cvt_money(p75, target_currency)
+        p90 = _cvt_money(p90, target_currency)
+        savings = _cvt_money(savings, target_currency)
+
     return RouteStatsResponse(
         current_price_eur=curr_eur,
         current_percentile=pct,
@@ -2288,6 +2351,7 @@ async def get_route_stats(
         verdict_confidence=b_conf,
         corpus_status=c_status.get("status"),
         depart_dates_count=c_status.get("depart_dates_count"),
+        currency=target_currency,
     )
 
 
@@ -2876,13 +2940,19 @@ async def list_provider_health(
 @router.post("/holiday-matches", response_model=list[HolidayMatchedPackage])
 async def get_holiday_matched_packages(
     body: HolidayMatchesRequest,
+    currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     """
     Finds monitored route packages that completely fit within the user's marked holiday dates.
     """
     if not body.holiday_dates:
         return []
+
+    target_currency = _resolve_target_currency(
+        currency_param or getattr(body, "currency", None), current_user, default="EUR"
+    )
 
     holiday_set = set(body.holiday_dates)
     now = datetime.now(timezone.utc)
@@ -2918,12 +2988,12 @@ async def get_holiday_matched_packages(
         p10 = (
             round(float(baseline.q10) / 100.0, 2)
             if baseline and baseline.q10 is not None
-            else alert.baseline_p10_eur
+            else None
         )
         p50 = (
             round(float(baseline.q50) / 100.0, 2)
             if baseline and baseline.q50 is not None
-            else alert.baseline_p50_eur
+            else None
         )
 
         ret_base_stmt = (
@@ -3074,4 +3144,9 @@ async def get_holiday_matched_packages(
 
     # Sort matched packages by total price ascending
     matched_packages.sort(key=lambda p: p.total_price_eur)
+    if target_currency != "EUR":
+        matched_packages = [
+            _convert_holiday_matched_package(pkg, target_currency)
+            for pkg in matched_packages
+        ]
     return matched_packages

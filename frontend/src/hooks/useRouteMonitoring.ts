@@ -139,6 +139,7 @@ export interface LodgingSummary {
   review_count?: number | null;
   booking_url?: string | null;
   source?: string | null;
+  currency?: string;
 }
 
 export interface CalendarDay {
@@ -190,6 +191,7 @@ export interface HolidayMatchedPackage {
   total_price_eur: number;
   price_tier: string;
   pricing: string;
+  currency?: string;
   outbound_flight: FlightSummary;
   return_flight: FlightSummary;
   lodging?: LodgingSummary | null;
@@ -215,6 +217,7 @@ export interface RouteStats {
   verdict_confidence?: 'building' | 'provisional' | 'established' | null;
   corpus_status?: 'building' | 'ready' | 'failed' | null;
   depart_dates_count?: number | null;
+  currency?: string;
 }
 
 export interface RouteEvent {
@@ -336,7 +339,7 @@ export function useRouteMonitoring(overrideCurrency?: string) {
   const fetchRouteDetail = useCallback(async (routeId: string, historyRange = '30d', monthsCount = 4) => {
     try {
       const [sData, hData, cData, eData, dData] = await Promise.all([
-        apiFetch<RouteStats>(`/market/routes/${routeId}/stats`),
+        apiFetch<RouteStats>(`/market/routes/${routeId}/stats?currency=${activeCurrency}`),
         apiFetch<RouteHistory>(`/market/routes/${routeId}/history?range=${historyRange}&currency=${activeCurrency}`),
         apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?view=roundtrip&pricing=package&months=${monthsCount}&currency=${activeCurrency}`),
         apiFetch<RouteEvent[]>(`/market/routes/${routeId}/events`),
@@ -378,16 +381,19 @@ export function useRouteMonitoring(overrideCurrency?: string) {
   ): Promise<HolidayMatchedPackage[]> => {
     if (!holidayDates || holidayDates.length === 0) return [];
     try {
-      const res = await apiFetch<HolidayMatchedPackage[]>('/market/holiday-matches', {
-        method: 'POST',
-        body: JSON.stringify({ holiday_dates: holidayDates, pricing }),
-      });
+      const res = await apiFetch<HolidayMatchedPackage[]>(
+        `/market/holiday-matches?currency=${activeCurrency}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ holiday_dates: holidayDates, pricing, currency: activeCurrency }),
+        }
+      );
       return res || [];
     } catch (err: unknown) {
       loggerError('Failed to fetch holiday matches', err);
       return [];
     }
-  }, []);
+  }, [activeCurrency]);
 
   // Fetch authentic on-demand lodging quotes for a specific travel date
   const fetchDayLodging = useCallback(

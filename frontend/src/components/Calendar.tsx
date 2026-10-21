@@ -4,6 +4,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trip } from '@/hooks/useTrips';
 import { apiFetch } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import type { HolidayMatchedPackage } from '@/hooks/useRouteMonitoring';
 import {
   generateMonthGrid,
@@ -29,6 +31,8 @@ const MINI_WEEKDAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function Calendar({ trips, onSelectDate }: CalendarProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const userCurrency = (user?.preferences?.default_currency as string) || 'EUR';
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'ANNUAL' | 'MONTH'>('ANNUAL');
   const [interactionMode, setInteractionMode] = useState<'PLAN' | 'HOLIDAY'>('PLAN');
@@ -65,13 +69,17 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
         return;
       }
       try {
-        const matches = await apiFetch<HolidayMatchedPackage[]>('/market/holiday-matches', {
-          method: 'POST',
-          body: JSON.stringify({
-            holiday_dates: Array.from(holidays),
-            pricing: 'package',
-          }),
-        });
+        const matches = await apiFetch<HolidayMatchedPackage[]>(
+          `/market/holiday-matches?currency=${userCurrency}`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              holiday_dates: Array.from(holidays),
+              pricing: 'package',
+              currency: userCurrency,
+            }),
+          }
+        );
         if (!isCancelled && Array.isArray(matches)) {
           setHolidayPackages(matches);
         }
@@ -83,7 +91,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
     return () => {
       isCancelled = true;
     };
-  }, [holidays]);
+  }, [holidays, userCurrency]);
 
   // Index packages by depart date for fast calendar cell lookup
   const holidayPackagesByDepartDate = useMemo(() => {
@@ -500,7 +508,7 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                           <div
                             className={styles.miniDealIndicator}
                             style={{ background: '#F59E0B' }}
-                            title={`Matching Deal: ${holidayPackagesByDepartDate[day.dateString][0].origin_iata} -> ${holidayPackagesByDepartDate[day.dateString][0].destination_code} €${Math.round(holidayPackagesByDepartDate[day.dateString][0].total_price_eur)}`}
+                            title={`Matching Deal: ${holidayPackagesByDepartDate[day.dateString][0].origin_iata} -> ${holidayPackagesByDepartDate[day.dateString][0].destination_code} ${formatCurrencyAmount(holidayPackagesByDepartDate[day.dateString][0].total_price_eur, holidayPackagesByDepartDate[day.dateString][0].currency || userCurrency, { maximumFractionDigits: 0 })}`}
                           />
                         ) : null}
                       </div>
@@ -597,14 +605,14 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                         <div
                           key={`${pkg.route_id}-${pkg.depart_date}-${pkg.return_date}`}
                           className={styles.holidayPackageBar}
-                          title={`Monitored Deal: ${pkg.origin_iata} -> ${pkg.destination_code} (${pkg.nights}N) - €${Math.round(pkg.total_price_eur)}\nDeparts: ${pkg.depart_date}, Returns: ${pkg.return_date}\nClick to view in Route Telemetry`}
+                          title={`Monitored Deal: ${pkg.origin_iata} -> ${pkg.destination_code} (${pkg.nights}N) - ${formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 })}\nDeparts: ${pkg.depart_date}, Returns: ${pkg.return_date}\nClick to view in Route Telemetry`}
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/monitoring?route=${pkg.route_id}`);
                           }}
                         >
                           <span style={{ marginRight: 4, opacity: 0.85 }}>[DEAL]</span>
-                          <span>{pkg.destination_code} €{Math.round(pkg.total_price_eur)} ({pkg.nights}N)</span>
+                          <span>{pkg.destination_code} {formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 })} ({pkg.nights}N)</span>
                         </div>
                       ))}
                     </div>
