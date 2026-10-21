@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trip } from '@/hooks/useTrips';
 import { apiFetch } from '@/utils/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import type { HolidayMatchedPackage } from '@/hooks/useRouteMonitoring';
 import {
@@ -23,16 +23,18 @@ import styles from './Calendar.module.css';
 
 interface CalendarProps {
   trips: Trip[];
+  currency?: string;
   onSelectDate?: (date: Date, dateString: string) => void;
+  onSelectPackage?: (pkg: HolidayMatchedPackage) => void;
 }
 
 const WEEKDAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const MINI_WEEKDAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-export function Calendar({ trips, onSelectDate }: CalendarProps) {
+export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: CalendarProps) {
   const router = useRouter();
-  const { user } = useAuth();
-  const userCurrency = (user?.preferences?.default_currency as string) || 'EUR';
+  const auth = useOptionalAuth();
+  const userCurrency = currency || (auth?.user?.preferences?.default_currency as string) || 'EUR';
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'ANNUAL' | 'MONTH'>('ANNUAL');
   const [interactionMode, setInteractionMode] = useState<'PLAN' | 'HOLIDAY'>('PLAN');
@@ -608,7 +610,11 @@ export function Calendar({ trips, onSelectDate }: CalendarProps) {
                           title={`Monitored Deal: ${pkg.origin_iata} -> ${pkg.destination_code} (${pkg.nights}N) - ${formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 })}\nDeparts: ${pkg.depart_date}, Returns: ${pkg.return_date}\nClick to view in Route Telemetry`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/monitoring?route=${pkg.route_id}`);
+                            if (onSelectPackage) {
+                              onSelectPackage(pkg);
+                            } else {
+                              router.push(`/monitoring?route=${pkg.route_id}`);
+                            }
                           }}
                         >
                           <span style={{ marginRight: 4, opacity: 0.85 }}>[DEAL]</span>

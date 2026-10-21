@@ -84,6 +84,7 @@ export default function DashboardPage() {
       <Calendar
         trips={trips}
         onSelectDate={(_, dateString) => router.push(`/engine?start_date=${dateString}`)}
+        onSelectPackage={(pkg) => router.push(`/monitoring?route=${pkg.route_id}`)}
       />
 
       {/* Preference Model Section */}
