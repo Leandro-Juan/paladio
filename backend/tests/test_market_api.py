@@ -215,3 +215,19 @@ async def test_discard_deal_lifecycle(db_session, async_client):
     assert deals_after.status_code == 200
     deal_ids_after = [d["id"] for d in deals_after.json()]
     assert deal_id not in deal_ids_after
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_id_creates_operator(db_session):
+    from app.api.market import _get_or_create_user_id
+    from app.db.models import UserModel
+
+    # Pass an explicit user
+    explicit_user = UserModel(id="usr_explicit_123", email="ex@paladio.local")
+    uid = await _get_or_create_user_id(db_session, explicit_user)
+    assert uid == "usr_explicit_123"
+
+    # Pass None - should return an existing user id or create an operator user without error
+    operator_uid = await _get_or_create_user_id(db_session, None)
+    assert isinstance(operator_uid, str)
+    assert len(operator_uid) > 0

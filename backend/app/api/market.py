@@ -100,8 +100,8 @@ async def _get_or_create_user_id(session: AsyncSession, user: UserModel | None) 
         id=str(uuid.uuid4()),
         email="operator@paladio.local",
         username="PaladioOperator",
-        full_name="Paladio Operator",
         role="admin",
+        is_active=True,
     )
     session.add(new_user)
     await session.commit()
