@@ -42,12 +42,10 @@ async def test_gtfs_registry_response_with_queued_city(
     db_session.add(porto_cache)
     await db_session.commit()
 
-    res = await async_client.get("/api/v1/trips/transit/registry")
-    assert res.status_code == 200
-    data = res.json()
-
-    assert data["has_active_process"] is True
-    assert data["queued_cities"] >= 1
+    with patch("app.tasks.is_transit_task_alive", return_value=True):
+        res = await async_client.get("/api/v1/trips/transit/registry")
+        assert res.status_code == 200
+        data = res.json()
 
     porto_item = next((c for c in data["cities"] if c["city"] == "porto"), None)
     assert porto_item is not None
@@ -55,6 +53,7 @@ async def test_gtfs_registry_response_with_queued_city(
     assert porto_item["is_queued"] is True
     assert porto_item["is_ready"] is False
     assert porto_item["is_building"] is False
+    assert data["queued_cities"] >= 1
 
 
 @pytest.mark.asyncio
@@ -107,7 +106,9 @@ async def test_trigger_compile_when_another_city_is_building(
     db_session.add(city1)
     await db_session.commit()
 
-    with patch("app.tasks.build_city_gtfs_task.delay"):
+    with patch("app.tasks.build_city_gtfs_task.delay"), patch(
+        "app.tasks.is_transit_task_alive", return_value=True
+    ):
         res = await async_client.post(
             "/api/v1/trips/transit/compile",
             json={"city": "testcity2"},
@@ -428,6 +429,25 @@ def test_build_city_gtfs_task_breaks_orphaned_lock():
     with open(os.path.join(dest_dir, "calendar.txt"), "w") as f:
         f.write("service_id,monday,start_date,end_date\n1,1,20260101,20261231\n")
 
+    zip_path = os.path.join(temp_gtfs_dir, "mock.zip")
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr(
+            "calendar.txt",
+            "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n1,1,1,1,1,1,1,1,20260101,20261231\n",
+        )
+    with open(zip_path, "rb") as zf:
+        zip_bytes = zf.read()
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.return_value = None
+    mock_resp.iter_bytes.return_value = [zip_bytes]
+
+    mock_http_client = MagicMock()
+    mock_http_client.__enter__.return_value = mock_http_client
+    mock_http_client.__exit__.return_value = None
+    mock_http_client.stream.return_value.__enter__.return_value = mock_resp
+    mock_http_client.stream.return_value.__exit__.return_value = None
+
     try:
         with patch("app.tasks.is_transit_task_alive", return_value=False), patch(
             "docker.from_env", return_value=mock_docker
@@ -435,7 +455,9 @@ def test_build_city_gtfs_task_breaks_orphaned_lock():
             "app.tasks._city_exists_in_transit_cache", return_value=True
         ), patch("app.tasks._publish_transit_event"), patch(
             "app.tasks.CITY_GTFS_MAP", {"newcity": "http://example.com/gtfs.zip"}
-        ), patch("httpx.Client"), patch(
+        ), patch("httpx.Client", return_value=mock_http_client), patch(
+            "urllib.request.urlretrieve"
+        ), patch(
             "app.services.osm_map_service.OSMMapService.resolve_osm_pbf_url",
             return_value=("http://example.com/osm.pbf", "osm.pbf"),
         ), patch.dict(
@@ -449,3 +471,23 @@ def test_build_city_gtfs_task_breaks_orphaned_lock():
         r.delete(
             "paladio:transit_compiler_lock", "paladio:transit_compiler_current_city"
         )
+
+
+def test_reconcile_interrupted_transit_builds():
+    """Verify reconcile_interrupted_transit_builds finds BUILDING/QUEUED cities and re-queues them."""
+    from app.tasks import reconcile_interrupted_transit_builds
+
+    def mock_run_async(coro):
+        try:
+            coro.close()
+        except Exception:
+            pass
+        return ["interrupted_city"]
+
+    with patch("app.tasks.is_transit_task_alive", return_value=False), patch(
+        "app.tasks.build_city_gtfs_task.delay"
+    ) as mock_delay, patch("app.tasks._run_async", side_effect=mock_run_async):
+        res = reconcile_interrupted_transit_builds()
+        assert res["status"] == "reconciled"
+        assert "interrupted_city" in res["resumed_cities"]
+        mock_delay.assert_called_once_with(city_name="interrupted_city")

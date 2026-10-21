@@ -2125,6 +2125,10 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             )
 
         logger.info(f"Executing Valhalla extract tiles for {city_lower}...")
+        container.exec_run(
+            "sh -c 'cp -r /custom_files/transit_tiles/* /custom_files/valhalla_tiles/ 2>/dev/null || true'",
+            user="root",
+        )
         container.exec_run("chown -R valhalla:valhalla /custom_files", user="root")
         container.exec_run("rm -f /custom_files/valhalla_tiles.tar")
         res_extract = container.exec_run(
@@ -2334,3 +2338,51 @@ def prewarm_route_lodging_task(
                 await engine.dispose()
 
     return _run_async(_prewarm())
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.reconcile_interrupted_transit_builds",
+    queue="transit_build",
+)
+def reconcile_interrupted_transit_builds(self):
+    """
+    Scans the transit_cache database for cities that were interrupted mid-compilation
+    (status BUILDING or QUEUED) when containers crashed or were restarted, and re-queues them.
+    Ensures safe, automatic resumption of the sequential GTFS compilation pipeline.
+    """
+    from sqlalchemy import select
+    from app.db.models import TransitCacheModel
+
+    logger.info("Scanning for interrupted transit builds to resume...")
+
+    async def _scan():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                stmt = select(TransitCacheModel).where(
+                    TransitCacheModel.status.in_(
+                        [
+                            TransitCacheStatus.BUILDING.value,
+                            TransitCacheStatus.QUEUED.value,
+                        ]
+                    )
+                )
+                res = await session.execute(stmt)
+                return [row.city for row in res.scalars().all()]
+            finally:
+                await engine.dispose()
+
+    interrupted_cities = _run_async(_scan())
+    resumed = []
+
+    for city in interrupted_cities:
+        # Check if a task is already alive for this city
+        if not is_transit_task_alive(city):
+            logger.info(f"Resuming interrupted transit build for city: {city}")
+            build_city_gtfs_task.delay(city_name=city)
+            resumed.append(city)
+        else:
+            logger.info(f"Task for city {city} is already active, skipping re-queue.")
+
+    return {"status": "reconciled", "resumed_cities": resumed}

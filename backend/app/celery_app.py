@@ -33,6 +33,7 @@ app.conf.update(
         "app.tasks.ingest_city_pois_task": {"queue": "poi_hydration"},
         "app.tasks.enrich_tier12_city_pois_task": {"queue": "poi_hydration"},
         "app.tasks.enrich_long_tail_city_pois_task": {"queue": "poi_hydration"},
+        "app.tasks.reconcile_interrupted_transit_builds": {"queue": "transit_build"},
     },
     task_annotations={
         "app.tasks.build_city_gtfs_task": {
@@ -62,7 +63,8 @@ logger = logging.getLogger(__name__)
 def on_worker_ready(sender, **kwargs):
     """
     Reconciles stale transit compiler distributed locks on worker startup,
-    preventing orphaned locks from dead previous worker instances.
+    preventing orphaned locks from dead previous worker instances, and
+    automatically resumes any transit builds that were interrupted by container shutdown.
     """
     try:
         import redis
@@ -75,3 +77,16 @@ def on_worker_ready(sender, **kwargs):
             logger.info("Cleared stale transit compiler locks on worker startup.")
     except Exception as exc:
         logger.warning(f"Could not reconcile transit locks on worker startup: {exc}")
+
+    # Auto-resume interrupted compilation queue
+    try:
+        from app.tasks import reconcile_interrupted_transit_builds
+
+        reconcile_interrupted_transit_builds.delay()
+        logger.info(
+            "Dispatched reconcile_interrupted_transit_builds task on worker ready."
+        )
+    except Exception as rec_err:
+        logger.warning(
+            f"Could not dispatch reconcile_interrupted_transit_builds on startup: {rec_err}"
+        )
