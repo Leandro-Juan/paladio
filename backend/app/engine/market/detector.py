@@ -12,7 +12,7 @@ Persists verified proposals to TripModel and deal_events, emitting WebSocket ale
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.db.models import (
@@ -64,6 +64,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
     notifier = RedisWebSocketNotifier()
 
     verified_deals: list[dict[str, Any]] = []
+    ingested_lodging_dates: set[tuple[str, date]] = set()
 
     # Map alerts by (origin_iata, destination)
     for alert in active_alerts:
@@ -76,7 +77,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     MarketPriceTickModel.asset_type == "flight",
                     MarketPriceTickModel.origin_iata == orig,
                     MarketPriceTickModel.destination_code == dest,
-                    MarketPriceTickModel.depart_date >= alert.earliest_date,
+                    MarketPriceTickModel.depart_date >= max(alert.earliest_date, today),
                     MarketPriceTickModel.depart_date <= alert.latest_date,
                 )
                 .order_by(MarketPriceTickModel.base_price_cents.asc())
@@ -147,8 +148,39 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 lodging_median, _ = await resolve_baseline_median(
                     session, "lodging", "", dest, dep_date, today, "EUR"
                 )
-
                 # Strictly require real baselines from empirical observations
+                if (
+                    lodging_median is None
+                    and lodging_quote
+                    and lodging_quote.base_price_per_night_cents
+                ):
+                    lodging_median = lodging_quote.base_price_per_night_cents
+                    # Record live lodging tick into DB if not already added in this run
+                    if (dest, dep_date) not in ingested_lodging_dates:
+                        ingested_lodging_dates.add((dest, dep_date))
+                        import hashlib
+
+                        h = hashlib.sha256(
+                            f"lodging_{dest}_{dep_date}_{lodging_quote.base_price_per_night_cents}_{now.timestamp()}".encode()
+                        ).digest()
+                        l_tick = MarketPriceTickModel(
+                            id=str(uuid.uuid4()),
+                            observed_at=now,
+                            asset_type="lodging",
+                            origin_iata="",
+                            destination_code=dest,
+                            depart_date=dep_date,
+                            return_date=ret_date,
+                            nights=nights,
+                            lead_time_days=max((dep_date - today).days, 0),
+                            base_price_cents=lodging_quote.base_price_per_night_cents,
+                            currency=lodging_quote.currency,
+                            source=lodging_quote.source,
+                            source_class="live",
+                            content_hash=h,
+                        )
+                        session.add(l_tick)
+
                 if flight_median is None or lodging_median is None:
                     logger.debug(
                         f"[Detector] Route {orig}->{dest} in learning baseline state (fl={flight_median}, ldg={lodging_median}). Deal evaluation paused."

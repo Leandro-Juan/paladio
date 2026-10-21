@@ -170,8 +170,54 @@
 
 .chartWrapper {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   overflow: hidden;
+}
+
+.subChartLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  padding: 0 0.5rem;
+}
+
+.subChartFlightTag {
+  font-family: var(--font-code, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0284C7;
+}
+
+.lodgingChartSection {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--color-border, #E2D9CC);
+}
+
+.subChartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  padding: 0 0.5rem;
+  font-family: var(--font-code, monospace);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.subChartTitle {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.subChartMeta {
+  font-size: 0.625rem;
+  color: var(--color-text-muted, #566B76);
+  letter-spacing: 0.04em;
 }
 
 .chartWrapper :global(.recharts-area),
@@ -205,29 +251,114 @@
   background: var(--color-surface-card, #FAF6F0);
   border: 1px solid var(--color-border, #E2D9CC);
   border-radius: var(--radius-sm, 6px);
-  padding: 0.5rem 0.75rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  padding: 0.65rem 0.85rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.35rem;
   font-family: var(--font-code, monospace);
+  min-width: 220px;
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border, #E2D9CC);
+  padding-bottom: 4px;
 }
 
 .tooltipDate {
-  font-size: 0.6875rem;
-  color: var(--color-text-muted, #566B76);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1A2B32);
 }
 
-.tooltipPrice {
-  font-size: 1.15rem;
+.tooltipSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.6875rem;
+}
+
+.tooltipVal {
   font-weight: 700;
   color: var(--color-text-primary, #1A2B32);
   font-variant-numeric: tabular-nums;
 }
 
-.tooltipMeta {
+.tooltipRowTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1A2B32);
+  border-top: 1px dashed var(--color-border, #E2D9CC);
+  padding-top: 3px;
+  margin-top: 2px;
+}
+
+.tooltipCarrierText {
+  font-size: 0.625rem;
   color: var(--color-text-muted, #566B76);
+  margin-top: 1px;
+}
+
+.tooltipLodgingSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border-top: 1px solid var(--color-border, #E2D9CC);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.tooltipHotelName {
+  font-size: 0.625rem;
+  color: var(--color-accent-primary, #0F4C5C);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.tooltipRowSub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.625rem;
+  color: var(--color-text-muted, #566B76);
+}
+
+.tooltipPackageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border, #E2D9CC);
+  padding-top: 4px;
+  margin-top: 2px;
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.tooltipPackagePrice {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .legendRow {

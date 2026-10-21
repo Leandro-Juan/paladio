@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRouteMonitoring } from '@/hooks/useRouteMonitoring';
+import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { RouteFullScreenView } from '@/components/monitoring/RouteFullScreenView';
 import { NewRouteModal } from '@/components/monitoring/NewRouteModal';
 import { VerdictBadge } from '@/components/monitoring/VerdictBadge';
@@ -18,6 +18,7 @@ export default function MonitoringPage() {
   const {
     routes,
     deals,
+    routeDeals,
     summary,
     selectedRoute,
     selectedRouteId,
@@ -71,6 +72,19 @@ export default function MonitoringPage() {
   const activeCount = routes.filter((r) => r.is_active && r.status !== 'DEAL').length;
   const pausedCount = routes.filter((r) => !r.is_active).length;
 
+  // Overview page displays at most ONE deal (the single best deal) per route
+  const bestDealsByRoute = useMemo(() => {
+    const map = new Map<string, DealPackage>();
+    for (const deal of deals) {
+      const key = deal.alert_id || `${deal.origin_iata}-${deal.destination_code}`;
+      const prev = map.get(key);
+      if (!prev || deal.discount_pct > prev.discount_pct) {
+        map.set(key, deal);
+      }
+    }
+    return Array.from(map.values());
+  }, [deals]);
+
   const handleRangeChange = (range: '24h' | '7d' | '30d' | '90d') => {
     setActiveHistoryRange(range);
     if (selectedRoute) {
@@ -97,6 +111,7 @@ export default function MonitoringPage() {
         <RouteFullScreenView
           route={selectedRoute}
           deal={deals.find((d) => d.alert_id === selectedRoute.id || d.destination_code === selectedRoute.destination_code) || null}
+          routeDeals={routeDeals}
           stats={stats}
           history={history}
           calendar={calendar}
@@ -104,7 +119,6 @@ export default function MonitoringPage() {
           isScanning={isScanning}
           isBackfilling={isBackfilling}
           onBack={() => selectRoute(null)}
-          onTriggerScan={triggerScan}
           onTriggerBackfill={triggerBackfill}
           onToggleActive={toggleRouteActive}
           onDelete={deleteRoute}
@@ -183,10 +197,10 @@ export default function MonitoringPage() {
         </div>
       </section>
 
-      {/* Active Verified Deal Spotlight (Flight + Hotel Packages) */}
-      {deals && deals.length > 0 && (
+      {/* Active Verified Deal Spotlight (Flight + Hotel Packages - 1 Best Deal per Route) */}
+      {bestDealsByRoute && bestDealsByRoute.length > 0 && (
         <section className={styles.dealSpotlightSection} aria-label="Active verified deal packages">
-          {deals.map((deal) => (
+          {bestDealsByRoute.map((deal) => (
             <div key={deal.id} className={styles.dealCard}>
               <div className={styles.dealCardHeader}>
                 <div className={styles.dealHeaderLeft}>
@@ -246,16 +260,37 @@ export default function MonitoringPage() {
                     </span>
                   </div>
                   <div className={styles.componentDetails}>
-                    <span className={styles.componentMainName}>
-                      {deal.origin_name} to {deal.destination_name}
-                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className={styles.componentMainName}>
+                        Outbound: {deal.origin_name} → {deal.destination_name}
+                      </span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                        €{deal.flight.landed_price_eur.toFixed(2)}
+                      </span>
+                    </div>
                     <span className={styles.componentSubText}>
-                      Outbound: {deal.flight.depart_time.slice(11, 16)} → {deal.flight.arrival_time.slice(11, 16)} (Direct)
+                      {deal.depart_date} · {deal.flight.depart_time.slice(11, 16)} → {deal.flight.arrival_time.slice(11, 16)} (Direct)
                     </span>
+
+                    {deal.return_flight && (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--color-border, #E2D9CC)' }}>
+                          <span className={styles.componentMainName}>
+                            Return: {deal.destination_name} → {deal.origin_name}
+                          </span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                            €{deal.return_flight.landed_price_eur.toFixed(2)}
+                          </span>
+                        </div>
+                        <span className={styles.componentSubText}>
+                          {deal.return_date} · {deal.return_flight.depart_time.slice(11, 16)} → {deal.return_flight.arrival_time.slice(11, 16)} (Direct)
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      €{deal.flight.landed_price_eur.toFixed(2)} Landed
+                      €{(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0)).toFixed(2)} Landed Flights
                     </span>
                     {deal.flight.booking_url && (
                       <a
@@ -264,7 +299,7 @@ export default function MonitoringPage() {
                         rel="noopener noreferrer"
                         className={styles.directLinkBtn}
                       >
-                        Book Flight ↗
+                        Book Flights ↗
                       </a>
                     )}
                   </div>

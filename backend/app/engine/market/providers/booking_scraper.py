@@ -203,6 +203,10 @@ class BookingScraperProvider(BaseQuoteProvider):
     ) -> list[LodgingQuote]:
         import asyncio
         import os
+        import shutil
+
+        if not shutil.which("node"):
+            raise ProviderBlockedError("Node.js binary not available in environment")
 
         script_path = os.path.join(
             os.path.dirname(__file__), "..", "scripts", "scrape_booking.js"

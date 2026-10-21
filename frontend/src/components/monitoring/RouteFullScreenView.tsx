@@ -13,6 +13,7 @@ import {
 import { PriceTrendGraph } from './PriceTrendGraph';
 import { RouteTelemetryCards } from './RouteTelemetryCards';
 import { MonitoringCalendar } from './MonitoringCalendar';
+import { DealPackageNavigator } from './DealPackageNavigator';
 import { VerdictBadge } from './VerdictBadge';
 import { Spinner, RadarIcon, TrendingDownIcon } from '@/components/icons';
 import styles from './RouteFullScreenView.module.css';
@@ -21,6 +22,7 @@ import monitoringStyles from '@/app/monitoring/Monitoring.module.css';
 interface RouteFullScreenViewProps {
   route: RouteItem;
   deal?: DealPackage | null;
+  routeDeals?: DealPackage[];
   stats: RouteStats | null;
   history: RouteHistory | null;
   calendar: RouteCalendar | null;
@@ -28,7 +30,6 @@ interface RouteFullScreenViewProps {
   isScanning: boolean;
   isBackfilling?: boolean;
   onBack: () => void;
-  onTriggerScan: (id: string) => Promise<void>;
   onTriggerBackfill?: (id: string) => Promise<void>;
   onToggleActive: (id: string, is_active: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -41,6 +42,7 @@ interface RouteFullScreenViewProps {
 export function RouteFullScreenView({
   route,
   deal,
+  routeDeals = [],
   stats,
   history,
   calendar,
@@ -48,7 +50,6 @@ export function RouteFullScreenView({
   isScanning,
   isBackfilling,
   onBack,
-  onTriggerScan,
   onTriggerBackfill,
   onToggleActive,
   onDelete,
@@ -118,24 +119,7 @@ export function RouteFullScreenView({
             <span>Budget Ceiling: €{route.max_budget_eur.toFixed(0)}</span>
           </div>
 
-          <button
-            type="button"
-            className={styles.scanBtn}
-            onClick={() => onTriggerScan(route.id)}
-            disabled={isScanning}
-          >
-            {isScanning ? (
-              <>
-                <Spinner size={14} color="#FFFFFF" />
-                <span>Scanning...</span>
-              </>
-            ) : (
-              <>
-                <RadarIcon size={14} color="#FFFFFF" />
-                <span>Scan Now</span>
-              </>
-            )}
-          </button>
+
 
           <button
             type="button"
@@ -162,173 +146,23 @@ export function RouteFullScreenView({
 
       {/* Main Content Stack */}
       <div className={styles.contentStack}>
-        {/* Active Verified Deal Package Card (if deal active for this route) */}
-        {deal && (
-          <div className={monitoringStyles.dealCard}>
-            <div className={monitoringStyles.dealCardHeader}>
-              <div className={monitoringStyles.dealHeaderLeft}>
-                <div className={monitoringStyles.dealBadgeRow}>
-                  <span className={monitoringStyles.dealTag}>
-                    <span className={monitoringStyles.livePulseDot} />
-                    VERIFIED DEAL PACKAGE FOUND
-                  </span>
-                  <span className={monitoringStyles.realismBadge}>
-                    REALISM {deal.realism_score.toFixed(1)}/10
-                  </span>
-                </div>
-                <h2 className={monitoringStyles.dealRouteTitle}>
-                  <span>{deal.origin_name}</span>
-                  <span className={monitoringStyles.dealRouteIata}>({deal.origin_iata})</span>
-                  <span>→</span>
-                  <span>{deal.destination_name}</span>
-                  <span className={monitoringStyles.dealRouteIata}>({deal.destination_code})</span>
-                </h2>
-                <span className={monitoringStyles.dealDatesSub}>
-                  {deal.depart_date} → {deal.return_date} · {deal.nights} Nights Package
-                </span>
-              </div>
+        {/* Section 0: Top Verified Deal Packages Navigator (Best Package First, with < 1/3 > pagination) */}
+        <DealPackageNavigator
+          deals={routeDeals && routeDeals.length > 0 ? routeDeals : (deal ? [deal] : [])}
+          onDiscardDeal={onDiscardDeal}
+        />
 
-              <div className={monitoringStyles.dealPriceComparisonBox}>
-                <div className={monitoringStyles.dealPriceItem}>
-                  <span className={monitoringStyles.dealPriceLabel}>Landed Package</span>
-                  <span className={monitoringStyles.dealCurrentPrice}>€{deal.total_price_eur.toFixed(2)}</span>
-                </div>
-                <div className={monitoringStyles.dealPriceItem}>
-                  <span className={monitoringStyles.dealPriceLabel}>30D Median</span>
-                  <span className={monitoringStyles.dealMedianPrice}>€{deal.baseline_median_eur.toFixed(2)}</span>
-                </div>
-                <div className={monitoringStyles.dealSavingsHighlight}>
-                  <span className={monitoringStyles.savingsPill}>
-                    <TrendingDownIcon size={14} color="#FFFFFF" />
-                    {deal.discount_pct.toFixed(0)}% OFF
-                  </span>
-                  <span className={monitoringStyles.savingsAmountText}>Save €{deal.savings_eur.toFixed(2)} vs typical</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Dual Components: Flight + Hotel */}
-            <div className={monitoringStyles.dealItemsGrid}>
-              <div className={monitoringStyles.dealComponentCard}>
-                <div className={monitoringStyles.componentHeader}>
-                  <span className={monitoringStyles.componentTypeTitle}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
-                    </svg>
-                    Flight Corridor
-                  </span>
-                  <span className={monitoringStyles.componentCarrierBadge}>
-                    {deal.flight.airline} {deal.flight.flight_number ? `· ${deal.flight.flight_number}` : ''}
-                  </span>
-                </div>
-                <div className={monitoringStyles.componentDetails}>
-                  <span className={monitoringStyles.componentMainName}>
-                    {deal.origin_name} to {deal.destination_name}
-                  </span>
-                  <span className={monitoringStyles.componentSubText}>
-                    Outbound: {deal.flight.depart_time.slice(11, 16)} → {deal.flight.arrival_time.slice(11, 16)} (Direct)
-                  </span>
-                </div>
-                <div className={monitoringStyles.componentPriceRow}>
-                  <span className={monitoringStyles.componentPrice}>
-                    €{deal.flight.landed_price_eur.toFixed(2)} Landed
-                  </span>
-                  {deal.flight.booking_url && (
-                    <a
-                      href={deal.flight.booking_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={monitoringStyles.directLinkBtn}
-                    >
-                      Book Flight ↗
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              <div className={monitoringStyles.dealComponentCard}>
-                <div className={monitoringStyles.componentHeader}>
-                  <span className={monitoringStyles.componentTypeTitle}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
-                    </svg>
-                    Accommodation
-                  </span>
-                  <span className={monitoringStyles.componentCarrierBadge}>
-                    {deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)}/100 Quality` : (deal.lodging.stars ? `★ ${deal.lodging.stars} Stars` : 'Verified Stay')}
-                  </span>
-                </div>
-                <div className={monitoringStyles.componentDetails}>
-                  <span className={monitoringStyles.componentMainName}>
-                    {deal.lodging.property_name}
-                  </span>
-                  <span className={monitoringStyles.componentSubText}>
-                    €{deal.lodging.nightly_base_eur.toFixed(2)}/night · {deal.nights} nights stay
-                  </span>
-                </div>
-                <div className={monitoringStyles.componentPriceRow}>
-                  <span className={monitoringStyles.componentPrice}>
-                    €{deal.lodging.landed_total_eur.toFixed(2)} Landed
-                  </span>
-                  {deal.lodging.booking_url && (
-                    <a
-                      href={deal.lodging.booking_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={monitoringStyles.directLinkBtn}
-                    >
-                      Book Hotel ↗
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={monitoringStyles.dealCardFooter}>
-              <span className={monitoringStyles.dealFooterPrompt}>
-                Verified flight + hotel deal package ready for autonomous trip creation.
-              </span>
-              <div className={monitoringStyles.dealFooterActions}>
-                {onDiscardDeal && (
-                  <button
-                    type="button"
-                    className={monitoringStyles.discardDealBtn}
-                    onClick={() => onDiscardDeal(deal.id)}
-                  >
-                    Discard Offer
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={monitoringStyles.makeTripBtn}
-                  onClick={() =>
-                    router.push(
-                      `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
-                        deal.origin_name
-                      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
-                    )
-                  }
-                >
-                  Make it a Trip ➔
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Section 1: Wide Price Trajectory Graph (matching reference Image 2) */}
+        {/* Section 1: Wide Price Trajectory Graph with Synchronized Lodging Curve */}
         <div className={styles.sectionBlock}>
           <PriceTrendGraph
-            points={history?.points || []}
-            returnPoints={history?.return_points || []}
+            forwardCurve={history?.forward_curve}
+            lodgingCurve={history?.lodging_curve}
             p10Deal={history?.p10_deal_eur ?? null}
             p50Median={history?.p50_median_eur ?? null}
             p90Peak={history?.p90_peak_eur ?? null}
-            forwardCurve={history?.forward_curve}
             corpus={history?.corpus}
             verdict={history?.verdict}
             currency="EUR"
-            onRangeChange={onHistoryRangeChange}
             onTriggerBackfill={onTriggerBackfill ? () => onTriggerBackfill(route.id) : undefined}
             isBackfilling={isBackfilling}
           />

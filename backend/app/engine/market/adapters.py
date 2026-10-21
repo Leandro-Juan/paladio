@@ -134,7 +134,7 @@ class OpenLodgingFeed(LodgingFeed):
         self.t3 = HistoryQuoteProvider(asset_type="lodging")
         self.router = ProviderRouter(
             asset_type="lodging",
-            providers=[self.t1, self.t2, self.t3],
+            providers=[self.t2, self.t1, self.t3],
         )
 
     async def search_offers(

@@ -14,6 +14,7 @@ import {
 import {
   HistoryPoint,
   ForwardPricePoint,
+  LodgingPricePoint,
   CorpusInfo,
   PriceVerdictInfo,
 } from '@/hooks/useRouteMonitoring';
@@ -21,9 +22,10 @@ import { VerdictBadge } from './VerdictBadge';
 import styles from './PriceTrendGraph.module.css';
 
 interface PriceTrendGraphProps {
-  points: HistoryPoint[];
+  points?: HistoryPoint[];
   returnPoints?: HistoryPoint[];
   forwardCurve?: ForwardPricePoint[];
+  lodgingCurve?: LodgingPricePoint[];
   p10Deal: number | null;
   p25Deal?: number | null;
   p50Median: number | null;
@@ -38,10 +40,30 @@ interface PriceTrendGraphProps {
   onTriggerBackfill?: () => void;
 }
 
+interface ChartDataItem {
+  date: string;
+  displayTime: string;
+  // Flight fields
+  outboundPrice: number | null;
+  returnPrice: number | null;
+  flightTotal: number | null;
+  carrier: string;
+  returnCarrier: string | null;
+  verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
+  percentile: number | null;
+  // Lodging fields
+  nightlyPrice: number | null;
+  totalStayPrice: number | null;
+  propertyName: string | null;
+  stars: number | null;
+  reviewScore: number | null;
+  // Package Total
+  packagePrice: number | null;
+}
+
 export function PriceTrendGraph({
-  points,
-  returnPoints = [],
   forwardCurve = [],
+  lodgingCurve = [],
   p10Deal,
   p50Median,
   p90Peak,
@@ -50,31 +72,23 @@ export function PriceTrendGraph({
   currency = 'EUR',
   isScanning = false,
   isBackfilling = false,
-  onRangeChange,
   onTriggerBackfill,
 }: PriceTrendGraphProps) {
   const isBusy = isBackfilling || isScanning;
-  // If there are few observation points over time but rich forward departure dates, default to forward curve
-  const [activeView, setActiveView] = useState<'over_time' | 'forward_curve'>(
-    points.length <= 2 && forwardCurve.length > 0 ? 'forward_curve' : 'over_time'
-  );
   const [directionView, setDirectionView] = useState<'both' | 'outbound' | 'return'>('both');
-  const [activeRange, setActiveRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
-
-  const handleRangeClick = (range: '24h' | '7d' | '30d' | '90d') => {
-    setActiveRange(range);
-    if (onRangeChange) {
-      onRangeChange(range);
-    }
-  };
 
   const symbol = currency === 'EUR' ? '€' : `${currency} `;
 
-  // Prepare chart data based on active view
-  const isForward = activeView === 'forward_curve';
+  // Map lodging by departure date
+  const lodgingByDate = useMemo(() => {
+    const map = new Map<string, LodgingPricePoint>();
+    for (const lp of lodgingCurve) {
+      map.set(lp.date, lp);
+    }
+    return map;
+  }, [lodgingCurve]);
 
-  // Quantiles handling: when in forward curve (Calendar Horizon) view, use forward curve quantiles
-  // so the percentiles and median strictly match the displayed 11-month calendar curve and corpus banner.
+  // Quantiles calculated from forward calendar sweep
   const forwardPrices = useMemo(() => {
     return forwardCurve
       .map((f) => f.price_eur)
@@ -83,91 +97,68 @@ export function PriceTrendGraph({
   }, [forwardCurve]);
 
   const activeP10 = useMemo(() => {
-    if (isForward && forwardPrices.length > 0) {
+    if (forwardPrices.length > 0) {
       const idx = Math.floor(forwardPrices.length * 0.1);
       return forwardPrices[idx];
     }
     return p10Deal;
-  }, [isForward, forwardPrices, p10Deal]);
+  }, [forwardPrices, p10Deal]);
 
   const activeP50 = useMemo(() => {
-    if (isForward) {
-      if (corpus?.median_price_eur !== null && corpus?.median_price_eur !== undefined) {
-        return corpus.median_price_eur;
-      }
-      if (forwardPrices.length > 0) {
-        const mid = Math.floor(forwardPrices.length / 2);
-        return forwardPrices.length % 2 === 0
-          ? (forwardPrices[mid - 1] + forwardPrices[mid]) / 2
-          : forwardPrices[mid];
-      }
+    if (corpus?.median_price_eur !== null && corpus?.median_price_eur !== undefined) {
+      return corpus.median_price_eur;
+    }
+    if (forwardPrices.length > 0) {
+      const mid = Math.floor(forwardPrices.length / 2);
+      return forwardPrices.length % 2 === 0
+        ? (forwardPrices[mid - 1] + forwardPrices[mid]) / 2
+        : forwardPrices[mid];
     }
     return p50Median;
-  }, [isForward, corpus, forwardPrices, p50Median]);
+  }, [corpus, forwardPrices, p50Median]);
 
   const activeP90 = useMemo(() => {
-    if (isForward && forwardPrices.length > 0) {
+    if (forwardPrices.length > 0) {
       const idx = Math.floor(forwardPrices.length * 0.9);
       return forwardPrices[idx];
     }
     return p90Peak;
-  }, [isForward, forwardPrices, p90Peak]);
+  }, [forwardPrices, p90Peak]);
 
-  const returnByDate = useMemo(() => {
-    const map = new Map<string, HistoryPoint>();
-    for (const rp of returnPoints) {
-      map.set(rp.date, rp);
-    }
-    return map;
-  }, [returnPoints]);
-
-interface ChartDataItem {
-  date: string;
-  displayTime: string;
-  price: number;
-  outboundPrice: number;
-  returnPrice: number | null;
-  carrier: string;
-  returnCarrier: string | null;
-  verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
-  percentile: number | null;
-  ticks: number;
-}
-
+  // Unified chart data combining forward flight curve and dynamic lodging benchmarks
   const chartData: ChartDataItem[] = useMemo(() => {
-    if (isForward) {
-      return forwardCurve.map((f): ChartDataItem => ({
+    return forwardCurve.map((f): ChartDataItem => {
+      const lodging = lodgingByDate.get(f.depart_date);
+      const outbound = typeof f.price_eur === 'number' && !isNaN(f.price_eur) ? f.price_eur : null;
+      const ret = typeof f.price_return_eur === 'number' && !isNaN(f.price_return_eur) ? f.price_return_eur : null;
+      const flightTotal = outbound !== null ? (outbound + (ret ?? 0)) : null;
+
+      const nightly = lodging && typeof lodging.nightly_price_eur === 'number' ? lodging.nightly_price_eur : null;
+      const totalStay = lodging && typeof lodging.total_stay_eur === 'number' ? lodging.total_stay_eur : null;
+      const packagePrice = flightTotal !== null && totalStay !== null ? flightTotal + totalStay : null;
+
+      return {
         date: f.depart_date,
         displayTime: f.depart_date.slice(5), // MM-DD
-        price: f.price_eur,
-        outboundPrice: f.price_eur,
-        returnPrice: f.price_return_eur ?? null,
+        outboundPrice: outbound,
+        returnPrice: ret,
+        flightTotal,
         carrier: f.carrier || 'Ryanair',
-        returnCarrier: f.return_carrier || 'Ryanair',
+        returnCarrier: f.return_carrier || null,
         verdict: f.verdict ?? null,
         percentile: f.percentile ?? null,
-        ticks: 1,
-      }));
-    }
-
-    return points.map((p): ChartDataItem => {
-      const rp = returnByDate.get(p.date);
-      return {
-        date: p.date,
-        displayTime: activeRange === '24h' ? p.timestamp.slice(11, 16) : p.date.slice(5),
-        price: p.min_price_eur,
-        outboundPrice: p.min_price_eur,
-        returnPrice: rp ? rp.min_price_eur : null,
-        carrier: p.carrier,
-        returnCarrier: rp ? rp.carrier : null,
-        verdict: null,
-        percentile: null,
-        ticks: p.ticks_count,
+        nightlyPrice: nightly,
+        totalStayPrice: totalStay,
+        propertyName: lodging?.property_name ?? null,
+        stars: lodging?.stars ?? null,
+        reviewScore: lodging?.review_score ?? null,
+        packagePrice,
       };
     });
-  }, [isForward, forwardCurve, points, returnByDate, activeRange]);
+  }, [forwardCurve, lodgingByDate]);
 
-  const allPrices = useMemo(() => {
+  // Price range for Flight Chart
+  const flightPrices = useMemo(() => {
     const list: number[] = [];
     chartData.forEach((d) => {
       if (typeof d.outboundPrice === 'number' && !isNaN(d.outboundPrice)) list.push(d.outboundPrice);
@@ -176,8 +167,95 @@ interface ChartDataItem {
     return list;
   }, [chartData]);
 
-  const minVal = allPrices.length > 0 ? Math.floor(Math.min(...allPrices) * 0.85) : 0;
-  const maxVal = allPrices.length > 0 ? Math.ceil(Math.max(...allPrices, activeP90 || 100) * 1.1) : 100;
+  const minFlightVal = flightPrices.length > 0 ? Math.floor(Math.min(...flightPrices) * 0.85) : 0;
+  const maxFlightVal = flightPrices.length > 0 ? Math.ceil(Math.max(...flightPrices, activeP90 || 100) * 1.1) : 100;
+
+  // Price range for Lodging Chart
+  const lodgingPrices = useMemo(() => {
+    const list: number[] = [];
+    chartData.forEach((d) => {
+      if (typeof d.nightlyPrice === 'number' && !isNaN(d.nightlyPrice)) list.push(d.nightlyPrice);
+    });
+    return list;
+  }, [chartData]);
+
+  const minLodgingVal = lodgingPrices.length > 0 ? Math.max(0, Math.floor(Math.min(...lodgingPrices) * 0.8)) : 0;
+  const maxLodgingVal = lodgingPrices.length > 0 ? Math.ceil(Math.max(...lodgingPrices) * 1.15) : 200;
+  const hasLodgingData = lodgingPrices.length > 0;
+
+  // Shared tooltip renderer for synchronized scrubber
+  const renderSharedTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const d: ChartDataItem = payload[0].payload;
+    return (
+      <div className={styles.tooltipContainer}>
+        <div className={styles.tooltipHeader}>
+          <span className={styles.tooltipDate}>{d.date}</span>
+          {d.verdict && (
+            <VerdictBadge
+              verdict={d.verdict}
+              percentile={d.percentile}
+              size="sm"
+            />
+          )}
+        </div>
+
+        {/* Flight Telemetry */}
+        <div className={styles.tooltipSection}>
+          {d.outboundPrice !== null && (
+            <div className={styles.tooltipRow}>
+              <span style={{ color: '#0284C7', fontWeight: 600 }}>OUTBOUND:</span>
+              <span className={styles.tooltipVal}>{symbol}{d.outboundPrice.toFixed(2)}</span>
+            </div>
+          )}
+          {d.returnPrice !== null && (
+            <div className={styles.tooltipRow}>
+              <span style={{ color: '#D97706', fontWeight: 600 }}>RETURN:</span>
+              <span className={styles.tooltipVal}>{symbol}{d.returnPrice.toFixed(2)}</span>
+            </div>
+          )}
+          {d.flightTotal !== null && d.returnPrice !== null && (
+            <div className={styles.tooltipRowTotal}>
+              <span>TOTAL AIRFARE:</span>
+              <span>{symbol}{d.flightTotal.toFixed(2)}</span>
+            </div>
+          )}
+          <div className={styles.tooltipCarrierText}>
+            Carrier: {d.carrier}{d.returnCarrier ? ` · Ret: ${d.returnCarrier}` : ''}
+          </div>
+        </div>
+
+        {/* Lodging Telemetry */}
+        {d.nightlyPrice !== null && (
+          <div className={styles.tooltipLodgingSection}>
+            <div className={styles.tooltipRow}>
+              <span style={{ color: '#0F4C5C', fontWeight: 600 }}>HOTEL RATE:</span>
+              <span className={styles.tooltipVal}>{symbol}{d.nightlyPrice.toFixed(2)}/night</span>
+            </div>
+            {d.propertyName && (
+              <div className={styles.tooltipHotelName} title={d.propertyName}>
+                {d.propertyName} {d.reviewScore ? `(★ ${d.reviewScore.toFixed(1)})` : ''}
+              </div>
+            )}
+            {d.totalStayPrice !== null && (
+              <div className={styles.tooltipRowSub}>
+                <span>Est. Stay Total:</span>
+                <span>{symbol}{d.totalStayPrice.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Combined Package Total */}
+        {d.packagePrice !== null && (
+          <div className={styles.tooltipPackageRow}>
+            <span>LANDED PACKAGE:</span>
+            <span className={styles.tooltipPackagePrice}>{symbol}{d.packagePrice.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={styles.container} role="region" aria-label="Route price trend graph">
@@ -185,11 +263,11 @@ interface ChartDataItem {
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <span className={styles.telemetryTag} aria-hidden="true">
-            {isForward ? '// FORWARD_CALENDAR_SWEEP' : '// HISTORICAL_PRICE_TRAJECTORY'}
+            {"// 11_MONTH_CALENDAR_SWEEP"}
           </span>
           <div className={styles.titleRow}>
             <h4 className={styles.title}>
-              {isForward ? 'Calendar Horizon Price Spread' : 'Historical Price Trajectory'}
+              Calendar Horizon Price Spread
             </h4>
             {verdict && (
               <VerdictBadge
@@ -204,24 +282,6 @@ interface ChartDataItem {
         </div>
 
         <div className={styles.controlsArea}>
-          {/* View Toggle: Over Time vs Calendar Horizon */}
-          <div className={styles.viewSelector}>
-            <button
-              type="button"
-              className={`${styles.viewBtn} ${activeView === 'over_time' ? styles.activeViewBtn : ''}`}
-              onClick={() => setActiveView('over_time')}
-            >
-              Over Time
-            </button>
-            <button
-              type="button"
-              className={`${styles.viewBtn} ${activeView === 'forward_curve' ? styles.activeViewBtn : ''}`}
-              onClick={() => setActiveView('forward_curve')}
-            >
-              Calendar Horizon ({forwardCurve.length})
-            </button>
-          </div>
-
           {/* Direction Toggle: Both vs Outbound vs Return */}
           <div className={styles.viewSelector}>
             {(['both', 'outbound', 'return'] as const).map((dir) => (
@@ -235,22 +295,6 @@ interface ChartDataItem {
               </button>
             ))}
           </div>
-
-          {/* Time Range Selector (only for Over Time view) */}
-          {activeView === 'over_time' && (
-            <div className={styles.rangeSelector}>
-              {(['24h', '7d', '30d', '90d'] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  className={`${styles.rangeBtn} ${activeRange === r ? styles.activeRangeBtn : ''}`}
-                  onClick={() => handleRangeClick(r)}
-                >
-                  {r.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -290,10 +334,13 @@ interface ChartDataItem {
         </div>
       )}
 
-      {/* Chart */}
-      <div key={`${activeView}-${activeRange}`} className={styles.chartWrapper}>
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={chartData} margin={{ top: 15, right: 20, left: 5, bottom: 0 }}>
+      {/* Chart 1: Flight Fares */}
+      <div className={styles.chartWrapper}>
+        <div className={styles.subChartLabelRow}>
+          <span className={styles.subChartFlightTag}>AIRFARE CORRIDOR (OUTBOUND / RETURN)</span>
+        </div>
+        <ResponsiveContainer width="100%" height={210}>
+          <AreaChart syncId="paladioPriceSync" data={chartData} margin={{ top: 12, right: 20, left: 5, bottom: 0 }}>
             <defs>
               <linearGradient id="outboundTrendGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#0284C7" stopOpacity={0.45} />
@@ -317,10 +364,11 @@ interface ChartDataItem {
               axisLine={{ stroke: 'var(--color-border, #E2D9CC)' }}
               minTickGap={45}
               interval="preserveStartEnd"
+              hide={hasLodgingData}
             />
             <YAxis
-              domain={[minVal, maxVal]}
-              width={45}
+              domain={[minFlightVal, maxFlightVal]}
+              width={50}
               stroke="var(--color-border, #E2D9CC)"
               tick={{ fill: 'var(--color-text-muted, #566B76)', fontSize: 11, fontFamily: 'var(--font-code, monospace)' }}
               tickLine={false}
@@ -328,51 +376,7 @@ interface ChartDataItem {
               tickFormatter={(v) => `${symbol}${v}`}
             />
 
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload || !payload.length) return null;
-                const d = payload[0].payload;
-                return (
-                  <div className={styles.tooltipContainer}>
-                    <span className={styles.tooltipDate}>{d.date}</span>
-                    {d.outboundPrice !== null && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ color: '#0284C7', fontSize: '0.75rem', fontWeight: 600 }}>OUTBOUND:</span>
-                        <span className={styles.tooltipPrice}>
-                          {symbol}{typeof d.outboundPrice === 'number' ? d.outboundPrice.toFixed(2) : d.outboundPrice}
-                        </span>
-                      </div>
-                    )}
-                    {d.returnPrice !== null && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ color: '#D97706', fontSize: '0.75rem', fontWeight: 600 }}>RETURN:</span>
-                        <span className={styles.tooltipPrice}>
-                          {symbol}{typeof d.returnPrice === 'number' ? d.returnPrice.toFixed(2) : d.returnPrice}
-                        </span>
-                      </div>
-                    )}
-                    {d.outboundPrice !== null && d.returnPrice !== null && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', borderTop: '1px solid var(--color-border, #E2D9CC)', paddingTop: '4px', marginTop: '4px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary, #1A2B32)' }}>TOTAL FLIGHT:</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary, #1A2B32)' }}>
-                          {symbol}{(d.outboundPrice + d.returnPrice).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                      <span className={styles.tooltipMeta}>{d.carrier}</span>
-                      {d.verdict && (
-                        <VerdictBadge
-                          verdict={d.verdict}
-                          percentile={d.percentile}
-                          size="sm"
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              }}
-            />
+            <Tooltip content={renderSharedTooltip} />
 
             {activeP90 !== null && (
               <ReferenceLine
@@ -430,16 +434,80 @@ interface ChartDataItem {
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
+      {/* Chart 2: Hotel Prices Benchmark (Lower Graph) */}
+      {hasLodgingData && (
+        <div className={styles.lodgingChartSection}>
+          <div className={styles.subChartHeader}>
+            <span className={styles.subChartTitle}>ACCOMMODATION BENCHMARK (NIGHTLY RATE)</span>
+            <span className={styles.subChartMeta}>Google Travel & Booking Dynamic Market Quotes</span>
+          </div>
+
+          <div className={styles.chartWrapper}>
+            <ResponsiveContainer width="100%" height={130}>
+              <AreaChart syncId="paladioPriceSync" data={chartData} margin={{ top: 6, right: 20, left: 5, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="hotelTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0F4C5C" stopOpacity={0.35} />
+                    <stop offset="50%" stopColor="#0F4C5C" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#0F4C5C" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2D9CC)" opacity={0.6} />
+
+                <XAxis
+                  dataKey="displayTime"
+                  stroke="var(--color-border, #E2D9CC)"
+                  tick={{ fill: 'var(--color-text-muted, #566B76)', fontSize: 11, fontFamily: 'var(--font-code, monospace)' }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'var(--color-border, #E2D9CC)' }}
+                  minTickGap={45}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  domain={[minLodgingVal, maxLodgingVal]}
+                  width={50}
+                  stroke="var(--color-border, #E2D9CC)"
+                  tick={{ fill: 'var(--color-text-muted, #566B76)', fontSize: 10, fontFamily: 'var(--font-code, monospace)' }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${symbol}${v}`}
+                />
+
+                <Tooltip content={renderSharedTooltip} />
+
+                <Area
+                  type="monotone"
+                  dataKey="nightlyPrice"
+                  name="Hotel Nightly"
+                  stroke="#0F4C5C"
+                  strokeWidth={2}
+                  fill="url(#hotelTrendGradient)"
+                  isAnimationActive={false}
+                  activeDot={{ r: 4, fill: '#0F4C5C', stroke: '#FFFFFF', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Synchronized Legend */}
       <div className={styles.legendRow}>
         <div className={styles.legendItem} style={{ opacity: directionView === 'return' ? 0.35 : 1 }}>
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#0284C7' }} />
-          <span>Outbound</span>
+          <span>Outbound Airfare</span>
         </div>
         <div className={styles.legendItem} style={{ opacity: directionView === 'outbound' ? 0.35 : 1 }}>
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#D97706' }} />
-          <span>Return</span>
+          <span>Return Airfare</span>
         </div>
+        {hasLodgingData && (
+          <div className={styles.legendItem}>
+            <span className={styles.legendLineSolid} style={{ backgroundColor: '#0F4C5C' }} />
+            <span>Hotel Nightly Rate</span>
+          </div>
+        )}
         {activeP10 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineDeal} style={{ backgroundColor: '#10B981' }} />

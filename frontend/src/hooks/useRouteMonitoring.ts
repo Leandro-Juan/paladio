@@ -81,10 +81,23 @@ export interface PriceVerdictInfo {
   explanation: string;
 }
 
+export interface LodgingPricePoint {
+  date: string;
+  nightly_price_eur: number;
+  total_stay_eur: number;
+  property_name: string;
+  stars?: number | null;
+  review_score?: number | null;
+  review_count?: number | null;
+  booking_url?: string | null;
+  source?: string;
+}
+
 export interface RouteHistory {
   points: HistoryPoint[];
   return_points?: HistoryPoint[];
   forward_curve?: ForwardPricePoint[];
+  lodging_curve?: LodgingPricePoint[];
   p10_deal_eur: number | null;
   p25_eur?: number | null;
   p50_median_eur: number | null;
@@ -257,12 +270,14 @@ export interface DealPackage {
   status: string;
   detected_at: string;
   flight: DealFlight;
+  return_flight?: DealFlight | null;
   lodging: DealLodging;
 }
 
 export function useRouteMonitoring() {
   const [routes, setRoutes] = useState<RouteItem[]>([]);
   const [deals, setDeals] = useState<DealPackage[]>([]);
+  const [routeDeals, setRouteDeals] = useState<DealPackage[]>([]);
   const [summary, setSummary] = useState<MarketSummary | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
 
@@ -301,16 +316,18 @@ export function useRouteMonitoring() {
   // Fetch detail for selected route
   const fetchRouteDetail = useCallback(async (routeId: string, historyRange = '30d', monthsCount = 4) => {
     try {
-      const [sData, hData, cData, eData] = await Promise.all([
+      const [sData, hData, cData, eData, dData] = await Promise.all([
         apiFetch<RouteStats>(`/market/routes/${routeId}/stats`),
         apiFetch<RouteHistory>(`/market/routes/${routeId}/history?range=${historyRange}`),
         apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?view=roundtrip&pricing=package&months=${monthsCount}`),
         apiFetch<RouteEvent[]>(`/market/routes/${routeId}/events`),
+        apiFetch<DealPackage[]>(`/market/routes/${routeId}/deals`),
       ]);
       setStats(sData);
       setHistory(hData);
       setCalendar(cData);
       setEvents(eData);
+      setRouteDeals(dData || []);
     } catch (err: unknown) {
       loggerError('Failed to fetch route detail', err);
     }
@@ -388,17 +405,19 @@ export function useRouteMonitoring() {
     let isMounted = true;
     async function loadRoute() {
       try {
-        const [sData, hData, cData, eData] = await Promise.all([
+        const [sData, hData, cData, eData, dData] = await Promise.all([
           apiFetch<RouteStats>(`/market/routes/${selectedRouteId}/stats`),
           apiFetch<RouteHistory>(`/market/routes/${selectedRouteId}/history?range=30d`),
           apiFetch<RouteCalendar>(`/market/routes/${selectedRouteId}/calendar?months=4`),
           apiFetch<RouteEvent[]>(`/market/routes/${selectedRouteId}/events`),
+          apiFetch<DealPackage[]>(`/market/routes/${selectedRouteId}/deals`),
         ]);
         if (!isMounted) return;
         setStats(sData);
         setHistory(hData);
         setCalendar(cData);
         setEvents(eData);
+        setRouteDeals(dData || []);
       } catch (err: unknown) {
         if (isMounted) {
           loggerError('Failed to fetch route detail', err);
@@ -501,6 +520,7 @@ export function useRouteMonitoring() {
   return {
     routes,
     deals,
+    routeDeals,
     summary,
     selectedRoute,
     selectedRouteId,
