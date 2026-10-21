@@ -247,10 +247,24 @@ def test_build_city_gtfs_task_execution_and_sanitization():
 
             calls = [call.args[0] for call in mock_container.exec_run.call_args_list]
             assert any("valhalla_ingest_transit" in cmd for cmd in calls)
-            assert any("valhalla_convert_transit" in cmd for cmd in calls)
             assert any("valhalla_build_tiles" in cmd for cmd in calls)
+            assert any("valhalla_convert_transit" in cmd for cmd in calls)
             assert any("valhalla_build_extract" in cmd for cmd in calls)
             assert mock_container.restart.called
+
+            ingest_idx = next(
+                i for i, cmd in enumerate(calls) if "valhalla_ingest_transit" in cmd
+            )
+            build_idx = next(
+                i for i, cmd in enumerate(calls) if "valhalla_build_tiles" in cmd
+            )
+            convert_idx = next(
+                i for i, cmd in enumerate(calls) if "valhalla_convert_transit" in cmd
+            )
+            extract_idx = next(
+                i for i, cmd in enumerate(calls) if "valhalla_build_extract" in cmd
+            )
+            assert ingest_idx < build_idx < convert_idx < extract_idx
 
             published_events = [call.args[0] for call in mock_publish.call_args_list]
             assert "TRANSIT_COMPILE_STARTED" in published_events
@@ -352,3 +366,86 @@ async def test_stale_failed_task_healed_on_trip_trigger(db_session):
     )
     await db_session.commit()
     r.delete(f"paladio:transit_task_id:{city_name}")
+
+
+def test_is_transit_task_alive_with_celery_inspector():
+    """Verify is_transit_task_alive checks celery inspector and auto-cleans dead keys."""
+    from app.tasks import is_transit_task_alive
+
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    r = redis.from_url(redis_url)
+
+    city = "tokyotest"
+    r.set(f"paladio:transit_task_id:{city}", "task-alive-123")
+    r.set("paladio:transit_compiler_current_city", city)
+
+    # 1. When inspector reports task active
+    mock_inspector = MagicMock()
+    mock_inspector.active.return_value = {
+        "worker1": [
+            {
+                "id": "task-alive-123",
+                "name": "app.tasks.build_city_gtfs_task",
+                "args": [city],
+            }
+        ]
+    }
+    mock_inspector.reserved.return_value = {}
+
+    with patch("app.celery_app.app.control.inspect", return_value=mock_inspector):
+        assert is_transit_task_alive(city) is True
+
+    # 2. When inspector reports empty (worker crashed / dead task)
+    mock_inspector.active.return_value = {}
+    mock_inspector.reserved.return_value = {}
+
+    with patch("app.celery_app.app.control.inspect", return_value=mock_inspector):
+        assert is_transit_task_alive(city) is False
+        # Stale tracking keys must be auto-cleaned
+        assert not r.get(f"paladio:transit_task_id:{city}")
+        assert not r.get("paladio:transit_compiler_current_city")
+
+
+def test_build_city_gtfs_task_breaks_orphaned_lock():
+    """Verify build_city_gtfs_task detects an orphaned lock from a dead task and auto-recovers."""
+    from app.tasks import build_city_gtfs_task
+
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    r = redis.from_url(redis_url)
+
+    # Simulate an orphaned lock held by dead 'deadcity'
+    r.set("paladio:transit_compiler_lock", "dead-token", ex=300)
+    r.set("paladio:transit_compiler_current_city", "deadcity")
+
+    mock_container = MagicMock()
+    mock_container.exec_run.return_value = MagicMock(exit_code=0, output=b"ok")
+    mock_docker = MagicMock()
+    mock_docker.containers.get.return_value = mock_container
+
+    temp_gtfs_dir = tempfile.mkdtemp()
+    dest_dir = os.path.join(temp_gtfs_dir, "newcity")
+    os.makedirs(dest_dir, exist_ok=True)
+    with open(os.path.join(dest_dir, "calendar.txt"), "w") as f:
+        f.write("service_id,monday,start_date,end_date\n1,1,20260101,20261231\n")
+
+    try:
+        with patch("app.tasks.is_transit_task_alive", return_value=False), patch(
+            "docker.from_env", return_value=mock_docker
+        ), patch("app.tasks._async_update_transit_cache"), patch(
+            "app.tasks._city_exists_in_transit_cache", return_value=True
+        ), patch("app.tasks._publish_transit_event"), patch(
+            "app.tasks.CITY_GTFS_MAP", {"newcity": "http://example.com/gtfs.zip"}
+        ), patch("httpx.Client"), patch(
+            "app.services.osm_map_service.OSMMapService.resolve_osm_pbf_url",
+            return_value=("http://example.com/osm.pbf", "osm.pbf"),
+        ), patch.dict(
+            os.environ, {"GTFS_BASE_DIR": temp_gtfs_dir, "REDIS_URL": redis_url}
+        ):
+            res = build_city_gtfs_task(city_name="newcity")
+            assert res["status"] == "success"
+            assert res["city"] == "newcity"
+    finally:
+        shutil.rmtree(temp_gtfs_dir, ignore_errors=True)
+        r.delete(
+            "paladio:transit_compiler_lock", "paladio:transit_compiler_current_city"
+        )

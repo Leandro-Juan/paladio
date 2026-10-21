@@ -1101,12 +1101,12 @@ def _publish_transit_started_event(
 def is_transit_task_alive(city_clean: str) -> bool:
     """
     Checks if a GTFS/transit task for city_clean is genuinely active.
-    Returns False if the Celery task has terminated (ready()),
+    Returns False if the Celery task has terminated or is not running on any worker,
     if no task_id is tracked, or if cancelled flag is active in Redis.
+    Performs auto-cleanup of stale Redis tracking keys if the task is dead.
     """
     try:
         import redis
-        from celery.result import AsyncResult
         from app.celery_app import app as celery_app
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -1116,17 +1116,44 @@ def is_transit_task_alive(city_clean: str) -> bool:
             return False
 
         task_id = r.get(f"paladio:transit_task_id:{city_clean}")
-        if task_id:
-            task_id_str = (
-                task_id.decode("utf-8", errors="ignore")
-                if isinstance(task_id, bytes)
-                else str(task_id)
+        task_id_str = (
+            task_id.decode("utf-8", errors="ignore")
+            if isinstance(task_id, bytes)
+            else (str(task_id) if task_id else None)
+        )
+
+        # Inspect Celery worker active and reserved task lists directly
+        inspector = celery_app.control.inspect(timeout=0.5)
+        active_map = inspector.active() or {} if inspector else {}
+        reserved_map = inspector.reserved() or {} if inspector else {}
+
+        running_tasks = [
+            t
+            for t_list in list(active_map.values()) + list(reserved_map.values())
+            for t in t_list
+        ]
+
+        is_running = any(
+            (task_id_str and t.get("id") == task_id_str)
+            or (
+                t.get("args")
+                and len(t["args"]) > 0
+                and str(t["args"][0]).strip().lower() == city_clean
             )
-            res = AsyncResult(task_id_str, app=celery_app)
-            if res.ready():
-                return False
+            for t in running_tasks
+            if t.get("name")
+            in (
+                "app.tasks.build_city_gtfs_task",
+                "app.tasks.build_city_map_task",
+            )
+        )
+
+        if is_running:
             return True
 
+        # Task is not actively running in Celery worker pool: self-heal stale tracking
+        if task_id_str:
+            r.delete(f"paladio:transit_task_id:{city_clean}")
         curr = r.get("paladio:transit_compiler_current_city")
         if curr and (
             (
@@ -1136,7 +1163,11 @@ def is_transit_task_alive(city_clean: str) -> bool:
             or curr == city_clean
             or curr == city_clean.encode()
         ):
-            return True
+            r.delete("paladio:transit_compiler_current_city")
+            try:
+                r.delete("paladio:transit_compiler_lock")
+            except Exception:
+                pass
 
         return False
     except Exception as exc:
@@ -1733,53 +1764,79 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
     # 1. Distributed lock handling: check if another compilation holds lock
     acquired = lock.acquire(blocking=False)
     if not acquired:
-        current_city = r.get("paladio:transit_compiler_current_city")
-        if current_city and (
-            (
-                hasattr(current_city, "decode")
-                and current_city.decode("utf-8", errors="ignore") == city_lower
-            )
-            or current_city == city_lower
-            or current_city == city_lower.encode()
-        ):
+        current_city_raw = r.get("paladio:transit_compiler_current_city")
+        current_city = (
+            current_city_raw.decode("utf-8", errors="ignore")
+            if hasattr(current_city_raw, "decode")
+            else (str(current_city_raw) if current_city_raw else None)
+        )
+        if current_city and current_city == city_lower:
             logger.info(
                 f"Duplicate task for {city_lower} detected while {city_lower} is already compiling. Cleanly exiting duplicate."
             )
             return {"status": "duplicate_aborted", "city": city_lower}
 
-        if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
-            _city_exists_in_transit_cache(city_lower)
-        ):
-            logger.info(
-                f"Aborting build for {city_lower} before queueing - cancelled or deleted."
+        # Auto-recover if lock is orphaned by a dead worker task
+        if current_city and not is_transit_task_alive(current_city):
+            logger.warning(
+                f"Detected orphaned transit compiler lock held for dead task {current_city}. Breaking lock and proceeding."
             )
-            return {"status": "cancelled", "city": city_lower}
+            try:
+                r.delete("paladio:transit_compiler_lock")
+                r.delete("paladio:transit_compiler_current_city")
+            except Exception:
+                pass
+            acquired = lock.acquire(blocking=False)
 
-        logger.info(
-            f"Transit compiler lock is held by another process. Marking {city_lower} as QUEUED."
-        )
-        _run_async(
-            _async_update_transit_cache(
-                city_name=city_lower,
-                status=TransitCacheStatus.QUEUED.value,
-                gtfs_status="QUEUED",
-                create_if_missing=False,
-            )
-        )
-        _publish_transit_event("TRANSIT_QUEUED", city_lower, city_name, trip_id)
-
-        # Loop-wait with short timeout so cancellation or deletion aborts promptly
-        while not acquired:
-            if r.get(f"paladio:transit_cancelled:{city_lower}"):
+        if not acquired:
+            if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
+                _city_exists_in_transit_cache(city_lower)
+            ):
                 logger.info(
-                    f"Transit build for {city_lower} was cancelled while waiting in queue."
+                    f"Aborting build for {city_lower} before queueing - cancelled or deleted."
                 )
                 return {"status": "cancelled", "city": city_lower}
-            acquired = lock.acquire(blocking=True, blocking_timeout=2)
-            if acquired:
-                logger.info(
-                    f"Acquired transit compiler lock for {city_lower} after queue wait."
+
+            logger.info(
+                f"Transit compiler lock is held by another process. Marking {city_lower} as QUEUED."
+            )
+            _run_async(
+                _async_update_transit_cache(
+                    city_name=city_lower,
+                    status=TransitCacheStatus.QUEUED.value,
+                    gtfs_status="QUEUED",
+                    create_if_missing=False,
                 )
+            )
+            _publish_transit_event("TRANSIT_QUEUED", city_lower, city_name, trip_id)
+
+            # Loop-wait with short timeout so cancellation, deletion, or lock-holder death recovers promptly
+            while not acquired:
+                if r.get(f"paladio:transit_cancelled:{city_lower}"):
+                    logger.info(
+                        f"Transit build for {city_lower} was cancelled while waiting in queue."
+                    )
+                    return {"status": "cancelled", "city": city_lower}
+                curr_city_raw = r.get("paladio:transit_compiler_current_city")
+                curr_city = (
+                    curr_city_raw.decode("utf-8", errors="ignore")
+                    if hasattr(curr_city_raw, "decode")
+                    else (str(curr_city_raw) if curr_city_raw else None)
+                )
+                if curr_city and not is_transit_task_alive(curr_city):
+                    logger.warning(
+                        f"Lock holder {curr_city} died while in queue. Breaking lock."
+                    )
+                    try:
+                        r.delete("paladio:transit_compiler_lock")
+                        r.delete("paladio:transit_compiler_current_city")
+                    except Exception:
+                        pass
+                acquired = lock.acquire(blocking=True, blocking_timeout=2)
+                if acquired:
+                    logger.info(
+                        f"Acquired transit compiler lock for {city_lower} after queue wait."
+                    )
 
     # Check if compilation was cancelled while waiting in queue
     try:
@@ -2007,6 +2064,9 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
         except Exception:
             pass
 
+        # Concurrency: enforce single-threaded tile compilation to guarantee memory stays within host RAM (<2.5GB peak) and prevent OOM-killer (exit code 137) on massive metro graphs like Tokyo/Kanto
+        concurrency = 1
+
         # 6. Sequential Valhalla Compilation Commands via docker library
         # Clean intermediate build directories to avoid stale states, preserving valhalla_tiles.tar until new build completes cleanly
         container.exec_run(
@@ -2022,7 +2082,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         logger.info(f"Executing Valhalla transit ingest for {city_lower}...")
         res_ingest = container.exec_run(
-            "valhalla_ingest_transit -c /custom_files/valhalla.json -j 1"
+            f"valhalla_ingest_transit -c /custom_files/valhalla.json -j {concurrency}"
         )
         if res_ingest.exit_code != 0:
             err_msg = (
@@ -2034,25 +2094,11 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 f"valhalla_ingest_transit failed with code {res_ingest.exit_code}: {err_msg}"
             )
 
-        logger.info(f"Executing Valhalla transit convert for {city_lower}...")
-        res_convert = container.exec_run(
-            "valhalla_convert_transit -c /custom_files/valhalla.json -j 1"
-        )
-        if res_convert.exit_code != 0:
-            err_msg = (
-                res_convert.output.decode("utf-8", errors="replace")
-                if hasattr(res_convert.output, "decode")
-                else str(res_convert.output)
-            )
-            raise RuntimeError(
-                f"valhalla_convert_transit failed with code {res_convert.exit_code}: {err_msg}"
-            )
-
         logger.info(
-            f"Executing full Valhalla tile build pipeline for {city_osm_pbf}..."
+            f"Executing Valhalla road tile build pipeline for {city_osm_pbf}..."
         )
         res_build = container.exec_run(
-            f"valhalla_build_tiles -c /custom_files/valhalla.json -j 1 /custom_files/{city_osm_pbf}"
+            f"valhalla_build_tiles -c /custom_files/valhalla.json -j {concurrency} /custom_files/{city_osm_pbf}"
         )
         if res_build.exit_code != 0:
             err_msg = (
@@ -2062,6 +2108,20 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             )
             raise RuntimeError(
                 f"valhalla_build_tiles failed with code {res_build.exit_code}: {err_msg}"
+            )
+
+        logger.info(f"Executing Valhalla transit convert for {city_lower}...")
+        res_convert = container.exec_run(
+            f"valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
+        )
+        if res_convert.exit_code != 0:
+            err_msg = (
+                res_convert.output.decode("utf-8", errors="replace")
+                if hasattr(res_convert.output, "decode")
+                else str(res_convert.output)
+            )
+            raise RuntimeError(
+                f"valhalla_convert_transit failed with code {res_convert.exit_code}: {err_msg}"
             )
 
         logger.info(f"Executing Valhalla extract tiles for {city_lower}...")

@@ -1,6 +1,8 @@
+import logging
 import os
 
 from celery import Celery
+from celery.signals import worker_ready
 from kombu import Queue
 
 # Use the redis service defined in docker-compose.yml
@@ -52,3 +54,24 @@ app.conf.update(
         },
     },
 )
+
+logger = logging.getLogger(__name__)
+
+
+@worker_ready.connect
+def on_worker_ready(sender, **kwargs):
+    """
+    Reconciles stale transit compiler distributed locks on worker startup,
+    preventing orphaned locks from dead previous worker instances.
+    """
+    try:
+        import redis
+
+        r = redis.from_url(redis_url)
+        cleared = r.delete(
+            "paladio:transit_compiler_lock", "paladio:transit_compiler_current_city"
+        )
+        if cleared:
+            logger.info("Cleared stale transit compiler locks on worker startup.")
+    except Exception as exc:
+        logger.warning(f"Could not reconcile transit locks on worker startup: {exc}")
