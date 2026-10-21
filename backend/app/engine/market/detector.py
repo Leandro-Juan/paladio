@@ -90,15 +90,42 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
             )
             for ft in flight_ticks:
                 dep_date = ft.depart_date
-                nights = min(max(ft.nights, alert.min_nights), alert.max_nights)
-                ret_date = dep_date + timedelta(days=nights)
+
+                # Query cheapest return flight tick for corridor dest -> orig within stay window
+                ret_query = (
+                    select(MarketPriceTickModel)
+                    .filter(
+                        MarketPriceTickModel.asset_type == "flight",
+                        MarketPriceTickModel.origin_iata == dest,
+                        MarketPriceTickModel.destination_code == orig,
+                        MarketPriceTickModel.depart_date
+                        >= dep_date + timedelta(days=alert.min_nights),
+                        MarketPriceTickModel.depart_date
+                        <= dep_date + timedelta(days=alert.max_nights),
+                    )
+                    .order_by(MarketPriceTickModel.base_price_cents.asc())
+                    .limit(1)
+                )
+                ret_res = await session.execute(ret_query)
+                best_ret_tick = ret_res.scalar_one_or_none()
+
+                if best_ret_tick:
+                    ret_date = best_ret_tick.depart_date
+                    nights = (ret_date - dep_date).days
+                    return_flight_base = best_ret_tick.base_price_cents
+                else:
+                    nights = min(max(ft.nights, alert.min_nights), alert.max_nights)
+                    ret_date = dep_date + timedelta(days=nights)
+                    return_flight_base = 0
 
                 # Fetch lodging quote dynamically for this window
                 lodging_quote = await lodging_feed.fetch_destination_summary(
                     dest, dep_date, ret_date, session=session
                 )
                 total_lodging_base = lodging_quote.base_price_per_night_cents * nights
-                total_package_base = ft.base_price_cents + total_lodging_base
+                total_package_base = (
+                    ft.base_price_cents + return_flight_base + total_lodging_base
+                )
 
                 # -------------------------------------------------------------
                 # Stage 1: Statistical Detection against Route Baselines
@@ -106,6 +133,17 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 flight_median, fl_level = await resolve_baseline_median(
                     session, "flight", orig, dest, dep_date, today, ft.currency
                 )
+                ret_flight_median = None
+                if best_ret_tick:
+                    ret_flight_median, _ = await resolve_baseline_median(
+                        session,
+                        "flight",
+                        dest,
+                        orig,
+                        ret_date,
+                        today,
+                        best_ret_tick.currency,
+                    )
                 lodging_median, _ = await resolve_baseline_median(
                     session, "lodging", "", dest, dep_date, today, "EUR"
                 )
@@ -117,7 +155,14 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     )
                     continue
 
-                baseline_package_total = flight_median + (lodging_median * nights)
+                combined_flight_median = flight_median + (
+                    ret_flight_median
+                    if ret_flight_median is not None
+                    else flight_median
+                )
+                baseline_package_total = combined_flight_median + (
+                    lodging_median * nights
+                )
                 package_ratio = total_package_base / max(baseline_package_total, 1)
                 est_savings_cents = max(baseline_package_total - total_package_base, 0)
 
@@ -310,6 +355,17 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                         "landed_price_cents": landed_flight_cents,
                         "deep_link": meta.get("deep_link"),
                     },
+                    "return_flight": {
+                        "airline": (
+                            best_ret_tick.metadata_json.get("carrier", "Ryanair")
+                            if isinstance(best_ret_tick.metadata_json, dict)
+                            else "Ryanair"
+                        ),
+                        "base_price_cents": best_ret_tick.base_price_cents,
+                        "depart_date": best_ret_tick.depart_date.isoformat(),
+                    }
+                    if best_ret_tick
+                    else None,
                     "lodging": {
                         "property_name": lodging_quote.property_name,
                         "base_nightly_cents": lodging_quote.base_price_per_night_cents,

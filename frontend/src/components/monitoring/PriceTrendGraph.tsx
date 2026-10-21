@@ -22,6 +22,7 @@ import styles from './PriceTrendGraph.module.css';
 
 interface PriceTrendGraphProps {
   points: HistoryPoint[];
+  returnPoints?: HistoryPoint[];
   forwardCurve?: ForwardPricePoint[];
   p10Deal: number | null;
   p25Deal?: number | null;
@@ -39,6 +40,7 @@ interface PriceTrendGraphProps {
 
 export function PriceTrendGraph({
   points,
+  returnPoints = [],
   forwardCurve = [],
   p10Deal,
   p50Median,
@@ -56,6 +58,7 @@ export function PriceTrendGraph({
   const [activeView, setActiveView] = useState<'over_time' | 'forward_curve'>(
     points.length <= 2 && forwardCurve.length > 0 ? 'forward_curve' : 'over_time'
   );
+  const [directionView, setDirectionView] = useState<'both' | 'outbound' | 'return'>('both');
   const [activeRange, setActiveRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
 
   const handleRangeClick = (range: '24h' | '7d' | '30d' | '90d') => {
@@ -110,29 +113,68 @@ export function PriceTrendGraph({
     return p90Peak;
   }, [isForward, forwardPrices, p90Peak]);
 
-  const chartData = isForward
-    ? forwardCurve.map((f) => ({
+  const returnByDate = useMemo(() => {
+    const map = new Map<string, HistoryPoint>();
+    for (const rp of returnPoints) {
+      map.set(rp.date, rp);
+    }
+    return map;
+  }, [returnPoints]);
+
+interface ChartDataItem {
+  date: string;
+  displayTime: string;
+  price: number;
+  outboundPrice: number;
+  returnPrice: number | null;
+  carrier: string;
+  returnCarrier: string | null;
+  verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
+  percentile: number | null;
+  ticks: number;
+}
+
+  const chartData: ChartDataItem[] = useMemo(() => {
+    if (isForward) {
+      return forwardCurve.map((f): ChartDataItem => ({
         date: f.depart_date,
         displayTime: f.depart_date.slice(5), // MM-DD
         price: f.price_eur,
+        outboundPrice: f.price_eur,
+        returnPrice: f.price_return_eur ?? null,
         carrier: f.carrier || 'Ryanair',
-        verdict: f.verdict,
-        percentile: f.percentile,
+        returnCarrier: f.return_carrier || 'Ryanair',
+        verdict: f.verdict ?? null,
+        percentile: f.percentile ?? null,
         ticks: 1,
-      }))
-    : points.map((p) => ({
+      }));
+    }
+
+    return points.map((p): ChartDataItem => {
+      const rp = returnByDate.get(p.date);
+      return {
         date: p.date,
         displayTime: activeRange === '24h' ? p.timestamp.slice(11, 16) : p.date.slice(5),
         price: p.min_price_eur,
+        outboundPrice: p.min_price_eur,
+        returnPrice: rp ? rp.min_price_eur : null,
         carrier: p.carrier,
+        returnCarrier: rp ? rp.carrier : null,
         verdict: null,
         percentile: null,
         ticks: p.ticks_count,
-      }));
+      };
+    });
+  }, [isForward, forwardCurve, points, returnByDate, activeRange]);
 
-  const allPrices = (isForward ? forwardCurve.map((f) => f.price_eur) : points.map((p) => p.min_price_eur)).filter(
-    (p) => typeof p === 'number' && !isNaN(p)
-  );
+  const allPrices = useMemo(() => {
+    const list: number[] = [];
+    chartData.forEach((d) => {
+      if (typeof d.outboundPrice === 'number' && !isNaN(d.outboundPrice)) list.push(d.outboundPrice);
+      if (typeof d.returnPrice === 'number' && !isNaN(d.returnPrice)) list.push(d.returnPrice);
+    });
+    return list;
+  }, [chartData]);
 
   const minVal = allPrices.length > 0 ? Math.floor(Math.min(...allPrices) * 0.85) : 0;
   const maxVal = allPrices.length > 0 ? Math.ceil(Math.max(...allPrices, activeP90 || 100) * 1.1) : 100;
@@ -178,6 +220,20 @@ export function PriceTrendGraph({
             >
               Calendar Horizon ({forwardCurve.length})
             </button>
+          </div>
+
+          {/* Direction Toggle: Both vs Outbound vs Return */}
+          <div className={styles.viewSelector}>
+            {(['both', 'outbound', 'return'] as const).map((dir) => (
+              <button
+                key={dir}
+                type="button"
+                className={`${styles.viewBtn} ${directionView === dir ? styles.activeViewBtn : ''}`}
+                onClick={() => setDirectionView(dir)}
+              >
+                {dir.toUpperCase()}
+              </button>
+            ))}
           </div>
 
           {/* Time Range Selector (only for Over Time view) */}
@@ -235,15 +291,19 @@ export function PriceTrendGraph({
       )}
 
       {/* Chart */}
-      <div key={`${activeView}-${activeRange}`} className={styles.chartWrapper}>
+      <div key={`${activeView}-${activeRange}-${directionView}`} className={styles.chartWrapper}>
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={chartData} margin={{ top: 15, right: 20, left: 5, bottom: 0 }}>
             <defs>
-              <linearGradient id="priceTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.55} />
-                <stop offset="35%" stopColor="#3B82F6" stopOpacity={0.30} />
-                <stop offset="70%" stopColor="#60A5FA" stopOpacity={0.14} />
-                <stop offset="100%" stopColor="#93C5FD" stopOpacity={0.02} />
+              <linearGradient id="outboundTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0284C7" stopOpacity={0.45} />
+                <stop offset="40%" stopColor="#0284C7" stopOpacity={0.20} />
+                <stop offset="100%" stopColor="#0284C7" stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="returnTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#9333EA" stopOpacity={0.45} />
+                <stop offset="40%" stopColor="#9333EA" stopOpacity={0.20} />
+                <stop offset="100%" stopColor="#9333EA" stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
@@ -275,10 +335,31 @@ export function PriceTrendGraph({
                 return (
                   <div className={styles.tooltipContainer}>
                     <span className={styles.tooltipDate}>{d.date}</span>
-                    <span className={styles.tooltipPrice}>
-                      {symbol}{typeof d.price === 'number' ? d.price.toFixed(2) : d.price}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {d.outboundPrice !== null && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ color: '#0284C7', fontSize: '0.75rem', fontWeight: 600 }}>OUTBOUND:</span>
+                        <span className={styles.tooltipPrice}>
+                          {symbol}{typeof d.outboundPrice === 'number' ? d.outboundPrice.toFixed(2) : d.outboundPrice}
+                        </span>
+                      </div>
+                    )}
+                    {d.returnPrice !== null && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ color: '#9333EA', fontSize: '0.75rem', fontWeight: 600 }}>RETURN:</span>
+                        <span className={styles.tooltipPrice}>
+                          {symbol}{typeof d.returnPrice === 'number' ? d.returnPrice.toFixed(2) : d.returnPrice}
+                        </span>
+                      </div>
+                    )}
+                    {d.outboundPrice !== null && d.returnPrice !== null && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', borderTop: '1px solid var(--color-border, #E2D9CC)', paddingTop: '4px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary, #1A2B32)' }}>TOTAL FLIGHT:</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary, #1A2B32)' }}>
+                          {symbol}{(d.outboundPrice + d.returnPrice).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                       <span className={styles.tooltipMeta}>{d.carrier}</span>
                       {d.verdict && (
                         <VerdictBadge
@@ -320,15 +401,31 @@ export function PriceTrendGraph({
               />
             )}
 
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke="#2563EB"
-              strokeWidth={2.5}
-              fill="url(#priceTrendGradient)"
-              isAnimationActive={false}
-              activeDot={{ r: 5, fill: '#2563EB', stroke: '#FFFFFF', strokeWidth: 2 }}
-            />
+            {(directionView === 'both' || directionView === 'outbound') && (
+              <Area
+                type="monotone"
+                dataKey="outboundPrice"
+                name="Outbound"
+                stroke="#0284C7"
+                strokeWidth={2.5}
+                fill="url(#outboundTrendGradient)"
+                isAnimationActive={false}
+                activeDot={{ r: 5, fill: '#0284C7', stroke: '#FFFFFF', strokeWidth: 2 }}
+              />
+            )}
+
+            {(directionView === 'both' || directionView === 'return') && (
+              <Area
+                type="monotone"
+                dataKey="returnPrice"
+                name="Return"
+                stroke="#9333EA"
+                strokeWidth={2.5}
+                fill="url(#returnTrendGradient)"
+                isAnimationActive={false}
+                activeDot={{ r: 5, fill: '#9333EA', stroke: '#FFFFFF', strokeWidth: 2 }}
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -336,8 +433,12 @@ export function PriceTrendGraph({
       {/* Legend */}
       <div className={styles.legendRow}>
         <div className={styles.legendItem}>
-          <span className={styles.legendLineSolid} style={{ backgroundColor: '#2563EB' }} />
-          <span>{isForward ? 'Calendar Fare' : 'Observed Fare'}</span>
+          <span className={styles.legendLineSolid} style={{ backgroundColor: '#0284C7' }} />
+          <span>Outbound</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendLineSolid} style={{ backgroundColor: '#9333EA' }} />
+          <span>Return</span>
         </div>
         {activeP10 !== null && (
           <div className={styles.legendItem}>

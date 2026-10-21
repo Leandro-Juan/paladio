@@ -35,6 +35,7 @@ interface RouteFullScreenViewProps {
   onDiscardDeal?: (id: string) => Promise<void> | void;
   onHistoryRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
   onMonthsCountChange?: (count: number) => void;
+  onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => void;
 }
 
 export function RouteFullScreenView({
@@ -54,6 +55,7 @@ export function RouteFullScreenView({
   onDiscardDeal,
   onHistoryRangeChange,
   onMonthsCountChange,
+  onViewChange,
 }: RouteFullScreenViewProps) {
   const router = useRouter();
   const isDeal = route.status === 'DEAL';
@@ -318,6 +320,7 @@ export function RouteFullScreenView({
         <div className={styles.sectionBlock}>
           <PriceTrendGraph
             points={history?.points || []}
+            returnPoints={history?.return_points || []}
             p10Deal={history?.p10_deal_eur ?? null}
             p50Median={history?.p50_median_eur ?? null}
             p90Peak={history?.p90_peak_eur ?? null}
@@ -344,6 +347,16 @@ export function RouteFullScreenView({
           <MonitoringCalendar
             calendar={calendar}
             onMonthsCountChange={onMonthsCountChange}
+            onViewChange={onViewChange}
+            onPlanItinerary={(day) => {
+              const query = new URLSearchParams({
+                destination: route.destination_code || route.destination_name,
+                origin: route.origin_iata,
+                startDate: day.date,
+                ...(day.return_date ? { endDate: day.return_date } : {}),
+              });
+              router.push(`/trip/new?${query.toString()}`);
+            }}
           />
         </div>
 

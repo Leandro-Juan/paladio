@@ -30,11 +30,12 @@ async def backfill_route_corpus(
     destination_code: str,
     months_ahead: int | None = None,
     feed: RyanairFlightFeed | None = None,
+    bidirectional: bool = True,
 ) -> dict[str, Any]:
     """
     Performs forward calendar sweep for (origin, destination), ingests ~300 real daily fares
     into market_price_ticks and price_daily, computes empirical baselines immediately,
-    and updates RouteCorpusStatusModel.
+    and updates RouteCorpusStatusModel. If bidirectional=True, also sweeps reverse route.
     """
     if months_ahead is None:
         months_ahead = config.CORPUS_HORIZON_MONTHS
@@ -235,6 +236,20 @@ async def backfill_route_corpus(
         f"[Corpus Sweep] Backfilled {inserted_ticks} ticks across {len(unique_dates)} dates for {origin}->{dest}. Baseline conf: {derived_conf}"
     )
 
+    return_leg_res = None
+    if bidirectional:
+        try:
+            return_leg_res = await backfill_route_corpus(
+                session=session,
+                origin_iata=dest,
+                destination_code=origin,
+                months_ahead=months_ahead,
+                feed=feed,
+                bidirectional=False,
+            )
+        except Exception as e:
+            logger.warning(f"Could not backfill return leg {dest}->{origin}: {e}")
+
     return {
         "status": "ready",
         "confidence": derived_conf,
@@ -246,6 +261,7 @@ async def backfill_route_corpus(
         "baselines_computed": baselines_count,
         "origin_iata": origin,
         "destination_code": dest,
+        "return_leg": return_leg_res,
     }
 
 

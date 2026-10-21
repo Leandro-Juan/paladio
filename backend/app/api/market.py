@@ -27,6 +27,7 @@ from app.db.models import (
 from app.db.session import get_db
 from app.engine.market.adapters import RyanairFlightFeed
 from app.engine.market.baselines import (
+    resolve_baseline_median,
     resolve_route_baseline_quantiles,
 )
 from app.engine.market.config import CORPUS_HORIZON_MONTHS
@@ -155,9 +156,11 @@ class HistoryPoint(BaseModel):
 class ForwardPricePoint(BaseModel):
     depart_date: str
     price_eur: float
+    price_return_eur: float | None = None
     verdict: str | None = None
     percentile: float | None = None
     carrier: str | None = None
+    return_carrier: str | None = None
 
 
 class CorpusInfo(BaseModel):
@@ -173,16 +176,35 @@ class CorpusInfo(BaseModel):
 
 class HistoryResponse(BaseModel):
     points: list[HistoryPoint]
+    return_points: list[HistoryPoint] = Field(default_factory=list)
     forward_curve: list[ForwardPricePoint] = Field(default_factory=list)
     p10_deal_eur: float | None
     p25_eur: float | None = None
     p50_median_eur: float | None
     p75_eur: float | None = None
     p90_peak_eur: float | None
+    inbound_p10_deal_eur: float | None = None
+    inbound_p50_median_eur: float | None = None
+    inbound_p90_peak_eur: float | None = None
     lowest_ever_eur: float | None
     verdict: dict[str, Any] | None = None
     corpus: CorpusInfo | None = None
     currency: str = "EUR"
+
+
+class FlightSummary(BaseModel):
+    carrier: str | None = None
+    flight_number: str | None = None
+    duration_mins: int | None = None
+    departure_time: str | None = None
+    booking_url: str | None = None
+    price_eur: float | None = None
+
+
+class LodgingSummary(BaseModel):
+    nights: int
+    price_per_night_eur: float
+    total_lodging_eur: float
 
 
 class CalendarDayItem(BaseModel):
@@ -197,6 +219,11 @@ class CalendarDayItem(BaseModel):
     departure_time: str | None
     booking_url: str | None
     is_holiday: bool
+    nights: int | None = None
+    return_date: str | None = None
+    outbound_flight: FlightSummary | None = None
+    return_flight: FlightSummary | None = None
+    lodging: LodgingSummary | None = None
 
 
 class CalendarMonthItem(BaseModel):
@@ -211,6 +238,8 @@ class CalendarResponse(BaseModel):
     route_label: str
     p10_deal_eur: float | None
     p50_median_eur: float | None
+    view: str = "outbound"
+    pricing: str = "flights"
 
 
 class RouteStatsResponse(BaseModel):
@@ -803,6 +832,38 @@ async def get_route_price_history(
                 )
             )
 
+    # Fetch return daily price rollups
+    p_ret_stmt = (
+        select(
+            PriceDailyModel.bucket,
+            func.min(PriceDailyModel.min_base).label("min_base"),
+            func.sum(PriceDailyModel.n_ticks).label("n_ticks"),
+            PriceDailyModel.source,
+        )
+        .where(
+            PriceDailyModel.origin_iata == dest_code,
+            PriceDailyModel.destination_code == alert.origin_iata,
+            PriceDailyModel.bucket >= start_date,
+        )
+        .group_by(PriceDailyModel.bucket, PriceDailyModel.source)
+        .order_by(PriceDailyModel.bucket.asc())
+    )
+    p_ret_res = await session.execute(p_ret_stmt)
+    return_daily_records = p_ret_res.all()
+
+    return_points: list[HistoryPoint] = []
+    for d in return_daily_records:
+        return_points.append(
+            HistoryPoint(
+                date=d.bucket.isoformat(),
+                timestamp=f"{d.bucket.isoformat()}T12:00:00Z",
+                min_price_eur=round(d.min_base / 100.0, 2),
+                median_price_eur=round(d.min_base / 100.0, 2),
+                ticks_count=d.n_ticks,
+                carrier=d.source or "Ryanair",
+            )
+        )
+
     # Fetch forward departure date curve (cheapest fare per departure day across the horizon)
     today = datetime.now(timezone.utc).date()
     fwd_stmt = (
@@ -822,7 +883,25 @@ async def get_route_price_history(
     fwd_res = await session.execute(fwd_stmt)
     fwd_rows = fwd_res.all()
 
-    # Resolve baseline quantiles
+    # Also fetch return forward departure curve (dest_code -> alert.origin_iata)
+    fwd_ret_stmt = (
+        select(
+            PriceDailyModel.depart_date,
+            func.min(PriceDailyModel.min_base).label("min_price"),
+            PriceDailyModel.source,
+        )
+        .where(
+            PriceDailyModel.origin_iata == dest_code,
+            PriceDailyModel.destination_code == alert.origin_iata,
+            PriceDailyModel.depart_date >= today,
+        )
+        .group_by(PriceDailyModel.depart_date, PriceDailyModel.source)
+        .order_by(PriceDailyModel.depart_date.asc())
+    )
+    fwd_ret_res = await session.execute(fwd_ret_stmt)
+    fwd_ret_dict = {row[0]: (row[1], row[2]) for row in fwd_ret_res.all()}
+
+    # Resolve baseline quantiles for outbound
     quantiles, b_level, b_conf = await resolve_route_baseline_quantiles(
         session=session,
         origin_iata=alert.origin_iata,
@@ -847,21 +926,57 @@ async def get_route_price_history(
         round(quantiles["q90"] / 100.0, 2) if quantiles and "q90" in quantiles else None
     )
 
+    # Resolve baseline quantiles for inbound
+    ret_quantiles, _, _ = await resolve_route_baseline_quantiles(
+        session=session,
+        origin_iata=dest_code,
+        destination_code=alert.origin_iata,
+        depart_date=alert.earliest_date,
+        observation_date=today,
+    )
+    inbound_p10 = (
+        round(ret_quantiles["q10"] / 100.0, 2)
+        if ret_quantiles and "q10" in ret_quantiles
+        else None
+    )
+    inbound_p50 = (
+        round(ret_quantiles["q50"] / 100.0, 2)
+        if ret_quantiles and "q50" in ret_quantiles
+        else None
+    )
+    inbound_p90 = (
+        round(ret_quantiles["q90"] / 100.0, 2)
+        if ret_quantiles and "q90" in ret_quantiles
+        else None
+    )
+
+    outbound_dict = {row[0]: (row[1], row[2]) for row in fwd_rows}
+    all_fwd_dates = sorted(set(outbound_dict.keys()) | set(fwd_ret_dict.keys()))
+
     forward_curve: list[ForwardPricePoint] = []
-    for f_date, min_p, src in fwd_rows:
+    for f_date in all_fwd_dates:
+        out_entry = outbound_dict.get(f_date)
+        ret_entry = fwd_ret_dict.get(f_date)
+
+        out_price = round(out_entry[0] / 100.0, 2) if out_entry else None
+        ret_price = round(ret_entry[0] / 100.0, 2) if ret_entry else None
+
         pv_label = None
         pv_pct = None
-        if quantiles:
-            pv = classify_price(min_p, quantiles, b_conf)
+        if quantiles and out_entry:
+            pv = classify_price(out_entry[0], quantiles, b_conf)
             pv_label = pv.verdict
             pv_pct = pv.percentile
+
         forward_curve.append(
             ForwardPricePoint(
                 depart_date=f_date.isoformat(),
-                price_eur=round(min_p / 100.0, 2),
+                price_eur=out_price if out_price is not None else (ret_price or 0.0),
+                price_return_eur=ret_price,
                 verdict=pv_label,
                 percentile=pv_pct,
-                carrier=src,
+                carrier=out_entry[1] if out_entry else None,
+                return_carrier=ret_entry[1] if ret_entry else None,
             )
         )
 
@@ -898,18 +1013,22 @@ async def get_route_price_history(
     )
 
     all_prices = [p.min_price_eur for p in points] + [
-        f.price_eur for f in forward_curve
+        f.price_eur for f in forward_curve if f.price_eur
     ]
     min_pt = min(all_prices) if all_prices else None
 
     return HistoryResponse(
         points=points,
+        return_points=return_points,
         forward_curve=forward_curve,
         p10_deal_eur=p10,
         p25_eur=p25,
         p50_median_eur=p50,
         p75_eur=p75,
         p90_peak_eur=p90,
+        inbound_p10_deal_eur=inbound_p10,
+        inbound_p50_median_eur=inbound_p50,
+        inbound_p90_peak_eur=inbound_p90,
         lowest_ever_eur=min_pt,
         verdict=verdict_dict,
         corpus=corpus_info,
@@ -958,10 +1077,72 @@ async def get_route_corpus(
     return await get_route_corpus_status(session, alert.origin_iata, dest_code)
 
 
+async def _fetch_corridor_quotes(
+    origin: str,
+    dest: str,
+    date_from: date,
+    date_to: date,
+    feed: RyanairFlightFeed,
+    session: AsyncSession,
+) -> dict[str, dict[str, Any]]:
+    quotes_by_date: dict[str, dict[str, Any]] = {}
+    now = datetime.now(timezone.utc)
+    try:
+        live = await feed.fetch_cached_flights(
+            origin_iata=origin,
+            dest_iata=dest,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        for q in live:
+            d_str = q.depart_time.date().isoformat()
+            fare = round(q.base_price_cents / 100.0, 2)
+            if d_str not in quotes_by_date or fare < quotes_by_date[d_str]["price_eur"]:
+                quotes_by_date[d_str] = {
+                    "price_eur": fare,
+                    "flight_number": q.flight_number,
+                    "duration_mins": int(
+                        (q.arrival_time - q.depart_time).total_seconds() // 60
+                    ),
+                    "departure_time": q.depart_time.strftime("%H:%M"),
+                    "booking_url": q.deep_link
+                    or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin}&destinationIata={dest}",
+                    "carrier": q.carrier,
+                }
+    except Exception as e:
+        logger.warning(
+            f"Could not fetch live quotes for corridor {origin}->{dest}: {e}"
+        )
+
+    # Also query stored ticks from DB for days not returned by live feed
+    stored_ticks_stmt = select(MarketPriceTickModel).where(
+        MarketPriceTickModel.origin_iata == origin,
+        MarketPriceTickModel.destination_code == dest,
+        MarketPriceTickModel.depart_date >= now.date(),
+    )
+    stored_res = await session.execute(stored_ticks_stmt)
+    stored_ticks = stored_res.scalars().all()
+    for st in stored_ticks:
+        d_str = st.depart_date.isoformat()
+        fare = round(st.base_price_cents / 100.0, 2)
+        if d_str not in quotes_by_date or fare < quotes_by_date[d_str]["price_eur"]:
+            quotes_by_date[d_str] = {
+                "price_eur": fare,
+                "flight_number": None,
+                "duration_mins": None,
+                "departure_time": None,
+                "booking_url": f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin}&destinationIata={dest}",
+                "carrier": st.source,
+            }
+    return quotes_by_date
+
+
 @router.get("/routes/{route_id}/calendar", response_model=CalendarResponse)
 async def get_route_calendar(
     route_id: str,
-    months_count: int = Query(4, ge=3, le=5, alias="months"),
+    months_count: int = Query(4, ge=1, le=12, alias="months"),
+    view: str = Query("outbound", pattern="^(outbound|inbound|roundtrip)$"),
+    pricing: str = Query("flights", pattern="^(flights|package)$"),
     session: AsyncSession = Depends(get_db),
 ):
     stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
@@ -973,6 +1154,14 @@ async def get_route_calendar(
     dest_code = alert.destinations[0]
     dest_name = await _resolve_city_name(session, dest_code)
 
+    # Restrict horizon within valid bounds [1, CORPUS_HORIZON_MONTHS]
+    effective_months = min(max(months_count, 1), CORPUS_HORIZON_MONTHS)
+
+    now = datetime.now(timezone.utc)
+    curr_year = now.year
+    curr_month = now.month
+
+    # Baseline resolution
     base_stmt = (
         select(RouteBaselineModel)
         .where(
@@ -994,63 +1183,88 @@ async def get_route_calendar(
         else None
     )
 
-    now = datetime.now(timezone.utc)
-    curr_year = now.year
-    curr_month = now.month
-
-    # Live unauthenticated quotes directly from Ryanair flight feed
-    feed = RyanairFlightFeed()
-    live_quotes = []
-    try:
-        live_quotes = await feed.fetch_cached_flights(
-            origin_iata=alert.origin_iata,
-            dest_iata=dest_code,
-            date_from=alert.earliest_date,
-            date_to=min(alert.earliest_date + timedelta(days=120), alert.latest_date),
+    ret_base_stmt = (
+        select(RouteBaselineModel)
+        .where(
+            RouteBaselineModel.origin_iata == dest_code,
+            RouteBaselineModel.destination_code == alert.origin_iata,
         )
-    except Exception as e:
-        logger.warning(f"Could not fetch live calendar quotes: {e}")
-
-    quote_by_date: dict[str, Any] = {}
-    for q in live_quotes:
-        d_str = q.depart_time.date().isoformat()
-        fare_eur = round(q.base_price_cents / 100.0, 2)
-        if d_str not in quote_by_date or fare_eur < quote_by_date[d_str]["price_eur"]:
-            quote_by_date[d_str] = {
-                "price_eur": fare_eur,
-                "flight_number": q.flight_number,
-                "duration_mins": int(
-                    (q.arrival_time - q.depart_time).total_seconds() // 60
-                ),
-                "departure_time": q.depart_time.strftime("%H:%M"),
-                "booking_url": q.deep_link
-                or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={alert.origin_iata}&destinationIata={dest_code}",
-                "carrier": q.carrier,
-            }
-
-    # Also query stored ticks from DB for days not returned by live feed
-    stored_ticks_stmt = select(MarketPriceTickModel).where(
-        MarketPriceTickModel.origin_iata == alert.origin_iata,
-        MarketPriceTickModel.destination_code == dest_code,
-        MarketPriceTickModel.depart_date >= now.date(),
+        .limit(1)
     )
-    stored_res = await session.execute(stored_ticks_stmt)
-    stored_ticks = stored_res.scalars().all()
-    for st in stored_ticks:
-        d_str = st.depart_date.isoformat()
-        fare_eur = round(st.base_price_cents / 100.0, 2)
-        if d_str not in quote_by_date:
-            quote_by_date[d_str] = {
-                "price_eur": fare_eur,
-                "flight_number": None,
-                "duration_mins": None,
-                "departure_time": None,
-                "booking_url": f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={alert.origin_iata}&destinationIata={dest_code}",
-                "carrier": st.source,
-            }
+    ret_base_res = await session.execute(ret_base_stmt)
+    ret_baseline = ret_base_res.scalar_one_or_none()
+    inbound_p10 = (
+        round(float(ret_baseline.q10) / 100.0, 2)
+        if ret_baseline and ret_baseline.q10 is not None
+        else None
+    )
+    inbound_p50 = (
+        round(float(ret_baseline.q50) / 100.0, 2)
+        if ret_baseline and ret_baseline.q50 is not None
+        else None
+    )
+
+    feed = RyanairFlightFeed()
+    date_from = alert.earliest_date
+    horizon_days = effective_months * 31
+    date_to = max(alert.latest_date, alert.earliest_date + timedelta(days=horizon_days))
+
+    # Fetch quotes according to requested view
+    outbound_quotes: dict[str, dict[str, Any]] = {}
+    inbound_quotes: dict[str, dict[str, Any]] = {}
+
+    if view in ("outbound", "roundtrip"):
+        outbound_quotes = await _fetch_corridor_quotes(
+            origin=alert.origin_iata,
+            dest=dest_code,
+            date_from=date_from,
+            date_to=date_to,
+            feed=feed,
+            session=session,
+        )
+
+    if view in ("inbound", "roundtrip"):
+        inbound_quotes = await _fetch_corridor_quotes(
+            origin=dest_code,
+            dest=alert.origin_iata,
+            date_from=date_from,
+            date_to=date_to,
+            feed=feed,
+            session=session,
+        )
+
+    # If package pricing, estimate lodging benchmark per night
+    hotel_rate_eur = 0.0
+    if view == "roundtrip" and pricing == "package":
+        lodging_median, _ = await resolve_baseline_median(
+            session, "lodging", "", dest_code, alert.earliest_date, now.date(), "EUR"
+        )
+        hotel_rate_eur = round(lodging_median / 100.0, 2) if lodging_median else 55.0
+
+    # Effective quantiles for tiering
+    if view == "roundtrip":
+        effective_p10 = (
+            (p10 or 0)
+            + (inbound_p10 or p10 or 0)
+            + (hotel_rate_eur * alert.min_nights if pricing == "package" else 0)
+        ) or None
+        effective_p50 = (
+            (p50 or 0)
+            + (inbound_p50 or p50 or 0)
+            + (hotel_rate_eur * alert.min_nights if pricing == "package" else 0)
+        ) or None
+        route_label = f"{alert.origin_iata} ⇄ {dest_name} ({dest_code}) · {alert.min_nights}-{alert.max_nights}N"
+    elif view == "inbound":
+        effective_p10 = inbound_p10 or p10
+        effective_p50 = inbound_p50 or p50
+        route_label = f"{dest_name} ({dest_code}) → {alert.origin_iata}"
+    else:
+        effective_p10 = p10
+        effective_p50 = p50
+        route_label = f"{alert.origin_iata} → {dest_name} ({dest_code})"
 
     months_list: list[CalendarMonthItem] = []
-    for m_offset in range(months_count):
+    for m_offset in range(effective_months):
         target_month = (curr_month - 1 + m_offset) % 12 + 1
         target_year = curr_year + ((curr_month - 1 + m_offset) // 12)
         num_days = calendar.monthrange(target_year, target_month)[1]
@@ -1062,48 +1276,173 @@ async def get_route_calendar(
             date_str = day_date.isoformat()
             weekday = day_date.weekday()
 
-            if date_str in quote_by_date:
-                q = quote_by_date[date_str]
-                price = q["price_eur"]
-                fn = q["flight_number"]
-                dur = q["duration_mins"]
-                dep = q["departure_time"]
-                url = q["booking_url"]
-                carrier = q["carrier"]
+            if view == "roundtrip":
+                # Check outbound departure on day_date and pair with cheapest return in [min_nights, max_nights]
+                if date_str in outbound_quotes:
+                    out_q = outbound_quotes[date_str]
+                    best_total = None
+                    best_ret_date_str = None
+                    best_nights = None
+                    best_ret_q = None
 
-                # Price tier classification
-                if p10 and price <= p10:
-                    tier = "deal"
-                elif p50 and price <= p50:
-                    tier = "fair"
-                elif p50 and price <= (p50 * 1.5):
-                    tier = "standard"
+                    for n in range(alert.min_nights, alert.max_nights + 1):
+                        cand_ret_date = day_date + timedelta(days=n)
+                        cand_ret_str = cand_ret_date.isoformat()
+                        if cand_ret_str in inbound_quotes:
+                            in_q = inbound_quotes[cand_ret_str]
+                            total_fare = out_q["price_eur"] + in_q["price_eur"]
+                            if pricing == "package":
+                                total_fare += hotel_rate_eur * n
+
+                            if best_total is None or total_fare < best_total:
+                                best_total = round(total_fare, 2)
+                                best_ret_date_str = cand_ret_str
+                                best_nights = n
+                                best_ret_q = in_q
+
+                    if (
+                        best_total is not None
+                        and best_ret_q is not None
+                        and best_nights is not None
+                    ):
+                        price = best_total
+                        if effective_p10 and price <= effective_p10:
+                            tier = "deal"
+                        elif effective_p50 and price <= effective_p50:
+                            tier = "fair"
+                        elif effective_p50 and price <= (effective_p50 * 1.5):
+                            tier = "standard"
+                        else:
+                            tier = "peak"
+
+                        days_list.append(
+                            CalendarDayItem(
+                                date=date_str,
+                                day=d,
+                                weekday=weekday,
+                                price_eur=price,
+                                price_tier=tier,
+                                carrier=out_q["carrier"],
+                                flight_number=out_q["flight_number"],
+                                duration_mins=out_q["duration_mins"],
+                                departure_time=out_q["departure_time"],
+                                booking_url=out_q["booking_url"],
+                                is_holiday=weekday == 6,
+                                nights=best_nights,
+                                return_date=best_ret_date_str,
+                                outbound_flight=FlightSummary(
+                                    carrier=out_q["carrier"],
+                                    flight_number=out_q["flight_number"],
+                                    duration_mins=out_q["duration_mins"],
+                                    departure_time=out_q["departure_time"],
+                                    booking_url=out_q["booking_url"],
+                                    price_eur=out_q["price_eur"],
+                                ),
+                                return_flight=FlightSummary(
+                                    carrier=best_ret_q["carrier"],
+                                    flight_number=best_ret_q["flight_number"],
+                                    duration_mins=best_ret_q["duration_mins"],
+                                    departure_time=best_ret_q["departure_time"],
+                                    booking_url=best_ret_q["booking_url"],
+                                    price_eur=best_ret_q["price_eur"],
+                                ),
+                                lodging=LodgingSummary(
+                                    nights=best_nights,
+                                    price_per_night_eur=hotel_rate_eur,
+                                    total_lodging_eur=round(
+                                        hotel_rate_eur * best_nights, 2
+                                    ),
+                                )
+                                if pricing == "package"
+                                else None,
+                            )
+                        )
+                    else:
+                        days_list.append(
+                            CalendarDayItem(
+                                date=date_str,
+                                day=d,
+                                weekday=weekday,
+                                price_eur=None,
+                                price_tier="no_data",
+                                carrier=None,
+                                flight_number=None,
+                                duration_mins=None,
+                                departure_time=None,
+                                booking_url=None,
+                                is_holiday=weekday == 6,
+                            )
+                        )
                 else:
-                    tier = "peak"
+                    days_list.append(
+                        CalendarDayItem(
+                            date=date_str,
+                            day=d,
+                            weekday=weekday,
+                            price_eur=None,
+                            price_tier="no_data",
+                            carrier=None,
+                            flight_number=None,
+                            duration_mins=None,
+                            departure_time=None,
+                            booking_url=None,
+                            is_holiday=weekday == 6,
+                        )
+                    )
             else:
-                price = None
-                tier = "no_data"
-                fn = None
-                dur = None
-                dep = None
-                url = None
-                carrier = None
+                # One-way view (outbound or inbound)
+                active_quotes = inbound_quotes if view == "inbound" else outbound_quotes
+                if date_str in active_quotes:
+                    q = active_quotes[date_str]
+                    price = q["price_eur"]
+                    if effective_p10 and price <= effective_p10:
+                        tier = "deal"
+                    elif effective_p50 and price <= effective_p50:
+                        tier = "fair"
+                    elif effective_p50 and price <= (effective_p50 * 1.5):
+                        tier = "standard"
+                    else:
+                        tier = "peak"
 
-            days_list.append(
-                CalendarDayItem(
-                    date=date_str,
-                    day=d,
-                    weekday=weekday,
-                    price_eur=price,
-                    price_tier=tier,
-                    carrier=carrier,
-                    flight_number=fn,
-                    duration_mins=dur,
-                    departure_time=dep,
-                    booking_url=url,
-                    is_holiday=weekday == 6,
-                )
-            )
+                    days_list.append(
+                        CalendarDayItem(
+                            date=date_str,
+                            day=d,
+                            weekday=weekday,
+                            price_eur=price,
+                            price_tier=tier,
+                            carrier=q["carrier"],
+                            flight_number=q["flight_number"],
+                            duration_mins=q["duration_mins"],
+                            departure_time=q["departure_time"],
+                            booking_url=q["booking_url"],
+                            is_holiday=weekday == 6,
+                            outbound_flight=FlightSummary(
+                                carrier=q["carrier"],
+                                flight_number=q["flight_number"],
+                                duration_mins=q["duration_mins"],
+                                departure_time=q["departure_time"],
+                                booking_url=q["booking_url"],
+                                price_eur=price,
+                            ),
+                        )
+                    )
+                else:
+                    days_list.append(
+                        CalendarDayItem(
+                            date=date_str,
+                            day=d,
+                            weekday=weekday,
+                            price_eur=None,
+                            price_tier="no_data",
+                            carrier=None,
+                            flight_number=None,
+                            duration_mins=None,
+                            departure_time=None,
+                            booking_url=None,
+                            is_holiday=weekday == 6,
+                        )
+                    )
 
         months_list.append(
             CalendarMonthItem(
@@ -1116,9 +1455,11 @@ async def get_route_calendar(
 
     return CalendarResponse(
         months=months_list,
-        route_label=f"{alert.origin_iata} → {dest_code} ({dest_name})",
-        p10_deal_eur=p10,
-        p50_median_eur=p50,
+        route_label=route_label,
+        p10_deal_eur=effective_p10,
+        p50_median_eur=effective_p50,
+        view=view,
+        pricing=pricing,
     )
 
 

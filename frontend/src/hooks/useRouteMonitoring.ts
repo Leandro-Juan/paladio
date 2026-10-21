@@ -49,9 +49,11 @@ export interface HistoryPoint {
 export interface ForwardPricePoint {
   depart_date: string;
   price_eur: number;
+  price_return_eur?: number | null;
   verdict: 'GREAT' | 'GOOD' | 'TYPICAL' | 'HIGH' | 'PEAK' | null;
   percentile: number | null;
   carrier: string | null;
+  return_carrier?: string | null;
 }
 
 export interface CorpusInfo {
@@ -81,16 +83,35 @@ export interface PriceVerdictInfo {
 
 export interface RouteHistory {
   points: HistoryPoint[];
+  return_points?: HistoryPoint[];
   forward_curve?: ForwardPricePoint[];
   p10_deal_eur: number | null;
   p25_eur?: number | null;
   p50_median_eur: number | null;
   p75_eur?: number | null;
   p90_peak_eur: number | null;
+  inbound_p10_deal_eur?: number | null;
+  inbound_p50_median_eur?: number | null;
+  inbound_p90_peak_eur?: number | null;
   lowest_ever_eur: number | null;
   verdict?: PriceVerdictInfo | null;
   corpus?: CorpusInfo | null;
   currency: string;
+}
+
+export interface FlightSummary {
+  carrier: string | null;
+  flight_number: string | null;
+  duration_mins: number | null;
+  departure_time: string | null;
+  booking_url: string | null;
+  price_eur: number | null;
+}
+
+export interface LodgingSummary {
+  nights: number;
+  price_per_night_eur: number;
+  total_lodging_eur: number;
 }
 
 export interface CalendarDay {
@@ -105,6 +126,11 @@ export interface CalendarDay {
   departure_time: string | null;
   booking_url: string | null;
   is_holiday: boolean;
+  nights?: number | null;
+  return_date?: string | null;
+  outbound_flight?: FlightSummary | null;
+  return_flight?: FlightSummary | null;
+  lodging?: LodgingSummary | null;
 }
 
 export interface CalendarMonth {
@@ -119,6 +145,8 @@ export interface RouteCalendar {
   route_label: string;
   p10_deal_eur: number | null;
   p50_median_eur: number | null;
+  view?: 'outbound' | 'inbound' | 'roundtrip';
+  pricing?: 'flights' | 'package';
 }
 
 export interface RouteStats {
@@ -269,6 +297,25 @@ export function useRouteMonitoring() {
       loggerError('Failed to fetch route detail', err);
     }
   }, []);
+
+  // Fetch calendar for selected route with specific view and pricing
+  const fetchCalendar = useCallback(async (
+    routeId?: string,
+    view: 'outbound' | 'inbound' | 'roundtrip' = 'outbound',
+    pricing: 'flights' | 'package' = 'flights',
+    monthsCount = 4
+  ) => {
+    const targetId = routeId || selectedRouteId;
+    if (!targetId) return;
+    try {
+      const cData = await apiFetch<RouteCalendar>(
+        `/market/routes/${targetId}/calendar?view=${view}&pricing=${pricing}&months=${monthsCount}`
+      );
+      setCalendar(cData);
+    } catch (err: unknown) {
+      loggerError('Failed to fetch calendar view', err);
+    }
+  }, [selectedRouteId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -438,6 +485,7 @@ export function useRouteMonitoring() {
     triggerBackfill,
     fetchOverview,
     fetchRouteDetail,
+    fetchCalendar,
   };
 }
 

@@ -38,6 +38,7 @@ export default function MonitoringPage() {
     triggerBackfill,
     fetchOverview,
     fetchRouteDetail,
+    fetchCalendar,
   } = useRouteMonitoring();
 
   const [filterTab, setFilterTab] = useState<'ALL' | 'DEAL' | 'ACTIVE' | 'PAUSED'>('ALL');
@@ -84,6 +85,12 @@ export default function MonitoringPage() {
     }
   };
 
+  const handleViewChange = (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => {
+    if (selectedRoute) {
+      fetchCalendar(selectedRoute.id, view, pricing, monthsCount);
+    }
+  };
+
   return (
     <div className={styles.pageContainer}>
       {selectedRoute ? (
@@ -104,6 +111,7 @@ export default function MonitoringPage() {
           onDiscardDeal={discardDeal}
           onHistoryRangeChange={handleRangeChange}
           onMonthsCountChange={handleMonthsCountChange}
+          onViewChange={handleViewChange}
         />
       ) : (
         <>
