@@ -19,6 +19,7 @@ import {
   PriceVerdictInfo,
 } from '@/hooks/useRouteMonitoring';
 import { VerdictBadge } from './VerdictBadge';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 import styles from './PriceTrendGraph.module.css';
 
 interface PriceTrendGraphProps {
@@ -79,7 +80,7 @@ export function PriceTrendGraph({
   const isBusy = isBackfilling || isScanning;
   const [directionView, setDirectionView] = useState<'both' | 'outbound' | 'return'>('both');
 
-  const symbol = currency === 'EUR' ? '€' : `${currency} `;
+  const symbol = getCurrencyInfo(currency).symbol;
 
   // Map lodging by departure date
   const lodgingByDate = useMemo(() => {
@@ -173,19 +174,6 @@ export function PriceTrendGraph({
 
   const minFlightVal = flightPrices.length > 0 ? Math.floor(Math.min(...flightPrices) * 0.85) : 0;
   const maxFlightVal = flightPrices.length > 0 ? Math.ceil(Math.max(...flightPrices, activeP90 || 100) * 1.1) : 100;
-
-  // Price range for Lodging Chart
-  const lodgingPrices = useMemo(() => {
-    const list: number[] = [];
-    chartData.forEach((d) => {
-      if (typeof d.nightlyPrice === 'number' && !isNaN(d.nightlyPrice)) list.push(d.nightlyPrice);
-    });
-    return list;
-  }, [chartData]);
-
-  const minLodgingVal = lodgingPrices.length > 0 ? Math.max(0, Math.floor(Math.min(...lodgingPrices) * 0.8)) : 0;
-  const maxLodgingVal = lodgingPrices.length > 0 ? Math.ceil(Math.max(...lodgingPrices) * 1.15) : 200;
-  const hasLodgingData = lodgingPrices.length > 0;
 
   // Shared tooltip renderer for synchronized scrubber
   const renderSharedTooltip = ({ active, payload }: any) => {
@@ -348,7 +336,7 @@ export function PriceTrendGraph({
         <div className={styles.subChartLabelRow}>
           <span className={styles.subChartFlightTag}>AIRFARE CORRIDOR (OUTBOUND / RETURN)</span>
         </div>
-        <ResponsiveContainer width="100%" height={210}>
+        <ResponsiveContainer width="100%" height={240}>
           <AreaChart syncId="paladioPriceSync" data={chartData} margin={{ top: 12, right: 20, left: 5, bottom: 0 }}>
             <defs>
               <linearGradient id="outboundTrendGradient" x1="0" y1="0" x2="0" y2="1">
@@ -373,7 +361,6 @@ export function PriceTrendGraph({
               axisLine={{ stroke: 'var(--color-border, #E2D9CC)' }}
               minTickGap={45}
               interval="preserveStartEnd"
-              hide={hasLodgingData}
             />
             <YAxis
               domain={[minFlightVal, maxFlightVal]}
@@ -443,65 +430,6 @@ export function PriceTrendGraph({
         </ResponsiveContainer>
       </div>
 
-      {/* Chart 2: Hotel Prices Benchmark (Lower Graph) */}
-      {hasLodgingData && (
-        <div className={styles.lodgingChartSection}>
-          <div className={styles.subChartHeader}>
-            <span className={styles.subChartTitle}>ACCOMMODATION BENCHMARK (NIGHTLY RATE)</span>
-            <span className={styles.subChartMeta}>Google Travel & Booking Dynamic Market Quotes</span>
-          </div>
-
-          <div className={styles.chartWrapper}>
-            <ResponsiveContainer width="100%" height={130}>
-              <AreaChart syncId="paladioPriceSync" data={chartData} margin={{ top: 6, right: 20, left: 5, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="hotelTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0F4C5C" stopOpacity={0.35} />
-                    <stop offset="50%" stopColor="#0F4C5C" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#0F4C5C" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #E2D9CC)" opacity={0.6} />
-
-                <XAxis
-                  dataKey="displayTime"
-                  stroke="var(--color-border, #E2D9CC)"
-                  tick={{ fill: 'var(--color-text-muted, #566B76)', fontSize: 11, fontFamily: 'var(--font-code, monospace)' }}
-                  tickLine={false}
-                  axisLine={{ stroke: 'var(--color-border, #E2D9CC)' }}
-                  minTickGap={45}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  domain={[minLodgingVal, maxLodgingVal]}
-                  width={50}
-                  stroke="var(--color-border, #E2D9CC)"
-                  tick={{ fill: 'var(--color-text-muted, #566B76)', fontSize: 10, fontFamily: 'var(--font-code, monospace)' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${symbol}${v}`}
-                />
-
-                <Tooltip content={renderSharedTooltip} />
-
-                <Area
-                  type="monotone"
-                  dataKey="nightlyPrice"
-                  name="Hotel Nightly"
-                  stroke="#0F4C5C"
-                  strokeWidth={2}
-                  fill="url(#hotelTrendGradient)"
-                  isAnimationActive={false}
-                  connectNulls={false}
-                  activeDot={{ r: 4, fill: '#0F4C5C', stroke: '#FFFFFF', strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
       {/* Synchronized Legend */}
       <div className={styles.legendRow}>
         <div className={styles.legendItem} style={{ opacity: directionView === 'return' ? 0.35 : 1 }}>
@@ -512,12 +440,6 @@ export function PriceTrendGraph({
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#D97706' }} />
           <span>Return Airfare</span>
         </div>
-        {hasLodgingData && (
-          <div className={styles.legendItem}>
-            <span className={styles.legendLineSolid} style={{ backgroundColor: '#0F4C5C' }} />
-            <span>Hotel Nightly Rate</span>
-          </div>
-        )}
         {activeP10 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineDeal} style={{ backgroundColor: '#10B981' }} />

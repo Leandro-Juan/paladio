@@ -2,11 +2,14 @@
 
 import React, { useState } from 'react';
 import { CloseIcon, Spinner } from '@/components/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { SUPPORTED_CURRENCY_LIST, getCurrencyInfo } from '@/utils/currencyResolver';
 import styles from './NewRouteModal.module.css';
 
 interface NewRouteModalProps {
   isOpen: boolean;
   onClose: () => void;
+  userDefaultCurrency?: string;
   onSubmit: (data: {
     origin_iata: string;
     destination_code: string;
@@ -16,10 +19,14 @@ interface NewRouteModalProps {
     max_nights: number;
     travelers: number;
     max_budget_eur: number;
+    currency?: string;
   }) => Promise<unknown>;
 }
 
-export function NewRouteModal({ isOpen, onClose, onSubmit }: NewRouteModalProps) {
+export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }: NewRouteModalProps) {
+  const { user } = useAuth();
+  const initialCurrency = userDefaultCurrency || (user?.preferences?.default_currency as string) || 'EUR';
+
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 2);
   const defaultEarliest = tomorrow.toISOString().slice(0, 10);
@@ -35,6 +42,7 @@ export function NewRouteModal({ isOpen, onClose, onSubmit }: NewRouteModalProps)
   const [minNights, setMinNights] = useState<number>(2);
   const [maxNights, setMaxNights] = useState<number>(5);
   const [budget, setBudget] = useState<number>(120);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(initialCurrency);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +75,7 @@ export function NewRouteModal({ isOpen, onClose, onSubmit }: NewRouteModalProps)
         max_nights: Number(maxNights),
         travelers: 1,
         max_budget_eur: Number(budget),
+        currency: selectedCurrency,
       });
       onClose();
     } catch (err: unknown) {
@@ -195,14 +204,32 @@ export function NewRouteModal({ isOpen, onClose, onSubmit }: NewRouteModalProps)
             </div>
 
             <div className={styles.inputGroup}>
+              <label htmlFor="currency_select" className={styles.label}>
+                Currency
+              </label>
+              <select
+                id="currency_select"
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className={styles.input}
+              >
+                {SUPPORTED_CURRENCY_LIST.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.code} ({c.symbol}) - {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.inputGroup}>
               <label htmlFor="max_budget" className={styles.label}>
-                Target Ceiling Budget (€ EUR)
+                Target Ceiling Budget ({getCurrencyInfo(selectedCurrency).symbol} {selectedCurrency})
               </label>
               <input
                 id="max_budget"
                 type="number"
-                min={10}
-                max={5000}
+                min={1}
+                max={50000}
                 step={5}
                 value={budget}
                 onChange={(e) => setBudget(Number(e.target.value))}

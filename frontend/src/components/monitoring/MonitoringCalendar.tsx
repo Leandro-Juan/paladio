@@ -1,27 +1,33 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RouteCalendar, CalendarDay } from '@/hooks/useRouteMonitoring';
+import { RouteCalendar, CalendarDay, LodgingSummary } from '@/hooks/useRouteMonitoring';
 import { PlaneIcon, CloseIcon } from '@/components/icons';
+import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './MonitoringCalendar.module.css';
 
 interface MonitoringCalendarProps {
   calendar: RouteCalendar | null;
+  currency?: string;
   onMonthsCountChange?: (count: number) => void;
   onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => void;
   onPlanItinerary?: (day: CalendarDay) => void;
+  onFetchLodging?: (checkIn: string, nights: number) => Promise<LodgingSummary | null>;
 }
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function MonitoringCalendar({
   calendar,
+  currency,
   onMonthsCountChange,
   onViewChange,
   onPlanItinerary,
+  onFetchLodging,
 }: MonitoringCalendarProps) {
   const router = useRouter();
+  const activeCurrency = calendar?.currency || currency || 'EUR';
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [hoveredDay, setHoveredDay] = useState<CalendarDay | null>(null);
   const [monthsCount, setMonthsCount] = useState<number>(4);
@@ -31,6 +37,8 @@ export function MonitoringCalendar({
   const [currentPricing, setCurrentPricing] = useState<'flights' | 'package'>(
     calendar?.pricing || 'package'
   );
+  const [isFetchingLodging, setIsFetchingLodging] = useState<boolean>(false);
+  const [dayLodgingMap, setDayLodgingMap] = useState<Record<string, LodgingSummary>>({});
 
   // User marked holidays from Dashboard Calendar
   const userHolidays = useMemo(() => {
@@ -98,6 +106,55 @@ export function MonitoringCalendar({
       onViewChange(currentView, p, monthsCount);
     }
   };
+
+  // Dynamic on-demand lodging fetching for selected day
+  useEffect(() => {
+    if (!selectedDay || currentPricing !== 'package' || !onFetchLodging) return;
+    const dateKey = selectedDay.date;
+    // Skip if already observed with authentic property details
+    if (dayLodgingMap[dateKey]?.property_name || selectedDay.lodging?.property_name) return;
+
+    let isMounted = true;
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsFetchingLodging(true);
+      }
+    });
+
+    const nights = selectedDay.nights || 3;
+    onFetchLodging(dateKey, nights)
+      .then((res) => {
+        if (isMounted && res) {
+          setDayLodgingMap((prev) => ({ ...prev, [dateKey]: res }));
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsFetchingLodging(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDay?.date, selectedDay?.nights, currentPricing, onFetchLodging]);
+
+  const effectiveLodging: LodgingSummary | null = useMemo(() => {
+    if (!selectedDay) return null;
+    return dayLodgingMap[selectedDay.date] || selectedDay.lodging || null;
+  }, [selectedDay, dayLodgingMap]);
+
+  const dynamicCombinedPrice = useMemo(() => {
+    if (!selectedDay || selectedDay.price_eur === null) return null;
+    if (currentPricing === 'package' && effectiveLodging) {
+      const outP = selectedDay.outbound_flight?.price_eur;
+      const retP = selectedDay.return_flight?.price_eur;
+      if (typeof outP === 'number' && typeof retP === 'number') {
+        return Math.round((outP + retP + effectiveLodging.total_lodging_eur) * 100) / 100;
+      }
+    }
+    return selectedDay.price_eur;
+  }, [selectedDay, currentPricing, effectiveLodging]);
 
   if (!calendar || !calendar.months || calendar.months.length === 0) {
     return (
@@ -273,12 +330,12 @@ export function MonitoringCalendar({
                       }
                     }}
                     onMouseLeave={() => setHoveredDay(null)}
-                    title={`${d.date}: ${d.price_eur ? `€${d.price_eur.toFixed(2)}` : 'No direct flight'}${
+                    title={`${d.date}: ${d.price_eur ? formatCurrencyAmount(d.price_eur, activeCurrency) : 'No direct flight'}${
                       d.nights ? ` · ${d.nights}N stay until ${d.return_date}` : ''
                     }${topRank ? ` · #${topRank} Best Value Package` : ''}${
                       isUserHoliday ? ' · User Holiday / Vacation' : ''
                     }`}
-                    aria-label={`${d.date}, ${d.price_eur ? `price €${d.price_eur.toFixed(2)}` : 'no flight'}`}
+                    aria-label={`${d.date}, ${d.price_eur ? `price ${formatCurrencyAmount(d.price_eur, activeCurrency)}` : 'no flight'}`}
                   >
                     {isUserHoliday && (
                       <span className={styles.holidayMarker} title="Marked as Vacation / PTO in Dashboard" />
@@ -293,7 +350,7 @@ export function MonitoringCalendar({
                     )}
                     <span className={styles.dayNum}>{d.day}</span>
                     <span className={styles.dayPrice}>
-                      {d.price_eur !== null ? `€${Math.round(d.price_eur)}` : '—'}
+                      {d.price_eur !== null ? formatCurrencyAmount(d.price_eur, activeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—'}
                     </span>
                   </button>
                 );
@@ -348,7 +405,7 @@ export function MonitoringCalendar({
                   : 'Observed Fare'}
               </span>
               <span className={styles.inspectorFareValue}>
-                {selectedDay.price_eur !== null ? `€${selectedDay.price_eur.toFixed(2)}` : 'No Operating Flight'}
+                {dynamicCombinedPrice !== null ? formatCurrencyAmount(dynamicCombinedPrice, activeCurrency) : 'No Operating Flight'}
               </span>
             </div>
 
@@ -360,7 +417,7 @@ export function MonitoringCalendar({
                     <span>OUTBOUND FLIGHT</span>
                     {selectedDay.outbound_flight.price_eur !== null && (
                       <span className={styles.cardPrice}>
-                        €{selectedDay.outbound_flight.price_eur.toFixed(2)}
+                        {formatCurrencyAmount(selectedDay.outbound_flight.price_eur, activeCurrency)}
                       </span>
                     )}
                   </div>
@@ -392,7 +449,7 @@ export function MonitoringCalendar({
                     <span>RETURN FLIGHT ({selectedDay.return_date})</span>
                     {selectedDay.return_flight.price_eur !== null && (
                       <span className={styles.cardPrice}>
-                        €{selectedDay.return_flight.price_eur.toFixed(2)}
+                        {formatCurrencyAmount(selectedDay.return_flight.price_eur, activeCurrency)}
                       </span>
                     )}
                   </div>
@@ -419,22 +476,55 @@ export function MonitoringCalendar({
                 </div>
 
                 {/* Lodging Card */}
-                {selectedDay.lodging && (
+                {isFetchingLodging ? (
                   <div className={styles.flightCard}>
                     <div className={styles.cardHeader}>
-                      <span>HOTEL BENCHMARK ({selectedDay.lodging.nights}N)</span>
+                      <span>LIVE ACCOMMODATION</span>
+                      <span className={styles.scanningPulse}>SCANNING...</span>
+                    </div>
+                    <span className={styles.metaVal}>
+                      Querying Booking.com & Google Travel...
+                    </span>
+                    <span className={styles.metaLabel}>
+                      Fetching live rates for {selectedDay.nights || 3} nights
+                    </span>
+                  </div>
+                ) : effectiveLodging ? (
+                  <div className={styles.flightCard}>
+                    <div className={styles.cardHeader}>
+                      <span>
+                        {effectiveLodging.property_name ? 'ACCOMMODATION' : 'HOTEL BENCHMARK'} ({effectiveLodging.nights}N)
+                      </span>
                       <span className={styles.cardPrice}>
-                        €{selectedDay.lodging.total_lodging_eur.toFixed(2)}
+                        {formatCurrencyAmount(effectiveLodging.total_lodging_eur, activeCurrency)}
                       </span>
                     </div>
                     <span className={styles.metaVal}>
-                      Est. €{selectedDay.lodging.price_per_night_eur.toFixed(2)} / night
+                      {effectiveLodging.property_name || `Est. ${formatCurrencyAmount(effectiveLodging.price_per_night_eur, activeCurrency)} / night`}
                     </span>
                     <span className={styles.metaLabel}>
-                      Median benchmark for {selectedDay.lodging.nights} nights
+                      {effectiveLodging.property_name ? (
+                        <>
+                          {effectiveLodging.stars ? `★ ${effectiveLodging.stars}-Star · ` : ''}
+                          {effectiveLodging.review_score ? `Rated ${effectiveLodging.review_score}/10 · ` : ''}
+                          {formatCurrencyAmount(effectiveLodging.price_per_night_eur, activeCurrency)} / night
+                        </>
+                      ) : (
+                        `Median benchmark for ${effectiveLodging.nights} nights`
+                      )}
                     </span>
+                    {effectiveLodging.booking_url && (
+                      <a
+                        href={effectiveLodging.booking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.bookingLink}
+                      >
+                        Book Hotel ↗
+                      </a>
+                    )}
                   </div>
-                )}
+                ) : null}
               </div>
             ) : selectedDay.carrier ? (
               <div className={styles.inspectorMetaRow}>

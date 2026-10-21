@@ -484,6 +484,21 @@
   font-weight: 700;
 }
 
+.scanningPulse {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #D97706;
+  letter-spacing: 0.05em;
+  animation: pulseScan 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseScan {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 .planItineraryBtn {
   display: inline-flex;
   align-items: center;

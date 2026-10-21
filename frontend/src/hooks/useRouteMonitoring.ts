@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface RouteItem {
   id: string;
@@ -132,6 +133,12 @@ export interface LodgingSummary {
   nights: number;
   price_per_night_eur: number;
   total_lodging_eur: number;
+  property_name?: string | null;
+  stars?: number | null;
+  review_score?: number | null;
+  review_count?: number | null;
+  booking_url?: string | null;
+  source?: string | null;
 }
 
 export interface CalendarDay {
@@ -169,6 +176,7 @@ export interface RouteCalendar {
   view?: 'outbound' | 'inbound' | 'roundtrip';
   pricing?: 'flights' | 'package';
   top_dates?: string[];
+  currency?: string;
 }
 
 export interface HolidayMatchedPackage {
@@ -279,9 +287,13 @@ export interface DealPackage {
   flight: DealFlight;
   return_flight?: DealFlight | null;
   lodging: DealLodging;
+  currency?: string;
 }
 
-export function useRouteMonitoring() {
+export function useRouteMonitoring(overrideCurrency?: string) {
+  const { user } = useAuth();
+  const activeCurrency = (overrideCurrency || (user?.preferences?.default_currency as string) || 'EUR').toUpperCase().trim();
+
   const [routes, setRoutes] = useState<RouteItem[]>([]);
   const [deals, setDeals] = useState<DealPackage[]>([]);
   const [routeDeals, setRouteDeals] = useState<DealPackage[]>([]);
@@ -305,8 +317,8 @@ export function useRouteMonitoring() {
     try {
       const [sumData, routesData, dealsData] = await Promise.all([
         apiFetch<MarketSummary>('/market/summary'),
-        apiFetch<RouteItem[]>('/market/routes'),
-        apiFetch<DealPackage[]>('/market/deals'),
+        apiFetch<RouteItem[]>(`/market/routes?currency=${activeCurrency}`),
+        apiFetch<DealPackage[]>(`/market/deals?currency=${activeCurrency}`),
       ]);
       const sortedDeals = [...dealsData].sort((a, b) => b.discount_pct - a.discount_pct || a.total_price_eur - b.total_price_eur);
       setSummary(sumData);
@@ -318,17 +330,17 @@ export function useRouteMonitoring() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeCurrency]);
 
   // Fetch detail for selected route
   const fetchRouteDetail = useCallback(async (routeId: string, historyRange = '30d', monthsCount = 4) => {
     try {
       const [sData, hData, cData, eData, dData] = await Promise.all([
         apiFetch<RouteStats>(`/market/routes/${routeId}/stats`),
-        apiFetch<RouteHistory>(`/market/routes/${routeId}/history?range=${historyRange}`),
-        apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?view=roundtrip&pricing=package&months=${monthsCount}`),
+        apiFetch<RouteHistory>(`/market/routes/${routeId}/history?range=${historyRange}&currency=${activeCurrency}`),
+        apiFetch<RouteCalendar>(`/market/routes/${routeId}/calendar?view=roundtrip&pricing=package&months=${monthsCount}&currency=${activeCurrency}`),
         apiFetch<RouteEvent[]>(`/market/routes/${routeId}/events`),
-        apiFetch<DealPackage[]>(`/market/routes/${routeId}/deals`),
+        apiFetch<DealPackage[]>(`/market/routes/${routeId}/deals?currency=${activeCurrency}`),
       ]);
       setStats(sData);
       setHistory(hData);
@@ -338,7 +350,7 @@ export function useRouteMonitoring() {
     } catch (err: unknown) {
       loggerError('Failed to fetch route detail', err);
     }
-  }, []);
+  }, [activeCurrency]);
 
   // Fetch calendar for selected route with specific view and pricing
   const fetchCalendar = useCallback(async (
@@ -351,13 +363,13 @@ export function useRouteMonitoring() {
     if (!targetId) return;
     try {
       const cData = await apiFetch<RouteCalendar>(
-        `/market/routes/${targetId}/calendar?view=${view}&pricing=${pricing}&months=${monthsCount}`
+        `/market/routes/${targetId}/calendar?view=${view}&pricing=${pricing}&months=${monthsCount}&currency=${activeCurrency}`
       );
       setCalendar(cData);
     } catch (err: unknown) {
       loggerError('Failed to fetch calendar view', err);
     }
-  }, [selectedRouteId]);
+  }, [selectedRouteId, activeCurrency]);
 
   // Fetch packages fitting user's marked vacation/holiday windows
   const fetchHolidayMatches = useCallback(async (
@@ -377,14 +389,30 @@ export function useRouteMonitoring() {
     }
   }, []);
 
+  // Fetch authentic on-demand lodging quotes for a specific travel date
+  const fetchDayLodging = useCallback(
+    async (routeId: string, checkIn: string, nights = 3): Promise<LodgingSummary | null> => {
+      try {
+        const data = await apiFetch<LodgingSummary>(
+          `/market/routes/${routeId}/lodging?check_in=${checkIn}&nights=${nights}&currency=${activeCurrency}`
+        );
+        return data;
+      } catch (err: unknown) {
+        loggerError('Failed to fetch on-demand lodging for date', err);
+        return null;
+      }
+    },
+    [activeCurrency]
+  );
+
   useEffect(() => {
     let isMounted = true;
     async function init() {
       try {
         const [sumData, routesData, dealsData] = await Promise.all([
           apiFetch<MarketSummary>('/market/summary'),
-          apiFetch<RouteItem[]>('/market/routes'),
-          apiFetch<DealPackage[]>('/market/deals'),
+          apiFetch<RouteItem[]>(`/market/routes?currency=${activeCurrency}`),
+          apiFetch<DealPackage[]>(`/market/deals?currency=${activeCurrency}`),
         ]);
         if (!isMounted) return;
         const sortedDeals = [...dealsData].sort((a, b) => b.discount_pct - a.discount_pct || a.total_price_eur - b.total_price_eur);
@@ -405,7 +433,7 @@ export function useRouteMonitoring() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeCurrency]);
 
   useEffect(() => {
     if (!selectedRouteId) return;
@@ -414,10 +442,10 @@ export function useRouteMonitoring() {
       try {
         const [sData, hData, cData, eData, dData] = await Promise.all([
           apiFetch<RouteStats>(`/market/routes/${selectedRouteId}/stats`),
-          apiFetch<RouteHistory>(`/market/routes/${selectedRouteId}/history?range=30d`),
-          apiFetch<RouteCalendar>(`/market/routes/${selectedRouteId}/calendar?months=4`),
+          apiFetch<RouteHistory>(`/market/routes/${selectedRouteId}/history?range=30d&currency=${activeCurrency}`),
+          apiFetch<RouteCalendar>(`/market/routes/${selectedRouteId}/calendar?months=4&currency=${activeCurrency}`),
           apiFetch<RouteEvent[]>(`/market/routes/${selectedRouteId}/events`),
-          apiFetch<DealPackage[]>(`/market/routes/${selectedRouteId}/deals`),
+          apiFetch<DealPackage[]>(`/market/routes/${selectedRouteId}/deals?currency=${activeCurrency}`),
         ]);
         if (!isMounted) return;
         setStats(sData);
@@ -435,7 +463,7 @@ export function useRouteMonitoring() {
     return () => {
       isMounted = false;
     };
-  }, [selectedRouteId]);
+  }, [selectedRouteId, activeCurrency]);
 
   const selectRoute = (id: string | null) => {
     setSelectedRouteId(id);
@@ -450,10 +478,15 @@ export function useRouteMonitoring() {
     max_nights: number;
     travelers: number;
     max_budget_eur: number;
+    currency?: string;
   }) => {
+    const payload = {
+      ...data,
+      currency: data.currency || activeCurrency,
+    };
     const created = await apiFetch<RouteItem>('/market/routes', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     await fetchOverview();
     setSelectedRouteId(created.id);
@@ -550,6 +583,8 @@ export function useRouteMonitoring() {
     fetchRouteDetail,
     fetchCalendar,
     fetchHolidayMatches,
+    fetchDayLodging,
+    userCurrency: activeCurrency,
   };
 }
 

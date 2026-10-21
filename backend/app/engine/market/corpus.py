@@ -313,3 +313,39 @@ async def get_route_corpus_status(
         if row.last_backfill_at
         else None,
     }
+
+
+async def get_top_candidate_deal_dates(
+    session: AsyncSession,
+    origin_iata: str,
+    destination_code: str,
+    limit: int = 5,
+) -> list[str]:
+    """
+    Returns the top N lowest-fare departure dates for the route
+    from stored market price ticks to target hotel pre-warming.
+    Zero synthetic or hardcoded data.
+    """
+    from datetime import date
+    from app.db.models import MarketPriceTickModel
+    from sqlalchemy import func
+
+    today = date.today()
+    stmt = (
+        select(
+            MarketPriceTickModel.depart_date,
+            func.min(MarketPriceTickModel.base_price_cents),
+        )
+        .where(
+            MarketPriceTickModel.origin_iata == origin_iata.upper(),
+            MarketPriceTickModel.destination_code == destination_code.upper(),
+            MarketPriceTickModel.asset_type == "flight",
+            MarketPriceTickModel.depart_date >= today,
+        )
+        .group_by(MarketPriceTickModel.depart_date)
+        .order_by(func.min(MarketPriceTickModel.base_price_cents).asc())
+        .limit(limit)
+    )
+    res = await session.execute(stmt)
+    rows = res.all()
+    return [row[0].isoformat() for row in rows]

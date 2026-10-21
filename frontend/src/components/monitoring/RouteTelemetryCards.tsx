@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { RouteStats, RouteHistory, RouteItem } from '@/hooks/useRouteMonitoring';
 import { VerdictBadge } from './VerdictBadge';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
 import styles from './RouteTelemetryCards.module.css';
 
 interface RouteTelemetryCardsProps {
@@ -41,7 +42,7 @@ export function RouteTelemetryCards({
   history,
   currency = 'EUR',
 }: RouteTelemetryCardsProps) {
-  const symbol = currency === 'EUR' ? '€' : `${currency} `;
+  const symbol = getCurrencyInfo(currency).symbol;
 
   // Card 1: Lowest fare and discount trend
   const lowestEver = stats?.lowest_ever_eur ?? history?.p10_deal_eur ?? route.current_price_eur;

@@ -2202,13 +2202,75 @@ def backfill_route_corpus_task(
         session_maker, engine = _get_task_session_maker()
         async with session_maker() as session:
             try:
-                return await backfill_route_corpus(
+                res = await backfill_route_corpus(
                     session=session,
                     origin_iata=origin_iata,
                     destination_code=destination_code,
                     months_ahead=months_ahead,
                 )
+                try:
+                    prewarm_route_lodging_task.delay(
+                        origin_iata, destination_code, top_n=5
+                    )
+                except Exception as ex:
+                    logger.warning(
+                        f"Could not enqueue prewarm_route_lodging_task: {ex}"
+                    )
+                return res
             finally:
                 await engine.dispose()
 
     return _run_async(_backfill())
+
+
+@app.task(name="app.tasks.prewarm_route_lodging_task")
+def prewarm_route_lodging_task(
+    origin_iata: str, destination_code: str, top_n: int = 5
+) -> dict[str, Any]:
+    """
+    Celery background task that pre-warms authentic hotel observations
+    exclusively for the top candidate flight deal dates.
+    Zero hardcoded data, zero mock data.
+    """
+    from datetime import date, timedelta
+    from app.engine.market.corpus import get_top_candidate_deal_dates
+    from app.engine.market.ingest import ingest_lodging_ticks
+    from app.engine.market.adapters import OpenLodgingFeed
+
+    async def _prewarm():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                dates = await get_top_candidate_deal_dates(
+                    session, origin_iata, destination_code, limit=top_n
+                )
+                if not dates:
+                    return {"status": "skipped", "reason": "no candidate flight dates"}
+
+                feed = OpenLodgingFeed()
+                total_ingested = 0
+                for d_str in dates:
+                    cin = date.fromisoformat(d_str)
+                    cout = cin + timedelta(days=3)
+                    try:
+                        count = await ingest_lodging_ticks(
+                            session=session,
+                            destination_code=destination_code,
+                            check_in=cin,
+                            check_out=cout,
+                            feed=feed,
+                        )
+                        total_ingested += count
+                    except Exception as err:
+                        logger.warning(f"[Lodging Prewarm] Date {cin} failed: {err}")
+
+                return {
+                    "status": "completed",
+                    "destination_code": destination_code,
+                    "dates_scanned": dates,
+                    "ticks_ingested": total_ingested,
+                }
+            finally:
+                await engine.dispose()
+
+    return _run_async(_prewarm())

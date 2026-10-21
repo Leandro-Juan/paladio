@@ -4,14 +4,16 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
 import { TrendingDownIcon } from '@/components/icons';
+import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './DealPackageNavigator.module.css';
 
 interface DealPackageNavigatorProps {
   deals: DealPackage[];
+  currency?: string;
   onDiscardDeal?: (id: string) => Promise<void> | void;
 }
 
-export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNavigatorProps) {
+export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPackageNavigatorProps) {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
@@ -21,6 +23,7 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
 
   const safeIndex = Math.min(Math.max(0, currentIndex), deals.length - 1);
   const deal = deals[safeIndex];
+  const activeCurrency = deal?.currency || currency || 'EUR';
 
   const handlePrev = () => {
     setCurrentIndex((prev) => Math.max(0, prev - 1));
@@ -109,18 +112,18 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
           <div className={styles.priceComparisonBox}>
             <div className={styles.priceItem}>
               <span className={styles.priceLabel}>Landed Package</span>
-              <span className={styles.currentPrice}>€{deal.total_price_eur.toFixed(2)}</span>
+              <span className={styles.currentPrice}>{formatCurrencyAmount(deal.total_price_eur, activeCurrency)}</span>
             </div>
             <div className={styles.priceItem}>
               <span className={styles.priceLabel}>Typical Benchmark</span>
-              <span className={styles.medianPrice}>€{deal.baseline_median_eur.toFixed(2)}</span>
+              <span className={styles.medianPrice}>{formatCurrencyAmount(deal.baseline_median_eur, activeCurrency)}</span>
             </div>
             <div className={styles.savingsBox}>
               <span className={styles.savingsPill}>
                 <TrendingDownIcon size={13} color="#FFFFFF" />
                 {deal.discount_pct.toFixed(0)}% OFF
               </span>
-              <span className={styles.savingsAmountText}>Save €{deal.savings_eur.toFixed(2)} vs typical</span>
+              <span className={styles.savingsAmountText}>Save {formatCurrencyAmount(deal.savings_eur, activeCurrency)} vs typical</span>
             </div>
           </div>
         </div>
@@ -147,7 +150,7 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
                   Outbound: {deal.origin_name} ({deal.origin_iata}) → {deal.destination_name} ({deal.destination_code})
                 </span>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                  €{deal.flight.landed_price_eur.toFixed(2)}
+                  {formatCurrencyAmount(deal.flight.landed_price_eur, activeCurrency)}
                 </span>
               </div>
               <span className={styles.componentSubText}>
@@ -162,7 +165,7 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
                       Return: {deal.destination_name} ({deal.destination_code}) → {deal.origin_name} ({deal.origin_iata})
                     </span>
                     <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                      €{deal.return_flight.landed_price_eur.toFixed(2)}
+                      {formatCurrencyAmount(deal.return_flight.landed_price_eur, activeCurrency)}
                     </span>
                   </div>
                   <span className={styles.componentSubText}>
@@ -173,7 +176,7 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
             </div>
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
-                €{(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0)).toFixed(2)} Roundtrip Flights
+                {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), activeCurrency)} Roundtrip Flights
               </span>
               {deal.flight.booking_url && (
                 <a
@@ -206,12 +209,12 @@ export function DealPackageNavigator({ deals, onDiscardDeal }: DealPackageNaviga
                 {deal.lodging.property_name}
               </span>
               <span className={styles.componentSubText}>
-                {deal.lodging.review_score ? `★ ${deal.lodging.review_score}/5` : ''} {deal.lodging.review_count ? `(${deal.lodging.review_count} reviews)` : ''} · €{deal.lodging.nightly_base_eur.toFixed(2)}/night
+                {deal.lodging.review_score ? `★ ${deal.lodging.review_score}/5` : ''} {deal.lodging.review_count ? `(${deal.lodging.review_count} reviews)` : ''} · {formatCurrencyAmount(deal.lodging.nightly_base_eur, activeCurrency)}/night
               </span>
             </div>
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
-                €{deal.lodging.landed_total_eur.toFixed(2)} Landed ({deal.nights} Nights)
+                {formatCurrencyAmount(deal.lodging.landed_total_eur, activeCurrency)} Landed ({deal.nights} Nights)
               </span>
               {deal.lodging.booking_url && (
                 <a

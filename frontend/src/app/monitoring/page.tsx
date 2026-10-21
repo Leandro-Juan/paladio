@@ -11,6 +11,7 @@ import {
   Spinner,
   TrendingDownIcon,
 } from '@/components/icons';
+import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './Monitoring.module.css';
 
 export default function MonitoringPage() {
@@ -30,6 +31,7 @@ export default function MonitoringPage() {
     isScanning,
     isBackfilling,
     error,
+    userCurrency,
     selectRoute,
     createRoute,
     toggleRouteActive,
@@ -40,6 +42,7 @@ export default function MonitoringPage() {
     fetchOverview,
     fetchRouteDetail,
     fetchCalendar,
+    fetchDayLodging,
   } = useRouteMonitoring();
 
   const [filterTab, setFilterTab] = useState<'ALL' | 'DEAL' | 'ACTIVE' | 'PAUSED'>('ALL');
@@ -118,6 +121,7 @@ export default function MonitoringPage() {
           events={events}
           isScanning={isScanning}
           isBackfilling={isBackfilling}
+          userDefaultCurrency={userCurrency}
           onBack={() => selectRoute(null)}
           onTriggerBackfill={triggerBackfill}
           onToggleActive={toggleRouteActive}
@@ -126,6 +130,7 @@ export default function MonitoringPage() {
           onHistoryRangeChange={handleRangeChange}
           onMonthsCountChange={handleMonthsCountChange}
           onViewChange={handleViewChange}
+          onFetchLodging={selectedRoute ? (checkIn, nights) => fetchDayLodging(selectedRoute.id, checkIn, nights) : undefined}
         />
       ) : (
         <>
@@ -200,7 +205,9 @@ export default function MonitoringPage() {
       {/* Active Verified Deal Spotlight (Flight + Hotel Packages - 1 Best Deal per Route) */}
       {bestDealsByRoute && bestDealsByRoute.length > 0 && (
         <section className={styles.dealSpotlightSection} aria-label="Active verified deal packages">
-          {bestDealsByRoute.map((deal) => (
+          {bestDealsByRoute.map((deal) => {
+            const dealCurrency = deal.currency || userCurrency || 'EUR';
+            return (
             <div key={deal.id} className={styles.dealCard}>
               <div className={styles.dealCardHeader}>
                 <div className={styles.dealHeaderLeft}>
@@ -228,18 +235,18 @@ export default function MonitoringPage() {
                 <div className={styles.dealPriceComparisonBox}>
                   <div className={styles.dealPriceItem}>
                     <span className={styles.dealPriceLabel}>Landed Package</span>
-                    <span className={styles.dealCurrentPrice}>€{deal.total_price_eur.toFixed(2)}</span>
+                    <span className={styles.dealCurrentPrice}>{formatCurrencyAmount(deal.total_price_eur, dealCurrency)}</span>
                   </div>
                   <div className={styles.dealPriceItem}>
                     <span className={styles.dealPriceLabel}>30D Median</span>
-                    <span className={styles.dealMedianPrice}>€{deal.baseline_median_eur.toFixed(2)}</span>
+                    <span className={styles.dealMedianPrice}>{formatCurrencyAmount(deal.baseline_median_eur, dealCurrency)}</span>
                   </div>
                   <div className={styles.dealSavingsHighlight}>
                     <span className={styles.savingsPill}>
                       <TrendingDownIcon size={14} color="#FFFFFF" />
                       {deal.discount_pct.toFixed(0)}% OFF
                     </span>
-                    <span className={styles.savingsAmountText}>Save €{deal.savings_eur.toFixed(2)} vs median</span>
+                    <span className={styles.savingsAmountText}>Save {formatCurrencyAmount(deal.savings_eur, dealCurrency)} vs median</span>
                   </div>
                 </div>
               </div>
@@ -265,7 +272,7 @@ export default function MonitoringPage() {
                         Outbound: {deal.origin_name} → {deal.destination_name}
                       </span>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                        €{deal.flight.landed_price_eur.toFixed(2)}
+                        {formatCurrencyAmount(deal.flight.landed_price_eur, dealCurrency)}
                       </span>
                     </div>
                     <span className={styles.componentSubText}>
@@ -279,7 +286,7 @@ export default function MonitoringPage() {
                             Return: {deal.destination_name} → {deal.origin_name}
                           </span>
                           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                            €{deal.return_flight.landed_price_eur.toFixed(2)}
+                            {formatCurrencyAmount(deal.return_flight.landed_price_eur, dealCurrency)}
                           </span>
                         </div>
                         <span className={styles.componentSubText}>
@@ -290,7 +297,7 @@ export default function MonitoringPage() {
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      €{(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0)).toFixed(2)} Landed Flights
+                      {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), dealCurrency)} Landed Flights
                     </span>
                     {deal.flight.booking_url && (
                       <a
@@ -323,12 +330,12 @@ export default function MonitoringPage() {
                       {deal.lodging.property_name}
                     </span>
                     <span className={styles.componentSubText}>
-                      €{deal.lodging.nightly_base_eur.toFixed(2)}/night · {deal.nights} nights stay
+                      {formatCurrencyAmount(deal.lodging.nightly_base_eur, dealCurrency)}/night · {deal.nights} nights stay
                     </span>
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      €{deal.lodging.landed_total_eur.toFixed(2)} Landed
+                      {formatCurrencyAmount(deal.lodging.landed_total_eur, dealCurrency)} Landed
                     </span>
                     {deal.lodging.booking_url && (
                       <a
@@ -373,7 +380,8 @@ export default function MonitoringPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
         </section>
       )}
 
@@ -477,6 +485,7 @@ export default function MonitoringPage() {
                   const isDeal = r.status === 'DEAL';
                   const isPaused = !r.is_active;
                   const isSelected = selectedRouteId === r.id;
+                  const rCurrency = r.currency || userCurrency || 'EUR';
 
                   return (
                     <tr
@@ -522,7 +531,7 @@ export default function MonitoringPage() {
                       <td className={`${styles.priceCell} ${styles.alignRight}`}>
                         {r.current_price_eur !== null ? (
                           <div className={styles.fareStack}>
-                            <span className={styles.fareMain}>€{r.current_price_eur.toFixed(2)}</span>
+                            <span className={styles.fareMain}>{formatCurrencyAmount(r.current_price_eur, rCurrency)}</span>
                             {isDeal && (
                               <span className={styles.dealDelta}>
                                 <TrendingDownIcon size={11} />
@@ -536,11 +545,11 @@ export default function MonitoringPage() {
                       </td>
 
                       <td className={`${styles.baselineCell} ${styles.alignRight}`}>
-                        {r.baseline_p50_eur !== null ? `€${r.baseline_p50_eur.toFixed(2)}` : '—'}
+                        {r.baseline_p50_eur !== null ? formatCurrencyAmount(r.baseline_p50_eur, rCurrency) : '—'}
                       </td>
 
                       <td className={`${styles.targetCell} ${styles.alignRight}`}>
-                        {r.baseline_p10_eur !== null ? `€${r.baseline_p10_eur.toFixed(2)}` : '—'}
+                        {r.baseline_p10_eur !== null ? formatCurrencyAmount(r.baseline_p10_eur, rCurrency) : '—'}
                       </td>
 
                       <td className={`${styles.lastCheckedCell} ${styles.alignRight}`}>
@@ -573,6 +582,7 @@ export default function MonitoringPage() {
       {/* New Route Modal */}
       <NewRouteModal
         isOpen={isNewModalOpen}
+        userDefaultCurrency={userCurrency}
         onClose={() => setIsNewModalOpen(false)}
         onSubmit={async (data) => {
           await createRoute(data);

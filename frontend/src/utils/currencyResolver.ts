@@ -348,12 +348,18 @@ export function convertCurrency(
   return to === 'EUR' ? eurAmount : eurAmount * toRate;
 }
 
-export function formatCurrencyAmount(amount: number, currency: string = 'EUR'): string {
+export function formatCurrencyAmount(
+  amount: number,
+  currency: string = 'EUR',
+  options?: { minimumFractionDigits?: number; maximumFractionDigits?: number }
+): string {
   const cur = (currency || 'EUR').toUpperCase().trim();
   const info = getCurrencyInfo(cur);
+  const minDigits = options?.minimumFractionDigits !== undefined ? options.minimumFractionDigits : 2;
+  const maxDigits = options?.maximumFractionDigits !== undefined ? options.maximumFractionDigits : 2;
   const formattedNumber = Math.abs(amount).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits,
   });
   const prefix = amount < 0 ? '-' : '';
   return `${prefix}${info.symbol}${formattedNumber}`;

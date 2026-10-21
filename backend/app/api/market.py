@@ -121,6 +121,19 @@ def _cvt_money(val: float | None, target_curr: str) -> float | None:
     return convert_currency(float(val), from_currency="EUR", to_currency=t_clean)
 
 
+def _resolve_target_currency(
+    currency_param: Any, current_user: Any, default: str = "EUR"
+) -> str:
+    curr_code = currency_param if isinstance(currency_param, str) else None
+    user_pref = (
+        current_user.preferences.get("default_currency")
+        if isinstance(current_user, UserModel) and current_user.preferences
+        else None
+    )
+    res = curr_code or user_pref or default
+    return res.upper().strip() if res else default
+
+
 # Pydantic Request / Response Schemas
 class RouteCreateRequest(BaseModel):
     origin_iata: str = Field(..., min_length=3, max_length=3)
@@ -254,6 +267,12 @@ class LodgingSummary(BaseModel):
     nights: int
     price_per_night_eur: float
     total_lodging_eur: float
+    property_name: str | None = None
+    stars: int | None = None
+    review_score: float | None = None
+    review_count: int | None = None
+    booking_url: str | None = None
+    source: str | None = None
 
 
 class CalendarDayItem(BaseModel):
@@ -523,16 +542,8 @@ async def list_monitored_routes(
     alerts = res.scalars().all()
 
     user_currency = (
-        currency_param
-        or (
-            current_user.preferences.get("default_currency")
-            if current_user and current_user.preferences
-            else None
-        )
-        or None
+        _resolve_target_currency(currency_param, current_user, default="") or None
     )
-    if user_currency:
-        user_currency = user_currency.upper().strip()
 
     items: list[RouteItemResponse] = []
     for a in alerts:
@@ -935,19 +946,8 @@ async def get_route_price_history(
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
 
-    target_currency = (
-        (
-            currency_param
-            or (
-                current_user.preferences.get("default_currency")
-                if current_user and current_user.preferences
-                else None
-            )
-            or alert.currency
-            or "EUR"
-        )
-        .upper()
-        .strip()
+    target_currency = _resolve_target_currency(
+        currency_param, current_user, default=alert.currency or "EUR"
     )
 
     dest_code = alert.destinations[0]
@@ -1467,6 +1467,12 @@ async def trigger_route_backfill(
         destination_code=dest_code,
         months_ahead=CORPUS_HORIZON_MONTHS,
     )
+    try:
+        from app.tasks import prewarm_route_lodging_task
+
+        prewarm_route_lodging_task.delay(alert.origin_iata, dest_code, top_n=5)
+    except Exception as ex:
+        logger.warning(f"Could not enqueue prewarm_route_lodging_task: {ex}")
     return corpus_res
 
 
@@ -1484,6 +1490,148 @@ async def get_route_corpus(
 
     dest_code = alert.destinations[0] if alert.destinations else ""
     return await get_route_corpus_status(session, alert.origin_iata, dest_code)
+
+
+@router.get("/routes/{route_id}/lodging", response_model=LodgingSummary)
+async def get_route_lodging_for_date(
+    route_id: str,
+    check_in: date = Query(..., description="Check-in date (YYYY-MM-DD)"),
+    nights: int = Query(3, ge=1, le=14, description="Stay duration in nights"),
+    adults: int = Query(2, ge=1, le=4, description="Number of guests"),
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    On-demand hotel observation endpoint for a specific route and travel date.
+    Strictly zero synthetic or mock data:
+    1. First queries database for authentic hotel rate observations.
+    2. If not yet observed, dispatches live multi-provider ingestion (Booking/Google Travel),
+       persists quotes, and returns the authentic best offer.
+    """
+    stmt = select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
+    res = await session.execute(stmt)
+    alert = res.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Route not found")
+
+    dest_code = alert.destinations[0] if alert.destinations else ""
+    if not dest_code:
+        raise HTTPException(status_code=400, detail="Route has no destination code")
+
+    # 1. Query existing authentic hotel rate observations for this destination & check_in
+    obs_stmt = (
+        select(
+            HotelRateObservationModel.price_nightly_cents,
+            HotelPropertyModel.name,
+            HotelPropertyModel.stars,
+            HotelRateObservationModel.review_score,
+            HotelRateObservationModel.review_count,
+            HotelRateObservationModel.deep_link,
+            HotelRateObservationModel.provider,
+        )
+        .join(
+            HotelPropertyModel,
+            HotelPropertyModel.id == HotelRateObservationModel.property_id,
+        )
+        .where(
+            HotelRateObservationModel.destination_code == dest_code,
+            HotelRateObservationModel.check_in == check_in,
+        )
+        .order_by(HotelRateObservationModel.price_nightly_cents.asc())
+        .limit(1)
+    )
+    obs_row = (await session.execute(obs_stmt)).first()
+
+    if obs_row:
+        nightly_cents = obs_row[0]
+        nightly_eur = round(float(nightly_cents) / 100.0, 2)
+        return LodgingSummary(
+            nights=nights,
+            price_per_night_eur=nightly_eur,
+            total_lodging_eur=round(nightly_eur * nights, 2),
+            property_name=obs_row[1],
+            stars=int(obs_row[2]) if obs_row[2] else None,
+            review_score=float(obs_row[3]) if obs_row[3] is not None else None,
+            review_count=int(obs_row[4]) if obs_row[4] is not None else None,
+            booking_url=obs_row[5],
+            source=obs_row[6],
+        )
+
+    # 2. Also check market_price_ticks if tick exists
+    t_stmt = (
+        select(MarketPriceTickModel)
+        .where(
+            MarketPriceTickModel.destination_code == dest_code,
+            MarketPriceTickModel.asset_type == "lodging",
+            MarketPriceTickModel.depart_date == check_in,
+        )
+        .order_by(MarketPriceTickModel.base_price_cents.asc())
+        .limit(1)
+    )
+    t_row = (await session.execute(t_stmt)).scalar_one_or_none()
+    if t_row:
+        nightly_eur = round(float(t_row.base_price_cents) / 100.0, 2)
+        meta = t_row.metadata_json or {}
+        return LodgingSummary(
+            nights=nights,
+            price_per_night_eur=nightly_eur,
+            total_lodging_eur=round(nightly_eur * nights, 2),
+            property_name=meta.get("property_name"),
+            stars=int(meta["stars"]) if meta.get("stars") else None,
+            review_score=float(meta["review_score"])
+            if meta.get("review_score") is not None
+            else None,
+            review_count=int(meta["review_count"])
+            if meta.get("review_count") is not None
+            else None,
+            booking_url=meta.get("deep_link"),
+            source=t_row.source,
+        )
+
+    # 3. Live on-demand multi-provider ingest if no observations cached
+    from app.engine.market.adapters import OpenLodgingFeed
+    from app.engine.market.ingest import ingest_lodging_ticks
+
+    feed = OpenLodgingFeed(timeout_sec=10.0)
+    check_out = check_in + timedelta(days=nights)
+    try:
+        await ingest_lodging_ticks(
+            session=session,
+            destination_code=dest_code,
+            check_in=check_in,
+            check_out=check_out,
+            feed=feed,
+        )
+    except Exception as e:
+        logger.warning(
+            f"[OnDemandLodging] Live ingest failed for {dest_code} {check_in}: {e}"
+        )
+
+    # Re-query after ingestion
+    obs_row_after = (await session.execute(obs_stmt)).first()
+    if obs_row_after:
+        nightly_cents = obs_row_after[0]
+        nightly_eur = round(float(nightly_cents) / 100.0, 2)
+        return LodgingSummary(
+            nights=nights,
+            price_per_night_eur=nightly_eur,
+            total_lodging_eur=round(nightly_eur * nights, 2),
+            property_name=obs_row_after[1],
+            stars=int(obs_row_after[2]) if obs_row_after[2] else None,
+            review_score=float(obs_row_after[3])
+            if obs_row_after[3] is not None
+            else None,
+            review_count=int(obs_row_after[4])
+            if obs_row_after[4] is not None
+            else None,
+            booking_url=obs_row_after[5],
+            source=obs_row_after[6],
+        )
+
+    # ZERO synthetic data fallback: raise 404 if no authentic provider data could be fetched
+    raise HTTPException(
+        status_code=404,
+        detail=f"No authentic lodging observations obtainable for destination {dest_code} on {check_in}",
+    )
 
 
 async def _fetch_corridor_quotes(
@@ -1562,19 +1710,8 @@ async def get_route_calendar(
     if not alert:
         raise HTTPException(status_code=404, detail="Route not found")
 
-    target_currency = (
-        (
-            currency_param
-            or (
-                current_user.preferences.get("default_currency")
-                if current_user and current_user.preferences
-                else None
-            )
-            or alert.currency
-            or "EUR"
-        )
-        .upper()
-        .strip()
+    target_currency = _resolve_target_currency(
+        currency_param, current_user, default=alert.currency or "EUR"
     )
 
     dest_code = alert.destinations[0]
@@ -2354,15 +2491,7 @@ async def list_active_deals(
     currency_param: str | None = Query(None, alias="currency"),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    target_curr = (
-        currency_param
-        or (
-            current_user.preferences.get("default_currency")
-            if current_user and current_user.preferences
-            else None
-        )
-        or "EUR"
-    ).upper()
+    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
 
     stmt = (
         select(DealEventModel)
@@ -2410,15 +2539,7 @@ async def list_route_deals(
     currency_param: str | None = Query(None, alias="currency"),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    target_curr = (
-        currency_param
-        or (
-            current_user.preferences.get("default_currency")
-            if current_user and current_user.preferences
-            else None
-        )
-        or "EUR"
-    ).upper()
+    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
     stmt = (
         select(DealEventModel)
         .where(

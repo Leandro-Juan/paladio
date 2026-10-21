@@ -9,15 +9,15 @@ import {
   RouteCalendar,
   RouteEvent,
   DealPackage,
+  LodgingSummary,
 } from '@/hooks/useRouteMonitoring';
 import { PriceTrendGraph } from './PriceTrendGraph';
 import { RouteTelemetryCards } from './RouteTelemetryCards';
 import { MonitoringCalendar } from './MonitoringCalendar';
 import { DealPackageNavigator } from './DealPackageNavigator';
 import { VerdictBadge } from './VerdictBadge';
-import { Spinner, RadarIcon, TrendingDownIcon } from '@/components/icons';
+import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './RouteFullScreenView.module.css';
-import monitoringStyles from '@/app/monitoring/Monitoring.module.css';
 
 interface RouteFullScreenViewProps {
   route: RouteItem;
@@ -29,6 +29,7 @@ interface RouteFullScreenViewProps {
   events: RouteEvent[];
   isScanning: boolean;
   isBackfilling?: boolean;
+  userDefaultCurrency?: string;
   onBack: () => void;
   onTriggerBackfill?: (id: string) => Promise<void>;
   onToggleActive: (id: string, is_active: boolean) => Promise<void>;
@@ -37,6 +38,7 @@ interface RouteFullScreenViewProps {
   onHistoryRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
   onMonthsCountChange?: (count: number) => void;
   onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => void;
+  onFetchLodging?: (checkIn: string, nights: number) => Promise<LodgingSummary | null>;
 }
 
 export function RouteFullScreenView({
@@ -49,6 +51,7 @@ export function RouteFullScreenView({
   events,
   isScanning,
   isBackfilling,
+  userDefaultCurrency,
   onBack,
   onTriggerBackfill,
   onToggleActive,
@@ -57,10 +60,12 @@ export function RouteFullScreenView({
   onHistoryRangeChange,
   onMonthsCountChange,
   onViewChange,
+  onFetchLodging,
 }: RouteFullScreenViewProps) {
   const router = useRouter();
   const isDeal = route.status === 'DEAL';
   const isActive = route.is_active;
+  const activeCurrency = route.currency || history?.currency || calendar?.currency || userDefaultCurrency || 'EUR';
 
   return (
     <div className={styles.container} role="region" aria-label={`Route detail for ${route.origin_iata} to ${route.destination_code}`}>
@@ -116,7 +121,7 @@ export function RouteFullScreenView({
 
         <div className={styles.actionsGroup}>
           <div className={styles.budgetBadge}>
-            <span>Budget Ceiling: €{route.max_budget_eur.toFixed(0)}</span>
+            <span>Budget Ceiling: {formatCurrencyAmount(route.max_budget_eur, activeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
           </div>
 
 
@@ -149,20 +154,20 @@ export function RouteFullScreenView({
         {/* Section 0: Top Verified Deal Packages Navigator (Best Package First, with < 1/3 > pagination) */}
         <DealPackageNavigator
           deals={routeDeals && routeDeals.length > 0 ? routeDeals : (deal ? [deal] : [])}
+          currency={activeCurrency}
           onDiscardDeal={onDiscardDeal}
         />
 
-        {/* Section 1: Wide Price Trajectory Graph with Synchronized Lodging Curve */}
+        {/* Section 1: Wide Airfare Price Trajectory Graph */}
         <div className={styles.sectionBlock}>
           <PriceTrendGraph
             forwardCurve={history?.forward_curve}
-            lodgingCurve={history?.lodging_curve}
             p10Deal={history?.p10_deal_eur ?? null}
             p50Median={history?.p50_median_eur ?? null}
             p90Peak={history?.p90_peak_eur ?? null}
             corpus={history?.corpus}
             verdict={history?.verdict}
-            currency="EUR"
+            currency={activeCurrency}
             onTriggerBackfill={onTriggerBackfill ? () => onTriggerBackfill(route.id) : undefined}
             isBackfilling={isBackfilling}
           />
@@ -173,15 +178,17 @@ export function RouteFullScreenView({
           route={route}
           stats={stats}
           history={history}
-          currency="EUR"
+          currency={activeCurrency}
         />
 
         {/* Section 3: Full-Width Multi-Month Calendar Matrix */}
         <div className={styles.sectionBlock}>
           <MonitoringCalendar
             calendar={calendar}
+            currency={activeCurrency}
             onMonthsCountChange={onMonthsCountChange}
             onViewChange={onViewChange}
+            onFetchLodging={onFetchLodging}
             onPlanItinerary={(day) => {
               const query = new URLSearchParams({
                 destination: route.destination_code || route.destination_name,
