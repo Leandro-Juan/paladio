@@ -395,6 +395,7 @@ async def resolve_route_baseline_quantiles(
     lead_days = max((depart_date - observation_date).days, 0)
     lead_bucket = get_lead_bucket_label(lead_days)
 
+    best_candidate = None
     for level, month_val, lead_val in [
         ("full", dep_month, lead_bucket),
         ("drop_lead", dep_month, "all"),
@@ -414,7 +415,7 @@ async def resolve_route_baseline_quantiles(
             .order_by(RouteBaselineModel.n_rows.desc())
         )
         res = await session.execute(stmt)
-        row = res.scalar_one_or_none()
+        row = res.scalars().first()
         if row and row.n_rows >= 1:
             q_dict = {
                 "q02": row.q02,
@@ -432,7 +433,13 @@ async def resolve_route_baseline_quantiles(
                 if row.n_obs_days >= config.MIN_BASELINE_OBS_DAYS
                 else "provisional"
             )
-            return q_dict, level, conf
+            if row.n_rows >= 15:
+                return q_dict, level, conf
+            if best_candidate is None or row.n_rows > best_candidate[3]:
+                best_candidate = (q_dict, level, conf, row.n_rows)
+
+    if best_candidate:
+        return best_candidate[0], best_candidate[1], best_candidate[2]
 
     return None, None, "building"
 
