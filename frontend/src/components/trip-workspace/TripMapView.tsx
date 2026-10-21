@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, Tooltip, CircleMarker } from 'react-leaflet';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, Tooltip, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -9,7 +9,6 @@ import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/p
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
-import { MAP_TILE_CONFIG } from '@/utils/mapTiles';
 import { VectorBasemap } from '@/components/VectorBasemap';
 
 export interface MapPoi {
@@ -52,16 +51,44 @@ export interface TransitStationNode {
   instruction: string;
 }
 
+export interface FocusedWaypointPlace {
+  id?: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  category?: string;
+  day?: number;
+  durationMins?: number;
+  costEur?: number;
+  similarity?: number;
+  matchType?: string;
+  timestamp?: number;
+}
+
+export interface CategoryPoiItem {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  durationMins?: number;
+  costEur?: number;
+  similarity?: number;
+  description?: string;
+}
+
 interface TripMapViewProps {
   days: MapDayGroup[];
   hotel?: { name: string; lat: number; lng: number };
   airport?: { name: string; lat: number; lng: number };
   activeDay: number | 'all';
   onDayChange: (day: number | 'all') => void;
-  focusedPlace?: { lat: number; lng: number } | null;
+  focusedPlace?: FocusedWaypointPlace | null;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
   transitMode?: 'simple' | 'detailed';
+  categoryPois?: CategoryPoiItem[];
+  onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -223,20 +250,186 @@ function createClusterLabelIcon(dayNumber: number): L.DivIcon {
   });
 }
 
+function createFocusedWaypointIcon(place: FocusedWaypointPlace): L.DivIcon {
+  const cat = (place.category || 'attraction').toLowerCase() as PoiCategoryType;
+  const svg = getCategorySvg(cat);
+  const nameSafe = (place.name || 'Target Waypoint')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return L.divIcon({
+    className: 'paladio-focused-waypoint-icon',
+    html: `
+      <div style="position:relative;width:0;height:0;user-select:none;cursor:pointer;">
+        <!-- Pulsing radar rings -->
+        <div class="paladio-radar-pulse" style="position:absolute;top:0;left:0;width:56px;height:56px;margin-top:-28px;margin-left:-28px;border-radius:50%;border:2px solid #E06D53;background:rgba(224,109,83,0.22);pointer-events:none;"></div>
+        <div class="paladio-radar-pulse-delayed" style="position:absolute;top:0;left:0;width:56px;height:56px;margin-top:-28px;margin-left:-28px;border-radius:50%;border:1.5px solid #E06D53;background:transparent;pointer-events:none;"></div>
+
+        <!-- Waypoint badge with drop-in bounce animation -->
+        <div class="paladio-waypoint-bounce" style="position:absolute;top:0;left:0;display:inline-flex;align-items:center;background:#081C24;border:2px solid #E06D53;border-radius:18px;box-shadow:0 0 16px rgba(224,109,83,0.65), 0 4px 12px rgba(0,0,0,0.5);padding:3px 10px 3px 5px;gap:6px;transform:translate(-50%, -50%);white-space:nowrap;">
+          <div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#E06D53;color:#FFFFFF;box-shadow:0 0 8px rgba(224,109,83,0.8);flex-shrink:0;">
+            ${svg}
+          </div>
+          <div style="display:flex;flex-direction:column;line-height:1.1;">
+            <span style="font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;color:#E06D53;letter-spacing:0.8px;text-transform:uppercase;">FOCUS TARGET</span>
+            <span style="font-family:var(--font-display, sans-serif);font-size:11px;font-weight:700;color:#FFFFFF;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${nameSafe}</span>
+          </div>
+        </div>
+      </div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    popupAnchor: [0, -28],
+  });
+}
+
+function createCategoryPoiIcon(categoryType: PoiCategoryType): L.DivIcon {
+  const meta = classifyPoiCategory(categoryType);
+  const svg = getCategorySvg(meta.type);
+  const color = meta.color || '#0F4C5C';
+  return L.divIcon({
+    className: 'paladio-category-poi-icon',
+    html: `
+      <div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--color-surface-card, #FFFFFF);border:2px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,0.18);color:${color};cursor:pointer;transform:translate(-50%, -50%);transition:transform 0.15s ease, box-shadow 0.15s ease;">
+        ${svg}
+      </div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
+  });
+}
+
+function FocusedWaypointMarker({ place }: { place: FocusedWaypointPlace }) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (markerRef.current) {
+        markerRef.current.openPopup();
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [place.lat, place.lng, place.timestamp]);
+
+  const icon = useMemo(() => createFocusedWaypointIcon(place), [place]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[place.lat, place.lng]}
+      icon={icon}
+      zIndexOffset={2000}
+    >
+      <Popup className="paladio-focused-popup" autoPan={false}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', padding: '2px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid var(--color-border-subtle, rgba(255,255,255,0.1))',
+              paddingBottom: '5px',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '9px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                background: 'rgba(224, 109, 83, 0.15)',
+                color: '#E06D53',
+                border: '1px solid rgba(224, 109, 83, 0.35)',
+                borderRadius: '3px',
+                padding: '1px 6px',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {place.category || 'POI'}
+            </span>
+            {typeof place.similarity === 'number' && place.similarity > 0 && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '9px',
+                  color: 'var(--color-accent-teal-mid, #14788D)',
+                  fontWeight: 600,
+                }}
+              >
+                {(place.similarity * 100).toFixed(0)}% MATCH
+              </span>
+            )}
+          </div>
+
+          <div
+            style={{
+              fontFamily: 'var(--font-display, sans-serif)',
+              fontSize: '1rem',
+              fontWeight: 700,
+              color: 'var(--color-text-primary, #FFFFFF)',
+              lineHeight: 1.25,
+              marginTop: '2px',
+            }}
+          >
+            {place.name}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono, monospace)',
+              marginTop: '3px',
+              color: 'var(--color-text-muted, #94A3B8)',
+            }}
+          >
+            {place.durationMins && <span>~{place.durationMins}m visit</span>}
+            {typeof place.costEur === 'number' && (
+              <span style={{ color: '#16A34A', fontWeight: 600 }}>
+                {place.costEur === 0 ? 'Free' : `${place.costEur.toFixed(2)} €`}
+              </span>
+            )}
+          </div>
+
+          <div
+            style={{
+              marginTop: '4px',
+              paddingTop: '5px',
+              borderTop: '1px dashed var(--color-border-subtle, rgba(255,255,255,0.1))',
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--color-accent-teal-soft, #7CC4D1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>&larr; Drag card to itinerary to add</span>
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 // Controller for bounds fitting and pan-to-focus
 function MapViewportController({
   activePoints,
   focusedPlace,
 }: {
   activePoints: LatLngPoint[];
-  focusedPlace?: { lat: number; lng: number } | null;
+  focusedPlace?: FocusedWaypointPlace | null;
 }) {
   const map = useMap();
 
   useEffect(() => {
     if (!map) return;
     if (focusedPlace && typeof focusedPlace.lat === 'number') {
-      map.flyTo([focusedPlace.lat, focusedPlace.lng], 15, { animate: true, duration: 1.2 });
+      map.flyTo([focusedPlace.lat, focusedPlace.lng], 16, { animate: true, duration: 1.0 });
       return;
     }
     if (activePoints.length > 0) {
@@ -275,9 +468,9 @@ export default function TripMapView({
   categoryFilter,
   onCategoryFilterChange,
   transitMode = 'simple',
+  categoryPois,
+  onSelectCategoryPoi,
 }: TripMapViewProps) {
-  const { url: tileUrl, subdomains: tileSubdomains, attribution: tileAttribution, maxZoom: tileMaxZoom } = MAP_TILE_CONFIG;
-
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
 
@@ -504,6 +697,9 @@ export default function TripMapView({
     }
 
     if (activeCategory) {
+      if (categoryPois && categoryPois.length > 0) {
+        return categoryPois.map((p) => ({ lat: p.lat, lng: p.lng }));
+      }
       const filtered = points.filter((p) => {
         const poiItem = p as Partial<MapPoi>;
         const catType = classifyPoiCategory(poiItem.category, poiItem.name).type;
@@ -513,7 +709,7 @@ export default function TripMapView({
     }
 
     return points;
-  }, [activeDay, days, activeDayData, hotel, airport, activeCategory]);
+  }, [activeDay, days, activeDayData, hotel, airport, activeCategory, categoryPois]);
 
   // Centroid fallback
   const centerPosition: [number, number] = useMemo(() => {
@@ -610,6 +806,14 @@ export default function TripMapView({
       >
         <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
+
+        {/* Animated Target Waypoint Beacon & Auto-Popup for Focused POI */}
+        {focusedPlace && typeof focusedPlace.lat === 'number' && typeof focusedPlace.lng === 'number' && (
+          <FocusedWaypointMarker
+            key={`focused-${focusedPlace.lat}-${focusedPlace.lng}-${focusedPlace.timestamp || 0}`}
+            place={focusedPlace}
+          />
+        )}
 
         {/* Sovereign Keyless OpenStreetMap Vector Basemap (Zero POI/amenity icon clutter) */}
         <VectorBasemap styleUrl="https://tiles.openfreemap.org/styles/liberty" />
@@ -904,6 +1108,87 @@ export default function TripMapView({
             });
           });
         })()}
+
+        {/* 7. Category POI Markers (Displayed when browsing a category like MUSEUM, CAFE, etc.) */}
+        {activeCategory && categoryPois && categoryPois.length > 0 && (
+          categoryPois.map((poi, idx) => {
+            const catType = classifyPoiCategory(poi.category, poi.name).type;
+            const meta = classifyPoiCategory(poi.category, poi.name);
+            return (
+              <Marker
+                key={`cat-poi-${poi.id || idx}-${poi.lat}-${poi.lng}`}
+                position={[poi.lat, poi.lng]}
+                icon={createCategoryPoiIcon(catType)}
+              >
+                <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+                  <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                    {poi.name}
+                  </span>
+                </Tooltip>
+                <Popup>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '160px', padding: '2px' }}>
+                    <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span
+                          className="font-mono text-xs"
+                          style={{
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            color: meta.color,
+                          }}
+                        >
+                          {meta.label}
+                        </span>
+                        {typeof poi.costEur === 'number' && (
+                          <span className="font-mono text-xs" style={{ color: poi.costEur > 0 ? 'var(--color-accent-primary)' : '#10b981', fontWeight: 600 }}>
+                            {poi.costEur > 0 ? `${poi.costEur.toFixed(2)} €` : 'FREE'}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="font-display"
+                        style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '2px' }}
+                      >
+                        {poi.name}
+                      </div>
+                    </div>
+                    {poi.description && (
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+                        {poi.description}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                      {typeof poi.durationMins === 'number' && poi.durationMins > 0 && (
+                        <span className="font-mono text-xs text-muted">
+                          ~{poi.durationMins}m
+                        </span>
+                      )}
+                      {onSelectCategoryPoi && (
+                        <button
+                          type="button"
+                          onClick={() => onSelectCategoryPoi(poi)}
+                          style={{
+                            padding: '3px 8px',
+                            background: 'var(--color-accent-primary)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '10.5px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Focus Place
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })
+        )}
       </MapContainer>
 
       {/* Floating Detailed Transit Route Legend */}

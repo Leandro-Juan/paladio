@@ -34,7 +34,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     return true;
   });
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
-  const [focusedPlace, setFocusedPlace] = useState<{ lat: number; lng: number } | null>(null);
+  const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
 
   const handleToggleLeft = useCallback(() => {
@@ -236,7 +236,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   }, [itinerary, trip.destination]);
 
   const handlePlaceClick = useCallback((place: PlaceItem) => {
-    setFocusedPlace({ lat: place.lat, lng: place.lng });
+    setFocusedPlace({
+      ...place,
+      timestamp: Date.now(),
+    });
     if (place.day) {
       setSelectedDay(place.day);
     }

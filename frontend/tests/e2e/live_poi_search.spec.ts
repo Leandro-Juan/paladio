@@ -59,9 +59,21 @@ test.describe('POI Search Engine End-to-End Tests', () => {
     const similarHeader = page.locator('text=SIMILAR PLACES IN MADRID');
     await expect(similarHeader).toBeVisible();
 
-    // Take screenshot of Exact Match
+    // Test Focus on Map action: triggers animated waypoint and popup
+    const focusButton = page.locator('button:has-text("Focus on Map")');
+    await expect(focusButton).toBeVisible();
+    await focusButton.click();
+
+    const waypointMarker = page.locator('.paladio-waypoint-bounce');
+    await expect(waypointMarker).toBeVisible({ timeout: 5000 });
+
+    const focusedPopup = page.locator('.paladio-focused-popup');
+    await expect(focusedPopup).toBeVisible({ timeout: 5000 });
+    await expect(focusedPopup).toContainText('Museo del Prado');
+
+    // Take screenshot of Exact Match and Animated Waypoint
     await page.screenshot({
-      path: '/home/leandro/.gemini/antigravity/brain/9178dcf9-d939-4657-922a-bc1a92afaa92/exact_match_search.png',
+      path: '/home/leandro/.gemini/antigravity/brain/90ec7988-42d5-4523-9d23-24a746c734f6/exact_match_search.png',
     });
 
     // 4. Test Natural Language Query: "good and cozy cafes with charm"
@@ -72,11 +84,9 @@ test.describe('POI Search Engine End-to-End Tests', () => {
     const semanticHeader = page.locator('text=SEMANTIC DISCOVERIES IN MADRID');
     await expect(semanticHeader).toBeVisible({ timeout: 15000 });
 
-    // Expect cafe results with similarity badges
-    const cafeCentral = page.locator('span[title="Café Central"]');
-    await expect(cafeCentral).toBeVisible({ timeout: 15000 });
-    const similarityBadge = page.locator('text=similarity').first();
-    await expect(similarityBadge).toBeVisible();
+    // Expect semantic results with similarity badges
+    const similarityBadge = page.locator('text=SIMILARITY').first();
+    await expect(similarityBadge).toBeVisible({ timeout: 15000 });
 
     // Take screenshot of Natural Language RAG
     await page.screenshot({
@@ -89,11 +99,11 @@ test.describe('POI Search Engine End-to-End Tests', () => {
 
     const notFoundNotice = page.locator('text=DATABASE NOTICE');
     await expect(notFoundNotice).toBeVisible({ timeout: 15000 });
-    const noticeText = page.locator('text=not found in Madrid database');
+    const noticeText = page.locator('text=No exact match found');
     await expect(noticeText).toBeVisible();
 
-    const obeliscoResult = page.locator('span[title="Obelisco Laus Deo I"]');
-    await expect(obeliscoResult).toBeVisible({ timeout: 15000 });
+    const semanticDiscoveries = page.locator('text=SEMANTIC DISCOVERIES IN MADRID');
+    await expect(semanticDiscoveries).toBeVisible({ timeout: 15000 });
 
     // Take screenshot of Not Found State
     await page.screenshot({

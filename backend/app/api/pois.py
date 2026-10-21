@@ -7,6 +7,7 @@ Powered by HybridRetriever:
 - Exposes description, neighborhood, facets, doc_quality, and hours_known
 """
 
+import json
 import logging
 import re
 import unicodedata
@@ -14,9 +15,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
+from app.db.models import AttractionModel
 from app.db.session import get_db
 from app.engine.retrieval.hybrid_retriever import HybridRetriever
 from app.engine.retrieval.query_rewriter import QueryRewriter
@@ -119,36 +122,111 @@ def _candidate_to_search_item(
     )
 
 
+CATEGORY_SYNONYMS: dict[str, list[str]] = {
+    "monument": ["monument", "landmark", "historic"],
+    "landmark": ["monument", "landmark", "historic"],
+    "museum": ["museum", "gallery", "exhibition"],
+    "cafe": ["cafe", "coffee", "bakery"],
+    "restaurant": ["restaurant", "bistro", "food", "dining"],
+    "attraction": ["attraction", "sight", "theme_park"],
+    "bar": ["bar", "pub", "nightlife"],
+    "park": ["park", "garden", "nature"],
+    "shopping": ["shop", "shopping", "market", "store"],
+    "hotel": ["hotel", "hostel", "lodging"],
+}
+
+
+def _model_to_search_item(
+    p: AttractionModel, match_type: str = "category_browse"
+) -> PoiSearchItem:
+    lat, lng = _extract_coords(p.location)
+    meta = p.metadata_field if isinstance(p.metadata_field, dict) else {}
+    return PoiSearchItem(
+        id=str(p.id),
+        name=p.name,
+        category=p.category,
+        lat=lat,
+        lng=lng,
+        duration_mins=int(p.duration_mins or 60),
+        cost_eur=float(p.cost_eur or 0.0),
+        similarity=1.0,
+        match_type=match_type,
+        description=meta.get("description"),
+        neighborhood=meta.get("neighborhood"),
+        facets=meta.get("facets") or {},
+        doc_quality=meta.get("doc_quality") or "C",
+        hours_known=bool(p.osm_opening_hours),
+    )
+
+
 @router.get("/search", response_model=PoiSearchResponse)
 async def search_pois(
     city: str = Query(..., description="Destination city name (e.g. Madrid)"),
-    query: str = Query(..., description="Search query: POI name or natural language"),
+    query: str = Query("", description="Search query: POI name or natural language"),
     category: str | None = Query(
         None, description="Optional category filter (e.g. museum, cafe, restaurant)"
     ),
     trip_id: str | None = Query(
         None, description="Optional trip ID to fetch trip-specific hotel and airport"
     ),
-    limit: int = Query(15, ge=1, le=50, description="Max results to return"),
+    limit: int = Query(15, ge=1, le=200, description="Max results to return"),
     session: AsyncSession = Depends(get_db),
 ):
     """Hybrid POI Search Engine with Single-Roundtrip SQL RRF & Spatial-Semantic MMR."""
     clean_query = query.strip()
-    if not clean_query:
-        return PoiSearchResponse(
-            city=city,
-            query="",
-            search_type="semantic_rag",
-            exact_match_found=False,
-            message="Please enter a search query.",
-            results=[],
-        )
 
     # 1. Resolve city
     city_repo = SqlCityRepository(session)
     city_obj = await city_repo.find_by_name_or_alias(city)
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
+
+    # Category browse or top recommendation fill when no search text is entered
+    if not clean_query:
+        if category and category.lower() != "all":
+            cat_lower = category.lower().strip()
+            target_cats = CATEGORY_SYNONYMS.get(cat_lower, [cat_lower])
+            stmt = (
+                select(AttractionModel)
+                .where(
+                    or_(
+                        AttractionModel.city.ilike(city_name),
+                        AttractionModel.city_id == city_id,
+                    )
+                )
+                .where(func.lower(AttractionModel.category).in_(target_cats))
+                .order_by(
+                    AttractionModel.iconicity_score.desc(),
+                    AttractionModel.tier.asc(),
+                )
+                .limit(limit)
+            )
+        else:
+            stmt = (
+                select(AttractionModel)
+                .where(
+                    or_(
+                        AttractionModel.city.ilike(city_name),
+                        AttractionModel.city_id == city_id,
+                    )
+                )
+                .order_by(
+                    AttractionModel.tier.asc(),
+                    AttractionModel.iconicity_score.desc(),
+                )
+                .limit(limit)
+            )
+
+        db_pois = (await session.execute(stmt)).scalars().all()
+        results = [_model_to_search_item(p) for p in db_pois]
+        return PoiSearchResponse(
+            city=city_name,
+            query="",
+            search_type="category_browse",
+            exact_match_found=bool(results),
+            exact_match=None,
+            results=results,
+        )
 
     norm_query = _normalize_text(clean_query)
     stripped_query = _strip_articles(clean_query)
@@ -290,9 +368,6 @@ async def search_pois(
 
     # Database search for hotels/airports by name pattern if querying hotel/airport
     if is_hotel_query or is_airport_query:
-        from sqlalchemy import or_, select
-        from app.db.models import AttractionModel
-
         pattern = "%hotel%" if is_hotel_query else "%airport%"
         pattern_es = "%hotel%" if is_hotel_query else "%aeropuerto%"
         stmt = (
@@ -359,33 +434,59 @@ async def search_pois(
         norm_name = _normalize_text(p_name)
         stripped_name = _strip_articles(p_name)
         trgm_sim = float(cand.get("trgm_sim") or 0.0)
+        aliases = [str(a) for a in (cand.get("aliases") or []) if a]
+        norm_aliases = [_normalize_text(a) for a in aliases]
+        stripped_aliases = [_strip_articles(a) for a in aliases]
 
-        score = 0.0
+        base_score = 0.0
         mtype = None
 
         if norm_name == norm_query:
-            score = 1.0
+            base_score = 1.0
+            mtype = "exact_name"
+        elif any(a == norm_query for a in norm_aliases):
+            base_score = 1.0
             mtype = "exact_name"
         elif stripped_name == stripped_query:
-            score = 0.95
+            base_score = 0.95
+            mtype = "exact_name"
+        elif any(a == stripped_query for a in stripped_aliases):
+            base_score = 0.95
             mtype = "exact_name"
         elif len(norm_query) >= 3 and norm_query in norm_name:
-            score = 0.88
+            base_score = 0.88
+            mtype = "fuzzy_name"
+        elif any(len(norm_query) >= 3 and norm_query in a for a in norm_aliases):
+            base_score = 0.88
             mtype = "fuzzy_name"
         elif len(stripped_query) >= 3 and stripped_query in stripped_name:
-            score = 0.82
+            base_score = 0.82
+            mtype = "fuzzy_name"
+        elif any(
+            len(stripped_query) >= 3 and stripped_query in a for a in stripped_aliases
+        ):
+            base_score = 0.82
             mtype = "fuzzy_name"
         elif trgm_sim >= 0.70:
-            score = trgm_sim
+            base_score = trgm_sim
             mtype = "fuzzy_name"
 
-        if score > best_match_score:
-            best_match_score = score
-            best_match = cand
-            best_match_type = mtype
+        if base_score > 0.0:
+            # Factoring iconicity and tier to disambiguate famous landmarks vs minor establishments
+            iconicity = float(cand.get("iconicity_score") or 0.0)
+            tier = int(cand.get("tier") or 3)
+            tier_bonus = 0.10 if tier == 1 else (0.05 if tier == 2 else 0.0)
+
+            # Weighted rank score: base lexical similarity (70%) + iconicity (20%) + tier authority (10%)
+            rank_score = base_score * 0.70 + iconicity * 0.20 + tier_bonus
+
+            if rank_score > best_match_score:
+                best_match_score = rank_score
+                best_match = cand
+                best_match_type = mtype
 
     # 3. Decision: Exact / Fuzzy match branch
-    if best_match and best_match_score >= 0.70:
+    if best_match and best_match_score >= 0.60:
         exact_item = _candidate_to_search_item(
             best_match, 1.0, best_match_type or "exact_name"
         )
@@ -394,28 +495,43 @@ async def search_pois(
         similar_items: list[PoiSearchItem] = []
         p_emb = best_match.get("embedding")
         if p_emb is not None:
-            # Query similar items with vector search
-            emb_list = list(p_emb) if hasattr(p_emb, "__iter__") else None
-            sim_candidates = await HybridRetriever.search_hybrid(
-                session=session,
-                city=city_name,
-                city_id=city_id,
-                query_vec=emb_list,
-                clean_query="",
-                limit=limit + 1,
-                w_vec=1.0,
-                w_fts=0.0,
-                w_trgm=0.0,
-                apply_mmr=True,
-            )
-            for c in sim_candidates:
-                if str(c.get("id")) != str(best_match.get("id")):
-                    sim_val = float(c.get("vec_sim", 0.85))
-                    similar_items.append(
-                        _candidate_to_search_item(c, sim_val, "similar_poi")
-                    )
-                if len(similar_items) >= limit:
-                    break
+            emb_list: list[float] | None = None
+            if isinstance(p_emb, str):
+                try:
+                    loaded = json.loads(p_emb)
+                    if isinstance(loaded, list):
+                        emb_list = [float(x) for x in loaded]
+                except Exception as parse_err:
+                    logger.debug("Failed parsing embedding JSON string: %s", parse_err)
+            elif hasattr(p_emb, "__iter__"):
+                emb_list = [float(x) for x in p_emb]
+
+            if emb_list and len(emb_list) == 768:
+                sim_candidates = await HybridRetriever.search_hybrid(
+                    session=session,
+                    city=city_name,
+                    city_id=city_id,
+                    query_vec=emb_list,
+                    clean_query="",
+                    limit=limit + 1,
+                    w_vec=1.0,
+                    w_fts=0.0,
+                    w_trgm=0.0,
+                    apply_mmr=True,
+                )
+                for c in sim_candidates:
+                    if str(c.get("id")) != str(best_match.get("id")):
+                        raw_sim = float(c.get("vec_sim") or 0.0)
+                        sim_val = (
+                            raw_sim
+                            if raw_sim > 0.0
+                            else float(c.get("composite_score") or 0.85)
+                        )
+                        similar_items.append(
+                            _candidate_to_search_item(c, sim_val, "similar_poi")
+                        )
+                    if len(similar_items) >= limit:
+                        break
 
         return PoiSearchResponse(
             city=city_name,
@@ -454,10 +570,10 @@ async def search_pois(
     )
 
     if category and category.lower() != "all":
+        cat_lower = category.lower().strip()
+        allowed_cats = set(CATEGORY_SYNONYMS.get(cat_lower, [cat_lower]))
         candidates = [
-            c
-            for c in candidates
-            if str(c.get("category", "")).lower() == category.lower()
+            c for c in candidates if str(c.get("category", "")).lower() in allowed_cats
         ]
 
     results: list[PoiSearchItem] = []

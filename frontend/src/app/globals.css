@@ -680,3 +680,69 @@ a {
 .leaflet-control-attribution a {
   color: var(--color-accent-teal-mid) !important;
 }
+
+/* Focused Target Waypoint Animations */
+@keyframes paladioRadarPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.95;
+  }
+  60% {
+    transform: scale(2.2);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(3.0);
+    opacity: 0;
+  }
+}
+
+@keyframes paladioWaypointBounce {
+  0% {
+    transform: translate(-50%, -150%) scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -40%) scale(1.18);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -55%) scale(0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.paladio-focused-waypoint-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.paladio-radar-pulse {
+  animation: paladioRadarPulse 1.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+}
+
+.paladio-radar-pulse-delayed {
+  animation: paladioRadarPulse 1.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+  animation-delay: 0.5s;
+}
+
+.paladio-waypoint-bounce {
+  animation: paladioWaypointBounce 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.paladio-focused-popup .leaflet-popup-content-wrapper {
+  background: var(--color-surface-card, #081C24) !important;
+  border: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
+  box-shadow: 0 0 20px rgba(224, 109, 83, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  border-radius: var(--radius-md, 8px) !important;
+  padding: 4px !important;
+}
+
+.paladio-focused-popup .leaflet-popup-tip {
+  background: var(--color-surface-card, #081C24) !important;
+  border-bottom: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
+  border-right: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
+}
+

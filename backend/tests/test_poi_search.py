@@ -37,6 +37,9 @@ async def seed_poi_test_data(db_session: AsyncSession):
     vec_cafe = [0.0] * 768
     vec_cafe[2] = 1.0
 
+    vec_bar = [0.0] * 768
+    vec_bar[3] = 1.0
+
     attractions = [
         AttractionModel(
             id="OSM-node-madrid-prado",
@@ -48,8 +51,25 @@ async def seed_poi_test_data(db_session: AsyncSession):
             location={"latitude": 40.4138, "longitude": -3.6922},
             scoring={"google_rating": 4.8},
             metadata_field={"source": "test"},
+            tier=1,
+            iconicity_score=0.99,
             duration_mins=120,
             cost_eur=15.0,
+        ),
+        AttractionModel(
+            id="OSM-node-madrid-bar-prado",
+            city="Madrid",
+            city_id="madrid_es",
+            name="El Prado",
+            category="bar",
+            embedding=vec_bar,
+            location={"latitude": 40.4120, "longitude": -3.6980},
+            scoring={"google_rating": 3.9},
+            metadata_field={"source": "test"},
+            tier=4,
+            iconicity_score=0.10,
+            duration_mins=45,
+            cost_eur=5.0,
         ),
         AttractionModel(
             id="OSM-node-madrid-palacio-real",
@@ -61,6 +81,8 @@ async def seed_poi_test_data(db_session: AsyncSession):
             location={"latitude": 40.418, "longitude": -3.7143},
             scoring={"google_rating": 4.7},
             metadata_field={"source": "test"},
+            tier=1,
+            iconicity_score=0.95,
             duration_mins=90,
             cost_eur=14.0,
         ),
@@ -74,6 +96,8 @@ async def seed_poi_test_data(db_session: AsyncSession):
             location={"latitude": 40.4131, "longitude": -3.7011},
             scoring={"google_rating": 4.6},
             metadata_field={"source": "test"},
+            tier=3,
+            iconicity_score=0.30,
             duration_mins=45,
             cost_eur=8.0,
         ),
@@ -94,10 +118,14 @@ async def test_poi_search_exact_match(async_client: AsyncClient):
     assert data["city"] == "Madrid"
     assert data["exact_match_found"] is True
     assert data["exact_match"] is not None
-    assert "Prado" in data["exact_match"]["name"]
+    # Must disambiguate to Tier 1 museum rather than the local Tier 4 bar
+    assert data["exact_match"]["name"] == "Museo del Prado"
+    assert data["exact_match"]["category"] == "museum"
     assert data["exact_match"]["similarity"] == 1.0
     assert isinstance(data["results"], list)
     assert len(data["results"]) >= 1
+    # Similar places should have positive, non-zero cosine similarity
+    assert data["results"][0]["similarity"] > 0.5
     for item in data["results"]:
         assert 0.0 <= item["similarity"] <= 1.0
 
@@ -203,3 +231,18 @@ async def test_poi_search_hotel_and_airport_anchors(
     assert airport_data["exact_match_found"] is True
     assert airport_data["exact_match"]["name"] == "Barajas Airport Terminal 4"
     assert airport_data["exact_match"]["category"].upper() == "AIRPORT"
+
+
+@pytest.mark.asyncio
+async def test_category_browse_empty_query(async_client: AsyncClient):
+    """Verifies that an empty query with category filter browses POIs of that category."""
+    resp = await async_client.get(
+        "/api/v1/pois/search",
+        params={"city": "Madrid", "query": "", "category": "museum", "limit": 10},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["search_type"] == "category_browse"
+    assert len(data["results"]) > 0
+    for item in data["results"]:
+        assert item["category"].lower() in ("museum", "gallery", "exhibition")
