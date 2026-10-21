@@ -454,7 +454,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
               }}
             >
               <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>paladio</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>v2.0.0</span> {/* x-release-please-version */}
+              <span style={{ color: 'var(--color-text-muted)' }}>v2.1.0</span> {/* x-release-please-version */}
             </div>
           </div>
         </div>
