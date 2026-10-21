@@ -137,6 +137,8 @@ export function RouteTelemetryCards({
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                pathLength={100}
+                className={`${styles.sparklinePath} ${styles.sparklineGreen}`}
               />
             </svg>
           </div>
@@ -188,6 +190,8 @@ export function RouteTelemetryCards({
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                pathLength={100}
+                className={`${styles.sparklinePath} ${styles.sparklineBlue}`}
               />
             </svg>
           </div>
@@ -224,6 +228,8 @@ export function RouteTelemetryCards({
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                pathLength={100}
+                className={`${styles.sparklinePath} ${styles.sparklinePurple}`}
               />
             </svg>
           </div>

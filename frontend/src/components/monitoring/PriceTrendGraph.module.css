@@ -129,6 +129,7 @@
   color: var(--color-text-primary, #1A2B32);
   gap: 0.5rem;
   flex-wrap: wrap;
+  animation: revealFromLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .corpusStats {
@@ -170,6 +171,34 @@
 .chartWrapper {
   width: 100%;
   margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.chartWrapper :global(.recharts-area),
+.chartWrapper :global(.recharts-reference-line) {
+  animation: drawChartFromLeft 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes drawChartFromLeft {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.15;
+  }
+  100% {
+    clip-path: inset(0 0% 0 0);
+    opacity: 1;
+  }
+}
+
+@keyframes revealFromLeft {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+  }
+  100% {
+    clip-path: inset(0 0% 0 0);
+    opacity: 1;
+  }
 }
 
 .tooltipContainer {

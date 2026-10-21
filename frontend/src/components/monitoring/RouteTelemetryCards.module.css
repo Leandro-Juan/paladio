@@ -44,6 +44,32 @@
   justify-content: space-between;
   gap: 0.75rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  animation: revealCardFromLeft 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.card:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.card:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes revealCardFromLeft {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .card:hover {
@@ -117,3 +143,28 @@
   color: var(--color-text-muted, #64748B);
   font-family: var(--font-mono, monospace);
 }
+
+.sparklinePath {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawSparkline 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sparklineGreen {
+  animation-delay: 0.15s;
+}
+
+.sparklineBlue {
+  animation-delay: 0.28s;
+}
+
+.sparklinePurple {
+  animation-delay: 0.42s;
+}
+
+@keyframes drawSparkline {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+

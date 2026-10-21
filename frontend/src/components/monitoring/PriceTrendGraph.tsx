@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -70,6 +70,46 @@ export function PriceTrendGraph({
   // Prepare chart data based on active view
   const isForward = activeView === 'forward_curve';
 
+  // Quantiles handling: when in forward curve (Calendar Horizon) view, use forward curve quantiles
+  // so the percentiles and median strictly match the displayed 11-month calendar curve and corpus banner.
+  const forwardPrices = useMemo(() => {
+    return forwardCurve
+      .map((f) => f.price_eur)
+      .filter((p): p is number => typeof p === 'number' && !isNaN(p))
+      .sort((a, b) => a - b);
+  }, [forwardCurve]);
+
+  const activeP10 = useMemo(() => {
+    if (isForward && forwardPrices.length > 0) {
+      const idx = Math.floor(forwardPrices.length * 0.1);
+      return forwardPrices[idx];
+    }
+    return p10Deal;
+  }, [isForward, forwardPrices, p10Deal]);
+
+  const activeP50 = useMemo(() => {
+    if (isForward) {
+      if (corpus?.median_price_eur !== null && corpus?.median_price_eur !== undefined) {
+        return corpus.median_price_eur;
+      }
+      if (forwardPrices.length > 0) {
+        const mid = Math.floor(forwardPrices.length / 2);
+        return forwardPrices.length % 2 === 0
+          ? (forwardPrices[mid - 1] + forwardPrices[mid]) / 2
+          : forwardPrices[mid];
+      }
+    }
+    return p50Median;
+  }, [isForward, corpus, forwardPrices, p50Median]);
+
+  const activeP90 = useMemo(() => {
+    if (isForward && forwardPrices.length > 0) {
+      const idx = Math.floor(forwardPrices.length * 0.9);
+      return forwardPrices[idx];
+    }
+    return p90Peak;
+  }, [isForward, forwardPrices, p90Peak]);
+
   const chartData = isForward
     ? forwardCurve.map((f) => ({
         date: f.depart_date,
@@ -95,7 +135,7 @@ export function PriceTrendGraph({
   );
 
   const minVal = allPrices.length > 0 ? Math.floor(Math.min(...allPrices) * 0.85) : 0;
-  const maxVal = allPrices.length > 0 ? Math.ceil(Math.max(...allPrices, p90Peak || 100) * 1.1) : 100;
+  const maxVal = allPrices.length > 0 ? Math.ceil(Math.max(...allPrices, activeP90 || 100) * 1.1) : 100;
 
   return (
     <div className={styles.container} role="region" aria-label="Route price trend graph">
@@ -195,14 +235,15 @@ export function PriceTrendGraph({
       )}
 
       {/* Chart */}
-      <div className={styles.chartWrapper}>
+      <div key={`${activeView}-${activeRange}`} className={styles.chartWrapper}>
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={chartData} margin={{ top: 15, right: 20, left: 5, bottom: 0 }}>
             <defs>
               <linearGradient id="priceTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.35} />
-                <stop offset="60%" stopColor="#3B82F6" stopOpacity={0.12} />
-                <stop offset="100%" stopColor="#93C5FD" stopOpacity={0.01} />
+                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.55} />
+                <stop offset="35%" stopColor="#3B82F6" stopOpacity={0.30} />
+                <stop offset="70%" stopColor="#60A5FA" stopOpacity={0.14} />
+                <stop offset="100%" stopColor="#93C5FD" stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
@@ -252,27 +293,27 @@ export function PriceTrendGraph({
               }}
             />
 
-            {p90Peak !== null && (
+            {activeP90 !== null && (
               <ReferenceLine
-                y={p90Peak}
+                y={activeP90}
                 stroke="#EF4444"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
               />
             )}
 
-            {p50Median !== null && (
+            {activeP50 !== null && (
               <ReferenceLine
-                y={p50Median}
+                y={activeP50}
                 stroke="#F59E0B"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
               />
             )}
 
-            {p10Deal !== null && (
+            {activeP10 !== null && (
               <ReferenceLine
-                y={p10Deal}
+                y={activeP10}
                 stroke="#10B981"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
@@ -285,6 +326,7 @@ export function PriceTrendGraph({
               stroke="#2563EB"
               strokeWidth={2.5}
               fill="url(#priceTrendGradient)"
+              isAnimationActive={false}
               activeDot={{ r: 5, fill: '#2563EB', stroke: '#FFFFFF', strokeWidth: 2 }}
             />
           </AreaChart>
@@ -297,22 +339,22 @@ export function PriceTrendGraph({
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#2563EB' }} />
           <span>{isForward ? 'Calendar Fare' : 'Observed Fare'}</span>
         </div>
-        {p10Deal !== null && (
+        {activeP10 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineDeal} style={{ backgroundColor: '#10B981' }} />
-            <span>P10 Deal Target ({symbol}{p10Deal.toFixed(0)})</span>
+            <span>P10 Deal Target ({symbol}{activeP10.toFixed(0)})</span>
           </div>
         )}
-        {p50Median !== null && (
+        {activeP50 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineMedian} style={{ backgroundColor: '#F59E0B' }} />
-            <span>P50 Median ({symbol}{p50Median.toFixed(0)})</span>
+            <span>P50 Median ({symbol}{activeP50.toFixed(0)})</span>
           </div>
         )}
-        {p90Peak !== null && (
+        {activeP90 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLinePeak} style={{ backgroundColor: '#EF4444' }} />
-            <span>P90 Peak Ceiling ({symbol}{p90Peak.toFixed(0)})</span>
+            <span>P90 Peak Ceiling ({symbol}{activeP90.toFixed(0)})</span>
           </div>
         )}
       </div>
