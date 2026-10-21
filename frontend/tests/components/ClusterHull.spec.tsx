@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/experimental-ct-react';
-import { computeClusterPolygon, computeCentroid } from '../../src/utils/clusterHull';
+import {
+  computeClusterPolygon,
+  computeCentroid,
+  computeCurvedSplineArc,
+  computeCurvedRoutePath,
+} from '../../src/utils/clusterHull';
 
 test.describe('Cluster Hull & Geometry Utility', () => {
   test('handles empty points gracefully', () => {
@@ -44,4 +49,41 @@ test.describe('Cluster Hull & Geometry Utility', () => {
       expect(isNaN(lng)).toBe(false);
     }
   });
+
+  test('computes smooth curved spline arc between two coordinates', () => {
+    const p1: [number, number] = [40.4168, -3.7038]; // Puerta del Sol
+    const p2: [number, number] = [40.4138, -3.6921]; // Museo del Prado
+
+    const arc = computeCurvedSplineArc(p1, p2, { numSegments: 8, curvature: 0.1 });
+    expect(arc.length).toBe(9); // 8 segments -> 9 points
+
+    // Starts at p1 and ends at p2
+    expect(arc[0][0]).toBeCloseTo(p1[0]);
+    expect(arc[0][1]).toBeCloseTo(p1[1]);
+    expect(arc[8][0]).toBeCloseTo(p2[0]);
+    expect(arc[8][1]).toBeCloseTo(p2[1]);
+
+    // Check all intermediate points are valid numbers
+    arc.forEach(([lat, lng]) => {
+      expect(typeof lat).toBe('number');
+      expect(typeof lng).toBe('number');
+      expect(isNaN(lat)).toBe(false);
+      expect(isNaN(lng)).toBe(false);
+    });
+  });
+
+  test('computes continuous curved route path for multiple coordinates', () => {
+    const points: [number, number][] = [
+      [40.4168, -3.7038], // Sol
+      [40.4138, -3.6921], // Prado
+      [40.4080, -3.6944], // Reina Sofia
+    ];
+
+    const route = computeCurvedRoutePath(points, { numSegments: 6 });
+    // 2 legs of 6 segments: 1 + 6 + 6 = 13 points
+    expect(route.length).toBe(13);
+    expect(route[0]).toEqual(points[0]);
+    expect(route[route.length - 1]).toEqual(points[points.length - 1]);
+  });
 });
+

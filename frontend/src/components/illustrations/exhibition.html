@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Artwork Exhibition</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --color-accent-coral: #D42A2F;
+      --color-accent-teal-mid: #1B8FA6;
+      --color-accent-teal-soft: #7CC4D1;
+      --color-accent-teal-deep: #0F4C5C;
+      --color-accent-gold: #E2B33C;
+      --color-border: #E2D9CC;
+      --color-surface-card: #FAF6F0;
+    }
+    .dark {
+      --color-accent-coral: #EF4D53;
+      --color-accent-teal-mid: #25ADC8;
+      --color-accent-teal-soft: #85D7E5;
+      --color-accent-teal-deep: #0A3642;
+      --color-accent-gold: #F0C454;
+      --color-border: #234654;
+      --color-surface-card: #132A33;
+    }
+  </style>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-4 font-sans">
+  <div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- Top Header Card -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-mono font-bold tracking-wider uppercase text-[#1B8FA6] block mb-1">
+            // Standalone Vector Exhibition
+          </span>
+          <h1 class="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
+            Refined Minimalist & Tactical Illustration Gallery
+          </h1>
+          <p class="text-sm text-[var(--muted-foreground)] mt-1 max-w-xl">
+            28 custom SVG illustrations with authentic Japanese minimalist geometry, origami folds, celestial astrometry, and tactical telemetry. Completely decoupled from application code.
+          </p>
+        </div>
+
+        <!-- Scale Controls -->
+        <div class="flex items-center gap-2 bg-[var(--background)] border border-[var(--border)] p-1.5 rounded-xl self-start md:self-auto">
+          <span class="text-xs font-mono text-[var(--muted-foreground)] px-2 font-medium">Scale:</span>
+          <button onclick="setScale(90)" class="scale-btn text-xs font-mono px-3 py-1 rounded-lg border border-transparent hover:border-[var(--border)] transition">90px</button>
+          <button onclick="setScale(120)" class="scale-btn active text-xs font-mono px-3 py-1 rounded-lg bg-[#0F4C5C] text-white font-semibold transition">120px</button>
+          <button onclick="setScale(150)" class="scale-btn text-xs font-mono px-3 py-1 rounded-lg border border-transparent hover:border-[var(--border)] transition">150px</button>
+        </div>
+      </div>
+
+      <!-- Categories & Search -->
+      <div class="flex flex-wrap items-center justify-between gap-3 mt-6 pt-5 border-t border-[var(--border)]">
+        <div class="flex flex-wrap gap-1.5" id="categoryPills">
+          <button onclick="setCategory('All')" class="cat-pill active text-xs font-medium px-3.5 py-1.5 rounded-full bg-[#0F4C5C] text-white transition">All (28)</button>
+          <button onclick="setCategory('Refined Focus')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[#D42A2F] font-semibold border border-[#D42A2F]/30 transition">✨ Newly Refined (4)</button>
+          <button onclick="setCategory('Transit & Waypoints')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Transit</button>
+          <button onclick="setCategory('Hospitality & Leisure')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Hospitality</button>
+          <button onclick="setCategory('Culture & Sights')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Culture</button>
+          <button onclick="setCategory('Navigation')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Navigation</button>
+          <button onclick="setCategory('Tactical & Protocol')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Tactical</button>
+        </div>
+
+        <div class="relative w-full sm:w-64">
+          <input
+            type="text"
+            id="searchInput"
+            oninput="handleSearch()"
+            placeholder="Search illustrations..."
+            class="w-full text-xs bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] rounded-full pl-8 pr-4 py-1.5 outline-none focus:border-[#1B8FA6] transition"
+          />
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--muted-foreground)]">🔍</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery Grid -->
+    <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <!-- Dynamic cards rendered below -->
+    </div>
+  </div>
+
+  <script>
+    const ITEMS = [
+      // 4 Refined Focus Items at the top
+      {
+        id: "origami-ticket",
+        title: "Origami Boarding Pass",
+        category: "Transit & Waypoints",
+        isRefined: true,
+        tags: ["ticket", "pass", "origami", "crane", "voucher", "refined"],
+        desc: "Notched pass voucher framing an elegant origami crane, red hanko stamp seal, and barcode lines.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><path d="M20 22 C20 20 22 18 24 18 H96 C98 18 100 20 100 22 V36 C97 36 95 38 95 41 C95 44 97 46 100 46 V60 C100 62 98 64 96 64 H24 C22 64 20 62 20 60 V46 C23 46 25 44 25 41 C25 38 23 36 20 36 Z" stroke="var(--color-border)" stroke-width="1.5"/><line x1="74" y1="18" x2="74" y2="64" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="3 2"/><polygon points="45,46 32,26 54,36" fill="var(--color-accent-teal-mid)"/><polygon points="45,46 54,36 62,28 52,48" fill="var(--color-accent-teal-soft)"/><path d="M45 46 L38 38 L30 36 L34 40 L41 47 Z" fill="var(--color-accent-teal-deep)"/><polygon points="52,48 58,45 50,56" fill="var(--color-accent-teal-soft)" opacity="0.8"/><rect x="80" y="26" width="14" height="14" rx="2" stroke="var(--color-accent-coral)" stroke-width="1.5"/><circle cx="87" cy="33" r="3.5" fill="var(--color-accent-coral)"/><circle cx="87" cy="33" r="1.5" fill="var(--color-accent-gold)"/><line x1="79" y1="48" x2="79" y2="56" stroke="var(--color-border)" stroke-width="1.5"/><line x1="82" y1="48" x2="82" y2="56" stroke="var(--color-border)" stroke-width="1"/><line x1="85" y1="48" x2="85" y2="56" stroke="var(--color-border)" stroke-width="2"/><line x1="89" y1="48" x2="89" y2="56" stroke="var(--color-border)" stroke-width="1"/><line x1="92" y1="48" x2="92" y2="56" stroke="var(--color-border)" stroke-width="1.5"/></svg>`
+      },
+      {
+        id: "weather-forecast",
+        title: "Atmosphere & Weather",
+        category: "Navigation",
+        isRefined: true,
+        tags: ["weather", "sun", "cloud", "forecast", "rain", "refined"],
+        desc: "Radiant coral sun behind stylized traditional Japanese kumo cloud with wind curl and rain vectors.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="72" cy="28" r="14" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="84" y1="16" x2="90" y2="10" stroke="var(--color-accent-gold)" stroke-width="2" stroke-linecap="round"/><line x1="91" y1="28" x2="98" y2="28" stroke="var(--color-accent-gold)" stroke-width="2" stroke-linecap="round"/><path d="M22 34 H42 C46 34 49 31 49 28 C49 25 46 25 43 25" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M30 52 C30 46 36 44 40 46 C43 38 54 36 60 42 C64 38 74 38 78 44 C84 44 88 47 88 52 L30 52 Z" fill="var(--color-accent-teal-mid)"/><rect x="28" y="52" width="62" height="3" rx="1.5" fill="var(--color-accent-teal-deep)"/><line x1="38" y1="58" x2="34" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round"/><line x1="48" y1="58" x2="44" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round"/><line x1="58" y1="58" x2="54" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round"/><line x1="68" y1="58" x2="64" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round"/><line x1="78" y1="58" x2="74" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linecap="round"/><line x1="18" y1="70" x2="102" y2="70" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "constellation-chart",
+        title: "Constellation Astrometry",
+        category: "Tactical & Protocol",
+        isRefined: true,
+        tags: ["stars", "orbit", "astronomy", "night", "astrolabe", "refined"],
+        desc: "Astrometric inclined orbital ellipse with 4-point gold star nexus and coral nebula sphere.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><path d="M22 22 H18 V26" stroke="var(--color-border)" stroke-width="1.5"/><path d="M98 22 H102 V26" stroke="var(--color-border)" stroke-width="1.5"/><ellipse cx="60" cy="40" rx="38" ry="17" transform="rotate(-12 60 40)" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="4 3"/><line x1="38" y1="44" x2="60" y2="35" stroke="var(--color-accent-teal-mid)" stroke-width="1.5"/><line x1="60" y1="35" x2="82" y2="28" stroke="var(--color-accent-teal-mid)" stroke-width="1.5"/><line x1="60" y1="20" x2="60" y2="35" stroke="var(--color-accent-teal-mid)" stroke-width="1.5"/><line x1="60" y1="35" x2="60" y2="52" stroke="var(--color-accent-teal-mid)" stroke-width="1.5"/><circle cx="38" cy="44" r="3.5" fill="var(--color-accent-teal-mid)"/><circle cx="60" cy="52" r="3" fill="var(--color-accent-teal-mid)"/><circle cx="82" cy="28" r="3.5" fill="var(--color-accent-teal-mid)"/><circle cx="60" cy="20" r="3" fill="var(--color-accent-teal-soft)"/><circle cx="60" cy="35" r="4.5" fill="var(--color-accent-gold)"/><line x1="60" y1="29" x2="60" y2="41" stroke="var(--color-accent-gold)" stroke-width="1.2"/><line x1="54" y1="35" x2="66" y2="35" stroke="var(--color-accent-gold)" stroke-width="1.2"/><circle cx="84" cy="20" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="20" y1="67" x2="100" y2="67" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/><line x1="40" y1="67" x2="40" y2="70" stroke="var(--color-border)" stroke-width="1"/><line x1="60" y1="67" x2="60" y2="71" stroke="var(--color-border)" stroke-width="1.5"/><line x1="80" y1="67" x2="80" y2="70" stroke="var(--color-border)" stroke-width="1"/></svg>`
+      },
+      {
+        id: "network-error",
+        title: "Severed Signal Relay",
+        category: "Tactical & Protocol",
+        isRefined: true,
+        tags: ["error", "offline", "disconnect", "antenna", "signal", "refined"],
+        desc: "Transmission antenna mast with intact vs fragmented waves and golden lightning disconnect.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="24" r="7" fill="var(--color-accent-coral)" opacity="0.95"/><line x1="82" y1="20" x2="82" y2="24" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/><circle cx="82" cy="27" r="0.8" fill="#FFFFFF"/><line x1="45" y1="18" x2="45" y2="66" stroke="var(--color-accent-teal-deep)" stroke-width="2" stroke-linecap="round"/><circle cx="45" cy="18" r="3" fill="var(--color-accent-gold)"/><line x1="37" y1="32" x2="53" y2="32" stroke="var(--color-accent-teal-mid)" stroke-width="2"/><line x1="33" y1="46" x2="57" y2="46" stroke="var(--color-accent-teal-mid)" stroke-width="2"/><line x1="37" y1="32" x2="45" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="53" y1="32" x2="45" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="33" y1="46" x2="45" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="57" y1="46" x2="45" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><path d="M37 20 C31 24, 31 34, 37 38" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round"/><path d="M31 15 C22 21, 22 39, 31 45" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/><path d="M53 20 C57 23, 58 26, 58 29" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-dasharray="3 2"/><path d="M59 15 C66 20, 68 25, 66 31" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.6"/><path d="M68 33 L63 41 L71 41 L66 51" stroke="var(--color-accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="18" y1="66" x2="102" y2="66" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="66" x2="26" y2="70" stroke="var(--color-border)" stroke-width="1.5"/><line x1="94" y1="66" x2="94" y2="70" stroke="var(--color-border)" stroke-width="1.5"/></svg>`
+      },
+
+      // Remaining Collection
+      {
+        id: "flight-takeoff",
+        title: "Flight Takeoff",
+        category: "Transit & Waypoints",
+        tags: ["flights", "airports", "departure", "airplane"],
+        desc: "Ascending aircraft with runway vectors and gold thrust.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="24" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M24 64 C 42 62, 64 48, 86 32" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-dasharray="4 3"/><path d="M60 42 L74 32 L82 31 L80 34 L72 40 L84 46 L82 48 L70 44 L60 49 L58 48 L61 44 L56 43 Z" fill="var(--color-accent-teal-mid)"/><circle cx="56" cy="45" r="2.5" fill="var(--color-accent-gold)"/><line x1="20" y1="66" x2="52" y2="66" stroke="var(--color-border)" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="66" x2="104" y2="66" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 4"/></svg>`
+      },
+      {
+        id: "hotel-lodging",
+        title: "Hotel & Accommodations",
+        category: "Hospitality & Leisure",
+        tags: ["hotel", "stay", "lodging", "booking"],
+        desc: "Hotel tower with illuminated gold windows and evening moon.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="78" cy="24" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="42" y="28" width="36" height="38" rx="2" fill="var(--color-accent-teal-mid)"/><path d="M38 28 L60 20 L82 28 Z" fill="var(--color-accent-teal-deep)"/><rect x="48" y="34" width="6" height="6" rx="1" fill="var(--color-accent-gold)"/><rect x="58" y="34" width="6" height="6" rx="1" fill="var(--color-surface-card)"/><rect x="66" y="34" width="6" height="6" rx="1" fill="var(--color-accent-teal-soft)"/><rect x="48" y="44" width="6" height="6" rx="1" fill="var(--color-surface-card)"/><rect x="58" y="44" width="6" height="6" rx="1" fill="var(--color-accent-gold)"/><rect x="66" y="44" width="6" height="6" rx="1" fill="var(--color-surface-card)"/><rect x="55" y="56" width="10" height="10" rx="1" fill="var(--color-accent-teal-deep)"/><line x1="20" y1="66" x2="100" y2="66" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "wallet-ledger",
+        title: "Wallet & Cost Ledger",
+        category: "Tactical & Protocol",
+        tags: ["wallet", "budget", "costs", "money"],
+        desc: "Travel card container with magnetic strip and gold coins.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="28" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="32" y="25" width="46" height="30" rx="3" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="38" y="34" width="46" height="30" rx="4" fill="var(--color-accent-teal-mid)"/><line x1="38" y1="42" x2="84" y2="42" stroke="var(--color-accent-teal-deep)" stroke-width="3"/><circle cx="48" cy="52" r="4.5" fill="var(--color-accent-gold)"/><circle cx="70" cy="52" r="3.5" fill="var(--color-accent-teal-soft)"/><line x1="22" y1="68" x2="98" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "shinkansen-train",
+        title: "Shinkansen Bullet Train",
+        category: "Transit & Waypoints",
+        tags: ["train", "rail", "speed", "transit"],
+        desc: "Aerodynamic train nose with speedline vector dashes.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="86" cy="34" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M22 55 L52 55 L68 45 L86 45 C92 45 97 49 98 55 L22 55 Z" fill="var(--color-accent-teal-mid)"/><path d="M68 46 L78 46 L74 50 L64 50 Z" fill="var(--color-accent-teal-soft)"/><line x1="30" y1="52" x2="60" y2="52" stroke="var(--color-accent-gold)" stroke-width="1.5"/><line x1="12" y1="45" x2="32" y2="45" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="14" y1="58" x2="106" y2="58" stroke="var(--color-border)" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="62" x2="102" y2="62" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 3"/></svg>`
+      },
+      {
+        id: "fuji-silhouette",
+        title: "Mount Fuji Sacred Peak",
+        category: "Culture & Sights",
+        tags: ["mountain", "peak", "fuji", "nature"],
+        desc: "Sacred peak with snow cap, coral sun, and tidal wave base.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="30" r="18" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M24 70 L48 38 L54 44 L60 36 L66 44 L72 38 L96 70 Z" fill="var(--color-accent-teal-mid)"/><path d="M48 38 L54 44 L60 36 L66 44 L72 38 L68 32 L52 32 Z" fill="var(--color-surface-card)"/><path d="M10 70 Q 30 66 50 70 T 90 70 T 110 70" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "torii-gate",
+        title: "Torii Protocol Gateway",
+        category: "Culture & Sights",
+        tags: ["torii", "shrine", "gate", "dispatch"],
+        desc: "Curved kasagi torii gateway framing a coral sun disc.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><path d="M30 32 C 45 28, 75 28, 90 32" stroke="var(--color-accent-coral)" stroke-width="3.5" stroke-linecap="round"/><line x1="36" y1="38" x2="84" y2="38" stroke="var(--color-accent-teal-mid)" stroke-width="2.5"/><line x1="44" y1="34" x2="42" y2="68" stroke="var(--color-accent-teal-mid)" stroke-width="3" stroke-linecap="round"/><line x1="76" y1="34" x2="78" y2="68" stroke="var(--color-accent-teal-mid)" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="50" r="10" fill="var(--color-accent-coral)" opacity="0.85"/><line x1="20" y1="68" x2="100" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "bonsho-bell",
+        title: "Bonshō Temple Bell",
+        category: "Culture & Sights",
+        tags: ["bell", "notifications", "chime", "temple"],
+        desc: "Temple bell with gold lotus clapper and chime sound ripple.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="76" cy="30" r="8" fill="var(--color-accent-coral)" opacity="0.85"/><path d="M50 25 C50 25 55 24 60 24 C65 24 70 25 70 25 C70 32 68 46 72 54 L48 54 C52 46 50 32 50 25 Z" fill="var(--color-accent-teal-mid)"/><rect x="46" y="54" width="28" height="4" rx="2" fill="var(--color-accent-teal-soft)"/><circle cx="60" cy="22" r="3" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><circle cx="60" cy="44" r="3" fill="var(--color-accent-gold)"/><path d="M32 64 C 45 61, 75 61, 88 64" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "viewfinder-photo",
+        title: "Viewfinder Photo Vault",
+        category: "Transit & Waypoints",
+        tags: ["photo", "camera", "viewfinder", "vault"],
+        desc: "Corner crop marks enclosing mountain and sun silhouette.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><path d="M35 30 H28 V37" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><path d="M85 30 H92 V37" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><path d="M28 53 V60 H35" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><path d="M92 53 V60 H85" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><circle cx="70" cy="40" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M40 58 L54 44 L62 52 L68 46 L78 58 Z" fill="var(--color-accent-teal-mid)"/></svg>`
+      },
+      {
+        id: "reticle-compass",
+        title: "Reticle Search Compass",
+        category: "Navigation",
+        tags: ["compass", "search", "navigation", "reticle"],
+        desc: "Dual-color directional needle inside an optical reticle.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="68" cy="34" r="8" fill="var(--color-accent-coral)" opacity="0.85"/><circle cx="56" cy="44" r="16" stroke="var(--color-accent-teal-mid)" stroke-width="2.5" fill="none"/><line x1="68" y1="56" x2="80" y2="68" stroke="var(--color-accent-teal-mid)" stroke-width="3" stroke-linecap="round"/><polygon points="56,33 58,44 56,42 54,44" fill="var(--color-accent-coral)"/><polygon points="56,55 58,44 56,46 54,44" fill="var(--color-accent-teal-soft)"/></svg>`
+      },
+      {
+        id: "origami-boat",
+        title: "Origami Maritime Skiff",
+        category: "Transit & Waypoints",
+        tags: ["boat", "ferry", "island", "maritime"],
+        desc: "Folded paper skiff sailing across delicate wave ripples.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="78" cy="28" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="34,55 45,64 75,64 86,55" fill="var(--color-accent-teal-mid)"/><polygon points="56,32 60,32 60,55 48,55" fill="var(--color-accent-teal-soft)"/><polygon points="60,32 70,55 60,55" fill="var(--color-accent-teal-deep)"/><circle cx="60" cy="30" r="2.5" fill="var(--color-accent-gold)"/><path d="M16 67 Q 30 64 44 67 T 72 67 T 100 67" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M26 72 Q 40 69 54 72 T 82 72 T 96 72" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>`
+      },
+      {
+        id: "route-solver-optimization",
+        title: "Route Solver Engine",
+        category: "Tactical & Protocol",
+        tags: ["engine", "solver", "route", "tsptw"],
+        desc: "Mathematical TSP loop tour with origin gold coordinate.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="40" cy="28" r="6" fill="var(--color-accent-coral)" opacity="0.9"/><circle cx="78" cy="26" r="5" fill="var(--color-accent-teal-mid)"/><circle cx="86" cy="50" r="5" fill="var(--color-accent-teal-mid)"/><circle cx="48" cy="56" r="5" fill="var(--color-accent-teal-mid)"/><circle cx="28" cy="46" r="4.5" fill="var(--color-accent-teal-soft)"/><circle cx="62" cy="40" r="3.5" fill="var(--color-accent-gold)"/><path d="M40 28 L78 26 L86 50 L48 56 L28 46 Z" stroke="var(--color-accent-teal-soft)" stroke-width="1.8" stroke-linejoin="round"/><line x1="58" y1="36" x2="66" y2="44" stroke="var(--color-accent-gold)" stroke-width="1.5"/><line x1="66" y1="36" x2="58" y2="44" stroke="var(--color-accent-gold)" stroke-width="1.5"/><path d="M22 22 H18 V26" stroke="var(--color-border)" stroke-width="1.5"/><path d="M98 22 H102 V26" stroke="var(--color-border)" stroke-width="1.5"/><line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="3 3"/></svg>`
+      },
+      {
+        id: "collaborator-network",
+        title: "Collaborator Mesh Network",
+        category: "Tactical & Protocol",
+        tags: ["collab", "team", "users", "sharing"],
+        desc: "Connected peer network mesh nodes with central coral host.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="30" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><circle cx="36" cy="46" r="6" fill="var(--color-accent-teal-mid)"/><circle cx="84" cy="46" r="6" fill="var(--color-accent-teal-mid)"/><circle cx="60" cy="50" r="3.5" fill="var(--color-accent-gold)"/><line x1="60" y1="30" x2="36" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.8"/><line x1="60" y1="30" x2="84" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.8"/><line x1="36" y1="46" x2="84" y2="46" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="4 3"/><path d="M48 20 C 56 16, 64 16, 72 20" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="66" x2="98" y2="66" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "offline-map-topo",
+        title: "Offline Topographic Map",
+        category: "Navigation",
+        tags: ["map", "topography", "gps", "offline"],
+        desc: "Tri-fold topographic contour map with golden elevation ridge.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="24" r="5" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="57,27 63,27 60,34" fill="var(--color-accent-coral)"/><polygon points="30,34 50,30 70,34 90,30 90,62 70,66 50,62 30,66" stroke="var(--color-accent-teal-mid)" stroke-width="2" stroke-linejoin="round"/><line x1="50" y1="30" x2="50" y2="62" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="70" y1="34" x2="70" y2="66" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><path d="M36 50 C 42 44, 46 54, 48 48" stroke="var(--color-border)" stroke-width="1.2"/><path d="M54 48 C 60 42, 64 52, 68 44" stroke="var(--color-accent-gold)" stroke-width="1.2"/><path d="M74 48 C 78 44, 82 52, 86 46" stroke="var(--color-border)" stroke-width="1.2"/><line x1="20" y1="70" x2="100" y2="70" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "timeline-schedule",
+        title: "Timeline Schedule Axis",
+        category: "Transit & Waypoints",
+        tags: ["calendar", "timeline", "schedule"],
+        desc: "Horizontal timeline axis with milestone checkpoints.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="80" cy="26" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="32" y1="44" x2="88" y2="44" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><circle cx="40" cy="44" r="4.5" fill="var(--color-accent-teal-mid)"/><line x1="40" y1="36" x2="40" y2="44" stroke="var(--color-accent-teal-mid)" stroke-width="1.5"/><rect x="35" y="28" width="10" height="7" rx="1.5" fill="var(--color-accent-teal-soft)"/><circle cx="60" cy="44" r="5.5" fill="var(--color-accent-gold)"/><line x1="60" y1="44" x2="60" y2="56" stroke="var(--color-accent-gold)" stroke-width="1.5"/><rect x="52" y="56" width="16" height="8" rx="2" fill="var(--color-accent-teal-deep)"/><circle cx="80" cy="44" r="4.5" fill="var(--color-accent-teal-mid)"/><line x1="40" y1="67" x2="80" y2="67" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="4 4"/><line x1="20" y1="70" x2="100" y2="70" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "tactical-radar",
+        title: "Tactical Azimuth Radar",
+        category: "Tactical & Protocol",
+        tags: ["radar", "sonar", "scan", "tracking"],
+        desc: "Concentric radar rings with 45-degree sweep and ping blip.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="40" r="24" stroke="var(--color-accent-teal-mid)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/><circle cx="60" cy="40" r="14" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><circle cx="60" cy="40" r="3" fill="var(--color-accent-gold)"/><line x1="60" y1="40" x2="78" y2="24" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><circle cx="78" cy="24" r="4.5" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="60" y1="12" x2="60" y2="16" stroke="var(--color-border)" stroke-width="2"/><line x1="60" y1="64" x2="60" y2="68" stroke="var(--color-border)" stroke-width="2"/><line x1="32" y1="40" x2="36" y2="40" stroke="var(--color-border)" stroke-width="2"/><line x1="84" y1="40" x2="88" y2="40" stroke="var(--color-border)" stroke-width="2"/><line x1="20" y1="70" x2="100" y2="70" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>`
+      },
+      {
+        id: "bento-box-layout",
+        title: "Bento Box Optimization Grid",
+        category: "Tactical & Protocol",
+        tags: ["bento", "knapsack", "budget", "grid"],
+        desc: "Tactical four-compartment grid with onigiri and tamagoyaki.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><rect x="30" y="22" width="60" height="40" rx="3" stroke="var(--color-accent-teal-mid)" stroke-width="2"/><line x1="60" y1="22" x2="60" y2="62" stroke="var(--color-border)" stroke-width="1.5"/><line x1="60" y1="42" x2="90" y2="42" stroke="var(--color-border)" stroke-width="1.5"/><polygon points="45,26 36,41 54,41" fill="var(--color-surface-card)" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><rect x="42" y="35" width="6" height="6" fill="var(--color-accent-teal-deep)"/><circle cx="45" cy="51" r="4.5" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="66" y="28" width="18" height="9" rx="2" fill="var(--color-accent-gold)"/><line x1="66" y1="51" x2="73" y2="54" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><line x1="77" y1="49" x2="84" y2="52" stroke="var(--color-accent-teal-soft)" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="68" x2="100" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>`
+      },
+      {
+        id: "izakaya-lantern",
+        title: "Izakaya Paper Lantern",
+        category: "Hospitality & Leisure",
+        tags: ["dining", "food", "restaurant", "lantern"],
+        desc: "Suspended chōchin lantern with glowing core and tassel.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="24" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="60" y1="12" x2="60" y2="22" stroke="var(--color-border)" stroke-width="1.5"/><rect x="52" y="22" width="16" height="3" rx="1" fill="var(--color-accent-teal-deep)"/><path d="M52 25 C42 33 42 49 52 57 L68 57 C78 49 78 33 68 25 Z" fill="var(--color-accent-teal-mid)"/><circle cx="60" cy="41" r="7" fill="var(--color-accent-gold)"/><circle cx="60" cy="41" r="3" fill="var(--color-accent-coral)"/><line x1="47" y1="33" x2="73" y2="33" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="47" y1="49" x2="73" y2="49" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><rect x="54" y="57" width="12" height="3" rx="1" fill="var(--color-accent-teal-deep)"/><line x1="60" y1="60" x2="60" y2="67" stroke="var(--color-accent-coral)" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="72" x2="98" y2="72" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="3 3"/></svg>`
+      },
+      {
+        id: "tea-ceremony",
+        title: "Chawan Tea Ceremony",
+        category: "Hospitality & Leisure",
+        tags: ["tea", "cafe", "zen", "relaxation"],
+        desc: "Ceramic tea bowl with rising steam and gold whisk handle.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="74" cy="24" r="6.5" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M55 34 C53 28 57 22 55 16" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round"/><path d="M63 34 C61 28 65 22 63 16" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round"/><path d="M40 40 C40 54 50 61 60 61 C70 61 80 54 80 40 Z" fill="var(--color-accent-teal-mid)"/><ellipse cx="60" cy="40" rx="20" ry="4" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" fill="var(--color-accent-teal-deep)"/><line x1="84" y1="50" x2="96" y2="60" stroke="var(--color-accent-gold)" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="67" x2="102" y2="67" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "bonsai-craft",
+        title: "Bonsai Craft & Tuning",
+        category: "Hospitality & Leisure",
+        tags: ["bonsai", "tuning", "preferences", "settings"],
+        desc: "Stylized pine bonsai in shallow pot with pruning crosshairs.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="44" cy="28" r="11" fill="var(--color-accent-coral)" opacity="0.88"/><path d="M42 56 L46 64 L74 64 L78 56 Z" fill="var(--color-accent-teal-soft)"/><line x1="40" y1="56" x2="80" y2="56" stroke="var(--color-accent-teal-mid)" stroke-width="2" stroke-linecap="round"/><path d="M60 56 Q 58 46 64 40 Q 68 36 66 30" stroke="var(--color-accent-teal-deep)" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M64 40 Q 74 36 78 32" stroke="var(--color-accent-teal-deep)" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M61 46 Q 50 42 46 38" stroke="var(--color-accent-teal-deep)" stroke-width="2" stroke-linecap="round" fill="none"/><ellipse cx="66" cy="28" rx="9" ry="4" fill="var(--color-accent-teal-mid)"/><ellipse cx="80" cy="31" rx="7" ry="3.5" fill="var(--color-accent-teal-mid)"/><ellipse cx="44" cy="37" rx="8" ry="4" fill="var(--color-accent-teal-mid)"/><circle cx="60" cy="56" r="2.5" fill="var(--color-accent-gold)"/><path d="M88 22 H92 V26" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="20" y1="69" x2="100" y2="69" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "pagoda-waypoint",
+        title: "Pagoda Heritage Waypoint",
+        category: "Culture & Sights",
+        tags: ["pagoda", "temple", "waypoint", "monument"],
+        desc: "Three-tiered pagoda with sorin finial spire and milestone flag.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="42" cy="32" r="12" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="70" y1="14" x2="70" y2="25" stroke="var(--color-accent-gold)" stroke-width="2" stroke-linecap="round"/><circle cx="70" cy="18" r="2.5" stroke="var(--color-accent-gold)" stroke-width="1.2"/><path d="M58 29 C64 27 76 27 82 29 L79 25 L61 25 Z" fill="var(--color-accent-teal-mid)"/><rect x="65" y="29" width="10" height="5" fill="var(--color-accent-teal-deep)"/><path d="M53 38 C61 35 79 35 87 38 L84 34 L56 34 Z" fill="var(--color-accent-teal-mid)"/><rect x="63" y="38" width="14" height="6" fill="var(--color-accent-teal-deep)"/><path d="M48 49 C58 45 82 45 92 49 L89 44 L51 44 Z" fill="var(--color-accent-teal-mid)"/><rect x="60" y="49" width="20" height="9" fill="var(--color-accent-teal-soft)" rx="1"/><line x1="28" y1="44" x2="28" y2="64" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><polygon points="28,44 37,48 28,52" fill="var(--color-accent-coral)"/><line x1="18" y1="64" x2="102" y2="64" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "kitsune-mask",
+        title: "Kitsune Mask & Sights",
+        category: "Culture & Sights",
+        tags: ["mask", "kitsune", "secret", "folklore"],
+        desc: "Geometric fox mask with crimson forehead sun disc.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="27" r="5.5" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M44 32 L49 19 L56 28 L64 28 L71 19 L76 32 L72 52 L60 62 L48 52 Z" stroke="var(--color-accent-teal-mid)" stroke-width="2" stroke-linejoin="round"/><polygon points="48,27 51,22 54,28" fill="var(--color-accent-coral)" opacity="0.8"/><polygon points="72,27 69,22 66,28" fill="var(--color-accent-coral)" opacity="0.8"/><line x1="50" y1="41" x2="55" y2="43" stroke="var(--color-accent-teal-mid)" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="41" x2="65" y2="43" stroke="var(--color-accent-teal-mid)" stroke-width="2" stroke-linecap="round"/><polygon points="58,52 62,52 60,55" fill="var(--color-accent-teal-soft)"/><line x1="36" y1="45" x2="42" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="84" y1="45" x2="78" y2="46" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="22" y1="67" x2="98" y2="67" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="3 3"/></svg>`
+      },
+      {
+        id: "page-not-found",
+        title: "Lost in Transit (404)",
+        category: "Navigation",
+        tags: ["404", "not-found", "lost", "missing"],
+        desc: "Crossroads signpost with dual opposing planks and query marks.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="78" cy="24" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><line x1="60" y1="28" x2="60" y2="66" stroke="var(--color-accent-teal-deep)" stroke-width="2.5"/><path d="M60 32 L36 32 L30 36 L36 40 L60 40 Z" fill="var(--color-accent-teal-mid)"/><path d="M60 43 L84 43 L90 47 L84 51 L60 51 Z" fill="var(--color-accent-teal-soft)"/><circle cx="44" cy="36" r="1.5" fill="var(--color-accent-gold)"/><circle cx="76" cy="47" r="1.5" fill="var(--color-accent-gold)"/><path d="M22 22 H18 V26" stroke="var(--color-border)" stroke-width="1.5"/><path d="M98 22 H102 V26" stroke="var(--color-border)" stroke-width="1.5"/><path d="M16 66 Q 40 62 60 66 T 104 66" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "vault-security",
+        title: "Security Vault Dial",
+        category: "Tactical & Protocol",
+        tags: ["security", "vault", "encryption", "keys"],
+        desc: "Heavy safe combination dial with gold keyhole hub.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="80" cy="25" r="6" fill="var(--color-accent-coral)" opacity="0.9"/><circle cx="58" cy="42" r="22" stroke="var(--color-accent-teal-mid)" stroke-width="2.5"/><circle cx="58" cy="42" r="13" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="58" y1="29" x2="58" y2="33" stroke="var(--color-accent-teal-soft)" stroke-width="2"/><line x1="58" y1="51" x2="58" y2="55" stroke="var(--color-accent-teal-soft)" stroke-width="2"/><line x1="45" y1="42" x2="49" y2="42" stroke="var(--color-accent-teal-soft)" stroke-width="2"/><line x1="67" y1="42" x2="71" y2="42" stroke="var(--color-accent-teal-soft)" stroke-width="2"/><circle cx="58" cy="42" r="4.5" fill="var(--color-accent-gold)"/><rect x="57" y="42" width="2" height="5" fill="var(--color-accent-teal-deep)"/><path d="M30 22 H24 V28" stroke="var(--color-border)" stroke-width="1.5"/><path d="M86 22 H92 V28" stroke="var(--color-border)" stroke-width="1.5"/><line x1="20" y1="69" x2="98" y2="69" stroke="var(--color-border)" stroke-width="2" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "telemetry-analytics",
+        title: "Telemetry & Analytics",
+        category: "Tactical & Protocol",
+        tags: ["analytics", "metrics", "charts", "stats"],
+        desc: "Graduated bar chart with projected column and harmonic wave.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="6" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="34" y="46" width="9" height="18" rx="1.5" fill="var(--color-accent-teal-soft)"/><rect x="48" y="36" width="9" height="28" rx="1.5" fill="var(--color-accent-teal-mid)"/><rect x="62" y="26" width="9" height="38" rx="1.5" fill="var(--color-accent-teal-deep)"/><rect x="76" y="32" width="9" height="32" rx="1.5" stroke="var(--color-accent-gold)" stroke-width="1.5" stroke-dasharray="3 2"/><path d="M26 50 Q 42 40 56 42 T 88 24" stroke="var(--color-accent-gold)" stroke-width="1.8" stroke-linecap="round"/><line x1="22" y1="66" x2="98" y2="66" stroke="var(--color-border)" stroke-width="2" stroke-linecap="round"/></svg>`
+      }
+    ];
+
+    let currentCategory = 'All';
+    let currentScale = 120;
+
+    function renderGrid() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const grid = document.getElementById('galleryGrid');
+
+      const filtered = ITEMS.filter(item => {
+        let matchesCat = false;
+        if (currentCategory === 'All') matchesCat = true;
+        else if (currentCategory === 'Refined Focus') matchesCat = !!item.isRefined;
+        else matchesCat = item.category === currentCategory;
+
+        if (!matchesCat) return false;
+        if (!q) return true;
+        return item.title.toLowerCase().includes(q) ||
+               item.desc.toLowerCase().includes(q) ||
+               item.tags.some(t => t.toLowerCase().includes(q));
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-sm text-[var(--muted-foreground)]">No illustrations match your filter.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(item => {
+        const scaledSvg = item.svg
+          .replace(/width="120"/, `width="${currentScale}"`)
+          .replace(/height="80"/, `height="${Math.round(currentScale * (80/120))}"`);
+
+        return `
+          <div class="bg-[var(--card)] border ${item.isRefined ? 'border-[#1B8FA6] ring-1 ring-[#1B8FA6]/20' : 'border-[var(--border)]'} border-dashed rounded-xl p-4 flex flex-col justify-between shadow-sm hover:border-[#1B8FA6] transition relative">
+            ${item.isRefined ? '<span class="absolute top-2 right-2 text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#D42A2F]/10 text-[#D42A2F] font-bold border border-[#D42A2F]/20">REFINED</span>' : ''}
+            <div>
+              <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 mb-3 flex items-center justify-center min-h-[110px]">
+                ${scaledSvg}
+              </div>
+              <div class="flex items-center justify-between text-[10px] font-mono mb-1">
+                <span class="text-[#1B8FA6] font-bold uppercase tracking-wide">${item.category.split(' ')[0]}</span>
+                <span class="text-[var(--muted-foreground)]">120×80</span>
+              </div>
+              <h3 class="font-semibold text-sm text-[var(--foreground)] mb-1 leading-tight">${item.title}</h3>
+              <p class="text-xs text-[var(--muted-foreground)] leading-normal mb-3">${item.desc}</p>
+            </div>
+            <button
+              onclick="copySvg('${item.id}', this)"
+              class="w-full text-xs font-mono font-medium py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:bg-[#0F4C5C] hover:text-white transition text-center"
+            >
+              Copy SVG
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('#categoryPills .cat-pill').forEach(btn => {
+        const isMatch = btn.textContent.includes(cat) || (cat === 'All' && btn.textContent.includes('All'));
+        btn.classList.toggle('active', isMatch);
+        btn.classList.toggle('bg-[#0F4C5C]', isMatch && cat !== 'Refined Focus');
+        btn.classList.toggle('bg-[#D42A2F]', isMatch && cat === 'Refined Focus');
+        btn.classList.toggle('text-white', isMatch);
+        btn.classList.toggle('bg-[var(--background)]', !isMatch);
+        btn.classList.toggle('text-[var(--muted-foreground)]', !isMatch && cat !== 'Refined Focus');
+      });
+      renderGrid();
+    }
+
+    function setScale(s) {
+      currentScale = s;
+      document.querySelectorAll('.scale-btn').forEach(btn => {
+        const isMatch = btn.textContent === s + 'px';
+        btn.classList.toggle('active', isMatch);
+        btn.classList.toggle('bg-[#0F4C5C]', isMatch);
+        btn.classList.toggle('text-white', isMatch);
+        btn.classList.toggle('font-semibold', isMatch);
+      });
+      renderGrid();
+    }
+
+    function handleSearch() {
+      renderGrid();
+    }
+
+    function copySvg(id, btn) {
+      const item = ITEMS.find(x => x.id === id);
+      if (!item) return;
+      navigator.clipboard.writeText(item.svg).then(() => {
+        const prev = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600');
+        setTimeout(() => {
+          btn.textContent = prev;
+          btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600');
+        }, 1500);
+      });
+    }
+
+    renderGrid();
+  </script>
+</body>
+</html>

@@ -126,3 +126,100 @@ export function computeClusterPolygon(points: LatLngPoint[]): [number, number][]
 
   return paddedHull;
 }
+
+/**
+ * Generates an interpolated quadratic Bézier curved arc between two coordinates.
+ * - If points are very close, returns [p1, p2].
+ * - Curves smoothly with a subtle outward arc relative to the cluster centroid.
+ */
+export function computeCurvedSplineArc(
+  p1: [number, number],
+  p2: [number, number],
+  options?: {
+    curvature?: number;
+    numSegments?: number;
+    centroid?: [number, number];
+  }
+): [number, number][] {
+  const [lat1, lng1] = p1;
+  const [lat2, lng2] = p2;
+  const dLat = lat2 - lat1;
+  const dLng = lng2 - lng1;
+  const dist = Math.hypot(dLat, dLng);
+
+  if (dist < 0.0001) {
+    return [p1, p2];
+  }
+
+  const curvature = options?.curvature ?? 0.1;
+  const numSegments = options?.numSegments ?? 10;
+
+  const midLat = (lat1 + lat2) / 2;
+  const midLng = (lng1 + lng2) / 2;
+
+  let nx = -dLng / dist;
+  let ny = dLat / dist;
+
+  if (options?.centroid) {
+    const toMidLat = midLat - options.centroid[0];
+    const toMidLng = midLng - options.centroid[1];
+    const dot = toMidLat * nx + toMidLng * ny;
+    if (dot < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+  }
+
+  // Cap max offset to prevent excessively wide loops over long transit distances
+  const offset = Math.min(dist * curvature, 0.012);
+  const ctrlLat = midLat + nx * offset;
+  const ctrlLng = midLng + ny * offset;
+
+  const result: [number, number][] = [];
+  for (let i = 0; i <= numSegments; i++) {
+    const t = i / numSegments;
+    const inv = 1 - t;
+    const lat = inv * inv * lat1 + 2 * inv * t * ctrlLat + t * t * lat2;
+    const lng = inv * inv * lng1 + 2 * inv * t * ctrlLng + t * t * lng2;
+    result.push([lat, lng]);
+  }
+  return result;
+}
+
+/**
+ * Converts a sequence of waypoints into a continuous, smooth curved path.
+ */
+export function computeCurvedRoutePath(
+  points: [number, number][],
+  options?: {
+    curvature?: number;
+    numSegments?: number;
+    centroid?: [number, number];
+  }
+): [number, number][] {
+  if (points.length < 2) return points;
+
+  const centroid =
+    options?.centroid ??
+    (() => {
+      const cLat = points.reduce((s, p) => s + p[0], 0) / points.length;
+      const cLng = points.reduce((s, p) => s + p[1], 0) / points.length;
+      return [cLat, cLng] as [number, number];
+    })();
+
+  const fullPath: [number, number][] = [];
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const arc = computeCurvedSplineArc(points[i], points[i + 1], {
+      curvature: options?.curvature ?? 0.1,
+      numSegments: options?.numSegments ?? 10,
+      centroid,
+    });
+    if (i > 0) {
+      arc.shift();
+    }
+    fullPath.push(...arc);
+  }
+
+  return fullPath;
+}
