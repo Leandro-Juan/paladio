@@ -189,3 +189,41 @@ export interface RouteItineraryData {
   tickets?: Array<{ title: string; subtitle: string }>;
   total_trip_cost?: number;
 }
+
+export interface PoiPhotoItem {
+  url: string;
+  thumbnail_url: string;
+  caption?: string | null;
+  author?: string | null;
+  license_name?: string | null;
+  license_url?: string | null;
+}
+
+export interface PoiDetail {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  lat: number;
+  lng: number;
+  duration_mins: number;
+  cost_eur: number;
+  cost_is_estimated: boolean;
+  cost_source?: string | null;
+  scoring: {
+    rating?: number | null;
+    reviews?: number | null;
+  };
+  description?: string | null;
+  description_source?: string | null;
+  wikipedia_title?: string | null;
+  wikidata_id?: string | null;
+  website?: string | null;
+  neighborhood?: string | null;
+  doc_quality?: string;
+  hours_known?: boolean;
+  osm_opening_hours?: string | null;
+  daily_windows?: Array<Array<{ start: number; end: number }>>;
+  photos: PoiPhotoItem[];
+}
+

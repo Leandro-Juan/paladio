@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { EmptyState } from '@/components/EmptyState';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, fetchCurrentUser } from '@/utils/api';
+import { ReticleCompassIllustration } from '@/components/illustrations/TacticalIllustrations';
 import {
   SearchIcon,
   CheckIcon,
@@ -29,20 +30,7 @@ export interface PlaceItem {
   matchType?: string;
 }
 
-interface TripPlacesSidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  city?: string;
-  places?: PlaceItem[];
-  onPlaceClick?: (place: PlaceItem) => void;
-  categoryFilter?: PoiCategoryType | null;
-  onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
-  hotelAnchor?: { name: string; lat: number; lng: number };
-  airportAnchor?: { name: string; lat: number; lng: number };
-  tripId?: string;
-}
-
-interface PoiApiItem {
+export interface PoiApiItem {
   id: string;
   name: string;
   category: string;
@@ -52,6 +40,7 @@ interface PoiApiItem {
   cost_eur: number;
   similarity: number;
   match_type?: string;
+  description?: string;
 }
 
 interface PoiSearchResponseData {
@@ -64,15 +53,26 @@ interface PoiSearchResponseData {
   results: PoiApiItem[];
 }
 
-const SUGGESTION_PROMPTS = [
-  'Hotel',
-  'Airport',
-  'El Prado',
-  'Good and cozy cafes with charm',
-  'Museums of modern art',
-  'Tapas & wine',
-  'Statue of Liberty',
-];
+interface TripPlacesSidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  city?: string;
+  places?: PlaceItem[];
+  onPlaceClick?: (place: PlaceItem) => void;
+  categoryFilter?: PoiCategoryType | null;
+  onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
+  onCategoryPoisChange?: (pois: PoiApiItem[]) => void;
+  hotelAnchor?: { name: string; lat: number; lng: number };
+  airportAnchor?: { name: string; lat: number; lng: number };
+  tripId?: string;
+  onInspectPoi?: (poiId: string) => void;
+}
+
+function setGlobalActiveSearchPoi(poiPayload: unknown) {
+  if (typeof window !== 'undefined') {
+    (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = poiPayload;
+  }
+}
 
 export function TripPlacesSidebar({
   isOpen,
@@ -81,9 +81,11 @@ export function TripPlacesSidebar({
   onPlaceClick,
   categoryFilter,
   onCategoryFilterChange,
+  onCategoryPoisChange,
   hotelAnchor,
   airportAnchor,
   tripId,
+  onInspectPoi,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -140,22 +142,87 @@ export function TripPlacesSidebar({
     };
   }, []);
 
-  const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
-  if (categoryFilter !== prevCategoryFilter) {
-    setPrevCategoryFilter(categoryFilter);
-    if (categoryFilter) {
-      setActiveCategory(categoryFilter.toLowerCase());
+  const [recommendedPois, setRecommendedPois] = useState<PoiApiItem[]>([]);
+  const [promptSuggestions, setPromptSuggestions] = useState<Array<{ title: string; prompt: string; tag: string }>>([]);
+
+  // Load user taste profile and initial recommendations for city
+  useEffect(() => {
+    let ignore = false;
+    async function loadTasteContext() {
+      try {
+        const currentUser = await fetchCurrentUser().catch(() => null);
+        if (ignore) return;
+        const prefs = (currentUser?.preferences || {}) as Record<string, unknown>;
+        const tagAffinities = (prefs.tag_affinities || {}) as Record<string, number>;
+
+        const cards: Array<{ title: string; prompt: string; tag: string }> = [];
+        if ((tagAffinities['art_culture'] ?? 0.5) >= 0.5) {
+          cards.push({
+            title: 'Art & Heritage',
+            prompt: `Fine art museums and galleries in ${city}`,
+            tag: 'CULTURE',
+          });
+        }
+        if ((tagAffinities['food_culinary'] ?? 0.5) >= 0.5) {
+          cards.push({
+            title: 'Gastronomy & Tapas',
+            prompt: `Cozy tapas bars and local wine in ${city}`,
+            tag: 'DINING',
+          });
+        }
+        if ((tagAffinities['history_heritage'] ?? 0.5) >= 0.5 || (tagAffinities['architecture'] ?? 0.5) >= 0.5) {
+          cards.push({
+            title: 'Historic Landmarks',
+            prompt: `Historic monuments, palaces, and architecture in ${city}`,
+            tag: 'LANDMARKS',
+          });
+        }
+        if ((tagAffinities['scenic_views'] ?? 0.5) >= 0.5 || (tagAffinities['nature_outdoors'] ?? 0.5) >= 0.5) {
+          cards.push({
+            title: 'Scenic Vistas & Parks',
+            prompt: `Scenic viewpoints and botanical parks in ${city}`,
+            tag: 'SCENIC',
+          });
+        }
+        if (cards.length < 3) {
+          cards.push({
+            title: 'Cozy Cafes & Bakeries',
+            prompt: `Charming cafes with specialty coffee in ${city}`,
+            tag: 'CAFÉ',
+          });
+        }
+        setPromptSuggestions(cards.slice(0, 4));
+
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/pois/search?city=${encodeURIComponent(city)}&query=&limit=4`);
+        if (res.ok && !ignore) {
+          const data: PoiSearchResponseData = await res.json();
+          if (Array.isArray(data.results)) {
+            setRecommendedPois(data.results);
+          }
+        }
+      } catch (err: unknown) {
+        console.debug('Failed to load taste context for sidebar:', err);
+      }
     }
-  }
+    loadTasteContext();
+    return () => {
+      ignore = true;
+    };
+  }, [city]);
 
   // Execute Search against backend
-  const executeSearch = React.useCallback(
+  const executeSearch = useCallback(
     async (queryText: string, cat?: string) => {
       const q = queryText.trim();
-      if (!q) {
+      const currentCat = cat !== undefined ? cat : activeCategory;
+      const isCategoryBrowse = !q && currentCat && currentCat !== 'all';
+
+      if (!q && !isCategoryBrowse) {
         setSearchData(null);
         setHasSearched(false);
         setIsLoading(false);
+        if (onCategoryPoisChange) onCategoryPoisChange([]);
         return;
       }
 
@@ -164,13 +231,14 @@ export function TripPlacesSidebar({
       setHasSearched(true);
 
       try {
-        const catParam = cat && cat !== 'all' ? `&category=${encodeURIComponent(cat)}` : '';
+        const catParam = currentCat && currentCat !== 'all' ? `&category=${encodeURIComponent(currentCat)}` : '';
         const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
         const baseUrl = getApiBaseUrl();
+        const limit = isCategoryBrowse ? 100 : 16;
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             city
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=16`
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=${limit}`
         );
         if (!res.ok) {
           throw new Error(`Search failed (HTTP ${res.status})`);
@@ -216,6 +284,9 @@ export function TripPlacesSidebar({
         }
 
         setSearchData(data);
+        if (onCategoryPoisChange) {
+          onCategoryPoisChange(data.results || []);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
         setErrorMessage(msg);
@@ -223,42 +294,109 @@ export function TripPlacesSidebar({
         setIsLoading(false);
       }
     },
-    [city, tripId, hotelAnchor, airportAnchor]
+    [city, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange]
   );
 
-  // Debounced auto-search when query changes
-  React.useEffect(() => {
+  const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
+  if (categoryFilter !== prevCategoryFilter) {
+    setPrevCategoryFilter(categoryFilter);
+    if (categoryFilter) {
+      setActiveCategory(categoryFilter.toLowerCase());
+      setSearchQuery('');
+    } else {
+      setActiveCategory('all');
+      setSearchData(null);
+      setHasSearched(false);
+    }
+  }
+
+  // Debounced auto-search when query or active category changes
+  useEffect(() => {
+    const delay = searchQuery.trim() ? 350 : 0;
     const timer = setTimeout(() => {
       if (!searchQuery.trim()) {
-        setSearchData(null);
-        setHasSearched(false);
+        if (activeCategory && activeCategory !== 'all') {
+          executeSearch('', activeCategory);
+        } else {
+          setSearchData(null);
+          setHasSearched(false);
+          if (onCategoryPoisChange) onCategoryPoisChange([]);
+        }
       } else {
         executeSearch(searchQuery, activeCategory);
       }
-    }, 400);
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeCategory, executeSearch]);
+  }, [searchQuery, activeCategory, executeSearch, onCategoryPoisChange]);
 
   const handleCategoryChange = (cat: string) => {
-    setActiveCategory(cat);
+    const nextCat = activeCategory === cat ? 'all' : cat;
+    setActiveCategory(nextCat);
+    setSearchQuery('');
     if (onCategoryFilterChange) {
-      onCategoryFilterChange(cat === 'all' ? null : (cat as PoiCategoryType));
+      onCategoryFilterChange(nextCat === 'all' ? null : (nextCat as PoiCategoryType));
     }
-    if (searchQuery.trim()) {
-      executeSearch(searchQuery, cat);
+    if (nextCat === 'all') {
+      setSearchData(null);
+      setHasSearched(false);
+      if (onCategoryPoisChange) onCategoryPoisChange([]);
+    } else {
+      executeSearch('', nextCat);
     }
-  };
-
-  const handleSelectPrompt = (prompt: string) => {
-    setSearchQuery(prompt);
-    executeSearch(prompt, activeCategory);
   };
 
   const getScoreColor = (score: number) => {
     if (score >= 0.75) return '#10b981'; // emerald
     if (score >= 0.6) return '#06b6d4'; // cyan
     return '#f59e0b'; // amber
+  };
+
+  const handlePoiDragStart = (e: React.DragEvent, poi: PoiApiItem) => {
+    const poiPayload = {
+      source: 'search',
+      poi: {
+        id: poi.id,
+        name: poi.name,
+        location: {
+          latitude: poi.lat,
+          longitude: poi.lng,
+        },
+        category: poi.category,
+        duration_mins: poi.duration_mins,
+        cost_eur: poi.cost_eur,
+      },
+    };
+    setGlobalActiveSearchPoi(poiPayload);
+    e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
+    e.dataTransfer.effectAllowed = 'copyMove';
+
+    let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
+    if (!blankImg || !blankImg.src) {
+      blankImg = new Image();
+      blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    }
+    try {
+      e.dataTransfer.setDragImage(blankImg, 0, 0);
+    } catch {
+      // ignore
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    setActiveDragPlace({
+      name: poi.name,
+      category: poi.category,
+      durationMins: poi.duration_mins,
+      costEur: poi.cost_eur,
+      width: rect.width,
+      initialX: e.clientX,
+      initialY: e.clientY,
+      offsetX,
+      offsetY,
+    });
   };
 
   return (
@@ -497,43 +635,6 @@ export function TripPlacesSidebar({
                   )}
                 </div>
 
-                {/* Suggestion Chips */}
-                <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
-                  {SUGGESTION_PROMPTS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => handleSelectPrompt(p)}
-                      style={{
-                        flexShrink: 0,
-                        padding: '3px 8px',
-                        background: searchQuery.toLowerCase() === p.toLowerCase() ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.07)',
-                        color: searchQuery.toLowerCase() === p.toLowerCase() ? '#FFFFFF' : 'var(--color-text-muted)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '12px',
-                        fontSize: '10.5px',
-                        fontFamily: 'inherit',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (searchQuery.toLowerCase() !== p.toLowerCase()) {
-                          e.currentTarget.style.color = 'var(--color-accent-primary)';
-                          e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (searchQuery.toLowerCase() !== p.toLowerCase()) {
-                          e.currentTarget.style.color = 'var(--color-text-muted)';
-                          e.currentTarget.style.borderColor = 'var(--color-border)';
-                        }
-                      }}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-
                 {/* Category Pills Row */}
                 <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none', paddingTop: '2px' }}>
                   {['all', 'museum', 'cafe', 'restaurant', 'monument', 'attraction'].map((cat) => (
@@ -620,31 +721,218 @@ export function TripPlacesSidebar({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '2.5rem 1rem',
+                      padding: '1.25rem 0.5rem',
                       textAlign: 'center',
-                      gap: '10px',
+                      gap: '8px',
                     }}
                   >
-                    <div
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '50%',
-                        background: 'rgba(15, 76, 92, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--color-accent-primary)',
-                      }}
-                    >
-                      <SearchIcon size={20} color="var(--color-accent-primary)" />
+                    <div style={{ marginBottom: '2px', display: 'flex', justifyContent: 'center' }}>
+                      <ReticleCompassIllustration width={84} height={56} />
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--color-text-primary)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'var(--color-text-primary)' }}>
                       Search Places in {city}
                     </div>
                     <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-text-muted)', lineHeight: 1.5, maxWidth: '280px' }}>
                       Enter an exact POI name like <strong>&ldquo;El Prado&rdquo;</strong>, or describe what you want with natural language like <strong>&ldquo;cozy cafes with charm&rdquo;</strong>.
                     </p>
+
+                    {/* Taste-Based Search Prompt Cards */}
+                    {promptSuggestions && promptSuggestions.length > 0 && (
+                      <div style={{ width: '100%', marginTop: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <div style={{ height: '1px', flex: 1, background: 'var(--color-border)' }} />
+                          <span
+                            className="font-mono text-muted"
+                            style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                          >
+                            TASTE-BASED SEARCH PROMPTS
+                          </span>
+                          <div style={{ height: '1px', flex: 1, background: 'var(--color-border)' }} />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                          {promptSuggestions.map((item, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery(item.prompt);
+                                executeSearch(item.prompt, activeCategory);
+                              }}
+                              style={{
+                                padding: '8px 9px',
+                                background: 'var(--color-bg-main)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-md)',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                                e.currentTarget.style.background = 'rgba(15, 76, 92, 0.04)';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--color-border)';
+                                e.currentTarget.style.background = 'var(--color-bg-main)';
+                                e.currentTarget.style.transform = 'none';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                <span
+                                  className="font-mono"
+                                  style={{
+                                    fontSize: '8.5px',
+                                    fontWeight: 700,
+                                    color: 'var(--color-accent-primary)',
+                                    background: 'rgba(15, 76, 92, 0.08)',
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  {item.tag}
+                                </span>
+                                <SearchIcon size={11} color="var(--color-text-muted)" />
+                              </div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.title}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '10px',
+                                  color: 'var(--color-text-muted)',
+                                  lineHeight: 1.3,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                }}
+                              >
+                                &ldquo;{item.prompt}&rdquo;
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Taste-Based Recommended POIs Cards */}
+                    {recommendedPois && recommendedPois.length > 0 && (
+                      <div style={{ width: '100%', marginTop: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <div style={{ height: '1px', flex: 1, background: 'var(--color-border)' }} />
+                          <span
+                            className="font-mono text-muted"
+                            style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                          >
+                            RECOMMENDED FOR YOU • {city}
+                          </span>
+                          <div style={{ height: '1px', flex: 1, background: 'var(--color-border)' }} />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
+                          {recommendedPois.map((poi) => (
+                            <div
+                              key={poi.id}
+                              draggable={true}
+                              onDragStart={(e) => handlePoiDragStart(e, poi)}
+                              onDragEnd={() => setActiveDragPlace(null)}
+                              onClick={() => {
+                                if (poi.id) {
+                                  onInspectPoi?.(poi.id);
+                                }
+                                onPlaceClick?.({
+                                  id: poi.id,
+                                  name: poi.name,
+                                  lat: poi.lat,
+                                  lng: poi.lng,
+                                  category: poi.category,
+                                  durationMins: poi.duration_mins,
+                                  costEur: poi.cost_eur,
+                                });
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 10px',
+                                background: 'var(--color-bg-main)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-md)',
+                                cursor: 'grab',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title="Drag into itinerary or click to focus on map"
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--color-border)';
+                                e.currentTarget.style.transform = 'none';
+                              }}
+                            >
+                              <div style={{ color: 'var(--color-text-muted)', cursor: 'grab', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                <GripVerticalIcon size={13} color="var(--color-text-muted)" />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                                  <PoiCategoryBadge category={poi.category} name={poi.name} size="sm" />
+                                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {poi.name}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: 'var(--color-text-muted)' }}>
+                                  {poi.duration_mins > 0 && <span>~{poi.duration_mins}m</span>}
+                                  {poi.cost_eur > 0 ? <span>€{poi.cost_eur.toFixed(1)}</span> : <span style={{ color: '#10b981' }}>Free</span>}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onPlaceClick?.({
+                                    id: poi.id,
+                                    name: poi.name,
+                                    lat: poi.lat,
+                                    lng: poi.lng,
+                                    category: poi.category,
+                                    durationMins: poi.duration_mins,
+                                    costEur: poi.cost_eur,
+                                  });
+                                }}
+                                title="Focus on Map"
+                                style={{
+                                  padding: '4px 7px',
+                                  background: 'rgba(15, 76, 92, 0.08)',
+                                  color: 'var(--color-accent-primary)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  cursor: 'pointer',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                                </svg>
+                                <span>Map</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -678,55 +966,23 @@ export function TripPlacesSidebar({
                 {searchData?.exact_match && !isLoading && (
                   <div
                     draggable={true}
-                    onDragStart={(e) => {
-                      const poiPayload = {
-                        source: 'search',
-                        poi: {
-                          id: searchData.exact_match!.id,
-                          name: searchData.exact_match!.name,
-                          location: {
-                            latitude: searchData.exact_match!.lat,
-                            longitude: searchData.exact_match!.lng,
-                          },
-                          category: searchData.exact_match!.category,
-                          duration_mins: searchData.exact_match!.duration_mins,
-                          cost_eur: searchData.exact_match!.cost_eur,
-                        },
-                      };
-                      if (typeof window !== 'undefined') {
-                        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = poiPayload;
+                    onDragStart={(e) => handlePoiDragStart(e, searchData.exact_match!)}
+                    onDragEnd={() => setActiveDragPlace(null)}
+                    onClick={() => {
+                      if (searchData.exact_match?.id) {
+                        onInspectPoi?.(searchData.exact_match.id);
                       }
-                      e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
-                      e.dataTransfer.effectAllowed = 'copyMove';
-
-                      let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
-                      if (!blankImg || !blankImg.src) {
-                        blankImg = new Image();
-                        blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                      }
-                      try {
-                        e.dataTransfer.setDragImage(blankImg, 0, 0);
-                      } catch {
-                        // ignore
-                      }
-
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const offsetX = e.clientX - rect.left;
-                      const offsetY = e.clientY - rect.top;
-
-                      setActiveDragPlace({
+                      onPlaceClick?.({
+                        id: searchData.exact_match!.id,
                         name: searchData.exact_match!.name,
+                        lat: searchData.exact_match!.lat,
+                        lng: searchData.exact_match!.lng,
                         category: searchData.exact_match!.category,
                         durationMins: searchData.exact_match!.duration_mins,
                         costEur: searchData.exact_match!.cost_eur,
-                        width: rect.width,
-                        initialX: e.clientX,
-                        initialY: e.clientY,
-                        offsetX,
-                        offsetY,
+                        similarity: 1.0,
                       });
                     }}
-                    onDragEnd={() => setActiveDragPlace(null)}
                     style={{
                       padding: '12px',
                       background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 76, 92, 0.04) 100%)',
@@ -737,9 +993,9 @@ export function TripPlacesSidebar({
                       flexDirection: 'column',
                       gap: '8px',
                       animation: 'searchItemFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                      cursor: 'grab',
+                      cursor: 'pointer',
                     }}
-                    title="Drag into itinerary or click Focus on Map"
+                    title="Click to inspect photos and details, or drag into itinerary"
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span
@@ -800,10 +1056,14 @@ export function TripPlacesSidebar({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '2px' }}>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (searchData.exact_match?.id) {
+                            onInspectPoi?.(searchData.exact_match.id);
+                          }
                           onPlaceClick?.({
                             id: searchData.exact_match!.id,
                             name: searchData.exact_match!.name,
@@ -813,8 +1073,43 @@ export function TripPlacesSidebar({
                             durationMins: searchData.exact_match!.duration_mins,
                             costEur: searchData.exact_match!.cost_eur,
                             similarity: 1.0,
-                          })
-                        }
+                          });
+                        }}
+                        style={{
+                          padding: '5px 10px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10B981',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'opacity 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
+                      >
+                        <span>📷 Inspect & Photos</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPlaceClick?.({
+                            id: searchData.exact_match!.id,
+                            name: searchData.exact_match!.name,
+                            lat: searchData.exact_match!.lat,
+                            lng: searchData.exact_match!.lng,
+                            category: searchData.exact_match!.category,
+                            durationMins: searchData.exact_match!.duration_mins,
+                            costEur: searchData.exact_match!.cost_eur,
+                            similarity: 1.0,
+                          });
+                        }}
                         style={{
                           padding: '5px 12px',
                           background: 'var(--color-accent-primary)',
@@ -857,7 +1152,11 @@ export function TripPlacesSidebar({
                       className="font-mono text-muted"
                       style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}
                     >
-                      {searchData.exact_match ? `SIMILAR PLACES IN ${city}` : `SEMANTIC DISCOVERIES IN ${city}`}
+                      {searchData.search_type === 'category_browse'
+                        ? `${activeCategory.toUpperCase()} PLACES IN ${city}`
+                        : searchData.exact_match
+                        ? `SIMILAR PLACES IN ${city}`
+                        : `SEMANTIC DISCOVERIES IN ${city}`}
                     </span>
                     <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
                       {searchData.results.length} RESULTS
@@ -874,56 +1173,12 @@ export function TripPlacesSidebar({
                         <div
                           key={poi.id}
                           draggable={true}
-                          onDragStart={(e) => {
-                            const poiPayload = {
-                              source: 'search',
-                              poi: {
-                                id: poi.id,
-                                name: poi.name,
-                                location: {
-                                  latitude: poi.lat,
-                                  longitude: poi.lng,
-                                },
-                                category: poi.category,
-                                duration_mins: poi.duration_mins,
-                                cost_eur: poi.cost_eur,
-                              },
-                            };
-                            if (typeof window !== 'undefined') {
-                              (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = poiPayload;
-                            }
-                            e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiPayload));
-                            e.dataTransfer.effectAllowed = 'copyMove';
-
-                            let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
-                            if (!blankImg || !blankImg.src) {
-                              blankImg = new Image();
-                              blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                            }
-                            try {
-                              e.dataTransfer.setDragImage(blankImg, 0, 0);
-                            } catch {
-                              // ignore
-                            }
-
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const offsetX = e.clientX - rect.left;
-                            const offsetY = e.clientY - rect.top;
-
-                            setActiveDragPlace({
-                              name: poi.name,
-                              category: poi.category,
-                              durationMins: poi.duration_mins,
-                              costEur: poi.cost_eur,
-                              width: rect.width,
-                              initialX: e.clientX,
-                              initialY: e.clientY,
-                              offsetX,
-                              offsetY,
-                            });
-                          }}
+                          onDragStart={(e) => handlePoiDragStart(e, poi)}
                           onDragEnd={() => setActiveDragPlace(null)}
-                          onClick={() =>
+                          onClick={() => {
+                            if (poi.id) {
+                              onInspectPoi?.(poi.id);
+                            }
                             onPlaceClick?.({
                               id: poi.id,
                               name: poi.name,
@@ -933,8 +1188,8 @@ export function TripPlacesSidebar({
                               durationMins: poi.duration_mins,
                               costEur: poi.cost_eur,
                               similarity: poi.similarity,
-                            })
-                          }
+                            });
+                          }}
                           style={{
                             padding: '10px',
                             background: 'var(--color-bg-main)',

@@ -2,16 +2,18 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import NextImage from 'next/image';
-import { Trip } from '@/hooks/useTrips';
-import { OptimizationResult, DayOutput, RouteItineraryData } from '@/types/domain';
+import { Trip, useTrips } from '@/hooks/useTrips';
+import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
+import { notify } from '@/utils/notify';
 
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripPlanSidebar } from './TripPlanSidebar';
-import { TripPlacesSidebar, PlaceItem } from './TripPlacesSidebar';
+import { TripPlacesSidebar, PlaceItem, PoiApiItem } from './TripPlacesSidebar';
 import TripMapLoader from './TripMapLoader';
-import { MapDayGroup, MapPoi } from './TripMapView';
+import { PoiDetailDrawer } from './PoiDetailDrawer';
+import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { TripCostsView } from './TripCostsView';
 import { TripCollabView } from './TripCollabView';
 import { TripPhotosView } from './TripPhotosView';
@@ -24,6 +26,7 @@ interface TripWorkspaceProps {
 }
 
 export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
+  const { updateTrip } = useTrips();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('plan');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [isLeftOpen, setIsLeftOpen] = useState(true);
@@ -36,6 +39,23 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
+  const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
+
+  const handleCategoryPoisChange = useCallback((pois: PoiApiItem[]) => {
+    setCategoryPois(
+      pois.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        lat: p.lat,
+        lng: p.lng,
+        durationMins: p.duration_mins,
+        costEur: p.cost_eur,
+        similarity: p.similarity,
+        description: p.description,
+      }))
+    );
+  }, []);
 
   const handleToggleLeft = useCallback(() => {
     setIsLeftOpen((prev) => {
@@ -245,6 +265,70 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     }
   }, []);
 
+  const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
+
+  const handleInspectPoi = useCallback((id: string) => {
+    setInspectedPoiId(id);
+  }, []);
+
+  const handleCloseInspect = useCallback(() => {
+    setInspectedPoiId(null);
+  }, []);
+
+  const handleFocusFromDrawer = useCallback(
+    (poi: { lat: number; lng: number; name: string; category: string; durationMins?: number; costEur?: number }) => {
+      handlePlaceClick({
+        id: inspectedPoiId || undefined,
+        name: poi.name,
+        lat: poi.lat,
+        lng: poi.lng,
+        category: poi.category,
+        durationMins: poi.durationMins,
+        costEur: poi.costEur,
+      });
+    },
+    [handlePlaceClick, inspectedPoiId]
+  );
+
+  const handleAddPoiToDay = useCallback(
+    (dayNum: number, poi: PoiDetail) => {
+      if (!currentItinerary) return;
+      const cloned: RouteItineraryData = JSON.parse(JSON.stringify(currentItinerary));
+      if (!Array.isArray(cloned.days)) cloned.days = [];
+      let targetDay = cloned.days.find((d) => (d.day ?? 1) === dayNum);
+      if (!targetDay) {
+        targetDay = { day: dayNum, itinerary: { path: [] } };
+        cloned.days.push(targetDay);
+      }
+      if (!targetDay.itinerary) targetDay.itinerary = { path: [] };
+      if (!Array.isArray(targetDay.itinerary.path)) targetDay.itinerary.path = [];
+
+      const newStop = {
+        poi: {
+          id: poi.id,
+          name: poi.name,
+          city: poi.city || trip.destination,
+          category: poi.category,
+          location: { latitude: poi.lat, longitude: poi.lng },
+          duration_mins: poi.duration_mins || 60,
+          cost_eur: poi.cost_eur || 0,
+        },
+        scheduled_start: '10:00',
+        scheduled_end: '11:00',
+      };
+      targetDay.itinerary.path.push(newStop);
+      setCurrentItinerary(cloned);
+      if (trip.id) {
+        updateTrip(trip.id, { itinerary_data: cloned as unknown as Record<string, unknown> });
+      }
+      notify.success(
+        'Place Added to Itinerary',
+        `Added "${poi.name}" to Day ${dayNum}. Click Re-Optimize Route to recalculate.`
+      );
+    },
+    [currentItinerary, trip.destination, trip.id, updateTrip]
+  );
+
   const photos = itinerary?.photos || [];
   const participantsCount = trip.participants?.length || 1;
 
@@ -299,6 +383,19 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
+            categoryPois={categoryPois}
+            onInspectPoi={handleInspectPoi}
+            onSelectCategoryPoi={(poi) =>
+              handlePlaceClick({
+                id: poi.id,
+                name: poi.name,
+                lat: poi.lat,
+                lng: poi.lng,
+                category: poi.category,
+                durationMins: poi.durationMins,
+                costEur: poi.costEur,
+              })
+            }
           />
 
           {/* Left Floating Itinerary Sidebar */}
@@ -316,6 +413,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
             onTransitModeChange={setTransitMode}
+            onInspectPoi={handleInspectPoi}
           />
 
           {/* Right Floating POI Search Engine Sidebar */}
@@ -327,9 +425,21 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onPlaceClick={handlePlaceClick}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
+            onCategoryPoisChange={handleCategoryPoisChange}
             hotelAnchor={hotel}
             airportAnchor={airport}
             tripId={trip.id}
+            onInspectPoi={handleInspectPoi}
+          />
+
+          {/* POI Detail Inspector Slide-Over Drawer */}
+          <PoiDetailDrawer
+            poiId={inspectedPoiId}
+            onClose={handleCloseInspect}
+            onAddToDay={handleAddPoiToDay}
+            onFocusOnMap={handleFocusFromDrawer}
+            availableDays={daysOutput.map((d) => d.day)}
+            initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
           />
         </div>
 

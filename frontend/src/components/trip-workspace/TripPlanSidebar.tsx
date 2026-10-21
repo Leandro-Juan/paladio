@@ -40,6 +40,7 @@ interface TripPlanSidebarProps {
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
   transitMode?: 'simple' | 'detailed';
   onTransitModeChange?: (mode: 'simple' | 'detailed') => void;
+  onInspectPoi?: (poiId: string) => void;
 }
 
 export function TripPlanSidebar({
@@ -56,6 +57,7 @@ export function TripPlanSidebar({
   onCategoryFilterChange,
   transitMode = 'simple',
   onTransitModeChange,
+  onInspectPoi,
 }: TripPlanSidebarProps) {
   // Transit upgrade state
   const [upgrading, setUpgrading] = useState(false);
@@ -1639,9 +1641,15 @@ export function TripPlanSidebar({
                                       ? 'var(--shadow-md)'
                                       : 'var(--shadow-sm)',
                               opacity: isBeingDragged ? 0.45 : (isCatMatch ? 1 : 0.35),
-                              cursor: anchorInfo.isFixed ? 'default' : 'grab',
+                              cursor: anchorInfo.isFixed ? 'pointer' : 'grab',
                               transform: isBeingDragged ? 'scale(0.98)' : 'none',
                               transition: 'all 0.15s ease',
+                            }}
+                            onClick={() => {
+                              const pId = scheduledPoi.poi?.id;
+                              if (pId) {
+                                onInspectPoi?.(pId);
+                              }
                             }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>

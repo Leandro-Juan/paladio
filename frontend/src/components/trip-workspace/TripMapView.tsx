@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
-import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
+import { computeClusterPolygon, computeCentroid, computeCurvedRoutePath, computeCurvedSplineArc, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
@@ -89,6 +89,7 @@ interface TripMapViewProps {
   transitMode?: 'simple' | 'detailed';
   categoryPois?: CategoryPoiItem[];
   onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
+  onInspectPoi?: (poiId: string) => void;
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -200,6 +201,19 @@ function createWaypointIcon(categoryType: PoiCategoryType, stopNumber: number, d
   });
 }
 
+export function isTransitAnchor(p: { category?: string; name: string }): boolean {
+  const cat = (p.category || '').toLowerCase();
+  const name = (p.name || '').toLowerCase();
+  return (
+    cat.includes('hotel') ||
+    name.includes('hotel') ||
+    cat.includes('lodging') ||
+    cat.includes('airport') ||
+    name.includes('airport') ||
+    cat.includes('flight')
+  );
+}
+
 function createHotelIcon(): L.DivIcon {
   const svg = getCategorySvg('hotel');
   return L.divIcon({
@@ -236,19 +250,6 @@ function createAirportIcon(): L.DivIcon {
   });
 }
 
-function createClusterLabelIcon(dayNumber: number): L.DivIcon {
-  return L.divIcon({
-    className: 'paladio-cluster-badge',
-    html: `
-      <div style="display:flex;align-items:center;justify-content:center;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;border:2px solid var(--color-accent-teal-mid, #14788D);border-radius:999px;padding:3px 10px;font-family:var(--font-mono, monospace);font-size:11px;font-weight:700;box-shadow:var(--shadow-md);letter-spacing:0.5px;cursor:pointer;transform:translate(-50%, -50%);white-space:nowrap;user-select:none;">
-        DAY ${dayNumber}
-      </div>
-    `,
-    iconSize: [60, 24],
-    iconAnchor: [30, 12],
-    popupAnchor: [0, -14],
-  });
-}
 
 function createFocusedWaypointIcon(place: FocusedWaypointPlace): L.DivIcon {
   const cat = (place.category || 'attraction').toLowerCase() as PoiCategoryType;
@@ -262,18 +263,14 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace): L.DivIcon {
     className: 'paladio-focused-waypoint-icon',
     html: `
       <div style="position:relative;width:0;height:0;user-select:none;cursor:pointer;">
-        <!-- Pulsing radar rings -->
-        <div class="paladio-radar-pulse" style="position:absolute;top:0;left:0;width:56px;height:56px;margin-top:-28px;margin-left:-28px;border-radius:50%;border:2px solid #E06D53;background:rgba(224,109,83,0.22);pointer-events:none;"></div>
-        <div class="paladio-radar-pulse-delayed" style="position:absolute;top:0;left:0;width:56px;height:56px;margin-top:-28px;margin-left:-28px;border-radius:50%;border:1.5px solid #E06D53;background:transparent;pointer-events:none;"></div>
-
-        <!-- Waypoint badge with drop-in bounce animation -->
-        <div class="paladio-waypoint-bounce" style="position:absolute;top:0;left:0;display:inline-flex;align-items:center;background:#081C24;border:2px solid #E06D53;border-radius:18px;box-shadow:0 0 16px rgba(224,109,83,0.65), 0 4px 12px rgba(0,0,0,0.5);padding:3px 10px 3px 5px;gap:6px;transform:translate(-50%, -50%);white-space:nowrap;">
-          <div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#E06D53;color:#FFFFFF;box-shadow:0 0 8px rgba(224,109,83,0.8);flex-shrink:0;">
+        <!-- Waypoint badge with calm pop-in entrance animation -->
+        <div class="paladio-waypoint-pop" style="position:absolute;top:0;left:0;display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid var(--color-accent-teal-mid, #14788D);border-radius:18px;box-shadow:var(--shadow-md, 0 4px 14px rgba(0,0,0,0.3));padding:3px 10px 3px 5px;gap:6px;transform:translate(-50%, -50%);white-space:nowrap;">
+          <div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;flex-shrink:0;">
             ${svg}
           </div>
           <div style="display:flex;flex-direction:column;line-height:1.1;">
-            <span style="font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;color:#E06D53;letter-spacing:0.8px;text-transform:uppercase;">FOCUS TARGET</span>
-            <span style="font-family:var(--font-display, sans-serif);font-size:11px;font-weight:700;color:#FFFFFF;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${nameSafe}</span>
+            <span style="font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;color:var(--color-accent-teal-soft, #7CC4D1);letter-spacing:0.8px;text-transform:uppercase;">FOCUS TARGET</span>
+            <span style="font-family:var(--font-display, sans-serif);font-size:11px;font-weight:700;color:var(--color-text-primary, #FFFFFF);max-width:140px;overflow:hidden;text-overflow:ellipsis;">${nameSafe}</span>
           </div>
         </div>
       </div>
@@ -301,7 +298,13 @@ function createCategoryPoiIcon(categoryType: PoiCategoryType): L.DivIcon {
   });
 }
 
-function FocusedWaypointMarker({ place }: { place: FocusedWaypointPlace }) {
+function FocusedWaypointMarker({
+  place,
+  onInspectPoi,
+}: {
+  place: FocusedWaypointPlace;
+  onInspectPoi?: (id: string) => void;
+}) {
   const markerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
@@ -339,9 +342,9 @@ function FocusedWaypointMarker({ place }: { place: FocusedWaypointPlace }) {
                 fontSize: '9px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
-                background: 'rgba(224, 109, 83, 0.15)',
-                color: '#E06D53',
-                border: '1px solid rgba(224, 109, 83, 0.35)',
+                background: 'rgba(20, 120, 141, 0.15)',
+                color: 'var(--color-accent-teal-soft, #7CC4D1)',
+                border: '1px solid var(--color-border-subtle, rgba(20, 120, 141, 0.35))',
                 borderRadius: '3px',
                 padding: '1px 6px',
                 letterSpacing: '0.5px',
@@ -410,6 +413,35 @@ function FocusedWaypointMarker({ place }: { place: FocusedWaypointPlace }) {
           >
             <span>&larr; Drag card to itinerary to add</span>
           </div>
+
+          {place.id && onInspectPoi && (
+            <button
+              type="button"
+              onClick={() => onInspectPoi(place.id!)}
+              style={{
+                marginTop: '6px',
+                padding: '5px 10px',
+                background: 'var(--color-accent-primary, #2563EB)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '10.5px',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                transition: 'opacity 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
+            >
+              <span>📷 Inspect Details & Photos &rarr;</span>
+            </button>
+          )}
         </div>
       </Popup>
     </Marker>
@@ -470,9 +502,11 @@ export default function TripMapView({
   transitMode = 'simple',
   categoryPois,
   onSelectCategoryPoi,
+  onInspectPoi,
 }: TripMapViewProps) {
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   const handleCategoryToggle = (cat: PoiCategoryType) => {
     const next = activeCategory === cat ? null : cat;
@@ -685,15 +719,42 @@ export default function TripMapView({
     });
   }, [days]);
 
-  // Active bounds points
+  // Active bounds points (zooms strictly to convex hulls / sightseeing territories, ignoring distant transit anchors)
   const activeBoundsPoints: LatLngPoint[] = useMemo(() => {
     let points: LatLngPoint[] = [];
+
     if (activeDay === 'all') {
-      days.forEach((d) => points.push(...d.pois));
-      if (hotel) points.push(hotel);
-      if (airport) points.push(airport);
+      // Collect hull points of all day clusters
+      dayClusters.forEach((cluster) => {
+        if (cluster.polygon && cluster.polygon.length > 0) {
+          cluster.polygon.forEach(([lat, lng]) => points.push({ lat, lng }));
+        }
+      });
+      // Fallback if no cluster polygons computed yet
+      if (points.length === 0) {
+        days.forEach((d) => {
+          d.pois.forEach((p) => {
+            if (!isTransitAnchor(p)) points.push({ lat: p.lat, lng: p.lng });
+          });
+        });
+      }
+      if (points.length === 0 && hotel) {
+        points.push(hotel);
+      }
     } else if (activeDayData) {
-      points = [...activeDayData.pois];
+      // Zoom strictly to the active day's convex hull polygon
+      const cluster = dayClusters.find((c) => c.dayNumber === activeDayData.dayNumber);
+      if (cluster && cluster.polygon && cluster.polygon.length > 0) {
+        cluster.polygon.forEach(([lat, lng]) => points.push({ lat, lng }));
+      } else {
+        const cityPoints = activeDayData.pois.filter((p) => !isTransitAnchor(p));
+        if (cityPoints.length > 0) {
+          cityPoints.forEach((p) => points.push({ lat: p.lat, lng: p.lng }));
+        } else {
+          // Fallback only if the entire day has no POIs besides hotel
+          points = activeDayData.pois.map((p) => ({ lat: p.lat, lng: p.lng }));
+        }
+      }
     }
 
     if (activeCategory) {
@@ -709,7 +770,7 @@ export default function TripMapView({
     }
 
     return points;
-  }, [activeDay, days, activeDayData, hotel, airport, activeCategory, categoryPois]);
+  }, [activeDay, days, activeDayData, dayClusters, hotel, activeCategory, categoryPois]);
 
   // Centroid fallback
   const centerPosition: [number, number] = useMemo(() => {
@@ -721,10 +782,39 @@ export default function TripMapView({
     return [41.1579, -8.6291]; // Default fallback
   }, [activeBoundsPoints, hotel]);
 
-  // Active day route polyline (Simple View: clean straight chord lines connecting POIs)
-  const activePolyline: [number, number][] = activeDayData
-    ? activeDayData.pois.map((p) => [p.lat, p.lng])
-    : [];
+  // Active day route geometry (smooth curves + dashed commute legs)
+  const activeDayRouteData = useMemo(() => {
+    if (!activeDayData || !activeDayData.pois || activeDayData.pois.length < 2) {
+      return { coreCurved: [], commuteStartArc: [], commuteEndArc: [] };
+    }
+
+    const pois = activeDayData.pois;
+    let startIdx = 0;
+    while (startIdx < pois.length - 1 && isTransitAnchor(pois[startIdx])) {
+      startIdx++;
+    }
+
+    let endIdx = pois.length;
+    while (endIdx > startIdx + 1 && isTransitAnchor(pois[endIdx - 1])) {
+      endIdx--;
+    }
+
+    const commuteStartArc: [number, number][] =
+      startIdx > 0
+        ? computeCurvedSplineArc([pois[0].lat, pois[0].lng], [pois[startIdx].lat, pois[startIdx].lng], { curvature: 0.08 })
+        : [];
+
+    const commuteEndArc: [number, number][] =
+      endIdx < pois.length
+        ? computeCurvedSplineArc([pois[endIdx - 1].lat, pois[endIdx - 1].lng], [pois[pois.length - 1].lat, pois[pois.length - 1].lng], { curvature: 0.08 })
+        : [];
+
+    const coreSlice = pois.slice(startIdx, endIdx);
+    const coreRaw: [number, number][] = coreSlice.map((p) => [p.lat, p.lng]);
+    const coreCurved = coreRaw.length >= 2 ? computeCurvedRoutePath(coreRaw) : [];
+
+    return { coreCurved, commuteStartArc, commuteEndArc };
+  }, [activeDayData]);
 
   const categoryPills: Array<{ type: PoiCategoryType; label: string }> = [
     { type: 'restaurant', label: 'Dining' },
@@ -812,6 +902,7 @@ export default function TripMapView({
           <FocusedWaypointMarker
             key={`focused-${focusedPlace.lat}-${focusedPlace.lng}-${focusedPlace.timestamp || 0}`}
             place={focusedPlace}
+            onInspectPoi={onInspectPoi}
           />
         )}
 
@@ -822,25 +913,28 @@ export default function TripMapView({
         {dayClusters.map((cluster) => {
           if (cluster.polygon.length < 3) return null;
           const isActive = activeDay === cluster.dayNumber;
+          const isHovered = hoveredDay === cluster.dayNumber;
 
           // In single-day view, only render the active day's territory to prevent visual clutter
           if (activeDay !== 'all' && !isActive) return null;
+
+          const dayColor = getDayColor(cluster.dayNumber);
 
           return (
             <Polygon
               key={`cluster-poly-${cluster.dayNumber}`}
               positions={cluster.polygon}
               pathOptions={
-                isActive
+                isActive || isHovered
                   ? {
-                      fillColor: '#0F4C5C',
-                      fillOpacity: 0.20,
-                      color: '#14788D',
+                      fillColor: dayColor,
+                      fillOpacity: 0.16,
+                      color: dayColor,
                       weight: 2,
                     }
                   : {
                       fillColor: '#64748B',
-                      fillOpacity: 0.10,
+                      fillOpacity: hoveredDay !== null ? 0.03 : 0.08,
                       color: '#94A3B8',
                       weight: 1.5,
                       dashArray: '4, 4',
@@ -848,8 +942,15 @@ export default function TripMapView({
               }
               eventHandlers={{
                 click: () => onDayChange(cluster.dayNumber),
+                mouseover: () => setHoveredDay(cluster.dayNumber),
+                mouseout: () => setHoveredDay(null),
               }}
             >
+              <Tooltip sticky direction="center" opacity={0.92}>
+                <span className="font-mono" style={{ fontSize: '11px', fontWeight: 700, color: dayColor }}>
+                  DAY {cluster.dayNumber}
+                </span>
+              </Tooltip>
               <Popup>
                 <div className="font-mono" style={{ fontSize: '11px', padding: '2px' }}>
                   <strong style={{ color: 'var(--color-text-primary)' }}>DAY {cluster.dayNumber} TERRITORY</strong>
@@ -861,22 +962,6 @@ export default function TripMapView({
             </Polygon>
           );
         })}
-
-        {/* 2. Cluster Centroid Badges in ALL DAYS view */}
-        {activeDay === 'all' &&
-          dayClusters.map((cluster) => {
-            if (!cluster.centroid || cluster.centroid.lat === 0) return null;
-            return (
-              <Marker
-                key={`cluster-badge-${cluster.dayNumber}`}
-                position={[cluster.centroid.lat, cluster.centroid.lng]}
-                icon={createClusterLabelIcon(cluster.dayNumber)}
-                eventHandlers={{
-                  click: () => onDayChange(cluster.dayNumber),
-                }}
-              />
-            );
-          })}
 
         {/* 3. Route Polyline: Simple vs Detailed Transit */}
         {transitMode === 'detailed' ? (
@@ -954,38 +1039,79 @@ export default function TripMapView({
             ))}
           </>
         ) : activeDay !== 'all' ? (
-          activePolyline.length > 1 && (
-            <Polyline
-              key={`active-poly-d${activeDay}-${activePolyline.map((p) => `${p[0]},${p[1]}`).join(';')}`}
-              positions={activePolyline}
-              pathOptions={{
-                color: getDayColor(activeDay as number),
-                weight: 4,
-                opacity: 0.95,
-              }}
-            />
-          )
+          <>
+            {/* Core sightseeing route (smooth curved spline) */}
+            {activeDayRouteData.coreCurved.length > 1 && (
+              <Polyline
+                key={`active-core-d${activeDay}`}
+                positions={activeDayRouteData.coreCurved}
+                pathOptions={{
+                  color: getDayColor(activeDay as number),
+                  weight: 3.5,
+                  opacity: 0.95,
+                }}
+              />
+            )}
+            {/* Commute start from Hotel/Airport (refined dashed arc) */}
+            {activeDayRouteData.commuteStartArc.length > 1 && (
+              <Polyline
+                key={`active-start-d${activeDay}`}
+                positions={activeDayRouteData.commuteStartArc}
+                pathOptions={{
+                  color: getDayColor(activeDay as number),
+                  weight: 2,
+                  opacity: 0.65,
+                  dashArray: '4, 6',
+                }}
+              />
+            )}
+            {/* Commute return to Hotel (refined dashed arc) */}
+            {activeDayRouteData.commuteEndArc.length > 1 && (
+              <Polyline
+                key={`active-end-d${activeDay}`}
+                positions={activeDayRouteData.commuteEndArc}
+                pathOptions={{
+                  color: getDayColor(activeDay as number),
+                  weight: 2,
+                  opacity: 0.65,
+                  dashArray: '4, 6',
+                }}
+              />
+            )}
+          </>
         ) : (
-          /* In ALL DAYS view: render each day's polyline in its distinctive day color */
+          /* In ALL DAYS view: render clean curved day polylines excluding repetitive hotel commute rays */
           days.map((d) => {
-            const poly = d.pois.map((p) => [p.lat, p.lng] as [number, number]);
-            if (poly.length < 2) return null;
+            const sightseeingPois = d.pois.filter((p) => !isTransitAnchor(p));
+            const targetPois = sightseeingPois.length >= 2 ? sightseeingPois : d.pois;
+            const rawCoords: [number, number][] = targetPois.map((p) => [p.lat, p.lng]);
+            if (rawCoords.length < 2) return null;
+
+            const curvedPositions = computeCurvedRoutePath(rawCoords);
+            const isHovered = hoveredDay === d.dayNumber;
+            const isAnotherHovered = hoveredDay !== null && !isHovered;
+
             return (
               <Polyline
-                key={`all-poly-d${d.dayNumber}-${poly.map((p) => `${p[0]},${p[1]}`).join(';')}`}
-                positions={poly}
+                key={`all-poly-d${d.dayNumber}`}
+                positions={curvedPositions}
                 pathOptions={{
                   color: getDayColor(d.dayNumber),
-                  weight: 3.5,
-                  opacity: 0.85,
+                  weight: isHovered ? 4 : isAnotherHovered ? 1.5 : 2.5,
+                  opacity: isHovered ? 0.95 : isAnotherHovered ? 0.12 : 0.32,
+                }}
+                eventHandlers={{
+                  mouseover: () => setHoveredDay(d.dayNumber),
+                  mouseout: () => setHoveredDay(null),
+                  click: () => onDayChange(d.dayNumber),
                 }}
               />
             );
           })
         )}
 
-        {/* 4. Hotel Base Camp Anchor Marker */}
-        {hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (
+        {/* 4. Hotel Base Camp Anchor Marker (Only in single day view) */}
+        {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (
           <Marker position={[hotel.lat, hotel.lng]} icon={createHotelIcon()}>
             <Popup>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '140px' }}>
@@ -1001,8 +1127,8 @@ export default function TripMapView({
           </Marker>
         )}
 
-        {/* 5. Airport Transit Gate Anchor Marker */}
-        {airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && (
+        {/* 5. Airport Transit Gate Anchor Marker (Only in single day view) */}
+        {activeDay !== 'all' && airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && (
           <Marker position={[airport.lat, airport.lng]} icon={createAirportIcon()}>
             <Popup>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '140px' }}>
@@ -1018,25 +1144,16 @@ export default function TripMapView({
           </Marker>
         )}
 
-        {/* 6. Waypoint Markers (Both ALL DAYS and Single Day views) */}
-        {(() => {
-          const daysToRender = activeDay !== 'all'
-            ? (activeDayData ? [activeDayData] : [])
-            : days;
-
-          return daysToRender.flatMap((dayGroup) => {
+        {/* 6. Waypoint Markers (Only in Single Day view; hidden in ALL DAYS mode to keep only routes and convex hulls) */}
+        {activeDay !== 'all' &&
+          activeDayData &&
+          (() => {
             let stopCounter = 0;
-            return dayGroup.pois.map((poi, idx) => {
+            return activeDayData.pois.map((poi, idx) => {
               const categoryType = classifyPoiCategory(poi.category, poi.name).type;
               const isHotel = categoryType === 'hotel' || poi.name.toLowerCase().includes('hotel');
               const isAirport =
                 categoryType === 'airport' || categoryType === 'flight' || poi.name.toLowerCase().includes('airport');
-
-              // Suppress duplicate static markers only in ALL DAYS overview; in single day view, show all route stops
-              if (activeDay === 'all') {
-                if (isHotel && hotel) return null;
-                if (isAirport && airport) return null;
-              }
 
               stopCounter++;
 
@@ -1048,30 +1165,19 @@ export default function TripMapView({
                 ? createHotelIcon()
                 : isAirport
                 ? createAirportIcon()
-                : createWaypointIcon(
-                    categoryType,
-                    stopCounter,
-                    activeDay === 'all' ? dayGroup.dayNumber : undefined
-                  );
+                : createWaypointIcon(categoryType, stopCounter, activeDayData.dayNumber);
 
               return (
                 <Marker
-                  key={`marker-d${dayGroup.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
+                  key={`marker-d${activeDayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
                   position={[poi.lat, poi.lng]}
                   icon={markerIcon}
-                  eventHandlers={{
-                    click: () => {
-                      if (activeDay === 'all') {
-                        onDayChange(dayGroup.dayNumber);
-                      }
-                    },
-                  }}
                 >
                   <Popup>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
                       <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
                         <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
-                          DAY {dayGroup.dayNumber} · STOP {String(stopCounter).padStart(2, '0')}
+                          DAY {activeDayData.dayNumber} · STOP {String(stopCounter).padStart(2, '0')}
                         </span>
                         <div
                           className="font-display"
@@ -1106,8 +1212,7 @@ export default function TripMapView({
                 </Marker>
               );
             });
-          });
-        })()}
+          })()}
 
         {/* 7. Category POI Markers (Displayed when browsing a category like MUSEUM, CAFE, etc.) */}
         {activeCategory && categoryPois && categoryPois.length > 0 && (

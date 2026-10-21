@@ -476,6 +476,17 @@ a {
   to { opacity: 1; }
 }
 
+@keyframes poiDrawerSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .auth-hero-panel {
     display: none !important;
@@ -681,36 +692,15 @@ a {
   color: var(--color-accent-teal-mid) !important;
 }
 
-/* Focused Target Waypoint Animations */
-@keyframes paladioRadarPulse {
+/* Focused Target Waypoint Animations (Subtle Pop-In, No Infinite Vibrating Rings) */
+@keyframes paladioTargetPop {
   0% {
-    transform: scale(0.6);
-    opacity: 0.95;
-  }
-  60% {
-    transform: scale(2.2);
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(3.0);
+    transform: translate(-50%, -50%) scale(0.95);
     opacity: 0;
-  }
-}
-
-@keyframes paladioWaypointBounce {
-  0% {
-    transform: translate(-50%, -150%) scale(0.3);
-    opacity: 0;
-  }
-  50% {
-    transform: translate(-50%, -40%) scale(1.18);
-    opacity: 1;
-  }
-  75% {
-    transform: translate(-50%, -55%) scale(0.95);
   }
   100% {
     transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
   }
 }
 
@@ -719,30 +709,29 @@ a {
   border: none !important;
 }
 
-.paladio-radar-pulse {
-  animation: paladioRadarPulse 1.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
-}
-
-.paladio-radar-pulse-delayed {
-  animation: paladioRadarPulse 1.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
-  animation-delay: 0.5s;
-}
-
-.paladio-waypoint-bounce {
-  animation: paladioWaypointBounce 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+.paladio-waypoint-pop {
+  animation: paladioTargetPop 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .paladio-focused-popup .leaflet-popup-content-wrapper {
   background: var(--color-surface-card, #081C24) !important;
-  border: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
-  box-shadow: 0 0 20px rgba(224, 109, 83, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--color-accent-teal-mid, #14788D) !important;
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
   border-radius: var(--radius-md, 8px) !important;
   padding: 4px !important;
 }
 
 .paladio-focused-popup .leaflet-popup-tip {
   background: var(--color-surface-card, #081C24) !important;
-  border-bottom: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
-  border-right: 1.5px solid var(--color-accent-terracotta, #E06D53) !important;
+  border-bottom: 1px solid var(--color-accent-teal-mid, #14788D) !important;
+  border-right: 1px solid var(--color-accent-teal-mid, #14788D) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-waypoint-pop {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
 }
 

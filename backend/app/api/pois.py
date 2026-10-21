@@ -13,7 +13,7 @@ import re
 import unicodedata
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ from app.engine.retrieval.query_rewriter import QueryRewriter
 from app.infrastructure.providers.ollama_embedding_provider import (
     OllamaEmbeddingProvider,
 )
+from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,40 @@ class PoiSearchResponse(BaseModel):
     message: str | None = None
     exact_match: PoiSearchItem | None = None
     results: list[PoiSearchItem] = []
+
+
+class PoiPhotoItem(BaseModel):
+    url: str
+    thumbnail_url: str
+    caption: str | None = None
+    author: str | None = None
+    license_name: str | None = None
+    license_url: str | None = None
+
+
+class PoiDetailResponse(BaseModel):
+    id: str
+    name: str
+    category: str
+    city: str
+    lat: float
+    lng: float
+    duration_mins: int = 60
+    cost_eur: float = 0.0
+    cost_is_estimated: bool = True
+    cost_source: str | None = None
+    scoring: dict[str, Any] = Field(default_factory=dict)
+    description: str | None = None
+    description_source: str | None = None
+    wikipedia_title: str | None = None
+    wikidata_id: str | None = None
+    website: str | None = None
+    neighborhood: str | None = None
+    doc_quality: str = "C"
+    hours_known: bool = False
+    osm_opening_hours: str | None = None
+    daily_windows: list[Any] = Field(default_factory=list)
+    photos: list[PoiPhotoItem] = Field(default_factory=list)
 
 
 def _normalize_text(s: str) -> str:
@@ -597,4 +632,62 @@ async def search_pois(
         message=message,
         exact_match=None,
         results=results,
+    )
+
+
+@router.get("/{poi_id}/details", response_model=PoiDetailResponse)
+@router.get("/{poi_id}", response_model=PoiDetailResponse)
+async def get_poi_details(
+    poi_id: str,
+    session: AsyncSession = Depends(get_db),
+) -> PoiDetailResponse:
+    """Retrieves full POI details and dynamically resolves real photos from Wikimedia/Wikipedia."""
+    stmt = select(AttractionModel).where(AttractionModel.id == poi_id)
+    res = await session.execute(stmt)
+    poi = res.scalar_one_or_none()
+    if not poi:
+        raise HTTPException(status_code=404, detail=f"POI with id '{poi_id}' not found")
+
+    lat, lng = _extract_coords(poi.location)
+    meta = dict(poi.metadata_field or {})
+    tags = dict(meta.get("tags") or {})
+    scoring_dict = dict(poi.scoring or {})
+
+    photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
+        poi_id=poi.id,
+        name=poi.name,
+        city=poi.city,
+        wikipedia_title=poi.wikipedia_title,
+        wikidata_id=poi.wikidata_id,
+        osm_tags=tags,
+    )
+
+    description = poi.description or lead_extract
+    description_source = poi.description_source or (
+        "wikipedia" if lead_extract else None
+    )
+
+    return PoiDetailResponse(
+        id=poi.id,
+        name=poi.name,
+        category=poi.category,
+        city=poi.city,
+        lat=lat,
+        lng=lng,
+        duration_mins=poi.duration_mins or 60,
+        cost_eur=float(poi.cost_eur or 0.0),
+        cost_is_estimated=bool(poi.cost_is_estimated),
+        cost_source=poi.cost_source,
+        scoring=scoring_dict,
+        description=description,
+        description_source=description_source,
+        wikipedia_title=poi.wikipedia_title,
+        wikidata_id=poi.wikidata_id,
+        website=poi.website or tags.get("website") or tags.get("contact:website"),
+        neighborhood=poi.neighborhood,
+        doc_quality=getattr(poi, "doc_quality", "C") or "C",
+        hours_known=bool(getattr(poi, "hours_known", False)),
+        osm_opening_hours=poi.osm_opening_hours,
+        daily_windows=list(getattr(poi, "daily_windows", []) or []),
+        photos=[PoiPhotoItem(**p) for p in photos_data],
     )
