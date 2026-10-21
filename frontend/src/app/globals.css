@@ -487,6 +487,17 @@ a {
   }
 }
 
+@keyframes poiViewEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 768px) {
   .auth-hero-panel {
     display: none !important;

@@ -7,6 +7,8 @@ import { PoiCategoryType } from '@/utils/poiCategory';
 import { EmptyState } from '@/components/EmptyState';
 import { getApiBaseUrl, fetchCurrentUser } from '@/utils/api';
 import { ReticleCompassIllustration } from '@/components/illustrations/TacticalIllustrations';
+import { PoiDetail } from '@/types/domain';
+import { PoiDetailView } from './PoiDetailView';
 import {
   SearchIcon,
   CheckIcon,
@@ -53,7 +55,7 @@ interface PoiSearchResponseData {
   results: PoiApiItem[];
 }
 
-interface TripPlacesSidebarProps {
+export interface TripPlacesSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   city?: string;
@@ -66,6 +68,19 @@ interface TripPlacesSidebarProps {
   airportAnchor?: { name: string; lat: number; lng: number };
   tripId?: string;
   onInspectPoi?: (poiId: string) => void;
+  inspectedPoiId?: string | null;
+  onCloseInspect?: () => void;
+  onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
+  onFocusFromInspector?: (poi: {
+    lat: number;
+    lng: number;
+    name: string;
+    category: string;
+    durationMins?: number;
+    costEur?: number;
+  }) => void;
+  availableDays?: number[];
+  initialDay?: number;
 }
 
 function setGlobalActiveSearchPoi(poiPayload: unknown) {
@@ -86,6 +101,12 @@ export function TripPlacesSidebar({
   airportAnchor,
   tripId,
   onInspectPoi,
+  inspectedPoiId,
+  onCloseInspect,
+  onAddToDay,
+  onFocusFromInspector,
+  availableDays,
+  initialDay,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -493,16 +514,26 @@ export function TripPlacesSidebar({
             flexDirection: 'column',
           }}
         >
-          {isOpen && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-                width: 'min(380px, calc(100vw - 32px))',
-                minWidth: 0,
-              }}
-            >
+          {isOpen &&
+            (inspectedPoiId ? (
+              <PoiDetailView
+                poiId={inspectedPoiId}
+                onClose={onCloseInspect || (() => {})}
+                onAddToDay={onAddToDay}
+                onFocusOnMap={onFocusFromInspector}
+                availableDays={availableDays}
+                initialDay={initialDay}
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  width: 'min(380px, calc(100vw - 32px))',
+                  minWidth: 0,
+                }}
+              >
               {/* Header: Title & City Tag */}
               <div
                 style={{
@@ -1356,6 +1387,7 @@ export function TripPlacesSidebar({
                 )}
               </div>
             </div>
+            )
           )}
         </aside>
       </div>

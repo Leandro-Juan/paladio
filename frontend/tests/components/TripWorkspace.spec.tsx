@@ -223,5 +223,29 @@ test.describe('Trip Workspace Renovated Components', () => {
     await costsBtn.click();
     expect(currentTab).toBe('costs');
   });
+
+  test('TripPlacesSidebar seamlessly transitions to PoiDetailView when inspectedPoiId is provided', async ({ mount }) => {
+    let closed = false;
+
+    const component = await mount(
+      <TripPlacesSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        city="Tokyo"
+        inspectedPoiId="osm-way-94124811"
+        onCloseInspect={() => {
+          closed = true;
+        }}
+      />
+    );
+
+    // Inspector header should be rendered occupying the exact sidebar space
+    await expect(component.getByText('// POI INSPECTOR')).toBeVisible();
+    const backBtn = component.getByLabel('Back to Search');
+    await expect(backBtn).toBeVisible();
+
+    await backBtn.click();
+    expect(closed).toBe(true);
+  });
 });
 

@@ -12,7 +12,6 @@ import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripPlanSidebar } from './TripPlanSidebar';
 import { TripPlacesSidebar, PlaceItem, PoiApiItem } from './TripPlacesSidebar';
 import TripMapLoader from './TripMapLoader';
-import { PoiDetailDrawer } from './PoiDetailDrawer';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { TripCostsView } from './TripCostsView';
 import { TripCollabView } from './TripCollabView';
@@ -269,6 +268,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const handleInspectPoi = useCallback((id: string) => {
     setInspectedPoiId(id);
+    setIsRightOpen(true);
   }, []);
 
   const handleCloseInspect = useCallback(() => {
@@ -416,7 +416,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onInspectPoi={handleInspectPoi}
           />
 
-          {/* Right Floating POI Search Engine Sidebar */}
+          {/* Right Floating POI Search Engine & Inspector Sidebar */}
           <TripPlacesSidebar
             isOpen={isRightOpen}
             onToggle={handleToggleRight}
@@ -430,14 +430,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             airportAnchor={airport}
             tripId={trip.id}
             onInspectPoi={handleInspectPoi}
-          />
-
-          {/* POI Detail Inspector Slide-Over Drawer */}
-          <PoiDetailDrawer
-            poiId={inspectedPoiId}
-            onClose={handleCloseInspect}
+            inspectedPoiId={inspectedPoiId}
+            onCloseInspect={handleCloseInspect}
             onAddToDay={handleAddPoiToDay}
-            onFocusOnMap={handleFocusFromDrawer}
+            onFocusFromInspector={handleFocusFromDrawer}
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
           />
