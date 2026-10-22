@@ -1038,4 +1038,77 @@ export function TrendingDownIcon({ size = 14, className, style, color = 'current
   );
 }
 
+/**
+ * Three horizontal lines menu icon for tactical speed dials and navigation drawers.
+ */
+export function MenuLinesIcon({ size = 16, className, style, color = 'currentColor' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
 
+/**
+ * Layers / view mode icon for toggling simple vs detailed representations.
+ */
+export function LayersViewIcon({ size = 16, className, style, color = 'currentColor' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  );
+}
+
+/**
+ * Plus / Add icon for expandable dials and action buttons.
+ * Rotates smoothly by 45 degrees to transition into an "x" (close) icon.
+ */
+export function PlusIcon({ size = 16, className, style, color = 'currentColor' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}

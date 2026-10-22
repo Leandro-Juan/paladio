@@ -41,6 +41,7 @@ interface TripPlanSidebarProps {
   transitMode?: 'simple' | 'detailed';
   onTransitModeChange?: (mode: 'simple' | 'detailed') => void;
   onInspectPoi?: (poiId: string) => void;
+  isEditMode?: boolean;
 }
 
 export function TripPlanSidebar({
@@ -58,6 +59,7 @@ export function TripPlanSidebar({
   transitMode = 'simple',
   onTransitModeChange,
   onInspectPoi,
+  isEditMode = false,
 }: TripPlanSidebarProps) {
   // Transit upgrade state
   const [upgrading, setUpgrading] = useState(false);
@@ -468,6 +470,38 @@ export function TripPlanSidebar({
     }
   };
 
+  const handleMoveDay = (dayNum: number, direction: 'up' | 'down') => {
+    if (!isEditMode || !itinerary || !onItineraryUpdate) return;
+    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+    if (!Array.isArray(clonedItin.days)) return;
+
+    const curIdx = clonedItin.days.findIndex((d) => (d.day ?? 1) === dayNum);
+    if (curIdx === -1) return;
+
+    const targetIdx = direction === 'up' ? curIdx - 1 : curIdx + 1;
+    if (targetIdx < 0 || targetIdx >= clonedItin.days.length) return;
+
+    // Swap days in the array
+    const temp = clonedItin.days[curIdx];
+    clonedItin.days[curIdx] = clonedItin.days[targetIdx];
+    clonedItin.days[targetIdx] = temp;
+
+    // Re-index days to maintain 1-based sequential ordering
+    clonedItin.days.forEach((d, idx) => {
+      d.day = idx + 1;
+    });
+
+    onItineraryUpdate(clonedItin);
+    setHasManualChanges(true);
+    if (tripId) {
+      updateTrip(tripId, { itinerary_data: clonedItin });
+    }
+    notify.success(
+      'Days Reordered',
+      `Moved Day ${dayNum} ${direction === 'up' ? 'before' : 'after'} Day ${targetIdx + 1}.`
+    );
+  };
+
   const handleDrop = async (
     e: React.DragEvent,
     targetDayNum: number,
@@ -549,6 +583,13 @@ export function TripPlanSidebar({
         }
       }
     } else if (itinDataStr || draggedPoiRef.current) {
+      if (!isEditMode) {
+        notify.info(
+          'Route Editing Disabled',
+          'Enable route editing mode from the action dial at the bottom of the right panel to reorder waypoints.'
+        );
+        return;
+      }
       try {
         const raw = itinDataStr || (draggedPoiRef.current ? JSON.stringify(draggedPoiRef.current) : null);
         if (!raw) return;
@@ -879,15 +920,6 @@ export function TripPlanSidebar({
                 background: 'var(--color-surface-card)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="font-mono text-muted" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
-                  {'// ITINERARY TIMELINE'}
-                </span>
-                <span className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-accent-primary)', fontWeight: 700 }}>
-                  EST. {totalCost.toFixed(2)} &euro;
-                </span>
-              </div>
-
               {/* Day Selection Tabs with Single-Line Carousel */}
               <div
                 style={{
@@ -1051,86 +1083,6 @@ export function TripPlanSidebar({
                 )}
               </div>
 
-              {/* Transit Route Mode Pill Toggle */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
-                  padding: '3px 4px 3px 10px',
-                  background: 'var(--color-bg-main)',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <TransitIcon size={12} color="var(--color-accent-primary)" />
-                  <span
-                    className="font-mono text-muted"
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    TRANSIT ROUTE
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    background: 'var(--color-surface-card)',
-                    padding: '2px',
-                    borderRadius: 'var(--radius-full)',
-                    border: '1px solid var(--color-border)',
-                    gap: '2px',
-                  }}
-                >
-                  <button
-                    type="button"
-                    data-testid="transit-pill-simple"
-                    onClick={() => onTransitModeChange?.('simple')}
-                    style={{
-                      padding: '3px 9px',
-                      borderRadius: 'var(--radius-full)',
-                      border: 'none',
-                      background: transitMode === 'simple' ? 'var(--color-accent-primary)' : 'transparent',
-                      color: transitMode === 'simple' ? '#FFFFFF' : 'var(--color-text-muted)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: transitMode === 'simple' ? '0 1px 3px rgba(15, 76, 92, 0.25)' : 'none',
-                    }}
-                  >
-                    SIMPLE
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="transit-pill-detailed"
-                    onClick={() => onTransitModeChange?.('detailed')}
-                    style={{
-                      padding: '3px 9px',
-                      borderRadius: 'var(--radius-full)',
-                      border: 'none',
-                      background: transitMode === 'detailed' ? 'var(--color-accent-primary)' : 'transparent',
-                      color: transitMode === 'detailed' ? '#FFFFFF' : 'var(--color-text-muted)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: transitMode === 'detailed' ? '0 1px 3px rgba(15, 76, 92, 0.25)' : 'none',
-                    }}
-                  >
-                    DETAILED
-                  </button>
-                </div>
-              </div>
-
               {/* Active Category Filter Indicator */}
               {categoryFilter && (
                 <div
@@ -1273,87 +1225,6 @@ export function TripPlanSidebar({
                   )}
                 </div>
               )}
-
-              {/* C++ Route Re-Optimization Action Card */}
-              <div
-                style={{
-                  marginTop: '4px',
-                  padding: '8px 10px',
-                  background: 'var(--color-bg-main)',
-                  border: hasManualChanges ? '1.5px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
-                  boxShadow: hasManualChanges ? '0 2px 8px rgba(15, 76, 92, 0.15)' : 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <CpuIcon size={14} color="var(--color-accent-primary)" />
-                    <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary)', fontWeight: 700 }}>
-                      RE-OPTIMIZE ROUTE
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '9.5px',
-                        letterSpacing: '0.06em',
-                        background: 'rgba(15, 76, 92, 0.12)',
-                        color: 'var(--color-accent-primary)',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      C++20 TSPTW
-                    </span>
-                  </div>
-                  {hasManualChanges && (
-                    <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-accent-primary)', fontWeight: 600 }}>
-                      Manual changes made · Solve optimal sequence &amp; times
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleReoptimizeRoute}
-                  disabled={reoptimizing}
-                  style={{
-                    padding: '5px 10px',
-                    background: 'var(--color-accent-primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '10.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    cursor: reoptimizing ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    boxShadow: 'var(--shadow-sm)',
-                    whiteSpace: 'nowrap',
-                    opacity: reoptimizing ? 0.75 : 1,
-                  }}
-                  title={
-                    selectedDay === 'all'
-                      ? 'Run deterministic optimization on all days'
-                      : `Run deterministic optimization on Day ${selectedDay} stops`
-                  }
-                >
-                  {reoptimizing ? <Spinner size={11} color="#FFFFFF" /> : <LightningIcon size={12} color="#FFFFFF" />}
-                  <span>
-                    {reoptimizing
-                      ? 'SOLVING...'
-                      : selectedDay === 'all'
-                        ? 'SOLVE ALL DAYS'
-                        : `SOLVE DAY ${selectedDay}`}
-                  </span>
-                </button>
-              </div>
             </div>
 
             {/* Stops & Waypoints List */}
@@ -1372,10 +1243,57 @@ export function TripPlanSidebar({
                 return (
                   <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {/* Day Group Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid var(--color-border)', paddingBottom: '4px' }}>
-                      <span className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
-                        DAY {dayObj.day} {dayObj.theme ? `— ${dayObj.theme}` : ''}
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          DAY {dayObj.day} {dayObj.theme ? `— ${dayObj.theme}` : ''}
+                        </span>
+                        {/* Day Reorder Controls when in Edit Mode */}
+                        {isEditMode && days.length > 1 && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveDay(dayObj.day, 'up')}
+                              disabled={dayObj.day <= 1}
+                              title={`Move Day ${dayObj.day} Up`}
+                              aria-label={`Move Day ${dayObj.day} Up`}
+                              style={{
+                                background: 'none',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '3px',
+                                padding: '2px',
+                                cursor: dayObj.day <= 1 ? 'not-allowed' : 'pointer',
+                                opacity: dayObj.day <= 1 ? 0.3 : 0.8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: 'var(--color-text-muted)',
+                              }}
+                            >
+                              <ChevronUpIcon size={11} color="currentColor" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveDay(dayObj.day, 'down')}
+                              disabled={dayObj.day >= days.length}
+                              title={`Move Day ${dayObj.day} Down`}
+                              aria-label={`Move Day ${dayObj.day} Down`}
+                              style={{
+                                background: 'none',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '3px',
+                                padding: '2px',
+                                cursor: dayObj.day >= days.length ? 'not-allowed' : 'pointer',
+                                opacity: dayObj.day >= days.length ? 0.3 : 0.8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: 'var(--color-text-muted)',
+                              }}
+                            >
+                              <ChevronDownIcon size={11} color="currentColor" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
                         {path.length} STOPS
                       </span>
@@ -1439,7 +1357,7 @@ export function TripPlanSidebar({
 
                       const anchorInfo = checkFixedAnchor(scheduledPoi, poiIdx, path.length, dayObj.day, days.length);
                       const bounds = getMovableBounds(path, dayObj.day, days.length);
-                      const canDropBefore = poiIdx >= bounds.minIdx && poiIdx <= bounds.maxIdx + 1;
+                      const canDropBefore = isEditMode && poiIdx >= bounds.minIdx && poiIdx <= bounds.maxIdx + 1;
 
                       return (
                         <React.Fragment key={poiIdx}>
@@ -1541,9 +1459,9 @@ export function TripPlanSidebar({
 
                           {/* Draggable Waypoint Card & Drop Target */}
                           <div
-                            draggable={!anchorInfo.isFixed}
+                            draggable={isEditMode && !anchorInfo.isFixed}
                             onDragStart={(e) => {
-                              if (anchorInfo.isFixed) {
+                              if (!isEditMode || anchorInfo.isFixed) {
                                 e.preventDefault();
                                 return;
                               }
@@ -1654,8 +1572,8 @@ export function TripPlanSidebar({
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {/* Drag handle when not fixed */}
-                                {!anchorInfo.isFixed && (
+                                {/* Drag handle when not fixed and in edit mode */}
+                                {!anchorInfo.isFixed && isEditMode && (
                                   <div
                                     style={{
                                       display: 'flex',
@@ -1669,8 +1587,8 @@ export function TripPlanSidebar({
                                   </div>
                                 )}
 
-                                {/* Anchor Badge with AnchorIcon instead of emoji */}
-                                {anchorInfo.label && (
+                                {/* Anchor Badge with AnchorIcon - only in edit mode */}
+                                {isEditMode && anchorInfo.label && (
                                   <span
                                     style={{
                                       fontFamily: 'var(--font-mono)',
@@ -1694,39 +1612,41 @@ export function TripPlanSidebar({
                                   </span>
                                 )}
 
-                                {/* Lock / Unlock interactive button */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: '2px 3px',
-                                    cursor: 'pointer',
-                                    color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    borderRadius: 'var(--radius-sm)',
-                                    opacity: anchorInfo.isFixed ? 1 : 0.6,
-                                    transition: 'opacity 0.15s ease',
-                                  }}
-                                  title={
-                                    anchorInfo.isFixed
-                                      ? anchorInfo.isAnchor
-                                        ? 'Click to unlock anchor (confirmation required)'
-                                        : 'Click to unlock waypoint'
-                                      : 'Click to lock waypoint in place (pins during re-routing)'
-                                  }
-                                >
-                                  {anchorInfo.isFixed ? (
-                                    <LockIcon size={12} color="var(--color-accent-primary)" />
-                                  ) : (
-                                    <UnlockIcon size={12} color="var(--color-text-muted)" />
-                                  )}
-                                </button>
+                                {/* Lock / Unlock interactive button - only in edit mode */}
+                                {isEditMode && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: '2px 3px',
+                                      cursor: 'pointer',
+                                      color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      borderRadius: 'var(--radius-sm)',
+                                      opacity: anchorInfo.isFixed ? 1 : 0.6,
+                                      transition: 'opacity 0.15s ease',
+                                    }}
+                                    title={
+                                      anchorInfo.isFixed
+                                        ? anchorInfo.isAnchor
+                                          ? 'Click to unlock anchor (confirmation required)'
+                                          : 'Click to unlock waypoint'
+                                        : 'Click to lock waypoint in place (pins during re-routing)'
+                                    }
+                                  >
+                                    {anchorInfo.isFixed ? (
+                                      <LockIcon size={12} color="var(--color-accent-primary)" />
+                                    ) : (
+                                      <UnlockIcon size={12} color="var(--color-text-muted)" />
+                                    )}
+                                  </button>
+                                )}
 
                                 <span
                                   style={{
@@ -1750,8 +1670,8 @@ export function TripPlanSidebar({
                                 {p?.category && (
                                   <PoiCategoryBadge category={p.category} name={p.name} />
                                 )}
-                                {/* Accessible Up/Down Reorder Controls - omitted for fixed anchors */}
-                                {!anchorInfo.isFixed && (
+                                {/* Accessible Up/Down Reorder Controls - omitted for fixed anchors and when not in edit mode */}
+                                {!anchorInfo.isFixed && isEditMode && (
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
                                     <button
                                       type="button"
@@ -1829,8 +1749,8 @@ export function TripPlanSidebar({
                       );
                     })}
 
-                    {/* Drop insertion slot at the end of the day - only if not capped by a fixed end anchor */}
-                    {path.length > 0 && getMovableBounds(path, dayObj.day, days.length).maxIdx >= path.length - 1 && (
+                    {/* Drop insertion slot at the end of the day - only if not capped by a fixed end anchor and in edit mode */}
+                    {path.length > 0 && isEditMode && getMovableBounds(path, dayObj.day, days.length).maxIdx >= path.length - 1 && (
                       <div
                           onDragOver={(e) => {
                             e.preventDefault();

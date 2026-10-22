@@ -81,6 +81,13 @@ export interface TripPlacesSidebarProps {
   }) => void;
   availableDays?: number[];
   initialDay?: number;
+  isEditMode?: boolean;
+  onToggleEditMode?: () => void;
+  onReoptimizeDay?: () => Promise<void>;
+  isReoptimizing?: boolean;
+  transitMode?: 'simple' | 'detailed';
+  onToggleTransitMode?: () => void;
+  selectedDay?: number | 'all';
 }
 
 function setGlobalActiveSearchPoi(poiPayload: unknown) {
@@ -107,6 +114,13 @@ export function TripPlacesSidebar({
   onFocusFromInspector,
   availableDays,
   initialDay,
+  isEditMode,
+  onToggleEditMode,
+  onReoptimizeDay,
+  isReoptimizing,
+  transitMode,
+  onToggleTransitMode,
+  selectedDay,
 }: TripPlacesSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -512,6 +526,7 @@ export function TripPlacesSidebar({
             pointerEvents: isOpen ? 'auto' : 'none',
             display: 'flex',
             flexDirection: 'column',
+            position: 'relative',
           }}
         >
           {isOpen &&
@@ -700,6 +715,7 @@ export function TripPlacesSidebar({
                   flex: 1,
                   overflowY: 'auto',
                   padding: '12px',
+                  paddingBottom: '76px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',

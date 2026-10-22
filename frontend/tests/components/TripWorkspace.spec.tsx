@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/experimental-ct-react';
 import { TripWorkspaceHeader } from '../../src/components/trip-workspace/TripWorkspaceHeader';
 import { TripPlacesSidebar, PlaceItem } from '../../src/components/trip-workspace/TripPlacesSidebar';
 import { TripPlanSidebar } from '../../src/components/trip-workspace/TripPlanSidebar';
+import { TripSpeedDial } from '../../src/components/trip-workspace/TripSpeedDial';
 import { DayOutput } from '../../src/types/domain';
 
 test.describe('Trip Workspace Renovated Components', () => {
@@ -163,41 +164,63 @@ test.describe('Trip Workspace Renovated Components', () => {
     expect(selectedDay).toBe(5);
   });
 
-  test('TripPlanSidebar renders transit route view pill toggle and switches modes', async ({ mount }) => {
-    let mode: 'simple' | 'detailed' = 'simple';
+  test('TripPlanSidebar renders clean timeline without editing clutter, and shows stop locks only when isEditMode is active', async ({ mount }) => {
     const mockDays: DayOutput[] = [
-      { day: 1, theme: 'Arrival', itinerary: { path: [] } },
+      {
+        day: 1,
+        theme: 'Arrival',
+        itinerary: {
+          path: [
+            {
+              poi: {
+                id: 'wp-1',
+                name: 'Tokyo Tower',
+                category: 'attraction',
+                duration_mins: 60,
+                cost_eur: 15,
+                city: 'Tokyo',
+                location: { latitude: 35.6586, longitude: 139.7454 },
+              },
+            },
+          ],
+        },
+      },
     ];
 
-    const component = await mount(
+    // 1. In read-only mode (isEditMode = false):
+    // // ITINERARY TIMELINE, EST. cost banner, transit pills, and lock icons must NOT be present
+    const readOnlyComponent = await mount(
       <TripPlanSidebar
         isOpen={true}
         onToggle={() => {}}
         days={mockDays}
         selectedDay={1}
         onSelectDay={() => {}}
-        transitMode={mode}
-        onTransitModeChange={(m) => {
-          mode = m;
-        }}
+        isEditMode={false}
       />
     );
 
-    // Verify transit route pill controls are visible
-    const simplePill = component.getByTestId('transit-pill-simple');
-    const detailedPill = component.getByTestId('transit-pill-detailed');
-    await expect(simplePill).toBeVisible();
-    await expect(detailedPill).toBeVisible();
-    await expect(simplePill).toHaveText('SIMPLE');
-    await expect(detailedPill).toHaveText('DETAILED');
+    await expect(readOnlyComponent.getByText('// ITINERARY TIMELINE')).not.toBeVisible();
+    await expect(readOnlyComponent.getByText(/EST\./i)).not.toBeVisible();
+    await expect(readOnlyComponent.getByTestId('transit-pill-simple')).not.toBeVisible();
+    await expect(readOnlyComponent.getByText('Tokyo Tower')).toBeVisible();
 
-    // Click Detailed Transit
-    await detailedPill.click();
-    expect(mode).toBe('detailed');
+    // 2. In edit mode (isEditMode = true):
+    // Stop lock button becomes accessible
+    await readOnlyComponent.unmount();
+    const editComponent = await mount(
+      <TripPlanSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={true}
+      />
+    );
 
-    // Click Simple Transit
-    await simplePill.click();
-    expect(mode).toBe('simple');
+    const lockBtn = editComponent.getByRole('button', { name: /lock waypoint in place/i });
+    await expect(lockBtn).toBeVisible();
   });
 
   test('TripWorkspaceHeader renders animated sliding pill indicator and transitions on tab click', async ({ mount }) => {
@@ -246,6 +269,62 @@ test.describe('Trip Workspace Renovated Components', () => {
 
     await backBtn.click();
     expect(closed).toBe(true);
+  });
+
+  test('TripSpeedDial renders circular FAB and pops up Edit Mode, Day Resolver, and View switch', async ({ mount }) => {
+    let editMode = false;
+    let resolved = false;
+    let viewMode = 'simple';
+
+    const component = await mount(
+      <TripSpeedDial
+        isEditMode={editMode}
+        onToggleEditMode={() => {
+          editMode = !editMode;
+        }}
+        onReoptimizeDay={async () => {
+          resolved = true;
+        }}
+        isReoptimizing={false}
+        transitMode={viewMode as 'simple' | 'detailed'}
+        onToggleTransitMode={() => {
+          viewMode = viewMode === 'simple' ? 'detailed' : 'simple';
+        }}
+        selectedDay={1}
+      />
+    );
+
+    // Initial state: trigger button visible with three-line menu icon
+    const triggerBtn = component.getByTestId('speed-dial-trigger');
+    await expect(triggerBtn).toBeVisible();
+
+    // Click trigger to pop up action buttons
+    await triggerBtn.click();
+
+    // Check three action buttons are visible
+    const editBtn = component.getByTestId('speed-dial-edit-mode');
+    await expect(editBtn).toBeVisible();
+    await expect(component.getByText('EDIT ROUTE')).toBeVisible();
+
+    const solveBtn = component.getByTestId('speed-dial-resolver');
+    await expect(solveBtn).toBeVisible();
+    await expect(component.getByText('SOLVE DAY 1')).toBeVisible();
+
+    const viewBtn = component.getByTestId('speed-dial-view-toggle');
+    await expect(viewBtn).toBeVisible();
+    await expect(component.getByText('VIEW: SIMPLE')).toBeVisible();
+
+    // Trigger edit mode click
+    await editBtn.click();
+    expect(editMode).toBe(true);
+
+    // Trigger solve day click
+    await solveBtn.click();
+    expect(resolved).toBe(true);
+
+    // Trigger view mode click
+    await viewBtn.click();
+    expect(viewMode).toBe('detailed');
   });
 });
 

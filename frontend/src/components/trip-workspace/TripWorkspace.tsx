@@ -11,6 +11,7 @@ import { notify } from '@/utils/notify';
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripPlanSidebar } from './TripPlanSidebar';
 import { TripPlacesSidebar, PlaceItem, PoiApiItem } from './TripPlacesSidebar';
+import { TripSpeedDial } from './TripSpeedDial';
 import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { TripCostsView } from './TripCostsView';
@@ -25,9 +26,11 @@ interface TripWorkspaceProps {
 }
 
 export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
-  const { updateTrip } = useTrips();
+  const { updateTrip, reoptimizeTrip } = useTrips();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('plan');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isReoptimizing, setIsReoptimizing] = useState(false);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -39,6 +42,23 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
   const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
+
+  const handleToggleEditMode = useCallback(() => {
+    setIsEditMode((prev) => {
+      const next = !prev;
+      notify.info(
+        next ? 'Route Editing Mode Active' : 'Route Editing Mode Disabled',
+        next
+          ? 'You can now drag & reorder waypoints, reorder days, and manage stop locks.'
+          : 'Waypoint orders and stop locks are now locked.'
+      );
+      return next;
+    });
+  }, []);
+
+  const handleToggleTransitMode = useCallback(() => {
+    setTransitMode((prev) => (prev === 'simple' ? 'detailed' : 'simple'));
+  }, []);
 
   const handleCategoryPoisChange = useCallback((pois: PoiApiItem[]) => {
     setCategoryPois(
@@ -107,6 +127,36 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const handleItineraryUpdate = useCallback((updated: OptimizationResult) => {
     setCurrentItinerary(updated as unknown as RouteItineraryData);
   }, []);
+
+  const handleReoptimizeDay = useCallback(async () => {
+    if (isReoptimizing) return;
+    if (!trip.id) {
+      notify.error('No Trip ID', 'Trip must be saved before solving routes with C++ engine.');
+      return;
+    }
+    const targetDay = selectedDay === 'all' ? undefined : selectedDay;
+    setIsReoptimizing(true);
+    try {
+      const res = await reoptimizeTrip(
+        trip.id,
+        currentItinerary ? { itinerary_data: currentItinerary } : undefined,
+        targetDay
+      );
+      const updatedItin = res?.itinerary_data as RouteItineraryData | undefined;
+      if (updatedItin) {
+        setCurrentItinerary(updatedItin);
+      }
+      notify.success(
+        targetDay !== undefined ? `Day ${targetDay} Re-optimized` : 'All Days Re-optimized',
+        'Deterministic engine solved optimal sequence and transit timing.'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Route re-optimization failed';
+      notify.error('Re-optimization Failed', msg);
+    } finally {
+      setIsReoptimizing(false);
+    }
+  }, [isReoptimizing, trip.id, selectedDay, currentItinerary, reoptimizeTrip]);
 
   // Extract structured days and waypoints
   const { mapDays, places, hotel, airport, daysOutput } = useMemo(() => {
@@ -414,6 +464,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             transitMode={transitMode}
             onTransitModeChange={setTransitMode}
             onInspectPoi={handleInspectPoi}
+            isEditMode={isEditMode}
           />
 
           {/* Right Floating POI Search Engine & Inspector Sidebar */}
@@ -436,6 +487,25 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onFocusFromInspector={handleFocusFromDrawer}
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
+            isEditMode={isEditMode}
+            onToggleEditMode={handleToggleEditMode}
+            onReoptimizeDay={handleReoptimizeDay}
+            isReoptimizing={isReoptimizing}
+            transitMode={transitMode}
+            onToggleTransitMode={handleToggleTransitMode}
+            selectedDay={selectedDay}
+          />
+
+          {/* Floating Route Speed Dial (Quarter-Circle Radial Menu docked to bottom-left of right panel) */}
+          <TripSpeedDial
+            isEditMode={isEditMode}
+            onToggleEditMode={handleToggleEditMode}
+            onReoptimizeDay={handleReoptimizeDay}
+            isReoptimizing={isReoptimizing}
+            transitMode={transitMode}
+            onToggleTransitMode={handleToggleTransitMode}
+            selectedDay={selectedDay}
+            isRightOpen={isRightOpen}
           />
         </div>
 

@@ -1,0 +1,337 @@
+"use client";
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  PlusIcon,
+  EditIcon,
+  CpuIcon,
+  Spinner,
+  LayersViewIcon,
+} from '@/components/icons';
+
+export interface TripSpeedDialProps {
+  isEditMode: boolean;
+  onToggleEditMode: () => void;
+  onReoptimizeDay?: () => Promise<void>;
+  isReoptimizing?: boolean;
+  transitMode: 'simple' | 'detailed';
+  onToggleTransitMode: () => void;
+  selectedDay: number | 'all';
+  isRightOpen?: boolean;
+}
+
+export function TripSpeedDial({
+  isEditMode,
+  onToggleEditMode,
+  onReoptimizeDay,
+  isReoptimizing = false,
+  transitMode,
+  onToggleTransitMode,
+  selectedDay,
+  isRightOpen = true,
+}: TripSpeedDialProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const toggleDial = useCallback(() => {
+    setIsOpen((prev) => !prev);
+  }, []);
+
+  const handleEditClick = useCallback(() => {
+    onToggleEditMode();
+  }, [onToggleEditMode]);
+
+  const handleResolverClick = useCallback(async () => {
+    if (onReoptimizeDay && !isReoptimizing) {
+      await onReoptimizeDay();
+    }
+  }, [onReoptimizeDay, isReoptimizing]);
+
+  const handleViewToggleClick = useCallback(() => {
+    onToggleTransitMode();
+  }, [onToggleTransitMode]);
+
+  const activeDayLabel = selectedDay === 'all' ? 'DAY 1' : `DAY ${selectedDay}`;
+
+  // Radial offsets for quarter-circle fan (R = 70px, radiating into top-left quadrant)
+  // Button 1 (Top / 90deg): x: 0, y: -70px
+  // Button 2 (Diagonal / 135deg): x: -50px, y: -50px
+  // Button 3 (Left / 180deg): x: -70px, y: 0
+  const actions = [
+    {
+      id: 'edit',
+      label: isEditMode ? 'EDITING ACTIVE' : 'EDIT ROUTE',
+      sublabel: 'Reorder & locks',
+      icon: <EditIcon size={16} color={isEditMode ? '#FFFFFF' : 'currentColor'} />,
+      onClick: handleEditClick,
+      isActive: isEditMode,
+      disabled: false,
+      testId: 'speed-dial-edit-mode',
+      title: isEditMode ? 'Exit route editing mode' : 'Enter route editing mode (reorder POIs, days, and locks)',
+      dx: 0,
+      dy: -70,
+      delayOpen: '0ms',
+      delayClose: '60ms',
+    },
+    {
+      id: 'resolver',
+      label: isReoptimizing ? 'SOLVING...' : `SOLVE ${activeDayLabel}`,
+      sublabel: 'C++20 TSPTW',
+      icon: isReoptimizing ? (
+        <Spinner size={16} color="var(--color-accent-primary)" />
+      ) : (
+        <CpuIcon size={16} color="currentColor" />
+      ),
+      onClick: handleResolverClick,
+      isActive: isReoptimizing,
+      disabled: isReoptimizing || !onReoptimizeDay,
+      testId: 'speed-dial-resolver',
+      title: `Run deterministic C++ solver for ${activeDayLabel}`,
+      dx: -50,
+      dy: -50,
+      delayOpen: '30ms',
+      delayClose: '30ms',
+    },
+    {
+      id: 'view',
+      label: transitMode === 'detailed' ? 'VIEW: DETAILED' : 'VIEW: SIMPLE',
+      sublabel: transitMode === 'detailed' ? 'Full transit steps' : 'Compact waypoints',
+      icon: <LayersViewIcon size={16} color={transitMode === 'detailed' ? '#FFFFFF' : 'currentColor'} />,
+      onClick: handleViewToggleClick,
+      isActive: transitMode === 'detailed',
+      disabled: false,
+      testId: 'speed-dial-view-toggle',
+      title: `Switch to ${transitMode === 'simple' ? 'detailed' : 'simple'} view`,
+      dx: -70,
+      dy: 0,
+      delayOpen: '60ms',
+      delayClose: '0ms',
+    },
+  ];
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        bottom: '24px',
+        right: isRightOpen ? 'calc(min(380px, calc(100vw - 32px)) + 24px)' : '24px',
+        transition: 'right 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
+        zIndex: 1050,
+        pointerEvents: 'none',
+      }}
+      aria-label="Trip Route Actions Dial"
+    >
+      <style>{`
+        @keyframes activePopPulse {
+          0% { transform: scale(0.92); }
+          50% { transform: scale(1.14); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
+
+      {/* Origin wrapper for radial buttons and trigger */}
+      <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+        {/* Radiating Action Buttons (Quarter-Circle Arc) */}
+        {actions.map((act) => {
+          const isHovered = hoveredAction === act.id;
+          const translateX = isOpen ? act.dx : 0;
+          const translateY = isOpen ? act.dy : 0;
+          const scale = isOpen ? 1 : 0.25;
+          const opacity = isOpen ? 1 : 0;
+
+          return (
+            <div
+              key={act.id}
+              style={{
+                position: 'absolute',
+                right: '2px',
+                bottom: '2px',
+                transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
+                opacity,
+                transition: `transform 0.24s cubic-bezier(0.34, 1.45, 0.64, 1) ${isOpen ? act.delayOpen : act.delayClose}, opacity 0.2s ease ${isOpen ? act.delayOpen : act.delayClose}`,
+                pointerEvents: isOpen ? 'auto' : 'none',
+                zIndex: isHovered ? 1100 : 1060,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+              }}
+            >
+              {/* Expandable Label Pill (Revealed on hover/focus to the left of the icon, pointerEvents: none) */}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '48px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  background: act.isActive ? 'var(--color-accent-primary)' : 'var(--color-surface-card)',
+                  color: act.isActive ? '#FFFFFF' : 'var(--color-text-primary)',
+                  border: `1px solid ${act.isActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  padding: '5px 10px',
+                  borderRadius: 'var(--radius-sm)',
+                  opacity: isHovered ? 1 : 0,
+                  transform: isHovered ? 'translateX(0)' : 'translateX(8px)',
+                  transition: 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.23, 1, 0.32, 1)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    lineHeight: 1.2,
+                    color: act.isActive ? '#FFFFFF' : 'var(--color-text-primary)',
+                  }}
+                >
+                  {act.label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '9px',
+                    letterSpacing: '0.03em',
+                    lineHeight: 1.1,
+                    color: act.isActive ? 'rgba(255, 255, 255, 0.78)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {act.sublabel}
+                </span>
+              </div>
+
+              {/* Pure Circular Action Button */}
+              <button
+                type="button"
+                data-testid={act.testId}
+                onClick={act.onClick}
+                disabled={act.disabled}
+                aria-label={act.label}
+                title={act.title}
+                onMouseEnter={() => setHoveredAction(act.id)}
+                onMouseLeave={() => setHoveredAction(null)}
+                onFocus={() => setHoveredAction(act.id)}
+                onBlur={() => setHoveredAction(null)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: act.isActive
+                    ? 'var(--color-accent-primary)'
+                    : 'var(--color-surface-card)',
+                  color: act.isActive ? '#FFFFFF' : 'var(--color-text-primary)',
+                  border: `1.5px solid ${act.isActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+                  boxShadow: act.isActive
+                    ? '0 0 0 3px rgba(15, 76, 92, 0.22), 0 4px 14px rgba(15, 76, 92, 0.38)'
+                    : '0 3px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  cursor: act.disabled ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition:
+                    'all 0.22s cubic-bezier(0.23, 1, 0.32, 1), background 0.18s ease, border-color 0.18s ease',
+                  animation: act.isActive ? 'activePopPulse 0.32s cubic-bezier(0.34, 1.45, 0.64, 1)' : 'none',
+                  outline: 'none',
+                  flexShrink: 0,
+                }}
+              >
+                {act.icon}
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Main Circular Trigger Button (Plus icon rotating 45deg into an 'x') */}
+        <button
+          type="button"
+          data-testid="speed-dial-trigger"
+          onClick={toggleDial}
+          aria-expanded={isOpen}
+          aria-label={isOpen ? 'Close route actions menu' : 'Open route actions menu'}
+          title={isOpen ? 'Close route actions' : 'Route actions: Edit route, solve day, toggle view'}
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            background: 'var(--color-surface-card)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: `1.5px solid ${isOpen ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+            boxShadow: isOpen
+              ? '0 0 0 3px rgba(15, 76, 92, 0.2), 0 6px 18px rgba(0, 0, 0, 0.16)'
+              : '0 4px 14px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isOpen ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+            transition: 'all 0.22s cubic-bezier(0.23, 1, 0.32, 1)',
+            outline: 'none',
+            pointerEvents: 'auto',
+            zIndex: 1070,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.06)';
+            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            if (!isOpen) {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+            }
+          }}
+        >
+          {/* Plus icon rotating 45deg seamlessly becomes an X */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+              transition: 'transform 0.25s cubic-bezier(0.23, 1, 0.32, 1)',
+            }}
+          >
+            <PlusIcon size={18} color="currentColor" />
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
