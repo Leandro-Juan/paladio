@@ -6,7 +6,12 @@ from typing import Any
 import httpx
 from app.db.models import TripModel
 from app.services.transit_fare_service import TransitFareService
-from app.services.transit_service import TransitRoutingError, get_detailed_transit_leg
+from app.services.transit_service import (
+    TransitRoutingError,
+    calculate_haversine_km,
+    get_detailed_transit_leg,
+    is_poi_airport,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -89,11 +94,38 @@ class UpgradeTripTransitUseCase:
                 curr_poi = path_items[k].get("poi", {})
 
                 existing_transit = path_items[k].get("transit_from_previous") or {}
+
+                # Check haversine distance between origin and destination POIs
+                p_loc = prev_poi.get("location") or {}
+                c_loc = curr_poi.get("location") or {}
+                p_lat = p_loc.get("latitude", prev_poi.get("lat"))
+                p_lon = p_loc.get("longitude", prev_poi.get("lon"))
+                c_lat = c_loc.get("latitude", curr_poi.get("lat"))
+                c_lon = c_loc.get("longitude", curr_poi.get("lon"))
+
+                leg_dist = 0.0
+                if (
+                    p_lat is not None
+                    and p_lon is not None
+                    and c_lat is not None
+                    and c_lon is not None
+                ):
+                    try:
+                        leg_dist = calculate_haversine_km(
+                            float(p_lat), float(p_lon), float(c_lat), float(c_lon)
+                        )
+                    except Exception:
+                        leg_dist = 0.0
+
+                is_airport_leg = is_poi_airport(curr_poi) or is_poi_airport(prev_poi)
+
                 is_existing_walk = (
                     isinstance(existing_transit, dict)
                     and existing_transit.get("mode") in ("pedestrian", "walk")
                     and bool(existing_transit.get("steps"))
                     and not existing_transit.get("cost_is_estimated", False)
+                    and leg_dist <= 1.2
+                    and not is_airport_leg
                 )
 
                 if is_existing_walk:
@@ -102,12 +134,6 @@ class UpgradeTripTransitUseCase:
                     leg_dur_mins = existing_transit.get("duration_mins", 15)
                 else:
                     total_transit_legs += 1
-                    is_airport_leg = (
-                        (day_idx == 0 and k == 1)
-                        or (day_idx == len(days) - 1 and k == len(path_items) - 1)
-                        or curr_poi.get("category") == "AIRPORT"
-                        or prev_poi.get("category") == "AIRPORT"
-                    )
 
                     if isinstance(prev_poi, dict) and "city" not in prev_poi and city:
                         prev_poi["city"] = city
@@ -143,10 +169,17 @@ class UpgradeTripTransitUseCase:
                         path_items[k]["transit_from_previous"] = transit_leg.model_dump(
                             mode="json"
                         )
-                        leg_dur_mins = transit_leg.duration_mins or 15
-                        if transit_leg.cost_eur > 0:
-                            transit_leg_costs.append(transit_leg.cost_eur)
-                        if is_airport_leg or transit_leg.airport_surcharge_eur > 0:
+                        leg_dur_mins = getattr(transit_leg, "duration_mins", 15) or 15
+                        cost_val = getattr(transit_leg, "cost_eur", 0.0)
+                        if isinstance(cost_val, (int, float)) and cost_val > 0:
+                            transit_leg_costs.append(cost_val)
+                        surcharge_val = getattr(
+                            transit_leg, "airport_surcharge_eur", 0.0
+                        )
+                        if is_airport_leg or (
+                            isinstance(surcharge_val, (int, float))
+                            and surcharge_val > 0
+                        ):
                             has_airport_transit = True
                     else:
                         if isinstance(existing_transit, dict) and existing_transit.get(

@@ -57,6 +57,41 @@ class TransitRoutingError(Exception):
     """Raised when multimodal transit routing cannot be fetched or parsed."""
 
 
+def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    import math
+
+    r = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return r * c
+
+
+def is_poi_airport(poi: dict | None) -> bool:
+    if not isinstance(poi, dict):
+        return False
+    cat = str(poi.get("category") or "").upper()
+    name = str(poi.get("name") or "").lower()
+    return (
+        cat == "AIRPORT"
+        or "airport" in cat.lower()
+        or "aerodrome" in cat.lower()
+        or "airport" in name
+        or "aeropuerto" in name
+        or "haneda" in name
+        or "narita" in name
+        or "barajas" in name
+        or "heathrow" in name
+        or "cdg" in name
+    )
+
+
 async def get_detailed_transit_leg(
     origin: dict[str, Any],
     destination: dict[str, Any],
@@ -78,6 +113,9 @@ async def get_detailed_transit_leg(
         "longitude", destination.get("lon", 0.0)
     )
     dest_name = destination.get("name", "Destination")
+
+    if not is_airport_leg:
+        is_airport_leg = is_poi_airport(origin) or is_poi_airport(destination)
 
     if not departure_iso:
         departure_iso = "2026-09-10T09:00"
@@ -106,26 +144,61 @@ async def get_detailed_transit_leg(
     total_duration_mins = 15
     fare_result = None
     mode = "multimodal"
+    used_fallback_costing: str | None = None
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
-            if resp.status_code == 400 and not is_airport_leg:
-                # Multimodal transit route not found in GTFS; try pedestrian route via OSM
-                pedestrian_payload = {
-                    "locations": req_payload["locations"],
-                    "costing": "pedestrian",
-                    "directions_options": {"units": "kilometers"},
-                }
-                resp = await client.post(
-                    f"{VALHALLA_URL}/route", json=pedestrian_payload
+            if resp.status_code == 400:
+                dist_km = calculate_haversine_km(
+                    float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
                 )
+                if is_airport_leg:
+                    for candidate in ["bus", "auto", "pedestrian"]:
+                        fb_payload = {
+                            "locations": req_payload["locations"],
+                            "costing": candidate,
+                            "directions_options": {"units": "kilometers"},
+                        }
+                        resp = await client.post(
+                            f"{VALHALLA_URL}/route", json=fb_payload
+                        )
+                        if resp.status_code == 200:
+                            used_fallback_costing = candidate
+                            break
+                elif dist_km <= 1.5:
+                    for candidate in ["pedestrian", "bus", "auto"]:
+                        fb_payload = {
+                            "locations": req_payload["locations"],
+                            "costing": candidate,
+                            "directions_options": {"units": "kilometers"},
+                        }
+                        resp = await client.post(
+                            f"{VALHALLA_URL}/route", json=fb_payload
+                        )
+                        if resp.status_code == 200:
+                            used_fallback_costing = candidate
+                            break
+                else:
+                    for candidate in ["bus", "auto", "pedestrian"]:
+                        fb_payload = {
+                            "locations": req_payload["locations"],
+                            "costing": candidate,
+                            "directions_options": {"units": "kilometers"},
+                        }
+                        resp = await client.post(
+                            f"{VALHALLA_URL}/route", json=fb_payload
+                        )
+                        if resp.status_code == 200:
+                            used_fallback_costing = candidate
+                            break
+
             resp.raise_for_status()
             data = resp.json()
 
             trip = data.get("trip", {})
             summary = trip.get("summary", {})
-            total_duration_mins = max(1, int(summary.get("time", 900) / 60))
+            total_duration_mins = max(1, int(round(summary.get("time", 900) / 60)))
 
             has_transit_step = False
             legs = trip.get("legs", [])
@@ -140,9 +213,9 @@ async def get_detailed_transit_leg(
                     else:
                         full_geometry.extend(leg_coords[1:])
 
-                for m in leg.get("maneuvers", []):
+                for m_idx, m in enumerate(leg.get("maneuvers", [])):
                     instruction = m.get("instruction", "")
-                    m_time_mins = max(1, int(m.get("time", 60) / 60))
+                    m_time_mins = max(1, int(round(m.get("time", 60) / 60)))
                     m_dist_km = round(m.get("length", 0.0), 2)
                     transit_info = m.get("transit_info")
 
@@ -159,6 +232,18 @@ async def get_detailed_transit_leg(
                         )
                         headsign = transit_info.get("headsign")
                         station = transit_info.get("description") or "Transit Stop"
+                    elif used_fallback_costing in ("bus", "auto"):
+                        has_transit_step = True
+                        step_type = "transit"
+                        if is_airport_leg:
+                            line_name = "Airport Express"
+                            headsign = dest_name
+                            station = orig_name if m_idx == 0 else None
+                        else:
+                            line_name = "Transit"
+                            headsign = dest_name
+                    elif used_fallback_costing == "pedestrian":
+                        step_type = "walk"
 
                     b_idx = m.get("begin_shape_index", 0)
                     e_idx = m.get("end_shape_index", b_idx)
@@ -314,22 +399,6 @@ async def get_detailed_walking_leg(
         raise TransitRoutingError(
             f"Could not fetch pedestrian route between '{orig_name}' and '{dest_name}': {exc}"
         ) from exc
-
-
-def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    import math
-
-    r = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dlat / 2.0) ** 2
-        + math.cos(math.radians(lat1))
-        * math.cos(math.radians(lat2))
-        * math.sin(dlon / 2.0) ** 2
-    )
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return r * c
 
 
 def synthesize_fallback_transit_leg(
@@ -562,10 +631,7 @@ async def ensure_walking_legs_populated(
             c_lat = curr_loc.get("latitude", curr_poi.get("lat"))
             c_lon = curr_loc.get("longitude", curr_poi.get("lon"))
 
-            is_airport_leg = (
-                curr_poi.get("category") == "AIRPORT"
-                or prev_poi.get("category") == "AIRPORT"
-            )
+            is_airport_leg = is_poi_airport(curr_poi) or is_poi_airport(prev_poi)
 
             dist_km = 999.0
             if (
@@ -595,31 +661,108 @@ async def ensure_walking_legs_populated(
                     )
                     path[k]["transit_from_previous"] = synth.model_dump(mode="json")
             else:
-                # Public transit leg: retain/provide estimated transit placeholder
+                # Public transit leg: provide estimated transit with real corridor geometry from Valhalla
                 dest_name = curr_poi.get("name", "Stop")
+                fare_info = TransitFareService.get_city_transit_fare(city)
+                single_fare = fare_info.single_fare if fare_info else 1.5
+
+                transit_steps: list[dict[str, Any]] = []
+                leg_geometry: list[list[float]] = []
                 trans_dur = (
                     int(round(float(existing_transit.get("duration_mins", 20))))
                     if isinstance(existing_transit, dict)
                     and existing_transit.get("duration_mins") is not None
                     else 20
                 )
-                fare_info = TransitFareService.get_city_transit_fare(city)
-                single_fare = fare_info.single_fare if fare_info else 1.5
-                path[k]["transit_from_previous"] = {
-                    "mode": "transit",
-                    "duration_mins": trans_dur,
-                    "cost_eur": single_fare,
-                    "cost_is_estimated": True,
-                    "price_source": "estimated_city_transit_fare",
-                    "steps": [
+
+                if (
+                    p_lat is not None
+                    and p_lon is not None
+                    and c_lat is not None
+                    and c_lon is not None
+                ):
+                    try:
+                        async with httpx.AsyncClient(timeout=10.0) as client:
+                            c_resp = await client.post(
+                                f"{VALHALLA_URL}/route",
+                                json={
+                                    "locations": [
+                                        {"lat": float(p_lat), "lon": float(p_lon)},
+                                        {"lat": float(c_lat), "lon": float(c_lon)},
+                                    ],
+                                    "costing": "bus",
+                                    "directions_options": {"units": "kilometers"},
+                                },
+                            )
+                            if c_resp.status_code == 200:
+                                c_trip = c_resp.json().get("trip", {})
+                                c_summary = c_trip.get("summary", {})
+                                trans_dur = max(
+                                    1, int(round(c_summary.get("time", 1200) / 60))
+                                )
+                                c_legs = c_trip.get("legs", [])
+                                for cl in c_legs:
+                                    cl_shape = cl.get("shape", "")
+                                    cl_coords = (
+                                        decode_polyline6(cl_shape) if cl_shape else []
+                                    )
+                                    if cl_coords:
+                                        if not leg_geometry:
+                                            leg_geometry.extend(cl_coords)
+                                        else:
+                                            leg_geometry.extend(cl_coords[1:])
+                                    for cm in cl.get("maneuvers", []):
+                                        b_idx = cm.get("begin_shape_index", 0)
+                                        e_idx = cm.get("end_shape_index", b_idx)
+                                        transit_steps.append(
+                                            {
+                                                "type": "transit",
+                                                "transit_line": (
+                                                    "Airport Express"
+                                                    if is_airport_leg
+                                                    else "Transit"
+                                                ),
+                                                "instruction": cm.get(
+                                                    "instruction",
+                                                    f"Transit towards {dest_name}",
+                                                ),
+                                                "duration_mins": max(
+                                                    1,
+                                                    int(round(cm.get("time", 60) / 60)),
+                                                ),
+                                                "distance_km": round(
+                                                    cm.get("length", 0.0), 2
+                                                ),
+                                                "geometry": (
+                                                    cl_coords[b_idx : e_idx + 1]
+                                                    if cl_coords
+                                                    else []
+                                                ),
+                                            }
+                                        )
+                    except Exception as route_err:
+                        logger.debug(f"Could not pre-fetch corridor route: {route_err}")
+
+                if not transit_steps:
+                    transit_steps = [
                         {
                             "type": "transit_board",
                             "transit_line": "Transit",
                             "instruction": f"Board public transit towards {dest_name}",
                             "duration_mins": trans_dur,
                             "distance_km": round(dist_km, 2) if dist_km < 100 else 0.0,
+                            "geometry": leg_geometry,
                         }
-                    ],
+                    ]
+
+                path[k]["transit_from_previous"] = {
+                    "mode": "transit",
+                    "duration_mins": trans_dur,
+                    "cost_eur": single_fare,
+                    "cost_is_estimated": True,
+                    "price_source": "estimated_city_transit_fare",
+                    "steps": transit_steps,
+                    "geometry": leg_geometry,
                 }
 
     return itinerary

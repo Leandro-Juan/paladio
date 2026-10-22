@@ -212,6 +212,27 @@ VERIFIED_CITY_FARES: dict[str, CityTransitFare] = {
         is_estimated=False,
         source="official_atac_tariff",
     ),
+    "tokyo": CityTransitFare(
+        city="tokyo",
+        country="Japan",
+        currency="JPY",
+        single_fare=1.20,
+        pass_24h_price=4.80,
+        pass_24h_name="Tokyo Subway 24-Hour Ticket",
+        pass_24h_includes_airport=False,
+        airport_surcharge=4.50,
+        airport_station_keywords=[
+            "haneda",
+            "narita",
+            "airport",
+            "aerodrome",
+            "terminal",
+            "羽田",
+            "成田",
+        ],
+        is_estimated=False,
+        source="official_toei_tokyo_metro_tariff",
+    ),
 }
 
 # Generic fallback keywords for identifying airport stations across any language

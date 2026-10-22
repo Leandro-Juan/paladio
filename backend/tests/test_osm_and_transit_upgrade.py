@@ -334,26 +334,50 @@ def test_build_city_gtfs_task_publishes_to_redis(monkeypatch, tmp_path):
     mock_docker = MagicMock()
     mock_docker.containers.get.return_value = mock_container
 
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.return_value = None
+    mock_resp.iter_bytes.return_value = [b"PK\x03\x04fake_gtfs_data"]
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.stream.return_value.__enter__.return_value = mock_resp
+
     with (
         patch("docker.from_env", return_value=mock_docker),
         patch("app.tasks._async_update_transit_cache", new_callable=AsyncMock),
+        patch(
+            "app.tasks._city_exists_in_transit_cache",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "app.services.gtfs_resolver_service.GTFSResolverService.resolve_gtfs_feed",
+            new_callable=AsyncMock,
+            return_value=MagicMock(download_url="https://example.com/gtfs.zip"),
+        ),
+        patch("httpx.Client", return_value=mock_client),
         patch("urllib.request.urlretrieve"),
         patch("zipfile.ZipFile"),
         patch("app.tasks.extract_gtfs_expiry", return_value=datetime.now(timezone.utc)),
         patch("redis.from_url") as mock_redis_factory,
     ):
         mock_redis = MagicMock()
+        mock_redis.get.return_value = None
         mock_redis_factory.return_value = mock_redis
 
         res = build_city_gtfs_task("paris", trip_id="trip-abc-123")
         assert res["status"] == "success"
         assert res["gtfs_status"] == "READY"
 
-        # Verify Redis event was published
-        mock_redis.publish.assert_called_once()
-        args, _ = mock_redis.publish.call_args
-        assert args[0] == "paladio:events"
-        payload = json.loads(args[1])
-        assert payload["event"] == "TRANSIT_TILES_READY"
-        assert payload["city"] == "paris"
-        assert payload["trip_id"] == "trip-abc-123"
+        # Verify Redis events were published, including TRANSIT_TILES_READY
+        published_events = [
+            json.loads(c[0][1])
+            for c in mock_redis.publish.call_args_list
+            if c[0][0] == "paladio:events"
+        ]
+        tiles_ready_event = next(
+            (e for e in published_events if e.get("event") == "TRANSIT_TILES_READY"),
+            None,
+        )
+        assert tiles_ready_event is not None
+        assert tiles_ready_event["city"] == "paris"
+        assert tiles_ready_event["trip_id"] == "trip-abc-123"
