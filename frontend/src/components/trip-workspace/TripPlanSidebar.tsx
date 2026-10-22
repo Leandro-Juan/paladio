@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { DayOutput, OptimizationResult, ScheduledPoi } from '@/types/domain';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
+import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { TransitRecommendationCard } from '@/components/TransitLegView';
 import {
@@ -1457,9 +1458,43 @@ export function TripPlanSidebar({
                             </div>
                           )}
 
-                          {/* Draggable Waypoint Card & Drop Target */}
-                          <div
+                          {/* Minimalist Waypoint Card & Drop Target */}
+                          <MinimalistPoiCard
+                            id={p?.id}
+                            name={p?.name || 'Waypoint'}
+                            category={p?.category}
+                            startTime={startTime}
+                            endTime={endTime}
+                            durationMins={p?.duration_mins}
+                            costEur={p?.cost_eur}
+                            openHours={openHours}
+                            city={destinationCity}
+                            photoUrl={(p as unknown as { photo_url?: string })?.photo_url}
+                            isEditMode={isEditMode}
                             draggable={isEditMode && !anchorInfo.isFixed}
+                            isBeingDragged={isBeingDragged}
+                            stopNum={stopNum}
+                            anchorInfo={anchorInfo}
+                            canMoveUp={poiIdx > bounds.minIdx}
+                            canMoveDown={poiIdx < bounds.maxIdx}
+                            onMoveUp={(e) => {
+                              e.stopPropagation();
+                              handleMoveStop(dayObj.day, poiIdx, 'up');
+                            }}
+                            onMoveDown={(e) => {
+                              e.stopPropagation();
+                              handleMoveStop(dayObj.day, poiIdx, 'down');
+                            }}
+                            onToggleLock={(e) => {
+                              e.stopPropagation();
+                              handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
+                            }}
+                            onClick={() => {
+                              const pId = scheduledPoi.poi?.id;
+                              if (pId) {
+                                onInspectPoi?.(pId);
+                              }
+                            }}
                             onDragStart={(e) => {
                               if (!isEditMode || anchorInfo.isFixed) {
                                 e.preventDefault();
@@ -1474,7 +1509,6 @@ export function TripPlanSidebar({
                               );
                               e.dataTransfer.effectAllowed = 'copyMove';
 
-                              // Suppress browser translucent ghost & file icon using pre-rendered 1x1 image
                               let blankImg = document.getElementById('paladio-drag-blank-img') as HTMLImageElement | null;
                               if (!blankImg || !blankImg.src) {
                                 blankImg = new Image();
@@ -1532,219 +1566,7 @@ export function TripPlanSidebar({
                               draggedPoiRef.current = null;
                               setActiveDropTarget(null);
                             }}
-                            style={{
-                              background: isBeingDragged
-                                ? 'rgba(15, 76, 92, 0.04)'
-                                : anchorInfo.isFixed
-                                  ? 'var(--color-bg-card, #FFFFFF)'
-                                  : 'var(--color-bg-main)',
-                              border: isBeingDragged
-                                ? '1.5px dashed var(--color-accent-teal-soft)'
-                                : anchorInfo.isFixed
-                                  ? '1.5px solid rgba(15, 76, 92, 0.28)'
-                                  : isCatMatch
-                                    ? (categoryFilter ? '1.5px solid var(--color-accent-teal-mid)' : '1px solid var(--color-border)')
-                                    : '1px dashed var(--color-border)',
-                              borderRadius: 'var(--radius-md)',
-                              padding: '10px 12px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '6px',
-                              boxShadow:
-                                isBeingDragged
-                                  ? 'none'
-                                  : anchorInfo.isFixed
-                                    ? '0 1px 3px rgba(15, 76, 92, 0.08)'
-                                    : isCatMatch && categoryFilter
-                                      ? 'var(--shadow-md)'
-                                      : 'var(--shadow-sm)',
-                              opacity: isBeingDragged ? 0.45 : (isCatMatch ? 1 : 0.35),
-                              cursor: anchorInfo.isFixed ? 'pointer' : 'grab',
-                              transform: isBeingDragged ? 'scale(0.98)' : 'none',
-                              transition: 'all 0.15s ease',
-                            }}
-                            onClick={() => {
-                              const pId = scheduledPoi.poi?.id;
-                              if (pId) {
-                                onInspectPoi?.(pId);
-                              }
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {/* Drag handle when not fixed and in edit mode */}
-                                {!anchorInfo.isFixed && isEditMode && (
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      color: 'var(--color-text-muted)',
-                                      cursor: 'grab',
-                                    }}
-                                    title="Drag to reorder stop"
-                                  >
-                                    <GripVerticalIcon size={14} color="var(--color-text-muted)" />
-                                  </div>
-                                )}
-
-                                {/* Anchor Badge with AnchorIcon - only in edit mode */}
-                                {isEditMode && anchorInfo.label && (
-                                  <span
-                                    style={{
-                                      fontFamily: 'var(--font-mono)',
-                                      fontSize: '9px',
-                                      fontWeight: 700,
-                                      background: anchorInfo.isFixed ? 'rgba(15, 76, 92, 0.08)' : 'rgba(86, 107, 118, 0.08)',
-                                      color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                                      border: anchorInfo.isFixed ? '1px solid rgba(15, 76, 92, 0.25)' : '1px solid var(--color-border)',
-                                      padding: '2px 5px',
-                                      borderRadius: 'var(--radius-sm)',
-                                      letterSpacing: '0.04em',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                    title={anchorInfo.isFixed ? "Fixed anchor (locked in re-routing)" : "Unlocked anchor (flexible in re-routing)"}
-                                  >
-                                    <AnchorIcon size={9} color={anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)'} />
-                                    {anchorInfo.label}
-                                  </span>
-                                )}
-
-                                {/* Lock / Unlock interactive button - only in edit mode */}
-                                {isEditMode && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
-                                    }}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      padding: '2px 3px',
-                                      cursor: 'pointer',
-                                      color: anchorInfo.isFixed ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      borderRadius: 'var(--radius-sm)',
-                                      opacity: anchorInfo.isFixed ? 1 : 0.6,
-                                      transition: 'opacity 0.15s ease',
-                                    }}
-                                    title={
-                                      anchorInfo.isFixed
-                                        ? anchorInfo.isAnchor
-                                          ? 'Click to unlock anchor (confirmation required)'
-                                          : 'Click to unlock waypoint'
-                                        : 'Click to lock waypoint in place (pins during re-routing)'
-                                    }
-                                  >
-                                    {anchorInfo.isFixed ? (
-                                      <LockIcon size={12} color="var(--color-accent-primary)" />
-                                    ) : (
-                                      <UnlockIcon size={12} color="var(--color-text-muted)" />
-                                    )}
-                                  </button>
-                                )}
-
-                                <span
-                                  style={{
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    background: 'var(--color-accent-primary)',
-                                    color: '#FFFFFF',
-                                    padding: '2px 6px',
-                                    borderRadius: 'var(--radius-sm)',
-                                  }}
-                                >
-                                  {stopNum}
-                                </span>
-                                <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>
-                                  {p?.name || 'Waypoint'}
-                                </h4>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {p?.category && (
-                                  <PoiCategoryBadge category={p.category} name={p.name} />
-                                )}
-                                {/* Accessible Up/Down Reorder Controls - omitted for fixed anchors and when not in edit mode */}
-                                {!anchorInfo.isFixed && isEditMode && (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleMoveStop(dayObj.day, poiIdx, 'up');
-                                      }}
-                                      disabled={poiIdx <= bounds.minIdx}
-                                      style={{
-                                        background: 'none',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '3px',
-                                        padding: '2px',
-                                        cursor: poiIdx <= bounds.minIdx ? 'not-allowed' : 'pointer',
-                                        opacity: poiIdx <= bounds.minIdx ? 0.3 : 0.8,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        color: 'var(--color-text-muted)',
-                                      }}
-                                      title="Move stop up"
-                                      aria-label={`Move stop ${p?.name || 'Waypoint'} up`}
-                                    >
-                                      <ChevronUpIcon size={11} color="currentColor" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleMoveStop(dayObj.day, poiIdx, 'down');
-                                      }}
-                                      disabled={poiIdx >= bounds.maxIdx}
-                                      style={{
-                                        background: 'none',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '3px',
-                                        padding: '2px',
-                                        cursor: poiIdx >= bounds.maxIdx ? 'not-allowed' : 'pointer',
-                                        opacity: poiIdx >= bounds.maxIdx ? 0.3 : 0.8,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        color: 'var(--color-text-muted)',
-                                      }}
-                                      title="Move stop down"
-                                      aria-label={`Move stop ${p?.name || 'Waypoint'} down`}
-                                    >
-                                      <ChevronDownIcon size={11} color="currentColor" />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px', paddingLeft: '22px' }}>
-                              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                                {startTime}
-                                {' '}&rarr;{' '}
-                                {endTime}
-                                {p?.duration_mins ? ` (${p.duration_mins}m)` : ''}
-                              </span>
-                              {typeof p?.cost_eur === 'number' && p.cost_eur > 0 && (
-                                <span style={{ color: 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                  {p.cost_eur.toFixed(2)} &euro;
-                                </span>
-                              )}
-                            </div>
-
-                            {openHours && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '-2px', paddingLeft: '22px' }}>
-                                <span style={{ color: 'var(--color-text-muted)' }}>&bull;</span>
-                                <span>{openHours}</span>
-                              </div>
-                            )}
-                          </div>
+                          />
                         </React.Fragment>
                       );
                     })}

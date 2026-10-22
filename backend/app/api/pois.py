@@ -7,6 +7,7 @@ Powered by HybridRetriever:
 - Exposes description, neighborhood, facets, doc_quality, and hours_known
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -48,6 +49,8 @@ class PoiSearchItem(BaseModel):
     facets: dict[str, Any] = Field(default_factory=dict)
     doc_quality: str = "C"
     hours_known: bool = False
+    photo_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class PoiSearchResponse(BaseModel):
@@ -67,6 +70,20 @@ class PoiPhotoItem(BaseModel):
     author: str | None = None
     license_name: str | None = None
     license_url: str | None = None
+
+
+class BatchPhotoRequestItem(BaseModel):
+    id: str | None = None
+    name: str
+    city: str = ""
+
+
+class BatchPhotoRequest(BaseModel):
+    pois: list[BatchPhotoRequestItem]
+
+
+class BatchPhotoResponse(BaseModel):
+    photos: dict[str, PoiPhotoItem | None]
 
 
 class PoiDetailResponse(BaseModel):
@@ -194,6 +211,24 @@ def _model_to_search_item(
     )
 
 
+async def _enrich_items_with_photos(items: list[PoiSearchItem], city: str = "") -> None:
+    """Enriches PoiSearchItems with cached or resolved thumbnail photos."""
+    if not items:
+        return
+    for item in items:
+        try:
+            cached = await WikimediaPhotoResolver.get_cached_photos(item.id)
+            if not cached and item.name:
+                cached = await WikimediaPhotoResolver.get_cached_photos(
+                    item.name.lower()
+                )
+            if cached and len(cached) > 0:
+                item.photo_url = cached[0].get("url")
+                item.thumbnail_url = cached[0].get("thumbnail_url") or item.photo_url
+        except Exception as e:
+            logger.debug(f"Failed to check photo cache for {item.name}: {e}")
+
+
 @router.get("/search", response_model=PoiSearchResponse)
 async def search_pois(
     city: str = Query(..., description="Destination city name (e.g. Madrid)"),
@@ -254,6 +289,7 @@ async def search_pois(
 
         db_pois = (await session.execute(stmt)).scalars().all()
         results = [_model_to_search_item(p) for p in db_pois]
+        await _enrich_items_with_photos(results, city_name)
         return PoiSearchResponse(
             city=city_name,
             query="",
@@ -624,6 +660,8 @@ async def search_pois(
     if not best_match or best_match_score < 0.70:
         message = f"No exact match found for '{clean_query}' in {city_name}. Showing top recommendations."
 
+    await _enrich_items_with_photos(results, city_name)
+
     return PoiSearchResponse(
         city=city_name,
         query=clean_query,
@@ -635,10 +673,81 @@ async def search_pois(
     )
 
 
+@router.post("/batch-photos", response_model=BatchPhotoResponse)
+async def batch_resolve_photos(
+    req: BatchPhotoRequest,
+    session: AsyncSession = Depends(get_db),
+) -> BatchPhotoResponse:
+    """Resolves photos for a batch of POIs concurrently, using Redis cache and Wikimedia."""
+    resolved: dict[str, PoiPhotoItem | None] = {}
+    items_to_resolve: list[BatchPhotoRequestItem] = []
+
+    for item in req.pois:
+        key = item.id or item.name
+        if not key:
+            continue
+        cached = (
+            await WikimediaPhotoResolver.get_cached_photos(item.id) if item.id else None
+        )
+        if not cached and item.name:
+            cached = await WikimediaPhotoResolver.get_cached_photos(item.name.lower())
+        if cached and len(cached) > 0:
+            resolved[key] = PoiPhotoItem(**cached[0])
+        else:
+            items_to_resolve.append(item)
+
+    if items_to_resolve:
+        ids = [it.id for it in items_to_resolve if it.id]
+        attraction_map: dict[str, AttractionModel] = {}
+        if ids:
+            stmt = select(AttractionModel).where(AttractionModel.id.in_(ids))
+            res = await session.execute(stmt)
+            for att in res.scalars().all():
+                attraction_map[att.id] = att
+
+        sem = asyncio.Semaphore(6)
+
+        async def _resolve_one(it: BatchPhotoRequestItem):
+            key = it.id or it.name
+            async with sem:
+                try:
+                    att = attraction_map.get(it.id) if it.id else None
+                    tags = (
+                        dict((att.metadata_field or {}).get("tags") or {})
+                        if att
+                        else None
+                    )
+                    photos, _ = await WikimediaPhotoResolver.resolve_photos(
+                        poi_id=it.id or it.name.lower(),
+                        name=it.name,
+                        city=it.city or (att.city if att else ""),
+                        wikipedia_title=att.wikipedia_title if att else None,
+                        wikidata_id=att.wikidata_id if att else None,
+                        osm_tags=tags,
+                    )
+                    if photos and len(photos) > 0:
+                        resolved[key] = PoiPhotoItem(**photos[0])
+                    else:
+                        resolved[key] = None
+                except Exception as err:
+                    logger.debug(f"Failed to resolve photo for {it.name}: {err}")
+                    resolved[key] = None
+
+        await asyncio.gather(*[_resolve_one(it) for it in items_to_resolve])
+
+    return BatchPhotoResponse(photos=resolved)
+
+
 @router.get("/{poi_id}/details", response_model=PoiDetailResponse)
 @router.get("/{poi_id}", response_model=PoiDetailResponse)
 async def get_poi_details(
     poi_id: str,
+    name: str | None = Query(
+        None, description="Optional POI name for fallback photo resolution"
+    ),
+    city: str | None = Query(
+        None, description="Optional POI city for fallback photo resolution"
+    ),
     session: AsyncSession = Depends(get_db),
 ) -> PoiDetailResponse:
     """Retrieves full POI details and dynamically resolves real photos from Wikimedia/Wikipedia."""
@@ -646,6 +755,27 @@ async def get_poi_details(
     res = await session.execute(stmt)
     poi = res.scalar_one_or_none()
     if not poi:
+        if name:
+            photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
+                poi_id=poi_id,
+                name=name,
+                city=city or "",
+            )
+            return PoiDetailResponse(
+                id=poi_id,
+                name=name,
+                category="attraction",
+                city=city or "",
+                lat=0.0,
+                lng=0.0,
+                duration_mins=60,
+                cost_eur=0.0,
+                cost_is_estimated=True,
+                cost_source=None,
+                scoring={},
+                description=lead_extract,
+                photos=[PoiPhotoItem(**p) for p in photos_data],
+            )
         raise HTTPException(status_code=404, detail=f"POI with id '{poi_id}' not found")
 
     lat, lng = _extract_coords(poi.location)

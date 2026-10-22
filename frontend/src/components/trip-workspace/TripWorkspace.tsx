@@ -199,6 +199,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
               dayPois.push(poiItem);
 
               allPlaces.push({
+                id: p?.id,
                 name: p?.name || 'Waypoint',
                 lat,
                 lng,

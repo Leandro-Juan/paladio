@@ -9,6 +9,7 @@ import { getApiBaseUrl, fetchCurrentUser } from '@/utils/api';
 import { ReticleCompassIllustration } from '@/components/illustrations/TacticalIllustrations';
 import { PoiDetail } from '@/types/domain';
 import { PoiDetailView } from './PoiDetailView';
+import { MinimalistPoiCard } from './MinimalistPoiCard';
 import {
   SearchIcon,
   CheckIcon,
@@ -883,10 +884,17 @@ export function TripPlacesSidebar({
                           <div style={{ height: '1px', flex: 1, background: 'var(--color-border)' }} />
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
                           {recommendedPois.map((poi) => (
-                            <div
+                            <MinimalistPoiCard
                               key={poi.id}
+                              id={poi.id}
+                              name={poi.name}
+                              category={poi.category}
+                              durationMins={poi.duration_mins}
+                              costEur={poi.cost_eur}
+                              city={city}
+                              photoUrl={(poi as unknown as { photo_url?: string })?.photo_url}
                               draggable={true}
                               onDragStart={(e) => handlePoiDragStart(e, poi)}
                               onDragEnd={() => setActiveDragPlace(null)}
@@ -904,78 +912,7 @@ export function TripPlacesSidebar({
                                   costEur: poi.cost_eur,
                                 });
                               }}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '8px 10px',
-                                background: 'var(--color-bg-main)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 'var(--radius-md)',
-                                cursor: 'grab',
-                                transition: 'all 0.15s ease',
-                              }}
-                              title="Drag into itinerary or click to focus on map"
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--color-border)';
-                                e.currentTarget.style.transform = 'none';
-                              }}
-                            >
-                              <div style={{ color: 'var(--color-text-muted)', cursor: 'grab', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                <GripVerticalIcon size={13} color="var(--color-text-muted)" />
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                                  <PoiCategoryBadge category={poi.category} name={poi.name} size="sm" />
-                                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {poi.name}
-                                  </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                                  {poi.duration_mins > 0 && <span>~{poi.duration_mins}m</span>}
-                                  {poi.cost_eur > 0 ? <span>€{poi.cost_eur.toFixed(1)}</span> : <span style={{ color: '#10b981' }}>Free</span>}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onPlaceClick?.({
-                                    id: poi.id,
-                                    name: poi.name,
-                                    lat: poi.lat,
-                                    lng: poi.lng,
-                                    category: poi.category,
-                                    durationMins: poi.duration_mins,
-                                    costEur: poi.cost_eur,
-                                  });
-                                }}
-                                title="Focus on Map"
-                                style={{
-                                  padding: '4px 7px',
-                                  background: 'rgba(15, 76, 92, 0.08)',
-                                  color: 'var(--color-accent-primary)',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  cursor: 'pointer',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <polygon points="3 11 22 2 13 21 11 13 3 11" />
-                                </svg>
-                                <span>Map</span>
-                              </button>
-                            </div>
+                            />
                           ))}
                         </div>
                       </div>
@@ -1011,7 +948,14 @@ export function TripPlacesSidebar({
 
                 {/* 5. Exact Match Highlight Card */}
                 {searchData?.exact_match && !isLoading && (
-                  <div
+                  <MinimalistPoiCard
+                    id={searchData.exact_match.id}
+                    name={searchData.exact_match.name}
+                    category={searchData.exact_match.category}
+                    durationMins={searchData.exact_match.duration_mins}
+                    costEur={searchData.exact_match.cost_eur}
+                    city={city}
+                    photoUrl={(searchData.exact_match as unknown as { photo_url?: string })?.photo_url}
                     draggable={true}
                     onDragStart={(e) => handlePoiDragStart(e, searchData.exact_match!)}
                     onDragEnd={() => setActiveDragPlace(null)}
@@ -1030,158 +974,22 @@ export function TripPlacesSidebar({
                         similarity: 1.0,
                       });
                     }}
-                    style={{
-                      padding: '12px',
-                      background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 76, 92, 0.04) 100%)',
-                      border: '1.5px solid #10b981',
-                      borderRadius: 'var(--radius-md)',
-                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.15)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      animation: 'searchItemFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                      cursor: 'pointer',
-                    }}
-                    title="Click to inspect photos and details, or drag into itinerary"
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    extraBadge={
                       <span
                         style={{
-                          fontSize: '10px',
+                          fontSize: '9px',
                           fontWeight: 700,
                           color: '#10b981',
-                          background: 'rgba(16, 185, 129, 0.18)',
-                          padding: '2px 7px',
-                          borderRadius: '4px',
+                          background: 'rgba(16, 185, 129, 0.14)',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
                           letterSpacing: '0.04em',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
                         }}
                       >
-                        <CheckIcon size={12} color="#10b981" />
-                        <span>EXACT MATCH IN DATABASE</span>
+                        EXACT MATCH
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="font-mono text-muted" style={{ fontSize: '10.5px' }}>
-                          100% MATCH
-                        </span>
-                        <GripVerticalIcon size={14} color="#10b981" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4
-                        className="font-display"
-                        style={{
-                          margin: '2px 0 6px 0',
-                          fontSize: '1rem',
-                          fontWeight: 700,
-                          color: 'var(--color-text-primary)',
-                          lineHeight: 1.25,
-                        }}
-                      >
-                        {searchData.exact_match.name}
-                      </h4>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <PoiCategoryBadge category={searchData.exact_match.category} name={searchData.exact_match.name} />
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <ClockIcon size={11} color="var(--color-text-muted)" />
-                          <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-                            {searchData.exact_match.duration_mins}m
-                          </span>
-                        </div>
-                        {searchData.exact_match.cost_eur > 0 ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-primary)', fontWeight: 600 }}>
-                            {searchData.exact_match.cost_eur.toFixed(2)} €
-                          </span>
-                        ) : (
-                          <span className="font-mono" style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>
-                            FREE
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '2px' }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (searchData.exact_match?.id) {
-                            onInspectPoi?.(searchData.exact_match.id);
-                          }
-                          onPlaceClick?.({
-                            id: searchData.exact_match!.id,
-                            name: searchData.exact_match!.name,
-                            lat: searchData.exact_match!.lat,
-                            lng: searchData.exact_match!.lng,
-                            category: searchData.exact_match!.category,
-                            durationMins: searchData.exact_match!.duration_mins,
-                            costEur: searchData.exact_match!.cost_eur,
-                            similarity: 1.0,
-                          });
-                        }}
-                        style={{
-                          padding: '5px 10px',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10B981',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'opacity 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
-                      >
-                        <span>📷 Inspect & Photos</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onPlaceClick?.({
-                            id: searchData.exact_match!.id,
-                            name: searchData.exact_match!.name,
-                            lat: searchData.exact_match!.lat,
-                            lng: searchData.exact_match!.lng,
-                            category: searchData.exact_match!.category,
-                            durationMins: searchData.exact_match!.duration_mins,
-                            costEur: searchData.exact_match!.cost_eur,
-                            similarity: 1.0,
-                          });
-                        }}
-                        style={{
-                          padding: '5px 12px',
-                          background: 'var(--color-accent-primary)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          boxShadow: 'var(--shadow-sm)',
-                          transition: 'opacity 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polygon points="3 11 22 2 13 21 11 13 3 11" />
-                        </svg>
-                        <span>Focus on Map</span>
-                      </button>
-                    </div>
-                  </div>
+                    }
+                  />
                 )}
 
                 {/* 6. Subheader for Results List */}
@@ -1214,181 +1022,54 @@ export function TripPlacesSidebar({
                 {/* 7. Ranked POI Results Cards */}
                 {searchData && searchData.results.length > 0 && !isLoading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {searchData.results.map((poi, idx) => {
-                      const scoreColor = getScoreColor(poi.similarity);
-                      return (
-                        <div
-                          key={poi.id}
-                          draggable={true}
-                          onDragStart={(e) => handlePoiDragStart(e, poi)}
-                          onDragEnd={() => setActiveDragPlace(null)}
-                          onClick={() => {
-                            if (poi.id) {
-                              onInspectPoi?.(poi.id);
-                            }
-                            onPlaceClick?.({
-                              id: poi.id,
-                              name: poi.name,
-                              lat: poi.lat,
-                              lng: poi.lng,
-                              category: poi.category,
-                              durationMins: poi.duration_mins,
-                              costEur: poi.cost_eur,
-                              similarity: poi.similarity,
-                            });
-                          }}
-                          style={{
-                            padding: '10px',
-                            background: 'var(--color-bg-main)',
-                            border: '1px solid var(--color-border)',
-                            borderRadius: 'var(--radius-md)',
-                            boxShadow: 'var(--shadow-sm)',
-                            cursor: 'grab',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                            animation: 'searchItemFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
-                            animationDelay: `${Math.min(idx * 30, 300)}ms`,
-                          }}
-                          title="Drag into itinerary or click to focus on map"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                            {/* Grip Icon */}
-                            <div style={{ display: 'flex', alignItems: 'center', height: '30px', color: 'var(--color-text-muted)' }}>
-                              <GripVerticalIcon size={14} color="var(--color-text-muted)" />
-                            </div>
-
-                            {/* Rank Number Badge */}
-                            <div
+                    {searchData.results.map((poi) => (
+                      <MinimalistPoiCard
+                        key={poi.id}
+                        id={poi.id}
+                        name={poi.name}
+                        category={poi.category}
+                        durationMins={poi.duration_mins}
+                        costEur={poi.cost_eur}
+                        city={city}
+                        photoUrl={(poi as unknown as { photo_url?: string })?.photo_url}
+                        draggable={true}
+                        onDragStart={(e) => handlePoiDragStart(e, poi)}
+                        onDragEnd={() => setActiveDragPlace(null)}
+                        onClick={() => {
+                          if (poi.id) {
+                            onInspectPoi?.(poi.id);
+                          }
+                          onPlaceClick?.({
+                            id: poi.id,
+                            name: poi.name,
+                            lat: poi.lat,
+                            lng: poi.lng,
+                            category: poi.category,
+                            durationMins: poi.duration_mins,
+                            costEur: poi.cost_eur,
+                            similarity: poi.similarity,
+                          });
+                        }}
+                        extraBadge={
+                          poi.similarity !== undefined && poi.similarity < 1.0 ? (
+                            <span
                               style={{
-                                width: '30px',
-                                height: '30px',
-                                borderRadius: 'var(--radius-sm)',
-                                background: 'rgba(15, 76, 92, 0.08)',
-                                border: '1px solid var(--color-border)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                color: 'var(--color-accent-primary)',
-                                fontSize: '11px',
+                                fontSize: '9px',
                                 fontFamily: 'var(--font-mono)',
                                 fontWeight: 700,
+                                color: getScoreColor(poi.similarity),
+                                background: `${getScoreColor(poi.similarity)}18`,
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                letterSpacing: '0.02em',
                               }}
                             >
-                              {String(idx + 1).padStart(2, '0')}
-                            </div>
-
-                            {/* Name & Details */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                                <span
-                                  style={{
-                                    fontSize: '0.86rem',
-                                    fontWeight: 600,
-                                    color: 'var(--color-text-primary)',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                  }}
-                                  title={poi.name}
-                                >
-                                  {poi.name}
-                                </span>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
-                                <PoiCategoryBadge category={poi.category} name={poi.name} />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <ClockIcon size={10} color="var(--color-text-muted)" />
-                                  <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
-                                    {poi.duration_mins}m
-                                  </span>
-                                </div>
-                                {poi.cost_eur > 0 ? (
-                                  <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
-                                    {poi.cost_eur.toFixed(1)}€
-                                  </span>
-                                ) : (
-                                  <span className="font-mono" style={{ fontSize: '10px', color: '#10b981' }}>
-                                    Free
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Similarity Score Tag */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'flex-end',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: '11px',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: 700,
-                                  color: scoreColor,
-                                  background: `${scoreColor}18`,
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  letterSpacing: '0.02em',
-                                }}
-                              >
-                                {poi.similarity.toFixed(3)}
-                              </div>
-                              <span
-                                className="font-mono"
-                                style={{
-                                  fontSize: '8.5px',
-                                  color: 'var(--color-text-muted)',
-                                  marginTop: '2px',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                similarity
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Coincidence Score Progress Bar */}
-                          <div
-                            style={{
-                              width: '100%',
-                              height: '4px',
-                              background: 'var(--color-border)',
-                              borderRadius: '2px',
-                              overflow: 'hidden',
-                              position: 'relative',
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${Math.min(100, Math.max(0, poi.similarity * 100))}%`,
-                                height: '100%',
-                                background: scoreColor,
-                                borderRadius: '2px',
-                                transition: 'width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
+                              {(poi.similarity * 100).toFixed(0)}%
+                            </span>
+                          ) : undefined
+                        }
+                      />
+                    ))}
                   </div>
                 )}
 
@@ -1420,45 +1101,28 @@ export function TripPlacesSidebar({
             pointerEvents: 'none',
             zIndex: 99999,
             transform: `translate3d(${activeDragPlace.initialX - activeDragPlace.offsetX}px, ${activeDragPlace.initialY - activeDragPlace.offsetY}px, 0)`,
-            background: 'var(--color-surface-card, #FAF6F0)',
-            backgroundColor: '#FAF6F0',
+            background: 'var(--color-bg-card, #FFFFFF)',
             border: '1.5px solid var(--color-accent-primary, #0F4C5C)',
-            borderRadius: 'var(--radius-md, 8px)',
-            padding: '10px 12px',
+            borderRadius: '9999px',
+            padding: '8px 16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             boxShadow: '0 16px 36px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12)',
-            opacity: 1,
+            opacity: 0.95,
             willChange: 'transform',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                <GripVerticalIcon size={14} color="var(--color-text-muted)" />
-              </div>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activeDragPlace.name}
-              </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {activeDragPlace.name}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+              {activeDragPlace.durationMins ? <span>~{activeDragPlace.durationMins}m</span> : <span>Place</span>}
+              {typeof activeDragPlace.costEur === 'number' && activeDragPlace.costEur > 0 && (
+                <span>• {activeDragPlace.costEur.toFixed(1)}€</span>
+              )}
             </div>
-            {activeDragPlace.category && (
-              <PoiCategoryBadge category={activeDragPlace.category} name={activeDragPlace.name} />
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginTop: '2px', paddingLeft: '22px' }}>
-            {activeDragPlace.durationMins ? <span>~{activeDragPlace.durationMins} min</span> : <span>Place</span>}
-            {typeof activeDragPlace.costEur === 'number' && activeDragPlace.costEur > 0 && (
-              <span style={{ color: 'var(--color-success)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                {activeDragPlace.costEur.toFixed(2)} &euro;
-              </span>
-            )}
           </div>
         </div>,
         document.body

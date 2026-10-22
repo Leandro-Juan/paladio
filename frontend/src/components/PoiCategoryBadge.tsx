@@ -136,3 +136,34 @@ export function PoiCategoryBadge({
     </span>
   );
 }
+
+export function PoiCategoryIcon({
+  category,
+  name,
+  size = 14,
+  color,
+  style,
+}: {
+  category?: string;
+  name?: string;
+  size?: number;
+  color?: string;
+  style?: React.CSSProperties;
+}) {
+  const meta = classifyPoiCategory(category, name);
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: color || meta.color,
+        flexShrink: 0,
+        ...style,
+      }}
+    >
+      <CategoryIcon type={meta.type} size={size} />
+    </span>
+  );
+}
+

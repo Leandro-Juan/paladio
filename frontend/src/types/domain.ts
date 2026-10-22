@@ -163,12 +163,14 @@ export interface RouteItineraryData {
       day_index?: number;
       path?: Array<{
         poi?: {
+          id?: string;
           name?: string;
           city?: string;
           category?: string;
           cost_eur?: number;
           duration_mins?: number;
           location?: { latitude?: number; longitude?: number };
+          photo_url?: string;
         };
         arrival_time?: string;
         scheduled_start?: string;
