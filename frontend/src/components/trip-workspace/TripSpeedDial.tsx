@@ -18,6 +18,9 @@ export interface TripSpeedDialProps {
   onToggleTransitMode: () => void;
   selectedDay: number | 'all';
   isRightOpen?: boolean;
+  dockSide?: 'left' | 'right';
+  isPanelOpen?: boolean;
+  panelWidth?: string;
 }
 
 export function TripSpeedDial({
@@ -29,6 +32,9 @@ export function TripSpeedDial({
   onToggleTransitMode,
   selectedDay,
   isRightOpen = true,
+  dockSide = 'left',
+  isPanelOpen = true,
+  panelWidth = 'min(520px, calc(100vw - 32px))',
 }: TripSpeedDialProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
@@ -79,11 +85,11 @@ export function TripSpeedDial({
   }, [onToggleTransitMode]);
 
   const activeDayLabel = selectedDay === 'all' ? 'DAY 1' : `DAY ${selectedDay}`;
+  const isLeft = dockSide === 'left';
 
-  // Radial offsets for quarter-circle fan (R = 70px, radiating into top-left quadrant)
-  // Button 1 (Top / 90deg): x: 0, y: -70px
-  // Button 2 (Diagonal / 135deg): x: -50px, y: -50px
-  // Button 3 (Left / 180deg): x: -70px, y: 0
+  // Radial offsets:
+  // When docked on the left, fan into top-right quadrant (dx >= 0)
+  // When docked on the right, fan into top-left quadrant (dx <= 0)
   const actions = [
     {
       id: 'edit',
@@ -96,7 +102,7 @@ export function TripSpeedDial({
       testId: 'speed-dial-edit-mode',
       title: isEditMode ? 'Exit route editing mode' : 'Enter route editing mode (reorder POIs, days, and locks)',
       dx: 0,
-      dy: -70,
+      dy: isLeft ? -64 : -70,
       delayOpen: '0ms',
       delayClose: '60ms',
     },
@@ -114,8 +120,8 @@ export function TripSpeedDial({
       disabled: isReoptimizing || !onReoptimizeDay,
       testId: 'speed-dial-resolver',
       title: `Run deterministic C++ solver for ${activeDayLabel}`,
-      dx: -50,
-      dy: -50,
+      dx: isLeft ? 46 : -50,
+      dy: isLeft ? -46 : -50,
       delayOpen: '30ms',
       delayClose: '30ms',
     },
@@ -129,7 +135,7 @@ export function TripSpeedDial({
       disabled: false,
       testId: 'speed-dial-view-toggle',
       title: `Switch to ${transitMode === 'simple' ? 'detailed' : 'simple'} view`,
-      dx: -70,
+      dx: isLeft ? 64 : -70,
       dy: 0,
       delayOpen: '60ms',
       delayClose: '0ms',
@@ -142,8 +148,9 @@ export function TripSpeedDial({
       style={{
         position: 'absolute',
         bottom: '24px',
-        right: isRightOpen ? 'calc(min(380px, calc(100vw - 32px)) + 24px)' : '24px',
-        transition: 'right 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
+        left: isLeft ? (isPanelOpen ? `calc(${panelWidth} + 28px)` : '24px') : 'auto',
+        right: isLeft ? 'auto' : (isRightOpen ? 'calc(min(380px, calc(100vw - 32px)) + 24px)' : '24px'),
+        transition: isLeft ? 'left 0.28s cubic-bezier(0.23, 1, 0.32, 1)' : 'right 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
         zIndex: 1050,
         pointerEvents: 'none',
       }}
@@ -172,7 +179,8 @@ export function TripSpeedDial({
               key={act.id}
               style={{
                 position: 'absolute',
-                right: '2px',
+                left: isLeft ? '2px' : 'auto',
+                right: isLeft ? 'auto' : '2px',
                 bottom: '2px',
                 transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
                 opacity,
@@ -181,17 +189,28 @@ export function TripSpeedDial({
                 zIndex: isHovered ? 1100 : 1060,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-end',
+                justifyContent: isLeft ? 'flex-start' : 'flex-end',
               }}
             >
-              {/* Expandable Label Pill (Revealed on hover/focus to the left of the icon, pointerEvents: none) */}
+              {/* Expandable Label Pill */}
               <div
                 style={{
                   position: 'absolute',
-                  right: '48px',
+                  ...(isLeft
+                    ? {
+                        left: '48px',
+                        right: 'auto',
+                        alignItems: 'flex-start',
+                        transform: isHovered ? 'translateX(0)' : 'translateX(-8px)',
+                      }
+                    : {
+                        right: '48px',
+                        left: 'auto',
+                        alignItems: 'flex-end',
+                        transform: isHovered ? 'translateX(0)' : 'translateX(8px)',
+                      }),
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'flex-end',
                   background: act.isActive ? 'var(--color-accent-primary)' : 'var(--color-surface-card)',
                   color: act.isActive ? '#FFFFFF' : 'var(--color-text-primary)',
                   border: `1px solid ${act.isActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
@@ -201,7 +220,6 @@ export function TripSpeedDial({
                   padding: '5px 10px',
                   borderRadius: 'var(--radius-sm)',
                   opacity: isHovered ? 1 : 0,
-                  transform: isHovered ? 'translateX(0)' : 'translateX(8px)',
                   transition: 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.23, 1, 0.32, 1)',
                   pointerEvents: 'none',
                   whiteSpace: 'nowrap',
@@ -285,7 +303,8 @@ export function TripSpeedDial({
           title={isOpen ? 'Close route actions' : 'Route actions: Edit route, solve day, toggle view'}
           style={{
             position: 'absolute',
-            right: 0,
+            left: isLeft ? 0 : 'auto',
+            right: isLeft ? 'auto' : 0,
             bottom: 0,
             width: '44px',
             height: '44px',

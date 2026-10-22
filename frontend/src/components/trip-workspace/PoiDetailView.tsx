@@ -9,7 +9,9 @@ import {
   ClockIcon,
   CloseIcon,
   CheckIcon,
+  GripVerticalIcon,
 } from '@/components/icons';
+import { createRouteCardDragImage } from './TripUnifiedSidebar';
 
 interface PoiDetailViewProps {
   poiId: string | null;
@@ -25,6 +27,7 @@ interface PoiDetailViewProps {
   }) => void;
   availableDays?: number[];
   initialDay?: number;
+  onDragStartPoi?: () => void;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -81,6 +84,7 @@ export function PoiDetailView({
   onFocusOnMap,
   availableDays = [1, 2, 3],
   initialDay = 1,
+  onDragStartPoi,
 }: PoiDetailViewProps) {
   const [poi, setPoi] = useState<PoiDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -812,6 +816,68 @@ export function PoiDetailView({
                       <span>↗</span>
                     </a>
                   )}
+                </div>
+
+                {/* Tactical Draggable Handle: Pick up and drop directly into route */}
+                <div
+                  draggable={true}
+                  onDragStart={(e) => {
+                    onDragStartPoi?.();
+                    const ghost = createRouteCardDragImage({
+                      name: poi.name,
+                      category: poi.category,
+                      duration_mins: poi.duration_mins,
+                      cost_eur: poi.cost_eur,
+                    });
+                    e.dataTransfer.setDragImage(ghost, 20, 20);
+                    setTimeout(() => ghost.remove(), 0);
+
+                    e.dataTransfer.setData(
+                      'application/paladio-poi',
+                      JSON.stringify({
+                        source: 'inspector',
+                        poi: {
+                          id: poi.id,
+                          name: poi.name,
+                          category: poi.category,
+                          lat: poi.lat ?? 0,
+                          lng: poi.lng ?? 0,
+                          duration_mins: poi.duration_mins,
+                          cost_eur: poi.cost_eur,
+                          location: {
+                            latitude: poi.lat ?? 0,
+                            longitude: poi.lng ?? 0,
+                          },
+                        },
+                      })
+                    );
+                    e.dataTransfer.effectAllowed = 'copyMove';
+
+                    // Broadcast event to switch route tab
+                    window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(15, 76, 92, 0.08)',
+                    border: '1px dashed var(--color-accent-primary)',
+                    color: 'var(--color-accent-primary)',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    cursor: 'grab',
+                    userSelect: 'none',
+                    transition: 'all 0.16s ease',
+                  }}
+                  title="Drag this place directly into any day slot in the route on the left"
+                >
+                  <GripVerticalIcon size={14} color="currentColor" />
+                  <span>DRAG PLACE INTO ROUTE</span>
                 </div>
               </div>
 

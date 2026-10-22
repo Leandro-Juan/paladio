@@ -9,9 +9,10 @@ import { getScheduledPoiTimes } from '@/utils/date';
 import { notify } from '@/utils/notify';
 
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
-import { TripPlanSidebar } from './TripPlanSidebar';
-import { TripPlacesSidebar, PlaceItem, PoiApiItem } from './TripPlacesSidebar';
+import { TripUnifiedSidebar } from './TripUnifiedSidebar';
 import { TripSpeedDial } from './TripSpeedDial';
+import { PoiDetailView } from './PoiDetailView';
+import { PlaceItem, PoiApiItem } from './TripPlacesSidebar';
 import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { TripCostsView } from './TripCostsView';
@@ -31,13 +32,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [isEditMode, setIsEditMode] = useState(false);
   const [isReoptimizing, setIsReoptimizing] = useState(false);
-  const [isLeftOpen, setIsLeftOpen] = useState(true);
-  const [isRightOpen, setIsRightOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 768;
-    }
-    return true;
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<PoiCategoryType | null>(null);
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
@@ -76,24 +71,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     );
   }, []);
 
-  const handleToggleLeft = useCallback(() => {
-    setIsLeftOpen((prev) => {
-      const next = !prev;
-      if (next && typeof window !== 'undefined' && window.innerWidth < 768) {
-        setIsRightOpen(false);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleToggleRight = useCallback(() => {
-    setIsRightOpen((prev) => {
-      const next = !prev;
-      if (next && typeof window !== 'undefined' && window.innerWidth < 768) {
-        setIsLeftOpen(false);
-      }
-      return next;
-    });
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
   }, []);
 
   // Query tickets for live count and auto-sync status
@@ -319,7 +298,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const handleInspectPoi = useCallback((id: string) => {
     setInspectedPoiId(id);
-    setIsRightOpen(true);
+    setIsSidebarOpen(true);
   }, []);
 
   const handleCloseInspect = useCallback(() => {
@@ -449,38 +428,26 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             }
           />
 
-          {/* Left Floating Itinerary Sidebar */}
-          <TripPlanSidebar
-            isOpen={isLeftOpen}
-            onToggle={handleToggleLeft}
+          {/* Unified Floating Tactical Command Panel */}
+          <TripUnifiedSidebar
+            isOpen={isSidebarOpen}
+            onToggle={handleToggleSidebar}
+            tripId={trip.id}
+            destinationCity={trip.destination}
             days={daysOutput}
             selectedDay={selectedDay}
             onSelectDay={setSelectedDay}
-            tripId={trip.id}
-            destinationCity={trip.destination}
             itinerary={itinerary as OptimizationResult}
             onItineraryUpdate={handleItineraryUpdate}
             categoryFilter={categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
             onTransitModeChange={setTransitMode}
-            onInspectPoi={handleInspectPoi}
-            isEditMode={isEditMode}
-          />
-
-          {/* Right Floating POI Search Engine & Inspector Sidebar */}
-          <TripPlacesSidebar
-            isOpen={isRightOpen}
-            onToggle={handleToggleRight}
-            city={trip.destination}
             places={places}
             onPlaceClick={handlePlaceClick}
-            categoryFilter={categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
             onCategoryPoisChange={handleCategoryPoisChange}
             hotelAnchor={hotel}
             airportAnchor={airport}
-            tripId={trip.id}
             onInspectPoi={handleInspectPoi}
             inspectedPoiId={inspectedPoiId}
             onCloseInspect={handleCloseInspect}
@@ -492,13 +459,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
             isReoptimizing={isReoptimizing}
-            transitMode={transitMode}
             onToggleTransitMode={handleToggleTransitMode}
-            selectedDay={selectedDay}
           />
 
-          {/* Floating Route Speed Dial (Quarter-Circle Radial Menu docked to bottom-left of right panel) */}
+          {/* Radiating Speed Dial Actions Button docked next to left panel bottom */}
           <TripSpeedDial
+            dockSide="left"
+            isPanelOpen={isSidebarOpen}
             isEditMode={isEditMode}
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
@@ -506,8 +473,46 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             transitMode={transitMode}
             onToggleTransitMode={handleToggleTransitMode}
             selectedDay={selectedDay}
-            isRightOpen={isRightOpen}
           />
+
+          {/* Right Floating POI Details Drawer */}
+          {inspectedPoiId && (
+            <aside
+              data-testid="trip-poi-inspector-drawer"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                bottom: '16px',
+                right: '16px',
+                width: 'min(420px, calc(100vw - 32px))',
+                background: 'var(--color-surface-card, #FFFFFF)',
+                backdropFilter: 'blur(28px)',
+                WebkitBackdropFilter: 'blur(28px)',
+                borderRadius: '24px',
+                border: '1px solid var(--color-border)',
+                boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                zIndex: 1040,
+                animation: 'fadeInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1)',
+                pointerEvents: 'auto',
+              }}
+            >
+              <PoiDetailView
+                poiId={inspectedPoiId}
+                onClose={handleCloseInspect}
+                onAddToDay={handleAddPoiToDay}
+                onFocusOnMap={handleFocusFromDrawer}
+                availableDays={daysOutput.map((d) => d.day)}
+                initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
+                onDragStartPoi={() => {
+                  if (!isSidebarOpen) setIsSidebarOpen(true);
+                  window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                }}
+              />
+            </aside>
+          )}
         </div>
 
         {/* Tab 2: Wallet (replaces transports with backward compatibility) */}

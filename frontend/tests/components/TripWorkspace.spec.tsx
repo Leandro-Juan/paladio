@@ -3,6 +3,7 @@ import { TripWorkspaceHeader } from '../../src/components/trip-workspace/TripWor
 import { TripPlacesSidebar, PlaceItem } from '../../src/components/trip-workspace/TripPlacesSidebar';
 import { TripPlanSidebar } from '../../src/components/trip-workspace/TripPlanSidebar';
 import { TripSpeedDial } from '../../src/components/trip-workspace/TripSpeedDial';
+import { TripUnifiedSidebar } from '../../src/components/trip-workspace/TripUnifiedSidebar';
 import { DayOutput } from '../../src/types/domain';
 
 test.describe('Trip Workspace Renovated Components', () => {
@@ -326,5 +327,82 @@ test.describe('Trip Workspace Renovated Components', () => {
     await viewBtn.click();
     expect(viewMode).toBe('detailed');
   });
+
+  test('TripUnifiedSidebar renders unified floating card panel with Route, Search, and Saved tabs', async ({ mount }) => {
+    const mockDays: DayOutput[] = [
+      { day: 1, theme: 'Arrival & Old Town', itinerary: { path: [] } },
+      { day: 2, theme: 'Museums & Art', itinerary: { path: [] } },
+      { day: 3, theme: 'Parks & Panorama', itinerary: { path: [] } },
+    ];
+    let selectedDay: number | 'all' = 1;
+    let selectedCategory: string | null = null;
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Barcelona"
+        days={mockDays}
+        selectedDay={selectedDay}
+        onSelectDay={(day) => {
+          selectedDay = day;
+        }}
+        categoryFilter={selectedCategory as any}
+        onCategoryFilterChange={(cat) => {
+          selectedCategory = cat;
+        }}
+      />
+    );
+
+    // Verify main unified card is visible
+    const unifiedCard = component.getByTestId('trip-unified-sidebar');
+    await expect(unifiedCard).toBeVisible();
+
+    // Verify top navigation tabs: Route, Search, Saved
+    const routeTab = component.getByTestId('tab-route');
+    const searchTab = component.getByTestId('tab-search');
+    const savedTab = component.getByTestId('tab-saved');
+    await expect(routeTab).toBeVisible();
+    await expect(searchTab).toBeVisible();
+    await expect(savedTab).toBeVisible();
+
+    // Route tab is active by default -> Days bar should be visible
+    const daysBar = component.getByTestId('day-selector-tabs');
+    await expect(daysBar).toBeVisible();
+    await expect(component.getByTestId('day-tab-all')).toBeVisible();
+    await expect(component.getByTestId('day-tab-1')).toBeVisible();
+    await expect(component.getByTestId('day-tab-2')).toBeVisible();
+    await expect(component.getByTestId('day-tab-3')).toBeVisible();
+
+    // Switch to Search tab
+    await searchTab.click();
+
+    // Now categories bar should be visible
+    const categoriesBar = component.getByTestId('category-selector-tabs');
+    await expect(categoriesBar).toBeVisible();
+    await expect(component.getByTestId('category-tab-all')).toBeVisible();
+    await expect(component.getByTestId('category-tab-museum')).toBeVisible();
+    await expect(component.getByTestId('category-tab-restaurant')).toBeVisible();
+
+    // Verify Search input and button are visible
+    const searchInput = component.getByTestId('unified-search-input');
+    await expect(searchInput).toBeVisible();
+    await expect(component.getByTestId('unified-search-btn')).toBeVisible();
+
+    // Verify Custom Dropdowns in Search Tab (Target Day, Sort Order, Price, Duration)
+    await expect(component.getByTestId('target-day-dropdown')).toBeVisible();
+    await expect(component.getByTestId('sort-order-dropdown')).toBeVisible();
+    await expect(component.getByTestId('price-filter-dropdown')).toBeVisible();
+    await expect(component.getByTestId('duration-filter-dropdown')).toBeVisible();
+
+    // Selecting a category
+    await component.getByTestId('category-tab-museum').click();
+    expect(selectedCategory).toBe('museum');
+
+    // Switch to Saved tab
+    await savedTab.click();
+    await expect(component.getByText(/Saved Places/i)).toBeVisible();
+  });
 });
+
 
