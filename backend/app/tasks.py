@@ -2094,6 +2094,20 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 f"valhalla_ingest_transit failed with code {res_ingest.exit_code}: {err_msg}"
             )
 
+        logger.info(f"Executing Valhalla transit convert for {city_lower}...")
+        res_convert = container.exec_run(
+            f"valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
+        )
+        if res_convert.exit_code != 0:
+            err_msg = (
+                res_convert.output.decode("utf-8", errors="replace")
+                if hasattr(res_convert.output, "decode")
+                else str(res_convert.output)
+            )
+            raise RuntimeError(
+                f"valhalla_convert_transit failed with code {res_convert.exit_code}: {err_msg}"
+            )
+
         logger.info(
             f"Executing Valhalla road tile build pipeline for {city_osm_pbf}..."
         )
@@ -2108,20 +2122,6 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             )
             raise RuntimeError(
                 f"valhalla_build_tiles failed with code {res_build.exit_code}: {err_msg}"
-            )
-
-        logger.info(f"Executing Valhalla transit convert for {city_lower}...")
-        res_convert = container.exec_run(
-            f"valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
-        )
-        if res_convert.exit_code != 0:
-            err_msg = (
-                res_convert.output.decode("utf-8", errors="replace")
-                if hasattr(res_convert.output, "decode")
-                else str(res_convert.output)
-            )
-            raise RuntimeError(
-                f"valhalla_convert_transit failed with code {res_convert.exit_code}: {err_msg}"
             )
 
         logger.info(f"Executing Valhalla extract tiles for {city_lower}...")

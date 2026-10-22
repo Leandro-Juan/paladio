@@ -265,7 +265,7 @@ def test_build_city_gtfs_task_execution_and_sanitization():
             extract_idx = next(
                 i for i, cmd in enumerate(calls) if "valhalla_build_extract" in cmd
             )
-            assert ingest_idx < build_idx < convert_idx < extract_idx
+            assert ingest_idx < convert_idx < build_idx < extract_idx
 
             published_events = [call.args[0] for call in mock_publish.call_args_list]
             assert "TRANSIT_COMPILE_STARTED" in published_events
