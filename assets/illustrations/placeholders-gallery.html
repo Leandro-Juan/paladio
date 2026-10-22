@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paladio • Place Photo Fallback Illustrations Gallery</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --color-accent-coral: #D42A2F;
+      --color-accent-teal-mid: #1B8FA6;
+      --color-accent-teal-soft: #7CC4D1;
+      --color-accent-teal-deep: #0F4C5C;
+      --color-accent-gold: #E2B33C;
+      --color-border: #E2D9CC;
+      --color-surface-card: #FAF6F0;
+      --color-surface-raised: #FFFFFF;
+      --color-background: #F4EFEB;
+      --color-foreground: #1E293B;
+      --color-text-muted: #64748B;
+      --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .dark {
+      --color-accent-coral: #E05357;
+      --color-accent-teal-mid: #2AB3CF;
+      --color-accent-teal-soft: #8ED8E5;
+      --color-accent-teal-deep: #166B80;
+      --color-accent-gold: #E8BE54;
+      --color-border: #2A364F;
+      --color-surface-card: #151F33;
+      --color-surface-raised: #1C2842;
+      --color-background: #0B1326;
+      --color-foreground: #E2E8F0;
+      --color-text-muted: #94A3B8;
+    }
+
+    body {
+      background-color: var(--color-background);
+      color: var(--color-foreground);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .tab-pill.active {
+      background-color: #0F4C5C;
+      color: #FFFFFF;
+      box-shadow: 0 1px 3px rgba(15, 76, 92, 0.35);
+    }
+
+    .scale-btn.active {
+      background-color: #0F4C5C;
+      color: #FFFFFF;
+    }
+
+    .view-mode-btn.active {
+      background-color: #1B8FA6;
+      color: #FFFFFF;
+    }
+
+    .poi-photo-preview {
+      position: relative;
+      width: 100%;
+      height: 210px;
+      background: var(--color-surface-card);
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--color-border);
+      border-bottom: none;
+    }
+
+    .poi-scrim {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(15, 23, 42, 0.68) 100%);
+      pointer-events: none;
+    }
+
+    .code-tag {
+      font-family: var(--font-code);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Toast notification */
+    #copyToast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+    #copyToast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+
+  <!-- Toast Notification -->
+  <div id="copyToast" class="bg-[#0F4C5C] text-white text-xs font-mono px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 border border-white/20">
+    <span class="text-[#E2B33C]">✓</span>
+    <span id="toastMsg">SVG copied to clipboard</span>
+  </div>
+
+  <div class="max-w-7xl mx-auto">
+    <!-- Header Navigation & Context Banner -->
+    <header class="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-2xl p-6 sm:p-8 mb-8 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-[#D42A2F]/10 text-[#D42A2F] border border-[#D42A2F]/25">
+              PALADIO ASSET SUITE
+            </span>
+            <span class="text-xs text-[var(--color-text-muted)] font-mono">14 Bespoke Placeholders</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-foreground)]">
+            Place Photo Fallbacks Gallery
+          </h1>
+          <p class="text-sm text-[var(--color-text-muted)] mt-1.5 max-w-2xl">
+            Japanese Minimalist & Tactical Editorial SVG placeholders for the Trip Details page (<code class="font-mono text-xs bg-[var(--color-surface-raised)] px-1.5 py-0.5 rounded border border-[var(--color-border)]">PoiDetailView.tsx</code>) when no community Wikimedia photos exist.
+          </p>
+        </div>
+
+        <!-- Controls: Theme & Display Mode -->
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Theme Toggle -->
+          <button
+            onclick="toggleTheme()"
+            class="flex items-center gap-2 text-xs font-mono px-3.5 py-2 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-border)] hover:border-[var(--color-accent-teal-mid)] transition"
+          >
+            <span id="themeIcon">🌙</span>
+            <span id="themeLabel">Dark Mode</span>
+          </button>
+
+          <!-- Mode Toggle -->
+          <div class="flex bg-[var(--color-surface-raised)] p-1 rounded-xl border border-[var(--color-border)]">
+            <button
+              onclick="setViewMode('preview')"
+              id="btnModePreview"
+              class="view-mode-btn active text-xs font-medium px-3 py-1.5 rounded-lg transition"
+            >
+              🖼️ Trip Details Preview
+            </button>
+            <button
+              onclick="setViewMode('tactical')"
+              id="btnModeTactical"
+              class="view-mode-btn text-xs font-medium px-3 py-1.5 rounded-lg transition text-[var(--color-text-muted)]"
+            >
+              📐 SVG Vector Sheet
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="mt-6 pt-5 border-t border-[var(--color-border)] flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-wrap gap-1.5" id="categoryTabs">
+          <button onclick="setFilter('all')" class="tab-pill active text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] transition">
+            All (14)
+          </button>
+          <button onclick="setFilter('culture')" class="tab-pill text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-muted)] transition">
+            Culture & Sights (3)
+          </button>
+          <button onclick="setFilter('dining')" class="tab-pill text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-muted)] transition">
+            Dining & Nightlife (3)
+          </button>
+          <button onclick="setFilter('transit')" class="tab-pill text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-muted)] transition">
+            Transit & Flights (4)
+          </button>
+          <button onclick="setFilter('hospitality')" class="tab-pill text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-muted)] transition">
+            Hospitality & Retail (3)
+          </button>
+          <button onclick="setFilter('waypoint')" class="tab-pill text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] text-[var(--color-text-muted)] transition">
+            Waypoint (1)
+          </button>
+        </div>
+
+        <!-- Scale Controls (for tactical sheet) -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono text-[var(--color-text-muted)]">Scale:</span>
+          <div class="flex bg-[var(--color-surface-raised)] p-0.5 rounded-lg border border-[var(--color-border)]">
+            <button onclick="setScale(90)" class="scale-btn text-xs font-mono px-2.5 py-1 rounded transition">90px</button>
+            <button onclick="setScale(120)" class="scale-btn active text-xs font-mono px-2.5 py-1 rounded transition">120px</button>
+            <button onclick="setScale(160)" class="scale-btn text-xs font-mono px-2.5 py-1 rounded transition">160px</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Gallery Grid -->
+    <div id="galleryContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Dynamic illustration cards rendered via JS -->
+    </div>
+
+    <!-- Design System Reference Footer -->
+    <footer class="mt-12 p-6 rounded-2xl bg-[var(--color-surface-card)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">🎌</span>
+          <div>
+            <p class="font-semibold text-[var(--color-foreground)]">Paladio Pacific Jazz Design System</p>
+            <p>120x80 ViewBox • 4-Layer Semantic Architecture • Pure CSS Custom Properties</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 font-mono text-[11px]">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#D42A2F] inline-block"></span> Coral Sun</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#1B8FA6] inline-block"></span> Ocean Teal</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#E2B33C] inline-block"></span> Jewel Gold</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#0F4C5C] inline-block"></span> Deep Slate</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 14 Category Placeholder Definitions
+    // =========================================================================
+    const PLACEHOLDERS = [
+      {
+        id: "museum",
+        group: "culture",
+        name: "Museum & Art Gallery",
+        categoryType: "museum",
+        badge: { label: "MUSEUM", bg: "rgba(99, 102, 241, 0.08)", color: "#4F46E5", border: "rgba(99, 102, 241, 0.25)" },
+        examplePlace: "Tokyo National Museum, Ueno",
+        desc: "Classical portico pediment with fluted pillars, art sculpture pedestal, and rising coral sun disc.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="86" cy="22" r="7.5" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="36,33 60,19 84,33" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <polygon points="42,32 60,22 78,32" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="34" y="33" width="52" height="3.5" rx="1" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <rect x="39" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="51" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="65" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="77" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="56" y="47" width="8" height="12.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <polygon points="60,40 63,44 60,48 57,44" fill="var(--color-accent-gold, #E2B33C)" />
+  <rect x="32" y="59.5" width="56" height="3" rx="0.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <rect x="28" y="62.5" width="64" height="3.5" rx="0.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <path d="M22 22 H16 V28" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <path d="M98 22 H104 V28" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="28" y1="68" x2="28" y2="71" stroke="var(--color-border, #E2D9CC)" stroke-width="1" />
+  <line x1="60" y1="68" x2="60" y2="72" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" />
+  <line x1="92" y1="68" x2="92" y2="71" stroke="var(--color-border, #E2D9CC)" stroke-width="1" />
+</svg>`
+      },
+      {
+        id: "restaurant",
+        group: "dining",
+        name: "Restaurant & Dining",
+        categoryType: "restaurant",
+        badge: { label: "RESTAURANT", bg: "rgba(217, 119, 6, 0.08)", color: "#D97706", border: "rgba(217, 119, 6, 0.25)" },
+        examplePlace: "Sushi Yoshitake, Ginza",
+        desc: "Culinary cloche dome with vapor rise, sleek chopsticks, gold jewel, and dining platform.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="84" cy="22" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <path d="M36 52 C36 34 46 29 60 29 C74 29 84 34 84 52 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <path d="M60 29 C74 29 84 34 84 52 H60 Z" fill="var(--color-accent-teal-deep, #0F4C5C)" opacity="0.35" />
+  <circle cx="60" cy="26" r="3" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.5" fill="none" />
+  <rect x="30" y="52" width="60" height="4" rx="2" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <line x1="70" y1="18" x2="96" y2="48" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.6" stroke-linecap="round" />
+  <line x1="76" y1="16" x2="100" y2="44" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.6" stroke-linecap="round" />
+  <path d="M52 22 Q50 16 54 12" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.3" stroke-linecap="round" fill="none" />
+  <path d="M60 21 Q63 15 59 10" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.3" stroke-linecap="round" fill="none" />
+  <circle cx="60" cy="42" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="32" y1="62" x2="88" y2="62" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1" stroke-dasharray="3 3" />
+  <line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "cafe",
+        group: "dining",
+        name: "Café & Coffee",
+        categoryType: "cafe",
+        badge: { label: "CAFÉ", bg: "rgba(180, 83, 9, 0.08)", color: "#B45309", border: "rgba(180, 83, 9, 0.25)" },
+        examplePlace: "Koffee Mameya Kakeru, Kiyosumi",
+        desc: "Artisanal ceramic cup, saucer, aromatic vapor plumes, and gold roasted bean jewel.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="24" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <path d="M42 36 L46 54 C47 58 52 61 60 61 C68 61 73 58 74 54 L78 36 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <path d="M60 36 L60 61 C68 61 73 58 74 54 L78 36 Z" fill="var(--color-accent-teal-deep, #0F4C5C)" opacity="0.3" />
+  <ellipse cx="60" cy="36" rx="18" ry="3.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <ellipse cx="60" cy="36" rx="15" ry="2.5" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <path d="M75 40 C83 40 83 51 73 51" stroke="var(--color-accent-teal-mid, #1B8FA6)" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <ellipse cx="60" cy="62" rx="26" ry="4" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <ellipse cx="60" cy="61" rx="23" ry="2.8" fill="var(--color-surface-card, #FAF6F0)" opacity="0.25" />
+  <path d="M53 30 Q50 22 56 16" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.4" stroke-linecap="round" fill="none" />
+  <path d="M63 29 Q67 21 61 15" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.4" stroke-linecap="round" fill="none" />
+  <circle cx="60" cy="47" r="3" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="60" y1="45" x2="60" y2="49" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1" stroke-linecap="round" />
+  <line x1="20" y1="69" x2="100" y2="69" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "bus_stop",
+        group: "transit",
+        name: "Bus Stop & Waypoint",
+        categoryType: "bus_stop",
+        badge: { label: "BUS STOP", bg: "rgba(13, 148, 136, 0.08)", color: "#0D9488", border: "rgba(13, 148, 136, 0.25)" },
+        examplePlace: "Kyoto City Bus Station #205",
+        desc: "Minimalist totem pole with round route disc, timetable board, glass canopy shelter, and bench.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="22" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <circle cx="38" cy="28" r="9" fill="var(--color-accent-coral, #D42A2F)" />
+  <circle cx="38" cy="28" r="6.5" fill="var(--color-surface-card, #FAF6F0)" />
+  <line x1="34" y1="28" x2="42" y2="28" stroke="var(--color-accent-coral, #D42A2F)" stroke-width="1.8" stroke-linecap="round" />
+  <rect x="34" y="39" width="8" height="12" rx="1" fill="var(--color-accent-teal-soft, #7CC4D1)" />
+  <line x1="38" y1="37" x2="38" y2="67" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2.5" />
+  <polygon points="48,32 94,27 91,33 46,37" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <rect x="52" y="36" width="38" height="28" rx="1" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.35" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1" />
+  <rect x="56" y="52" width="30" height="3.5" rx="1" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <line x1="60" y1="55.5" x2="60" y2="67" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.5" />
+  <line x1="82" y1="55.5" x2="82" y2="67" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.5" />
+  <line x1="50" y1="36" x2="50" y2="67" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2" />
+  <circle cx="92" cy="27" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="20" y1="71" x2="100" y2="71" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" stroke-dasharray="3 3" />
+</svg>`
+      },
+      {
+        id: "transit",
+        group: "transit",
+        name: "Transit & Rail (Shinkansen)",
+        categoryType: "transit",
+        badge: { label: "TRANSIT", bg: "rgba(8, 145, 178, 0.08)", color: "#0891B2", border: "rgba(8, 145, 178, 0.25)" },
+        examplePlace: "Tokyo Station Marunouchi Line",
+        desc: "Aerodynamic bullet nose exiting arched tunnel portal with track ties, signal, and dual headlights.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="86" cy="22" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <path d="M34 65 V42 C34 26 46 20 60 20 C74 20 86 26 86 42 V65" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="3" fill="none" />
+  <path d="M38 65 V43 C38 30 48 24 60 24 C72 24 82 30 82 43 V65" fill="var(--color-surface-card, #FAF6F0)" opacity="0.15" />
+  <path d="M46 65 L48 44 C49 35 54 32 60 32 C66 32 71 35 72 44 L74 65 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <polygon points="50,42 70,42 67,49 53,49" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <line x1="47" y1="52" x2="47" y2="62" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" />
+  <line x1="73" y1="52" x2="73" y2="62" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" />
+  <circle cx="53" cy="57" r="2.2" fill="var(--color-accent-gold, #E2B33C)" />
+  <circle cx="67" cy="57" r="2.2" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="26" y1="17" x2="94" y2="17" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1" stroke-dasharray="4 2" />
+  <line x1="44" y1="65" x2="38" y2="72" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2" stroke-linecap="round" />
+  <line x1="76" y1="65" x2="82" y2="72" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2" stroke-linecap="round" />
+  <line x1="40" y1="69" x2="80" y2="69" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" />
+</svg>`
+      },
+      {
+        id: "hotel",
+        group: "hospitality",
+        name: "Hotel & Accommodations",
+        categoryType: "hotel",
+        badge: { label: "HOTEL", bg: "rgba(30, 58, 138, 0.08)", color: "#1E3A8A", border: "rgba(30, 58, 138, 0.25)" },
+        examplePlace: "Aman Tokyo, Otemachi",
+        desc: "Architectural hotel facade with warm illuminated window matrix, entrance canopy, and courtyard topiary.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="84" cy="22" r="7.5" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <rect x="42" y="24" width="36" height="41" rx="1.5" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="62" y="24" width="16" height="41" rx="1.5" fill="var(--color-accent-teal-deep, #0F4C5C)" opacity="0.4" />
+  <rect x="40" y="22" width="40" height="3" rx="0.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <polygon points="36,54 84,54 80,58 40,58" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <rect x="54" y="58" width="12" height="7" fill="var(--color-accent-gold, #E2B33C)" opacity="0.9" />
+  <rect x="47" y="28" width="5" height="5" rx="0.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <rect x="57" y="28" width="5" height="5" rx="0.5" fill="var(--color-surface-card, #FAF6F0)" opacity="0.9" />
+  <rect x="67" y="28" width="5" height="5" rx="0.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <rect x="47" y="37" width="5" height="5" rx="0.5" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.8" />
+  <rect x="57" y="37" width="5" height="5" rx="0.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <rect x="67" y="37" width="5" height="5" rx="0.5" fill="var(--color-surface-card, #FAF6F0)" opacity="0.9" />
+  <rect x="47" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <rect x="57" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.8" />
+  <rect x="67" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <circle cx="60" cy="16" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <circle cx="32" cy="62" r="4" fill="var(--color-accent-teal-soft, #7CC4D1)" />
+  <line x1="32" y1="62" x2="32" y2="68" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.5" />
+  <line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "bar",
+        group: "dining",
+        name: "Bar & Nightlife",
+        categoryType: "bar",
+        badge: { label: "BAR / PUB", bg: "rgba(225, 29, 72, 0.08)", color: "#E11D48", border: "rgba(225, 29, 72, 0.25)" },
+        examplePlace: "Bar Benfiddich, Shinjuku",
+        desc: "Sculptural cocktail coupette with garnish pick, gold olive, cocktail shaker, and night sparkle.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="22" r="8" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <path d="M42 34 C42 46 54 51 59 51 V63 H54 V65 H66 V63 H61 V51 C66 51 78 46 78 34 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <path d="M45 38 C51 44 69 44 75 38 Z" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <rect x="59" y="51" width="2" height="13" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <ellipse cx="60" cy="64" rx="10" ry="2" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <line x1="51" y1="24" x2="71" y2="44" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" stroke-linecap="round" />
+  <circle cx="56" cy="29" r="3.2" fill="var(--color-accent-gold, #E2B33C)" />
+  <path d="M25 43 L28 62 H38 L41 43 Z" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.35" />
+  <path d="M28 43 L31 37 H35 L38 43 Z" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.4" />
+  <polygon points="94,36 96,39 99,40 96,41 94,44 92,41 89,40 92,39" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "landmark",
+        group: "culture",
+        name: "Landmark & Heritage",
+        categoryType: "landmark",
+        badge: { label: "LANDMARK", bg: "rgba(124, 58, 237, 0.08)", color: "#7C3AED", border: "rgba(124, 58, 237, 0.25)" },
+        examplePlace: "Himeji Castle Tenshu",
+        desc: "Monumental stone fortress rampart, sweeping pagoda eaves, and golden Sorin spire finial.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="84" cy="20" r="8" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="36,66 43,54 77,54 84,66" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <line x1="47" y1="60" x2="73" y2="60" stroke="var(--color-border, #E2D9CC)" stroke-width="1" stroke-dasharray="3 2" />
+  <path d="M33 54 Q60 49 87 54 L83 48 Q60 45 37 48 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="47" y="39" width="26" height="9" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <path d="M41 40 Q60 35 79 40 L75 35 Q60 32 45 35 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <line x1="60" y1="21" x2="60" y2="34" stroke="var(--color-accent-gold, #E2B33C)" stroke-width="2" stroke-linecap="round" />
+  <circle cx="60" cy="22" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <circle cx="60" cy="27" r="1.8" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "park",
+        group: "culture",
+        name: "Park & Nature",
+        categoryType: "park",
+        badge: { label: "PARK / NATURE", bg: "rgba(22, 101, 52, 0.08)", color: "#166534", border: "rgba(22, 101, 52, 0.25)" },
+        examplePlace: "Shinjuku Gyoen National Garden",
+        desc: "Sculptural Japanese Zen pine tree, cloud foliage pads, contoured hill slope, and garden stone cairn.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="22" r="8" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <path d="M18 67 Q46 54 74 58 Q96 61 106 67 Z" fill="var(--color-accent-teal-deep, #0F4C5C)" opacity="0.75" />
+  <path d="M50 64 Q52 48 57 42 Q61 36 63 29" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="3" stroke-linecap="round" fill="none" />
+  <ellipse cx="44" cy="41" rx="13" ry="6.5" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <ellipse cx="69" cy="35" rx="15" ry="7" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <ellipse cx="58" cy="26" rx="11" ry="5.5" fill="var(--color-accent-teal-soft, #7CC4D1)" />
+  <ellipse cx="34" cy="58" rx="5" ry="3" fill="var(--color-accent-teal-soft, #7CC4D1)" />
+  <circle cx="34" cy="54" r="2" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "attraction",
+        group: "culture",
+        name: "Attraction & Viewpoint",
+        categoryType: "attraction",
+        badge: { label: "ATTRACTION", bg: "rgba(2, 132, 199, 0.08)", color: "#0284C7", border: "rgba(2, 132, 199, 0.25)" },
+        examplePlace: "Shibuya Sky Observation Deck",
+        desc: "Panoramic observation binoculars mounted on swivel pedestal with radar view arc and gold lens glint.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="22" r="7.5" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="46,31 65,29 64,37 46,37" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <polygon points="55,35 74,33 73,41 55,41" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <circle cx="58" cy="41" r="4.5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <polygon points="56,43 60,43 62,64 54,64" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <rect x="47" y="64" width="22" height="3" rx="1" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <circle cx="78" cy="33" r="15" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" stroke-dasharray="3 3" fill="none" />
+  <line x1="78" y1="15" x2="78" y2="19" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <circle cx="48" cy="34" r="2.2" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="18" y1="58" x2="38" y2="58" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <line x1="78" y1="58" x2="102" y2="58" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "flight",
+        group: "transit",
+        name: "Flight & Aviation",
+        categoryType: "flight",
+        badge: { label: "FLIGHT", bg: "rgba(79, 70, 229, 0.08)", color: "#4338CA", border: "rgba(79, 70, 229, 0.25)" },
+        examplePlace: "JL004 Tokyo Haneda to New York",
+        desc: "Ascending supersonic commercial aircraft through contrail vectors with gold waypoint star.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="86" cy="22" r="7.5" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="78,28 38,50 32,47 44,41 40,31 46,33 55,39 68,33" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <polygon points="78,28 55,39 46,33 68,33" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <polygon points="40,31 34,22 38,32" fill="var(--color-accent-teal-soft, #7CC4D1)" />
+  <line x1="20" y1="57" x2="34" y2="49" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.6" stroke-dasharray="4 2" stroke-linecap="round" />
+  <circle cx="68" cy="23" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <path d="M18 68 Q28 64 38 68 Q50 63 62 68 Q78 62 92 68 H104" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" fill="none" />
+</svg>`
+      },
+      {
+        id: "airport",
+        group: "transit",
+        name: "Airport & Terminal",
+        categoryType: "airport",
+        badge: { label: "AIRPORT", bg: "rgba(14, 116, 144, 0.08)", color: "#0E7490", border: "rgba(14, 116, 144, 0.25)" },
+        examplePlace: "Haneda International Airport (HND)",
+        desc: "Air traffic control radar tower with rotating antenna, blinking beacon light, and runway centerline.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="84" cy="22" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="55,38 65,38 67,65 53,65" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <polygon points="49,38 71,38 74,29 46,29" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <line x1="51" y1="33" x2="69" y2="33" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.8" />
+  <path d="M52 29 C52 23 68 23 68 29 Z" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <line x1="60" y1="17" x2="60" y2="23" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.8" />
+  <path d="M56 18 Q60 15 64 18" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" fill="none" />
+  <circle cx="60" cy="16" r="2.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="22" y1="67" x2="42" y2="67" stroke="var(--color-border, #E2D9CC)" stroke-width="2" stroke-dasharray="4 3" />
+  <circle cx="24" cy="63" r="1.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <circle cx="36" cy="63" r="1.5" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "shopping",
+        group: "hospitality",
+        name: "Shopping & Retail",
+        categoryType: "shopping",
+        badge: { label: "SHOPPING", bg: "rgba(192, 38, 211, 0.08)", color: "#C026D3", border: "rgba(192, 38, 211, 0.25)" },
+        examplePlace: "Ginza Six Shopping District",
+        desc: "Structured origami shopping tote with loop handles, side gusset, market awning, and gold tag.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="82" cy="24" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.9" />
+  <polygon points="42,35 76,35 73,64 45,64" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <polygon points="76,35 84,33 80,61 73,64" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+  <path d="M51 35 C51 22 67 22 67 35" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2.2" stroke-linecap="round" fill="none" />
+  <line x1="59" y1="35" x2="59" y2="64" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="1.2" opacity="0.4" />
+  <line x1="55" y1="35" x2="61" y2="44" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" />
+  <circle cx="61" cy="44" r="3" fill="var(--color-accent-gold, #E2B33C)" />
+  <path d="M22 34 H36 M86 34 H98" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" stroke-dasharray="3 2" />
+  <line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      },
+      {
+        id: "general",
+        group: "waypoint",
+        name: "Waypoint & General",
+        categoryType: "general",
+        badge: { label: "WAYPOINT", bg: "rgba(100, 116, 139, 0.08)", color: "#64748B", border: "rgba(100, 116, 139, 0.25)" },
+        examplePlace: "Hachiko Square Rendezvous Point",
+        desc: "Geodesic location pin with concentric telemetry radar rings, compass star nexus, and ground target.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="60" cy="37" r="16" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" stroke-dasharray="3 3" fill="none" />
+  <path d="M60 19 C48 19 41 27 41 37 C41 49 58 64 60 66 C62 64 79 49 79 37 C79 27 72 19 60 19 Z" stroke="var(--color-accent-teal-deep, #0F4C5C)" stroke-width="2" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+  <path d="M60 21 C51 21 44 28 44 37 C44 47 57 60 60 63 V21 Z" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.3" />
+  <circle cx="60" cy="37" r="8" fill="var(--color-surface-card, #FAF6F0)" />
+  <circle cx="60" cy="37" r="5" fill="var(--color-accent-coral, #D42A2F)" />
+  <polygon points="60,33 61.8,36 65,37 61.8,38 60,41 58.2,38 55,37 58.2,36" fill="var(--color-accent-gold, #E2B33C)" />
+  <line x1="26" y1="37" x2="34" y2="37" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" />
+  <line x1="86" y1="37" x2="94" y2="37" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.5" />
+  <ellipse cx="60" cy="68" rx="16" ry="3.2" stroke="var(--color-accent-teal-soft, #7CC4D1)" stroke-width="1.2" stroke-dasharray="3 2" fill="none" />
+  <line x1="18" y1="70" x2="102" y2="70" stroke="var(--color-border, #E2D9CC)" stroke-width="1.5" stroke-linecap="round" />
+</svg>`
+      }
+    ];
+
+    // State
+    let currentFilter = 'all';
+    let currentViewMode = 'preview'; // 'preview' or 'tactical'
+    let currentScale = 120;
+    let isDark = false;
+
+    // Render Cards
+    function renderCards() {
+      const container = document.getElementById('galleryContainer');
+      const filtered = PLACEHOLDERS.filter(item => {
+        if (currentFilter === 'all') return true;
+        return item.group === currentFilter;
+      });
+
+      container.innerHTML = filtered.map(item => {
+        if (currentViewMode === 'preview') {
+          // Render Mode A: Simulated Trip Details Photo Slot
+          return `
+            <div class="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+              <!-- Top Header Bar -->
+              <div class="px-4 py-2.5 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)] flex items-center justify-between">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
+                  style="background: ${item.badge.bg}; color: ${item.badge.color}; border: 1px solid ${item.badge.border};">
+                  ${item.badge.label}
+                </span>
+                <span class="text-[11px] font-mono text-[var(--color-text-muted)]">${item.categoryType}</span>
+              </div>
+
+              <!-- Simulated 210px PoiDetailView Photo Slot -->
+              <div class="poi-photo-preview relative">
+                <!-- Illustration scaled inside -->
+                <div style="transform: scale(${currentScale / 100}); transform-origin: center;">
+                  ${item.svg}
+                </div>
+
+                <!-- Gradient Scrim overlay -->
+                <div class="poi-scrim"></div>
+
+                <!-- Fullscreen hint button simulation -->
+                <div class="absolute top-2.5 left-2.5 bg-[rgba(15,76,92,0.85)] backdrop-blur text-white text-[10px] font-mono font-semibold px-2 py-0.5 rounded border border-white/20 flex items-center gap-1 shadow-sm">
+                  <span>⤢</span> Full
+                </div>
+
+                <!-- Photo counter pill simulation -->
+                <div class="absolute top-2.5 right-2.5 bg-[rgba(15,23,42,0.8)] backdrop-blur text-white text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                  0 / 0
+                </div>
+
+                <!-- Bottom Caption & Pending Community Imagery Notice -->
+                <div class="absolute bottom-2 left-3 right-3 flex items-center justify-between text-white drop-shadow">
+                  <span class="text-xs font-semibold truncate max-w-[200px]">${item.examplePlace}</span>
+                  <span class="code-tag px-1.5 py-0.5 rounded bg-[rgba(15,76,92,0.9)] text-[#E2E8F0] border border-white/20">
+                    // PENDING IMAGERY
+                  </span>
+                </div>
+              </div>
+
+              <!-- Card Body / Details & Actions -->
+              <div class="p-4 bg-[var(--color-surface-card)]">
+                <h3 class="text-sm font-bold text-[var(--color-foreground)]">${item.name}</h3>
+                <p class="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">${item.desc}</p>
+
+                <div class="mt-4 pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
+                  <span class="text-[10px] font-mono text-[var(--color-text-muted)]">Category: <strong class="text-[var(--color-foreground)]">${item.categoryType}</strong></span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      onclick="copySvg('${item.id}')"
+                      class="text-xs font-mono px-2.5 py-1 rounded bg-[var(--color-surface-raised)] border border-[var(--color-border)] hover:border-[#1B8FA6] hover:text-[#1B8FA6] transition"
+                      title="Copy raw SVG markup"
+                    >
+                      Copy SVG
+                    </button>
+                    <button
+                      onclick="copyJsx('${item.id}')"
+                      class="text-xs font-mono px-2.5 py-1 rounded bg-[#0F4C5C] text-white hover:bg-[#166B80] transition"
+                      title="Copy React JSX Component"
+                    >
+                      Copy JSX
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // Render Mode B: Tactical Vector Sheet Inspector
+          return `
+            <div class="bg-[var(--color-surface-card)] border border-[var(--color-border)] rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <div class="flex items-center justify-between mb-3">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold"
+                  style="background: ${item.badge.bg}; color: ${item.badge.color}; border: 1px solid ${item.badge.border};">
+                  ${item.badge.label}
+                </span>
+                <span class="text-[10px] font-mono text-[var(--color-text-muted)]">120x80 viewBox</span>
+              </div>
+
+              <div class="py-6 flex items-center justify-center bg-[var(--color-surface-raised)] rounded-lg border border-[var(--color-border)] mb-4">
+                <div style="transform: scale(${currentScale / 100}); transform-origin: center;">
+                  ${item.svg}
+                </div>
+              </div>
+
+              <h3 class="text-sm font-bold text-[var(--color-foreground)]">${item.name}</h3>
+              <p class="text-xs text-[var(--color-text-muted)] mt-1">${item.desc}</p>
+
+              <div class="mt-4 pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
+                <span class="text-[10px] font-mono text-[#D42A2F] font-medium">${item.categoryType}</span>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    onclick="copySvg('${item.id}')"
+                    class="text-xs font-mono px-2.5 py-1 rounded bg-[var(--color-surface-card)] border border-[var(--color-border)] hover:border-[#1B8FA6] transition"
+                  >
+                    Copy SVG
+                  </button>
+                  <button
+                    onclick="copyJsx('${item.id}')"
+                    class="text-xs font-mono px-2.5 py-1 rounded bg-[#0F4C5C] text-white hover:bg-[#166B80] transition"
+                  >
+                    Copy JSX
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    // Filter Switcher
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.tab-pill').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderCards();
+    }
+
+    // View Mode Switcher
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.getElementById('btnModePreview').classList.toggle('active', mode === 'preview');
+      document.getElementById('btnModePreview').classList.toggle('text-[var(--color-text-muted)]', mode !== 'preview');
+      document.getElementById('btnModeTactical').classList.toggle('active', mode === 'tactical');
+      document.getElementById('btnModeTactical').classList.toggle('text-[var(--color-text-muted)]', mode !== 'tactical');
+      renderCards();
+    }
+
+    // Scale Switcher
+    function setScale(scale) {
+      currentScale = scale;
+      document.querySelectorAll('.scale-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderCards();
+    }
+
+    // Dark/Light Theme Toggle
+    function toggleTheme() {
+      isDark = !isDark;
+      document.documentElement.classList.toggle('dark', isDark);
+      document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    }
+
+    // Copy Toast Helper
+    function showToast(msg) {
+      const toast = document.getElementById('copyToast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // Clipboard Copy
+    function copySvg(id) {
+      const item = PLACEHOLDERS.find(p => p.id === id);
+      if (!item) return;
+      navigator.clipboard.writeText(item.svg.trim()).then(() => {
+        showToast(`Copied ${item.name} SVG`);
+      });
+    }
+
+    function copyJsx(id) {
+      const item = PLACEHOLDERS.find(p => p.id === id);
+      if (!item) return;
+      const componentName = item.name.replace(/[^a-zA-Z]/g, '') + 'PlaceholderIllustration';
+      const jsxSnippet = `<${componentName} size={120} />`;
+      navigator.clipboard.writeText(jsxSnippet).then(() => {
+        showToast(`Copied ${jsxSnippet}`);
+      });
+    }
+
+    // Initial Render
+    renderCards();
+  </script>
+</body>
+</html>

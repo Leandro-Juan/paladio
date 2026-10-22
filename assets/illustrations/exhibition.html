@@ -56,7 +56,8 @@
       <!-- Categories & Search -->
       <div class="flex flex-wrap items-center justify-between gap-3 mt-6 pt-5 border-t border-[var(--border)]">
         <div class="flex flex-wrap gap-1.5" id="categoryPills">
-          <button onclick="setCategory('All')" class="cat-pill active text-xs font-medium px-3.5 py-1.5 rounded-full bg-[#0F4C5C] text-white transition">All (28)</button>
+          <button onclick="setCategory('All')" class="cat-pill active text-xs font-medium px-3.5 py-1.5 rounded-full bg-[#0F4C5C] text-white transition">All (42)</button>
+          <button onclick="setCategory('Place Placeholders')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[#1B8FA6] font-semibold border border-[#1B8FA6]/30 transition">📍 Place Placeholders (14)</button>
           <button onclick="setCategory('Refined Focus')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[#D42A2F] font-semibold border border-[#D42A2F]/30 transition">✨ Newly Refined (4)</button>
           <button onclick="setCategory('Transit & Waypoints')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Transit</button>
           <button onclick="setCategory('Hospitality & Leisure')" class="cat-pill text-xs font-medium px-3.5 py-1.5 rounded-full bg-[var(--background)] hover:bg-[var(--border)] text-[var(--muted-foreground)] transition">Hospitality</button>
@@ -316,6 +317,121 @@
         tags: ["analytics", "metrics", "charts", "stats"],
         desc: "Graduated bar chart with projected column and harmonic wave.",
         svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="6" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="34" y="46" width="9" height="18" rx="1.5" fill="var(--color-accent-teal-soft)"/><rect x="48" y="36" width="9" height="28" rx="1.5" fill="var(--color-accent-teal-mid)"/><rect x="62" y="26" width="9" height="38" rx="1.5" fill="var(--color-accent-teal-deep)"/><rect x="76" y="32" width="9" height="32" rx="1.5" stroke="var(--color-accent-gold)" stroke-width="1.5" stroke-dasharray="3 2"/><path d="M26 50 Q 42 40 56 42 T 88 24" stroke="var(--color-accent-gold)" stroke-width="1.8" stroke-linecap="round"/><line x1="22" y1="66" x2="98" y2="66" stroke="var(--color-border)" stroke-width="2" stroke-linecap="round"/></svg>`
+      },
+      // =========================================================================
+      // 14 Place Photo Fallback Placeholders (Trips Details Page)
+      // =========================================================================
+      {
+        id: "placeholder-museum",
+        title: "Museum & Gallery Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "museum", "gallery", "art", "pediment", "fallback"],
+        desc: "Classical portico pediment with fluted pillars, art sculpture pedestal, and rising coral sun disc.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="86" cy="22" r="7.5" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="36,33 60,19 84,33" fill="var(--color-accent-teal-deep)"/><polygon points="42,32 60,22 78,32" fill="var(--color-accent-teal-mid)"/><rect x="34" y="33" width="52" height="3.5" rx="1" fill="var(--color-accent-teal-deep)"/><rect x="39" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid)"/><rect x="51" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid)"/><rect x="65" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid)"/><rect x="77" y="36.5" width="3.5" height="23" fill="var(--color-accent-teal-mid)"/><rect x="56" y="47" width="8" height="12.5" fill="var(--color-accent-teal-deep)"/><polygon points="60,40 63,44 60,48 57,44" fill="var(--color-accent-gold)"/><rect x="32" y="59.5" width="56" height="3" rx="0.5" fill="var(--color-accent-teal-deep)"/><rect x="28" y="62.5" width="64" height="3.5" rx="0.5" fill="var(--color-accent-teal-deep)"/><path d="M22 22 H16 V28" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><path d="M98 22 H104 V28" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/><line x1="28" y1="68" x2="28" y2="71" stroke="var(--color-border)" stroke-width="1"/><line x1="60" y1="68" x2="60" y2="72" stroke="var(--color-border)" stroke-width="1.5"/><line x1="92" y1="68" x2="92" y2="71" stroke="var(--color-border)" stroke-width="1"/></svg>`
+      },
+      {
+        id: "placeholder-restaurant",
+        title: "Restaurant & Dining Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "restaurant", "food", "dining", "cloche", "chopsticks", "fallback"],
+        desc: "Culinary cloche dome with vapor rise, sleek chopsticks, gold jewel, and dining platform.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="84" cy="22" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M36 52 C36 34 46 29 60 29 C74 29 84 34 84 52 Z" fill="var(--color-accent-teal-mid)"/><path d="M60 29 C74 29 84 34 84 52 H60 Z" fill="var(--color-accent-teal-deep)" opacity="0.35"/><circle cx="60" cy="26" r="3" stroke="var(--color-accent-teal-deep)" stroke-width="1.5" fill="none"/><rect x="30" y="52" width="60" height="4" rx="2" fill="var(--color-accent-teal-deep)"/><line x1="70" y1="18" x2="96" y2="48" stroke="var(--color-accent-teal-soft)" stroke-width="1.6" stroke-linecap="round"/><line x1="76" y1="16" x2="100" y2="44" stroke="var(--color-accent-teal-soft)" stroke-width="1.6" stroke-linecap="round"/><path d="M52 22 Q50 16 54 12" stroke="var(--color-accent-teal-soft)" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M60 21 Q63 15 59 10" stroke="var(--color-accent-teal-soft)" stroke-width="1.3" stroke-linecap="round" fill="none"/><circle cx="60" cy="42" r="2.5" fill="var(--color-accent-gold)"/><line x1="32" y1="62" x2="88" y2="62" stroke="var(--color-accent-teal-soft)" stroke-width="1" stroke-dasharray="3 3"/><line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-cafe",
+        title: "Café & Coffee Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "cafe", "coffee", "cup", "steam", "bakery", "fallback"],
+        desc: "Artisanal ceramic cup, saucer, aromatic vapor plumes, and gold roasted bean jewel.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="24" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M42 36 L46 54 C47 58 52 61 60 61 C68 61 73 58 74 54 L78 36 Z" fill="var(--color-accent-teal-mid)"/><path d="M60 36 L60 61 C68 61 73 58 74 54 L78 36 Z" fill="var(--color-accent-teal-deep)" opacity="0.3"/><ellipse cx="60" cy="36" rx="18" ry="3.5" fill="var(--color-accent-teal-deep)"/><ellipse cx="60" cy="36" rx="15" ry="2.5" fill="var(--color-accent-teal-mid)"/><path d="M75 40 C83 40 83 51 73 51" stroke="var(--color-accent-teal-mid)" stroke-width="2.5" stroke-linecap="round" fill="none"/><ellipse cx="60" cy="62" rx="26" ry="4" fill="var(--color-accent-teal-deep)"/><ellipse cx="60" cy="61" rx="23" ry="2.8" fill="var(--color-surface-card)" opacity="0.25"/><path d="M53 30 Q50 22 56 16" stroke="var(--color-accent-teal-soft)" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M63 29 Q67 21 61 15" stroke="var(--color-accent-teal-soft)" stroke-width="1.4" stroke-linecap="round" fill="none"/><circle cx="60" cy="47" r="3" fill="var(--color-accent-gold)"/><line x1="60" y1="45" x2="60" y2="49" stroke="var(--color-accent-teal-deep)" stroke-width="1" stroke-linecap="round"/><line x1="20" y1="69" x2="100" y2="69" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-bus-stop",
+        title: "Bus Stop Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "bus", "station", "stop", "transit", "shelter", "fallback"],
+        desc: "Minimalist totem pole with round route disc, timetable board, glass canopy shelter, and bench.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><circle cx="38" cy="28" r="9" fill="var(--color-accent-coral)"/><circle cx="38" cy="28" r="6.5" fill="var(--color-surface-card)"/><line x1="34" y1="28" x2="42" y2="28" stroke="var(--color-accent-coral)" stroke-width="1.8" stroke-linecap="round"/><rect x="34" y="39" width="8" height="12" rx="1" fill="var(--color-accent-teal-soft)"/><line x1="38" y1="37" x2="38" y2="67" stroke="var(--color-accent-teal-deep)" stroke-width="2.5"/><polygon points="48,32 94,27 91,33 46,37" fill="var(--color-accent-teal-deep)"/><rect x="52" y="36" width="38" height="28" rx="1" fill="var(--color-accent-teal-soft)" opacity="0.35" stroke="var(--color-accent-teal-soft)" stroke-width="1"/><rect x="56" y="52" width="30" height="3.5" rx="1" fill="var(--color-accent-teal-mid)"/><line x1="60" y1="55.5" x2="60" y2="67" stroke="var(--color-accent-teal-deep)" stroke-width="1.5"/><line x1="82" y1="55.5" x2="82" y2="67" stroke="var(--color-accent-teal-deep)" stroke-width="1.5"/><line x1="50" y1="36" x2="50" y2="67" stroke="var(--color-accent-teal-deep)" stroke-width="2"/><circle cx="92" cy="27" r="2.5" fill="var(--color-accent-gold)"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/><line x1="20" y1="71" x2="100" y2="71" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="3 3"/></svg>`
+      },
+      {
+        id: "placeholder-transit",
+        title: "Transit & Rail Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "transit", "train", "metro", "subway", "shinkansen", "fallback"],
+        desc: "Aerodynamic bullet nose exiting arched tunnel portal with track ties, signal, and dual headlights.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="86" cy="22" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M34 65 V42 C34 26 46 20 60 20 C74 20 86 26 86 42 V65" stroke="var(--color-accent-teal-deep)" stroke-width="3" fill="none"/><path d="M38 65 V43 C38 30 48 24 60 24 C72 24 82 30 82 43 V65" fill="var(--color-surface-card)" opacity="0.15"/><path d="M46 65 L48 44 C49 35 54 32 60 32 C66 32 71 35 72 44 L74 65 Z" fill="var(--color-accent-teal-mid)"/><polygon points="50,42 70,42 67,49 53,49" fill="var(--color-accent-teal-deep)"/><line x1="47" y1="52" x2="47" y2="62" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="73" y1="52" x2="73" y2="62" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><circle cx="53" cy="57" r="2.2" fill="var(--color-accent-gold)"/><circle cx="67" cy="57" r="2.2" fill="var(--color-accent-gold)"/><line x1="26" y1="17" x2="94" y2="17" stroke="var(--color-accent-teal-soft)" stroke-width="1" stroke-dasharray="4 2"/><line x1="44" y1="65" x2="38" y2="72" stroke="var(--color-accent-teal-deep)" stroke-width="2" stroke-linecap="round"/><line x1="76" y1="65" x2="82" y2="72" stroke="var(--color-accent-teal-deep)" stroke-width="2" stroke-linecap="round"/><line x1="40" y1="69" x2="80" y2="69" stroke="var(--color-border)" stroke-width="1.5"/></svg>`
+      },
+      {
+        id: "placeholder-hotel",
+        title: "Hotel & Lodging Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "hotel", "lodging", "resort", "hostel", "room", "fallback"],
+        desc: "Architectural hotel facade with warm illuminated window matrix, entrance canopy, and courtyard topiary.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="84" cy="22" r="7.5" fill="var(--color-accent-coral)" opacity="0.9"/><rect x="42" y="24" width="36" height="41" rx="1.5" fill="var(--color-accent-teal-mid)"/><rect x="62" y="24" width="16" height="41" rx="1.5" fill="var(--color-accent-teal-deep)" opacity="0.4"/><rect x="40" y="22" width="40" height="3" rx="0.5" fill="var(--color-accent-teal-deep)"/><polygon points="36,54 84,54 80,58 40,58" fill="var(--color-accent-teal-deep)"/><rect x="54" y="58" width="12" height="7" fill="var(--color-accent-gold)" opacity="0.9"/><rect x="47" y="28" width="5" height="5" rx="0.5" fill="var(--color-accent-gold)"/><rect x="57" y="28" width="5" height="5" rx="0.5" fill="var(--color-surface-card)" opacity="0.9"/><rect x="67" y="28" width="5" height="5" rx="0.5" fill="var(--color-accent-gold)"/><rect x="47" y="37" width="5" height="5" rx="0.5" fill="var(--color-accent-teal-soft)" opacity="0.8"/><rect x="57" y="37" width="5" height="5" rx="0.5" fill="var(--color-accent-gold)"/><rect x="67" y="37" width="5" height="5" rx="0.5" fill="var(--color-surface-card)" opacity="0.9"/><rect x="47" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-gold)"/><rect x="57" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-teal-soft)" opacity="0.8"/><rect x="67" y="46" width="5" height="5" rx="0.5" fill="var(--color-accent-gold)"/><circle cx="60" cy="16" r="2.5" fill="var(--color-accent-gold)"/><circle cx="32" cy="62" r="4" fill="var(--color-accent-teal-soft)"/><line x1="32" y1="62" x2="32" y2="68" stroke="var(--color-accent-teal-deep)" stroke-width="1.5"/><line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-bar",
+        title: "Bar & Pub Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "bar", "pub", "cocktail", "nightlife", "drinks", "fallback"],
+        desc: "Sculptural cocktail coupette with garnish pick, gold olive, cocktail shaker, and night sparkle.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M42 34 C42 46 54 51 59 51 V63 H54 V65 H66 V63 H61 V51 C66 51 78 46 78 34 Z" fill="var(--color-accent-teal-mid)"/><path d="M45 38 C51 44 69 44 75 38 Z" fill="var(--color-accent-teal-deep)"/><rect x="59" y="51" width="2" height="13" fill="var(--color-accent-teal-deep)"/><ellipse cx="60" cy="64" rx="10" ry="2" fill="var(--color-accent-teal-deep)"/><line x1="51" y1="24" x2="71" y2="44" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" stroke-linecap="round"/><circle cx="56" cy="29" r="3.2" fill="var(--color-accent-gold)"/><path d="M25 43 L28 62 H38 L41 43 Z" fill="var(--color-accent-teal-soft)" opacity="0.35"/><path d="M28 43 L31 37 H35 L38 43 Z" fill="var(--color-accent-teal-soft)" opacity="0.4"/><polygon points="94,36 96,39 99,40 96,41 94,44 92,41 89,40 92,39" fill="var(--color-accent-gold)"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-landmark",
+        title: "Landmark & Heritage Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "landmark", "castle", "monument", "historic", "tower", "fallback"],
+        desc: "Monumental stone fortress rampart, sweeping pagoda eaves, and golden Sorin spire finial.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="84" cy="20" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="36,66 43,54 77,54 84,66" fill="var(--color-accent-teal-deep)"/><line x1="47" y1="60" x2="73" y2="60" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 2"/><path d="M33 54 Q60 49 87 54 L83 48 Q60 45 37 48 Z" fill="var(--color-accent-teal-mid)"/><rect x="47" y="39" width="26" height="9" fill="var(--color-accent-teal-deep)"/><path d="M41 40 Q60 35 79 40 L75 35 Q60 32 45 35 Z" fill="var(--color-accent-teal-mid)"/><line x1="60" y1="21" x2="60" y2="34" stroke="var(--color-accent-gold)" stroke-width="2" stroke-linecap="round"/><circle cx="60" cy="22" r="2.5" fill="var(--color-accent-gold)"/><circle cx="60" cy="27" r="1.8" fill="var(--color-accent-gold)"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-park",
+        title: "Park & Nature Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "park", "nature", "garden", "tree", "bonsai", "fallback"],
+        desc: "Sculptural Japanese Zen pine tree, cloud foliage pads, contoured hill slope, and garden stone cairn.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="8" fill="var(--color-accent-coral)" opacity="0.9"/><path d="M18 67 Q46 54 74 58 Q96 61 106 67 Z" fill="var(--color-accent-teal-deep)" opacity="0.75"/><path d="M50 64 Q52 48 57 42 Q61 36 63 29" stroke="var(--color-accent-teal-deep)" stroke-width="3" stroke-linecap="round" fill="none"/><ellipse cx="44" cy="41" rx="13" ry="6.5" fill="var(--color-accent-teal-mid)"/><ellipse cx="69" cy="35" rx="15" ry="7" fill="var(--color-accent-teal-mid)"/><ellipse cx="58" cy="26" rx="11" ry="5.5" fill="var(--color-accent-teal-soft)"/><ellipse cx="34" cy="58" rx="5" ry="3" fill="var(--color-accent-teal-soft)"/><circle cx="34" cy="54" r="2" fill="var(--color-accent-gold)"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-attraction",
+        title: "Attraction & Viewpoint Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "attraction", "viewpoint", "binoculars", "overlook", "sight", "fallback"],
+        desc: "Panoramic observation binoculars mounted on swivel pedestal with radar view arc and gold lens glint.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="22" r="7.5" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="46,31 65,29 64,37 46,37" fill="var(--color-accent-teal-mid)"/><polygon points="55,35 74,33 73,41 55,41" fill="var(--color-accent-teal-deep)"/><circle cx="58" cy="41" r="4.5" fill="var(--color-accent-teal-deep)"/><polygon points="56,43 60,43 62,64 54,64" fill="var(--color-accent-teal-mid)"/><rect x="47" y="64" width="22" height="3" rx="1" fill="var(--color-accent-teal-deep)"/><circle cx="78" cy="33" r="15" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/><line x1="78" y1="15" x2="78" y2="19" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><circle cx="48" cy="34" r="2.2" fill="var(--color-accent-gold)"/><line x1="18" y1="58" x2="38" y2="58" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="78" y1="58" x2="102" y2="58" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-flight",
+        title: "Flight & Aviation Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "flight", "plane", "aviation", "airline", "contrail", "fallback"],
+        desc: "Ascending supersonic commercial aircraft through contrail vectors with gold waypoint star.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="86" cy="22" r="7.5" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="78,28 38,50 32,47 44,41 40,31 46,33 55,39 68,33" fill="var(--color-accent-teal-mid)"/><polygon points="78,28 55,39 46,33 68,33" fill="var(--color-accent-teal-deep)"/><polygon points="40,31 34,22 38,32" fill="var(--color-accent-teal-soft)"/><line x1="20" y1="57" x2="34" y2="49" stroke="var(--color-accent-teal-soft)" stroke-width="1.6" stroke-dasharray="4 2" stroke-linecap="round"/><circle cx="68" cy="23" r="2.5" fill="var(--color-accent-gold)"/><path d="M18 68 Q28 64 38 68 Q50 63 62 68 Q78 62 92 68 H104" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>`
+      },
+      {
+        id: "placeholder-airport",
+        title: "Airport & Terminal Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "airport", "terminal", "radar", "atc", "runway", "fallback"],
+        desc: "Air traffic control radar tower with rotating antenna, blinking beacon light, and runway centerline.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="84" cy="22" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="55,38 65,38 67,65 53,65" fill="var(--color-accent-teal-mid)"/><polygon points="49,38 71,38 74,29 46,29" fill="var(--color-accent-teal-deep)"/><line x1="51" y1="33" x2="69" y2="33" stroke="var(--color-accent-teal-soft)" stroke-width="1.8"/><path d="M52 29 C52 23 68 23 68 29 Z" fill="var(--color-accent-teal-mid)"/><line x1="60" y1="17" x2="60" y2="23" stroke="var(--color-accent-teal-deep)" stroke-width="1.8"/><path d="M56 18 Q60 15 64 18" stroke="var(--color-accent-teal-soft)" stroke-width="1.5" fill="none"/><circle cx="60" cy="16" r="2.5" fill="var(--color-accent-gold)"/><line x1="22" y1="67" x2="42" y2="67" stroke="var(--color-border)" stroke-width="2" stroke-dasharray="4 3"/><circle cx="24" cy="63" r="1.5" fill="var(--color-accent-gold)"/><circle cx="36" cy="63" r="1.5" fill="var(--color-accent-gold)"/><line x1="16" y1="68" x2="104" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-shopping",
+        title: "Shopping & Retail Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "shopping", "retail", "market", "mall", "bag", "fallback"],
+        desc: "Structured origami shopping tote with loop handles, side gusset, market awning, and gold tag.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="82" cy="24" r="7" fill="var(--color-accent-coral)" opacity="0.9"/><polygon points="42,35 76,35 73,64 45,64" fill="var(--color-accent-teal-mid)"/><polygon points="76,35 84,33 80,61 73,64" fill="var(--color-accent-teal-deep)"/><path d="M51 35 C51 22 67 22 67 35" stroke="var(--color-accent-teal-deep)" stroke-width="2.2" stroke-linecap="round" fill="none"/><line x1="59" y1="35" x2="59" y2="64" stroke="var(--color-accent-teal-deep)" stroke-width="1.2" opacity="0.4"/><line x1="55" y1="35" x2="61" y2="44" stroke="var(--color-accent-teal-soft)" stroke-width="1.2"/><circle cx="61" cy="44" r="3" fill="var(--color-accent-gold)"/><path d="M22 34 H36 M86 34 H98" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="3 2"/><line x1="18" y1="68" x2="102" y2="68" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      },
+      {
+        id: "placeholder-general",
+        title: "Waypoint & General Fallback",
+        category: "Place Placeholders",
+        tags: ["placeholder", "waypoint", "general", "pin", "target", "map", "fallback"],
+        desc: "Geodesic location pin with concentric telemetry radar rings, compass star nexus, and ground target.",
+        svg: `<svg width="120" height="80" viewBox="0 0 120 80" fill="none"><circle cx="60" cy="37" r="16" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/><path d="M60 19 C48 19 41 27 41 37 C41 49 58 64 60 66 C62 64 79 49 79 37 C79 27 72 19 60 19 Z" stroke="var(--color-accent-teal-deep)" stroke-width="2" fill="var(--color-accent-teal-mid)"/><path d="M60 21 C51 21 44 28 44 37 C44 47 57 60 60 63 V21 Z" fill="var(--color-accent-teal-soft)" opacity="0.3"/><circle cx="60" cy="37" r="8" fill="var(--color-surface-card)"/><circle cx="60" cy="37" r="5" fill="var(--color-accent-coral)"/><polygon points="60,33 61.8,36 65,37 61.8,38 60,41 58.2,38 55,37 58.2,36" fill="var(--color-accent-gold)"/><line x1="26" y1="37" x2="34" y2="37" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><line x1="86" y1="37" x2="94" y2="37" stroke="var(--color-accent-teal-soft)" stroke-width="1.5"/><ellipse cx="60" cy="68" rx="16" ry="3.2" stroke="var(--color-accent-teal-soft)" stroke-width="1.2" stroke-dasharray="3 2" fill="none"/><line x1="18" y1="70" x2="102" y2="70" stroke="var(--color-border)" stroke-width="1.5" stroke-linecap="round"/></svg>`
       }
     ];
 

@@ -301,7 +301,6 @@ export function resolveCountryNames(destination?: string, country?: string): str
 export default function VaultMap({ trips }: VaultMapProps) {
   const router = useRouter();
   const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === 'dark';
   const { url: tileUrl, subdomains: tileSubdomains, attribution: tileAttribution, maxZoom: tileMaxZoom } = MAP_TILE_CONFIG;
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
 
@@ -340,6 +339,33 @@ export default function VaultMap({ trips }: VaultMapProps) {
     return set;
   }, [trips]);
 
+  const mapThemeStyles = useMemo(() => {
+    switch (theme) {
+      case 'dark':
+        return {
+          background: '#081C24',
+          visitedFill: '#14788D',
+          unvisitedFill: '#0C2631',
+          borderColor: 'rgba(255, 255, 255, 0.15)',
+        };
+      case 'silent-waters':
+        return {
+          background: '#C2DFE3',
+          visitedFill: '#3D5A64',
+          unvisitedFill: '#E0FBFC',
+          borderColor: 'rgba(92, 107, 115, 0.35)',
+        };
+      case 'light':
+      default:
+        return {
+          background: '#CAD2D3',
+          visitedFill: '#0F4C5C',
+          unvisitedFill: '#E2E8F0',
+          borderColor: 'rgba(255, 255, 255, 0.8)',
+        };
+    }
+  }, [theme]);
+
   const geoJsonStyle = useCallback((feature?: Feature) => {
     const countryName = (feature?.properties as { name?: string } | null)?.name;
     const countryId = typeof feature?.id === 'string' ? feature.id.toLowerCase() : undefined;
@@ -362,13 +388,13 @@ export default function VaultMap({ trips }: VaultMapProps) {
     }
 
     return {
-      fillColor: isVisited ? (isDark ? '#14788D' : '#0F4C5C') : (isDark ? '#0C2631' : '#E2E8F0'),
+      fillColor: isVisited ? mapThemeStyles.visitedFill : mapThemeStyles.unvisitedFill,
       weight: 1,
       opacity: 1,
-      color: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.8)',
+      color: mapThemeStyles.borderColor,
       fillOpacity: isVisited ? 0.75 : 0.25
     };
-  }, [visitedCountriesSet, isDark]);
+  }, [visitedCountriesSet, mapThemeStyles]);
 
   const validTrips = trips.filter(
     t => typeof t.lat === 'number' && !isNaN(t.lat) && typeof t.lng === 'number' && !isNaN(t.lng)
@@ -401,7 +427,7 @@ const createClusterCustomIcon = (cluster: { getChildCount?: () => number }) => {
         height: '100%',
         width: '100%',
         borderRadius: 'var(--border-radius-md, 8px)',
-        background: isDark ? '#081C24' : '#CAD2D3',
+        background: mapThemeStyles.background,
       }}
       zoomControl={false}
       attributionControl={false}

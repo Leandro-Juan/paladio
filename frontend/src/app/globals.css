@@ -121,6 +121,62 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+[data-theme="silent-waters"] {
+  color-scheme: light;
+
+  /* Coolors Silent Waters Palette: #E0FBFC, #C2DFE3, #9DB4C0, #5C6B73, #253237 */
+  --color-bg-main: #ECF5F7;
+  --color-surface-card: #FFFFFF;
+  --color-hero-bg: #253237;
+  --color-text-primary: #253237;
+  --color-text-muted: #5C6B73;
+  --color-text-main: #253237;
+  --color-text-on-accent: #FFFFFF;
+  --color-btn-primary-text: #FFFFFF;
+  --color-accent-primary: #3D5A64;
+  --color-link: #356270;
+  --color-accent-teal: #3D5A64;
+  --color-accent-teal-deep: #253237;
+  --color-accent-teal-mid: #5C6B73;
+  --color-accent-teal-soft: #9DB4C0;
+  --color-accent-secondary: #D46A6A;
+  --color-accent-secondary-text: #B24646;
+  --color-accent-warning: #D4A347;
+  --color-accent-warning-bg: rgba(212, 163, 71, 0.12);
+  --color-accent-warning-border: rgba(212, 163, 71, 0.35);
+  --color-accent-gold: #C99B3B;
+  --color-accent-gold-soft: rgba(201, 155, 59, 0.16);
+  --color-accent-coral: #D46A6A;
+  --color-accent-muted: #5C6B73;
+  --color-muted: #5C6B73;
+  --color-danger: #B33935;
+  --color-danger-soft: rgba(179, 57, 53, 0.12);
+  --color-success: #2A7D62;
+  --color-success-soft: rgba(42, 125, 98, 0.12);
+  --color-border: #C2DFE3;
+  --color-border-input: #9DB4C0;
+  --color-border-bold: rgba(92, 107, 115, 0.35);
+  --color-border-subtle: rgba(92, 107, 115, 0.12);
+  --color-focus-ring: #5C6B73;
+  --color-surface-page: #ECF5F7;
+  --color-surface-sunken: #C2DFE3;
+  --color-surface-muted: rgba(157, 180, 192, 0.2);
+  --color-surface-subtle: #F2FAF9;
+  --color-surface-hover: rgba(92, 107, 115, 0.06);
+  --color-scrim: rgba(37, 50, 55, 0.45);
+
+  --color-deep-sea: #253237;
+  --color-ocean: #5C6B73;
+  --color-sky: #9DB4C0;
+  --color-gold: #D4A347;
+  --color-sun: #D46A6A;
+  --color-cream: #E0FBFC;
+
+  --shadow-sm: 0 1px 3px rgba(37, 50, 55, 0.06);
+  --shadow-md: 0 4px 12px rgba(37, 50, 55, 0.09);
+  --shadow-lg: 0 8px 24px rgba(37, 50, 55, 0.14);
+}
+
 /* Typography Engine Mode Variables */
 :root,
 [data-typography="inter"] {
@@ -303,6 +359,10 @@ a {
 
 [data-theme="dark"] .seigaiha-bg {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50' width='50' height='25'%3E%3Cpath d='M0 50 A 25 25 0 0 1 50 50 M10 50 A 15 15 0 0 1 40 50 M20 50 A 5 5 0 0 1 30 50 M50 50 A 25 25 0 0 1 100 50 M60 50 A 15 15 0 0 1 90 50 M70 50 A 5 5 0 0 1 80 50 M25 25 A 25 25 0 0 1 75 25 M35 25 A 15 15 0 0 1 65 25 M45 25 A 5 5 0 0 1 55 25' fill='none' stroke='%237CC4D1' stroke-width='1' stroke-opacity='0.07'/%3E%3C/svg%3E");
+}
+
+[data-theme="silent-waters"] .seigaiha-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50' width='50' height='25'%3E%3Cpath d='M0 50 A 25 25 0 0 1 50 50 M10 50 A 15 15 0 0 1 40 50 M20 50 A 5 5 0 0 1 30 50 M50 50 A 25 25 0 0 1 100 50 M60 50 A 15 15 0 0 1 90 50 M70 50 A 5 5 0 0 1 80 50 M25 25 A 25 25 0 0 1 75 25 M35 25 A 15 15 0 0 1 65 25 M45 25 A 5 5 0 0 1 55 25' fill='none' stroke='%235C6B73' stroke-width='1' stroke-opacity='0.08'/%3E%3C/svg%3E");
 }
 
 /* Animations */
@@ -585,6 +645,11 @@ a {
 /* Dark Mode Basemap Tiles (Harmonized with Pacific Jazz Deep Ocean) */
 [data-theme="dark"] .leaflet-tile-pane {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Silent Waters Dewy Mist Basemap Tiles */
+[data-theme="silent-waters"] .leaflet-tile-pane {
+  filter: contrast(0.96) saturate(0.75) hue-rotate(185deg) brightness(1.02);
 }
 
 /* Zoom Controls */

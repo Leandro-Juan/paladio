@@ -31,7 +31,8 @@ assets/illustrations/
 ├── HospitalityIllustrations.tsx # Hotel, Izakaya Lantern, Tea Ceremony, Bonsai
 ├── CultureIllustrations.tsx     # Fuji Peak, Torii Gate, Bonsho Bell, Pagoda, Kitsune Mask
 ├── NavigationIllustrations.tsx  # Topo Map, Reticle Compass, Atmosphere/Weather, 404
-└── TacticalIllustrations.tsx    # Wallet Ledger, Collaborators, TSP Solver, Radar, Astrometry
+├── TacticalIllustrations.tsx    # Wallet Ledger, Collaborators, TSP Solver, Radar, Astrometry
+└── PlacePlaceholderIllustrations.tsx # 14 Category Placeholders for Places with No Photos
 ```
 
 ---

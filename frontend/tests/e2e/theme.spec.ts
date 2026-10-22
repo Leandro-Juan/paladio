@@ -44,4 +44,23 @@ test.describe('Theme Engine (Pacific Jazz)', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
+
+  test('silent-waters choice is applied after reload', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('paladio-theme', 'silent-waters');
+    });
+    await page.goto('/dashboard');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'silent-waters');
+  });
+
+  test('can switch to Silent Waters in config', async ({ page }) => {
+    await page.goto('/config');
+    const silentWatersBtn = page.getByRole('button', { name: /switch to silent waters/i });
+    await expect(silentWatersBtn).toBeVisible();
+    await silentWatersBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'silent-waters');
+
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'silent-waters');
+  });
 });

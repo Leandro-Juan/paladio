@@ -15,7 +15,7 @@ import {
   CityGtfsItem,
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon, SettingsIcon } from '@/components/icons';
-import { useThemeStore } from '@/stores/themeStore';
+import { useThemeStore, THEMES, type Theme } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { useNavigationStore } from '@/stores/navigationStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
@@ -678,6 +678,64 @@ export default function ConfigPage() {
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#061B22' }} title="Sidebar #061B22" />
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#7CC4D1' }} title="Sky Teal #7CC4D1" />
               <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
+            </div>
+          </button>
+
+          {/* Silent Waters Theme Card */}
+          <button
+            type="button"
+            onClick={() => setTheme('silent-waters')}
+            aria-label="Switch to Silent Waters palette"
+            aria-pressed={theme === 'silent-waters'}
+            style={{
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: theme === 'silent-waters' ? '2px solid #5C6B73' : '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              boxShadow: theme === 'silent-waters' ? '0 0 16px rgba(92, 107, 115, 0.25)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                </svg>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Silent Waters</span>
+              </div>
+              {theme === 'silent-waters' && (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: '#5C6B73',
+                    color: '#FFFFFF',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  ACTIVE
+                </span>
+              )}
+            </div>
+            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
+              Dewy blues and weathered gray merge into a hushed palette, like drifting fog on silent waters.
+            </p>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E0FBFC', border: '1px solid #C2DFE3' }} title="Light Cyan #E0FBFC" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#C2DFE3', border: '1px solid #9DB4C0' }} title="Powder Blue #C2DFE3" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#9DB4C0' }} title="Pewter Mist #9DB4C0" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#5C6B73' }} title="Slate Gray #5C6B73" />
+              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#253237' }} title="Gunmetal #253237" />
             </div>
           </button>
         </div>
