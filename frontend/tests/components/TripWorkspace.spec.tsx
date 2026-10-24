@@ -330,7 +330,24 @@ test.describe('Trip Workspace Renovated Components', () => {
 
   test('TripUnifiedSidebar renders unified floating card panel with Route, Search, and Saved tabs', async ({ mount }) => {
     const mockDays: DayOutput[] = [
-      { day: 1, theme: 'Arrival & Old Town', itinerary: { path: [] } },
+      {
+        day: 1,
+        theme: 'Arrival & Old Town',
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'p1', name: 'Sagrada Familia', category: 'monument', duration_mins: 90, cost_eur: 26 },
+              arrival_time: 540,
+              departure_time: 630,
+            } as any,
+            {
+              poi: { id: 'p2', name: 'Park Guell', category: 'park', duration_mins: 75, cost_eur: 10 },
+              arrival_time: 660,
+              departure_time: 735,
+            } as any,
+          ],
+        },
+      },
       { day: 2, theme: 'Museums & Art', itinerary: { path: [] } },
       { day: 3, theme: 'Parks & Panorama', itinerary: { path: [] } },
     ];
@@ -358,6 +375,13 @@ test.describe('Trip Workspace Renovated Components', () => {
     const unifiedCard = component.getByTestId('trip-unified-sidebar');
     await expect(unifiedCard).toBeVisible();
 
+    // Verify narrower width in route tab (380px)
+    await expect(unifiedCard).toHaveCSS('width', '380px');
+
+    // Verify dashed connector between route POIs
+    const connector = component.getByTestId('route-poi-connector');
+    await expect(connector.first()).toBeVisible();
+
     // Verify top navigation tabs: Route, Search, Saved
     const routeTab = component.getByTestId('tab-route');
     const searchTab = component.getByTestId('tab-search');
@@ -376,6 +400,12 @@ test.describe('Trip Workspace Renovated Components', () => {
 
     // Switch to Search tab
     await searchTab.click();
+
+    // Verify width animates/resizes to wider format (520px) in Search tab
+    await expect(unifiedCard).toHaveCSS('width', '520px');
+
+    // Verify header in "All" tab says "Recommended for you"
+    await expect(component.getByText('Recommended for you')).toBeVisible();
 
     // Now categories bar should be visible
     const categoriesBar = component.getByTestId('category-selector-tabs');
@@ -398,6 +428,10 @@ test.describe('Trip Workspace Renovated Components', () => {
     // Selecting a category
     await component.getByTestId('category-tab-museum').click();
     expect(selectedCategory).toBe('museum');
+
+    // Switch back to Route tab -> width returns to 380px
+    await routeTab.click();
+    await expect(unifiedCard).toHaveCSS('width', '380px');
 
     // Switch to Saved tab
     await savedTab.click();

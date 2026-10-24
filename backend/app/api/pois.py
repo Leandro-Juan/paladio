@@ -20,7 +20,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
-from app.db.models import AttractionModel
+from app.adapters.repositories.sql_user_repository import SqlUserRepository
+from app.api.deps import get_optional_user
+from app.db.models import AttractionModel, TripModel, UserModel
 from app.db.session import get_db
 from app.engine.retrieval.hybrid_retriever import HybridRetriever
 from app.engine.retrieval.query_rewriter import QueryRewriter
@@ -189,7 +191,9 @@ CATEGORY_SYNONYMS: dict[str, list[str]] = {
 
 
 def _model_to_search_item(
-    p: AttractionModel, match_type: str = "category_browse"
+    p: AttractionModel,
+    match_type: str = "category_browse",
+    similarity: float = 1.0,
 ) -> PoiSearchItem:
     lat, lng = _extract_coords(p.location)
     meta = p.metadata_field if isinstance(p.metadata_field, dict) else {}
@@ -201,7 +205,7 @@ def _model_to_search_item(
         lng=lng,
         duration_mins=int(p.duration_mins or 60),
         cost_eur=float(p.cost_eur or 0.0),
-        similarity=1.0,
+        similarity=round(float(similarity), 3),
         match_type=match_type,
         description=meta.get("description"),
         neighborhood=meta.get("neighborhood"),
@@ -241,6 +245,7 @@ async def search_pois(
     ),
     limit: int = Query(15, ge=1, le=200, description="Max results to return"),
     session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
 ):
     """Hybrid POI Search Engine with Single-Roundtrip SQL RRF & Spatial-Semantic MMR."""
     clean_query = query.strip()
@@ -271,33 +276,97 @@ async def search_pois(
                 )
                 .limit(limit)
             )
-        else:
-            stmt = (
-                select(AttractionModel)
-                .where(
-                    or_(
-                        AttractionModel.city.ilike(city_name),
-                        AttractionModel.city_id == city_id,
-                    )
-                )
-                .order_by(
-                    AttractionModel.tier.asc(),
-                    AttractionModel.iconicity_score.desc(),
-                )
-                .limit(limit)
+            db_pois = (await session.execute(stmt)).scalars().all()
+            results = [_model_to_search_item(p, "category_browse") for p in db_pois]
+            await _enrich_items_with_photos(results, city_name)
+            return PoiSearchResponse(
+                city=city_name,
+                query="",
+                search_type="category_browse",
+                exact_match_found=bool(results),
+                exact_match=None,
+                results=results,
             )
+        else:
+            # Resolve user taste embedding for personalized recommendations
+            resolved_user = current_user
+            if not resolved_user and trip_id:
+                trip_obj = await session.get(TripModel, trip_id)
+                if trip_obj and trip_obj.user_id:
+                    user_repo = SqlUserRepository(session)
+                    resolved_user = await user_repo.get_by_id(trip_obj.user_id)
 
-        db_pois = (await session.execute(stmt)).scalars().all()
-        results = [_model_to_search_item(p) for p in db_pois]
-        await _enrich_items_with_photos(results, city_name)
-        return PoiSearchResponse(
-            city=city_name,
-            query="",
-            search_type="category_browse",
-            exact_match_found=bool(results),
-            exact_match=None,
-            results=results,
-        )
+            user_embedding = None
+            if (
+                resolved_user
+                and resolved_user.embedding is not None
+                and len(resolved_user.embedding) == 768
+            ):
+                user_embedding = resolved_user.embedding
+
+            if user_embedding is not None:
+                cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
+                sim_expr = (1.0 - func.coalesce(cos_dist, 1.0)).label("sim")
+                stmt = (
+                    select(AttractionModel, sim_expr)
+                    .where(
+                        or_(
+                            AttractionModel.city.ilike(city_name),
+                            AttractionModel.city_id == city_id,
+                        )
+                    )
+                    .where(AttractionModel.embedding.isnot(None))
+                    .order_by(
+                        cos_dist.asc(),
+                        AttractionModel.tier.asc(),
+                        AttractionModel.iconicity_score.desc(),
+                    )
+                    .limit(limit)
+                )
+                db_rows = (await session.execute(stmt)).all()
+                results = [
+                    _model_to_search_item(
+                        row[0],
+                        match_type="taste_recommendation",
+                        similarity=float(row[1] if row[1] is not None else 1.0),
+                    )
+                    for row in db_rows
+                ]
+                await _enrich_items_with_photos(results, city_name)
+                return PoiSearchResponse(
+                    city=city_name,
+                    query="",
+                    search_type="taste_recommendation",
+                    exact_match_found=bool(results),
+                    exact_match=None,
+                    results=results,
+                )
+            else:
+                stmt = (
+                    select(AttractionModel)
+                    .where(
+                        or_(
+                            AttractionModel.city.ilike(city_name),
+                            AttractionModel.city_id == city_id,
+                        )
+                    )
+                    .order_by(
+                        AttractionModel.tier.asc(),
+                        AttractionModel.iconicity_score.desc(),
+                    )
+                    .limit(limit)
+                )
+                db_pois = (await session.execute(stmt)).scalars().all()
+                results = [_model_to_search_item(p, "recommendations") for p in db_pois]
+                await _enrich_items_with_photos(results, city_name)
+                return PoiSearchResponse(
+                    city=city_name,
+                    query="",
+                    search_type="recommendations",
+                    exact_match_found=bool(results),
+                    exact_match=None,
+                    results=results,
+                )
 
     norm_query = _normalize_text(clean_query)
     stripped_query = _strip_articles(clean_query)
@@ -311,8 +380,6 @@ async def search_pois(
 
     # Check for trip-specific hotel / airport anchor
     if trip_id and (is_hotel_query or is_airport_query):
-        from app.db.models import TripModel
-
         trip_obj = await session.get(TripModel, trip_id)
         if trip_obj and isinstance(trip_obj.itinerary_data, dict):
             itin = trip_obj.itinerary_data

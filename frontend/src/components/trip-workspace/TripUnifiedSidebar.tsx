@@ -7,10 +7,11 @@ import { PoiCategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge
 import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { TransitRecommendationCard, TransitLegView } from '@/components/TransitLegView';
 import { EmptyState } from '@/components/EmptyState';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { useTrips } from '@/hooks/useTrips';
+import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import {
   SearchIcon,
   CheckIcon,
@@ -56,6 +57,67 @@ export interface PoiApiItem {
   similarity: number;
   match_type?: string;
   description?: string;
+  photo_url?: string;
+  thumbnail_url?: string;
+}
+
+interface SearchPoiThumbnailProps {
+  id?: string;
+  name: string;
+  category?: string;
+  photoUrl?: string;
+  city?: string;
+}
+
+function SearchPoiThumbnail({ id, name, category, photoUrl, city = '' }: SearchPoiThumbnailProps) {
+  const { getPhoto, requestPhoto } = usePoiPhotos();
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const resolvedPhoto = photoUrl || getPhoto(id) || getPhoto(name);
+
+  useEffect(() => {
+    if (!resolvedPhoto && (id || name)) {
+      requestPhoto({ id, name, city, photo_url: photoUrl });
+    }
+  }, [id, name, city, photoUrl, resolvedPhoto, requestPhoto]);
+
+  return (
+    <div
+      style={{
+        width: '40px',
+        height: '40px',
+        minWidth: '40px',
+        borderRadius: '50%',
+        overflow: 'hidden',
+        position: 'relative',
+        background: 'var(--color-bg-secondary, #F4EFE6)',
+        border: '1.5px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)',
+        flexShrink: 0,
+      }}
+    >
+      {resolvedPhoto && !imgFailed ? (
+        <img
+          src={resolvedPhoto}
+          alt={name}
+          loading="lazy"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            borderRadius: '50%',
+            display: 'block',
+          }}
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <PoiCategoryIcon category={category} name={name} size={18} color="var(--color-text-muted)" />
+      )}
+    </div>
+  );
 }
 
 interface PoiSearchResponseData {
@@ -590,14 +652,7 @@ export function TripUnifiedSidebar({
       const q = queryText.trim();
       const currentCat = cat !== undefined ? cat : activeCategory;
       const isCategoryBrowse = !q && currentCat && currentCat !== 'all';
-
-      if (!q && !isCategoryBrowse) {
-        setSearchData(null);
-        setHasSearched(false);
-        setIsLoadingSearch(false);
-        if (onCategoryPoisChange) onCategoryPoisChange([]);
-        return;
-      }
+      const isAllBrowse = !q && (!currentCat || currentCat === 'all');
 
       setIsLoadingSearch(true);
       setSearchErrorMessage(null);
@@ -607,11 +662,19 @@ export function TripUnifiedSidebar({
         const catParam = currentCat && currentCat !== 'all' ? `&category=${encodeURIComponent(currentCat)}` : '';
         const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
         const baseUrl = getApiBaseUrl();
-        const limit = isCategoryBrowse ? 60 : 25;
+        const limit = isCategoryBrowse ? 60 : isAllBrowse ? 40 : 25;
+
+        const headers: Record<string, string> = {};
+        const token = getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             destinationCity
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=${limit}`
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=${limit}`,
+          { headers }
         );
         if (!res.ok) {
           throw new Error(`Search failed (HTTP ${res.status})`);
@@ -679,25 +742,15 @@ export function TripUnifiedSidebar({
     }
   }
 
-  // Debounced auto-search
+  // Debounced auto-search & recommendations loader
   useEffect(() => {
     const delay = searchQuery.trim() ? 320 : 0;
     const timer = setTimeout(() => {
-      if (!searchQuery.trim()) {
-        if (activeCategory && activeCategory !== 'all') {
-          executeSearch('', activeCategory);
-        } else {
-          setSearchData(null);
-          setHasSearched(false);
-          if (onCategoryPoisChange) onCategoryPoisChange([]);
-        }
-      } else {
-        executeSearch(searchQuery, activeCategory);
-      }
+      executeSearch(searchQuery, activeCategory);
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeCategory, executeSearch, onCategoryPoisChange]);
+  }, [searchQuery, activeCategory, executeSearch]);
 
   const handleCategoryClick = (catId: string) => {
     const nextCat = activeCategory === catId ? 'all' : catId;
@@ -706,19 +759,35 @@ export function TripUnifiedSidebar({
     if (onCategoryFilterChange) {
       onCategoryFilterChange(nextCat === 'all' ? null : (nextCat as PoiCategoryType));
     }
-    if (nextCat === 'all') {
-      setSearchData(null);
-      setHasSearched(false);
-      if (onCategoryPoisChange) onCategoryPoisChange([]);
-    } else {
-      executeSearch('', nextCat);
-    }
+    executeSearch('', nextCat);
   };
+
+  // Route POI IDs and names to exclude already visited stops from recommendations
+  const routePoiIdentifiers = useMemo(() => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    days.forEach((dayObj) => {
+      (dayObj.itinerary?.path || []).forEach((sp: ScheduledPoi) => {
+        if (sp.poi?.id) ids.add(String(sp.poi.id).toLowerCase());
+        if (sp.poi?.name) names.add(sp.poi.name.trim().toLowerCase());
+      });
+    });
+    return { ids, names };
+  }, [days]);
 
   // Filtered & Sorted Search Results
   const filteredSearchResults = useMemo(() => {
     if (!searchData?.results) return [];
     let list = [...searchData.results];
+
+    // In the "All" tab when browsing recommendations (no typed query), exclude stops already in the route
+    if (!searchQuery.trim() && activeCategory === 'all') {
+      list = list.filter(
+        (p) =>
+          !routePoiIdentifiers.ids.has(String(p.id).toLowerCase()) &&
+          !routePoiIdentifiers.names.has(p.name.trim().toLowerCase())
+      );
+    }
 
     // Cost filter
     if (costFilter === 'free') list = list.filter((p) => p.cost_eur === 0);
@@ -736,7 +805,7 @@ export function TripUnifiedSidebar({
     else if (sortOption === 'rating' || sortOption === 'best') list.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
 
     return list;
-  }, [searchData, costFilter, durationFilter, sortOption]);
+  }, [searchData, costFilter, durationFilter, sortOption, searchQuery, activeCategory, routePoiIdentifiers]);
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
@@ -960,7 +1029,7 @@ export function TripUnifiedSidebar({
           data-testid="trip-unified-sidebar"
           style={{
             pointerEvents: 'auto',
-            width: 'min(520px, calc(100vw - 32px))',
+            width: activeTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
             backdropFilter: 'blur(28px)',
@@ -973,6 +1042,7 @@ export function TripUnifiedSidebar({
             overflow: 'hidden',
             position: 'relative',
             animation: 'fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
           }}
         >
           {/* Top Navigation Pill Tabs (Matching Photo Structure) */}
@@ -1424,6 +1494,7 @@ export function TripUnifiedSidebar({
                                     </div>
                                   ) : (
                                     <div
+                                      data-testid="route-poi-connector"
                                       style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -1436,8 +1507,8 @@ export function TripUnifiedSidebar({
                                         style={{
                                           width: '0px',
                                           height: '100%',
-                                          borderLeft: '2px dotted var(--color-border)',
-                                          opacity: 0.8,
+                                          borderLeft: '2px dashed var(--color-accent-teal-deep, #0F4C5C)',
+                                          opacity: 0.9,
                                         }}
                                       />
                                     </div>
@@ -1732,7 +1803,11 @@ export function TripUnifiedSidebar({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                          {searchQuery ? `Results for "${searchQuery}"` : `Top Places in ${destinationCity || 'City'}`}
+                          {searchQuery
+                            ? `Results for "${searchQuery}"`
+                            : activeCategory === 'all'
+                            ? 'Recommended for you'
+                            : `Top ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} in ${destinationCity || 'City'}`}
                         </span>
                         <InfoIcon size={13} color="var(--color-text-muted)" />
                       </div>
@@ -1815,21 +1890,13 @@ export function TripUnifiedSidebar({
                                 >
                                   <GripVerticalIcon size={14} color="currentColor" />
                                 </div>
-                                <div
-                                  style={{
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '10px',
-                                    background: 'var(--color-surface-subtle, #F5EFEB)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'var(--color-accent-primary)',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  <PoiCategoryIcon category={poi.category} name={poi.name} size={18} />
-                                </div>
+                                <SearchPoiThumbnail
+                                  id={poi.id}
+                                  name={poi.name}
+                                  category={poi.category}
+                                  photoUrl={poi.photo_url || poi.thumbnail_url}
+                                  city={destinationCity}
+                                />
                                 <div style={{ minWidth: 0 }}>
                                   <div
                                     style={{
