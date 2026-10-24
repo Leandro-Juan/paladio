@@ -10,6 +10,9 @@ import { computeClusterPolygon, computeCentroid, computeCurvedRoutePath, compute
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
+import { InfoIcon } from '@/components/icons';
+import { createRouteCardDragImage } from './TripUnifiedSidebar';
+import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 
 export interface MapPoi {
   name: string;
@@ -75,6 +78,8 @@ export interface CategoryPoiItem {
   costEur?: number;
   similarity?: number;
   description?: string;
+  photo_url?: string;
+  thumbnail_url?: string;
 }
 
 interface TripMapViewProps {
@@ -89,7 +94,7 @@ interface TripMapViewProps {
   transitMode?: 'simple' | 'detailed';
   categoryPois?: CategoryPoiItem[];
   onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
-  onInspectPoi?: (poiId: string) => void;
+  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -179,25 +184,118 @@ export function getDayColor(dayNum: number): string {
   return DAY_COLORS[(dayNum - 1) % DAY_COLORS.length];
 }
 
-function createWaypointIcon(categoryType: PoiCategoryType, stopNumber: number, dayNumber?: number): L.DivIcon {
-  const svg = getCategorySvg(categoryType);
-  const formattedNum = String(stopNumber).padStart(2, '0');
-  const dayPrefix = dayNumber ? `D${dayNumber}·` : '';
-  const dayColor = dayNumber ? getDayColor(dayNumber) : 'var(--color-accent-primary, #0F4C5C)';
-  const borderColor = dayNumber ? dayColor : 'var(--color-accent-teal-mid, #14788D)';
+interface TeardropPinConfig {
+  categoryType: PoiCategoryType;
+  name?: string;
+  photoUrl?: string;
+  stopNumber?: number;
+  dayNumber?: number;
+  isFocused?: boolean;
+  poiPayload?: string;
+}
+
+function renderTeardropPinHtml({
+  categoryType,
+  name = '',
+  photoUrl,
+  stopNumber,
+  dayNumber,
+  isFocused = false,
+  poiPayload = '',
+}: TeardropPinConfig): string {
+  const meta = classifyPoiCategory(categoryType, name);
+  const svg = getCategorySvg(meta.type);
+  const nameSafe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const pinColor = isFocused ? '#1E293B' : '#475569';
+  const pinBorderColor = isFocused ? 'var(--color-accent-teal-mid, #14788D)' : 'rgba(255, 255, 255, 0.45)';
+
+  const innerContent = photoUrl
+    ? `<img src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
+    : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`;
+
+  const stopBadge = typeof stopNumber === 'number'
+    ? `<div style="position:absolute;top:-4px;right:-6px;min-width:18px;height:18px;padding:0 3px;border-radius:9px;background:${dayNumber ? getDayColor(dayNumber) : '#0F4C5C'};color:#FFFFFF;font-family:var(--font-mono, monospace);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid #FFFFFF;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:3;">${stopNumber}</div>`
+    : '';
+
+  const focusGlow = isFocused
+    ? `<div style="position:absolute;top:0;left:0;width:34px;height:34px;border-radius:50%;background:rgba(20, 120, 141, 0.35);animation:pinGlow 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>`
+    : '';
+
+  return `
+    <div 
+      ${poiPayload ? `draggable="true" onmousedown="event.stopPropagation();" data-paladio-draggable-poi="${poiPayload}"` : ''}
+      title="${nameSafe ? `${nameSafe} (Drag into day route)` : 'Drag into day route'}"
+      style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:grab;user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));"
+    >
+      ${focusGlow}
+      <svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:34px;height:44px;z-index:1;">
+        <path d="M17 0C7.61116 0 0 7.61116 0 17C0 27.2 15.6 42.8 17 44C18.4 42.8 34 27.2 34 17C34 7.61116 26.3888 0 17 0Z" fill="${pinColor}"/>
+        <path d="M17 1C8.16344 1 1 8.16344 1 17C1 26.2 16.2 41.2 17 42C17.8 41.2 33 26.2 33 17C33 8.16344 25.8366 1 17 1Z" stroke="${pinBorderColor}" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="12" fill="#1E293B"/>
+      </svg>
+      <div style="position:absolute;top:5px;left:5px;width:24px;height:24px;border-radius:50%;overflow:hidden;z-index:2;background:#1E293B;box-shadow:inset 0 1px 3px rgba(0,0,0,0.4);">
+        ${innerContent}
+      </div>
+      ${stopBadge}
+    </div>
+  `;
+}
+
+export function isPlaceMatch(
+  a?: { id?: string; name?: string; lat?: number; lng?: number } | null,
+  b?: { id?: string; name?: string; lat?: number; lng?: number } | null
+): boolean {
+  if (!a || !b) return false;
+  if (a.id && b.id && a.id === b.id) return true;
+  if (a.name && b.name && a.name.trim().toLowerCase() === b.name.trim().toLowerCase()) return true;
+  if (
+    typeof a.lat === 'number' &&
+    typeof a.lng === 'number' &&
+    typeof b.lat === 'number' &&
+    typeof b.lng === 'number' &&
+    a.lat !== 0 &&
+    b.lat !== 0
+  ) {
+    return Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001;
+  }
+  return false;
+}
+
+function createWaypointIcon(
+  categoryType: PoiCategoryType,
+  stopNumber: number,
+  dayNumber?: number,
+  poi?: { name: string; category?: string; lat: number; lng: number; durationMins?: number; costEur?: number },
+  photoUrl?: string,
+  isFocused = false
+): L.DivIcon {
+  const poiPayload = poi
+    ? JSON.stringify({
+        id: poi.name,
+        name: poi.name,
+        category: poi.category || categoryType,
+        lat: poi.lat,
+        lng: poi.lng,
+        duration_mins: poi.durationMins || 60,
+        cost_eur: poi.costEur || 0,
+        location: { latitude: poi.lat, longitude: poi.lng },
+      }).replace(/"/g, '&quot;')
+    : '';
+
   return L.divIcon({
     className: 'paladio-waypoint-icon',
-    html: `
-      <div style="display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid ${borderColor};border-radius:14px;box-shadow:var(--shadow-sm);padding:2px 6px 2px 3px;gap:4px;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${dayColor};color:#FFFFFF;">
-          ${svg}
-        </div>
-        <span style="font-family:var(--font-mono, monospace);font-size:10px;font-weight:700;color:var(--color-text-primary, #FFFFFF);line-height:1;letter-spacing:0.5px;">${dayPrefix}${formattedNum}</span>
-      </div>
-    `,
-    iconSize: [dayNumber ? 58 : 46, 24],
-    iconAnchor: [dayNumber ? 29 : 23, 12],
-    popupAnchor: [0, -14],
+    html: renderTeardropPinHtml({
+      categoryType,
+      name: poi?.name,
+      photoUrl,
+      stopNumber,
+      dayNumber,
+      isFocused,
+      poiPayload,
+    }),
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+    popupAnchor: [0, -44],
   });
 }
 
@@ -214,87 +312,119 @@ export function isTransitAnchor(p: { category?: string; name: string }): boolean
   );
 }
 
-function createHotelIcon(): L.DivIcon {
-  const svg = getCategorySvg('hotel');
+function createHotelIcon(hotel?: { name: string; lat: number; lng: number }, photoUrl?: string, isFocused = false): L.DivIcon {
+  const poiPayload = hotel
+    ? JSON.stringify({
+        id: hotel.name,
+        name: hotel.name,
+        category: 'hotel',
+        lat: hotel.lat,
+        lng: hotel.lng,
+        duration_mins: 60,
+        cost_eur: 0,
+        location: { latitude: hotel.lat, longitude: hotel.lng },
+      }).replace(/"/g, '&quot;')
+    : '';
+
   return L.divIcon({
     className: 'paladio-hotel-icon',
-    html: `
-      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:var(--color-accent-primary, #0F4C5C);border:2px solid var(--color-surface-card, #FFFFFF);border-radius:8px;box-shadow:0 0 12px rgba(15,76,92,0.6);color:#FFF;">
-          ${svg}
-        </div>
-        <span style="margin-top:2px;background:var(--color-surface-card, #081C24);color:var(--color-accent-teal-soft, #7CC4D1);border:1px solid var(--color-border-subtle);font-size:9px;font-family:var(--font-mono, monospace);font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:var(--shadow-xs);">HOTEL</span>
-      </div>
-    `,
-    iconSize: [32, 48],
-    iconAnchor: [16, 24],
-    popupAnchor: [0, -26],
+    html: renderTeardropPinHtml({
+      categoryType: 'hotel',
+      name: hotel?.name || 'Hotel Base Camp',
+      photoUrl,
+      isFocused,
+      poiPayload,
+    }),
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+    popupAnchor: [0, -44],
   });
 }
 
-function createAirportIcon(): L.DivIcon {
-  const svg = getCategorySvg('airport');
+function createAirportIcon(airport?: { name: string; lat: number; lng: number }, photoUrl?: string, isFocused = false): L.DivIcon {
+  const poiPayload = airport
+    ? JSON.stringify({
+        id: airport.name,
+        name: airport.name,
+        category: 'airport',
+        lat: airport.lat,
+        lng: airport.lng,
+        duration_mins: 60,
+        cost_eur: 0,
+        location: { latitude: airport.lat, longitude: airport.lng },
+      }).replace(/"/g, '&quot;')
+    : '';
+
   return L.divIcon({
     className: 'paladio-airport-icon',
-    html: `
-      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%, -50%);user-select:none;">
-        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:var(--color-accent-teal-mid, #14788D);border:2px solid var(--color-surface-card, #FFFFFF);border-radius:8px;box-shadow:0 0 12px rgba(20,120,141,0.6);color:#FFF;">
-          ${svg}
-        </div>
-        <span style="margin-top:2px;background:var(--color-surface-card, #081C24);color:var(--color-accent-teal-soft, #7CC4D1);border:1px solid var(--color-border-subtle);font-size:9px;font-family:var(--font-mono, monospace);font-weight:700;padding:0 4px;border-radius:3px;letter-spacing:0.5px;box-shadow:var(--shadow-xs);">AIRPORT</span>
-      </div>
-    `,
-    iconSize: [32, 48],
-    iconAnchor: [16, 24],
-    popupAnchor: [0, -26],
+    html: renderTeardropPinHtml({
+      categoryType: 'airport',
+      name: airport?.name || 'Airport Gateway',
+      photoUrl,
+      isFocused,
+      poiPayload,
+    }),
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+    popupAnchor: [0, -44],
   });
 }
 
 
-function createFocusedWaypointIcon(place: FocusedWaypointPlace): L.DivIcon {
+function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: string): L.DivIcon {
   const cat = (place.category || 'attraction').toLowerCase() as PoiCategoryType;
-  const svg = getCategorySvg(cat);
-  const nameSafe = (place.name || 'Target Waypoint')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const poiPayload = JSON.stringify({
+    id: place.id || place.name || 'waypoint',
+    name: place.name || 'Target Waypoint',
+    category: place.category || 'attraction',
+    lat: place.lat,
+    lng: place.lng,
+    duration_mins: place.durationMins || 60,
+    cost_eur: place.costEur || 0,
+    location: { latitude: place.lat, longitude: place.lng },
+  }).replace(/"/g, '&quot;');
 
   return L.divIcon({
     className: 'paladio-focused-waypoint-icon',
-    html: `
-      <div style="position:relative;width:0;height:0;user-select:none;cursor:pointer;">
-        <!-- Waypoint badge with calm pop-in entrance animation -->
-        <div class="paladio-waypoint-pop" style="position:absolute;top:0;left:0;display:inline-flex;align-items:center;background:var(--color-surface-card, #081C24);border:1.5px solid var(--color-accent-teal-mid, #14788D);border-radius:18px;box-shadow:var(--shadow-md, 0 4px 14px rgba(0,0,0,0.3));padding:3px 10px 3px 5px;gap:6px;transform:translate(-50%, -50%);white-space:nowrap;">
-          <div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--color-accent-primary, #0F4C5C);color:#FFFFFF;flex-shrink:0;">
-            ${svg}
-          </div>
-          <div style="display:flex;flex-direction:column;line-height:1.1;">
-            <span style="font-family:var(--font-mono, monospace);font-size:8px;font-weight:700;color:var(--color-accent-teal-soft, #7CC4D1);letter-spacing:0.8px;text-transform:uppercase;">FOCUS TARGET</span>
-            <span style="font-family:var(--font-display, sans-serif);font-size:11px;font-weight:700;color:var(--color-text-primary, #FFFFFF);max-width:140px;overflow:hidden;text-overflow:ellipsis;">${nameSafe}</span>
-          </div>
-        </div>
-      </div>
-    `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-    popupAnchor: [0, -28],
+    html: renderTeardropPinHtml({
+      categoryType: cat,
+      name: place.name,
+      photoUrl,
+      isFocused: true,
+      poiPayload,
+    }),
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+    popupAnchor: [0, -44],
   });
 }
 
-function createCategoryPoiIcon(categoryType: PoiCategoryType): L.DivIcon {
-  const meta = classifyPoiCategory(categoryType);
-  const svg = getCategorySvg(meta.type);
-  const color = meta.color || '#0F4C5C';
+function createCategoryPoiIcon(categoryType: PoiCategoryType, poi?: Partial<CategoryPoiItem>, photoUrl?: string, isFocused = false): L.DivIcon {
+  const poiPayload = poi
+    ? JSON.stringify({
+        id: poi.id || poi.name,
+        name: poi.name,
+        category: poi.category || categoryType,
+        lat: poi.lat,
+        lng: poi.lng,
+        duration_mins: poi.durationMins || 60,
+        cost_eur: poi.costEur || 0,
+        location: { latitude: poi.lat, longitude: poi.lng },
+      }).replace(/"/g, '&quot;')
+    : '';
+
   return L.divIcon({
     className: 'paladio-category-poi-icon',
-    html: `
-      <div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--color-surface-card, #FFFFFF);border:2px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,0.18);color:${color};cursor:pointer;transform:translate(-50%, -50%);transition:transform 0.15s ease, box-shadow 0.15s ease;">
-        ${svg}
-      </div>
-    `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+    html: renderTeardropPinHtml({
+      categoryType,
+      name: poi?.name,
+      photoUrl,
+      isFocused,
+      poiPayload,
+    }),
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+    popupAnchor: [0, -44],
   });
 }
 
@@ -303,20 +433,25 @@ function FocusedWaypointMarker({
   onInspectPoi,
 }: {
   place: FocusedWaypointPlace;
-  onInspectPoi?: (id: string) => void;
+  onInspectPoi?: (id: string, fallbackData?: Record<string, unknown>) => void;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
+  const { getPhoto } = usePoiPhotos();
+  const photoUrl = getPhoto(place.id) || getPhoto(place.name);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (markerRef.current) {
-        markerRef.current.openPopup();
-      }
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [place.lat, place.lng, place.timestamp]);
+  const icon = useMemo(() => createFocusedWaypointIcon(place, photoUrl), [place, photoUrl]);
 
-  const icon = useMemo(() => createFocusedWaypointIcon(place), [place]);
+  const handleInspect = () => {
+    onInspectPoi?.(place.id || place.name || 'waypoint', {
+      id: place.id,
+      name: place.name,
+      lat: place.lat,
+      lng: place.lng,
+      category: place.category,
+      duration_mins: place.durationMins,
+      cost_eur: place.costEur,
+    });
+  };
 
   return (
     <Marker
@@ -324,127 +459,10 @@ function FocusedWaypointMarker({
       position={[place.lat, place.lng]}
       icon={icon}
       zIndexOffset={2000}
-    >
-      <Popup className="paladio-focused-popup" autoPan={false}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', padding: '2px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--color-border-subtle, rgba(255,255,255,0.1))',
-              paddingBottom: '5px',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '9px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                background: 'rgba(20, 120, 141, 0.15)',
-                color: 'var(--color-accent-teal-soft, #7CC4D1)',
-                border: '1px solid var(--color-border-subtle, rgba(20, 120, 141, 0.35))',
-                borderRadius: '3px',
-                padding: '1px 6px',
-                letterSpacing: '0.5px',
-              }}
-            >
-              {place.category || 'POI'}
-            </span>
-            {typeof place.similarity === 'number' && place.similarity > 0 && (
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '9px',
-                  color: 'var(--color-accent-teal-mid, #14788D)',
-                  fontWeight: 600,
-                }}
-              >
-                {(place.similarity * 100).toFixed(0)}% MATCH
-              </span>
-            )}
-          </div>
-
-          <div
-            style={{
-              fontFamily: 'var(--font-display, sans-serif)',
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'var(--color-text-primary, #FFFFFF)',
-              lineHeight: 1.25,
-              marginTop: '2px',
-            }}
-          >
-            {place.name}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono, monospace)',
-              marginTop: '3px',
-              color: 'var(--color-text-muted, #94A3B8)',
-            }}
-          >
-            {place.durationMins && <span>~{place.durationMins}m visit</span>}
-            {typeof place.costEur === 'number' && (
-              <span style={{ color: '#16A34A', fontWeight: 600 }}>
-                {place.costEur === 0 ? 'Free' : `${place.costEur.toFixed(2)} €`}
-              </span>
-            )}
-          </div>
-
-          <div
-            style={{
-              marginTop: '4px',
-              paddingTop: '5px',
-              borderTop: '1px dashed var(--color-border-subtle, rgba(255,255,255,0.1))',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--color-accent-teal-soft, #7CC4D1)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <span>&larr; Drag card to itinerary to add</span>
-          </div>
-
-          {place.id && onInspectPoi && (
-            <button
-              type="button"
-              onClick={() => onInspectPoi(place.id!)}
-              style={{
-                marginTop: '6px',
-                padding: '5px 10px',
-                background: 'var(--color-accent-primary, #2563EB)',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '10.5px',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-                transition: 'opacity 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1.0')}
-            >
-              <span>📷 Inspect Details & Photos &rarr;</span>
-            </button>
-          )}
-        </div>
-      </Popup>
-    </Marker>
+      eventHandlers={{
+        click: handleInspect,
+      }}
+    />
   );
 }
 
@@ -458,16 +476,53 @@ function MapViewportController({
 }) {
   const map = useMap();
 
+  const lastFocusedKeyRef = useRef<string | null>(null);
+  const lastBoundsKeyRef = useRef<string | null>(null);
+  const isDraggingRef = useRef<boolean>(false);
+
   useEffect(() => {
     if (!map) return;
-    if (focusedPlace && typeof focusedPlace.lat === 'number') {
-      map.flyTo([focusedPlace.lat, focusedPlace.lng], 16, { animate: true, duration: 1.0 });
+    const onDragStart = () => {
+      isDraggingRef.current = true;
+    };
+    const onDragEnd = () => {
+      isDraggingRef.current = false;
+    };
+    map.on('dragstart', onDragStart);
+    map.on('dragend', onDragEnd);
+    return () => {
+      map.off('dragstart', onDragStart);
+      map.off('dragend', onDragEnd);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (
+      focusedPlace &&
+      typeof focusedPlace.lat === 'number' &&
+      typeof focusedPlace.lng === 'number' &&
+      !isNaN(focusedPlace.lat) &&
+      !isNaN(focusedPlace.lng) &&
+      !(focusedPlace.lat === 0 && focusedPlace.lng === 0)
+    ) {
+      const focusKey = `${focusedPlace.lat.toFixed(5)},${focusedPlace.lng.toFixed(5)},${focusedPlace.timestamp || 0}`;
+      if (focusKey !== lastFocusedKeyRef.current) {
+        lastFocusedKeyRef.current = focusKey;
+        if (!isDraggingRef.current) {
+          map.flyTo([focusedPlace.lat, focusedPlace.lng], 16, { animate: true, duration: 0.8 });
+        }
+      }
       return;
     }
-    if (activePoints.length > 0) {
-      const bounds = L.latLngBounds(activePoints.map((p) => [p.lat, p.lng]));
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true });
+    if (activePoints.length > 0 && !isDraggingRef.current) {
+      const boundsKey = activePoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
+      if (boundsKey !== lastBoundsKeyRef.current) {
+        lastBoundsKeyRef.current = boundsKey;
+        const bounds = L.latLngBounds(activePoints.map((p) => [p.lat, p.lng]));
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true });
+        }
       }
     }
   }, [map, activePoints, focusedPlace]);
@@ -507,6 +562,44 @@ export default function TripMapView({
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const { getPhoto } = usePoiPhotos();
+
+  // Allow dragging any POI marker directly from the map into route day slots
+  useEffect(() => {
+    const handleDragStart = (e: DragEvent) => {
+      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
+      if (!target) return;
+      const raw = target.getAttribute('data-paladio-draggable-poi');
+      if (!raw) return;
+      try {
+        const poiData = JSON.parse(raw);
+        const ghost = createRouteCardDragImage({
+          name: poiData.name,
+          category: poiData.category,
+          duration_mins: poiData.duration_mins,
+          cost_eur: poiData.cost_eur,
+        });
+        if (e.dataTransfer) {
+          e.dataTransfer.setDragImage(ghost, 20, 20);
+          setTimeout(() => ghost.remove(), 0);
+          const payload = { source: 'map', poi: poiData };
+          if (typeof window !== 'undefined') {
+            (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = payload;
+          }
+          e.dataTransfer.setData('application/paladio-poi', JSON.stringify(payload));
+          e.dataTransfer.effectAllowed = 'copyMove';
+        }
+        window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+      } catch (err) {
+        console.warn('Failed to parse draggable poi payload from map', err);
+      }
+    };
+
+    document.addEventListener('dragstart', handleDragStart);
+    return () => {
+      document.removeEventListener('dragstart', handleDragStart);
+    };
+  }, []);
 
   const handleCategoryToggle = (cat: PoiCategoryType) => {
     const next = activeCategory === cat ? null : cat;
@@ -816,73 +909,17 @@ export default function TripMapView({
     return { coreCurved, commuteStartArc, commuteEndArc };
   }, [activeDayData]);
 
-  const categoryPills: Array<{ type: PoiCategoryType; label: string }> = [
-    { type: 'restaurant', label: 'Dining' },
-    { type: 'cafe', label: 'Cafe' },
-    { type: 'bar', label: 'Bar' },
-    { type: 'hotel', label: 'Lodging' },
-    { type: 'landmark', label: 'Landmark' },
-    { type: 'museum', label: 'Museum' },
-    { type: 'park', label: 'Park' },
-    { type: 'shopping', label: 'Shopping' },
-  ];
+  const isFocusedAlreadyRendered = useMemo(() => {
+    if (!focusedPlace) return false;
+    if (activeDay !== 'all' && hotel && isPlaceMatch(hotel, focusedPlace)) return true;
+    if (activeDay !== 'all' && airport && isPlaceMatch(airport, focusedPlace)) return true;
+    if (activeDay !== 'all' && activeDayData?.pois?.some((p) => isPlaceMatch(p, focusedPlace))) return true;
+    if (activeCategory && categoryPois?.some((p) => isPlaceMatch(p, focusedPlace))) return true;
+    return false;
+  }, [focusedPlace, hotel, airport, activeDay, activeDayData, activeCategory, categoryPois]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Floating Top Center Quick Filter Pill Bar (TREK Style) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '14px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 900,
-          background: 'var(--color-surface-card)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid var(--color-border-subtle)',
-          borderRadius: '999px',
-          padding: '4px 6px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          boxShadow: 'var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.12))',
-        }}
-      >
-        {categoryPills.map((pill) => {
-          const isSelected = activeCategory === pill.type;
-          return (
-            <button
-              key={pill.type}
-              type="button"
-              onClick={() => handleCategoryToggle(pill.type)}
-              title={pill.label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 9px',
-                borderRadius: '999px',
-                border: 'none',
-                background: isSelected ? 'var(--color-accent-primary)' : 'transparent',
-                color: isSelected ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 600,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span
-                dangerouslySetInnerHTML={{ __html: getCategorySvg(pill.type) }}
-                style={{ display: 'flex', alignItems: 'center' }}
-              />
-              <span className="hidden sm:inline">{pill.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Map Canvas */}
       <MapContainer
         center={centerPosition}
@@ -897,13 +934,16 @@ export default function TripMapView({
         <ZoomControl position="bottomright" />
         <MapViewportController activePoints={activeBoundsPoints} focusedPlace={focusedPlace} />
 
-        {/* Animated Target Waypoint Beacon & Auto-Popup for Focused POI */}
-        {focusedPlace && typeof focusedPlace.lat === 'number' && typeof focusedPlace.lng === 'number' && (
-          <FocusedWaypointMarker
-            key={`focused-${focusedPlace.lat}-${focusedPlace.lng}-${focusedPlace.timestamp || 0}`}
-            place={focusedPlace}
-            onInspectPoi={onInspectPoi}
-          />
+        {focusedPlace &&
+          typeof focusedPlace.lat === 'number' &&
+          typeof focusedPlace.lng === 'number' &&
+          !(focusedPlace.lat === 0 && focusedPlace.lng === 0) &&
+          !isFocusedAlreadyRendered && (
+            <FocusedWaypointMarker
+              key={`focused-${focusedPlace.lat}-${focusedPlace.lng}-${focusedPlace.timestamp || 0}`}
+              place={focusedPlace}
+              onInspectPoi={onInspectPoi}
+            />
         )}
 
         {/* Sovereign Keyless OpenStreetMap Vector Basemap (Zero POI/amenity icon clutter) */}
@@ -1111,38 +1151,54 @@ export default function TripMapView({
         )}
 
         {/* 4. Hotel Base Camp Anchor Marker (Only in single day view) */}
-        {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (
-          <Marker position={[hotel.lat, hotel.lng]} icon={createHotelIcon()}>
-            <Popup>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '140px' }}>
-                <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
-                  BASE CAMP
-                </span>
-                <strong className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-                  {hotel.name}
-                </strong>
-                <div className="font-mono text-xs text-muted">Primary accommodation anchor</div>
-              </div>
-            </Popup>
-          </Marker>
-        )}
+        {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (() => {
+          const isHotelFocused = isPlaceMatch(hotel, focusedPlace);
+          return (
+            <Marker
+              position={[hotel.lat, hotel.lng]}
+              icon={createHotelIcon(hotel, getPhoto(hotel.name), isHotelFocused)}
+              zIndexOffset={isHotelFocused ? 2500 : 600}
+              eventHandlers={{
+                click: () => {
+                  onInspectPoi?.(hotel.name, {
+                    id: hotel.name,
+                    name: hotel.name,
+                    lat: hotel.lat,
+                    lng: hotel.lng,
+                    category: 'hotel',
+                    duration_mins: 60,
+                    cost_eur: 0,
+                  });
+                },
+              }}
+            />
+          );
+        })()}
 
         {/* 5. Airport Transit Gate Anchor Marker (Only in single day view) */}
-        {activeDay !== 'all' && airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && (
-          <Marker position={[airport.lat, airport.lng]} icon={createAirportIcon()}>
-            <Popup>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '140px' }}>
-                <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
-                  TRANSIT GATE
-                </span>
-                <strong className="font-display" style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-                  {airport.name}
-                </strong>
-                <div className="font-mono text-xs text-muted">Airport transit gateway</div>
-              </div>
-            </Popup>
-          </Marker>
-        )}
+        {activeDay !== 'all' && airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && (() => {
+          const isAirportFocused = isPlaceMatch(airport, focusedPlace);
+          return (
+            <Marker
+              position={[airport.lat, airport.lng]}
+              icon={createAirportIcon(airport, getPhoto(airport.name), isAirportFocused)}
+              zIndexOffset={isAirportFocused ? 2500 : 600}
+              eventHandlers={{
+                click: () => {
+                  onInspectPoi?.(airport.name, {
+                    id: airport.name,
+                    name: airport.name,
+                    lat: airport.lat,
+                    lng: airport.lng,
+                    category: 'airport',
+                    duration_mins: 60,
+                    cost_eur: 0,
+                  });
+                },
+              }}
+            />
+          );
+        })()}
 
         {/* 6. Waypoint Markers (Only in Single Day view; hidden in ALL DAYS mode to keep only routes and convex hulls) */}
         {activeDay !== 'all' &&
@@ -1161,55 +1217,34 @@ export default function TripMapView({
                 return null;
               }
 
+              const isPoiFocused = isPlaceMatch(poi, focusedPlace);
+              const photoUrl = getPhoto(poi.name);
               const markerIcon = isHotel
-                ? createHotelIcon()
+                ? createHotelIcon({ name: poi.name, lat: poi.lat, lng: poi.lng }, photoUrl, isPoiFocused)
                 : isAirport
-                ? createAirportIcon()
-                : createWaypointIcon(categoryType, stopCounter, activeDayData.dayNumber);
+                ? createAirportIcon({ name: poi.name, lat: poi.lat, lng: poi.lng }, photoUrl, isPoiFocused)
+                : createWaypointIcon(categoryType, stopCounter, activeDayData.dayNumber, poi, photoUrl, isPoiFocused);
 
               return (
                 <Marker
                   key={`marker-d${activeDayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
                   position={[poi.lat, poi.lng]}
                   icon={markerIcon}
-                >
-                  <Popup>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
-                      <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
-                        <span className="font-mono text-xs text-muted" style={{ fontWeight: 700 }}>
-                          DAY {activeDayData.dayNumber} · STOP {String(stopCounter).padStart(2, '0')}
-                        </span>
-                        <div
-                          className="font-display"
-                          style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}
-                        >
-                          {poi.name}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px',
-                          fontSize: '11px',
-                          fontFamily: 'var(--font-mono)',
-                        }}
-                      >
-                        {poi.arrivalTime && (
-                          <div style={{ color: 'var(--color-text-muted)' }}>
-                            Time: {formatPoiTime(poi.arrivalTime)} &rarr;{' '}
-                            {poi.departureTime ? formatPoiTime(poi.departureTime) : '--:--'}
-                          </div>
-                        )}
-                        {typeof poi.costEur === 'number' && (
-                          <div style={{ color: '#16A34A', fontWeight: 600 }}>
-                            Cost: {poi.costEur.toFixed(2)} &euro;
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
+                  zIndexOffset={isPoiFocused ? 2500 : 500}
+                  eventHandlers={{
+                    click: () => {
+                      onInspectPoi?.(poi.name, {
+                        id: poi.name,
+                        name: poi.name,
+                        lat: poi.lat,
+                        lng: poi.lng,
+                        category: poi.category,
+                        duration_mins: poi.durationMins,
+                        cost_eur: poi.costEur,
+                      });
+                    },
+                  }}
+                />
               );
             });
           })()}
@@ -1218,78 +1253,34 @@ export default function TripMapView({
         {activeCategory && categoryPois && categoryPois.length > 0 && (
           categoryPois.map((poi, idx) => {
             const catType = classifyPoiCategory(poi.category, poi.name).type;
-            const meta = classifyPoiCategory(poi.category, poi.name);
+            const isCatPoiFocused = isPlaceMatch(poi, focusedPlace);
+            const photoUrl = poi.photo_url || getPhoto(poi.id) || getPhoto(poi.name);
             return (
               <Marker
                 key={`cat-poi-${poi.id || idx}-${poi.lat}-${poi.lng}`}
                 position={[poi.lat, poi.lng]}
-                icon={createCategoryPoiIcon(catType)}
+                icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused)}
+                zIndexOffset={isCatPoiFocused ? 2500 : 400}
+                eventHandlers={{
+                  click: () => {
+                    onInspectPoi?.(poi.id || poi.name, {
+                      id: poi.id,
+                      name: poi.name,
+                      lat: poi.lat,
+                      lng: poi.lng,
+                      category: poi.category,
+                      description: poi.description,
+                      duration_mins: poi.durationMins,
+                      cost_eur: poi.costEur,
+                    });
+                  },
+                }}
               >
-                <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+                <Tooltip direction="top" offset={[0, -20]} opacity={0.95}>
                   <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
                     {poi.name}
                   </span>
                 </Tooltip>
-                <Popup>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '160px', padding: '2px' }}>
-                    <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span
-                          className="font-mono text-xs"
-                          style={{
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            color: meta.color,
-                          }}
-                        >
-                          {meta.label}
-                        </span>
-                        {typeof poi.costEur === 'number' && (
-                          <span className="font-mono text-xs" style={{ color: poi.costEur > 0 ? 'var(--color-accent-primary)' : '#10b981', fontWeight: 600 }}>
-                            {poi.costEur > 0 ? `${poi.costEur.toFixed(2)} €` : 'FREE'}
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="font-display"
-                        style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '2px' }}
-                      >
-                        {poi.name}
-                      </div>
-                    </div>
-                    {poi.description && (
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
-                        {poi.description}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                      {typeof poi.durationMins === 'number' && poi.durationMins > 0 && (
-                        <span className="font-mono text-xs text-muted">
-                          ~{poi.durationMins}m
-                        </span>
-                      )}
-                      {onSelectCategoryPoi && (
-                        <button
-                          type="button"
-                          onClick={() => onSelectCategoryPoi(poi)}
-                          style={{
-                            padding: '3px 8px',
-                            background: 'var(--color-accent-primary)',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '10.5px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Focus Place
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Popup>
               </Marker>
             );
           })

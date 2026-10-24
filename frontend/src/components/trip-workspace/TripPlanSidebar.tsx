@@ -41,7 +41,7 @@ interface TripPlanSidebarProps {
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
   transitMode?: 'simple' | 'detailed';
   onTransitModeChange?: (mode: 'simple' | 'detailed') => void;
-  onInspectPoi?: (poiId: string) => void;
+  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isEditMode?: boolean;
 }
 
@@ -1235,7 +1235,8 @@ export function TripPlanSidebar({
                 e.preventDefault();
                 handlePointerDragScroll(e.clientY, e.clientX);
               }}
-              style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+              style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+              className="no-scrollbar"
             >
               {displayedDays.map((dayObj) => {
                 const path = dayObj.itinerary?.path || [];
@@ -1490,9 +1491,16 @@ export function TripPlanSidebar({
                               handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
                             }}
                             onClick={() => {
-                              const pId = scheduledPoi.poi?.id;
+                              const pId = scheduledPoi.poi?.id || scheduledPoi.poi?.name;
                               if (pId) {
-                                onInspectPoi?.(pId);
+                                const lat = scheduledPoi.poi?.location?.latitude ?? (scheduledPoi.poi as unknown as { lat?: number })?.lat;
+                                const lng = scheduledPoi.poi?.location?.longitude ?? (scheduledPoi.poi as unknown as { lng?: number })?.lng;
+                                onInspectPoi?.(pId, {
+                                  ...scheduledPoi.poi,
+                                  lat,
+                                  lng,
+                                  day: dayObj.day,
+                                } as unknown as Record<string, unknown>);
                               }
                             }}
                             onDragStart={(e) => {

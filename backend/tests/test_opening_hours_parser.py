@@ -98,3 +98,31 @@ def test_parse_explicit_closed_day():
     for day in range(1, 7):
         assert res.open_time_mins_by_day[day] == 600
         assert res.close_time_mins_by_day[day] == 1080
+
+
+def test_parse_comma_separated_day_ranges_with_holiday_exclusions():
+    # Western Art Museum: Su,Tu-Th 09:30-17:30;Fr-Sa 09:30-20:00;Mo off;Dec 28-Jan 01 off
+    schedule_str = "Su,Tu-Th 09:30-17:30;Fr-Sa 09:30-20:00;Mo off;Dec 28-Jan 01 off"
+    res = parse_osm_opening_hours(schedule_str)
+
+    assert res.hours_known is True
+    # Mo (0) is closed
+    assert res.open_time_mins_by_day[0] == -1
+    assert res.daily_windows[0] == []
+
+    # Tu (1), We (2), Th (3) are 09:30 to 17:30 (570 to 1050)
+    for day in [1, 2, 3]:
+        assert res.open_time_mins_by_day[day] == 570
+        assert res.close_time_mins_by_day[day] == 1050
+        assert res.daily_windows[day] == [(570, 1050)]
+
+    # Fr (4), Sa (5) are 09:30 to 20:00 (570 to 1200)
+    for day in [4, 5]:
+        assert res.open_time_mins_by_day[day] == 570
+        assert res.close_time_mins_by_day[day] == 1200
+        assert res.daily_windows[day] == [(570, 1200)]
+
+    # Su (6) is 09:30 to 17:30 (570 to 1050)
+    assert res.open_time_mins_by_day[6] == 570
+    assert res.close_time_mins_by_day[6] == 1050
+    assert res.daily_windows[6] == [(570, 1050)]

@@ -356,12 +356,12 @@ class HybridRetriever:
             facet_match = compute_facet_match_score(c.get("facets"), required_facets)
             doc_bonus = compute_doc_quality_bonus(c.get("doc_quality"))
 
-            # Composite Score formula
+            # Composite Score formula with Iconicity as a really important factor (35% iconicity + 50% query relevance)
             comp_score = (
-                0.55 * norm_rrf
-                + 0.25 * iconicity
-                + 0.12 * facet_match
-                + 0.08 * doc_bonus
+                0.50 * norm_rrf
+                + 0.35 * iconicity
+                + 0.10 * facet_match
+                + 0.05 * doc_bonus
             )
             c["composite_score"] = round(comp_score, 4)
             c["norm_rrf"] = round(norm_rrf, 4)

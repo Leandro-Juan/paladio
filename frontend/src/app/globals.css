@@ -293,6 +293,42 @@ a {
   background: var(--color-border);
 }
 
+/* Invisible scrollbar utility while maintaining scrollability */
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Map Waypoint Focus Pop-In Bounce Animation */
+@keyframes paladioWaypointPopIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+  80% {
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.paladio-waypoint-pop {
+  animation: paladioWaypointPopIn 0.44s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity;
+}
+
 /* Utility Classes */
 .text-accent {
   color: var(--color-link);
@@ -809,5 +845,92 @@ a {
     opacity: 1 !important;
     transform: translate(-50%, -50%) scale(1) !important;
   }
+}
+
+@keyframes pinGlow {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 0.15; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* Paladio Single-Line Dual-Thumb Range Slider */
+.paladio-dual-slider-container {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.paladio-range-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 3;
+}
+
+.paladio-range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent-primary, #0F4C5C);
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(15, 76, 92, 0.35);
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.paladio-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(15, 76, 92, 0.18);
+}
+
+.paladio-range-input::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 5px rgba(15, 76, 92, 0.28);
+}
+
+.paladio-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent-primary, #0F4C5C);
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(15, 76, 92, 0.35);
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.paladio-range-input::-moz-range-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(15, 76, 92, 0.18);
+}
+
+.paladio-range-input::-moz-range-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+}
+
+.paladio-range-input::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+}
+
+.paladio-range-input::-moz-range-track {
+  background: transparent;
+  border: none;
 }
 

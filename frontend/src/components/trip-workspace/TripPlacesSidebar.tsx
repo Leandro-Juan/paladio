@@ -68,7 +68,7 @@ export interface TripPlacesSidebarProps {
   hotelAnchor?: { name: string; lat: number; lng: number };
   airportAnchor?: { name: string; lat: number; lng: number };
   tripId?: string;
-  onInspectPoi?: (poiId: string) => void;
+  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   inspectedPoiId?: string | null;
   onCloseInspect?: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
@@ -712,9 +712,12 @@ export function TripPlacesSidebar({
 
               {/* Main Content Area */}
               <div
+                className="no-scrollbar"
                 style={{
                   flex: 1,
                   overflowY: 'auto',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
                   padding: '12px',
                   paddingBottom: '76px',
                   display: 'flex',

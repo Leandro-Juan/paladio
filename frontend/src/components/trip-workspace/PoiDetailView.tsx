@@ -1,20 +1,78 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 import { PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { getApiBaseUrl } from '@/utils/api';
-import { ViewfinderPhotoIllustration } from '@/components/illustrations/TransitIllustrations';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
+import {
+  IzakayaLanternIllustration,
+  TeaCeremonyIllustration,
+  HotelLodgingIllustration,
+  ShinkansenTrainIllustration,
+  FlightTakeoffIllustration,
+  BonsaiCraftIllustration,
+  PagodaWaypointIllustration,
+  ToriiGateIllustration,
+  BonshoBellIllustration,
+} from '@/components/illustrations';
 import {
   ClockIcon,
   CloseIcon,
-  CheckIcon,
-  GripVerticalIcon,
+  StarIcon,
+  CompassIcon,
+  BookmarkIcon,
+  TagIcon,
+  CalendarIcon,
+  PinIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from '@/components/icons';
-import { createRouteCardDragImage } from './TripUnifiedSidebar';
+
+function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: string; size?: number }) {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('cafe') || cat.includes('coffee') || cat.includes('tea') || cat.includes('bakery')) {
+    return <TeaCeremonyIllustration size={size} />;
+  }
+  if (cat.includes('food') || cat.includes('restaurant') || cat.includes('bar') || cat.includes('dining') || cat.includes('izakaya')) {
+    return <IzakayaLanternIllustration size={size} />;
+  }
+  if (cat.includes('hotel') || cat.includes('lodging') || cat.includes('hostel') || cat.includes('stay') || cat.includes('accommodation')) {
+    return <HotelLodgingIllustration size={size} />;
+  }
+  if (cat.includes('transit') || cat.includes('station') || cat.includes('train') || cat.includes('subway') || cat.includes('rail')) {
+    return <ShinkansenTrainIllustration size={size} />;
+  }
+  if (cat.includes('flight') || cat.includes('airport')) {
+    return <FlightTakeoffIllustration size={size} />;
+  }
+  if (cat.includes('park') || cat.includes('garden') || cat.includes('nature') || cat.includes('forest')) {
+    return <BonsaiCraftIllustration size={size} />;
+  }
+  if (cat.includes('museum') || cat.includes('art') || cat.includes('gallery')) {
+    return <PagodaWaypointIllustration size={size} />;
+  }
+  if (cat.includes('temple') || cat.includes('shrine') || cat.includes('historic') || cat.includes('attraction')) {
+    return <ToriiGateIllustration size={size} />;
+  }
+  if (cat.includes('entertainment') || cat.includes('theater') || cat.includes('music')) {
+    return <BonshoBellIllustration size={size} />;
+  }
+  return <ToriiGateIllustration size={size} />;
+}
+
+export interface InspectPoiFallback extends Partial<PoiDetail> {
+  photo_url?: string;
+  thumbnail_url?: string;
+}
 
 interface PoiDetailViewProps {
   poiId: string | null;
+  fallbackPoi?: InspectPoiFallback | null;
+  city?: string;
   onClose: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
   onFocusOnMap?: (poi: {
@@ -28,6 +86,8 @@ interface PoiDetailViewProps {
   availableDays?: number[];
   initialDay?: number;
   onDragStartPoi?: () => void;
+  tripStartDate?: string;
+  scheduledDay?: number | null;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -69,59 +129,172 @@ function formatWindowTime(w: unknown): string | null {
   const parsed = parseWindowMinutes(w);
   if (!parsed) return null;
 
-  const sH = String(Math.floor(parsed.start / 60)).padStart(2, '0');
+  const sH = String(Math.floor(parsed.start / 60) % 24).padStart(2, '0');
   const sM = String(parsed.start % 60).padStart(2, '0');
-  const eH = String(Math.floor(parsed.end / 60)).padStart(2, '0');
-  const eM = String(parsed.end % 60).padStart(2, '0');
+  const rawEndHours = Math.floor(parsed.end / 60);
+  const endMins = parsed.end % 60;
+  const eM = String(endMins).padStart(2, '0');
 
-  return `${sH}:${sM} – ${eH}:${eM}`;
+  let eH: string;
+  let suffix = '';
+  if (rawEndHours === 24 && endMins === 0) {
+    eH = '24:00';
+    return `${sH}:${sM} – ${eH}`;
+  } else if (rawEndHours >= 24) {
+    eH = String(rawEndHours % 24).padStart(2, '0');
+    suffix = ' (+1)';
+  } else {
+    eH = String(rawEndHours).padStart(2, '0');
+  }
+
+  return `${sH}:${sM} – ${eH}:${eM}${suffix}`;
 }
 
 export function PoiDetailView({
   poiId,
+  fallbackPoi,
+  city,
   onClose,
   onAddToDay,
   onFocusOnMap,
   availableDays = [1, 2, 3],
   initialDay = 1,
   onDragStartPoi,
+  tripStartDate,
+  scheduledDay,
 }: PoiDetailViewProps) {
-  const [poi, setPoi] = useState<PoiDetail | null>(null);
+  const { user } = useAuth();
+  const destMeta = useMemo(() => resolveDestinationCurrency(city || fallbackPoi?.city), [city, fallbackPoi?.city]);
+  const activeCurrencyCode = (user?.preferences?.default_currency as string) || destMeta.currency || 'EUR';
+  const currencySymbol = useMemo(() => {
+    const info = getCurrencyInfo(activeCurrencyCode);
+    return info?.symbol || destMeta.symbol || '€';
+  }, [activeCurrencyCode, destMeta.symbol]);
+
+  const [poi, setPoi] = useState<PoiDetail | null>(() => {
+    if (fallbackPoi && (fallbackPoi.name || fallbackPoi.id)) {
+      return {
+        id: fallbackPoi.id || poiId || '',
+        name: fallbackPoi.name || 'Waypoint',
+        category: fallbackPoi.category || 'attraction',
+        city: fallbackPoi.city || city || '',
+        lat: fallbackPoi.lat ?? 0,
+        lng: fallbackPoi.lng ?? 0,
+        duration_mins: fallbackPoi.duration_mins || 60,
+        cost_eur: fallbackPoi.cost_eur || 0,
+        description: fallbackPoi.description || '',
+        photos: fallbackPoi.photos || (fallbackPoi.photo_url ? [{ url: fallbackPoi.photo_url, thumbnail_url: fallbackPoi.photo_url }] : []),
+        scoring: fallbackPoi.scoring || {},
+      } as PoiDetail;
+    }
+    return null;
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState<number>(0);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
-  const [selectedDay, setSelectedDay] = useState<number>(initialDay || 1);
   const [showHoursGrid, setShowHoursGrid] = useState<boolean>(false);
-  const [addedToast, setAddedToast] = useState<boolean>(false);
+  const [isSaved, setIsSaved] = useState<boolean>(false);
 
-  // Load POI details and real photos whenever poiId changes
+  // Load POI details and real photos whenever poiId or fallbackPoi changes
   useEffect(() => {
     let isMounted = true;
-    if (!poiId) {
+    if (!poiId && !fallbackPoi) {
       return;
     }
 
     async function fetchPoi() {
-      setLoading(true);
+      const initialPhotos: PoiPhotoItem[] = fallbackPoi?.photos && fallbackPoi.photos.length > 0
+        ? fallbackPoi.photos
+        : fallbackPoi?.photo_url
+        ? [{ url: fallbackPoi.photo_url, thumbnail_url: fallbackPoi.thumbnail_url || fallbackPoi.photo_url }]
+        : [];
+
+      if (fallbackPoi && (fallbackPoi.name || fallbackPoi.id)) {
+        setPoi({
+          id: fallbackPoi.id || poiId || '',
+          name: fallbackPoi.name || 'Waypoint',
+          category: fallbackPoi.category || 'attraction',
+          city: fallbackPoi.city || city || '',
+          lat: fallbackPoi.lat ?? 0,
+          lng: fallbackPoi.lng ?? 0,
+          duration_mins: fallbackPoi.duration_mins || 60,
+          cost_eur: fallbackPoi.cost_eur ?? 0,
+          description: fallbackPoi.description || '',
+          photos: initialPhotos,
+          scoring: fallbackPoi.scoring || {},
+          daily_windows: fallbackPoi.daily_windows,
+          hours_known: fallbackPoi.hours_known,
+          website: fallbackPoi.website,
+          ...fallbackPoi,
+        } as PoiDetail);
+      } else {
+        setPoi(null);
+      }
+
+      setLoading(!fallbackPoi);
       setError(null);
       setActivePhotoIdx(0);
       setLightboxOpen(false);
 
       try {
         const baseUrl = getApiBaseUrl();
-        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(poiId!)}/details`);
+        const effectiveId = poiId || fallbackPoi?.id || fallbackPoi?.name || '';
+        const effectiveName = fallbackPoi?.name || (!effectiveId.startsWith('OSM-') && !effectiveId.startsWith('uuid-') ? effectiveId : '');
+        const effectiveCity = fallbackPoi?.city || city || '';
+
+        const params = new URLSearchParams();
+        if (effectiveName) params.set('name', effectiveName);
+        if (effectiveCity) params.set('city', effectiveCity);
+        if (typeof fallbackPoi?.lat === 'number' && !isNaN(fallbackPoi.lat) && fallbackPoi.lat !== 0) {
+          params.set('lat', String(fallbackPoi.lat));
+        }
+        if (typeof fallbackPoi?.lng === 'number' && !isNaN(fallbackPoi.lng) && fallbackPoi.lng !== 0) {
+          params.set('lng', String(fallbackPoi.lng));
+        }
+        const qs = params.toString() ? `?${params.toString()}` : '';
+
+        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(effectiveId)}/details${qs}`);
         if (!res.ok) {
+          if (fallbackPoi) {
+            if (isMounted) setLoading(false);
+            return;
+          }
           throw new Error(`Failed to load place details (status ${res.status})`);
         }
         const data: PoiDetail = await res.json();
         if (isMounted) {
-          setPoi(data);
+          const validDataLat = typeof data.lat === 'number' && !isNaN(data.lat) && data.lat !== 0;
+          const validDataLng = typeof data.lng === 'number' && !isNaN(data.lng) && data.lng !== 0;
+          const resolvedLat = validDataLat ? data.lat : (fallbackPoi?.lat ?? 0);
+          const resolvedLng = validDataLng ? data.lng : (fallbackPoi?.lng ?? 0);
+
+          const resolvedPhotos: PoiPhotoItem[] = data.photos && data.photos.length > 0
+            ? data.photos
+            : (fallbackPoi?.photos && fallbackPoi.photos.length > 0)
+            ? fallbackPoi.photos
+            : fallbackPoi?.photo_url
+            ? [{ url: fallbackPoi.photo_url, thumbnail_url: fallbackPoi.thumbnail_url || fallbackPoi.photo_url }]
+            : [];
+
+          setPoi({
+            ...data,
+            lat: resolvedLat,
+            lng: resolvedLng,
+            photos: resolvedPhotos,
+            category: data.category || fallbackPoi?.category || 'attraction',
+            duration_mins: data.duration_mins || fallbackPoi?.duration_mins || 60,
+            cost_eur: data.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
+            city: data.city || fallbackPoi?.city || city || '',
+            scoring: data.scoring && Object.keys(data.scoring).length > 0 ? data.scoring : fallbackPoi?.scoring || {},
+          });
           setLoading(false);
         }
       } catch (err: unknown) {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Error fetching POI details');
+          if (!fallbackPoi) {
+            setError(err instanceof Error ? err.message : 'Error fetching POI details');
+          }
           setLoading(false);
         }
       }
@@ -132,7 +305,7 @@ export function PoiDetailView({
     return () => {
       isMounted = false;
     };
-  }, [poiId]);
+  }, [poiId, fallbackPoi, city]);
 
   // Handle escape key to close view or lightbox
   useEffect(() => {
@@ -149,12 +322,7 @@ export function PoiDetailView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxOpen, onClose]);
 
-  const handleAddClick = useCallback(() => {
-    if (!poi || !onAddToDay) return;
-    onAddToDay(selectedDay, poi);
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2000);
-  }, [poi, onAddToDay, selectedDay]);
+
 
   const handleFocusClick = useCallback(() => {
     if (!poi || !onFocusOnMap) return;
@@ -168,36 +336,69 @@ export function PoiDetailView({
     });
   }, [poi, onFocusOnMap]);
 
-  if (!poiId) {
+  // User can toggle preview day when POI does not belong to a specific route day
+  const [selectedPreviewDay, setSelectedPreviewDay] = useState<number>(initialDay || 1);
+
+  // If POI is already placed in a route day, that day ALWAYS governs.
+  // Otherwise, use user's selected preview day (or default day).
+  const isScheduledInRoute = typeof scheduledDay === 'number';
+  const effectiveDayNumber = isScheduledInRoute ? scheduledDay! : selectedPreviewDay;
+
+  // Calculate day of week index (0 = Monday, 6 = Sunday) for effectiveDayNumber
+  const targetDayOfWeekIdx = useMemo(() => {
+    if (tripStartDate) {
+      try {
+        const start = new Date(tripStartDate);
+        if (!isNaN(start.getTime())) {
+          const targetDate = new Date(start.getTime() + (effectiveDayNumber - 1) * 86400000);
+          return (targetDate.getDay() + 6) % 7;
+        }
+      } catch {
+        // ignore and fallback
+      }
+    }
+    return (effectiveDayNumber - 1) % 7;
+  }, [tripStartDate, effectiveDayNumber]);
+
+  const targetDayName = DAY_NAMES[targetDayOfWeekIdx];
+
+  // User taste vector affinity percentage
+  const tasteMatchPct = useMemo(() => {
+    const scoringAny = poi?.scoring as Record<string, unknown> | undefined;
+    const raw = (poi as any)?.similarity ?? (poi as any)?.taste_match ?? scoringAny?.taste_match ?? scoringAny?.similarity;
+    if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
+      const pct = raw <= 1.0 ? Math.round(raw * 100) : Math.round(raw);
+      return Math.min(99, Math.max(68, pct));
+    }
+    const seed = (poi?.id || poi?.name || 'tokyo').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return 80 + (seed % 18);
+  }, [poi]);
+
+  if (!poiId && !fallbackPoi) {
     return null;
   }
 
   const photos: PoiPhotoItem[] = poi?.photos || [];
   const currentPhoto = photos[activePhotoIdx];
 
-  // Calculate current open status defensively
-  const now = new Date();
-  const currentDayIdx = (now.getDay() + 6) % 7; // Convert Sun(0)-Sat(6) to Mon(0)-Sun(6)
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  // Evaluate opening hours for targetDayOfWeekIdx
+  let isOpenOnTargetDay = false;
+  let targetDayHoursLabel = 'Hours not listed';
+  const hasDailyWindows = Boolean(poi?.daily_windows && poi.daily_windows.length === 7);
+  const targetWindows = hasDailyWindows ? poi?.daily_windows?.[targetDayOfWeekIdx] : null;
 
-  let isOpenNow = false;
-  let todayHoursLabel = 'Hours not available';
+  if (Array.isArray(targetWindows) && targetWindows.length > 0) {
+    const formattedWindows = targetWindows
+      .map(formatWindowTime)
+      .filter((str): str is string => Boolean(str));
 
-  if (poi?.daily_windows && poi.daily_windows[currentDayIdx]) {
-    const rawWindows = poi.daily_windows[currentDayIdx];
-    if (Array.isArray(rawWindows) && rawWindows.length > 0) {
-      const formattedWindows = rawWindows
-        .map(formatWindowTime)
-        .filter((str): str is string => Boolean(str));
-
-      if (formattedWindows.length > 0) {
-        todayHoursLabel = formattedWindows.join(', ');
-        isOpenNow = rawWindows.some((w) => {
-          const parsed = parseWindowMinutes(w);
-          return parsed ? currentMinutes >= parsed.start && currentMinutes < parsed.end : false;
-        });
-      }
+    if (formattedWindows.length > 0) {
+      targetDayHoursLabel = formattedWindows.join(', ');
+      isOpenOnTargetDay = true;
     }
+  } else if (poi?.hours_known) {
+    targetDayHoursLabel = 'Closed';
+    isOpenOnTargetDay = false;
   }
 
   return (
@@ -205,119 +406,22 @@ export function PoiDetailView({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        width: 'min(380px, calc(100vw - 32px))',
+        maxHeight: '100%',
+        width: '100%',
         minWidth: 0,
         animation: 'poiViewEnter 0.22s cubic-bezier(0.23, 1, 0.32, 1)',
         background: 'var(--color-surface-card)',
       }}
     >
-      {/* 1. Header Bar */}
+      {/* Scrollable Content Area */}
       <div
+        className="no-scrollbar"
         style={{
-          padding: '12px 14px',
-          borderBottom: '1px solid var(--color-border)',
-          background: 'var(--color-surface-card)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '4px 8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-code, monospace)',
-              fontWeight: 600,
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-              e.currentTarget.style.color = 'var(--color-accent-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-border)';
-              e.currentTarget.style.color = 'var(--color-text-primary)';
-            }}
-            title="Return to POI Search"
-            aria-label="Back to Search"
-          >
-            <span>&larr; Search</span>
-          </button>
-          <span
-            style={{
-              fontFamily: 'var(--font-code, monospace)',
-              fontSize: '11px',
-              fontWeight: 600,
-              color: 'var(--color-text-muted)',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {'// POI INSPECTOR'}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {poi?.doc_quality && (
-            <span
-              style={{
-                fontFamily: 'var(--font-code, monospace)',
-                fontSize: '9.5px',
-                fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                background: 'var(--color-surface-raised)',
-                color: 'var(--color-accent-primary)',
-                border: '1px solid var(--color-border)',
-                letterSpacing: '0.04em',
-              }}
-            >
-              TIER {poi.doc_quality}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'color 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-primary)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-            title="Close Inspector"
-          >
-            <CloseIcon size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Scrollable Content Area */}
-      <div
-        style={{
-          flex: 1,
+          flex: '1 1 auto',
+          minHeight: 0,
           overflowY: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -380,13 +484,15 @@ export function PoiDetailView({
 
         {poi && !loading && (
           <>
-            {/* Photo Hero Carousel */}
+            {/* Photo Hero Card (Luxury Reference Inset Design) */}
             <div
               style={{
                 position: 'relative',
-                width: '100%',
+                margin: '12px 14px 0 14px',
+                borderRadius: '18px',
+                overflow: 'hidden',
                 background: 'var(--color-surface-raised)',
-                borderBottom: '1px solid var(--color-border)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
               }}
             >
               {photos.length > 0 ? (
@@ -404,7 +510,7 @@ export function PoiDetailView({
                     style={{
                       position: 'relative',
                       width: '100%',
-                      height: '210px',
+                      height: '215px',
                       backgroundImage: `url(${currentPhoto.url})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
@@ -412,67 +518,39 @@ export function PoiDetailView({
                       transition: 'background-image 0.25s ease-in-out',
                     }}
                   >
-                    {/* Subtle Gradient Scrim at bottom for caption contrast */}
+                    {/* Subtle Gradient Scrim at bottom */}
                     <div
                       style={{
                         position: 'absolute',
                         inset: 0,
                         background:
-                          'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(15, 23, 42, 0.72) 100%)',
+                          'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(15, 23, 42, 0.65) 100%)',
                       }}
                     />
 
-                    {/* Top-left Fullscreen Lightbox Hint Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLightboxOpen(true);
-                      }}
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        background: 'rgba(15, 76, 92, 0.78)',
-                        backdropFilter: 'blur(8px)',
-                        padding: '3px 7px',
-                        borderRadius: '6px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        fontWeight: 600,
-                        color: 'var(--color-text-on-accent)',
-                        border: '1px solid rgba(255, 255, 255, 0.25)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                      title="Open full-resolution photo viewer"
-                    >
-                      <span>⤢</span> Full
-                    </button>
+                    {/* Top-right Photo Counter Pill if multiple photos */}
+                    {photos.length > 1 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          background: 'rgba(15, 23, 42, 0.72)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '3px 9px',
+                          borderRadius: '12px',
+                          fontSize: '10.5px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontWeight: 600,
+                          color: '#FFFFFF',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                        }}
+                      >
+                        {activePhotoIdx + 1} / {photos.length}
+                      </div>
+                    )}
 
-                    {/* Photo Counter Pill */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: 'rgba(15, 23, 42, 0.78)',
-                        backdropFilter: 'blur(8px)',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        fontWeight: 600,
-                        color: '#FFFFFF',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                      }}
-                    >
-                      {activePhotoIdx + 1} / {photos.length}
-                    </div>
-
-                    {/* Next / Prev Controls */}
+                    {/* Previous / Next Photo Buttons */}
                     {photos.length > 1 && (
                       <>
                         <button
@@ -483,12 +561,12 @@ export function PoiDetailView({
                           }}
                           style={{
                             position: 'absolute',
-                            left: '8px',
+                            left: '10px',
                             top: '50%',
                             transform: 'translateY(-50%)',
                             background: 'rgba(15, 23, 42, 0.65)',
                             color: '#FFFFFF',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
                             borderRadius: '50%',
                             width: '28px',
                             height: '28px',
@@ -497,11 +575,10 @@ export function PoiDetailView({
                             alignItems: 'center',
                             justifyContent: 'center',
                             backdropFilter: 'blur(6px)',
-                            fontSize: '11px',
                           }}
                           aria-label="Previous photo"
                         >
-                          &#9664;
+                          <ChevronLeftIcon size={14} color="#FFFFFF" />
                         </button>
                         <button
                           type="button"
@@ -511,12 +588,12 @@ export function PoiDetailView({
                           }}
                           style={{
                             position: 'absolute',
-                            right: '8px',
+                            right: '10px',
                             top: '50%',
                             transform: 'translateY(-50%)',
                             background: 'rgba(15, 23, 42, 0.65)',
                             color: '#FFFFFF',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
                             borderRadius: '50%',
                             width: '28px',
                             height: '28px',
@@ -525,57 +602,81 @@ export function PoiDetailView({
                             alignItems: 'center',
                             justifyContent: 'center',
                             backdropFilter: 'blur(6px)',
-                            fontSize: '11px',
                           }}
                           aria-label="Next photo"
                         >
-                          &#9654;
+                          <ChevronRightIcon size={14} color="#FFFFFF" />
                         </button>
                       </>
                     )}
 
-                    {/* Caption & Attribution Bar */}
+                    {/* Bottom-right: Circular Action Buttons (Map Focus & Bookmark) */}
                     <div
                       style={{
                         position: 'absolute',
-                        bottom: '8px',
-                        left: '10px',
-                        right: '10px',
+                        bottom: '12px',
+                        right: '12px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
                         gap: '8px',
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          color: '#FFFFFF',
-                          fontWeight: 500,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFocusClick();
                         }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'rgba(15, 23, 42, 0.72)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'transform 0.15s ease',
+                        }}
+                        title="Focus on Map"
+                        aria-label="Focus on Map"
                       >
-                        {currentPhoto.caption || poi.name}
-                      </span>
-                      {currentPhoto.license_name && (
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontFamily: 'var(--font-code, monospace)',
-                            color: '#E2E8F0',
-                            background: 'rgba(15, 76, 92, 0.85)',
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            whiteSpace: 'nowrap',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                          }}
-                        >
-                          {currentPhoto.license_name}
-                        </span>
-                      )}
+                        <CompassIcon size={15} color="#FFFFFF" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSaved((prev) => !prev);
+                        }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'rgba(15, 23, 42, 0.72)',
+                          backdropFilter: 'blur(8px)',
+                          border: isSaved
+                            ? '1px solid #F59E0B'
+                            : '1px solid rgba(255, 255, 255, 0.25)',
+                          color: isSaved ? '#F59E0B' : '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                        aria-label={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                      >
+                        <BookmarkIcon
+                          size={15}
+                          color={isSaved ? '#F59E0B' : '#FFFFFF'}
+                          fill={isSaved ? '#F59E0B' : 'none'}
+                        />
+                      </button>
                     </div>
                   </div>
 
@@ -599,8 +700,8 @@ export function PoiDetailView({
                             onClick={() => setActivePhotoIdx(idx)}
                             style={{
                               flex: '0 0 46px',
-                              height: '32px',
-                              borderRadius: 'var(--radius-sm)',
+                              height: '30px',
+                              borderRadius: '6px',
                               backgroundImage: `url(${item.url})`,
                               backgroundSize: 'cover',
                               backgroundPosition: 'center',
@@ -619,7 +720,7 @@ export function PoiDetailView({
                   )}
                 </div>
               ) : (
-                /* Authentic Illustration Fallback when no Wikimedia photo exists */
+                /* Authentic Category Vector Illustration Fallback */
                 <div
                   style={{
                     padding: '28px 16px',
@@ -631,7 +732,7 @@ export function PoiDetailView({
                     textAlign: 'center',
                   }}
                 >
-                  <ViewfinderPhotoIllustration size={80} />
+                  <PoiCategoryFallbackIllustration category={poi.category} size={90} />
                   <span
                     style={{
                       marginTop: '8px',
@@ -639,15 +740,16 @@ export function PoiDetailView({
                       fontFamily: 'var(--font-code, monospace)',
                       color: 'var(--color-text-muted)',
                       letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
                     }}
                   >
-                    {'// COMMUNITY IMAGERY PENDING'}
+                    {`// ${poi.category || 'ATTRACTION'} ARCHIVE`}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Content Details */}
+            {/* Content Details (Luxury Reference Layout) */}
             <div
               style={{
                 padding: '14px',
@@ -656,262 +758,185 @@ export function PoiDetailView({
                 gap: '12px',
               }}
             >
-              {/* Category & City Tag */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <PoiCategoryBadge category={poi.category} size="md" />
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-code, monospace)',
-                    color: 'var(--color-text-muted)',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {poi.city || 'Destination'}
-                </span>
-              </div>
-
-              {/* Title */}
-              <h2
+              {/* Pricing & Rating Row */}
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: '19px',
-                  lineHeight: 1.25,
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-display, inherit)',
-                  color: 'var(--color-text-primary)',
-                  letterSpacing: '-0.01em',
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  paddingTop: '2px',
                 }}
               >
-                {poi.name}
-              </h2>
-
-              {/* Action Buttons: Add to Itinerary & Focus */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {availableDays && availableDays.length > 0 && (
-                    <select
-                      value={selectedDay}
-                      onChange={(e) => setSelectedDay(Number(e.target.value))}
-                      style={{
-                        background: 'var(--color-surface-raised)',
-                        border: '1px solid var(--color-border)',
-                        color: 'var(--color-text-primary)',
-                        padding: '8px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '11.5px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        outline: 'none',
-                        boxShadow: 'var(--shadow-sm)',
-                      }}
-                      title="Select target day in itinerary"
-                    >
-                      {availableDays.map((d) => (
-                        <option key={d} value={d}>
-                          Day {d}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleAddClick}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span
                     style={{
-                      flex: 1,
-                      background: addedToast ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-primary)',
-                      color: 'var(--color-text-on-accent)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      boxShadow: 'var(--shadow-sm)',
-                      transition: 'background-color 0.2s ease',
+                      fontSize: '22px',
+                      fontWeight: 800,
+                      letterSpacing: '-0.02em',
+                      fontFamily: 'var(--font-display, inherit)',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
-                    {addedToast ? (
-                      <>
-                        <CheckIcon size={14} />
-                        <span>Added to Day {selectedDay}!</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>+ Add to Itinerary</span>
-                      </>
-                    )}
-                  </button>
+                    {poi.cost_eur === 0 ? 'Free' : `${currencySymbol}${Math.round(poi.cost_eur)}`}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-code, monospace)',
+                    }}
+                  >
+                    / person
+                  </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handleFocusClick}
+                <div
+                  title="Taste match calculated from your travel preferences"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'rgba(20, 120, 141, 0.08)',
+                    border: '1px solid rgba(20, 120, 141, 0.25)',
+                    padding: '3px 8px',
+                    borderRadius: '16px',
+                  }}
+                >
+                  <CompassIcon size={13} color="var(--color-accent-teal-mid, #14788D)" />
+                  <span
                     style={{
-                      flex: 1,
-                      background: 'var(--color-surface-raised)',
-                      border: '1px solid var(--color-border)',
-                      color: 'var(--color-text-primary)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '6px 10px',
                       fontSize: '11px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      boxShadow: 'var(--shadow-sm)',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                      e.currentTarget.style.color = 'var(--color-accent-primary)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--color-border)';
-                      e.currentTarget.style.color = 'var(--color-text-primary)';
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-code, monospace)',
+                      color: 'var(--color-accent-teal-mid, #14788D)',
+                      letterSpacing: '0.02em',
                     }}
                   >
-                    <span>🎯 Focus on Map</span>
-                  </button>
+                    {tasteMatchPct}% Taste Match
+                  </span>
+                </div>
+              </div>
 
+              {/* Subtle Divider */}
+              <div style={{ height: '1px', background: 'var(--color-border)', opacity: 0.6 }} />
+
+              {/* Title & Address */}
+              <div>
+                <h2
+                  style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '18px',
+                    lineHeight: 1.3,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display, inherit)',
+                    color: 'var(--color-text-primary)',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {poi.name}
+                </h2>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '11.5px',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  <PinIcon size={13} color="var(--color-text-muted)" />
+                  <span>{poi.city || 'Destination'}</span>
                   {poi.website && (
                     <a
                       href={poi.website}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        background: 'var(--color-surface-raised)',
-                        border: '1px solid var(--color-border)',
-                        color: 'var(--color-text-secondary)',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '6px 10px',
+                        marginLeft: 'auto',
+                        color: 'var(--color-accent-primary)',
                         fontSize: '11px',
                         textDecoration: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                        boxShadow: 'var(--shadow-sm)',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                        e.currentTarget.style.color = 'var(--color-accent-primary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-border)';
-                        e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        fontWeight: 600,
                       }}
                     >
-                      <span>Website</span>
-                      <span>↗</span>
+                      Website
                     </a>
                   )}
                 </div>
-
-                {/* Tactical Draggable Handle: Pick up and drop directly into route */}
-                <div
-                  draggable={true}
-                  onDragStart={(e) => {
-                    onDragStartPoi?.();
-                    const ghost = createRouteCardDragImage({
-                      name: poi.name,
-                      category: poi.category,
-                      duration_mins: poi.duration_mins,
-                      cost_eur: poi.cost_eur,
-                    });
-                    e.dataTransfer.setDragImage(ghost, 20, 20);
-                    setTimeout(() => ghost.remove(), 0);
-
-                    e.dataTransfer.setData(
-                      'application/paladio-poi',
-                      JSON.stringify({
-                        source: 'inspector',
-                        poi: {
-                          id: poi.id,
-                          name: poi.name,
-                          category: poi.category,
-                          lat: poi.lat ?? 0,
-                          lng: poi.lng ?? 0,
-                          duration_mins: poi.duration_mins,
-                          cost_eur: poi.cost_eur,
-                          location: {
-                            latitude: poi.lat ?? 0,
-                            longitude: poi.lng ?? 0,
-                          },
-                        },
-                      })
-                    );
-                    e.dataTransfer.effectAllowed = 'copyMove';
-
-                    // Broadcast event to switch route tab
-                    window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(15, 76, 92, 0.08)',
-                    border: '1px dashed var(--color-accent-primary)',
-                    color: 'var(--color-accent-primary)',
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    cursor: 'grab',
-                    userSelect: 'none',
-                    transition: 'all 0.16s ease',
-                  }}
-                  title="Drag this place directly into any day slot in the route on the left"
-                >
-                  <GripVerticalIcon size={14} color="currentColor" />
-                  <span>DRAG PLACE INTO ROUTE</span>
-                </div>
               </div>
 
-              {/* 3-Column Metrics Grid */}
+              {/* Feature Chips Row */}
               <div
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gap: '8px',
-                  background: 'var(--color-surface-raised)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px',
-                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                {/* Duration */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-code, monospace)',
-                      color: 'var(--color-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Visit Duration
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <ClockIcon size={12} />
+                {/* 1. Rating Card */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                  }}
+                >
+                  <StarIcon size={14} fill="#F59E0B" color="#F59E0B" />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span
                       style={{
-                        fontSize: '12px',
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Rating
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      {poi.scoring?.rating ? poi.scoring.rating.toFixed(1) : (poi as any)?.rating ? (poi as any).rating.toFixed(1) : '4.8'} / 5.0
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Duration Card */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                  }}
+                >
+                  <ClockIcon size={14} color="var(--color-accent-primary)" />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Duration
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
                         fontWeight: 700,
                         fontFamily: 'var(--font-code, monospace)',
                         color: 'var(--color-text-primary)',
@@ -922,68 +947,85 @@ export function PoiDetailView({
                   </div>
                 </div>
 
-                {/* Admission */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-code, monospace)',
-                      color: 'var(--color-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Admission
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-code, monospace)',
-                      color: poi.cost_eur === 0 ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-primary)',
-                    }}
-                  >
-                    {poi.cost_eur === 0 ? 'FREE' : `${poi.cost_eur.toFixed(2)} €`}
-                  </span>
-                </div>
-
-                {/* Rating / Score */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      fontFamily: 'var(--font-code, monospace)',
-                      color: 'var(--color-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Authority
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-code, monospace)',
-                      color: '#B45309',
-                    }}
-                  >
-                    ★ {poi.scoring?.rating ? poi.scoring.rating.toFixed(1) : '4.8'}
-                  </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                  }}
+                >
+                  <TagIcon size={14} color="var(--color-accent-primary)" />
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Category
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-primary)',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {poi.category || 'Sight'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Operational Hours Section */}
+              {/* Description Overview */}
+              {poi.description && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-code, monospace)',
+                      fontSize: '9.5px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--color-text-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Overview
+                  </span>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '12.5px',
+                      lineHeight: 1.6,
+                      color: 'var(--color-text-secondary)',
+                      fontFamily: 'var(--font-body, inherit)',
+                    }}
+                  >
+                    {poi.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Collapsible Opening Hours */}
               <div
                 style={{
                   background: 'var(--color-surface-raised)',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: '10px',
                   padding: '10px 12px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: 'var(--shadow-sm)',
+                  gap: '6px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -993,57 +1035,109 @@ export function PoiDetailView({
                         width: '7px',
                         height: '7px',
                         borderRadius: '50%',
-                        background: isOpenNow ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #B45309)',
-                        boxShadow: isOpenNow ? '0 0 6px var(--color-success, #1F7A4D)' : 'none',
+                        background: isOpenOnTargetDay
+                          ? 'var(--color-success, #10B981)'
+                          : poi?.hours_known
+                          ? '#B45309'
+                          : 'var(--color-text-muted)',
                       }}
                     />
                     <span
                       style={{
                         fontFamily: 'var(--font-code, monospace)',
-                        fontSize: '11px',
+                        fontSize: '10.5px',
                         fontWeight: 700,
-                        color: isOpenNow ? 'var(--color-success, #1F7A4D)' : '#B45309',
+                        color: isOpenOnTargetDay
+                          ? 'var(--color-success, #10B981)'
+                          : poi?.hours_known
+                          ? '#B45309'
+                          : 'var(--color-text-primary)',
                       }}
                     >
-                      {isOpenNow ? 'OPEN NOW' : 'CLOSED NOW'}
+                      {isOpenOnTargetDay
+                        ? `OPEN ON DAY ${effectiveDayNumber}`
+                        : poi?.hours_known
+                        ? `CLOSED ON DAY ${effectiveDayNumber}`
+                        : 'HOURS UNLISTED'}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                      }}
+                    >
+                      ({isOpenOnTargetDay ? targetDayHoursLabel : poi?.hours_known ? 'Closed all day' : 'Check website'})
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowHoursGrid((prev) => !prev)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-accent-primary)',
-                      fontSize: '10.5px',
-                      fontFamily: 'var(--font-code, monospace)',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    {showHoursGrid ? 'Hide 7-day ▲' : 'All 7 Days ▼'}
-                  </button>
+                  {poi?.daily_windows && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHoursGrid((prev) => !prev)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-accent-primary)',
+                        fontSize: '10.5px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                      }}
+                    >
+                      <span>All Days</span>
+                      {showHoursGrid ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
+                    </button>
+                  )}
                 </div>
 
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: 'var(--color-text-secondary)',
-                    fontFamily: 'var(--font-code, monospace)',
-                  }}
-                >
-                  Today ({DAY_NAMES[currentDayIdx]}):{' '}
-                  <strong style={{ color: 'var(--color-text-primary)' }}>{todayHoursLabel}</strong>
-                </div>
-
-                {/* 7-day schedule grid */}
-                {showHoursGrid && poi.daily_windows && (
+                {/* Day Context Switcher for Searched POIs not yet in Route */}
+                {!isScheduledInRoute && (availableDays || [1, 2, 3]).length > 1 && (
                   <div
                     style={{
-                      marginTop: '6px',
-                      paddingTop: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 0 2px 0',
+                      borderTop: '1px dashed var(--color-border)',
+                      fontSize: '10px',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
+                      Preview:
+                    </span>
+                    {(availableDays || [1, 2, 3]).map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setSelectedPreviewDay(d)}
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          border: 'none',
+                          background: effectiveDayNumber === d ? 'var(--color-accent-primary)' : 'rgba(0,0,0,0.06)',
+                          color: effectiveDayNumber === d ? '#FFFFFF' : 'var(--color-text-muted)',
+                          fontSize: '10px',
+                          fontWeight: effectiveDayNumber === d ? 700 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        Day {d}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {showHoursGrid && poi?.daily_windows && (
+                  <div
+                    style={{
+                      marginTop: '4px',
+                      paddingTop: '6px',
                       borderTop: '1px dashed var(--color-border)',
                       display: 'flex',
                       flexDirection: 'column',
@@ -1052,8 +1146,8 @@ export function PoiDetailView({
                   >
                     {DAY_NAMES.map((dName, dayIdx) => {
                       const win = poi.daily_windows?.[dayIdx];
-                      const isToday = dayIdx === currentDayIdx;
-                      let hoursStr = 'Closed';
+                      const isTarget = dayIdx === targetDayOfWeekIdx;
+                      let hoursStr = poi?.hours_known ? 'Closed' : 'Not listed';
 
                       if (Array.isArray(win) && win.length > 0) {
                         const parsedList = win
@@ -1071,13 +1165,33 @@ export function PoiDetailView({
                           style={{
                             display: 'flex',
                             justifyContent: 'space-between',
+                            alignItems: 'center',
                             fontSize: '10.5px',
                             fontFamily: 'var(--font-code, monospace)',
-                            color: isToday ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                            fontWeight: isToday ? 700 : 400,
+                            color: isTarget ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                            fontWeight: isTarget ? 700 : 400,
+                            padding: isTarget ? '2px 6px' : '0px',
+                            background: isTarget ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
+                            borderRadius: '4px',
                           }}
                         >
-                          <span>{dName}:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{dName}:</span>
+                            {isTarget && (
+                              <span
+                                style={{
+                                  fontSize: '9px',
+                                  padding: '1px 5px',
+                                  borderRadius: '999px',
+                                  background: 'var(--color-accent-primary)',
+                                  color: '#FFFFFF',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                DAY {effectiveDayNumber}
+                              </span>
+                            )}
+                          </div>
                           <span>{hoursStr}</span>
                         </div>
                       );
@@ -1086,40 +1200,10 @@ export function PoiDetailView({
                 )}
               </div>
 
-              {/* Description */}
-              {poi.description && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-code, monospace)',
-                      fontSize: '10px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: 'var(--color-text-muted)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {'// HISTORICAL & CULTURAL OVERVIEW'}
-                  </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '12.5px',
-                      lineHeight: 1.6,
-                      color: 'var(--color-text-secondary)',
-                      fontFamily: 'var(--font-body, inherit)',
-                    }}
-                  >
-                    {poi.description}
-                  </p>
-                </div>
-              )}
-
-              {/* GPS Coordinates & Technical Specs */}
+              {/* Technical GPS Metadata */}
               <div
                 style={{
-                  paddingTop: '10px',
-                  borderTop: '1px solid var(--color-border)',
+                  paddingTop: '6px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1131,7 +1215,7 @@ export function PoiDetailView({
                 <span>
                   GPS: {poi.lat.toFixed(4)}° N, {poi.lng.toFixed(4)}° E
                 </span>
-                <span>ID: {poi.id.slice(0, 18)}...</span>
+                <span>ID: {poi.id ? poi.id.slice(0, 14) + '...' : 'LOCAL'}</span>
               </div>
             </div>
           </>
@@ -1342,7 +1426,7 @@ export function PoiDetailView({
                   rel="noopener noreferrer"
                   style={{ color: 'var(--color-accent-teal-soft, #7CC4D1)', textDecoration: 'underline' }}
                 >
-                  License Details ↗
+                  License Details
                 </a>
               )}
             </div>

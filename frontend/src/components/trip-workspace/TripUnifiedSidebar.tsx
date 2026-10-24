@@ -10,8 +10,11 @@ import { EmptyState } from '@/components/EmptyState';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
-import { useTrips } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
+import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
+import { getDayColor } from './TripMapView';
 import {
   SearchIcon,
   CheckIcon,
@@ -25,12 +28,15 @@ import {
   UnlockIcon,
   ChevronUpIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   WalkIcon,
   TransitIcon,
   PlusIcon,
   EditIcon,
   CpuIcon,
   LayersViewIcon,
+  StarIcon,
 } from '@/components/icons';
 
 export interface PlaceItem {
@@ -55,6 +61,7 @@ export interface PoiApiItem {
   duration_mins: number;
   cost_eur: number;
   similarity: number;
+  iconicity_score?: number;
   match_type?: string;
   description?: string;
   photo_url?: string;
@@ -128,6 +135,7 @@ interface PoiSearchResponseData {
   message?: string | null;
   exact_match?: PoiApiItem | null;
   results: PoiApiItem[];
+  total?: number | null;
 }
 
 export interface TripUnifiedSidebarProps {
@@ -149,7 +157,7 @@ export interface TripUnifiedSidebarProps {
   onCategoryPoisChange?: (pois: PoiApiItem[]) => void;
   hotelAnchor?: { name: string; lat: number; lng: number };
   airportAnchor?: { name: string; lat: number; lng: number };
-  onInspectPoi?: (poiId: string) => void;
+  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   inspectedPoiId?: string | null;
   onCloseInspect?: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
@@ -168,6 +176,8 @@ export interface TripUnifiedSidebarProps {
   onReoptimizeDay?: () => Promise<void>;
   isReoptimizing?: boolean;
   onToggleTransitMode?: () => void;
+  sidebarTab?: MainTabType;
+  onTabChange?: (tab: MainTabType) => void;
 }
 
 export type MainTabType = 'route' | 'search' | 'saved';
@@ -447,7 +457,7 @@ export function CustomDropdown<T extends string | number>({
             border: '1px solid var(--color-border)',
             boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
             padding: '6px',
-            zIndex: 1200,
+            zIndex: 2500,
             animation: 'fadeInScale 0.16s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
@@ -516,6 +526,649 @@ export function CustomDropdown<T extends string | number>({
   );
 }
 
+interface PriceRangeSliderDropdownProps {
+  value: [number, number];
+  onChange: (range: [number, number]) => void;
+  currencySymbol?: string;
+}
+
+export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '€' }: PriceRangeSliderDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const sym = currencySymbol || '€';
+  const isAny = value[0] === 0 && value[1] >= 100;
+  const label = isAny
+    ? 'Price: Any'
+    : value[0] === 0
+    ? `Price: < ${sym}${value[1]}`
+    : `Price: ${sym}${value[0]} – ${sym}${value[1]}${value[1] >= 100 ? '+' : ''}`;
+
+  const minPercent = Math.max(0, Math.min(100, (value[0] / 100) * 100));
+  const maxPercent = Math.max(0, Math.min(100, (value[1] / 100) * 100));
+
+  const presets = [
+    { label: 'Free', range: [0, 0] as [number, number] },
+    { label: `${sym}`, range: [0, 10] as [number, number] },
+    { label: `${sym}${sym}`, range: [10, 25] as [number, number] },
+    { label: `${sym}${sym}${sym}`, range: [25, 100] as [number, number] },
+    { label: 'Any', range: [0, 100] as [number, number] },
+  ];
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        aria-label="Filter by Price Range"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 12px',
+          borderRadius: '9999px',
+          border: `1px solid ${!isAny || isOpen ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+          background: isOpen ? 'var(--color-surface-raised, #F8FAFC)' : 'var(--color-surface-card, #FFFFFF)',
+          color: 'var(--color-text-primary)',
+          fontSize: '11.5px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontWeight: 600,
+          cursor: 'pointer',
+          boxShadow: isOpen ? '0 0 0 2px rgba(15, 76, 92, 0.15)' : 'var(--shadow-sm)',
+          transition: 'all 0.18s ease',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span>{label}</span>
+        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', color: 'var(--color-text-muted)', display: 'inline-flex' }}>
+          <ChevronDownIcon size={12} color="currentColor" />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            width: '260px',
+            background: 'var(--color-surface-card, #FFFFFF)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: '16px',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
+            padding: '14px',
+            zIndex: 2500,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+              PRICE RANGE
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange([0, 100])}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-accent-teal-mid, #14788D)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0',
+              }}
+            >
+              Reset
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
+            <span>{sym}{value[0]}</span>
+            <span>{value[1] >= 100 ? `${sym}100+` : `${sym}${value[1]}`}</span>
+          </div>
+
+          {/* Single Continuous Glider Line with Two Points */}
+          <div className="paladio-dual-slider-container" style={{ margin: '6px 0 2px 0' }}>
+            {/* Inactive background track */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                height: '4px',
+                borderRadius: '9999px',
+                background: 'var(--color-border, #E2D9CC)',
+              }}
+            />
+            {/* Active range colored segment between min and max points */}
+            <div
+              style={{
+                position: 'absolute',
+                left: `${minPercent}%`,
+                width: `${Math.max(0, maxPercent - minPercent)}%`,
+                height: '4px',
+                borderRadius: '9999px',
+                background: 'var(--color-accent-primary, #0F4C5C)',
+              }}
+            />
+            {/* Min Handle Point */}
+            <input
+              type="range"
+              className="paladio-range-input"
+              aria-label={`Minimum price ${sym}${value[0]}`}
+              min="0"
+              max="100"
+              step="5"
+              value={value[0]}
+              style={{ zIndex: value[0] > 90 ? 5 : 3 }}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                onChange([Math.min(val, value[1]), value[1]]);
+              }}
+            />
+            {/* Max Handle Point */}
+            <input
+              type="range"
+              className="paladio-range-input"
+              aria-label={`Maximum price ${sym}${value[1]}`}
+              min="0"
+              max="100"
+              step="5"
+              value={value[1]}
+              style={{ zIndex: 4 }}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                onChange([value[0], Math.max(val, value[0])]);
+              }}
+            />
+          </div>
+
+          {/* Quick presets */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', paddingTop: '6px', borderTop: '1px solid var(--color-border)' }}>
+            {presets.map((p) => {
+              const isSelected = value[0] === p.range[0] && value[1] === p.range[1];
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => onChange(p.range)}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    background: isSelected ? 'var(--color-accent-primary)' : 'var(--color-surface-subtle)',
+                    color: isSelected ? '#FFFFFF' : 'var(--color-text-primary)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DurationRangeSliderDropdownProps {
+  value: [number, number];
+  onChange: (range: [number, number]) => void;
+}
+
+function formatDurationMins(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  if (mins % 60 === 0) return `${mins / 60}h`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSliderDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const isAny = value[0] <= 15 && value[1] >= 240;
+  const label = isAny
+    ? 'Duration: Any'
+    : `Duration: ${formatDurationMins(value[0])} – ${formatDurationMins(value[1])}${value[1] >= 240 ? '+' : ''}`;
+
+  const minPercent = Math.max(0, Math.min(100, ((value[0] - 15) / (240 - 15)) * 100));
+  const maxPercent = Math.max(0, Math.min(100, ((value[1] - 15) / (240 - 15)) * 100));
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        aria-label="Filter by Duration Range"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 12px',
+          borderRadius: '9999px',
+          border: `1px solid ${!isAny || isOpen ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+          background: isOpen ? 'var(--color-surface-raised, #F8FAFC)' : 'var(--color-surface-card, #FFFFFF)',
+          color: 'var(--color-text-primary)',
+          fontSize: '11.5px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontWeight: 600,
+          cursor: 'pointer',
+          boxShadow: isOpen ? '0 0 0 2px rgba(15, 76, 92, 0.15)' : 'var(--shadow-sm)',
+          transition: 'all 0.18s ease',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span>{label}</span>
+        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', color: 'var(--color-text-muted)', display: 'inline-flex' }}>
+          <ChevronDownIcon size={12} color="currentColor" />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            width: '260px',
+            background: 'var(--color-surface-card, #FFFFFF)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: '16px',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
+            padding: '14px',
+            zIndex: 2500,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+              DURATION RANGE
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange([15, 240])}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-accent-teal-mid, #14788D)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0',
+              }}
+            >
+              Reset
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
+            <span>{formatDurationMins(value[0])}</span>
+            <span>{value[1] >= 240 ? '4h+' : formatDurationMins(value[1])}</span>
+          </div>
+
+          {/* Single Continuous Glider Line with Two Points */}
+          <div className="paladio-dual-slider-container" style={{ margin: '6px 0 2px 0' }}>
+            {/* Inactive background track */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                height: '4px',
+                borderRadius: '9999px',
+                background: 'var(--color-border, #E2D9CC)',
+              }}
+            />
+            {/* Active range colored segment between min and max points */}
+            <div
+              style={{
+                position: 'absolute',
+                left: `${minPercent}%`,
+                width: `${Math.max(0, maxPercent - minPercent)}%`,
+                height: '4px',
+                borderRadius: '9999px',
+                background: 'var(--color-accent-primary, #0F4C5C)',
+              }}
+            />
+            {/* Min Handle Point */}
+            <input
+              type="range"
+              className="paladio-range-input"
+              aria-label={`Minimum duration ${formatDurationMins(value[0])}`}
+              min="15"
+              max="240"
+              step="15"
+              value={value[0]}
+              style={{ zIndex: value[0] > 210 ? 5 : 3 }}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                onChange([Math.min(val, value[1]), value[1]]);
+              }}
+            />
+            {/* Max Handle Point */}
+            <input
+              type="range"
+              className="paladio-range-input"
+              aria-label={`Maximum duration ${formatDurationMins(value[1])}`}
+              min="15"
+              max="240"
+              step="15"
+              value={value[1]}
+              style={{ zIndex: 4 }}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                onChange([value[0], Math.max(val, value[0])]);
+              }}
+            />
+          </div>
+
+          {/* Quick presets */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', paddingTop: '6px', borderTop: '1px solid var(--color-border)' }}>
+            {[
+              { label: '< 45m', range: [15, 45] as [number, number] },
+              { label: '1 - 2h', range: [60, 120] as [number, number] },
+              { label: '> 2h', range: [120, 240] as [number, number] },
+              { label: 'Any', range: [15, 240] as [number, number] },
+            ].map((p) => {
+              const isSelected = value[0] === p.range[0] && value[1] === p.range[1];
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => onChange(p.range)}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    background: isSelected ? 'var(--color-accent-primary)' : 'var(--color-surface-subtle)',
+                    color: isSelected ? '#FFFFFF' : 'var(--color-text-primary)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface RatingStarFilterDropdownProps {
+  value: number; // 0 for all, or 0.5 - 5.0
+  onChange: (rating: number) => void;
+}
+
+export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setHoverRating(null);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const activeRating = hoverRating !== null ? hoverRating : value;
+  const isFiltered = value > 0;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        aria-label="Filter by Minimum Star Rating"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 12px',
+          borderRadius: '9999px',
+          border: `1px solid ${isFiltered || isOpen ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+          background: isOpen ? 'var(--color-surface-raised, #F8FAFC)' : 'var(--color-surface-card, #FFFFFF)',
+          color: isFiltered ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+          fontSize: '11.5px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontWeight: 600,
+          cursor: 'pointer',
+          boxShadow: isOpen ? '0 0 0 2px rgba(15, 76, 92, 0.15)' : 'var(--shadow-sm)',
+          transition: 'all 0.18s ease',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span>{isFiltered ? `Rating: ${value.toFixed(1)}★+` : 'Rating: Any'}</span>
+        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', color: 'var(--color-text-muted)', display: 'inline-flex' }}>
+          <ChevronDownIcon size={12} color="currentColor" />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '210px',
+            maxWidth: 'calc(100vw - 32px)',
+            background: 'var(--color-surface-card, #FFFFFF)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: '16px',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
+            padding: '14px',
+            zIndex: 2500,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+              MINIMUM RATING
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(0);
+                setHoverRating(null);
+              }}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-accent-teal-mid, #14788D)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0',
+              }}
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* 5 empty stars row with half-star hover/click */}
+          <div
+            onMouseLeave={() => setHoverRating(null)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 0',
+              background: 'var(--color-surface-subtle, #F8FAFC)',
+              borderRadius: '12px',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            {[1, 2, 3, 4, 5].map((starIdx) => {
+              const fullFilled = activeRating >= starIdx;
+              const halfFilled = !fullFilled && activeRating >= starIdx - 0.5;
+
+              return (
+                <div
+                  key={starIdx}
+                  style={{
+                    position: 'relative',
+                    width: '24px',
+                    height: '24px',
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* Empty star outline */}
+                  {!fullFilled && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <StarIcon size={20} fill="none" color="var(--color-border, #CBD5E1)" style={{ display: 'block' }} />
+                    </div>
+                  )}
+
+                  {/* Half filled foreground */}
+                  {halfFilled && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '50%',
+                        height: '100%',
+                        overflow: 'hidden',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <StarIcon size={20} fill="#F59E0B" color="#F59E0B" style={{ display: 'block' }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Full filled foreground */}
+                  {fullFilled && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <StarIcon size={20} fill="#F59E0B" color="#F59E0B" style={{ display: 'block' }} />
+                    </div>
+                  )}
+
+                  {/* Left half interactive target (0.5 stars) */}
+                  <div
+                    onMouseEnter={() => setHoverRating(starIdx - 0.5)}
+                    onClick={() => {
+                      const next = value === starIdx - 0.5 ? 0 : starIdx - 0.5;
+                      onChange(next);
+                      setHoverRating(null);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '50%',
+                      height: '100%',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                    }}
+                  />
+
+                  {/* Right half interactive target (1.0 stars) */}
+                  <div
+                    onMouseEnter={() => setHoverRating(starIdx)}
+                    onClick={() => {
+                      const next = value === starIdx ? 0 : starIdx;
+                      onChange(next);
+                      setHoverRating(null);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: '50%',
+                      height: '100%',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: 'center', fontSize: '11px', color: activeRating > 0 ? '#B45309' : 'var(--color-text-muted)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+            {activeRating > 0 ? `★ ${activeRating.toFixed(1)} & above` : 'Any rating'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TripUnifiedSidebar({
   isOpen,
   onToggle,
@@ -547,9 +1200,27 @@ export function TripUnifiedSidebar({
   onReoptimizeDay,
   isReoptimizing = false,
   onToggleTransitMode,
+  sidebarTab,
+  onTabChange,
 }: TripUnifiedSidebarProps) {
+  const { user } = useAuth();
+  const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(destinationCity), [destinationCity]);
+  const activeCurrencyCode = (user?.preferences?.default_currency as string) || destCurrencyMeta.currency || 'EUR';
+  const currencySymbol = useMemo(() => {
+    const info = getCurrencyInfo(activeCurrencyCode);
+    return info?.symbol || destCurrencyMeta.symbol || '€';
+  }, [activeCurrencyCode, destCurrencyMeta.symbol]);
+
   // Primary Tabs State
-  const [activeTab, setActiveTab] = useState<MainTabType>('route');
+  const [internalActiveTab, setInternalActiveTab] = useState<MainTabType>('route');
+  const activeTab = sidebarTab !== undefined ? sidebarTab : internalActiveTab;
+  const setActiveTab = useCallback(
+    (tab: MainTabType) => {
+      setInternalActiveTab(tab);
+      onTabChange?.(tab);
+    },
+    [onTabChange]
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -558,6 +1229,7 @@ export function TripUnifiedSidebar({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -566,8 +1238,9 @@ export function TripUnifiedSidebar({
     if (typeof selectedDay === 'number') return selectedDay;
     return initialDay || 1;
   });
-  const [costFilter, setCostFilter] = useState<'any' | 'free' | 'under15' | 'under30'>('any');
-  const [durationFilter, setDurationFilter] = useState<'any' | 'quick' | 'medium' | 'long'>('any');
+  const [costRange, setCostRange] = useState<[number, number]>([0, 100]);
+  const [durationRange, setDurationRange] = useState<[number, number]>([15, 240]);
+  const [minRating, setMinRating] = useState<number>(0);
   const [sortOption, setSortOption] = useState<'best' | 'rating' | 'cost' | 'name'>('best');
 
   // Saved / Bookmarked state
@@ -646,21 +1319,75 @@ export function TripUnifiedSidebar({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isMenuOpen]);
 
+  // Active Day Convex Hull for POI search prioritization
+  const activeDayHull = useMemo<[number, number][] | null>(() => {
+    if (selectedDay === 'all') return null;
+    const targetDayData = days.find((d) => d.day === selectedDay);
+    if (!targetDayData?.itinerary?.path || targetDayData.itinerary.path.length === 0) return null;
+    const cityPoints: { lat: number; lng: number }[] = [];
+    targetDayData.itinerary.path.forEach((sp: ScheduledPoi) => {
+      const p = sp.poi;
+      if (!p) return;
+      const lat = p.location?.latitude ?? (p as any).lat;
+      const lng = p.location?.longitude ?? (p as any).lng;
+      if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+        cityPoints.push({ lat, lng });
+      }
+    });
+    if (cityPoints.length === 0) return null;
+    return computeClusterPolygon(cityPoints);
+  }, [days, selectedDay]);
+
+  // Active Day Bounding Box for backend spatial search prioritization
+  const activeDayBounds = useMemo<string | null>(() => {
+    if (selectedDay === 'all') return null;
+    const targetDayData = days.find((d) => d.day === selectedDay);
+    if (!targetDayData?.itinerary?.path || targetDayData.itinerary.path.length === 0) return null;
+    let minLat = 90;
+    let maxLat = -90;
+    let minLng = 180;
+    let maxLng = -180;
+    let count = 0;
+    targetDayData.itinerary.path.forEach((sp: ScheduledPoi) => {
+      const p = sp.poi;
+      if (!p) return;
+      const lat = p.location?.latitude ?? (p as any).lat;
+      const lng = p.location?.longitude ?? (p as any).lng;
+      if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        count++;
+      }
+    });
+    if (count === 0) return null;
+    // Add ~1.5km buffer (approx 0.015 degrees)
+    return `${(minLat - 0.015).toFixed(6)},${(minLng - 0.015).toFixed(6)},${(maxLat + 0.015).toFixed(6)},${(maxLng + 0.015).toFixed(6)}`;
+  }, [days, selectedDay]);
+
   // Execute Dynamic POI Search
   const executeSearch = useCallback(
-    async (queryText: string, cat?: string) => {
+    async (queryText: string, cat?: string, offset: number = 0, append: boolean = false) => {
       const q = queryText.trim();
       const currentCat = cat !== undefined ? cat : activeCategory;
       const isCategoryBrowse = !q && currentCat && currentCat !== 'all';
       const isAllBrowse = !q && (!currentCat || currentCat === 'all');
 
-      setIsLoadingSearch(true);
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoadingSearch(true);
+      }
       setSearchErrorMessage(null);
       setHasSearched(true);
 
       try {
         const catParam = currentCat && currentCat !== 'all' ? `&category=${encodeURIComponent(currentCat)}` : '';
         const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
+        const dayParam = selectedDay !== 'all' ? `&day=${encodeURIComponent(String(selectedDay))}` : '';
+        const boundsParam = activeDayBounds ? `&bounds=${encodeURIComponent(activeDayBounds)}` : '';
+        const offsetParam = offset > 0 ? `&offset=${offset}` : '';
         const baseUrl = getApiBaseUrl();
         const limit = isCategoryBrowse ? 60 : isAllBrowse ? 40 : 25;
 
@@ -673,7 +1400,7 @@ export function TripUnifiedSidebar({
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             destinationCity
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}&limit=${limit}`,
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}&limit=${limit}${offsetParam}`,
           { headers }
         );
         if (!res.ok) {
@@ -719,19 +1446,43 @@ export function TripUnifiedSidebar({
           }
         }
 
-        setSearchData(data);
-        if (onCategoryPoisChange) {
-          onCategoryPoisChange(data.results || []);
+        if (append) {
+          setSearchData((prev) => {
+            if (!prev) return data;
+            const existingIds = new Set(prev.results.map((r) => r.id));
+            const newResults = data.results.filter((r) => !existingIds.has(r.id));
+            const merged = [...prev.results, ...newResults];
+            if (onCategoryPoisChange) {
+              onCategoryPoisChange(merged);
+            }
+            return {
+              ...data,
+              results: merged,
+              total: data.total ?? prev.total,
+            };
+          });
+        } else {
+          setSearchData(data);
+          if (onCategoryPoisChange) {
+            onCategoryPoisChange(data.results || []);
+          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
         setSearchErrorMessage(msg);
       } finally {
         setIsLoadingSearch(false);
+        setIsLoadingMore(false);
       }
     },
-    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange]
+    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds]
   );
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingSearch || isLoadingMore || !searchData) return;
+    const currentOffset = searchData.results.length;
+    executeSearch(searchQuery, activeCategory, currentOffset, true);
+  }, [isLoadingSearch, isLoadingMore, searchData, searchQuery, activeCategory, executeSearch]);
 
   // Sync external categoryFilter
   const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
@@ -789,23 +1540,65 @@ export function TripUnifiedSidebar({
       );
     }
 
-    // Cost filter
-    if (costFilter === 'free') list = list.filter((p) => p.cost_eur === 0);
-    else if (costFilter === 'under15') list = list.filter((p) => p.cost_eur <= 15);
-    else if (costFilter === 'under30') list = list.filter((p) => p.cost_eur <= 30);
+    // Cost range filter: [min, max] where max >= 100 means 100+
+    if (costRange[0] > 0 || costRange[1] < 100) {
+      list = list.filter((p) => {
+        const cost = p.cost_eur || 0;
+        if (cost < costRange[0]) return false;
+        if (costRange[1] < 100 && cost > costRange[1]) return false;
+        return true;
+      });
+    }
 
-    // Duration filter
-    if (durationFilter === 'quick') list = list.filter((p) => p.duration_mins <= 45);
-    else if (durationFilter === 'medium') list = list.filter((p) => p.duration_mins > 45 && p.duration_mins <= 120);
-    else if (durationFilter === 'long') list = list.filter((p) => p.duration_mins > 120);
+    // Duration range filter: [min, max] in mins where max >= 240 means 240m+ (4h+)
+    if (durationRange[0] > 15 || durationRange[1] < 240) {
+      list = list.filter((p) => {
+        const dur = p.duration_mins || 60;
+        if (dur < durationRange[0]) return false;
+        if (durationRange[1] < 240 && dur > durationRange[1]) return false;
+        return true;
+      });
+    }
+
+    // Rating star filter (0.5 to 5.0)
+    if (minRating > 0) {
+      list = list.filter((p) => {
+        const r = (p as any).rating ?? (p as any).scoring?.rating ?? (p.similarity ? Math.round((3.5 + p.similarity * 1.5) * 10) / 10 : 4.0);
+        return r >= minRating;
+      });
+    }
 
     // Sort
-    if (sortOption === 'cost') list.sort((a, b) => a.cost_eur - b.cost_eur);
-    else if (sortOption === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sortOption === 'rating' || sortOption === 'best') list.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+    if (sortOption === 'cost') {
+      list.sort((a, b) => a.cost_eur - b.cost_eur);
+    } else if (sortOption === 'name') {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortOption === 'best') {
+      // Iconicity is a really important factor (60% iconicity + 40% affinity/similarity)
+      list.sort((a, b) => {
+        const iconA = a.iconicity_score ?? (a as any).scoring?.iconicity_score ?? 0;
+        const iconB = b.iconicity_score ?? (b as any).scoring?.iconicity_score ?? 0;
+        const scoreA = 0.60 * iconA + 0.40 * (a.similarity || 0);
+        const scoreB = 0.60 * iconB + 0.40 * (b.similarity || 0);
+        return scoreB - scoreA;
+      });
+    } else if (sortOption === 'rating') {
+      list.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+    }
+
+    // Convex Hull prioritization for selected day (if all days, no hull prioritization)
+    if (activeDayHull && activeDayHull.length >= 3 && selectedDay !== 'all') {
+      list.sort((a, b) => {
+        const aIn = isPointInPolygon([a.lat, a.lng], activeDayHull);
+        const bIn = isPointInPolygon([b.lat, b.lng], activeDayHull);
+        if (aIn && !bIn) return -1;
+        if (!aIn && bIn) return 1;
+        return 0;
+      });
+    }
 
     return list;
-  }, [searchData, costFilter, durationFilter, sortOption, searchQuery, activeCategory, routePoiIdentifiers]);
+  }, [searchData, costRange, durationRange, minRating, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay]);
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
@@ -996,18 +1789,20 @@ export function TripUnifiedSidebar({
       {!isOpen && (
         <button
           type="button"
+          data-testid="sidebar-expand-btn"
           onClick={onToggle}
-          aria-label="Open Trip Command Panel"
-          title="Open Trip Command Panel"
+          aria-label="Open sidebar menu"
+          title="Open sidebar menu"
           style={{
             pointerEvents: 'auto',
             alignSelf: 'flex-start',
-            marginTop: '12px',
-            width: '42px',
+            marginTop: '16px',
+            width: '26px',
             height: '42px',
-            borderRadius: 'var(--radius-full)',
+            borderRadius: '0 10px 10px 0',
             background: 'var(--color-surface-card)',
             border: '1px solid var(--color-border)',
+            borderLeft: 'none',
             boxShadow: 'var(--shadow-md)',
             display: 'flex',
             alignItems: 'center',
@@ -1015,16 +1810,18 @@ export function TripUnifiedSidebar({
             cursor: 'pointer',
             color: 'var(--color-accent-primary)',
             transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            zIndex: 1060,
           }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
-          <SearchIcon size={18} />
+          <ChevronRightIcon size={16} />
         </button>
       )}
 
-      {/* Main Single Floating Card Container */}
+      {/* Main Single Floating Card Container with External Collapse Arrow */}
       {isOpen && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', height: '100%', position: 'relative' }}>
         <aside
           data-testid="trip-unified-sidebar"
           style={{
@@ -1152,8 +1949,37 @@ export function TripUnifiedSidebar({
                   </button>
                 </div>
 
-                {/* Right Options Menu Button */}
-                <div style={{ position: 'relative' }} ref={menuRef}>
+                {/* Right Area: Day View Indicator (Search & Saved tabs) or Options Menu Button (Route tab) */}
+                {activeTab !== 'route' ? (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      background: selectedDay === 'all' ? 'rgba(15, 76, 92, 0.08)' : `${getDayColor(selectedDay as number)}18`,
+                      border: `1px solid ${selectedDay === 'all' ? 'rgba(15, 76, 92, 0.25)' : `${getDayColor(selectedDay as number)}40`}`,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      letterSpacing: '0.04em',
+                      color: selectedDay === 'all' ? '#0F4C5C' : getDayColor(selectedDay as number),
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: selectedDay === 'all' ? '#0F4C5C' : getDayColor(selectedDay as number),
+                      }}
+                    />
+                    {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }} ref={menuRef}>
                   <button
                     type="button"
                     aria-label="Trip options menu"
@@ -1309,7 +2135,8 @@ export function TripUnifiedSidebar({
                     </div>
                   )}
                 </div>
-              </div>
+              )}
+            </div>
 
               {/* Secondary Sub-Bar with Smooth Edge-Hover Scrolling */}
               {activeTab === 'route' ? (
@@ -1421,9 +2248,12 @@ export function TripUnifiedSidebar({
 
               {/* Main Content Area */}
               <div
+                className="no-scrollbar"
                 style={{
                   flex: 1,
                   overflowY: 'auto',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
                   display: 'flex',
                   flexDirection: 'column',
                 }}
@@ -1536,7 +2366,29 @@ export function TripUnifiedSidebar({
                                     stopNum={stopNum}
                                     anchorInfo={anchorInfo}
                                     onClick={() => {
-                                      if (p?.id && onInspectPoi) onInspectPoi(p.id);
+                                      const pId = p?.id || p?.name;
+                                      const lat = p?.location?.latitude ?? (p as unknown as { lat?: number })?.lat;
+                                      const lng = p?.location?.longitude ?? (p as unknown as { lng?: number })?.lng;
+                                      if (pId && onInspectPoi) {
+                                        onInspectPoi(pId, {
+                                          ...p,
+                                          lat,
+                                          lng,
+                                          day: dayObj.day,
+                                        } as unknown as Record<string, unknown>);
+                                      }
+                                      if (typeof lat === 'number' && typeof lng === 'number') {
+                                        onPlaceClick?.({
+                                          id: pId,
+                                          name: p?.name || 'Waypoint',
+                                          lat,
+                                          lng,
+                                          category: p?.category || 'attraction',
+                                          durationMins: p?.duration_mins,
+                                          costEur: p?.cost_eur,
+                                          day: dayObj.day,
+                                        });
+                                      }
                                     }}
                                   />
                                 </div>
@@ -1597,17 +2449,7 @@ export function TripUnifiedSidebar({
                 {activeTab === 'search' && (
                   <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {/* 1. Top Options Pill Dropdowns (Matching Reference) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-                      <CustomDropdown
-                        ariaLabel="Target Day"
-                        value={targetDay}
-                        onChange={(val) => setTargetDay(Number(val))}
-                        options={days.map((d) => ({
-                          value: d.day,
-                          label: `Add to Day ${d.day}`,
-                        }))}
-                        testId="target-day-dropdown"
-                      />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', overflow: 'visible' }}>
 
                       <CustomDropdown
                         ariaLabel="Sort Order"
@@ -1621,21 +2463,6 @@ export function TripUnifiedSidebar({
                         ]}
                         testId="sort-order-dropdown"
                       />
-
-                      <span
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '9999px',
-                          border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          color: 'var(--color-text-muted)',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Radius: 5 km
-                      </span>
                     </div>
 
                     {/* 2. Elevated Search Box Card (Matching Flight Search Form Card) */}
@@ -1697,28 +2524,6 @@ export function TripUnifiedSidebar({
                         )}
                       </div>
 
-                      {/* Location / Destination Anchor Context */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0 4px',
-                          fontSize: '11px',
-                          color: 'var(--color-text-muted)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Location:</span>
-                          <span>{destinationCity || 'Trip City'}</span>
-                        </div>
-                        {hotelAnchor && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: 'var(--color-accent-teal-mid)' }}>Near Hotel Base</span>
-                          </div>
-                        )}
-                      </div>
-
                       {/* Full-width Prominent Search Button */}
                       <button
                         type="button"
@@ -1758,37 +2563,28 @@ export function TripUnifiedSidebar({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
-                        overflowX: 'auto',
-                        scrollbarWidth: 'none',
+                        flexWrap: 'wrap',
+                        overflow: 'visible',
                         paddingBottom: '2px',
                       }}
                     >
-                      {/* Price filter chip */}
-                      <CustomDropdown
-                        ariaLabel="Filter by Price"
-                        value={costFilter}
-                        onChange={(val) => setCostFilter(val as any)}
-                        options={[
-                          { value: 'any', label: 'Price: Any' },
-                          { value: 'free', label: 'Free Only' },
-                          { value: 'under15', label: '< €15' },
-                          { value: 'under30', label: '< €30' },
-                        ]}
-                        testId="price-filter-dropdown"
+                      {/* Price range slider filter */}
+                      <PriceRangeSliderDropdown
+                        value={costRange}
+                        onChange={setCostRange}
+                        currencySymbol={currencySymbol}
                       />
 
-                      {/* Duration filter chip */}
-                      <CustomDropdown
-                        ariaLabel="Filter by Duration"
-                        value={durationFilter}
-                        onChange={(val) => setDurationFilter(val as any)}
-                        options={[
-                          { value: 'any', label: 'Duration: Any' },
-                          { value: 'quick', label: '< 45 mins' },
-                          { value: 'medium', label: '1 - 2 hours' },
-                          { value: 'long', label: '> 2 hours' },
-                        ]}
-                        testId="duration-filter-dropdown"
+                      {/* Duration range slider filter */}
+                      <DurationRangeSliderDropdown
+                        value={durationRange}
+                        onChange={setDurationRange}
+                      />
+
+                      {/* Star rating filter on the right */}
+                      <RatingStarFilterDropdown
+                        value={minRating}
+                        onChange={setMinRating}
                       />
                     </div>
 
@@ -1812,7 +2608,11 @@ export function TripUnifiedSidebar({
                         <InfoIcon size={13} color="var(--color-text-muted)" />
                       </div>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
-                        {filteredSearchResults.length} PLACES
+                        {searchData?.total != null
+                          ? searchData.total > 1000
+                            ? '+1000 PLACES'
+                            : `${searchData.total} PLACES`
+                          : `${filteredSearchResults.length} PLACES`}
                       </span>
                     </div>
 
@@ -1854,6 +2654,17 @@ export function TripUnifiedSidebar({
                                 setActiveTab('route');
                               }, 50);
                             }}
+                            onClick={() => {
+                              onPlaceClick?.({
+                                id: poi.id,
+                                name: poi.name,
+                                lat: poi.lat,
+                                lng: poi.lng,
+                                category: poi.category,
+                                durationMins: poi.duration_mins,
+                                costEur: poi.cost_eur,
+                              });
+                            }}
                             style={{
                               background: 'var(--color-surface-card, #FFFFFF)',
                               border: '1px solid var(--color-border)',
@@ -1864,7 +2675,7 @@ export function TripUnifiedSidebar({
                               gap: '10px',
                               boxShadow: 'var(--shadow-sm)',
                               transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                              cursor: 'grab',
+                              cursor: 'pointer',
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -1920,13 +2731,16 @@ export function TripUnifiedSidebar({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                                 <div style={{ textAlign: 'right' }}>
                                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                    {poi.cost_eur === 0 ? 'FREE' : `€${poi.cost_eur}`}
+                                    {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
                                   </div>
                                   <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => handleQuickAddPoi(poi, targetDay)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickAddPoi(poi, targetDay);
+                                  }}
                                   style={{
                                     padding: '6px 12px',
                                     borderRadius: '9999px',
@@ -1972,7 +2786,7 @@ export function TripUnifiedSidebar({
                                     color: 'var(--color-success)',
                                   }}
                                 >
-                                  {Math.round(poi.similarity * 100)}% MATCH
+                                  {Math.round(poi.similarity * 100)}% AFFINITY
                                 </span>
                               )}
                             </div>
@@ -1991,7 +2805,10 @@ export function TripUnifiedSidebar({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => onInspectPoi && onInspectPoi(poi.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onInspectPoi?.(poi.id, poi as unknown as Record<string, unknown>);
+                                  }}
                                   style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -2006,9 +2823,9 @@ export function TripUnifiedSidebar({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    onPlaceClick &&
-                                    onPlaceClick({
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPlaceClick?.({
                                       id: poi.id,
                                       name: poi.name,
                                       lat: poi.lat,
@@ -2016,8 +2833,8 @@ export function TripUnifiedSidebar({
                                       category: poi.category,
                                       durationMins: poi.duration_mins,
                                       costEur: poi.cost_eur,
-                                    })
-                                  }
+                                    });
+                                  }}
                                   style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -2033,7 +2850,10 @@ export function TripUnifiedSidebar({
                               </div>
                               <button
                                 type="button"
-                                onClick={() => toggleSavePoi(poi.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSavePoi(poi.id);
+                                }}
                                 style={{
                                   background: 'transparent',
                                   border: 'none',
@@ -2053,6 +2873,52 @@ export function TripUnifiedSidebar({
                           </div>
                         );
                       })}
+
+                      {searchData?.results &&
+                        (searchData.total != null
+                          ? searchData.results.length < searchData.total
+                          : searchData.results.length >= 15) && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'center',
+                              paddingTop: '10px',
+                              paddingBottom: '8px',
+                            }}
+                          >
+                            <button
+                              type="button"
+                              data-testid="load-more-pois-btn"
+                              onClick={handleLoadMore}
+                              disabled={isLoadingMore}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 24px',
+                                borderRadius: 'var(--radius-full)',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-surface-card)',
+                                color: 'var(--color-text-primary)',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: isLoadingMore ? 'not-allowed' : 'pointer',
+                                opacity: isLoadingMore ? 0.7 : 1,
+                                boxShadow: 'var(--shadow-sm)',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isLoadingMore) e.currentTarget.style.background = 'var(--color-surface-subtle)';
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isLoadingMore) e.currentTarget.style.background = 'var(--color-surface-card)';
+                              }}
+                            >
+                              {isLoadingMore ? <Spinner size={12} color="currentColor" /> : null}
+                              <span>{isLoadingMore ? 'Loading more places...' : 'Load More Places'}</span>
+                            </button>
+                          </div>
+                        )}
 
                       {filteredSearchResults.length === 0 && hasSearched && !isLoadingSearch && (
                         <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--color-text-muted)' }}>
@@ -2110,6 +2976,46 @@ export function TripUnifiedSidebar({
                 )}
               </div>
         </aside>
+
+        {/* External arrow button outside the menu to close it */}
+        <button
+          type="button"
+          data-testid="sidebar-collapse-btn"
+          onClick={onToggle}
+          aria-label="Close sidebar menu"
+          title="Close sidebar menu"
+          style={{
+            pointerEvents: 'auto',
+            alignSelf: 'flex-start',
+            marginTop: '16px',
+            marginLeft: '-1px',
+            width: '26px',
+            height: '42px',
+            borderRadius: '0 10px 10px 0',
+            background: 'var(--color-surface-card, #FFFFFF)',
+            border: '1px solid var(--color-border)',
+            borderLeft: 'none',
+            boxShadow: 'var(--shadow-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--color-text-secondary)',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            zIndex: 1060,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--color-accent-primary)';
+            e.currentTarget.style.background = 'var(--color-surface-raised)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--color-text-secondary)';
+            e.currentTarget.style.background = 'var(--color-surface-card)';
+          }}
+        >
+          <ChevronLeftIcon size={16} />
+        </button>
+      </div>
       )}
     </div>
   );

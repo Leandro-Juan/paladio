@@ -162,9 +162,11 @@ export function getPoiOpeningHours(
 
   const oH = String(Math.floor(openMins / 60) % 24).padStart(2, '0');
   const oM = String(openMins % 60).padStart(2, '0');
-  const cH = String(Math.floor(closeMins / 60) % 24).padStart(2, '0');
+  const rawCloseHours = Math.floor(closeMins / 60);
+  const cH = String(rawCloseHours % 24).padStart(2, '0');
   const cM = String(closeMins % 60).padStart(2, '0');
+  const nextDay = rawCloseHours >= 24 && !(rawCloseHours === 24 && cM === '00') ? ' (+1)' : '';
 
-  return `Open ${oH}:${oM} – ${cH}:${cM}`;
+  return `Open ${oH}:${oM} – ${cH}:${cM}${nextDay}`;
 }
 

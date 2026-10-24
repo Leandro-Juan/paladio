@@ -223,3 +223,23 @@ export function computeCurvedRoutePath(
 
   return fullPath;
 }
+
+/**
+ * Tests whether a point [lat, lng] is strictly inside a 2D polygon defined by [[lat, lng], ...].
+ * Uses standard Ray Casting algorithm.
+ */
+export function isPointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
+  if (!polygon || polygon.length < 3) return false;
+  let inside = false;
+  const x = point[0];
+  const y = point[1];
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}

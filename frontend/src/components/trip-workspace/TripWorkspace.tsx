@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import NextImage from 'next/image';
 import { Trip, useTrips } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
 import { notify } from '@/utils/notify';
+import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripUnifiedSidebar } from './TripUnifiedSidebar';
@@ -37,6 +38,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
   const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'saved'>('route');
+  const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
+  const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
+  const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -292,17 +297,78 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     if (place.day) {
       setSelectedDay(place.day);
     }
+    // Always show POI details on the right when a POI is clicked
+    if (place.id || place.name) {
+      const pid = place.id || place.name || 'waypoint';
+      const fallback = {
+        id: place.id,
+        name: place.name,
+        lat: place.lat,
+        lng: place.lng,
+        category: place.category,
+        duration_mins: place.durationMins,
+        cost_eur: place.costEur,
+      };
+      setInspectedPoiId(pid);
+      setInspectedPoiFallback(fallback);
+      setLastInspectedPoi({ id: pid, fallback });
+    }
   }, []);
 
-  const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
-
-  const handleInspectPoi = useCallback((id: string) => {
+  const handleInspectPoi = useCallback((id: string, fallbackData?: Partial<PoiDetail>) => {
     setInspectedPoiId(id);
+    setInspectedPoiFallback(fallbackData || null);
+    setLastInspectedPoi({ id, fallback: fallbackData });
     setIsSidebarOpen(true);
+
+    const lat = fallbackData?.lat ?? (fallbackData as unknown as { location?: { latitude?: number } })?.location?.latitude;
+    const lng = fallbackData?.lng ?? (fallbackData as unknown as { location?: { longitude?: number } })?.location?.longitude;
+    if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+      setFocusedPlace({
+        id,
+        name: fallbackData?.name || id,
+        lat,
+        lng,
+        category: (fallbackData?.category as string) || 'attraction',
+        durationMins: fallbackData?.duration_mins,
+        costEur: fallbackData?.cost_eur,
+        timestamp: Date.now(),
+      });
+    }
   }, []);
+
+  const scheduledPoiDay = useMemo(() => {
+    if (!inspectedPoiId && !inspectedPoiFallback?.name) return null;
+    const idToMatch = (inspectedPoiId || '').toLowerCase();
+    const nameToMatch = (inspectedPoiFallback?.name || '').toLowerCase();
+
+    for (const d of daysOutput) {
+      const path = d.itinerary?.path || [];
+      const found = path.some((step) => {
+        const stepId = (step.poi?.id || '').toLowerCase();
+        const stepName = (step.poi?.name || '').toLowerCase();
+        return (
+          (stepId && idToMatch && stepId === idToMatch) ||
+          (stepName && nameToMatch && stepName === nameToMatch) ||
+          (stepName && idToMatch && stepName === idToMatch)
+        );
+      });
+      if (found) return d.day;
+    }
+    return null;
+  }, [inspectedPoiId, inspectedPoiFallback?.name, daysOutput]);
 
   const handleCloseInspect = useCallback(() => {
     setInspectedPoiId(null);
+    setInspectedPoiFallback(null);
+  }, []);
+
+  useEffect(() => {
+    const handleSwitchToRoute = () => {
+      setIsSidebarOpen(true);
+    };
+    window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
+    return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
   }, []);
 
   const handleFocusFromDrawer = useCallback(
@@ -455,6 +521,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onFocusFromInspector={handleFocusFromDrawer}
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
+            sidebarTab={sidebarTab}
+            onTabChange={setSidebarTab}
             isEditMode={isEditMode}
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
@@ -466,6 +534,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           <TripSpeedDial
             dockSide="left"
             isPanelOpen={isSidebarOpen}
+            panelWidth={sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'}
             isEditMode={isEditMode}
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
@@ -475,43 +544,136 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             selectedDay={selectedDay}
           />
 
-          {/* Right Floating POI Details Drawer */}
+          {/* Right Floating POI Details Drawer with External Close Arrow */}
           {inspectedPoiId && (
-            <aside
-              data-testid="trip-poi-inspector-drawer"
+            <div
               style={{
                 position: 'absolute',
                 top: '16px',
-                bottom: '16px',
                 right: '16px',
-                width: 'min(420px, calc(100vw - 32px))',
-                background: 'var(--color-surface-card, #FFFFFF)',
-                backdropFilter: 'blur(28px)',
-                WebkitBackdropFilter: 'blur(28px)',
-                borderRadius: '24px',
-                border: '1px solid var(--color-border)',
-                boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
+                maxHeight: 'calc(100% - 32px)',
+                width: 'min(380px, calc(100vw - 32px))',
                 zIndex: 1040,
+                display: 'flex',
+                alignItems: 'flex-start',
                 animation: 'fadeInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1)',
-                pointerEvents: 'auto',
+                pointerEvents: 'none',
               }}
             >
-              <PoiDetailView
-                poiId={inspectedPoiId}
-                onClose={handleCloseInspect}
-                onAddToDay={handleAddPoiToDay}
-                onFocusOnMap={handleFocusFromDrawer}
-                availableDays={daysOutput.map((d) => d.day)}
-                initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
-                onDragStartPoi={() => {
-                  if (!isSidebarOpen) setIsSidebarOpen(true);
-                  window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+              {/* External Arrow Tab to Close POI Details */}
+              <button
+                type="button"
+                data-testid="poi-inspector-close-arrow"
+                onClick={handleCloseInspect}
+                aria-label="Close POI details"
+                title="Close POI details"
+                style={{
+                  pointerEvents: 'auto',
+                  alignSelf: 'flex-start',
+                  marginTop: '16px',
+                  marginRight: '-1px',
+                  width: '26px',
+                  height: '42px',
+                  borderRadius: '10px 0 0 10px',
+                  background: 'var(--color-surface-card, #FFFFFF)',
+                  border: '1px solid var(--color-border)',
+                  borderRight: 'none',
+                  boxShadow: '-4px 4px 14px rgba(0, 0, 0, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-secondary)',
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  zIndex: 1050,
                 }}
-              />
-            </aside>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-accent-primary)';
+                  e.currentTarget.style.background = 'var(--color-surface-raised)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-text-secondary)';
+                  e.currentTarget.style.background = 'var(--color-surface-card)';
+                }}
+              >
+                <ChevronRightIcon size={16} />
+              </button>
+
+              <aside
+                data-testid="trip-poi-inspector-drawer"
+                style={{
+                  pointerEvents: 'auto',
+                  flex: '1 1 auto',
+                  minWidth: 0,
+                  maxHeight: '100%',
+                  background: 'var(--color-surface-card, #FFFFFF)',
+                  backdropFilter: 'blur(28px)',
+                  WebkitBackdropFilter: 'blur(28px)',
+                  borderRadius: '24px',
+                  border: '1px solid var(--color-border)',
+                  boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <PoiDetailView
+                  key={`poi-detail-${inspectedPoiId || inspectedPoiFallback?.id || inspectedPoiFallback?.name || 'none'}`}
+                  poiId={inspectedPoiId}
+                  fallbackPoi={inspectedPoiFallback}
+                  city={trip.destination}
+                  onClose={handleCloseInspect}
+                  onAddToDay={handleAddPoiToDay}
+                  onFocusOnMap={handleFocusFromDrawer}
+                  availableDays={daysOutput.map((d) => d.day)}
+                  initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
+                  tripStartDate={trip.start_date}
+                  scheduledDay={scheduledPoiDay}
+                  onDragStartPoi={() => {
+                    if (!isSidebarOpen) setIsSidebarOpen(true);
+                    window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                  }}
+                />
+              </aside>
+            </div>
+          )}
+
+          {/* External Arrow Tab to Reopen POI Details when collapsed */}
+          {!inspectedPoiId && lastInspectedPoi && (
+            <button
+              type="button"
+              data-testid="poi-inspector-reopen-arrow"
+              onClick={() => {
+                setInspectedPoiId(lastInspectedPoi.id);
+                setInspectedPoiFallback(lastInspectedPoi.fallback || null);
+              }}
+              aria-label="Reopen POI details"
+              title={`Reopen ${lastInspectedPoi.fallback?.name || 'POI'} details`}
+              style={{
+                position: 'absolute',
+                top: '32px',
+                right: '0px',
+                width: '26px',
+                height: '42px',
+                borderRadius: '10px 0 0 10px',
+                background: 'var(--color-surface-card, #FFFFFF)',
+                border: '1px solid var(--color-border)',
+                borderRight: 'none',
+                boxShadow: '-4px 4px 14px rgba(0, 0, 0, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-accent-primary)',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                zIndex: 1040,
+                pointerEvents: 'auto',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              <ChevronLeftIcon size={16} />
+            </button>
           )}
         </div>
 

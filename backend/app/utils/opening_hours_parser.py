@@ -77,32 +77,65 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
     # Split rules separated by semicolon
     rules = [r.strip() for r in s.split(";") if r.strip()]
 
+    MONTH_HOLIDAY_KEYWORDS = {
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "may",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "oct",
+        "nov",
+        "dec",
+        "ph",
+        "sh",
+        "easter",
+    }
+
     for rule in rules:
         is_closed = any(kw in rule for kw in ["closed", "off"])
         applicable_days: list[int] = []
+        working_rule = rule
 
-        # Check day range: e.g. mo-fr, tu-sa, sa-su
-        range_match = re.search(r"\b([a-z]{2})\s*-\s*([a-z]{2})\b", rule)
-        if range_match:
+        # 1. Check all day ranges: e.g. mo-fr, tu-sa, sa-su
+        for range_match in re.finditer(r"\b([a-z]{2})\s*-\s*([a-z]{2})\b", rule):
             d_start, d_end = range_match.group(1), range_match.group(2)
             if d_start in DAY_INDEX_MAP and d_end in DAY_INDEX_MAP:
                 start_idx = DAY_INDEX_MAP[d_start]
                 end_idx = DAY_INDEX_MAP[d_end]
                 if start_idx <= end_idx:
-                    applicable_days.extend(range(start_idx, end_idx + 1))
+                    for d in range(start_idx, end_idx + 1):
+                        if d not in applicable_days:
+                            applicable_days.append(d)
                 else:  # wraps around weekend, e.g. fr-mo
-                    applicable_days.extend(range(start_idx, 7))
-                    applicable_days.extend(range(end_idx + 1))
+                    for d in list(range(start_idx, 7)) + list(range(end_idx + 1)):
+                        if d not in applicable_days:
+                            applicable_days.append(d)
+                working_rule = working_rule.replace(range_match.group(0), "  ")
 
-        # Check individual days: e.g. mo, tu, sa
-        if not applicable_days:
-            for day_str, idx in DAY_INDEX_MAP.items():
-                if re.search(rf"\b{day_str}\b", rule) and idx not in applicable_days:
+        # 2. Check all remaining individual days: e.g. mo, tu, sa, su
+        for day_match in re.finditer(r"\b([a-z]{2})\b", working_rule):
+            day_str = day_match.group(1)
+            if day_str in DAY_INDEX_MAP:
+                idx = DAY_INDEX_MAP[day_str]
+                if idx not in applicable_days:
                     applicable_days.append(idx)
 
-        # If no specific days mentioned, applies to all 7 days unless already set
+        has_month_or_holiday = any(
+            re.search(rf"\b{m}\b", rule) for m in MONTH_HOLIDAY_KEYWORDS
+        )
+
+        # If no specific days mentioned:
         if not applicable_days:
-            applicable_days = list(range(7))
+            # Date/holiday closure (e.g. Dec 28-Jan 01 off) should NOT wipe out the weekly schedule!
+            if is_closed and has_month_or_holiday:
+                continue
+            # If general time range with no day constraints and no holiday constraints, applies to all 7 days
+            if not has_month_or_holiday:
+                applicable_days = list(range(7))
 
         if is_closed:
             for d in applicable_days:
@@ -123,9 +156,10 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
                 c_min = parse_time_to_minutes(t_close)
                 if c_min < o_min:
                     c_min += 1440
+                interval = (o_min, c_min)
                 for d in applicable_days:
-                    if d not in closed_days:
-                        daily_windows[d].append((o_min, c_min))
+                    if d not in closed_days and interval not in daily_windows[d]:
+                        daily_windows[d].append(interval)
 
     if not matched_any:
         # Check if single simple time range exists in the entire string

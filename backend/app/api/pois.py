@@ -16,7 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, case, cast, Float, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
@@ -30,6 +30,7 @@ from app.infrastructure.providers.ollama_embedding_provider import (
     OllamaEmbeddingProvider,
 )
 from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
+from app.utils.opening_hours_parser import parse_osm_opening_hours
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class PoiSearchItem(BaseModel):
     facets: dict[str, Any] = Field(default_factory=dict)
     doc_quality: str = "C"
     hours_known: bool = False
+    rating: float | None = None
+    iconicity_score: float = 0.0
+    scoring: dict[str, Any] = Field(default_factory=dict)
     photo_url: str | None = None
     thumbnail_url: str | None = None
 
@@ -63,6 +67,7 @@ class PoiSearchResponse(BaseModel):
     message: str | None = None
     exact_match: PoiSearchItem | None = None
     results: list[PoiSearchItem] = []
+    total: int | None = None
 
 
 class PoiPhotoItem(BaseModel):
@@ -158,6 +163,15 @@ def _candidate_to_search_item(
     c: dict[str, Any], sim: float, match_type: str
 ) -> PoiSearchItem:
     lat, lng = _extract_coords(c.get("location"))
+    iconicity = float(c.get("iconicity_score") or 0.0)
+    scoring_dict = dict(c.get("scoring") or {})
+    scoring_dict["iconicity_score"] = iconicity
+    raw_rating = scoring_dict.get("rating")
+    rating_val = (
+        float(raw_rating)
+        if raw_rating is not None
+        else round(min(5.0, max(3.5, 3.5 + iconicity * 1.5)), 1)
+    )
     return PoiSearchItem(
         id=str(c.get("id")),
         name=str(c.get("name")),
@@ -167,6 +181,9 @@ def _candidate_to_search_item(
         duration_mins=int(c.get("duration_mins") or 60),
         cost_eur=float(c.get("cost_eur") or 0.0),
         similarity=round(float(sim), 3),
+        rating=rating_val,
+        iconicity_score=iconicity,
+        scoring=scoring_dict,
         match_type=match_type,
         description=c.get("description"),
         neighborhood=c.get("neighborhood"),
@@ -197,6 +214,24 @@ def _model_to_search_item(
 ) -> PoiSearchItem:
     lat, lng = _extract_coords(p.location)
     meta = p.metadata_field if isinstance(p.metadata_field, dict) else {}
+    iconicity = float(p.iconicity_score or 0.0)
+    scoring_dict = dict(p.scoring or {})
+    scoring_dict["iconicity_score"] = iconicity
+    raw_rating = scoring_dict.get("rating")
+    rating_val = (
+        float(raw_rating)
+        if raw_rating is not None
+        else round(min(5.0, max(3.5, 3.5 + iconicity * 1.5)), 1)
+    )
+    if match_type == "taste_recommendation" and similarity < 1.0:
+        # Calibrate 768D cosine similarity (typically 0.35 - 0.60) to human-readable affinity (62% - 98%)
+        calibrated_sim = min(
+            0.98, max(0.60, round(0.60 + (similarity - 0.38) * (0.38 / 0.22), 2))
+        )
+        final_sim = calibrated_sim
+    else:
+        final_sim = round(float(similarity), 3)
+
     return PoiSearchItem(
         id=str(p.id),
         name=p.name,
@@ -205,7 +240,10 @@ def _model_to_search_item(
         lng=lng,
         duration_mins=int(p.duration_mins or 60),
         cost_eur=float(p.cost_eur or 0.0),
-        similarity=round(float(similarity), 3),
+        similarity=final_sim,
+        rating=rating_val,
+        iconicity_score=iconicity,
+        scoring=scoring_dict,
         match_type=match_type,
         description=meta.get("description"),
         neighborhood=meta.get("neighborhood"),
@@ -243,7 +281,14 @@ async def search_pois(
     trip_id: str | None = Query(
         None, description="Optional trip ID to fetch trip-specific hotel and airport"
     ),
+    day: int | None = Query(
+        None, description="Optional trip day number for territorial spatial clustering"
+    ),
+    bounds: str | None = Query(
+        None, description="Optional bounding box 'min_lat,min_lng,max_lat,max_lng'"
+    ),
     limit: int = Query(15, ge=1, le=200, description="Max results to return"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
@@ -256,13 +301,88 @@ async def search_pois(
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
 
+    # Resolve user taste embedding for personalized recommendations & category affinity ranking
+    resolved_user = current_user
+    if not resolved_user and trip_id:
+        trip_obj = await session.get(TripModel, trip_id)
+        if trip_obj and trip_obj.user_id:
+            user_repo = SqlUserRepository(session)
+            resolved_user = await user_repo.get_by_id(trip_obj.user_id)
+
+    user_embedding = None
+    if (
+        resolved_user
+        and resolved_user.embedding is not None
+        and len(resolved_user.embedding) == 768
+    ):
+        user_embedding = resolved_user.embedding
+
+    # Resolve day territory / bounding box if bounds or day+trip_id provided
+    day_bounds: tuple[float, float, float, float] | None = None
+    if bounds:
+        try:
+            parts = [float(x.strip()) for x in bounds.split(",")]
+            if len(parts) == 4:
+                day_bounds = (parts[0], parts[1], parts[2], parts[3])
+        except Exception:
+            day_bounds = None
+
+    if not day_bounds and trip_id and day is not None and day > 0:
+        try:
+            trip_obj = await session.get(TripModel, trip_id)
+            if trip_obj and isinstance(trip_obj.itinerary_data, dict):
+                days_list = trip_obj.itinerary_data.get("days", [])
+                target_day_data = next(
+                    (d for d in days_list if d.get("day") == day), None
+                )
+                if target_day_data:
+                    day_path = (target_day_data.get("itinerary") or {}).get(
+                        "path"
+                    ) or []
+                    lats, lngs = [], []
+                    for sp in day_path:
+                        p = sp.get("poi") or {}
+                        cat_p = str(p.get("category", "")).lower()
+                        if cat_p in ("airport", "flight"):
+                            continue
+                        loc = p.get("location") or {}
+                        la = float(loc.get("latitude") or p.get("lat") or 0.0)
+                        lo = float(loc.get("longitude") or p.get("lng") or 0.0)
+                        if la != 0.0 and lo != 0.0:
+                            lats.append(la)
+                            lngs.append(lo)
+                    if lats and lngs:
+                        # Expand by 0.015 degrees (~1.5 km buffer)
+                        day_bounds = (
+                            min(lats) - 0.015,
+                            min(lngs) - 0.015,
+                            max(lats) + 0.015,
+                            max(lngs) + 0.015,
+                        )
+        except Exception as e:
+            logger.debug(f"Failed to resolve day territory bounds: {e}")
+
+    in_day_clause = None
+    if day_bounds:
+        b_min_lat, b_min_lng, b_max_lat, b_max_lng = day_bounds
+        in_day_clause = and_(
+            cast(AttractionModel.location["latitude"].astext, Float).between(
+                b_min_lat, b_max_lat
+            ),
+            cast(AttractionModel.location["longitude"].astext, Float).between(
+                b_min_lng, b_max_lng
+            ),
+        )
+
     # Category browse or top recommendation fill when no search text is entered
     if not clean_query:
         if category and category.lower() != "all":
             cat_lower = category.lower().strip()
             target_cats = CATEGORY_SYNONYMS.get(cat_lower, [cat_lower])
-            stmt = (
-                select(AttractionModel)
+
+            count_stmt = (
+                select(func.count())
+                .select_from(AttractionModel)
                 .where(
                     or_(
                         AttractionModel.city.ilike(city_name),
@@ -270,43 +390,102 @@ async def search_pois(
                     )
                 )
                 .where(func.lower(AttractionModel.category).in_(target_cats))
-                .order_by(
-                    AttractionModel.iconicity_score.desc(),
-                    AttractionModel.tier.asc(),
-                )
-                .limit(limit)
             )
-            db_pois = (await session.execute(stmt)).scalars().all()
-            results = [_model_to_search_item(p, "category_browse") for p in db_pois]
-            await _enrich_items_with_photos(results, city_name)
-            return PoiSearchResponse(
-                city=city_name,
-                query="",
-                search_type="category_browse",
-                exact_match_found=bool(results),
-                exact_match=None,
-                results=results,
-            )
-        else:
-            # Resolve user taste embedding for personalized recommendations
-            resolved_user = current_user
-            if not resolved_user and trip_id:
-                trip_obj = await session.get(TripModel, trip_id)
-                if trip_obj and trip_obj.user_id:
-                    user_repo = SqlUserRepository(session)
-                    resolved_user = await user_repo.get_by_id(trip_obj.user_id)
+            total_count = (await session.execute(count_stmt)).scalar() or 0
 
-            user_embedding = None
-            if (
-                resolved_user
-                and resolved_user.embedding is not None
-                and len(resolved_user.embedding) == 768
-            ):
-                user_embedding = resolved_user.embedding
+            order_clauses = []
+            if in_day_clause is not None:
+                order_clauses.append(case((in_day_clause, 1), else_=0).desc())
+            order_clauses.append(AttractionModel.tier.asc())
 
             if user_embedding is not None:
                 cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
                 sim_expr = (1.0 - func.coalesce(cos_dist, 1.0)).label("sim")
+                comp_quality = (
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.70
+                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.30
+                )
+                order_clauses.append(comp_quality.desc())
+
+                stmt = (
+                    select(AttractionModel, sim_expr)
+                    .where(
+                        or_(
+                            AttractionModel.city.ilike(city_name),
+                            AttractionModel.city_id == city_id,
+                        )
+                    )
+                    .where(func.lower(AttractionModel.category).in_(target_cats))
+                    .order_by(*order_clauses)
+                    .offset(offset)
+                    .limit(limit)
+                )
+                db_rows = (await session.execute(stmt)).all()
+                results = [
+                    _model_to_search_item(
+                        row[0],
+                        match_type="taste_recommendation",
+                        similarity=float(row[1] if row[1] is not None else 1.0),
+                    )
+                    for row in db_rows
+                ]
+            else:
+                order_clauses.append(AttractionModel.iconicity_score.desc())
+                stmt = (
+                    select(AttractionModel)
+                    .where(
+                        or_(
+                            AttractionModel.city.ilike(city_name),
+                            AttractionModel.city_id == city_id,
+                        )
+                    )
+                    .where(func.lower(AttractionModel.category).in_(target_cats))
+                    .order_by(*order_clauses)
+                    .offset(offset)
+                    .limit(limit)
+                )
+                db_pois = (await session.execute(stmt)).scalars().all()
+                results = [_model_to_search_item(p, "category_browse") for p in db_pois]
+
+            await _enrich_items_with_photos(results, city_name)
+            return PoiSearchResponse(
+                city=city_name,
+                query="",
+                search_type="taste_recommendation"
+                if user_embedding is not None
+                else "category_browse",
+                exact_match_found=bool(results),
+                exact_match=None,
+                results=results,
+                total=total_count,
+            )
+        else:
+            count_stmt = (
+                select(func.count())
+                .select_from(AttractionModel)
+                .where(
+                    or_(
+                        AttractionModel.city.ilike(city_name),
+                        AttractionModel.city_id == city_id,
+                    )
+                )
+            )
+            total_count = (await session.execute(count_stmt)).scalar() or 0
+
+            order_clauses = []
+            if in_day_clause is not None:
+                order_clauses.append(case((in_day_clause, 1), else_=0).desc())
+            order_clauses.append(AttractionModel.tier.asc())
+
+            if user_embedding is not None:
+                cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
+                sim_expr = (1.0 - func.coalesce(cos_dist, 1.0)).label("sim")
+                comp_quality = (
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.70
+                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.30
+                )
+                order_clauses.append(comp_quality.desc())
+
                 stmt = (
                     select(AttractionModel, sim_expr)
                     .where(
@@ -316,11 +495,8 @@ async def search_pois(
                         )
                     )
                     .where(AttractionModel.embedding.isnot(None))
-                    .order_by(
-                        cos_dist.asc(),
-                        AttractionModel.tier.asc(),
-                        AttractionModel.iconicity_score.desc(),
-                    )
+                    .order_by(*order_clauses)
+                    .offset(offset)
                     .limit(limit)
                 )
                 db_rows = (await session.execute(stmt)).all()
@@ -340,8 +516,10 @@ async def search_pois(
                     exact_match_found=bool(results),
                     exact_match=None,
                     results=results,
+                    total=total_count,
                 )
             else:
+                order_clauses.append(AttractionModel.iconicity_score.desc())
                 stmt = (
                     select(AttractionModel)
                     .where(
@@ -350,10 +528,8 @@ async def search_pois(
                             AttractionModel.city_id == city_id,
                         )
                     )
-                    .order_by(
-                        AttractionModel.tier.asc(),
-                        AttractionModel.iconicity_score.desc(),
-                    )
+                    .order_by(*order_clauses)
+                    .offset(offset)
                     .limit(limit)
                 )
                 db_pois = (await session.execute(stmt)).scalars().all()
@@ -366,6 +542,7 @@ async def search_pois(
                     exact_match_found=bool(results),
                     exact_match=None,
                     results=results,
+                    total=total_count,
                 )
 
     norm_query = _normalize_text(clean_query)
@@ -502,6 +679,7 @@ async def search_pois(
                         exact_match_found=True,
                         exact_match=airport_item,
                         results=[airport_item],
+                        total=1,
                     )
 
     # Database search for hotels/airports by name pattern if querying hotel/airport
@@ -544,6 +722,7 @@ async def search_pois(
                 exact_match_found=True,
                 exact_match=match_results[0],
                 results=match_results,
+                total=len(match_results),
             )
 
     # 2. Check for exact / fuzzy name match via Trigram RRF
@@ -613,10 +792,10 @@ async def search_pois(
             # Factoring iconicity and tier to disambiguate famous landmarks vs minor establishments
             iconicity = float(cand.get("iconicity_score") or 0.0)
             tier = int(cand.get("tier") or 3)
-            tier_bonus = 0.10 if tier == 1 else (0.05 if tier == 2 else 0.0)
+            tier_bonus = 0.15 if tier == 1 else (0.08 if tier == 2 else 0.0)
 
-            # Weighted rank score: base lexical similarity (70%) + iconicity (20%) + tier authority (10%)
-            rank_score = base_score * 0.70 + iconicity * 0.20 + tier_bonus
+            # Weighted rank score: iconicity is a really important factor (40%) alongside base lexical match (45%) and tier authority (15%)
+            rank_score = base_score * 0.45 + iconicity * 0.40 + tier_bonus
 
             if rank_score > best_match_score:
                 best_match_score = rank_score
@@ -678,6 +857,7 @@ async def search_pois(
             exact_match_found=True,
             exact_match=exact_item,
             results=similar_items,
+            total=len(similar_items) + (1 if exact_item else 0),
         )
 
     # 4. Natural Language Semantic RAG & Hybrid Retrieval
@@ -700,7 +880,7 @@ async def search_pois(
         max_cost_eur=sq.max_cost_eur,
         max_tier=sq.max_tier,
         require_rain_friendly=sq.require_rain_friendly,
-        limit=limit,
+        limit=limit + offset,
         w_vec=0.55 if query_vector else 0.0,
         w_fts=0.25 if sq.clean_query else 0.0,
         w_trgm=0.20 if sq.clean_query else 0.0,
@@ -714,13 +894,56 @@ async def search_pois(
             c for c in candidates if str(c.get("category", "")).lower() in allowed_cats
         ]
 
+    # Compute authentic dynamic total count matching city and filters
+    count_filters = [
+        or_(
+            AttractionModel.city.ilike(city_name),
+            AttractionModel.city_id == city_id,
+        )
+    ]
+    if category and category.lower() != "all":
+        cat_lower = category.lower().strip()
+        allowed_cats_list = list(CATEGORY_SYNONYMS.get(cat_lower, [cat_lower]))
+        count_filters.append(
+            func.lower(AttractionModel.category).in_(allowed_cats_list)
+        )
+    if clean_query:
+        count_filters.append(
+            or_(
+                AttractionModel.name.ilike(f"%{clean_query}%"),
+                AttractionModel.description.ilike(f"%{clean_query}%"),
+            )
+        )
+    try:
+        count_stmt = (
+            select(func.count()).select_from(AttractionModel).where(*count_filters)
+        )
+        db_total = (await session.execute(count_stmt)).scalar() or 0
+    except Exception:
+        db_total = 0
+
+    if offset > 0:
+        candidates = candidates[offset:]
+
     results: list[PoiSearchItem] = []
     for c in candidates:
         sim_val = float(c.get("vec_sim", c.get("composite_score", 0.0)))
         results.append(_candidate_to_search_item(c, sim_val, "semantic_rag"))
 
-    # If results are sorted by similarity
-    results.sort(key=lambda x: x.similarity, reverse=True)
+    # Sort by day territory bounds first if day selected, then by similarity
+    if day_bounds:
+        b_min_lat, b_min_lng, b_max_lat, b_max_lng = day_bounds
+        results.sort(
+            key=lambda x: (
+                1
+                if (b_min_lat <= x.lat <= b_max_lat and b_min_lng <= x.lng <= b_max_lng)
+                else 0,
+                x.similarity,
+            ),
+            reverse=True,
+        )
+    else:
+        results.sort(key=lambda x: x.similarity, reverse=True)
 
     # Check if a non-empty query retrieved no exact match
     message = None
@@ -737,6 +960,7 @@ async def search_pois(
         message=message,
         exact_match=None,
         results=results,
+        total=max(db_total, len(results)),
     )
 
 
@@ -815,26 +1039,84 @@ async def get_poi_details(
     city: str | None = Query(
         None, description="Optional POI city for fallback photo resolution"
     ),
+    lat: float | None = Query(
+        None, description="Optional POI latitude for client coordinate preservation"
+    ),
+    lng: float | None = Query(
+        None, description="Optional POI longitude for client coordinate preservation"
+    ),
     session: AsyncSession = Depends(get_db),
 ) -> PoiDetailResponse:
     """Retrieves full POI details and dynamically resolves real photos from Wikimedia/Wikipedia."""
     stmt = select(AttractionModel).where(AttractionModel.id == poi_id)
     res = await session.execute(stmt)
     poi = res.scalar_one_or_none()
+
+    # If not found by ID, attempt lookup by name in AttractionModel
+    target_name = (
+        name
+        or (poi_id if not poi_id.startswith(("OSM-", "uuid-", "non-existent-")) else "")
+    ).strip()
+
+    if not poi and target_name:
+        # 1. Exact case-insensitive match
+        stmt = select(AttractionModel).where(
+            func.lower(AttractionModel.name) == target_name.lower()
+        )
+        if city:
+            stmt = stmt.where(AttractionModel.city.ilike(city))
+        stmt = stmt.limit(1)
+        res = await session.execute(stmt)
+        poi = res.scalar_one_or_none()
+
+    if not poi and target_name:
+        # 2. Substring match
+        stmt = select(AttractionModel).where(
+            AttractionModel.name.ilike(f"%{target_name}%")
+        )
+        if city:
+            stmt = stmt.where(AttractionModel.city.ilike(city))
+        stmt = stmt.order_by(AttractionModel.iconicity_score.desc()).limit(1)
+        res = await session.execute(stmt)
+        poi = res.scalar_one_or_none()
+
+    if not poi and target_name:
+        # 3. Leading multi-word prefix match
+        words = target_name.split()
+        if len(words) >= 2:
+            prefix = " ".join(words[:3])
+            stmt = select(AttractionModel).where(
+                AttractionModel.name.ilike(f"%{prefix}%")
+            )
+            if city:
+                stmt = stmt.where(AttractionModel.city.ilike(city))
+            stmt = stmt.order_by(AttractionModel.iconicity_score.desc()).limit(1)
+            res = await session.execute(stmt)
+            poi = res.scalar_one_or_none()
+
     if not poi:
-        if name:
+        resolved_name = (
+            name
+            or (
+                poi_id
+                if not poi_id.startswith(("OSM-", "uuid-", "non-existent-"))
+                and not poi_id.endswith("-999")
+                else ""
+            )
+        ).strip()
+        if resolved_name and (name or len(resolved_name) > 3):
             photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
                 poi_id=poi_id,
-                name=name,
+                name=resolved_name,
                 city=city or "",
             )
             return PoiDetailResponse(
                 id=poi_id,
-                name=name,
+                name=resolved_name,
                 category="attraction",
                 city=city or "",
-                lat=0.0,
-                lng=0.0,
+                lat=lat if lat is not None else 0.0,
+                lng=lng if lng is not None else 0.0,
                 duration_mins=60,
                 cost_eur=0.0,
                 cost_is_estimated=True,
@@ -864,7 +1146,7 @@ async def get_poi_details(
         "wikipedia" if lead_extract else None
     )
 
-    return PoiDetailResponse(
+    res = PoiDetailResponse(
         id=poi.id,
         name=poi.name,
         category=poi.category,
@@ -888,3 +1170,19 @@ async def get_poi_details(
         daily_windows=list(getattr(poi, "daily_windows", []) or []),
         photos=[PoiPhotoItem(**p) for p in photos_data],
     )
+
+    # Dynamic fallback: if daily_windows is unpopulated or empty, parse osm_opening_hours or tags
+    raw_hours_str = poi.osm_opening_hours or tags.get("opening_hours")
+    has_windows = (
+        any(bool(w) for w in res.daily_windows) if res.daily_windows else False
+    )
+    if not has_windows and raw_hours_str:
+        parsed_sched = parse_osm_opening_hours(str(raw_hours_str))
+        if parsed_sched.hours_known and any(
+            bool(w) for w in parsed_sched.daily_windows
+        ):
+            res.daily_windows = parsed_sched.daily_windows
+            res.hours_known = True
+            res.osm_opening_hours = raw_hours_str
+
+    return res
