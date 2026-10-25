@@ -11,7 +11,7 @@ import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
 import { getDayColor } from './TripMapView';
@@ -1196,14 +1196,15 @@ export function TripUnifiedSidebar({
   availableDays = [],
   initialDay = 1,
   isEditMode = false,
-  onToggleEditMode: _onToggleEditMode,
-  onReoptimizeDay: _onReoptimizeDay,
-  isReoptimizing: _isReoptimizing = false,
-  onToggleTransitMode: _onToggleTransitMode,
+  onToggleEditMode,
+  onReoptimizeDay,
+  isReoptimizing = false,
+  onToggleTransitMode,
   sidebarTab,
   onTabChange,
 }: TripUnifiedSidebarProps) {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user ?? null;
   const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(destinationCity), [destinationCity]);
   const activeCurrencyCode = (user?.preferences?.default_currency as string) || destCurrencyMeta.currency || 'EUR';
   const currencySymbol = useMemo(() => {
@@ -1716,6 +1717,62 @@ export function TripUnifiedSidebar({
     [airportAnchor, hotelAnchor]
   );
 
+  // Toggle lock state of a scheduled waypoint (solver anchor / fixed stop)
+  const handleToggleLock = useCallback(
+    (
+      dayNum: number,
+      poiIdx: number,
+      scheduledPoi: ScheduledPoi,
+      anchorInfo: { isFixed: boolean; isAnchor: boolean; type?: string; label?: string }
+    ) => {
+      if (!itinerary || !onItineraryUpdate) return;
+
+      const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+      const targetDay = clonedItin.days?.find((d) => (d.day ?? 1) === dayNum);
+      if (!targetDay?.itinerary?.path?.[poiIdx]) return;
+
+      const currentItem = targetDay.itinerary.path[poiIdx];
+      const newLockState = !anchorInfo.isFixed;
+      (currentItem as unknown as { locked?: boolean; is_fixed?: boolean }).locked = newLockState;
+      (currentItem as unknown as { locked?: boolean; is_fixed?: boolean }).is_fixed = newLockState;
+      if (currentItem.poi) {
+        (currentItem.poi as unknown as { locked?: boolean; is_fixed?: boolean }).locked = newLockState;
+        (currentItem.poi as unknown as { locked?: boolean; is_fixed?: boolean }).is_fixed = newLockState;
+      }
+
+      onItineraryUpdate(clonedItin);
+      notify.info(
+        newLockState ? 'Waypoint Locked' : 'Waypoint Unlocked',
+        newLockState
+          ? `"${scheduledPoi.poi?.name || 'Waypoint'}" is pinned and will stay fixed during solver optimization.`
+          : `"${scheduledPoi.poi?.name || 'Waypoint'}" is now flexible.`
+      );
+    },
+    [itinerary, onItineraryUpdate]
+  );
+
+  // Move scheduled waypoint up or down in the route sequence
+  const handleMoveStop = useCallback(
+    (targetDayNum: number, sourceIdx: number, direction: 'up' | 'down') => {
+      if (!itinerary || !onItineraryUpdate) return;
+      const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+      const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === targetDayNum);
+      if (!targetDayObj?.itinerary?.path) return;
+
+      const path = targetDayObj.itinerary.path;
+      const targetIdx = direction === 'up' ? sourceIdx - 1 : sourceIdx + 1;
+      if (targetIdx < 0 || targetIdx >= path.length) return;
+
+      const [movedItem] = path.splice(sourceIdx, 1);
+      if (!movedItem) return;
+      path.splice(targetIdx, 0, movedItem);
+
+      onItineraryUpdate(clonedItin);
+      notify.info('Stop Reordered', `Moved "${movedItem.poi?.name || 'Waypoint'}" to position ${targetIdx + 1}.`);
+    },
+    [itinerary, onItineraryUpdate]
+  );
+
   // Drag and drop handlers for Route reordering
   const handleDrop = (e: React.DragEvent, targetDayNum: number, targetIdx: number) => {
     e.preventDefault();
@@ -1746,7 +1803,7 @@ export function TripUnifiedSidebar({
           onItineraryUpdate(clonedItin);
           notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
         }
-      } else if (payload.source === 'search' || payload.source === 'inspector') {
+      } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map') {
         const poi = payload.poi;
         const lat = poi.location?.latitude ?? poi.lat ?? 0;
         const lng = poi.location?.longitude ?? poi.lng ?? 0;
@@ -1966,8 +2023,8 @@ export function TripUnifiedSidebar({
                   </button>
                 </div>
 
-                {/* Right Area: Day View Indicator (Search & Saved tabs) */}
-                {activeTab !== 'route' && (
+                {/* Right Area: Day View Indicator (Search & Saved tabs) or Edit/Solve Actions (Route tab) */}
+                {activeTab !== 'route' ? (
                   <div
                     style={{
                       display: 'inline-flex',
@@ -1994,6 +2051,77 @@ export function TripUnifiedSidebar({
                       }}
                     />
                     {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
+                  </div>
+                ) : (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {isEditMode && onReoptimizeDay && (
+                      <button
+                        type="button"
+                        onClick={onReoptimizeDay}
+                        disabled={isReoptimizing}
+                        data-testid="route-reoptimize-btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-full)',
+                          background: 'rgba(15, 76, 92, 0.08)',
+                          color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                          border: '1px solid rgba(15, 76, 92, 0.25)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: isReoptimizing ? 'wait' : 'pointer',
+                          opacity: isReoptimizing ? 0.7 : 1,
+                        }}
+                        title="Re-run C++ optimization solver with locked stops preserved"
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ animation: isReoptimizing ? 'spin 1s linear infinite' : 'none' }}
+                        >
+                          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                        </svg>
+                        <span>{isReoptimizing ? 'Solving...' : 'Solve'}</span>
+                      </button>
+                    )}
+
+                    {onToggleEditMode && (
+                      <button
+                        type="button"
+                        data-testid="route-edit-mode-toggle"
+                        onClick={onToggleEditMode}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 11px',
+                          borderRadius: 'var(--radius-full)',
+                          background: isEditMode ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.08)',
+                          color: isEditMode ? '#FFFFFF' : 'var(--color-text-primary)',
+                          border: `1px solid ${isEditMode ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.25)'}`,
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: isEditMode ? '0 2px 8px rgba(15, 76, 92, 0.3)' : 'none',
+                          transition: 'all 0.18s ease',
+                        }}
+                        title={isEditMode ? 'Exit edit mode' : 'Edit route order & lock waypoints'}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                        </svg>
+                        <span>{isEditMode ? 'Done' : 'Edit'}</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2225,6 +2353,35 @@ export function TripUnifiedSidebar({
                                     isEditMode={isEditMode}
                                     stopNum={stopNum}
                                     anchorInfo={anchorInfo}
+                                    draggable={isEditMode && !anchorInfo.isFixed}
+                                    onDragStart={(e) => {
+                                      if (!isEditMode || anchorInfo.isFixed) {
+                                        e.preventDefault();
+                                        return;
+                                      }
+                                      const poiInfo = { source: 'route', day: dayObj.day, index: poiIdx };
+                                      setDraggedPoi(poiInfo);
+                                      e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiInfo));
+                                      e.dataTransfer.effectAllowed = 'copyMove';
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedPoi(null);
+                                      setActiveDropTarget(null);
+                                    }}
+                                    canMoveUp={poiIdx > 0}
+                                    canMoveDown={poiIdx < path.length - 1}
+                                    onMoveUp={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveStop(dayObj.day, poiIdx, 'up');
+                                    }}
+                                    onMoveDown={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveStop(dayObj.day, poiIdx, 'down');
+                                    }}
+                                    onToggleLock={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
+                                    }}
                                     onClick={() => {
                                       const pId = p?.id || p?.name;
                                       const lat = p?.location?.latitude ?? (p as unknown as { lat?: number })?.lat;

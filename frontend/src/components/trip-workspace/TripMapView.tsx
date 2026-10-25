@@ -698,7 +698,12 @@ export default function TripMapView({
       const raw = target.getAttribute('data-paladio-draggable-poi');
       if (!raw) return;
       try {
-        const poiData = JSON.parse(raw);
+        let poiData;
+        try {
+          poiData = JSON.parse(raw);
+        } catch {
+          poiData = JSON.parse(decodeURIComponent(raw));
+        }
         const ghost = createRouteCardDragImage({
           name: poiData.name,
           category: poiData.category,
@@ -721,11 +726,30 @@ export default function TripMapView({
       }
     };
 
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
+      if (target && map) {
+        map.dragging.disable();
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (map && !map.dragging.enabled()) {
+        map.dragging.enable();
+      }
+    };
+
     document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragend', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown, true);
+    document.addEventListener('mouseup', handleMouseUp, true);
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragend', handleMouseUp);
+      document.removeEventListener('mousedown', handleMouseDown, true);
+      document.removeEventListener('mouseup', handleMouseUp, true);
     };
-  }, []);
+  }, [map]);
 
   const handleCategoryToggle = (cat: PoiCategoryType) => {
     const next = activeCategory === cat ? null : cat;
