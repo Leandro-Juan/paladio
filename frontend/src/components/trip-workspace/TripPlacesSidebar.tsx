@@ -31,6 +31,7 @@ export interface PlaceItem {
   costEur?: number;
   similarity?: number;
   matchType?: string;
+  description?: string;
 }
 
 export interface PoiApiItem {

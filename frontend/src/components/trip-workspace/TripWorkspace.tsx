@@ -77,6 +77,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     );
   }, []);
 
+  const handleCategoryFilterChange = useCallback((cat: PoiCategoryType | null) => {
+    setCategoryFilter(cat);
+    setCategoryPois([]);
+  }, []);
+
   const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'saved') => {
     setSidebarTab(tab);
     if (tab === 'route') {
@@ -222,6 +227,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         mapDaysList.push({
           dayNumber,
           label: `DAY ${dayNumber}`,
+          theme: (day as unknown as { theme?: string }).theme,
           pois: dayPois,
         });
 
@@ -323,6 +329,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         category: place.category,
         duration_mins: place.durationMins,
         cost_eur: place.costEur,
+        description: place.description,
       };
       setInspectedPoiId(pid);
       setInspectedPoiFallback(fallback);
@@ -519,7 +526,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 : focusedPlace
             }
             categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
+            onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
             categoryPois={sidebarTab === 'route' ? [] : categoryPois}
             isSidebarOpen={isSidebarOpen}
@@ -534,6 +541,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 category: poi.category,
                 durationMins: poi.durationMins,
                 costEur: poi.costEur,
+                description: poi.description,
               })
             }
           />
@@ -550,7 +558,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             itinerary={itinerary as OptimizationResult}
             onItineraryUpdate={handleItineraryUpdate}
             categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
+            onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
             onTransitModeChange={setTransitMode}
             places={places}

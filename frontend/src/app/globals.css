@@ -397,6 +397,18 @@ a {
   animation: paladioPolylineFadeOut 0.10s ease-in both;
 }
 
+.paladio-polygon-day-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.paladio-polygon-day-tooltip::before,
+.paladio-polygon-day-tooltip::after {
+  display: none !important;
+}
+
 /* Utility Classes */
 .text-accent {
   color: var(--color-link);

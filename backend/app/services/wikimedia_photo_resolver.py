@@ -97,6 +97,45 @@ class WikimediaPhotoResolver:
             logger.debug(f"Redis set cache failed for poi {poi_id}: {err}")
 
     @classmethod
+    async def get_cached_extract(cls, poi_id: str) -> str | None:
+        """Retrieves cached Wikipedia extract from Redis if available."""
+        if not poi_id:
+            return None
+        try:
+            import redis.asyncio as aioredis
+
+            r = aioredis.from_url(REDIS_URL, decode_responses=True)
+            try:
+                cached = await r.get(f"poi:extract:{poi_id}")
+                if cached:
+                    return cached
+            finally:
+                await r.aclose()
+        except Exception as err:
+            logger.debug(f"Redis get extract error for poi {poi_id}: {err}")
+        return None
+
+    @classmethod
+    async def set_cached_extract(cls, poi_id: str, extract: str) -> None:
+        """Stores resolved Wikipedia extract into Redis with TTL."""
+        if not poi_id or not extract:
+            return
+        try:
+            import redis.asyncio as aioredis
+
+            r = aioredis.from_url(REDIS_URL, decode_responses=True)
+            try:
+                await r.set(
+                    f"poi:extract:{poi_id}",
+                    extract,
+                    ex=CACHE_TTL_SECONDS,
+                )
+            finally:
+                await r.aclose()
+        except Exception as err:
+            logger.debug(f"Redis set extract error for poi {poi_id}: {err}")
+
+    @classmethod
     async def resolve_photos(
         cls,
         poi_id: str,
@@ -112,9 +151,10 @@ class WikimediaPhotoResolver:
             tuple[list[dict], str | None]: (photos_list, lead_extract)
         """
         # 1. Check Redis Cache
-        cached = await cls.get_cached_photos(poi_id)
-        if cached is not None:
-            return cached, None
+        cached_photos = await cls.get_cached_photos(poi_id)
+        cached_extract = await cls.get_cached_extract(poi_id)
+        if cached_photos is not None and cached_extract is not None:
+            return cached_photos, cached_extract
 
         photos: list[ResolvedPhoto] = []
         seen_urls: set[str] = set()
@@ -190,6 +230,89 @@ class WikimediaPhotoResolver:
                         f"Wikipedia summary lookup failed for {lang}:{title}: {err}"
                     )
 
+            # Fallback A: Query Wikipedia Search API if summary not found by direct title
+            if not lead_extract:
+                clean_city = (city or "").lower()
+                search_langs = ["en"]
+                if clean_city in ("madrid", "barcelona", "seville", "valencia"):
+                    search_langs = ["es", "en"]
+                elif clean_city in ("porto", "lisbon", "lisboa"):
+                    search_langs = ["pt", "en"]
+                elif clean_city in ("paris", "lyon", "marseille"):
+                    search_langs = ["fr", "en"]
+                elif clean_city in ("rome", "milan", "florence", "venice"):
+                    search_langs = ["it", "en"]
+                elif clean_city in ("tokyo", "kyoto", "osaka"):
+                    search_langs = ["ja", "en"]
+
+                for s_lang in search_langs:
+                    try:
+                        q_str = f"{name} {city}".strip() if city else name
+                        s_url = f"https://{s_lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(q_str)}&format=json&utf8=1&srlimit=1"
+                        s_resp = await client.get(s_url)
+                        if s_resp.status_code == 200:
+                            s_data = s_resp.json()
+                            results = s_data.get("query", {}).get("search", [])
+                            if results and results[0].get("title"):
+                                matched_title = results[0]["title"]
+                                sum_url = f"https://{s_lang}.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(matched_title)}"
+                                sum_resp = await client.get(sum_url)
+                                if sum_resp.status_code == 200:
+                                    sum_data = sum_resp.json()
+                                    if sum_data.get("extract"):
+                                        lead_extract = sum_data.get("extract")
+                                        orig = sum_data.get("originalimage", {}).get(
+                                            "source"
+                                        )
+                                        thumb = (
+                                            sum_data.get("thumbnail", {}).get("source")
+                                            or orig
+                                        )
+                                        if orig and orig not in seen_urls:
+                                            seen_urls.add(orig)
+                                            photos.append(
+                                                ResolvedPhoto(
+                                                    url=orig,
+                                                    thumbnail_url=thumb,
+                                                    caption=sum_data.get("description")
+                                                    or sum_data.get("title")
+                                                    or name,
+                                                    author="Wikimedia Commons / Wikipedia",
+                                                    license_name="Creative Commons",
+                                                    license_url="https://commons.wikimedia.org",
+                                                )
+                                            )
+                                        break
+                    except Exception as s_err:
+                        logger.debug(
+                            f"Wikipedia search lookup failed for {s_lang}:{name}: {s_err}"
+                        )
+
+            # Fallback B: Query Wikidata description if still no extract
+            if not lead_extract and wikidata_id:
+                try:
+                    wd_url = f"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={wikidata_id}&props=descriptions&languages=en|es|pt|fr|de|ja&format=json"
+                    wd_resp = await client.get(wd_url)
+                    if wd_resp.status_code == 200:
+                        wd_data = wd_resp.json()
+                        desc_dict = (
+                            wd_data.get("entities", {})
+                            .get(wikidata_id, {})
+                            .get("descriptions", {})
+                        )
+                        for lang_code in ["en", "es", "pt", "fr", "de", "ja"]:
+                            if lang_code in desc_dict and desc_dict[lang_code].get(
+                                "value"
+                            ):
+                                lead_extract = (
+                                    f"{name} is a {desc_dict[lang_code]['value']}."
+                                )
+                                break
+                except Exception as wd_err:
+                    logger.debug(
+                        f"Wikidata description lookup failed for {wikidata_id}: {wd_err}"
+                    )
+
             # 4. Search Wikimedia Commons for gallery imagery (up to 5 images)
             try:
                 search_query = f"{name} {city}".strip()
@@ -259,7 +382,18 @@ class WikimediaPhotoResolver:
                 )
 
         serialized = [p.to_dict() for p in photos]
+        if cached_photos and not serialized:
+            serialized = cached_photos
+        elif cached_photos and serialized:
+            cached_urls = {cp.get("url") for cp in cached_photos}
+            for sp in serialized:
+                if sp.get("url") not in cached_urls:
+                    cached_photos.append(sp)
+            serialized = cached_photos
+
         if serialized:
             await cls.set_cached_photos(poi_id, serialized)
+        if lead_extract:
+            await cls.set_cached_extract(poi_id, lead_extract)
 
         return serialized, lead_extract

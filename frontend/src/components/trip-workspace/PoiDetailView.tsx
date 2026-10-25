@@ -196,6 +196,21 @@ export function PoiDetailView({
   const [showHoursGrid, setShowHoursGrid] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
+  const overviewDescription = useMemo(() => {
+    if (poi?.description && poi.description.trim()) {
+      return poi.description.trim();
+    }
+    if (fallbackPoi?.description && fallbackPoi.description.trim()) {
+      return fallbackPoi.description.trim();
+    }
+    if (poi?.name) {
+      const cat = (poi.category || fallbackPoi?.category || 'waypoint').toLowerCase();
+      const loc = poi.city || fallbackPoi?.city || city;
+      return `${poi.name} is a notable ${cat}${loc ? ` located in ${loc}` : ''}.`;
+    }
+    return '';
+  }, [poi, fallbackPoi, city]);
+
   // Load POI details and real photos whenever poiId or fallbackPoi changes
   useEffect(() => {
     let isMounted = true;
@@ -282,6 +297,7 @@ export function PoiDetailView({
             lat: resolvedLat,
             lng: resolvedLng,
             photos: resolvedPhotos,
+            description: data.description || fallbackPoi?.description || '',
             category: data.category || fallbackPoi?.category || 'attraction',
             duration_mins: data.duration_mins || fallbackPoi?.duration_mins || 60,
             cost_eur: data.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
@@ -874,41 +890,62 @@ export function PoiDetailView({
                 }}
               >
                 {/* 1. Rating Card */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'var(--color-surface-raised)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '10px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <StarIcon size={14} fill="#F59E0B" color="#F59E0B" />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span
+                {(() => {
+                  const ratingNum = (poi.scoring?.rating && poi.scoring.rating > 0)
+                    ? poi.scoring.rating
+                    : ((poi as any)?.rating && (poi as any).rating > 0)
+                      ? (poi as any).rating
+                      : ((fallbackPoi as any)?.rating && (fallbackPoi as any).rating > 0)
+                        ? (fallbackPoi as any).rating
+                        : null;
+                  const reviewCount = (poi.scoring?.reviews && poi.scoring.reviews > 0)
+                    ? poi.scoring.reviews
+                    : null;
+                  const isRated = ratingNum !== null;
+
+                  return (
+                    <div
                       style={{
-                        fontSize: '9px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'var(--color-surface-raised)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '10px',
+                        padding: '8px 10px',
                       }}
+                      title={isRated && reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : isRated ? `${ratingNum.toFixed(1)} / 5.0` : 'No verified reviews yet'}
                     >
-                      Rating
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    >
-                      {poi.scoring?.rating ? poi.scoring.rating.toFixed(1) : (poi as any)?.rating ? (poi as any).rating.toFixed(1) : '4.8'} / 5.0
-                    </span>
-                  </div>
-                </div>
+                      <StarIcon
+                        size={14}
+                        fill={isRated ? '#F59E0B' : 'none'}
+                        color={isRated ? '#F59E0B' : 'var(--color-text-muted)'}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {isRated && reviewCount ? `${reviewCount.toLocaleString()} Rev` : 'Rating'}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: isRated ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                          }}
+                        >
+                          {isRated ? `${ratingNum.toFixed(1)} / 5.0` : '— / 5.0'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 2. Duration Card */}
                 <div
@@ -988,7 +1025,7 @@ export function PoiDetailView({
               </div>
 
               {/* Description Overview */}
-              {poi.description && (
+              {overviewDescription && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span
                     style={{
@@ -1011,7 +1048,7 @@ export function PoiDetailView({
                       fontFamily: 'var(--font-body, inherit)',
                     }}
                   >
-                    {poi.description}
+                    {overviewDescription}
                   </p>
                 </div>
               )}

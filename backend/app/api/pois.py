@@ -167,9 +167,9 @@ def _candidate_to_search_item(
     scoring_dict["iconicity_score"] = iconicity
     raw_rating = scoring_dict.get("rating")
     rating_val = (
-        float(raw_rating)
-        if raw_rating is not None
-        else round(min(5.0, max(3.5, 3.5 + iconicity * 1.5)), 1)
+        round(float(raw_rating), 1)
+        if raw_rating is not None and float(raw_rating) > 0
+        else None
     )
     return PoiSearchItem(
         id=str(c.get("id")),
@@ -239,9 +239,9 @@ def _model_to_search_item(
     scoring_dict["iconicity_score"] = iconicity
     raw_rating = scoring_dict.get("rating")
     rating_val = (
-        float(raw_rating)
-        if raw_rating is not None
-        else round(min(5.0, max(3.5, 3.5 + iconicity * 1.5)), 1)
+        round(float(raw_rating), 1)
+        if raw_rating is not None and float(raw_rating) > 0
+        else None
     )
     if match_type == "taste_recommendation" and similarity < 1.0:
         # Calibrate 768D cosine similarity (typically 0.35 - 0.60) to human-readable affinity (62% - 98%)
@@ -265,8 +265,8 @@ def _model_to_search_item(
         iconicity_score=iconicity,
         scoring=scoring_dict,
         match_type=match_type,
-        description=meta.get("description"),
-        neighborhood=meta.get("neighborhood"),
+        description=getattr(p, "description", None) or meta.get("description"),
+        neighborhood=getattr(p, "neighborhood", None) or meta.get("neighborhood"),
         facets=meta.get("facets") or {},
         doc_quality=meta.get("doc_quality") or "C",
         hours_known=bool(p.osm_opening_hours),
@@ -1109,6 +1109,97 @@ async def batch_resolve_photos(
     return BatchPhotoResponse(photos=resolved)
 
 
+def _generate_poi_overview(
+    name: str,
+    category: str,
+    city: str,
+    neighborhood: str | None = None,
+    tags: dict[str, Any] | None = None,
+    cost_eur: float | None = None,
+    duration_mins: int | None = None,
+) -> str:
+    tags = tags or {}
+    cat_lower = (category or "destination").lower()
+
+    cuisine = tags.get("cuisine")
+    historic_type = tags.get("historic")
+    tourism_type = tags.get("tourism")
+
+    location_str = f" in {city}" if city else ""
+    if (
+        neighborhood
+        and neighborhood.strip()
+        and city
+        and neighborhood.lower() != city.lower()
+    ):
+        location_str = f" in the {neighborhood} district of {city}"
+
+    parts: list[str] = []
+
+    if cuisine:
+        cuisine_clean = cuisine.replace(";", ", ").replace("_", " ")
+        parts.append(
+            f"{name} is a renowned {cat_lower}{location_str}, serving authentic {cuisine_clean} specialties."
+        )
+    elif historic_type:
+        parts.append(
+            f"{name} is a historic {historic_type.replace('_', ' ')}{location_str}, offering rich cultural and architectural heritage."
+        )
+    elif tourism_type in ("museum", "gallery", "artwork"):
+        parts.append(
+            f"{name} is an acclaimed cultural {cat_lower}{location_str}, featuring curated exhibits and historical collections."
+        )
+    elif tourism_type == "viewpoint":
+        parts.append(
+            f"{name} is a premier scenic viewpoint{location_str}, offering panoramic vistas across the destination."
+        )
+    elif cat_lower in ("museum", "gallery"):
+        parts.append(
+            f"{name} is a distinguished museum{location_str}, celebrated for its exhibitions and cultural heritage."
+        )
+    elif cat_lower in ("restaurant", "food"):
+        parts.append(
+            f"{name} is a premier dining destination{location_str}, known for its local culinary experience."
+        )
+    elif cat_lower in ("cafe", "coffee"):
+        parts.append(
+            f"{name} is a popular café{location_str}, perfect for artisanal beverages, coffee, and light refreshments."
+        )
+    elif cat_lower in ("park", "nature", "garden"):
+        parts.append(
+            f"{name} is a scenic public park and green space{location_str}, ideal for relaxing walks and outdoor exploration."
+        )
+    elif cat_lower in ("landmark", "monument"):
+        parts.append(
+            f"{name} is an iconic landmark and monument{location_str}, reflecting the unique character and history of {city or 'the region'}."
+        )
+    elif cat_lower in ("bar", "pub"):
+        parts.append(
+            f"{name} is a vibrant local establishment{location_str}, offering signature drinks and an inviting atmosphere."
+        )
+    elif cat_lower in ("transit", "station", "bus_stop"):
+        parts.append(
+            f"{name} is a key transit waypoint{location_str}, connecting travelers to major routes and attractions."
+        )
+    else:
+        parts.append(
+            f"{name} is a notable {cat_lower}{location_str}, popular with visitors and locals alike."
+        )
+
+    extras: list[str] = []
+    if duration_mins and duration_mins > 0:
+        extras.append(f"Recommended visit duration is ~{duration_mins} minutes")
+    if cost_eur is not None and cost_eur > 0:
+        extras.append(f"admission is around €{cost_eur:.2f}")
+    elif cost_eur == 0:
+        extras.append("entry is free of charge")
+
+    if extras:
+        parts.append(f"{'. '.join(extras).capitalize()}.")
+
+    return " ".join(parts)
+
+
 @router.get("/{poi_id}/details", response_model=PoiDetailResponse)
 @router.get("/{poi_id}", response_model=PoiDetailResponse)
 async def get_poi_details(
@@ -1202,7 +1293,14 @@ async def get_poi_details(
                 cost_is_estimated=True,
                 cost_source=None,
                 scoring={},
-                description=lead_extract,
+                description=lead_extract
+                or _generate_poi_overview(
+                    name=resolved_name,
+                    category="attraction",
+                    city=city or "",
+                    cost_eur=0.0,
+                    duration_mins=60,
+                ),
                 photos=[PoiPhotoItem(**p) for p in photos_data],
             )
         raise HTTPException(status_code=404, detail=f"POI with id '{poi_id}' not found")
@@ -1211,6 +1309,24 @@ async def get_poi_details(
     meta = dict(poi.metadata_field or {})
     tags = dict(meta.get("tags") or {})
     scoring_dict = dict(poi.scoring or {})
+    if float(scoring_dict.get("rating", 0)) <= 0:
+        try:
+            from app.services.google_maps_rating_resolver import (
+                GoogleMapsRatingResolver,
+            )
+
+            resolved_rating = await GoogleMapsRatingResolver.resolve_rating(
+                poi_id=poi.id,
+                name=poi.name,
+                city=poi.city,
+                lat=lat,
+                lng=lng,
+                session=session,
+            )
+            if resolved_rating:
+                scoring_dict = resolved_rating
+        except Exception as r_err:
+            logger.debug(f"Live rating resolution failed for {poi.id}: {r_err}")
 
     photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
         poi_id=poi.id,
@@ -1221,10 +1337,35 @@ async def get_poi_details(
         osm_tags=tags,
     )
 
-    description = poi.description or lead_extract
-    description_source = poi.description_source or (
-        "wikipedia" if lead_extract else None
+    osm_desc = (
+        tags.get("description")
+        or tags.get("description:en")
+        or tags.get("description:es")
     )
+    description = poi.description or lead_extract or osm_desc or meta.get("description")
+    if not description:
+        description = _generate_poi_overview(
+            name=poi.name,
+            category=poi.category,
+            city=poi.city,
+            neighborhood=poi.neighborhood,
+            tags=tags,
+            cost_eur=float(poi.cost_eur or 0.0),
+            duration_mins=int(poi.duration_mins or 60),
+        )
+
+    description_source = poi.description_source or (
+        "wikipedia" if lead_extract else "osm" if osm_desc else "paladio_engine"
+    )
+
+    # Persist resolved description to PostgreSQL if it was missing
+    if description and not poi.description:
+        try:
+            poi.description = description
+            poi.description_source = description_source
+            await session.commit()
+        except Exception as e:
+            logger.debug(f"Failed to persist description for poi {poi.id}: {e}")
 
     res = PoiDetailResponse(
         id=poi.id,

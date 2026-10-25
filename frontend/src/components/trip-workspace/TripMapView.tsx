@@ -30,6 +30,7 @@ export interface MapPoi {
 export interface MapDayGroup {
   dayNumber: number;
   label?: string;
+  theme?: string;
   pois: MapPoi[];
 }
 
@@ -175,6 +176,8 @@ function getCategorySvg(type: PoiCategoryType): string {
     case 'transit':
     case 'bus_stop':
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16M12 3v8M8 19l-3 3M16 19l3 3M8 15h.01M16 15h.01"/></svg>`;
+    case 'general':
+      return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
     case 'attraction':
     default:
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -976,8 +979,12 @@ export default function TripMapView({
     // When searching on a specific day, stay anchored strictly to that day's convex hull.
     // Only adjust bounds to categoryPois when viewing all days.
     if (activeCategory && activeDay === 'all') {
-      if (categoryPois && categoryPois.length > 0) {
-        return categoryPois.map((p) => ({ lat: p.lat, lng: p.lng }));
+      const matchingPois = (categoryPois || []).filter((p) => {
+        const catType = classifyPoiCategory(p.category, p.name).type;
+        return isCategoryMatch(activeCategory, catType);
+      });
+      if (matchingPois.length > 0) {
+        return matchingPois.map((p) => ({ lat: p.lat, lng: p.lng }));
       }
       const filtered = points.filter((p) => {
         const poiItem = p as Partial<MapPoi>;
@@ -1060,9 +1067,16 @@ export default function TripMapView({
     if (activeDay !== 'all' && hotel && isPlaceMatch(hotel, focusedPlace)) return true;
     if (activeDay !== 'all' && airport && isPlaceMatch(airport, focusedPlace)) return true;
     if (activeDay !== 'all' && activeDayData?.pois?.some((p) => isPlaceMatch(p, focusedPlace))) return true;
+    if (
+      activeDay === 'all' &&
+      effectiveDisplayedHoveredDay !== null &&
+      days.find((d) => d.dayNumber === effectiveDisplayedHoveredDay)?.pois?.some((p) => isPlaceMatch(p, focusedPlace))
+    ) {
+      return true;
+    }
     if (activeCategory && categoryPois?.some((p) => isPlaceMatch(p, focusedPlace))) return true;
     return false;
-  }, [focusedPlace, hotel, airport, activeDay, activeDayData, activeCategory, categoryPois]);
+  }, [focusedPlace, hotel, airport, activeDay, activeDayData, effectiveDisplayedHoveredDay, days, activeCategory, categoryPois]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -1109,6 +1123,7 @@ export default function TripMapView({
           if (activeDay !== 'all' && !isActive) return null;
 
           const dayColor = getDayColor(cluster.dayNumber);
+          const dayGroup = days.find((d) => d.dayNumber === cluster.dayNumber);
 
           return (
             <Polygon
@@ -1145,11 +1160,77 @@ export default function TripMapView({
                 mouseover: () => {
                   if (activeDay === 'all') handleDayHoverStart(cluster.dayNumber);
                 },
+                mousemove: () => {
+                  if (activeDay === 'all') handleDayHoverStart(cluster.dayNumber);
+                },
                 mouseout: () => {
                   if (activeDay === 'all') handleDayHoverEnd();
                 },
               }}
-            />
+            >
+              {activeDay === 'all' && (
+                <Tooltip
+                  sticky
+                  direction="top"
+                  offset={[0, -14]}
+                  opacity={1}
+                  className="paladio-polygon-day-tooltip"
+                >
+                  <div
+                    style={{
+                      background: 'var(--color-surface-card, #FFFFFF)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: `1.5px solid ${dayColor}`,
+                      borderRadius: '8px',
+                      padding: '5px 12px',
+                      boxShadow: '0 4px 16px rgba(15, 23, 42, 0.14)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: dayColor,
+                        boxShadow: `0 0 6px ${dayColor}`,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: dayColor,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      DAY {cluster.dayNumber}
+                    </span>
+                    {dayGroup?.theme && (
+                      <span
+                        style={{
+                          color: 'var(--color-text-secondary, #64748B)',
+                          fontFamily: 'var(--font-sans, system-ui)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        · {dayGroup.theme}
+                      </span>
+                    )}
+                  </div>
+                </Tooltip>
+              )}
+            </Polygon>
           );
         })}
 
@@ -1285,10 +1366,78 @@ export default function TripMapView({
             }}
             eventHandlers={{
               mouseover: () => handleDayHoverStart(allDaysHoveredPolyline.dayNumber),
+              mousemove: () => handleDayHoverStart(allDaysHoveredPolyline.dayNumber),
               mouseout: () => handleDayHoverEnd(),
               click: () => onDayChange(allDaysHoveredPolyline.dayNumber),
             }}
-          />
+          >
+            {activeDay === 'all' && (() => {
+              const polyDayColor = getDayColor(allDaysHoveredPolyline.dayNumber);
+              const polyDayGroup = days.find((d) => d.dayNumber === allDaysHoveredPolyline.dayNumber);
+              return (
+                <Tooltip
+                  sticky
+                  direction="top"
+                  offset={[0, -14]}
+                  opacity={1}
+                  className="paladio-polygon-day-tooltip"
+                >
+                  <div
+                    style={{
+                      background: 'var(--color-surface-card, #FFFFFF)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: `1.5px solid ${polyDayColor}`,
+                      borderRadius: '8px',
+                      padding: '5px 12px',
+                      boxShadow: '0 4px 16px rgba(15, 23, 42, 0.14)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: polyDayColor,
+                        boxShadow: `0 0 6px ${polyDayColor}`,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: polyDayColor,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      DAY {allDaysHoveredPolyline.dayNumber}
+                    </span>
+                    {polyDayGroup?.theme && (
+                      <span
+                        style={{
+                          color: 'var(--color-text-secondary, #64748B)',
+                          fontFamily: 'var(--font-sans, system-ui)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        · {polyDayGroup.theme}
+                      </span>
+                    )}
+                  </div>
+                </Tooltip>
+              );
+            })()}
+          </Polyline>
         ) : null}
 
         {/* 4. Hotel Base Camp Anchor Marker (Only in single day view) */}
@@ -1347,17 +1496,19 @@ export default function TripMapView({
           );
         })()}
 
-        {/* 6. Waypoint Markers (Rendered for all days in ALL DAYS mode, or for active day) */}
+        {/* 6. Waypoint Markers (Rendered for active day, or only for hovered polygon in ALL DAYS mode) */}
         {(() => {
           const isAllDays = activeDay === 'all';
-          const daysToRender = isAllDays ? days : days.filter((d) => d.dayNumber === activeDay);
+          const daysToRender = isAllDays
+            ? (effectiveDisplayedHoveredDay !== null ? days.filter((d) => d.dayNumber === effectiveDisplayedHoveredDay) : [])
+            : days.filter((d) => d.dayNumber === activeDay);
           if (!daysToRender || daysToRender.length === 0) return null;
 
           return daysToRender.map((dayData) => {
             if (!dayData || !dayData.pois || dayData.pois.length === 0) return null;
 
             const isCurrentDayHovered = isAllDays && effectiveHoveredDay === dayData.dayNumber;
-            const animationClass = 'paladio-waypoint-pin-pop-in';
+            const animationClass = isAllDays && isHoverExiting ? 'paladio-waypoint-pin-pop-out' : 'paladio-waypoint-pin-pop-in';
 
             let stopCounter = 0;
             return dayData.pois.map((poi, idx) => {
@@ -1419,6 +1570,11 @@ export default function TripMapView({
                         handleDayHoverStart(dayData.dayNumber);
                       }
                     },
+                    mousemove: () => {
+                      if (isAllDays) {
+                        handleDayHoverStart(dayData.dayNumber);
+                      }
+                    },
                     mouseout: () => {
                       if (isAllDays) {
                         handleDayHoverEnd();
@@ -1445,39 +1601,44 @@ export default function TripMapView({
 
         {/* 7. Category POI Markers (Displayed when browsing a category like MUSEUM, CAFE, etc.) */}
         {activeCategory && categoryPois && categoryPois.length > 0 && (
-          categoryPois.map((poi, idx) => {
-            const catType = classifyPoiCategory(poi.category, poi.name).type;
-            const isCatPoiFocused = isPlaceMatch(poi, focusedPlace);
-            const photoUrl = poi.photo_url || getPhoto(poi.id) || getPhoto(poi.name);
-            return (
-              <Marker
-                key={`cat-poi-${poi.id || idx}-${poi.lat}-${poi.lng}`}
-                position={[poi.lat, poi.lng]}
-                icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused, Math.min(idx * 16, 180))}
-                zIndexOffset={isCatPoiFocused ? 2500 : 400}
-                eventHandlers={{
-                  click: () => {
-                    onInspectPoi?.(poi.id || poi.name, {
-                      id: poi.id,
-                      name: poi.name,
-                      lat: poi.lat,
-                      lng: poi.lng,
-                      category: poi.category,
-                      description: poi.description,
-                      duration_mins: poi.durationMins,
-                      cost_eur: poi.costEur,
-                    });
-                  },
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -20]} opacity={0.95}>
-                  <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
-                    {poi.name}
-                  </span>
-                </Tooltip>
-              </Marker>
-            );
-          })
+          categoryPois
+            .filter((poi) => {
+              const catType = classifyPoiCategory(poi.category, poi.name).type;
+              return isCategoryMatch(activeCategory, catType);
+            })
+            .map((poi, idx) => {
+              const catType = classifyPoiCategory(poi.category, poi.name).type;
+              const isCatPoiFocused = isPlaceMatch(poi, focusedPlace);
+              const photoUrl = poi.photo_url || getPhoto(poi.id) || getPhoto(poi.name);
+              return (
+                <Marker
+                  key={`cat-poi-${activeCategory}-${poi.id || idx}-${poi.lat}-${poi.lng}`}
+                  position={[poi.lat, poi.lng]}
+                  icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused, Math.min(idx * 16, 180))}
+                  zIndexOffset={isCatPoiFocused ? 2500 : 400}
+                  eventHandlers={{
+                    click: () => {
+                      onInspectPoi?.(poi.id || poi.name, {
+                        id: poi.id,
+                        name: poi.name,
+                        lat: poi.lat,
+                        lng: poi.lng,
+                        category: poi.category,
+                        description: poi.description,
+                        duration_mins: poi.durationMins,
+                        cost_eur: poi.costEur,
+                      });
+                    },
+                  }}
+                >
+                  <Tooltip direction="top" offset={[0, -20]} opacity={0.95}>
+                    <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                      {poi.name}
+                    </span>
+                  </Tooltip>
+                </Marker>
+              );
+            })
         )}
       </MapContainer>
 

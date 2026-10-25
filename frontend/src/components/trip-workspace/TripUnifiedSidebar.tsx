@@ -49,6 +49,7 @@ export interface PlaceItem {
   costEur?: number;
   similarity?: number;
   matchType?: string;
+  description?: string;
 }
 
 export interface PoiApiItem {
@@ -1214,6 +1215,7 @@ export function TripUnifiedSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const searchAbortRef = useRef<AbortController | null>(null);
+  const searchReqSeqRef = useRef<number>(0);
   const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -1387,6 +1389,7 @@ export function TripUnifiedSidebar({
         searchAbortRef.current = new AbortController();
         setIsLoadingSearch(true);
       }
+      const reqId = ++searchReqSeqRef.current;
       const signal = searchAbortRef.current?.signal;
       setSearchErrorMessage(null);
       setHasSearched(true);
@@ -1422,6 +1425,11 @@ export function TripUnifiedSidebar({
           throw new Error(`Search failed (HTTP ${res.status})`);
         }
         const data: PoiSearchResponseData = await res.json();
+
+        // Stale check: ignore response if superseded by a newer search request
+        if (reqId !== searchReqSeqRef.current) {
+          return;
+        }
 
         // Inject trip-specific anchors when user queries "hotel" or "airport"
         const normQ = q.toLowerCase();
@@ -1467,7 +1475,7 @@ export function TripUnifiedSidebar({
             const existingIds = new Set(prev.results.map((r) => r.id));
             const newResults = data.results.filter((r) => !existingIds.has(r.id));
             const merged = [...prev.results, ...newResults];
-            if (onCategoryPoisChange && activeTab === 'search') {
+            if (onCategoryPoisChange && activeTab === 'search' && reqId === searchReqSeqRef.current) {
               onCategoryPoisChange(merged);
             }
             return {
@@ -1478,19 +1486,24 @@ export function TripUnifiedSidebar({
           });
         } else {
           setSearchData(data);
-          if (onCategoryPoisChange && activeTab === 'search') {
+          if (onCategoryPoisChange && activeTab === 'search' && reqId === searchReqSeqRef.current) {
             onCategoryPoisChange(data.results || []);
           }
         }
       } catch (err: unknown) {
+        if (reqId !== searchReqSeqRef.current) {
+          return;
+        }
         if (err instanceof Error && err.name === 'AbortError') {
           return;
         }
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
         setSearchErrorMessage(msg);
       } finally {
-        setIsLoadingSearch(false);
-        setIsLoadingMore(false);
+        if (reqId === searchReqSeqRef.current) {
+          setIsLoadingSearch(false);
+          setIsLoadingMore(false);
+        }
       }
     },
     [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab]
@@ -1515,20 +1528,31 @@ export function TripUnifiedSidebar({
 
   // Debounced auto-search & recommendations loader
   useEffect(() => {
+    if (activeTab !== 'search') return;
     const delay = searchQuery.trim() ? 320 : 0;
     const timer = setTimeout(() => {
       executeSearch(searchQuery, activeCategory);
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeCategory, executeSearch]);
+  }, [searchQuery, activeCategory, activeTab, executeSearch]);
 
   const handleCategoryClick = (catId: string) => {
     const nextCat = activeCategory === catId ? 'all' : catId;
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+    }
+    searchReqSeqRef.current += 1;
+    const nextFilter = nextCat === 'all' ? null : (nextCat as PoiCategoryType);
+    setPrevCategoryFilter(nextFilter);
     setActiveCategory(nextCat);
     setSearchQuery('');
+    setSearchData(null);
+    if (onCategoryPoisChange) {
+      onCategoryPoisChange([]);
+    }
     if (onCategoryFilterChange) {
-      onCategoryFilterChange(nextCat === 'all' ? null : (nextCat as PoiCategoryType));
+      onCategoryFilterChange(nextFilter);
     }
   };
 
@@ -1582,7 +1606,7 @@ export function TripUnifiedSidebar({
     // Rating star filter (0.5 to 5.0)
     if (minRating > 0) {
       list = list.filter((p) => {
-        const r = (p as any).rating ?? (p as any).scoring?.rating ?? (p.similarity ? Math.round((3.5 + p.similarity * 1.5) * 10) / 10 : 4.0);
+        const r = (p as any).rating ?? (p as any).scoring?.rating ?? 0;
         return r >= minRating;
       });
     }
@@ -1602,7 +1626,11 @@ export function TripUnifiedSidebar({
         return scoreB - scoreA;
       });
     } else if (sortOption === 'rating') {
-      list.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+      list.sort((a, b) => {
+        const rateA = (a as any).rating ?? (a as any).scoring?.rating ?? 0;
+        const rateB = (b as any).rating ?? (b as any).scoring?.rating ?? 0;
+        return rateB - rateA;
+      });
     }
 
     // Convex Hull prioritization for selected day (if all days, no hull prioritization)
@@ -2494,6 +2522,7 @@ export function TripUnifiedSidebar({
                               category: poi.category,
                               durationMins: poi.duration_mins,
                               costEur: poi.cost_eur,
+                              description: poi.description,
                             });
                           }}
                           style={{

@@ -38,6 +38,7 @@ export function TripSpeedDial({
 }: TripSpeedDialProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const [isTriggerHovered, setIsTriggerHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
@@ -187,7 +188,8 @@ export function TripSpeedDial({
                 bottom: '2px',
                 transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
                 opacity,
-                transition: `transform 0.24s cubic-bezier(0.34, 1.45, 0.64, 1) ${isOpen ? act.delayOpen : act.delayClose}, opacity 0.2s ease ${isOpen ? act.delayOpen : act.delayClose}`,
+                visibility: isOpen ? 'visible' : 'hidden',
+                transition: `transform 0.24s cubic-bezier(0.34, 1.45, 0.64, 1) ${isOpen ? act.delayOpen : act.delayClose}, opacity 0.2s ease ${isOpen ? act.delayOpen : act.delayClose}, visibility 0.24s`,
                 pointerEvents: isOpen ? 'auto' : 'none',
                 zIndex: isHovered ? 1100 : 1060,
                 display: 'flex',
@@ -306,6 +308,8 @@ export function TripSpeedDial({
           onClick={toggleDial}
           aria-expanded={isOpen}
           aria-label={isOpen ? 'Close route actions menu' : 'Open route actions menu'}
+          onMouseEnter={() => setIsTriggerHovered(true)}
+          onMouseLeave={() => setIsTriggerHovered(false)}
           style={{
             position: 'absolute',
             left: isLeft ? 0 : 'auto',
@@ -315,31 +319,26 @@ export function TripSpeedDial({
             height: '44px',
             borderRadius: '50%',
             background: 'var(--color-surface-card)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: `1.5px solid ${isOpen ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+            border: `1.5px solid ${isOpen || isTriggerHovered ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
             boxShadow: isOpen
               ? '0 0 0 3px rgba(15, 76, 92, 0.2), 0 6px 18px rgba(0, 0, 0, 0.16)'
+              : isTriggerHovered
+              ? '0 6px 18px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1)'
               : '0 4px 14px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: isOpen ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
-            transition: 'all 0.22s cubic-bezier(0.23, 1, 0.32, 1)',
+            transform: isTriggerHovered ? 'scale(1.06)' : 'scale(1)',
+            transformOrigin: 'center center',
+            transition: 'transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.18s ease, box-shadow 0.22s ease',
             outline: 'none',
             pointerEvents: 'auto',
             zIndex: 1070,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.06)';
-            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            if (!isOpen) {
-              e.currentTarget.style.borderColor = 'var(--color-border)';
-            }
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            willChange: 'transform',
           }}
         >
           {/* Plus icon rotating 45deg seamlessly becomes an X */}
@@ -349,7 +348,11 @@ export function TripSpeedDial({
               alignItems: 'center',
               justifyContent: 'center',
               transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+              transformOrigin: 'center center',
               transition: 'transform 0.25s cubic-bezier(0.23, 1, 0.32, 1)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              willChange: 'transform',
             }}
           >
             <PlusIcon size={18} color="currentColor" />
