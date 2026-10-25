@@ -2608,7 +2608,9 @@ export function TripUnifiedSidebar({
                         <InfoIcon size={13} color="var(--color-text-muted)" />
                       </div>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
-                        {searchData?.total != null
+                        {filteredSearchResults.length === 0
+                          ? '0 PLACES'
+                          : searchData?.total != null
                           ? searchData.total > 1000
                             ? '+1000 PLACES'
                             : `${searchData.total} PLACES`
@@ -2874,7 +2876,8 @@ export function TripUnifiedSidebar({
                         );
                       })}
 
-                      {searchData?.results &&
+                      {filteredSearchResults.length > 0 &&
+                        searchData?.results &&
                         (searchData.total != null
                           ? searchData.results.length < searchData.total
                           : searchData.results.length >= 15) && (
