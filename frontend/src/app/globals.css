@@ -329,6 +329,74 @@ a {
   will-change: transform, opacity;
 }
 
+/* Paladio Teardrop Pin Entrance/Exit Animations (Search & Day Territory Hover) */
+@keyframes paladioWaypointPinPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  85% {
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes paladioWaypointPinPopOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+.paladio-waypoint-pin-pop-in {
+  animation: paladioWaypointPinPopIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  transform-origin: 17px 44px;
+  will-change: transform, opacity;
+}
+
+.paladio-waypoint-pin-pop-out {
+  animation: paladioWaypointPinPopOut 0.12s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: 17px 44px;
+  will-change: transform, opacity;
+}
+
+@keyframes paladioPolylineFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.95;
+  }
+}
+
+@keyframes paladioPolylineFadeOut {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.paladio-polyline-fade-in {
+  animation: paladioPolylineFadeIn 0.15s ease-out both;
+}
+
+.paladio-polyline-fade-out {
+  animation: paladioPolylineFadeOut 0.10s ease-in both;
+}
+
 /* Utility Classes */
 .text-accent {
   color: var(--color-link);
@@ -840,10 +908,13 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .paladio-waypoint-pop {
+  .paladio-waypoint-pop,
+  .paladio-waypoint-pin-pop-in,
+  .paladio-waypoint-pin-pop-out,
+  .paladio-polyline-fade-in,
+  .paladio-polyline-fade-out {
     animation: none !important;
     opacity: 1 !important;
-    transform: translate(-50%, -50%) scale(1) !important;
   }
 }
 

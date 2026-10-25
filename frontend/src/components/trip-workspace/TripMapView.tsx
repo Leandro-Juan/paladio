@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, Tooltip, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -192,6 +192,8 @@ interface TeardropPinConfig {
   dayNumber?: number;
   isFocused?: boolean;
   poiPayload?: string;
+  animationClass?: string;
+  animationDelayMs?: number;
 }
 
 function renderTeardropPinHtml({
@@ -202,30 +204,40 @@ function renderTeardropPinHtml({
   dayNumber,
   isFocused = false,
   poiPayload = '',
+  animationClass = '',
+  animationDelayMs,
 }: TeardropPinConfig): string {
   const meta = classifyPoiCategory(categoryType, name);
   const svg = getCategorySvg(meta.type);
   const nameSafe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const pinColor = isFocused ? '#1E293B' : '#475569';
-  const pinBorderColor = isFocused ? 'var(--color-accent-teal-mid, #14788D)' : 'rgba(255, 255, 255, 0.45)';
+  const hullColor = typeof dayNumber === 'number' && dayNumber > 0 ? getDayColor(dayNumber) : null;
+  const pinColor = hullColor || (isFocused ? '#1E293B' : '#475569');
+  const pinBorderColor = isFocused
+    ? 'var(--color-accent-teal-mid, #14788D)'
+    : hullColor
+    ? 'rgba(255, 255, 255, 0.75)'
+    : 'rgba(255, 255, 255, 0.45)';
 
   const innerContent = photoUrl
     ? `<img src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
     : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`;
 
   const stopBadge = typeof stopNumber === 'number'
-    ? `<div style="position:absolute;top:-4px;right:-6px;min-width:18px;height:18px;padding:0 3px;border-radius:9px;background:${dayNumber ? getDayColor(dayNumber) : '#0F4C5C'};color:#FFFFFF;font-family:var(--font-mono, monospace);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid #FFFFFF;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:3;">${stopNumber}</div>`
+    ? `<div style="position:absolute;top:-4px;right:-6px;min-width:18px;height:18px;padding:0 3px;border-radius:9px;background:${hullColor || '#0F4C5C'};color:#FFFFFF;font-family:var(--font-mono, monospace);font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid #FFFFFF;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:3;">${stopNumber}</div>`
     : '';
 
   const focusGlow = isFocused
     ? `<div style="position:absolute;top:0;left:0;width:34px;height:34px;border-radius:50%;background:rgba(20, 120, 141, 0.35);animation:pinGlow 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>`
     : '';
 
+  const animStyle = typeof animationDelayMs === 'number' ? `animation-delay: ${animationDelayMs}ms;` : '';
+
   return `
     <div 
       ${poiPayload ? `draggable="true" onmousedown="event.stopPropagation();" data-paladio-draggable-poi="${poiPayload}"` : ''}
       title="${nameSafe ? `${nameSafe} (Drag into day route)` : 'Drag into day route'}"
-      style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:grab;user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));"
+      class="${animationClass}"
+      style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:grab;user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));${animStyle}"
     >
       ${focusGlow}
       <svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:34px;height:44px;z-index:1;">
@@ -267,7 +279,9 @@ function createWaypointIcon(
   dayNumber?: number,
   poi?: { name: string; category?: string; lat: number; lng: number; durationMins?: number; costEur?: number },
   photoUrl?: string,
-  isFocused = false
+  isFocused = false,
+  animationClass?: string,
+  animationDelayMs?: number
 ): L.DivIcon {
   const poiPayload = poi
     ? JSON.stringify({
@@ -292,6 +306,8 @@ function createWaypointIcon(
       dayNumber,
       isFocused,
       poiPayload,
+      animationClass,
+      animationDelayMs,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -312,7 +328,14 @@ export function isTransitAnchor(p: { category?: string; name: string }): boolean
   );
 }
 
-function createHotelIcon(hotel?: { name: string; lat: number; lng: number }, photoUrl?: string, isFocused = false): L.DivIcon {
+function createHotelIcon(
+  hotel?: { name: string; lat: number; lng: number },
+  photoUrl?: string,
+  isFocused = false,
+  animationClass?: string,
+  animationDelayMs?: number,
+  dayNumber?: number
+): L.DivIcon {
   const poiPayload = hotel
     ? JSON.stringify({
         id: hotel.name,
@@ -332,8 +355,11 @@ function createHotelIcon(hotel?: { name: string; lat: number; lng: number }, pho
       categoryType: 'hotel',
       name: hotel?.name || 'Hotel Base Camp',
       photoUrl,
+      dayNumber,
       isFocused,
       poiPayload,
+      animationClass,
+      animationDelayMs,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -341,7 +367,14 @@ function createHotelIcon(hotel?: { name: string; lat: number; lng: number }, pho
   });
 }
 
-function createAirportIcon(airport?: { name: string; lat: number; lng: number }, photoUrl?: string, isFocused = false): L.DivIcon {
+function createAirportIcon(
+  airport?: { name: string; lat: number; lng: number },
+  photoUrl?: string,
+  isFocused = false,
+  animationClass?: string,
+  animationDelayMs?: number,
+  dayNumber?: number
+): L.DivIcon {
   const poiPayload = airport
     ? JSON.stringify({
         id: airport.name,
@@ -361,8 +394,11 @@ function createAirportIcon(airport?: { name: string; lat: number; lng: number },
       categoryType: 'airport',
       name: airport?.name || 'Airport Gateway',
       photoUrl,
+      dayNumber,
       isFocused,
       poiPayload,
+      animationClass,
+      animationDelayMs,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -392,6 +428,7 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: strin
       photoUrl,
       isFocused: true,
       poiPayload,
+      animationClass: 'paladio-waypoint-pin-pop-in',
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -399,7 +436,13 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: strin
   });
 }
 
-function createCategoryPoiIcon(categoryType: PoiCategoryType, poi?: Partial<CategoryPoiItem>, photoUrl?: string, isFocused = false): L.DivIcon {
+function createCategoryPoiIcon(
+  categoryType: PoiCategoryType,
+  poi?: Partial<CategoryPoiItem>,
+  photoUrl?: string,
+  isFocused = false,
+  animationDelayMs?: number
+): L.DivIcon {
   const poiPayload = poi
     ? JSON.stringify({
         id: poi.id || poi.name,
@@ -421,6 +464,8 @@ function createCategoryPoiIcon(categoryType: PoiCategoryType, poi?: Partial<Cate
       photoUrl,
       isFocused,
       poiPayload,
+      animationClass: 'paladio-waypoint-pin-pop-in',
+      animationDelayMs,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -562,6 +607,63 @@ export default function TripMapView({
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [displayedHoveredDay, setDisplayedHoveredDay] = useState<number | null>(null);
+  const [isHoverExiting, setIsHoverExiting] = useState(false);
+  const hoverEndTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const exitCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleDayHoverStart = useCallback((dayNumber: number) => {
+    if (activeDay !== 'all') return;
+    if (hoverEndTimerRef.current) {
+      clearTimeout(hoverEndTimerRef.current);
+      hoverEndTimerRef.current = null;
+    }
+    if (exitCleanupTimerRef.current) {
+      clearTimeout(exitCleanupTimerRef.current);
+      exitCleanupTimerRef.current = null;
+    }
+    setHoveredDay(dayNumber);
+    setDisplayedHoveredDay(dayNumber);
+    setIsHoverExiting(false);
+  }, [activeDay]);
+
+  const handleDayHoverEnd = useCallback(() => {
+    if (activeDay !== 'all') return;
+    if (hoverEndTimerRef.current) clearTimeout(hoverEndTimerRef.current);
+    hoverEndTimerRef.current = setTimeout(() => {
+      setHoveredDay(null);
+      setIsHoverExiting(true);
+      if (exitCleanupTimerRef.current) clearTimeout(exitCleanupTimerRef.current);
+      exitCleanupTimerRef.current = setTimeout(() => {
+        setDisplayedHoveredDay(null);
+        setIsHoverExiting(false);
+      }, 120);
+    }, 70);
+  }, [activeDay]);
+
+  useEffect(() => {
+    if (activeDay !== 'all') {
+      if (hoverEndTimerRef.current) {
+        clearTimeout(hoverEndTimerRef.current);
+        hoverEndTimerRef.current = null;
+      }
+      if (exitCleanupTimerRef.current) {
+        clearTimeout(exitCleanupTimerRef.current);
+        exitCleanupTimerRef.current = null;
+      }
+    }
+  }, [activeDay]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverEndTimerRef.current) clearTimeout(hoverEndTimerRef.current);
+      if (exitCleanupTimerRef.current) clearTimeout(exitCleanupTimerRef.current);
+    };
+  }, []);
+
+  const effectiveHoveredDay = activeDay === 'all' ? hoveredDay : null;
+  const effectiveDisplayedHoveredDay = activeDay === 'all' ? displayedHoveredDay : null;
+
   const { getPhoto } = usePoiPhotos();
 
   // Allow dragging any POI marker directly from the map into route day slots
@@ -914,6 +1016,22 @@ export default function TripMapView({
     return { coreStraight, commuteStartLine, commuteEndLine };
   }, [activeDayData]);
 
+  const allDaysHoveredPolyline = useMemo(() => {
+    if (activeDay !== 'all' || effectiveDisplayedHoveredDay === null) return null;
+    const targetDay = days.find((d) => d.dayNumber === effectiveDisplayedHoveredDay);
+    if (!targetDay) return null;
+
+    const sightseeingPois = targetDay.pois.filter((p) => !isTransitAnchor(p));
+    const targetPois = sightseeingPois.length >= 2 ? sightseeingPois : targetDay.pois;
+    const rawCoords: [number, number][] = targetPois.map((p) => [p.lat, p.lng]);
+    if (rawCoords.length < 2) return null;
+
+    return {
+      dayNumber: targetDay.dayNumber,
+      positions: rawCoords,
+    };
+  }, [activeDay, effectiveDisplayedHoveredDay, days]);
+
   const isFocusedAlreadyRendered = useMemo(() => {
     if (!focusedPlace) return false;
     if (activeDay !== 'all' && hotel && isPlaceMatch(hotel, focusedPlace)) return true;
@@ -958,7 +1076,7 @@ export default function TripMapView({
         {dayClusters.map((cluster) => {
           if (cluster.polygon.length < 3) return null;
           const isActive = activeDay === cluster.dayNumber;
-          const isHovered = hoveredDay === cluster.dayNumber;
+          const isHovered = effectiveHoveredDay === cluster.dayNumber;
 
           // In single-day view, only render the active day's territory to prevent visual clutter
           if (activeDay !== 'all' && !isActive) return null;
@@ -979,7 +1097,7 @@ export default function TripMapView({
                     }
                   : {
                       fillColor: '#64748B',
-                      fillOpacity: hoveredDay !== null ? 0.03 : 0.08,
+                      fillOpacity: effectiveHoveredDay !== null ? 0.03 : 0.08,
                       color: '#94A3B8',
                       weight: 1.5,
                       dashArray: '4, 4',
@@ -987,8 +1105,12 @@ export default function TripMapView({
               }
               eventHandlers={{
                 click: () => onDayChange(cluster.dayNumber),
-                mouseover: () => setHoveredDay(cluster.dayNumber),
-                mouseout: () => setHoveredDay(null),
+                mouseover: () => {
+                  if (activeDay === 'all') handleDayHoverStart(cluster.dayNumber);
+                },
+                mouseout: () => {
+                  if (activeDay === 'all') handleDayHoverEnd();
+                },
               }}
             >
               <Tooltip sticky direction="center" opacity={0.92}>
@@ -1013,13 +1135,14 @@ export default function TripMapView({
           <>
             {detailedSegments.map((seg) => (
               <Polyline
-                key={`seg-${seg.key}-${seg.positions.map((p) => `${p[0]},${p[1]}`).join(';')}`}
+                key={`seg-d${activeDay}-${seg.key}-${seg.positions.map((p) => `${p[0]},${p[1]}`).join(';')}`}
                 positions={seg.positions}
                 pathOptions={{
                   color: seg.color,
                   weight: seg.weight,
                   opacity: 0.9,
                   dashArray: seg.isDashed ? '6, 6' : undefined,
+                  className: 'paladio-polyline-fade-in',
                 }}
               >
                 <Tooltip sticky direction="top" opacity={0.95}>
@@ -1094,6 +1217,7 @@ export default function TripMapView({
                   color: getDayColor(activeDay as number),
                   weight: 3.5,
                   opacity: 0.95,
+                  className: 'paladio-polyline-fade-in',
                 }}
               />
             )}
@@ -1107,6 +1231,7 @@ export default function TripMapView({
                   weight: 2,
                   opacity: 0.65,
                   dashArray: '4, 6',
+                  className: 'paladio-polyline-fade-in',
                 }}
               />
             )}
@@ -1120,47 +1245,37 @@ export default function TripMapView({
                   weight: 2,
                   opacity: 0.65,
                   dashArray: '4, 6',
+                  className: 'paladio-polyline-fade-in',
                 }}
               />
             )}
           </>
-        ) : (
-          /* In ALL DAYS view: render clean straight day polylines excluding repetitive hotel commute rays */
-          days.map((d) => {
-            const sightseeingPois = d.pois.filter((p) => !isTransitAnchor(p));
-            const targetPois = sightseeingPois.length >= 2 ? sightseeingPois : d.pois;
-            const rawCoords: [number, number][] = targetPois.map((p) => [p.lat, p.lng]);
-            if (rawCoords.length < 2) return null;
-
-            const isHovered = hoveredDay === d.dayNumber;
-            const isAnotherHovered = hoveredDay !== null && !isHovered;
-
-            return (
-              <Polyline
-                key={`all-poly-d${d.dayNumber}`}
-                positions={rawCoords}
-                pathOptions={{
-                  color: getDayColor(d.dayNumber),
-                  weight: isHovered ? 4 : isAnotherHovered ? 1.5 : 2.5,
-                  opacity: isHovered ? 0.95 : isAnotherHovered ? 0.12 : 0.32,
-                }}
-                eventHandlers={{
-                  mouseover: () => setHoveredDay(d.dayNumber),
-                  mouseout: () => setHoveredDay(null),
-                  click: () => onDayChange(d.dayNumber),
-                }}
-              />
-            );
-          })
-        )}
+        ) : allDaysHoveredPolyline ? (
+          <Polyline
+            key={`all-hover-poly-d${allDaysHoveredPolyline.dayNumber}-${isHoverExiting ? 'exit' : 'enter'}`}
+            positions={allDaysHoveredPolyline.positions}
+            pathOptions={{
+              color: getDayColor(allDaysHoveredPolyline.dayNumber),
+              weight: 3.5,
+              opacity: isHoverExiting ? 0 : 0.95,
+              className: isHoverExiting ? 'paladio-polyline-fade-out' : 'paladio-polyline-fade-in',
+            }}
+            eventHandlers={{
+              mouseover: () => handleDayHoverStart(allDaysHoveredPolyline.dayNumber),
+              mouseout: () => handleDayHoverEnd(),
+              click: () => onDayChange(allDaysHoveredPolyline.dayNumber),
+            }}
+          />
+        ) : null}
 
         {/* 4. Hotel Base Camp Anchor Marker (Only in single day view) */}
         {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (() => {
           const isHotelFocused = isPlaceMatch(hotel, focusedPlace);
           return (
             <Marker
+              key={`hotel-anchor-d${activeDay}-${hotel.lat}-${hotel.lng}`}
               position={[hotel.lat, hotel.lng]}
-              icon={createHotelIcon(hotel, getPhoto(hotel.name), isHotelFocused)}
+              icon={createHotelIcon(hotel, getPhoto(hotel.name), isHotelFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined)}
               zIndexOffset={isHotelFocused ? 2500 : 600}
               eventHandlers={{
                 click: () => {
@@ -1184,8 +1299,9 @@ export default function TripMapView({
           const isAirportFocused = isPlaceMatch(airport, focusedPlace);
           return (
             <Marker
+              key={`airport-anchor-d${activeDay}-${airport.lat}-${airport.lng}`}
               position={[airport.lat, airport.lng]}
-              icon={createAirportIcon(airport, getPhoto(airport.name), isAirportFocused)}
+              icon={createAirportIcon(airport, getPhoto(airport.name), isAirportFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined)}
               zIndexOffset={isAirportFocused ? 2500 : 600}
               eventHandlers={{
                 click: () => {
@@ -1204,54 +1320,100 @@ export default function TripMapView({
           );
         })()}
 
-        {/* 6. Waypoint Markers (Only in Single Day view; hidden in ALL DAYS mode to keep only routes and convex hulls) */}
-        {activeDay !== 'all' &&
-          activeDayData &&
-          (() => {
-            let stopCounter = 0;
-            return activeDayData.pois.map((poi, idx) => {
-              const categoryType = classifyPoiCategory(poi.category, poi.name).type;
-              const isHotel = categoryType === 'hotel' || poi.name.toLowerCase().includes('hotel');
-              const isAirport =
-                categoryType === 'airport' || categoryType === 'flight' || poi.name.toLowerCase().includes('airport');
+        {/* 6. Waypoint Markers (Rendered in single day view OR on hull hover in ALL DAYS mode) */}
+        {(() => {
+          const isAllDays = activeDay === 'all';
+          const dayToRender = isAllDays ? effectiveDisplayedHoveredDay : activeDay;
+          if (dayToRender === null || dayToRender === undefined) return null;
 
-              stopCounter++;
+          const dayData = days.find((d) => d.dayNumber === dayToRender);
+          if (!dayData || !dayData.pois || dayData.pois.length === 0) return null;
 
-              if (activeCategory && !isCategoryMatch(activeCategory, categoryType)) {
-                return null;
-              }
+          const animationClass = isAllDays
+            ? isHoverExiting
+              ? 'paladio-waypoint-pin-pop-out'
+              : 'paladio-waypoint-pin-pop-in'
+            : 'paladio-waypoint-pin-pop-in';
 
-              const isPoiFocused = isPlaceMatch(poi, focusedPlace);
-              const photoUrl = getPhoto(poi.name);
-              const markerIcon = isHotel
-                ? createHotelIcon({ name: poi.name, lat: poi.lat, lng: poi.lng }, photoUrl, isPoiFocused)
-                : isAirport
-                ? createAirportIcon({ name: poi.name, lat: poi.lat, lng: poi.lng }, photoUrl, isPoiFocused)
-                : createWaypointIcon(categoryType, stopCounter, activeDayData.dayNumber, poi, photoUrl, isPoiFocused);
+          let stopCounter = 0;
+          return dayData.pois.map((poi, idx) => {
+            const categoryType = classifyPoiCategory(poi.category, poi.name).type;
+            const isHotel = categoryType === 'hotel' || poi.name.toLowerCase().includes('hotel');
+            const isAirport =
+              categoryType === 'airport' || categoryType === 'flight' || poi.name.toLowerCase().includes('airport');
 
-              return (
-                <Marker
-                  key={`marker-d${activeDayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
-                  position={[poi.lat, poi.lng]}
-                  icon={markerIcon}
-                  zIndexOffset={isPoiFocused ? 2500 : 500}
-                  eventHandlers={{
-                    click: () => {
-                      onInspectPoi?.(poi.name, {
-                        id: poi.name,
-                        name: poi.name,
-                        lat: poi.lat,
-                        lng: poi.lng,
-                        category: poi.category,
-                        duration_mins: poi.durationMins,
-                        cost_eur: poi.costEur,
-                      });
-                    },
-                  }}
-                />
-              );
-            });
-          })()}
+            stopCounter++;
+
+            if (activeCategory && !isCategoryMatch(activeCategory, categoryType)) {
+              return null;
+            }
+
+            const isPoiFocused = isPlaceMatch(poi, focusedPlace);
+            const photoUrl = getPhoto(poi.name);
+            const animDelay = isAllDays && isHoverExiting ? undefined : Math.min(idx * 16, 160);
+
+            const markerIcon = isHotel
+              ? createHotelIcon(
+                  { name: poi.name, lat: poi.lat, lng: poi.lng },
+                  photoUrl,
+                  isPoiFocused,
+                  animationClass,
+                  animDelay,
+                  dayData.dayNumber
+                )
+              : isAirport
+              ? createAirportIcon(
+                  { name: poi.name, lat: poi.lat, lng: poi.lng },
+                  photoUrl,
+                  isPoiFocused,
+                  animationClass,
+                  animDelay,
+                  dayData.dayNumber
+                )
+              : createWaypointIcon(
+                  categoryType,
+                  stopCounter,
+                  dayData.dayNumber,
+                  poi,
+                  photoUrl,
+                  isPoiFocused,
+                  animationClass,
+                  animDelay
+                );
+
+            return (
+              <Marker
+                key={`marker-active-${activeDay}-d${dayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
+                position={[poi.lat, poi.lng]}
+                icon={markerIcon}
+                zIndexOffset={isPoiFocused ? 2500 : 500}
+                eventHandlers={{
+                  mouseover: () => {
+                    if (isAllDays) {
+                      handleDayHoverStart(dayData.dayNumber);
+                    }
+                  },
+                  mouseout: () => {
+                    if (isAllDays) {
+                      handleDayHoverEnd();
+                    }
+                  },
+                  click: () => {
+                    onInspectPoi?.(poi.name, {
+                      id: poi.name,
+                      name: poi.name,
+                      lat: poi.lat,
+                      lng: poi.lng,
+                      category: poi.category,
+                      duration_mins: poi.durationMins,
+                      cost_eur: poi.costEur,
+                    });
+                  },
+                }}
+              />
+            );
+          });
+        })()}
 
         {/* 7. Category POI Markers (Displayed when browsing a category like MUSEUM, CAFE, etc.) */}
         {activeCategory && categoryPois && categoryPois.length > 0 && (
@@ -1263,7 +1425,7 @@ export default function TripMapView({
               <Marker
                 key={`cat-poi-${poi.id || idx}-${poi.lat}-${poi.lng}`}
                 position={[poi.lat, poi.lng]}
-                icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused)}
+                icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused, Math.min(idx * 16, 180))}
                 zIndexOffset={isCatPoiFocused ? 2500 : 400}
                 eventHandlers={{
                   click: () => {
