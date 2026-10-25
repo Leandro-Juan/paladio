@@ -4,6 +4,7 @@ import {
   computeCentroid,
   computeCurvedSplineArc,
   computeCurvedRoutePath,
+  isPointInPolygon,
 } from '../../src/utils/clusterHull';
 
 test.describe('Cluster Hull & Geometry Utility', () => {
@@ -12,41 +13,66 @@ test.describe('Cluster Hull & Geometry Utility', () => {
     expect(computeCentroid([])).toEqual({ lat: 0, lng: 0 });
   });
 
-  test('computes regular polygon for single point', () => {
+  test('computes circular polygon for single point', () => {
     const singlePoint = [{ lat: 41.15, lng: -8.62 }];
     const centroid = computeCentroid(singlePoint);
     expect(centroid.lat).toBeCloseTo(41.15);
     expect(centroid.lng).toBeCloseTo(-8.62);
 
     const poly = computeClusterPolygon(singlePoint);
-    expect(poly.length).toBe(12);
+    expect(poly.length).toBe(32);
+    expect(isPointInPolygon([singlePoint[0].lat, singlePoint[0].lng], poly)).toBe(true);
   });
 
-  test('computes capsule polygon for two points', () => {
+  test('computes smooth rounded capsule blob for two points', () => {
     const twoPoints = [
       { lat: 41.15, lng: -8.62 },
       { lat: 41.16, lng: -8.63 },
     ];
     const poly = computeClusterPolygon(twoPoints);
-    expect(poly.length).toBe(4);
+    expect(poly.length).toBeGreaterThanOrEqual(12);
+
+    for (const p of twoPoints) {
+      expect(isPointInPolygon([p.lat, p.lng], poly)).toBe(true);
+    }
   });
 
-  test('computes convex hull with padding for multi-point cluster', () => {
+  test('computes circular blobby hull enclosing multi-point cluster', () => {
     const points = [
       { lat: 41.15, lng: -8.62 },
-      { lat: 41.16, lng: -8.63 },
-      { lat: 41.14, lng: -8.61 },
-      { lat: 41.155, lng: -8.625 },
-      { lat: 41.145, lng: -8.615 },
+      { lat: 41.16, lng: -8.61 },
+      { lat: 41.14, lng: -8.60 },
+      { lat: 41.155, lng: -8.63 },
+      { lat: 41.145, lng: -8.625 },
     ];
     const poly = computeClusterPolygon(points);
-    expect(poly.length).toBeGreaterThanOrEqual(3);
+    expect(poly.length).toBeGreaterThanOrEqual(12);
 
     for (const [lat, lng] of poly) {
       expect(typeof lat).toBe('number');
       expect(typeof lng).toBe('number');
       expect(isNaN(lat)).toBe(false);
       expect(isNaN(lng)).toBe(false);
+    }
+
+    for (const p of points) {
+      expect(isPointInPolygon([p.lat, p.lng], poly)).toBe(true);
+    }
+  });
+
+  test('computes valid bounding blob for collinear points', () => {
+    const collinear = [
+      { lat: 41.15, lng: -8.62 },
+      { lat: 41.16, lng: -8.63 },
+      { lat: 41.14, lng: -8.61 },
+      { lat: 41.155, lng: -8.625 },
+      { lat: 41.145, lng: -8.615 },
+    ];
+    const poly = computeClusterPolygon(collinear);
+    expect(poly.length).toBeGreaterThanOrEqual(12);
+
+    for (const p of collinear) {
+      expect(isPointInPolygon([p.lat, p.lng], poly)).toBe(true);
     }
   });
 

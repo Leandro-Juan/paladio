@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
-import { computeClusterPolygon, computeCentroid, computeCurvedRoutePath, computeCurvedSplineArc, LatLngPoint } from '@/utils/clusterHull';
+import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
@@ -875,10 +875,10 @@ export default function TripMapView({
     return [41.1579, -8.6291]; // Default fallback
   }, [activeBoundsPoints, hotel]);
 
-  // Active day route geometry (smooth curves + dashed commute legs)
+  // Active day route geometry (straight lines connecting POIs + dashed commute legs in simple view)
   const activeDayRouteData = useMemo(() => {
     if (!activeDayData || !activeDayData.pois || activeDayData.pois.length < 2) {
-      return { coreCurved: [], commuteStartArc: [], commuteEndArc: [] };
+      return { coreStraight: [], commuteStartLine: [], commuteEndLine: [] };
     }
 
     const pois = activeDayData.pois;
@@ -892,21 +892,26 @@ export default function TripMapView({
       endIdx--;
     }
 
-    const commuteStartArc: [number, number][] =
+    const commuteStartLine: [number, number][] =
       startIdx > 0
-        ? computeCurvedSplineArc([pois[0].lat, pois[0].lng], [pois[startIdx].lat, pois[startIdx].lng], { curvature: 0.08 })
+        ? [
+            [pois[0].lat, pois[0].lng],
+            [pois[startIdx].lat, pois[startIdx].lng],
+          ]
         : [];
 
-    const commuteEndArc: [number, number][] =
+    const commuteEndLine: [number, number][] =
       endIdx < pois.length
-        ? computeCurvedSplineArc([pois[endIdx - 1].lat, pois[endIdx - 1].lng], [pois[pois.length - 1].lat, pois[pois.length - 1].lng], { curvature: 0.08 })
+        ? [
+            [pois[endIdx - 1].lat, pois[endIdx - 1].lng],
+            [pois[pois.length - 1].lat, pois[pois.length - 1].lng],
+          ]
         : [];
 
     const coreSlice = pois.slice(startIdx, endIdx);
-    const coreRaw: [number, number][] = coreSlice.map((p) => [p.lat, p.lng]);
-    const coreCurved = coreRaw.length >= 2 ? computeCurvedRoutePath(coreRaw) : [];
+    const coreStraight: [number, number][] = coreSlice.map((p) => [p.lat, p.lng]);
 
-    return { coreCurved, commuteStartArc, commuteEndArc };
+    return { coreStraight, commuteStartLine, commuteEndLine };
   }, [activeDayData]);
 
   const isFocusedAlreadyRendered = useMemo(() => {
@@ -1080,11 +1085,11 @@ export default function TripMapView({
           </>
         ) : activeDay !== 'all' ? (
           <>
-            {/* Core sightseeing route (smooth curved spline) */}
-            {activeDayRouteData.coreCurved.length > 1 && (
+            {/* Core sightseeing route (straight line segments) */}
+            {activeDayRouteData.coreStraight.length > 1 && (
               <Polyline
                 key={`active-core-d${activeDay}`}
-                positions={activeDayRouteData.coreCurved}
+                positions={activeDayRouteData.coreStraight}
                 pathOptions={{
                   color: getDayColor(activeDay as number),
                   weight: 3.5,
@@ -1092,11 +1097,11 @@ export default function TripMapView({
                 }}
               />
             )}
-            {/* Commute start from Hotel/Airport (refined dashed arc) */}
-            {activeDayRouteData.commuteStartArc.length > 1 && (
+            {/* Commute start from Hotel/Airport (straight dashed line) */}
+            {activeDayRouteData.commuteStartLine.length > 1 && (
               <Polyline
                 key={`active-start-d${activeDay}`}
-                positions={activeDayRouteData.commuteStartArc}
+                positions={activeDayRouteData.commuteStartLine}
                 pathOptions={{
                   color: getDayColor(activeDay as number),
                   weight: 2,
@@ -1105,11 +1110,11 @@ export default function TripMapView({
                 }}
               />
             )}
-            {/* Commute return to Hotel (refined dashed arc) */}
-            {activeDayRouteData.commuteEndArc.length > 1 && (
+            {/* Commute return to Hotel (straight dashed line) */}
+            {activeDayRouteData.commuteEndLine.length > 1 && (
               <Polyline
                 key={`active-end-d${activeDay}`}
-                positions={activeDayRouteData.commuteEndArc}
+                positions={activeDayRouteData.commuteEndLine}
                 pathOptions={{
                   color: getDayColor(activeDay as number),
                   weight: 2,
@@ -1120,21 +1125,20 @@ export default function TripMapView({
             )}
           </>
         ) : (
-          /* In ALL DAYS view: render clean curved day polylines excluding repetitive hotel commute rays */
+          /* In ALL DAYS view: render clean straight day polylines excluding repetitive hotel commute rays */
           days.map((d) => {
             const sightseeingPois = d.pois.filter((p) => !isTransitAnchor(p));
             const targetPois = sightseeingPois.length >= 2 ? sightseeingPois : d.pois;
             const rawCoords: [number, number][] = targetPois.map((p) => [p.lat, p.lng]);
             if (rawCoords.length < 2) return null;
 
-            const curvedPositions = computeCurvedRoutePath(rawCoords);
             const isHovered = hoveredDay === d.dayNumber;
             const isAnotherHovered = hoveredDay !== null && !isHovered;
 
             return (
               <Polyline
                 key={`all-poly-d${d.dayNumber}`}
-                positions={curvedPositions}
+                positions={rawCoords}
                 pathOptions={{
                   color: getDayColor(d.dayNumber),
                   weight: isHovered ? 4 : isAnotherHovered ? 1.5 : 2.5,
