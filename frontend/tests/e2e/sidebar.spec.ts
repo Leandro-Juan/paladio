@@ -15,7 +15,7 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
 
     // Verify all 4 primary workspace tabs are present
     const controlCenterLink = sidebar.getByRole('link', { name: /Control Center/i });
-    const engineLink = sidebar.getByRole('link', { name: /Active Engine/i });
+    const engineLink = sidebar.getByRole('link', { name: /Active Engine|New Trip/i });
     const tripsLink = sidebar.getByRole('link', { name: /Upcoming Trips/i });
     const vaultLink = sidebar.getByRole('link', { name: /Itinerary Vault/i });
 

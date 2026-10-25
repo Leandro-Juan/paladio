@@ -319,6 +319,16 @@ async def create_trip(
                 f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
             )
 
+        # Auto-seed city POIs if needed (for blank trips or newly planned destinations)
+        try:
+            from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+            from app.engine.city_readiness import ensure_city_ready
+
+            poi_repo = SqlPoiRepository(session)
+            await ensure_city_ready(db_trip.destination, poi_repo)
+        except Exception as e:
+            logger.warning(f"Could not auto-seed POIs for {db_trip.destination}: {e}")
+
     t_count = await _get_trip_tickets_count(db_trip.id, session)
 
     return TripResponse(

@@ -5,6 +5,7 @@
   /* Pacific Jazz 80/15/5 Palette */
   --color-bg-main: #F5EFEB;
   --color-surface-card: #FAF6F0;
+  --color-surface-raised: #FFFFFF;
   --color-hero-bg: #0F4C5C;
   --color-text-primary: #1A2B32;
   --color-text-muted: #566B76;
@@ -78,6 +79,7 @@
 
   --color-bg-main: #081C24;
   --color-surface-card: #0D2631;
+  --color-surface-raised: #123340;
   --color-hero-bg: #0F3A47;
   --color-text-primary: #F0F6F6;
   --color-text-muted: #8FA8B3;
@@ -1015,5 +1017,16 @@ a {
 .paladio-range-input::-moz-range-track {
   background: transparent;
   border: none;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
