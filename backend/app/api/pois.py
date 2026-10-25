@@ -14,11 +14,6 @@ import re
 import unicodedata
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import and_, case, cast, Float, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.api.deps import get_optional_user
@@ -31,6 +26,10 @@ from app.infrastructure.providers.ollama_embedding_provider import (
 )
 from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
 from app.utils.opening_hours_parser import parse_osm_opening_hours
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import Float, and_, case, cast, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +206,27 @@ CATEGORY_SYNONYMS: dict[str, list[str]] = {
 }
 
 
+def is_point_in_polygon(
+    lat: float, lng: float, polygon: list[tuple[float, float]]
+) -> bool:
+    """Standard 2D Ray Casting point-in-polygon algorithm."""
+    if not polygon or len(polygon) < 3:
+        return False
+    inside = False
+    n = len(polygon)
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i]
+        xj, yj = polygon[j]
+        intersect = ((yi > lng) != (yj > lng)) and (
+            lat < (xj - xi) * (lng - yi) / (yj - yi) + xi
+        )
+        if intersect:
+            inside = not inside
+        j = i
+    return inside
+
+
 def _model_to_search_item(
     p: AttractionModel,
     match_type: str = "category_browse",
@@ -287,6 +307,9 @@ async def search_pois(
     bounds: str | None = Query(
         None, description="Optional bounding box 'min_lat,min_lng,max_lat,max_lng'"
     ),
+    polygon: str | None = Query(
+        None, description="Optional convex hull polygon 'lat1,lng1;lat2,lng2;...'"
+    ),
     limit: int = Query(15, ge=1, le=200, description="Max results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     session: AsyncSession = Depends(get_db),
@@ -317,7 +340,17 @@ async def search_pois(
     ):
         user_embedding = resolved_user.embedding
 
-    # Resolve day territory / bounding box if bounds or day+trip_id provided
+    # Resolve day territory / bounding box & convex hull polygon
+    polygon_pts: list[tuple[float, float]] = []
+    if polygon:
+        try:
+            for pair in polygon.split(";"):
+                parts = [float(x.strip()) for x in pair.split(",") if x.strip()]
+                if len(parts) == 2:
+                    polygon_pts.append((parts[0], parts[1]))
+        except Exception as e:
+            logger.debug(f"Failed to parse polygon parameter: {e}")
+
     day_bounds: tuple[float, float, float, float] | None = None
     if bounds:
         try:
@@ -326,6 +359,16 @@ async def search_pois(
                 day_bounds = (parts[0], parts[1], parts[2], parts[3])
         except Exception:
             day_bounds = None
+
+    if not day_bounds and polygon_pts:
+        p_lats = [pt[0] for pt in polygon_pts]
+        p_lngs = [pt[1] for pt in polygon_pts]
+        day_bounds = (
+            min(p_lats) - 0.005,
+            min(p_lngs) - 0.005,
+            max(p_lats) + 0.005,
+            max(p_lngs) + 0.005,
+        )
 
     if not day_bounds and trip_id and day is not None and day > 0:
         try:
@@ -407,6 +450,8 @@ async def search_pois(
                 )
                 order_clauses.append(comp_quality.desc())
 
+                fetch_limit = max(100, limit + offset) if polygon_pts else limit
+                fetch_offset = 0 if polygon_pts else offset
                 stmt = (
                     select(AttractionModel, sim_expr)
                     .where(
@@ -417,8 +462,8 @@ async def search_pois(
                     )
                     .where(func.lower(AttractionModel.category).in_(target_cats))
                     .order_by(*order_clauses)
-                    .offset(offset)
-                    .limit(limit)
+                    .offset(fetch_offset)
+                    .limit(fetch_limit)
                 )
                 db_rows = (await session.execute(stmt)).all()
                 results = [
@@ -431,6 +476,8 @@ async def search_pois(
                 ]
             else:
                 order_clauses.append(AttractionModel.iconicity_score.desc())
+                fetch_limit = max(100, limit + offset) if polygon_pts else limit
+                fetch_offset = 0 if polygon_pts else offset
                 stmt = (
                     select(AttractionModel)
                     .where(
@@ -441,11 +488,28 @@ async def search_pois(
                     )
                     .where(func.lower(AttractionModel.category).in_(target_cats))
                     .order_by(*order_clauses)
-                    .offset(offset)
-                    .limit(limit)
+                    .offset(fetch_offset)
+                    .limit(fetch_limit)
                 )
                 db_pois = (await session.execute(stmt)).scalars().all()
                 results = [_model_to_search_item(p, "category_browse") for p in db_pois]
+
+            if polygon_pts:
+                results.sort(
+                    key=lambda x: (
+                        1 if is_point_in_polygon(x.lat, x.lng, polygon_pts) else 0,
+                        1
+                        if (
+                            day_bounds
+                            and day_bounds[0] <= x.lat <= day_bounds[2]
+                            and day_bounds[1] <= x.lng <= day_bounds[3]
+                        )
+                        else 0,
+                        x.similarity,
+                    ),
+                    reverse=True,
+                )
+                results = results[offset : offset + limit]
 
             await _enrich_items_with_photos(results, city_name)
             return PoiSearchResponse(
@@ -758,29 +822,28 @@ async def search_pois(
         base_score = 0.0
         mtype = None
 
-        if norm_name == norm_query:
+        if norm_name == norm_query or any(a == norm_query for a in norm_aliases):
             base_score = 1.0
             mtype = "exact_name"
-        elif any(a == norm_query for a in norm_aliases):
-            base_score = 1.0
-            mtype = "exact_name"
-        elif stripped_name == stripped_query:
+        elif stripped_name == stripped_query or any(
+            a == stripped_query for a in stripped_aliases
+        ):
             base_score = 0.95
             mtype = "exact_name"
-        elif any(a == stripped_query for a in stripped_aliases):
-            base_score = 0.95
-            mtype = "exact_name"
-        elif len(norm_query) >= 3 and norm_query in norm_name:
+        elif (
+            len(norm_query) >= 3
+            and norm_query in norm_name
+            or any(len(norm_query) >= 3 and norm_query in a for a in norm_aliases)
+        ):
             base_score = 0.88
             mtype = "fuzzy_name"
-        elif any(len(norm_query) >= 3 and norm_query in a for a in norm_aliases):
-            base_score = 0.88
-            mtype = "fuzzy_name"
-        elif len(stripped_query) >= 3 and stripped_query in stripped_name:
-            base_score = 0.82
-            mtype = "fuzzy_name"
-        elif any(
-            len(stripped_query) >= 3 and stripped_query in a for a in stripped_aliases
+        elif (
+            len(stripped_query) >= 3
+            and stripped_query in stripped_name
+            or any(
+                len(stripped_query) >= 3 and stripped_query in a
+                for a in stripped_aliases
+            )
         ):
             base_score = 0.82
             mtype = "fuzzy_name"
@@ -880,7 +943,9 @@ async def search_pois(
         max_cost_eur=sq.max_cost_eur,
         max_tier=sq.max_tier,
         require_rain_friendly=sq.require_rain_friendly,
-        limit=limit + offset,
+        limit=max(100, limit + offset)
+        if (polygon_pts or day_bounds)
+        else (limit + offset),
         w_vec=0.55 if query_vector else 0.0,
         w_fts=0.25 if sq.clean_query else 0.0,
         w_trgm=0.20 if sq.clean_query else 0.0,
@@ -922,16 +987,28 @@ async def search_pois(
     except Exception:
         db_total = 0
 
-    if offset > 0:
-        candidates = candidates[offset:]
-
     results: list[PoiSearchItem] = []
     for c in candidates:
         sim_val = float(c.get("vec_sim", c.get("composite_score", 0.0)))
         results.append(_candidate_to_search_item(c, sim_val, "semantic_rag"))
 
-    # Sort by day territory bounds first if day selected, then by similarity
-    if day_bounds:
+    # Sort by convex hull polygon first if provided, then day territory bounds, then by similarity
+    if polygon_pts:
+        results.sort(
+            key=lambda x: (
+                1 if is_point_in_polygon(x.lat, x.lng, polygon_pts) else 0,
+                1
+                if (
+                    day_bounds
+                    and day_bounds[0] <= x.lat <= day_bounds[2]
+                    and day_bounds[1] <= x.lng <= day_bounds[3]
+                )
+                else 0,
+                x.similarity,
+            ),
+            reverse=True,
+        )
+    elif day_bounds:
         b_min_lat, b_min_lng, b_max_lat, b_max_lng = day_bounds
         results.sort(
             key=lambda x: (
@@ -944,6 +1021,9 @@ async def search_pois(
         )
     else:
         results.sort(key=lambda x: x.similarity, reverse=True)
+
+    if offset > 0 or len(results) > limit:
+        results = results[offset : offset + limit]
 
     # Check if a non-empty query retrieved no exact match
     message = None

@@ -1,10 +1,11 @@
-import pytest
 from unittest.mock import patch
+
 import httpx
+import pytest
 from app.services.poi_pricing_service import (
     PoiPricingService,
-    parse_wikivoyage_price,
     normalize_string,
+    parse_wikivoyage_price,
 )
 
 
@@ -62,9 +63,20 @@ def test_resolve_price_osm_charge():
         category="monument",
         osm_charge="8.50 GBP",
     )
-    assert cost == 8.50
+    assert 9.0 <= cost <= 12.0
     assert is_est is False
     assert src == "osm_charge_tag"
+
+    # Test Tokyo JPY charge (Ueno Zoo 600 JPY -> ~3.50 - 4.50 EUR)
+    tokyo_cost, tokyo_est, tokyo_src = PoiPricingService.resolve_poi_price(
+        poi_name="Ueno Zoological Gardens",
+        city="Tokyo",
+        category="park",
+        osm_charge="600 JPY",
+    )
+    assert 3.0 <= tokyo_cost <= 5.0
+    assert tokyo_est is False
+    assert tokyo_src == "osm_charge_tag"
 
 
 def test_resolve_price_wikivoyage():
@@ -74,7 +86,7 @@ def test_resolve_price_wikivoyage():
         category="museum",
         wikivoyage_price="CZK 200 (~8 EUR)",
     )
-    assert cost == 200.0  # first parsed number
+    assert cost == 8.0  # prioritized EUR equivalent in parentheses
     assert is_est is False
     assert src == "wikivoyage_listing"
 
@@ -93,8 +105,9 @@ async def test_official_website_literal_verification_success():
         request=httpx.Request("POST", "http://localhost:11434/api/generate"),
     )
 
-    with patch("httpx.AsyncClient.get", return_value=mock_resp), patch(
-        "httpx.AsyncClient.post", return_value=ollama_resp
+    with (
+        patch("httpx.AsyncClient.get", return_value=mock_resp),
+        patch("httpx.AsyncClient.post", return_value=ollama_resp),
     ):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",
@@ -122,8 +135,9 @@ async def test_official_website_literal_verification_rejection():
         request=httpx.Request("POST", "http://localhost:11434/api/generate"),
     )
 
-    with patch("httpx.AsyncClient.get", return_value=mock_resp), patch(
-        "httpx.AsyncClient.post", return_value=ollama_resp
+    with (
+        patch("httpx.AsyncClient.get", return_value=mock_resp),
+        patch("httpx.AsyncClient.post", return_value=ollama_resp),
     ):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",

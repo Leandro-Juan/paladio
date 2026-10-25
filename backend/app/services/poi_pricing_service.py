@@ -18,12 +18,12 @@ from dataclasses import dataclass
 from urllib.parse import urljoin
 
 import httpx
+from app.db.models import CityModel, PoiPriceCatalogModel
+from app.db.seeds.poi_prices import INITIAL_VERIFIED_PRICES
+from app.engine.currency import convert_currency
+from app.utils.opening_hours_parser import parse_osm_opening_hours
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.models import PoiPriceCatalogModel
-from app.db.seeds.poi_prices import INITIAL_VERIFIED_PRICES
-from app.utils.opening_hours_parser import parse_osm_opening_hours
 
 logger = logging.getLogger(__name__)
 
@@ -86,23 +86,165 @@ def _ensure_catalog_initialized() -> None:
             _WIKIDATA_CATALOG[item["wikidata_id"]] = vp
 
 
-def parse_wikivoyage_price(price_str: str | None) -> tuple[float | None, bool]:
-    """Parses Wikivoyage listing price strings (e.g. '€15', 'free', '12 EUR')."""
+_CITY_CURRENCY_CACHE: dict[str, str] = {}
+
+
+def _ensure_city_currencies_initialized() -> None:
+    """Lazily populates in-memory city currency cache dynamically from PostgreSQL if empty."""
+    global _CITY_CURRENCY_CACHE
+    if _CITY_CURRENCY_CACHE:
+        return
+    try:
+        import asyncio
+
+        from app.db.session import async_session
+
+        async def _fetch():
+            async with async_session() as session:
+                await PoiPricingService.load_catalog_from_db(session)
+
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                asyncio.create_task(_fetch())
+                return
+        except RuntimeError:
+            asyncio.run(_fetch())
+    except Exception as exc:
+        logger.debug("Could not lazily query city currencies from DB: %s", exc)
+
+
+def _detect_currency(text: str, city: str = "") -> str:
+    """Infers currency ISO code from currency symbols, codes, or destination city dynamically from PostgreSQL."""
+    clean_upper = text.upper()
+    if any(k in clean_upper for k in ("JPY", "JPN")) or "円" in text or "¥" in text:
+        return "JPY"
+    if (
+        "HUF" in clean_upper
+        or " FT" in clean_upper
+        or clean_upper.endswith("FT")
+        or "FT " in clean_upper
+    ):
+        return "HUF"
+    if "GBP" in clean_upper or "£" in text:
+        return "GBP"
+    if (
+        "USD" in clean_upper
+        or "US$" in clean_upper
+        or ("$" in text and "CAD" not in clean_upper and "AUD" not in clean_upper)
+    ):
+        return "USD"
+    if "CHF" in clean_upper:
+        return "CHF"
+    if "CAD" in clean_upper or "C$" in clean_upper:
+        return "CAD"
+    if "AUD" in clean_upper or "A$" in clean_upper:
+        return "AUD"
+    if "EUR" in clean_upper or "€" in text:
+        return "EUR"
+
+    # Query dynamic database-backed city currency cache (populated from PostgreSQL cities table)
+    if city:
+        _ensure_city_currencies_initialized()
+        city_lower = city.strip().lower()
+        if city_lower in _CITY_CURRENCY_CACHE:
+            return _CITY_CURRENCY_CACHE[city_lower]
+        for key, curr in _CITY_CURRENCY_CACHE.items():
+            if key in city_lower or city_lower in key:
+                return curr
+
+    return "EUR"
+
+
+def parse_osm_charge(
+    charge_str: str | None, city: str = ""
+) -> tuple[float | None, bool]:
+    """Parses OSM charge tag strings, detects currency, and converts dynamically to EUR.
+
+    Handles strings like '2500 JPY', '大人300円 子供150円', '500 HUF', '£15', 'free'.
+    Rejects percentage-only values like '10%' or '16%'.
+    """
+    if not charge_str or not isinstance(charge_str, str):
+        return None, False
+
+    clean = charge_str.strip()
+    if not clean:
+        return None, False
+
+    # Check for pure percentage service charges (e.g. "10%", "16%")
+    if re.fullmatch(r"^\+?\d+(?:\.\d+)?\s*%$", clean):
+        return None, False
+
+    clean_lower = clean.lower()
+    if re.search(r"\b(?:free|gratis|gratuit|donation|frei|no charge)\b", clean_lower):
+        return 0.0, True
+
+    curr = _detect_currency(clean, city)
+
+    # Extract first nominal numeric value
+    m = re.search(r"(\d+(?:[.,]\d{1,2})?)", clean)
+    if not m:
+        return None, False
+
+    try:
+        val = float(m.group(1).replace(",", "."))
+    except ValueError:
+        return None, False
+
+    if val == 0.0:
+        return 0.0, True
+
+    if curr == "EUR":
+        return round(val, 2), False
+
+    try:
+        eur_val = convert_currency(val, from_currency=curr, to_currency="EUR")
+        return eur_val, False
+    except Exception as exc:
+        logger.warning(f"Failed to convert {val} {curr} to EUR: {exc}")
+        return round(val, 2), False
+
+
+def parse_wikivoyage_price(
+    price_str: str | None, city: str = ""
+) -> tuple[float | None, bool]:
+    """Parses Wikivoyage listing price strings (e.g. '€15', 'free', '12 EUR', 'CZK 200 (~8 EUR)')."""
     if not price_str or not isinstance(price_str, str):
         return None, False
 
-    clean = price_str.strip().lower()
-    if any(w in clean for w in ("free", "gratis", "gratuit", "donation", "frei")):
+    clean = price_str.strip()
+    clean_lower = clean.lower()
+    if any(w in clean_lower for w in ("free", "gratis", "gratuit", "donation", "frei")):
         return 0.0, True
+
+    # If Wikivoyage provides an explicit EUR equivalent in parentheses like (~8 EUR) or (€8), prioritize it
+    eur_m = re.search(
+        r"\(~?\s*(?:€\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*eur)\)",
+        clean_lower,
+    )
+    if eur_m:
+        raw_val = eur_m.group(1) or eur_m.group(2)
+        try:
+            val = float(raw_val.replace(",", "."))
+            return round(val, 2), val == 0.0
+        except ValueError:
+            pass
+
+    curr = _detect_currency(clean, city)
 
     # Look for numeric patterns like 15, 15.00, 15,50
     m = re.search(r"(\d+(?:[.,]\d{1,2})?)", clean)
     if m:
         try:
             val = float(m.group(1).replace(",", "."))
-            return val, val == 0.0
-        except ValueError:
-            pass
+            if val == 0.0:
+                return 0.0, True
+            if curr == "EUR":
+                return round(val, 2), False
+            eur_val = convert_currency(val, from_currency=curr, to_currency="EUR")
+            return eur_val, False
+        except (ValueError, Exception) as exc:
+            logger.debug("Failed parsing wikivoyage price %s: %s", clean, exc)
     return None, False
 
 
@@ -130,6 +272,18 @@ class PoiPricingService:
             if row.wikidata_id:
                 _WIKIDATA_CATALOG[row.wikidata_id] = vp
             count += 1
+        # Dynamically populate city currencies from PostgreSQL cities table
+        global _CITY_CURRENCY_CACHE
+        city_res = await session.execute(
+            select(CityModel.id, CityModel.name, CityModel.aliases, CityModel.currency)
+        )
+        for cid, name, aliases, curr in city_res.all():
+            if curr:
+                _CITY_CURRENCY_CACHE[cid.lower()] = curr.upper()
+                _CITY_CURRENCY_CACHE[name.lower()] = curr.upper()
+                for alias in aliases or []:
+                    _CITY_CURRENCY_CACHE[alias.lower()] = curr.upper()
+
         return count
 
     @classmethod
@@ -194,21 +348,13 @@ class PoiPricingService:
             return 0.0, False, "osm_fee_no"
 
         if osm_charge:
-            try:
-                cleaned = re.sub(r"[^\d.]", " ", str(osm_charge))
-                nums = [
-                    float(p)
-                    for p in cleaned.split()
-                    if p and p.replace(".", "", 1).isdigit()
-                ]
-                if nums:
-                    return nums[0], False, "osm_charge_tag"
-            except (ValueError, TypeError) as parse_err:
-                logger.debug("Could not parse charge tag: %s", parse_err)
+            charge_cost, is_free = parse_osm_charge(osm_charge, city=city)
+            if charge_cost is not None:
+                return charge_cost, False, "osm_charge_tag"
 
         # Tier 3: Check Wikivoyage listing price
         if wikivoyage_price:
-            wv_cost, wv_free = parse_wikivoyage_price(wikivoyage_price)
+            wv_cost, wv_free = parse_wikivoyage_price(wikivoyage_price, city=city)
             if wv_cost is not None:
                 return wv_cost, False, "wikivoyage_listing"
 

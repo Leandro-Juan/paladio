@@ -42,8 +42,18 @@ async def lifespan(app: FastAPI):
 
         if isinstance(e, asyncio.CancelledError):
             raise
-        logger.error(f"Failed to fetch live exchange rate: {e}")
-        app.state.exchange_rate_usd_eur = 1.0
+    # Dynamically initialize POI price catalog and city currencies from PostgreSQL
+    try:
+        from app.db.session import async_session
+        from app.services.poi_pricing_service import PoiPricingService
+
+        async with async_session() as db_session:
+            await PoiPricingService.load_catalog_from_db(db_session)
+        logger.info(
+            "Dynamically initialized POI price catalog and city currencies from PostgreSQL"
+        )
+    except Exception as e:
+        logger.warning(f"Could not initialize catalog from DB on startup: {e}")
 
     yield
     # Cleanup here

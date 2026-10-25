@@ -341,14 +341,12 @@ def _parse_fee(tags: dict[str, str], category: str) -> tuple[float, bool, str]:
         return 0.0, False, "osm_fee_tag_free"
     charge = tags.get("charge")
     if charge:
-        digits = "".join(
-            c if (c.isdigit() or c == ".") else " " for c in charge
-        ).split()
-        for tok in digits:
-            try:
-                return float(tok), False, "osm_charge_tag"
-            except ValueError:
-                continue
+        from app.services.poi_pricing_service import parse_osm_charge
+
+        city = tags.get("addr:city", "")
+        cost, is_free = parse_osm_charge(charge, city=city)
+        if cost is not None:
+            return cost, is_free, "osm_charge_tag"
     return default_cost_eur(tags, category), True, "category_benchmark_estimate"
 
 
