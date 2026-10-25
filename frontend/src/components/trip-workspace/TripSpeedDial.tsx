@@ -53,20 +53,23 @@ export function TripSpeedDial({
 
   // Close on outside click
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 50);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [isOpen]);
 
-  const toggleDial = useCallback(() => {
+  const toggleDial = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setIsOpen((prev) => !prev);
   }, []);
 
@@ -147,10 +150,10 @@ export function TripSpeedDial({
       ref={containerRef}
       style={{
         position: 'absolute',
-        bottom: '24px',
+        bottom: transitMode === 'detailed' ? '72px' : '24px',
         left: isLeft ? (isPanelOpen ? `calc(${panelWidth} + 28px)` : '24px') : 'auto',
         right: isLeft ? 'auto' : (isRightOpen ? 'calc(min(380px, calc(100vw - 32px)) + 24px)' : '24px'),
-        transition: isLeft ? 'left 0.28s cubic-bezier(0.23, 1, 0.32, 1)' : 'right 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
+        transition: `${isLeft ? 'left' : 'right'} 0.28s cubic-bezier(0.23, 1, 0.32, 1), bottom 0.32s cubic-bezier(0.34, 1.25, 0.64, 1)`,
         zIndex: 1050,
         pointerEvents: 'none',
       }}
@@ -254,10 +257,13 @@ export function TripSpeedDial({
               <button
                 type="button"
                 data-testid={act.testId}
-                onClick={act.onClick}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  act.onClick();
+                  setIsOpen(false);
+                }}
                 disabled={act.disabled}
                 aria-label={act.label}
-                title={act.title}
                 onMouseEnter={() => setHoveredAction(act.id)}
                 onMouseLeave={() => setHoveredAction(null)}
                 onFocus={() => setHoveredAction(act.id)}
@@ -300,7 +306,6 @@ export function TripSpeedDial({
           onClick={toggleDial}
           aria-expanded={isOpen}
           aria-label={isOpen ? 'Close route actions menu' : 'Open route actions menu'}
-          title={isOpen ? 'Close route actions' : 'Route actions: Edit route, solve day, toggle view'}
           style={{
             position: 'absolute',
             left: isLeft ? 0 : 'auto',

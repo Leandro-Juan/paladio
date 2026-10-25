@@ -111,5 +111,39 @@ test.describe('Cluster Hull & Geometry Utility', () => {
     expect(route[0]).toEqual(points[0]);
     expect(route[route.length - 1]).toEqual(points[points.length - 1]);
   });
+
+  test('prioritizes POIs inside convex hull and rejects distant transit anchors', () => {
+    // Madrid city center sightseeing cluster (Sol, Prado, Reina Sofia)
+    const cluster = [
+      { lat: 40.4168, lng: -3.7038 },
+      { lat: 40.4138, lng: -3.6921 },
+      { lat: 40.4080, lng: -3.6944 },
+    ];
+    const hull = computeClusterPolygon(cluster);
+    expect(hull.length).toBeGreaterThanOrEqual(12);
+
+    // Nearby cafe in Sol/Huertas
+    const inHullPoi = { lat: 40.4145, lng: -3.6980 };
+    // Distant airport (Madrid Barajas)
+    const airportPoi = { lat: 40.4900, lng: -3.5670 };
+    // Far north POI
+    const farPoi = { lat: 40.4800, lng: -3.6900 };
+
+    expect(isPointInPolygon([inHullPoi.lat, inHullPoi.lng], hull)).toBe(true);
+    expect(isPointInPolygon([airportPoi.lat, airportPoi.lng], hull)).toBe(false);
+    expect(isPointInPolygon([farPoi.lat, farPoi.lng], hull)).toBe(false);
+
+    // Sorting by convex hull puts in-hull POI first
+    const list = [airportPoi, inHullPoi, farPoi];
+    list.sort((a, b) => {
+      const aIn = isPointInPolygon([a.lat, a.lng], hull);
+      const bIn = isPointInPolygon([b.lat, b.lng], hull);
+      if (aIn && !bIn) return -1;
+      if (!aIn && bIn) return 1;
+      return 0;
+    });
+
+    expect(list[0]).toEqual(inHullPoi);
+  });
 });
 

@@ -266,7 +266,6 @@ export function TripWorkspaceHeader({
               type="button"
               onClick={() => onTabChange(tab.id)}
               aria-label={tab.count ? `${tab.label} (${tab.count})` : tab.label}
-              title={tab.label}
               style={{
                 position: 'relative',
                 zIndex: 2,

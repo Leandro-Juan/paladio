@@ -110,7 +110,6 @@ export function MinimalistPoiCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onClick={onClick}
-      title={title || `${name} • Click to inspect details`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -167,7 +166,7 @@ export function MinimalistPoiCard({
                 display: 'flex',
                 alignItems: 'center',
               }}
-              title="Drag to reorder"
+              aria-label="Drag to reorder"
             >
               <GripVerticalIcon size={12} color="var(--color-text-muted)" />
             </span>
@@ -208,7 +207,7 @@ export function MinimalistPoiCard({
                 alignItems: 'center',
                 borderRadius: 'var(--radius-sm)',
               }}
-              title={anchorInfo.isFixed ? 'Locked waypoint (click to unlock)' : 'Unlocked waypoint (click to lock)'}
+              aria-label={anchorInfo.isFixed ? 'Locked waypoint (click to unlock)' : 'Unlocked waypoint (click to lock)'}
             >
               {anchorInfo.isFixed ? (
                 <LockIcon size={11} color="var(--color-accent-primary)" />
@@ -237,7 +236,7 @@ export function MinimalistPoiCard({
                     alignItems: 'center',
                     color: 'var(--color-text-muted)',
                   }}
-                  title="Move stop up"
+                  aria-label="Move stop up"
                 >
                   <ChevronUpIcon size={10} color="currentColor" />
                 </button>
@@ -258,7 +257,7 @@ export function MinimalistPoiCard({
                     alignItems: 'center',
                     color: 'var(--color-text-muted)',
                   }}
-                  title="Move stop down"
+                  aria-label="Move stop down"
                 >
                   <ChevronDownIcon size={10} color="currentColor" />
                 </button>

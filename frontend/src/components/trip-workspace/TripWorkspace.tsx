@@ -42,6 +42,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
+  const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -74,6 +75,18 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         description: p.description,
       }))
     );
+  }, []);
+
+  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'saved') => {
+    setSidebarTab(tab);
+    if (tab === 'route') {
+      // Clear category search and unselect focused search POI so only route/convex hull waypoints appear
+      setCategoryFilter(null);
+      setCategoryPois([]);
+      setFocusedPlace(null);
+      setInspectedPoiId(null);
+      setInspectedPoiFallback(null);
+    }
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
@@ -170,6 +183,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
               const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi);
               const poiItem: MapPoi = {
+                id: p?.id,
                 name: p?.name || 'Waypoint',
                 lat,
                 lng,
@@ -225,6 +239,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         const lng = p?.location?.longitude ?? p?.lng;
         if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
           const item: MapPoi = {
+            id: (p as unknown as { id?: string })?.id,
             name: p?.name || 'Waypoint',
             lat,
             lng,
@@ -311,13 +326,34 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       };
       setInspectedPoiId(pid);
       setInspectedPoiFallback(fallback);
+      setRenderedPoi({ id: pid, fallback });
       setLastInspectedPoi({ id: pid, fallback });
     }
   }, []);
 
+  const handleSelectDay = useCallback((day: number | 'all') => {
+    setSelectedDay(day);
+    setFocusedPlace(null);
+    setInspectedPoiId(null);
+    setInspectedPoiFallback(null);
+    setLastInspectedPoi(null);
+  }, []);
+
+  const isInspectorOpen = Boolean(inspectedPoiId);
+
+  useEffect(() => {
+    if (!inspectedPoiId) {
+      const timer = setTimeout(() => {
+        setRenderedPoi(null);
+      }, 340);
+      return () => clearTimeout(timer);
+    }
+  }, [inspectedPoiId]);
+
   const handleInspectPoi = useCallback((id: string, fallbackData?: Partial<PoiDetail>) => {
     setInspectedPoiId(id);
     setInspectedPoiFallback(fallbackData || null);
+    setRenderedPoi({ id, fallback: fallbackData || null });
     setLastInspectedPoi({ id, fallback: fallbackData });
     setIsSidebarOpen(true);
 
@@ -474,12 +510,20 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             hotel={hotel}
             airport={airport}
             activeDay={selectedDay}
-            onDayChange={setSelectedDay}
-            focusedPlace={focusedPlace}
-            categoryFilter={categoryFilter}
+            onDayChange={handleSelectDay}
+            focusedPlace={
+              sidebarTab === 'route' &&
+              focusedPlace &&
+              !places.some((p) => p.id === focusedPlace.id || p.name.toLowerCase() === focusedPlace.name.toLowerCase())
+                ? null
+                : focusedPlace
+            }
+            categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
-            categoryPois={categoryPois}
+            categoryPois={sidebarTab === 'route' ? [] : categoryPois}
+            isSidebarOpen={isSidebarOpen}
+            sidebarTab={sidebarTab}
             onInspectPoi={handleInspectPoi}
             onSelectCategoryPoi={(poi) =>
               handlePlaceClick({
@@ -502,10 +546,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             destinationCity={trip.destination}
             days={daysOutput}
             selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
+            onSelectDay={handleSelectDay}
             itinerary={itinerary as OptimizationResult}
             onItineraryUpdate={handleItineraryUpdate}
-            categoryFilter={categoryFilter}
+            categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
             onCategoryFilterChange={setCategoryFilter}
             transitMode={transitMode}
             onTransitModeChange={setTransitMode}
@@ -522,7 +566,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
             sidebarTab={sidebarTab}
-            onTabChange={setSidebarTab}
+            onTabChange={handleSidebarTabChange}
             isEditMode={isEditMode}
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
@@ -545,7 +589,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           />
 
           {/* Right Floating POI Details Drawer with External Close Arrow */}
-          {inspectedPoiId && (
+          {renderedPoi && (
             <div
               style={{
                 position: 'absolute',
@@ -556,8 +600,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 zIndex: 1040,
                 display: 'flex',
                 alignItems: 'flex-start',
-                animation: 'fadeInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1)',
-                pointerEvents: 'none',
+                pointerEvents: isInspectorOpen ? 'auto' : 'none',
+                opacity: isInspectorOpen ? 1 : 0,
+                transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% + 24px))',
+                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease',
               }}
             >
               {/* External Arrow Tab to Close POI Details */}
@@ -566,9 +612,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 data-testid="poi-inspector-close-arrow"
                 onClick={handleCloseInspect}
                 aria-label="Close POI details"
-                title="Close POI details"
                 style={{
-                  pointerEvents: 'auto',
+                  pointerEvents: isInspectorOpen ? 'auto' : 'none',
                   alignSelf: 'flex-start',
                   marginTop: '16px',
                   marginRight: '-1px',
@@ -602,7 +647,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
               <aside
                 data-testid="trip-poi-inspector-drawer"
                 style={{
-                  pointerEvents: 'auto',
+                  pointerEvents: isInspectorOpen ? 'auto' : 'none',
                   flex: '1 1 auto',
                   minWidth: 0,
                   maxHeight: '100%',
@@ -618,9 +663,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 }}
               >
                 <PoiDetailView
-                  key={`poi-detail-${inspectedPoiId || inspectedPoiFallback?.id || inspectedPoiFallback?.name || 'none'}`}
-                  poiId={inspectedPoiId}
-                  fallbackPoi={inspectedPoiFallback}
+                  key={`poi-detail-${renderedPoi.id || renderedPoi.fallback?.id || renderedPoi.fallback?.name || 'none'}`}
+                  poiId={renderedPoi.id}
+                  fallbackPoi={renderedPoi.fallback}
                   city={trip.destination}
                   onClose={handleCloseInspect}
                   onAddToDay={handleAddPoiToDay}
@@ -646,9 +691,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
               onClick={() => {
                 setInspectedPoiId(lastInspectedPoi.id);
                 setInspectedPoiFallback(lastInspectedPoi.fallback || null);
+                setRenderedPoi({ id: lastInspectedPoi.id, fallback: lastInspectedPoi.fallback || null });
               }}
               aria-label="Reopen POI details"
-              title={`Reopen ${lastInspectedPoi.fallback?.name || 'POI'} details`}
               style={{
                 position: 'absolute',
                 top: '32px',

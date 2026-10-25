@@ -1195,10 +1195,10 @@ export function TripUnifiedSidebar({
   availableDays = [],
   initialDay = 1,
   isEditMode = false,
-  onToggleEditMode,
-  onReoptimizeDay,
-  isReoptimizing = false,
-  onToggleTransitMode,
+  onToggleEditMode: _onToggleEditMode,
+  onReoptimizeDay: _onReoptimizeDay,
+  isReoptimizing: _isReoptimizing = false,
+  onToggleTransitMode: _onToggleTransitMode,
   sidebarTab,
   onTabChange,
 }: TripUnifiedSidebarProps) {
@@ -1210,6 +1210,16 @@ export function TripUnifiedSidebar({
     return info?.symbol || destCurrencyMeta.symbol || '€';
   }, [activeCurrencyCode, destCurrencyMeta.symbol]);
 
+  // Search Tab State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+
   // Primary Tabs State
   const [internalActiveTab, setInternalActiveTab] = useState<MainTabType>('route');
   const activeTab = sidebarTab !== undefined ? sidebarTab : internalActiveTab;
@@ -1217,20 +1227,14 @@ export function TripUnifiedSidebar({
     (tab: MainTabType) => {
       setInternalActiveTab(tab);
       onTabChange?.(tab);
+      if (tab === 'route') {
+        setActiveCategory('all');
+        onCategoryFilterChange?.(null);
+        onCategoryPoisChange?.([]);
+      }
     },
-    [onTabChange]
+    [onTabChange, onCategoryFilterChange, onCategoryPoisChange]
   );
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Search Tab State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
-  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
 
   // Filters state
   const [costRange, setCostRange] = useState<[number, number]>([0, 100]);
@@ -1292,20 +1296,8 @@ export function TripUnifiedSidebar({
     return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
   }, []);
 
-  // Close overflow menu on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isMenuOpen]);
 
-  // Active Day Convex Hull for POI search prioritization
+  // Active Day Convex Hull for POI search prioritization (excluding transit and lodging anchors to match map territory)
   const activeDayHull = useMemo<[number, number][] | null>(() => {
     if (selectedDay === 'all') return null;
     const targetDayData = days.find((d) => d.day === selectedDay);
@@ -1314,12 +1306,38 @@ export function TripUnifiedSidebar({
     targetDayData.itinerary.path.forEach((sp: ScheduledPoi) => {
       const p = sp.poi;
       if (!p) return;
+      const cat = (p.category || '').toLowerCase();
+      const normName = (p.name || '').toLowerCase();
+      if (
+        cat === 'airport' ||
+        cat === 'flight' ||
+        cat === 'hotel' ||
+        cat === 'lodging' ||
+        normName.includes('airport') ||
+        normName.includes('flight') ||
+        normName.includes('(start)') ||
+        normName.includes('(end)')
+      ) {
+        return;
+      }
       const lat = p.location?.latitude ?? (p as any).lat;
       const lng = p.location?.longitude ?? (p as any).lng;
       if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
         cityPoints.push({ lat, lng });
       }
     });
+    // Fallback if day only had transit or lodging anchors
+    if (cityPoints.length === 0) {
+      targetDayData.itinerary.path.forEach((sp: ScheduledPoi) => {
+        const p = sp.poi;
+        if (!p) return;
+        const lat = p.location?.latitude ?? (p as any).lat;
+        const lng = p.location?.longitude ?? (p as any).lng;
+        if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+          cityPoints.push({ lat, lng });
+        }
+      });
+    }
     if (cityPoints.length === 0) return null;
     return computeClusterPolygon(cityPoints);
   }, [days, selectedDay]);
@@ -1363,8 +1381,13 @@ export function TripUnifiedSidebar({
       if (append) {
         setIsLoadingMore(true);
       } else {
+        if (searchAbortRef.current) {
+          searchAbortRef.current.abort();
+        }
+        searchAbortRef.current = new AbortController();
         setIsLoadingSearch(true);
       }
+      const signal = searchAbortRef.current?.signal;
       setSearchErrorMessage(null);
       setHasSearched(true);
 
@@ -1373,6 +1396,12 @@ export function TripUnifiedSidebar({
         const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
         const dayParam = selectedDay !== 'all' ? `&day=${encodeURIComponent(String(selectedDay))}` : '';
         const boundsParam = activeDayBounds ? `&bounds=${encodeURIComponent(activeDayBounds)}` : '';
+        const hullParam =
+          activeDayHull && activeDayHull.length >= 3
+            ? `&polygon=${encodeURIComponent(
+                activeDayHull.map(([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(';')
+              )}`
+            : '';
         const offsetParam = offset > 0 ? `&offset=${offset}` : '';
         const baseUrl = getApiBaseUrl();
         const limit = isCategoryBrowse ? 60 : isAllBrowse ? 40 : 25;
@@ -1386,8 +1415,8 @@ export function TripUnifiedSidebar({
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             destinationCity
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}&limit=${limit}${offsetParam}`,
-          { headers }
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}${hullParam}&limit=${limit}${offsetParam}`,
+          { headers, signal }
         );
         if (!res.ok) {
           throw new Error(`Search failed (HTTP ${res.status})`);
@@ -1438,7 +1467,7 @@ export function TripUnifiedSidebar({
             const existingIds = new Set(prev.results.map((r) => r.id));
             const newResults = data.results.filter((r) => !existingIds.has(r.id));
             const merged = [...prev.results, ...newResults];
-            if (onCategoryPoisChange) {
+            if (onCategoryPoisChange && activeTab === 'search') {
               onCategoryPoisChange(merged);
             }
             return {
@@ -1449,11 +1478,14 @@ export function TripUnifiedSidebar({
           });
         } else {
           setSearchData(data);
-          if (onCategoryPoisChange) {
+          if (onCategoryPoisChange && activeTab === 'search') {
             onCategoryPoisChange(data.results || []);
           }
         }
       } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
         setSearchErrorMessage(msg);
       } finally {
@@ -1461,7 +1493,7 @@ export function TripUnifiedSidebar({
         setIsLoadingMore(false);
       }
     },
-    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds]
+    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab]
   );
 
   const handleLoadMore = useCallback(() => {
@@ -1476,6 +1508,8 @@ export function TripUnifiedSidebar({
     setPrevCategoryFilter(categoryFilter);
     if (categoryFilter) {
       setActiveCategory(categoryFilter.toLowerCase());
+    } else {
+      setActiveCategory('all');
     }
   }
 
@@ -1496,7 +1530,6 @@ export function TripUnifiedSidebar({
     if (onCategoryFilterChange) {
       onCategoryFilterChange(nextCat === 'all' ? null : (nextCat as PoiCategoryType));
     }
-    executeSearch('', nextCat);
   };
 
   // Route POI IDs and names to exclude already visited stops from recommendations
@@ -1725,46 +1758,64 @@ export function TripUnifiedSidebar({
       }}
     >
       {/* Floating Toggle Tab when collapsed */}
-      {!isOpen && (
-        <button
-          type="button"
-          data-testid="sidebar-expand-btn"
-          onClick={onToggle}
-          aria-label="Open sidebar menu"
-          title="Open sidebar menu"
-          style={{
-            pointerEvents: 'auto',
-            alignSelf: 'flex-start',
-            marginTop: '16px',
-            width: '26px',
-            height: '42px',
-            borderRadius: '0 10px 10px 0',
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-border)',
-            borderLeft: 'none',
-            boxShadow: 'var(--shadow-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: 'var(--color-accent-primary)',
-            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-            zIndex: 1060,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-        >
-          <ChevronRightIcon size={16} />
-        </button>
-      )}
+      <button
+        type="button"
+        data-testid="sidebar-expand-btn"
+        onClick={onToggle}
+        aria-label="Open sidebar menu"
+        title="Open sidebar menu"
+        style={{
+          pointerEvents: isOpen ? 'none' : 'auto',
+          opacity: isOpen ? 0 : 1,
+          transform: isOpen ? 'translateX(-16px) scale(0.92)' : 'translateX(0) scale(1)',
+          position: 'absolute',
+          top: '16px',
+          left: 0,
+          alignSelf: 'flex-start',
+          width: '26px',
+          height: '42px',
+          borderRadius: '0 10px 10px 0',
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border)',
+          borderLeft: 'none',
+          boxShadow: 'var(--shadow-md)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: 'var(--color-accent-primary)',
+          transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+          zIndex: 1060,
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) e.currentTarget.style.transform = 'scale(1.05)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <ChevronRightIcon size={16} />
+      </button>
 
       {/* Main Single Floating Card Container with External Collapse Arrow */}
-      {isOpen && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', height: '100%', position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          height: '100%',
+          position: 'relative',
+          pointerEvents: isOpen ? 'auto' : 'none',
+          opacity: isOpen ? 1 : 0,
+          transform: isOpen ? 'translateX(0)' : 'translateX(calc(-100% - 24px))',
+          transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease',
+          visibility: isOpen ? 'visible' : 'hidden',
+          transitionProperty: 'transform, opacity, visibility',
+        }}
+      >
         <aside
           data-testid="trip-unified-sidebar"
           style={{
-            pointerEvents: 'auto',
+            pointerEvents: isOpen ? 'auto' : 'none',
             width: activeTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
@@ -1777,7 +1828,6 @@ export function TripUnifiedSidebar({
             flexDirection: 'column',
             overflow: 'hidden',
             position: 'relative',
-            animation: 'fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1)',
             transition: 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
           }}
         >
@@ -1888,8 +1938,8 @@ export function TripUnifiedSidebar({
                   </button>
                 </div>
 
-                {/* Right Area: Day View Indicator (Search & Saved tabs) or Options Menu Button (Route tab) */}
-                {activeTab !== 'route' ? (
+                {/* Right Area: Day View Indicator (Search & Saved tabs) */}
+                {activeTab !== 'route' && (
                   <div
                     style={{
                       display: 'inline-flex',
@@ -1917,165 +1967,8 @@ export function TripUnifiedSidebar({
                     />
                     {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
                   </div>
-                ) : (
-                  <div style={{ position: 'relative' }} ref={menuRef}>
-                  <button
-                    type="button"
-                    aria-label="Trip options menu"
-                    onClick={() => setIsMenuOpen((prev) => !prev)}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: 'var(--radius-full)',
-                      border: 'none',
-                      background: isMenuOpen ? 'rgba(0,0,0,0.06)' : 'transparent',
-                      color: 'var(--color-text-primary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'background 0.15s ease',
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
-
-                  {/* Popover Options Menu */}
-                  {isMenuOpen && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '38px',
-                        right: '0px',
-                        width: '210px',
-                        background: 'var(--color-surface-card)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        boxShadow: 'var(--shadow-lg)',
-                        padding: '6px',
-                        zIndex: 200,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                      }}
-                    >
-                      {onToggleEditMode && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onToggleEditMode();
-                            setIsMenuOpen(false);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: 'none',
-                            background: isEditMode ? 'rgba(15, 76, 92, 0.1)' : 'transparent',
-                            color: isEditMode ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <EditIcon size={14} color="currentColor" />
-                          <span>{isEditMode ? 'Finish Editing' : 'Reorder / Edit Mode'}</span>
-                        </button>
-                      )}
-
-                      {onReoptimizeDay && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onReoptimizeDay();
-                            setIsMenuOpen(false);
-                          }}
-                          disabled={isReoptimizing}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--color-text-primary)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            textAlign: 'left',
-                            cursor: isReoptimizing ? 'not-allowed' : 'pointer',
-                            opacity: isReoptimizing ? 0.6 : 1,
-                          }}
-                        >
-                          {isReoptimizing ? <Spinner size={14} color="currentColor" /> : <CpuIcon size={14} color="currentColor" />}
-                          <span>Reoptimize Route</span>
-                        </button>
-                      )}
-
-                      {onToggleTransitMode && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onToggleTransitMode();
-                            setIsMenuOpen(false);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--color-text-primary)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <TransitIcon size={14} color="currentColor" />
-                          <span>Transit: {transitMode.toUpperCase()}</span>
-                        </button>
-                      )}
-
-                      <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }} />
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onToggle();
-                          setIsMenuOpen(false);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'var(--color-text-muted)',
-                          fontSize: '12px',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <CloseIcon size={14} color="currentColor" />
-                        <span>Collapse Panel</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
               {/* Secondary Sub-Bar with Smooth Edge-Hover Scrolling */}
               {activeTab === 'route' ? (
@@ -2837,7 +2730,6 @@ export function TripUnifiedSidebar({
           <ChevronLeftIcon size={16} />
         </button>
       </div>
-      )}
     </div>
   );
 }
