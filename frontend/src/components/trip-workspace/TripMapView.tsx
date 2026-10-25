@@ -599,6 +599,68 @@ function MapViewportController({
     };
   }, [map]);
 
+  // Allow dragging any POI marker directly from the map into route day slots
+  useEffect(() => {
+    if (!map) return;
+    const handleDragStart = (e: DragEvent) => {
+      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
+      if (!target) return;
+      const raw = target.getAttribute('data-paladio-draggable-poi');
+      if (!raw) return;
+      try {
+        let poiData;
+        try {
+          poiData = JSON.parse(raw);
+        } catch {
+          poiData = JSON.parse(decodeURIComponent(raw));
+        }
+        const ghost = createRouteCardDragImage({
+          name: poiData.name,
+          category: poiData.category,
+          duration_mins: poiData.duration_mins,
+          cost_eur: poiData.cost_eur,
+        });
+        if (e.dataTransfer) {
+          e.dataTransfer.setDragImage(ghost, 20, 20);
+          setTimeout(() => ghost.remove(), 0);
+          const payload = { source: 'map', poi: poiData };
+          if (typeof window !== 'undefined') {
+            (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = payload;
+          }
+          e.dataTransfer.setData('application/paladio-poi', JSON.stringify(payload));
+          e.dataTransfer.effectAllowed = 'copyMove';
+        }
+        window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+      } catch (err) {
+        console.warn('Failed to parse draggable poi payload from map', err);
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
+      if (target && map) {
+        map.dragging.disable();
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (map && !map.dragging.enabled()) {
+        map.dragging.enable();
+      }
+    };
+
+    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragend', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown, true);
+    document.addEventListener('mouseup', handleMouseUp, true);
+    return () => {
+      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragend', handleMouseUp);
+      document.removeEventListener('mousedown', handleMouseDown, true);
+      document.removeEventListener('mouseup', handleMouseUp, true);
+    };
+  }, [map]);
+
   return null;
 }
 
@@ -689,67 +751,6 @@ export default function TripMapView({
   const effectiveDisplayedHoveredDay = activeDay === 'all' ? displayedHoveredDay : null;
 
   const { getPhoto } = usePoiPhotos();
-
-  // Allow dragging any POI marker directly from the map into route day slots
-  useEffect(() => {
-    const handleDragStart = (e: DragEvent) => {
-      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
-      if (!target) return;
-      const raw = target.getAttribute('data-paladio-draggable-poi');
-      if (!raw) return;
-      try {
-        let poiData;
-        try {
-          poiData = JSON.parse(raw);
-        } catch {
-          poiData = JSON.parse(decodeURIComponent(raw));
-        }
-        const ghost = createRouteCardDragImage({
-          name: poiData.name,
-          category: poiData.category,
-          duration_mins: poiData.duration_mins,
-          cost_eur: poiData.cost_eur,
-        });
-        if (e.dataTransfer) {
-          e.dataTransfer.setDragImage(ghost, 20, 20);
-          setTimeout(() => ghost.remove(), 0);
-          const payload = { source: 'map', poi: poiData };
-          if (typeof window !== 'undefined') {
-            (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = payload;
-          }
-          e.dataTransfer.setData('application/paladio-poi', JSON.stringify(payload));
-          e.dataTransfer.effectAllowed = 'copyMove';
-        }
-        window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
-      } catch (err) {
-        console.warn('Failed to parse draggable poi payload from map', err);
-      }
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
-      if (target && map) {
-        map.dragging.disable();
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (map && !map.dragging.enabled()) {
-        map.dragging.enable();
-      }
-    };
-
-    document.addEventListener('dragstart', handleDragStart);
-    document.addEventListener('dragend', handleMouseUp);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    document.addEventListener('mouseup', handleMouseUp, true);
-    return () => {
-      document.removeEventListener('dragstart', handleDragStart);
-      document.removeEventListener('dragend', handleMouseUp);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('mouseup', handleMouseUp, true);
-    };
-  }, [map]);
 
   const handleCategoryToggle = (cat: PoiCategoryType) => {
     const next = activeCategory === cat ? null : cat;
