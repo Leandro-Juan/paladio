@@ -21,7 +21,6 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   InfoIcon,
-  GripVerticalIcon,
   CloseIcon,
   Spinner,
   LockIcon,
@@ -1234,10 +1233,6 @@ export function TripUnifiedSidebar({
   const [hasSearched, setHasSearched] = useState(false);
 
   // Filters state
-  const [targetDay, setTargetDay] = useState<number>(() => {
-    if (typeof selectedDay === 'number') return selectedDay;
-    return initialDay || 1;
-  });
   const [costRange, setCostRange] = useState<[number, number]>([0, 100]);
   const [durationRange, setDurationRange] = useState<[number, number]>([15, 240]);
   const [minRating, setMinRating] = useState<number>(0);
@@ -1276,15 +1271,6 @@ export function TripUnifiedSidebar({
       return next;
     });
   }, [tripId]);
-
-  // Sync selectedDay with targetDay
-  const [prevSelectedDay, setPrevSelectedDay] = useState(selectedDay);
-  if (selectedDay !== prevSelectedDay) {
-    setPrevSelectedDay(selectedDay);
-    if (typeof selectedDay === 'number') {
-      setTargetDay(selectedDay);
-    }
-  }
 
   // Route Drag-and-drop state
   const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
@@ -1724,53 +1710,6 @@ export function TripUnifiedSidebar({
     } catch (err) {
       console.error('Failed to handle drop:', err);
     }
-  };
-
-  const handleQuickAddPoi = (poiItem: PoiApiItem, dayNum: number) => {
-    if (!itinerary || !onItineraryUpdate) {
-      if (onAddToDay) {
-        onAddToDay(dayNum, {
-          id: poiItem.id,
-          name: poiItem.name,
-          city: destinationCity,
-          category: poiItem.category,
-          lat: poiItem.lat,
-          lng: poiItem.lng,
-          duration_mins: poiItem.duration_mins,
-          cost_eur: poiItem.cost_eur,
-          cost_is_estimated: false,
-          scoring: { rating: 4.5 },
-          photos: [],
-        });
-      }
-      return;
-    }
-    const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
-    const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === dayNum);
-    if (!targetDayObj) return;
-    if (!targetDayObj.itinerary) targetDayObj.itinerary = { path: [] };
-
-    // Insert before the last stop (destination hotel/airport) if one exists
-    const pathLen = targetDayObj.itinerary.path.length;
-    const insertIdx = pathLen > 1 ? pathLen - 1 : pathLen;
-
-    targetDayObj.itinerary.path.splice(insertIdx, 0, {
-      poi: {
-        id: poiItem.id,
-        name: poiItem.name,
-        city: destinationCity,
-        category: poiItem.category,
-        duration_mins: poiItem.duration_mins,
-        cost_eur: poiItem.cost_eur,
-        location: {
-          latitude: poiItem.lat,
-          longitude: poiItem.lng,
-        },
-      },
-    });
-
-    onItineraryUpdate(clonedItin);
-    notify.success('Place Added', `Added ${poiItem.name} to Day ${dayNum}`);
   };
 
   return (
@@ -2620,261 +2559,140 @@ export function TripUnifiedSidebar({
 
                     {/* 5. Results List: Cards Styled like Reference Flight Cards */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {filteredSearchResults.map((poi) => {
-                        const isSaved = savedPoiIds.has(poi.id);
+                      {filteredSearchResults.map((poi) => (
+                        <div
+                          key={poi.id}
+                          data-testid={`poi-card-${poi.id}`}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            const ghost = createRouteCardDragImage(poi);
+                            e.dataTransfer.setDragImage(ghost, 20, 20);
+                            setTimeout(() => ghost.remove(), 0);
 
-                        return (
-                          <div
-                            key={poi.id}
-                            data-testid={`poi-card-${poi.id}`}
-                            draggable={true}
-                            onDragStart={(e) => {
-                              const ghost = createRouteCardDragImage(poi);
-                              e.dataTransfer.setDragImage(ghost, 20, 20);
-                              setTimeout(() => ghost.remove(), 0);
+                            e.dataTransfer.setData(
+                              'application/paladio-poi',
+                              JSON.stringify({
+                                source: 'search',
+                                poi: {
+                                  id: poi.id,
+                                  name: poi.name,
+                                  category: poi.category,
+                                  lat: poi.lat,
+                                  lng: poi.lng,
+                                  duration_mins: poi.duration_mins,
+                                  cost_eur: poi.cost_eur,
+                                  location: { latitude: poi.lat, longitude: poi.lng },
+                                },
+                              })
+                            );
+                            e.dataTransfer.effectAllowed = 'copyMove';
 
-                              e.dataTransfer.setData(
-                                'application/paladio-poi',
-                                JSON.stringify({
-                                  source: 'search',
-                                  poi: {
-                                    id: poi.id,
-                                    name: poi.name,
-                                    category: poi.category,
-                                    lat: poi.lat,
-                                    lng: poi.lng,
-                                    duration_mins: poi.duration_mins,
-                                    cost_eur: poi.cost_eur,
-                                    location: { latitude: poi.lat, longitude: poi.lng },
-                                  },
-                                })
-                              );
-                              e.dataTransfer.effectAllowed = 'copyMove';
-
-                              // Switch to Route tab automatically so user can drop into any day!
-                              setTimeout(() => {
-                                setActiveTab('route');
-                              }, 50);
-                            }}
-                            onClick={() => {
-                              onPlaceClick?.({
-                                id: poi.id,
-                                name: poi.name,
-                                lat: poi.lat,
-                                lng: poi.lng,
-                                category: poi.category,
-                                durationMins: poi.duration_mins,
-                                costEur: poi.cost_eur,
-                              });
-                            }}
-                            style={{
-                              background: 'var(--color-surface-card, #FFFFFF)',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: '16px',
-                              padding: '14px 16px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '10px',
-                              boxShadow: 'var(--shadow-sm)',
-                              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                              cursor: 'pointer',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 76, 92, 0.08)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                            }}
-                          >
-                            {/* Card Top Row: Badge, Title & Top-Right Action Button */}
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                            // Switch to Route tab automatically so user can drop into any day!
+                            setTimeout(() => {
+                              setActiveTab('route');
+                            }, 50);
+                          }}
+                          onClick={() => {
+                            onPlaceClick?.({
+                              id: poi.id,
+                              name: poi.name,
+                              lat: poi.lat,
+                              lng: poi.lng,
+                              category: poi.category,
+                              durationMins: poi.duration_mins,
+                              costEur: poi.cost_eur,
+                            });
+                          }}
+                          style={{
+                            background: 'var(--color-surface-card, #FFFFFF)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '16px',
+                            padding: '14px 16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                            boxShadow: 'var(--shadow-sm)',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 76, 92, 0.08)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                          }}
+                        >
+                          {/* Card Top Row: Badge, Title & Price Tag */}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                              <SearchPoiThumbnail
+                                id={poi.id}
+                                name={poi.name}
+                                category={poi.category}
+                                photoUrl={poi.photo_url || poi.thumbnail_url}
+                                city={destinationCity}
+                              />
+                              <div style={{ minWidth: 0 }}>
                                 <div
                                   style={{
-                                    cursor: 'grab',
-                                    color: 'var(--color-text-muted)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '2px',
-                                  }}
-                                  title="Drag to add to route"
-                                >
-                                  <GripVerticalIcon size={14} color="currentColor" />
-                                </div>
-                                <SearchPoiThumbnail
-                                  id={poi.id}
-                                  name={poi.name}
-                                  category={poi.category}
-                                  photoUrl={poi.photo_url || poi.thumbnail_url}
-                                  city={destinationCity}
-                                />
-                                <div style={{ minWidth: 0 }}>
-                                  <div
-                                    style={{
-                                      fontSize: '13px',
-                                      fontWeight: 700,
-                                      color: 'var(--color-text-primary)',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                    }}
-                                  >
-                                    {poi.name}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
-                                    {poi.category || 'Attraction'} · {poi.duration_mins} mins
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Price Tag & Action Pill Button */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                <div style={{ textAlign: 'right' }}>
-                                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                    {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
-                                  </div>
-                                  <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleQuickAddPoi(poi, targetDay);
-                                  }}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: '9999px',
-                                    border: 'none',
-                                    background: 'var(--color-accent-primary)',
-                                    color: '#FFFFFF',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    transition: 'background 0.15s ease',
-                                    boxShadow: '0 2px 6px rgba(15, 76, 92, 0.2)',
-                                  }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-                                >
-                                  Add to Day {targetDay}
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Card Middle Row: Duration & Details Indicator */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                fontSize: '11px',
-                                color: 'var(--color-text-muted)',
-                                borderTop: '1px dashed var(--color-border)',
-                                paddingTop: '8px',
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <ClockIcon size={12} color="var(--color-text-muted)" />
-                                <span>Suggested stay: {poi.duration_mins} mins</span>
-                              </div>
-                              {poi.similarity > 0 && (
-                                <span
-                                  style={{
-                                    fontSize: '10px',
-                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '13px',
                                     fontWeight: 700,
-                                    color: 'var(--color-success)',
+                                    color: 'var(--color-text-primary)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
                                   }}
                                 >
-                                  {Math.round(poi.similarity * 100)}% AFFINITY
-                                </span>
-                              )}
+                                  {poi.name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
+                                  {poi.category || 'Attraction'} · {poi.duration_mins} mins
+                                </div>
+                              </div>
                             </div>
 
-                            {/* Card Bottom Row: Action Links */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                fontSize: '11px',
-                                color: 'var(--color-accent-teal-mid)',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onInspectPoi?.(poi.id, poi as unknown as Record<string, unknown>);
-                                  }}
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'var(--color-accent-teal-mid)',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                  }}
-                                >
-                                  Details
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onPlaceClick?.({
-                                      id: poi.id,
-                                      name: poi.name,
-                                      lat: poi.lat,
-                                      lng: poi.lng,
-                                      category: poi.category,
-                                      durationMins: poi.duration_mins,
-                                      costEur: poi.cost_eur,
-                                    });
-                                  }}
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'var(--color-accent-teal-mid)',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                  }}
-                                >
-                                  Focus Map
-                                </button>
+                            {/* Price Tag */}
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
                               </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleSavePoi(poi.id);
-                                }}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: isSaved ? 'var(--color-accent-secondary)' : 'var(--color-text-muted)',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: 0,
-                                }}
-                              >
-                                {isSaved ? 'Saved' : '+ Bookmark'}
-                              </button>
+                              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          {/* Card Middle Row: Duration & Details Indicator */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '11px',
+                              color: 'var(--color-text-muted)',
+                              borderTop: '1px dashed var(--color-border)',
+                              paddingTop: '8px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <ClockIcon size={12} color="var(--color-text-muted)" />
+                              <span>Suggested stay: {poi.duration_mins} mins</span>
+                            </div>
+                            {poi.similarity > 0 && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-mono)',
+                                  fontWeight: 700,
+                                  color: 'var(--color-success)',
+                                }}
+                              >
+                                {Math.round(poi.similarity * 100)}% AFFINITY
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
 
                       {filteredSearchResults.length > 0 &&
                         searchData?.results &&
