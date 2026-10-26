@@ -13,15 +13,16 @@ async def test_locations_search_dynamic(async_client: AsyncClient):
         item["city"] == "Madrid" and item["airport_iata"] == "MAD" for item in data
     )
 
-    # Test query for Paris
+    # Test query for Paris (multi-airport: both CDG and ORY must be present and distinct)
     res_paris = await async_client.get("/api/locations/search?q=Paris")
     assert res_paris.status_code == 200
     data_paris = res_paris.json()
     assert len(data_paris) > 0
-    assert any(
-        item["city"] == "Paris" and item["airport_iata"] in ["CDG", "ORY"]
-        for item in data_paris
-    )
+    paris_iatas = [item["airport_iata"] for item in data_paris]
+    assert "CDG" in paris_iatas
+    assert "ORY" in paris_iatas
+    # Ensure no duplicates in returned results
+    assert len(paris_iatas) == len(set(paris_iatas))
 
     # Test IATA direct search
     res_iata = await async_client.get("/api/locations/search?q=JFK")

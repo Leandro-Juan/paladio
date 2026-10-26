@@ -20,8 +20,12 @@ export interface LocationItem {
 interface RouteIntakeBarProps {
   origin: string;
   destination: string;
+  originIata?: string;
+  destIata?: string;
   onOriginChange: (val: string) => void;
   onDestinationChange: (val: string) => void;
+  onOriginIataChange?: (val: string) => void;
+  onDestIataChange?: (val: string) => void;
   departureHour?: string;
   arrivalHour?: string;
   onDepartureHourChange?: (val: string) => void;
@@ -32,8 +36,12 @@ interface RouteIntakeBarProps {
 export function RouteIntakeBar({
   origin,
   destination,
+  originIata: controlledOriginIata,
+  destIata: controlledDestIata,
   onOriginChange,
   onDestinationChange,
+  onOriginIataChange,
+  onDestIataChange,
   departureHour = '09:00',
   arrivalHour = '20:00',
   onDepartureHourChange,
@@ -47,9 +55,28 @@ export function RouteIntakeBar({
   const [originQuery, setOriginQuery] = useState(origin);
   const [destinationQuery, setDestinationQuery] = useState(destination);
 
-  // Resolved IATAs
-  const [originIata, setOriginIata] = useState('MAD');
-  const [destIata, setDestIata] = useState('CDG');
+  // Resolved IATAs (internal fallback if not controlled)
+  const [internalOriginIata, setInternalOriginIata] = useState('MAD');
+  const [internalDestIata, setInternalDestIata] = useState('CDG');
+
+  const originIata = controlledOriginIata ?? internalOriginIata;
+  const destIata = controlledDestIata ?? internalDestIata;
+
+  const setOriginIata = useCallback(
+    (val: string) => {
+      setInternalOriginIata(val);
+      onOriginIataChange?.(val);
+    },
+    [onOriginIataChange]
+  );
+
+  const setDestIata = useCallback(
+    (val: string) => {
+      setInternalDestIata(val);
+      onDestIataChange?.(val);
+    },
+    [onDestIataChange]
+  );
 
   // Results
   const [originResults, setOriginResults] = useState<LocationItem[]>([]);
@@ -92,27 +119,6 @@ export function RouteIntakeBar({
     setPrevDestination(destination);
     setDestinationQuery(destination);
   }
-
-  // Initialize or update IATAs when origin/destination change
-  useEffect(() => {
-    if (origin) {
-      void fetchLocations(origin).then((items) => {
-        if (items.length > 0 && items[0].airport_iata) {
-          setOriginIata(items[0].airport_iata);
-        }
-      });
-    }
-  }, [origin, fetchLocations]);
-
-  useEffect(() => {
-    if (destination) {
-      void fetchLocations(destination).then((items) => {
-        if (items.length > 0 && items[0].airport_iata) {
-          setDestIata(items[0].airport_iata);
-        }
-      });
-    }
-  }, [destination, fetchLocations]);
 
   // Click outside to dismiss menus
   useEffect(() => {
@@ -182,6 +188,16 @@ export function RouteIntakeBar({
     setActiveMenu(null);
   };
 
+  const handleOriginIataDirectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    setOriginIata(val);
+  };
+
+  const handleDestIataDirectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    setDestIata(val);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -206,22 +222,37 @@ export function RouteIntakeBar({
       >
         {/* Origin Column (Left) */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
-          {/* Large IATA Header */}
-          <div
-            onClick={() => setActiveMenu('origin')}
+          {/* Large IATA Header - Directly Editable Monospace Input */}
+          <input
+            type="text"
+            value={originIata}
+            onChange={handleOriginIataDirectChange}
+            disabled={disabled}
+            maxLength={3}
+            placeholder="ORIG"
+            spellCheck={false}
+            autoComplete="off"
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '28px',
               fontWeight: 800,
               letterSpacing: '0.05em',
               color: 'var(--color-text-primary, #1A1A1A)',
-              cursor: 'pointer',
               lineHeight: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              boxShadow: 'none',
+              textAlign: 'center',
+              width: '90px',
+              padding: 0,
+              margin: 0,
+              textTransform: 'uppercase',
+              cursor: disabled ? 'not-allowed' : 'text',
+              caretColor: '#2563EB',
             }}
-            title="Click to search origin airport"
-          >
-            {originIata || 'ORIGIN'}
-          </div>
+            title="Click directly to edit origin airport IATA code"
+          />
 
           {/* Search Box Pill */}
           <div
@@ -329,22 +360,37 @@ export function RouteIntakeBar({
 
         {/* Destination Column (Right) */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
-          {/* Large IATA Header */}
-          <div
-            onClick={() => setActiveMenu('destination')}
+          {/* Large IATA Header - Directly Editable Monospace Input */}
+          <input
+            type="text"
+            value={destIata}
+            onChange={handleDestIataDirectChange}
+            disabled={disabled}
+            maxLength={3}
+            placeholder="DEST"
+            spellCheck={false}
+            autoComplete="off"
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '28px',
               fontWeight: 800,
               letterSpacing: '0.05em',
               color: 'var(--color-accent-primary, #0F4C5C)',
-              cursor: 'pointer',
               lineHeight: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              boxShadow: 'none',
+              textAlign: 'center',
+              width: '90px',
+              padding: 0,
+              margin: 0,
+              textTransform: 'uppercase',
+              cursor: disabled ? 'not-allowed' : 'text',
+              caretColor: 'var(--color-accent-primary, #0F4C5C)',
             }}
-            title="Click to search destination airport"
-          >
-            {destIata || 'DESTINATION'}
-          </div>
+            title="Click directly to edit destination airport IATA code"
+          />
 
           {/* Search Box Pill */}
           <div

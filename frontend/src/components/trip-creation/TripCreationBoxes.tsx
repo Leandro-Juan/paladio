@@ -78,6 +78,8 @@ export function TripCreationBoxes({
   // Shared form state
   const [destination, setDestination] = useState(initialDestination);
   const [origin, setOrigin] = useState(initialOrigin);
+  const [originIata, setOriginIata] = useState('MAD');
+  const [destIata, setDestIata] = useState('CDG');
   const [tripTitle, setTripTitle] = useState('');
   const [tripDescription, setTripDescription] = useState('');
   const [departureHour, setDepartureHour] = useState('09:00');
@@ -147,9 +149,11 @@ export function TripCreationBoxes({
   const handleExtracted = (data: BoardingPassExtractedData) => {
     if (data.origin_city) setOrigin(data.origin_city);
     else if (data.origin_iata) setOrigin(data.origin_iata);
+    if (data.origin_iata) setOriginIata(data.origin_iata);
 
     if (data.destination_city) setDestination(data.destination_city);
     else if (data.destination_iata) setDestination(data.destination_iata);
+    if (data.destination_iata) setDestIata(data.destination_iata);
 
     if (data.departure_date) {
       const start = data.departure_date;
@@ -199,7 +203,9 @@ export function TripCreationBoxes({
         description: tripDescription.trim() || undefined,
         travel_constraints: {
           destination_city: destination.trim(),
+          destination_iata: destIata.trim().toUpperCase() || undefined,
           origin_city: origin.trim() || undefined,
+          origin_iata: originIata.trim().toUpperCase() || undefined,
           start_date: startDate,
           end_date: endDate,
           departure_hour: departureHour,
@@ -250,7 +256,9 @@ export function TripCreationBoxes({
       description: tripDescription.trim() || undefined,
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
       origin_city: origin.trim() || 'Madrid',
+      origin_iata: originIata.trim().toUpperCase() || 'MAD',
       destination_city: destination.trim() || 'Paris',
+      destination_iata: destIata.trim().toUpperCase() || 'CDG',
       start_date: startDate,
       end_date: endDate,
       departure_hour: departureHour,
@@ -263,6 +271,10 @@ export function TripCreationBoxes({
       manual_constraints: {
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
         description: tripDescription.trim() || undefined,
+        origin_city: origin.trim() || 'Madrid',
+        origin_iata: originIata.trim().toUpperCase() || 'MAD',
+        destination_city: destination.trim() || 'Paris',
+        destination_iata: destIata.trim().toUpperCase() || 'CDG',
         budget: Number(budgetUsd) || 1500,
         budget_usd: Number(budgetUsd) || 1500,
         currency: currency,
@@ -661,6 +673,10 @@ export function TripCreationBoxes({
                 <RouteIntakeBar
                   origin={origin}
                   destination={destination}
+                  originIata={originIata}
+                  destIata={destIata}
+                  onOriginIataChange={setOriginIata}
+                  onDestIataChange={setDestIata}
                   departureHour={departureHour}
                   arrivalHour={arrivalHour}
                   onOriginChange={setOrigin}

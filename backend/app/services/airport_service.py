@@ -531,6 +531,7 @@ class AirportService:
 
         results: list[dict[str, Any]] = []
         seen_keys: set[str] = set()
+        seen_iatas: set[str] = set()
 
         gc_index, _, capitals_lookup = self._ensure_geonames_loaded()
         country_names = getattr(self, "_country_iso_to_name", {})
@@ -546,6 +547,7 @@ class AirportService:
                 key = f"{city_name.lower()}::{ap_direct.iata}"
                 if key not in seen_keys:
                     seen_keys.add(key)
+                    seen_iatas.add(ap_direct.iata)
                     results.append(
                         {
                             "city": city_name,
@@ -589,11 +591,51 @@ class AirportService:
                 key = f"{city_name.lower()}::{ap_by_name.iata}"
                 if key not in seen_keys:
                     seen_keys.add(key)
+                    seen_iatas.add(ap_by_name.iata)
                     results.append(item)
             else:
                 ap_candidate_secondary = (
                     f"{city_name.lower()}::{ap_by_name.iata}",
                     item,
+                )
+
+        # 2.5 Multi-airport city lookup (e.g. 'Paris' -> CDG, ORY; 'London' -> LHR, LGW; 'Tokyo' -> HND, NRT)
+        if norm_query in self._city_to_airports:
+            city_aps = self._city_to_airports[norm_query]
+            sorted_city_aps = sorted(
+                city_aps,
+                key=lambda a: (
+                    0
+                    if any(
+                        k in a.name.lower()
+                        for k in ("international", "intercontinental")
+                    )
+                    else 1,
+                    0 if "airport" in a.name.lower() else 1,
+                    -(a.elevation or 0.0),
+                ),
+            )
+            for ap in sorted_city_aps:
+                if len(results) >= limit:
+                    break
+                if ap.iata in seen_iatas:
+                    continue
+                city_name = ap.city.title() if ap.city else raw_query.title()
+                c_name = country_names.get(ap.country, ap.country)
+                seen_keys.add(f"{city_name.lower()}::{ap.iata}")
+                seen_iatas.add(ap.iata)
+                results.append(
+                    {
+                        "city": city_name,
+                        "country": ap.country,
+                        "country_name": c_name,
+                        "airport_name": ap.name,
+                        "airport_iata": ap.iata,
+                        "airport_icao": ap.icao,
+                        "distance_km": 0.0,
+                        "display_name": f"{city_name}, {c_name}",
+                        "display_airport": f"{ap.name} ({ap.iata})",
+                    }
                 )
 
         # 3. Dynamic search across world cities (234k+ cities)
@@ -648,10 +690,14 @@ class AirportService:
             if not ap:
                 continue
 
+            if ap.iata in seen_iatas:
+                continue
+
             key = f"{city_name.lower()}::{ap.iata}"
             if key in seen_keys:
                 continue
             seen_keys.add(key)
+            seen_iatas.add(ap.iata)
 
             results.append(
                 {
@@ -671,8 +717,12 @@ class AirportService:
 
         if ap_candidate_secondary and len(results) < limit:
             sec_key, sec_item = ap_candidate_secondary
-            if sec_key not in seen_keys:
+            if (
+                sec_key not in seen_keys
+                and sec_item.get("airport_iata") not in seen_iatas
+            ):
                 seen_keys.add(sec_key)
+                seen_iatas.add(sec_item.get("airport_iata"))
                 results.append(sec_item)
 
         return results[:limit]
