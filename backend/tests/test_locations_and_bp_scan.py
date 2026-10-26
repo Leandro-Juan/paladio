@@ -81,3 +81,96 @@ async def test_create_trip_with_participants(async_client: AsyncClient):
     names = [p["name"] for p in participants]
     assert "Sarah Connor" in names
     assert "John Doe" in names
+
+
+@pytest.mark.asyncio
+async def test_scan_flight_with_landing_and_takeoff_hours(async_client: AsyncClient):
+    flight_text = """
+    AIRLINE CONFIRMATION - FLIGHT AF1234
+    Booking Ref: PNR789
+    Departure: 2026-11-10 Departs: 07:30 MAD Madrid
+    Arrival: Lands: 09:45 CDG Paris
+    Return flight: 2026-11-15 Departure: 19:15 CDG Paris to MAD
+    """
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass",
+        data={"raw_text": flight_text},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["document_type"] == "flight"
+    assert data["origin_iata"] == "MAD"
+    assert data["destination_iata"] == "CDG"
+    assert data["departure_date"] == "2026-11-10"
+    assert data["return_date"] == "2026-11-15"
+    assert data["flight_departure_hour"] == "07:30"
+    assert data["flight_arrival_hour"] == "09:45"
+    # User rule verification:
+    # Trip start hour in destination is determined by flight landing arrival
+    assert data["departure_hour"] == "09:45"
+    # Trip end hour in destination is determined by outbound flight takeoff departure
+    assert data["arrival_hour"] == "19:15"
+
+
+@pytest.mark.asyncio
+async def test_scan_hotel_booking_document(async_client: AsyncClient):
+    hotel_text = """
+    HOTEL RESERVATION CONFIRMATION
+    Hotel: Grand Hotel Tokyo Central
+    Reservation: BK98765
+    City: Tokyo
+    Check-in: 2026-12-01 from 15:00
+    Check-out: 2026-12-08 until 11:00
+    Door code: 4589
+    """
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass",
+        data={"raw_text": hotel_text},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["document_type"] == "hotel"
+    assert "Tokyo" in data["destination_city"]
+    assert data["departure_date"] == "2026-12-01"
+    assert data["return_date"] == "2026-12-08"
+    assert data["check_in_hour"] == "15:00"
+    assert data["check_out_hour"] == "11:00"
+    assert data["departure_hour"] == "15:00"
+    assert data["arrival_hour"] == "11:00"
+    assert "Grand Hotel" in (data["hotel_name"] or "")
+
+
+@pytest.mark.asyncio
+async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
+    import io
+    from PIL import Image, ImageDraw, ImageFont
+
+    try:
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 24
+        )
+    except Exception:
+        font = ImageFont.load_default()
+
+    img = Image.new("RGB", (500, 160), color="white")
+    draw = ImageDraw.Draw(img)
+    draw.text(
+        (10, 10),
+        "Flight IB3166\nMAD to SVQ\nDeparture: 2026-11-20\nDeparts: 08:30 Arrives: 09:45",
+        font=font,
+        fill="black",
+    )
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    files = {"file": ("screenshot.png", buf.getvalue(), "image/png")}
+    res = await async_client.post("/api/trips/scan-boarding-pass", files=files)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["document_type"] == "flight"
+    assert data["origin_iata"] == "MAD"
+    assert data["destination_iata"] == "SVQ"
+    assert data["departure_hour"] == "09:45"
+    assert data["flight_departure_hour"] == "08:30"
+    assert data["flight_arrival_hour"] == "09:45"

@@ -1,0 +1,878 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  BoardingPassTacticalIllustration,
+  HotelBookingTacticalIllustration,
+} from '@/components/illustrations';
+import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon } from '@/components/icons';
+import { getApiBaseUrl } from '@/utils/api';
+
+export interface ExtractedTravelDocData {
+  document_type?: 'flight' | 'hotel' | 'other';
+  origin_city?: string | null;
+  origin_iata?: string | null;
+  origin_airport?: string | null;
+  destination_city?: string | null;
+  destination_iata?: string | null;
+  destination_airport?: string | null;
+  departure_date?: string | null;
+  return_date?: string | null;
+  departure_hour?: string | null;
+  arrival_hour?: string | null;
+  flight_departure_hour?: string | null;
+  flight_arrival_hour?: string | null;
+  return_departure_hour?: string | null;
+  return_arrival_hour?: string | null;
+  flight_number?: string | null;
+  carrier?: string | null;
+  holder_name?: string | null;
+  seat?: string | null;
+  hotel_name?: string | null;
+  hotel_address?: string | null;
+  check_in_date?: string | null;
+  check_out_date?: string | null;
+  check_in_hour?: string | null;
+  check_out_hour?: string | null;
+  excerpt?: string;
+}
+
+interface DocumentUploadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onExtracted: (data: ExtractedTravelDocData) => void;
+  disabled?: boolean;
+}
+
+export function DocumentUploadModal({
+  isOpen,
+  onClose,
+  onExtracted,
+  disabled = false,
+}: DocumentUploadModalProps) {
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [extractedResult, setExtractedResult] = useState<ExtractedTravelDocData | null>(null);
+
+  // Flight states
+  const [flightDragOver, setFlightDragOver] = useState(false);
+  const [showFlightPaste, setShowFlightPaste] = useState(false);
+  const [flightPastedText, setFlightPastedText] = useState('');
+  const flightInputRef = useRef<HTMLInputElement>(null);
+
+  // Hotel states
+  const [hotelDragOver, setHotelDragOver] = useState(false);
+  const [showHotelPaste, setShowHotelPaste] = useState(false);
+  const [hotelPastedText, setHotelPastedText] = useState('');
+  const hotelInputRef = useRef<HTMLInputElement>(null);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isScanning) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isScanning, onClose]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node) && !isScanning) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, isScanning, onClose]);
+
+  if (!isOpen) return null;
+
+  const processScan = async (file?: File, rawText?: string, targetType: 'flight' | 'hotel' = 'flight') => {
+    setIsScanning(true);
+    setScanError(null);
+    setExtractedResult(null);
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const formData = new FormData();
+      if (file) {
+        formData.append('file', file);
+      } else if (rawText && rawText.trim()) {
+        formData.append('raw_text', rawText.trim());
+      } else {
+        throw new Error('Please select a document file or paste confirmation text.');
+      }
+
+      const res = await fetch(`${baseUrl}/trips/scan-boarding-pass`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let errMessage = 'Failed to extract document telemetry.';
+        try {
+          const errData = await res.json();
+          if (errData.detail) errMessage = errData.detail;
+        } catch {
+          // ignore
+        }
+        throw new Error(errMessage);
+      }
+
+      const data: ExtractedTravelDocData = await res.json();
+
+      if (
+        !data.origin_city &&
+        !data.destination_city &&
+        !data.origin_iata &&
+        !data.destination_iata &&
+        !data.hotel_name
+      ) {
+        throw new Error(
+          'Could not extract travel details from the provided document. Please check the document or enter details manually.'
+        );
+      }
+
+      setExtractedResult(data);
+    } catch (err: unknown) {
+      setScanError(err instanceof Error ? err.message : 'Error scanning document.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleFlightDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFlightDragOver(false);
+    if (disabled || isScanning) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void processScan(e.dataTransfer.files[0], undefined, 'flight');
+    }
+  };
+
+  const handleHotelDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setHotelDragOver(false);
+    if (disabled || isScanning) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void processScan(e.dataTransfer.files[0], undefined, 'hotel');
+    }
+  };
+
+  const handleApplyExtracted = () => {
+    if (extractedResult) {
+      onExtracted(extractedResult);
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(8, 28, 36, 0.68)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.25rem',
+        animation: 'fadeIn 0.15s ease',
+      }}
+    >
+      {/* Hidden file inputs */}
+      <input
+        ref={flightInputRef}
+        type="file"
+        accept="application/pdf,application/vnd.apple.pkpass,image/png,image/jpeg,image/webp,image/*,.pdf,.pkpass,.png,.jpg,.jpeg,.webp"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            void processScan(e.target.files[0], undefined, 'flight');
+          }
+          if (flightInputRef.current) flightInputRef.current.value = '';
+        }}
+      />
+      <input
+        ref={hotelInputRef}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            void processScan(e.target.files[0], undefined, 'hotel');
+          }
+          if (hotelInputRef.current) hotelInputRef.current.value = '';
+        }}
+      />
+
+      <div
+        ref={modalRef}
+        style={{
+          background: 'var(--color-surface-raised, #FFFFFF)',
+          border: '1px solid var(--color-border, #E2D9CC)',
+          borderRadius: '24px',
+          maxWidth: '920px',
+          width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.25)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+        }}
+      >
+        {/* ================= HEADER ================= */}
+        <div
+          style={{
+            padding: '1.5rem 1.75rem',
+            borderBottom: '1px solid var(--color-border, #E2D9CC)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '1rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <PlusIcon size={14} />
+              </div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary, #1A1D24)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Upload Travel Documents
+              </h2>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  background: 'rgba(15, 76, 92, 0.08)',
+                  color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                LOCAL OCR & BCBP TELEMETRY
+              </span>
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '13px',
+                color: 'var(--color-text-secondary, #6B7280)',
+                lineHeight: 1.4,
+              }}
+            >
+              Automatically extract cities, IATAs, departure/return dates, flight arrival start hour, and outbound takeoff time.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isScanning}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '8px',
+              color: 'var(--color-text-muted, #9CA3AF)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.15s ease',
+            }}
+            aria-label="Close document upload window"
+          >
+            <CloseIcon size={18} />
+          </button>
+        </div>
+
+        {/* ================= CONTENT BODY ================= */}
+        <div style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Scanning Progress HUD */}
+          {isScanning && (
+            <div
+              style={{
+                padding: '1.25rem',
+                borderRadius: '16px',
+                background: 'rgba(15, 76, 92, 0.06)',
+                border: '1px solid rgba(15, 76, 92, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                animation: 'pulse 1.5s infinite ease-in-out',
+              }}
+            >
+              <Spinner size={22} color="var(--color-accent-teal-deep, #0F4C5C)" />
+              <div>
+                <p
+                  className="font-mono"
+                  style={{
+                    margin: 0,
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  DECODING TELEMETRY // LOCAL OCR & BARCODE EXTRACTION ACTIVE
+                </p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Parsing route coordinates, flight times, and hotel booking windows...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message Alert */}
+          {scanError && (
+            <div
+              style={{
+                padding: '1rem 1.25rem',
+                borderRadius: '16px',
+                background: 'rgba(212, 42, 47, 0.08)',
+                border: '1px solid rgba(212, 42, 47, 0.3)',
+                color: 'var(--color-accent-coral, #D42A2F)',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+              }}
+            >
+              <span>{scanError}</span>
+              <button
+                type="button"
+                onClick={() => setScanError(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  textDecoration: 'underline',
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Extracted Review Card */}
+          {extractedResult && (
+            <div
+              style={{
+                background: 'var(--color-surface-raised, #FFFFFF)',
+                border: '2px solid var(--color-accent-teal-deep, #0F4C5C)',
+                borderRadius: '18px',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                boxShadow: '0 8px 24px rgba(15, 76, 92, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <CheckIcon size={12} />
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    Extracted Travel Telemetry ({extractedResult.document_type === 'hotel' ? 'Hotel Booking' : 'Flight Itinerary'})
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExtractedResult(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '12px',
+                    color: 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Scan Another Document
+                </button>
+              </div>
+
+              {/* Telemetry Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: '1rem',
+                  background: 'var(--color-surface-card, #FAF6F0)',
+                  borderRadius: '12px',
+                  padding: '1rem',
+                  fontSize: '13px',
+                }}
+              >
+                {extractedResult.origin_city && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      ORIGIN
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {extractedResult.origin_city} {extractedResult.origin_iata ? `(${extractedResult.origin_iata})` : ''}
+                    </strong>
+                  </div>
+                )}
+
+                {extractedResult.destination_city && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      DESTINATION
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {extractedResult.destination_city} {extractedResult.destination_iata ? `(${extractedResult.destination_iata})` : ''}
+                    </strong>
+                  </div>
+                )}
+
+                {extractedResult.departure_date && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      TRAVEL DATES
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {extractedResult.departure_date}
+                      {extractedResult.return_date ? ` → ${extractedResult.return_date}` : ''}
+                    </strong>
+                  </div>
+                )}
+
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                    TIME WINDOWS
+                  </span>
+                  <strong style={{ color: 'var(--color-text-primary)' }}>
+                    Start: {extractedResult.departure_hour || '09:00'} | End: {extractedResult.arrival_hour || '20:00'}
+                  </strong>
+                </div>
+
+                {extractedResult.flight_number && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      FLIGHT #
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {extractedResult.flight_number} {extractedResult.carrier ? `(${extractedResult.carrier})` : ''}
+                    </strong>
+                  </div>
+                )}
+
+                {extractedResult.hotel_name && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      HOTEL ACCOMMODATION
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {extractedResult.hotel_name}
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Apply Button */}
+              <button
+                type="button"
+                onClick={handleApplyExtracted}
+                style={{
+                  background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '10px 24px',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'opacity 0.15s ease',
+                  alignSelf: 'flex-end',
+                }}
+              >
+                <CheckIcon size={16} />
+                <span>Apply Extracted Details to Route</span>
+              </button>
+            </div>
+          )}
+
+          {/* ================= SPLIT INTAKE SECTIONS ================= */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '1.25rem',
+              alignItems: 'stretch',
+            }}
+          >
+            {/* ---------------- SECTION 1: FLIGHTS & BOARDING PASSES ---------------- */}
+            <div
+              style={{
+                background: 'var(--color-surface-card, #FAF6F0)',
+                border: '1px solid var(--color-border, #E2D9CC)',
+                borderRadius: '20px',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <BoardingPassTacticalIllustration width={130} height={75} />
+                <h3
+                  style={{
+                    margin: '10px 0 4px 0',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  Flights & Boarding Passes
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Upload Apple Wallet (.pkpass), boarding pass PDF, or confirmation screenshot
+                </p>
+              </div>
+
+              {/* Dropzone */}
+              <div
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setFlightDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setFlightDragOver(false);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleFlightDrop}
+                onClick={() => {
+                  if (!isScanning && !disabled) flightInputRef.current?.click();
+                }}
+                role="button"
+                tabIndex={0}
+                style={{
+                  border: `2px dashed ${
+                    flightDragOver ? 'var(--color-accent-coral, #D42A2F)' : 'var(--color-border, #E2D9CC)'
+                  }`,
+                  background: flightDragOver ? 'rgba(212, 42, 47, 0.04)' : 'var(--color-surface-raised, #FFFFFF)',
+                  borderRadius: '16px',
+                  padding: '1.25rem 1rem',
+                  textAlign: 'center',
+                  cursor: isScanning || disabled ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <PlaneIcon size={20} color="var(--color-accent-teal-deep, #0F4C5C)" />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Drag & Drop Flight Ticket or Pass
+                </span>
+                <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
+                  Supports PDF, Apple Wallet .pkpass, PNG, JPG, WebP
+                </span>
+                <button
+                  type="button"
+                  disabled={disabled || isScanning}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    flightInputRef.current?.click();
+                  }}
+                  style={{
+                    marginTop: '4px',
+                    background: 'var(--color-surface-card, #FAF6F0)',
+                    border: '1px solid var(--color-border, #E2D9CC)',
+                    borderRadius: '9999px',
+                    padding: '6px 16px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Browse Flight Files
+                </button>
+              </div>
+
+              {/* Paste Flight Text / Barcode string */}
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowFlightPaste(!showFlightPaste)}
+                  className="font-mono"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {showFlightPaste ? 'Hide text intake' : 'Or paste barcode text / airline email →'}
+                </button>
+
+                {showFlightPaste && (
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <textarea
+                      rows={3}
+                      value={flightPastedText}
+                      onChange={(e) => setFlightPastedText(e.target.value)}
+                      placeholder="Paste IATA barcode (e.g. M1GARCIA...) or flight confirmation email text..."
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border, #E2D9CC)',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isScanning || !flightPastedText.trim()}
+                      onClick={() => void processScan(undefined, flightPastedText, 'flight')}
+                      style={{
+                        background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        alignSelf: 'flex-end',
+                      }}
+                    >
+                      Process Flight Text
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ---------------- SECTION 2: HOTEL & LODGING BOOKINGS ---------------- */}
+            <div
+              style={{
+                background: 'var(--color-surface-card, #FAF6F0)',
+                border: '1px solid var(--color-border, #E2D9CC)',
+                borderRadius: '20px',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <HotelBookingTacticalIllustration width={130} height={75} />
+                <h3
+                  style={{
+                    margin: '10px 0 4px 0',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  Hotel & Lodging Confirmations
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Upload booking invoice (PDF), reservation email, or hotel app screenshot
+                </p>
+              </div>
+
+              {/* Dropzone */}
+              <div
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setHotelDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setHotelDragOver(false);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleHotelDrop}
+                onClick={() => {
+                  if (!isScanning && !disabled) hotelInputRef.current?.click();
+                }}
+                role="button"
+                tabIndex={0}
+                style={{
+                  border: `2px dashed ${
+                    hotelDragOver ? 'var(--color-accent-coral, #D42A2F)' : 'var(--color-border, #E2D9CC)'
+                  }`,
+                  background: hotelDragOver ? 'rgba(212, 42, 47, 0.04)' : 'var(--color-surface-raised, #FFFFFF)',
+                  borderRadius: '16px',
+                  padding: '1.25rem 1rem',
+                  textAlign: 'center',
+                  cursor: isScanning || disabled ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '4px',
+                    border: '1.5px solid var(--color-accent-gold, #E2B33C)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: 'var(--color-accent-gold, #E2B33C)',
+                  }}
+                >
+                  H
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Drag & Drop Hotel Screenshot or PDF
+                </span>
+                <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
+                  Supports PDF documents, and phone screenshots (PNG, JPG, WebP)
+                </span>
+                <button
+                  type="button"
+                  disabled={disabled || isScanning}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hotelInputRef.current?.click();
+                  }}
+                  style={{
+                    marginTop: '4px',
+                    background: 'var(--color-surface-card, #FAF6F0)',
+                    border: '1px solid var(--color-border, #E2D9CC)',
+                    borderRadius: '9999px',
+                    padding: '6px 16px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Browse Hotel Files
+                </button>
+              </div>
+
+              {/* Paste Hotel Text */}
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHotelPaste(!showHotelPaste)}
+                  className="font-mono"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {showHotelPaste ? 'Hide email intake' : 'Or paste hotel confirmation email text →'}
+                </button>
+
+                {showHotelPaste && (
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <textarea
+                      rows={3}
+                      value={hotelPastedText}
+                      onChange={(e) => setHotelPastedText(e.target.value)}
+                      placeholder="Paste hotel booking confirmation email text or door code instructions..."
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border, #E2D9CC)',
+                        fontSize: '12px',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isScanning || !hotelPastedText.trim()}
+                      onClick={() => void processScan(undefined, hotelPastedText, 'hotel')}
+                      style={{
+                        background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        alignSelf: 'flex-end',
+                      }}
+                    >
+                      Process Hotel Text
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

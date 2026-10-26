@@ -20,10 +20,11 @@ import {
   LightningIcon,
   PaperclipIcon,
   CloseIcon,
+  PlusIcon,
 } from '@/components/icons';
 import { RouteIntakeBar } from './RouteIntakeBar';
 import { PaladioDateRangePicker } from './PaladioDateRangePicker';
-import { BoardingPassUploadIntake, BoardingPassExtractedData } from './BoardingPassUploadIntake';
+import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
@@ -63,8 +64,8 @@ export function TripCreationBoxes({
 
   // Mode: 'personalized' (default) | 'blank'
   const [selectedMode, setSelectedMode] = useState<'personalized' | 'blank'>('personalized');
-  // Intake method: 'manual' | 'boarding_pass'
-  const [intakeMethod, setIntakeMethod] = useState<'manual' | 'boarding_pass'>('manual');
+  // Document upload modal state
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
 
   // Currency & Spin Dial state (defaults to system currency)
   const systemCurrency = (currentUser?.preferences?.default_currency as string) || 'EUR';
@@ -86,6 +87,8 @@ export function TripCreationBoxes({
   const [tripDescription, setTripDescription] = useState('');
   const [departureHour, setDepartureHour] = useState('09:00');
   const [arrivalHour, setArrivalHour] = useState('20:00');
+  const [hotelCheckInHour, setHotelCheckInHour] = useState('15:00');
+  const [hotelCheckOutHour, setHotelCheckOutHour] = useState('11:00');
 
   // Participants management (defaults to current user as organizer)
   const [participants, setParticipants] = useState<SelectedParticipant[]>(() => [
@@ -179,7 +182,7 @@ export function TripCreationBoxes({
 
   const currentPhoto = !isPhotoRemoved ? (customPhotoUrl || getDestinationPhotoUrl(destination)) : '';
 
-  const handleExtracted = (data: BoardingPassExtractedData) => {
+  const handleExtracted = (data: ExtractedTravelDocData) => {
     if (data.origin_city) setOrigin(data.origin_city);
     else if (data.origin_iata) setOrigin(data.origin_iata);
     if (data.origin_iata) setOriginIata(data.origin_iata);
@@ -202,7 +205,31 @@ export function TripCreationBoxes({
       setStartDate(start);
       setEndDate(end);
     }
-    setIntakeMethod('manual');
+
+    // Departure flight arrival time in destination sets trip start hour
+    if (data.flight_arrival_hour) {
+      setDepartureHour(data.flight_arrival_hour);
+    } else if (data.departure_hour) {
+      setDepartureHour(data.departure_hour);
+    }
+
+    // Return flight departure time in destination sets trip end hour
+    if (data.return_departure_hour) {
+      setArrivalHour(data.return_departure_hour);
+    } else if (data.arrival_hour) {
+      setArrivalHour(data.arrival_hour);
+    }
+
+    // Hotel details and check-in / check-out constraints
+    if (data.hotel_name) {
+      setHotelArea(data.hotel_name);
+    }
+    if (data.check_in_hour) {
+      setHotelCheckInHour(data.check_in_hour);
+    }
+    if (data.check_out_hour) {
+      setHotelCheckOutHour(data.check_out_hour);
+    }
   };
 
   // Handle Blank Trip Submission
@@ -275,6 +302,11 @@ export function TripCreationBoxes({
             is_guest: p.is_guest,
           })),
           accommodation: hotelArea.trim() || undefined,
+          hotel: hotelArea.trim() ? {
+            name: hotelArea.trim(),
+            check_in_time: hotelCheckInHour || '15:00',
+            check_out_time: hotelCheckOutHour || '11:00',
+          } : undefined,
         },
         days,
         is_blank_trip: true,
@@ -349,6 +381,12 @@ export function TripCreationBoxes({
         is_guest: p.is_guest,
       })),
       meals,
+      accommodation: hotelArea.trim() || undefined,
+      hotel: hotelArea.trim() ? {
+        name: hotelArea.trim(),
+        check_in_time: hotelCheckInHour || '15:00',
+        check_out_time: hotelCheckOutHour || '11:00',
+      } : undefined,
       manual_constraints: {
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
         description: tripDescription.trim() || undefined,
@@ -369,6 +407,12 @@ export function TripCreationBoxes({
         })),
         departure_hour: departureHour,
         arrival_hour: arrivalHour,
+        accommodation: hotelArea.trim() || undefined,
+        hotel: hotelArea.trim() ? {
+          name: hotelArea.trim(),
+          check_in_time: hotelCheckInHour || '15:00',
+          check_out_time: hotelCheckOutHour || '11:00',
+        } : undefined,
         meals,
       },
     };
@@ -467,63 +511,39 @@ export function TripCreationBoxes({
             </button>
           </div>
 
-          {/* Intake Method Capsule (Manual Route vs Boarding Pass) */}
-          <div
+          {/* Upload Documents Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsDocModalOpen(true)}
+            disabled={disabled}
             style={{
               display: 'inline-flex',
-              padding: '4px',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 16px',
               borderRadius: '9999px',
-              background: 'var(--color-bg-main, #F0F2F4)',
               border: '1px solid var(--color-border)',
-              gap: '4px',
+              background: 'var(--color-surface-raised, #FFFFFF)',
+              color: 'var(--color-text-primary)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-accent-primary, #0F4C5C)';
+              e.currentTarget.style.color = 'var(--color-accent-primary, #0F4C5C)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-primary)';
             }}
           >
-            <button
-              type="button"
-              onClick={() => setIntakeMethod('manual')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                border: 'none',
-                background: intakeMethod === 'manual' ? 'var(--color-surface-raised, #FFFFFF)' : 'transparent',
-                color: intakeMethod === 'manual' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                boxShadow: intakeMethod === 'manual' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Manual Route
-            </button>
-            <button
-              type="button"
-              onClick={() => setIntakeMethod('boarding_pass')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                border: 'none',
-                background: intakeMethod === 'boarding_pass' ? 'var(--color-surface-raised, #FFFFFF)' : 'transparent',
-                color: intakeMethod === 'boarding_pass' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                boxShadow: intakeMethod === 'boarding_pass' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <PlaneIcon size={13} />
-              <span>Upload Boarding Pass</span>
-            </button>
-          </div>
+            <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+            <span>Upload Documents</span>
+          </button>
         </div>
 
         {/* ================= SIDE-BY-SIDE MAIN WORKSPACE ================= */}
@@ -764,20 +784,16 @@ export function TripCreationBoxes({
 
 
 
-            {/* Flight Route / Boarding Pass Section */}
-            {intakeMethod === 'boarding_pass' ? (
+            {/* Flight Route & Time Windows */}
+            <div>
               <div
                 style={{
-                  background: 'var(--color-bg-main, #FAF8F5)',
-                  border: '1.5px dashed var(--color-border)',
-                  borderRadius: '20px',
-                  padding: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
                 }}
               >
-                <BoardingPassUploadIntake onExtracted={handleExtracted} disabled={disabled} />
-              </div>
-            ) : (
-              <div>
                 <label
                   style={{
                     display: 'block',
@@ -786,30 +802,49 @@ export function TripCreationBoxes({
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     color: 'var(--color-text-muted)',
-                    marginBottom: '6px',
                   }}
                 >
                   Flight Route & Time Windows
                 </label>
-                <RouteIntakeBar
-                  origin={origin}
-                  destination={destination}
-                  originIata={originIata}
-                  destIata={destIata}
-                  onOriginIataChange={setOriginIata}
-                  onDestIataChange={setDestIata}
-                  departureHour={departureHour}
-                  arrivalHour={arrivalHour}
-                  startDate={startDate}
-                  endDate={endDate}
-                  onOriginChange={setOrigin}
-                  onDestinationChange={setDestination}
-                  onDepartureHourChange={setDepartureHour}
-                  onArrivalHourChange={setArrivalHour}
+                <button
+                  type="button"
+                  onClick={() => setIsDocModalOpen(true)}
                   disabled={disabled}
-                />
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-accent-primary, #0F4C5C)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    padding: '2px 4px',
+                  }}
+                >
+                  <PlusIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
+                  <span>Upload Docs</span>
+                </button>
               </div>
-            )}
+              <RouteIntakeBar
+                origin={origin}
+                destination={destination}
+                originIata={originIata}
+                destIata={destIata}
+                onOriginIataChange={setOriginIata}
+                onDestIataChange={setDestIata}
+                departureHour={departureHour}
+                arrivalHour={arrivalHour}
+                startDate={startDate}
+                endDate={endDate}
+                onOriginChange={setOrigin}
+                onDestinationChange={setDestination}
+                onDepartureHourChange={setDepartureHour}
+                onArrivalHourChange={setArrivalHour}
+                disabled={disabled}
+              />
+            </div>
 
             {/* Parameters: Budget Pill + Travelers + (Hotel Anchor) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -1196,6 +1231,14 @@ export function TripCreationBoxes({
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onPhotoSelect={handlePhotoSelect}
+      />
+
+      {/* Document Upload Modal (Boarding Passes & Hotels) */}
+      <DocumentUploadModal
+        isOpen={isDocModalOpen}
+        onClose={() => setIsDocModalOpen(false)}
+        onExtracted={handleExtracted}
+        disabled={disabled}
       />
     </div>
   );

@@ -514,6 +514,11 @@ class AirportService:
             return ap.iata
         return "XXX"
 
+    def get_iata_from_city(self, city_name: str | None) -> str | None:
+        """Convenience alias returning IATA code for city or None if not resolved."""
+        ap = self.resolve_airport_for_city(city_name)
+        return ap.iata if ap else None
+
     def search_locations(
         self, query: str | None, limit: int = 8
     ) -> list[dict[str, Any]]:

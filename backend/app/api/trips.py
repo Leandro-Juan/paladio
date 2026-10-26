@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.wallet.scan import scan_ticket_document
-from app.services.airport_service import get_airport_service, get_city_from_iata
+from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +261,7 @@ async def _get_trip_tickets_count(trip_id: str, session: AsyncSession) -> int:
 
 
 class BoardingPassScanResponse(BaseModel):
+    document_type: str = "flight"
     origin_city: str | None = None
     origin_iata: str | None = None
     origin_airport: str | None = None
@@ -269,10 +270,22 @@ class BoardingPassScanResponse(BaseModel):
     destination_airport: str | None = None
     departure_date: str | None = None
     return_date: str | None = None
+    departure_hour: str | None = None
+    arrival_hour: str | None = None
+    flight_departure_hour: str | None = None
+    flight_arrival_hour: str | None = None
+    return_departure_hour: str | None = None
+    return_arrival_hour: str | None = None
     flight_number: str | None = None
     carrier: str | None = None
     holder_name: str | None = None
     seat: str | None = None
+    hotel_name: str | None = None
+    hotel_address: str | None = None
+    check_in_date: str | None = None
+    check_out_date: str | None = None
+    check_in_hour: str | None = None
+    check_out_hour: str | None = None
     excerpt: str = ""
     drafts: list[dict[str, Any]] = []
 
@@ -280,7 +293,7 @@ class BoardingPassScanResponse(BaseModel):
 @router.post(
     "/scan-boarding-pass",
     response_model=BoardingPassScanResponse,
-    summary="Scan boarding pass (PDF, Apple Wallet pass, image screenshot, or text) to extract origin, destination, and dates",
+    summary="Scan travel document (flight boarding pass or hotel booking) to extract origin, destination, dates, and hours",
 )
 async def scan_new_trip_boarding_pass(
     file: UploadFile | None = File(None),
@@ -298,7 +311,7 @@ async def scan_new_trip_boarding_pass(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must provide an uploaded boarding pass (PDF, screenshot/image, pkpass) or raw text.",
+            detail="Must provide an uploaded document (PDF, screenshot/image, pkpass) or raw text.",
         )
 
     trip_year = datetime.now(timezone.utc).year
@@ -307,12 +320,13 @@ async def scan_new_trip_boarding_pass(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Error scanning boarding pass: {e}")
+        logger.error(f"Error scanning travel document: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to scan boarding pass: {e}",
+            detail=f"Failed to scan travel document: {e}",
         )
 
+    document_type = "flight"
     origin_city = None
     origin_iata = None
     origin_airport = None
@@ -321,24 +335,41 @@ async def scan_new_trip_boarding_pass(
     destination_airport = None
     departure_date = None
     return_date = None
+    departure_hour = None
+    arrival_hour = None
+    flight_departure_hour = None
+    flight_arrival_hour = None
+    return_departure_hour = None
+    return_arrival_hour = None
     flight_number = None
     carrier = None
     holder_name = None
     seat = None
+    hotel_name = None
+    hotel_address = None
+    check_in_date = None
+    check_out_date = None
+    check_in_hour = None
+    check_out_hour = None
 
     airport_svc = get_airport_service()
 
     flight_drafts = [d for d in drafts if d.ticket_type == "flight"]
+    hotel_drafts = [d for d in drafts if d.ticket_type == "hotel"]
+
     if flight_drafts:
+        document_type = "flight"
         first = flight_drafts[0]
         meta = first.metadata or {}
         origin_iata = meta.get("origin_iata")
         destination_iata = meta.get("destination_iata")
         origin_city = meta.get("origin_city") or (
-            get_city_from_iata(origin_iata) if origin_iata else None
+            airport_svc.get_city_from_iata(origin_iata) if origin_iata else None
         )
         destination_city = meta.get("destination_city") or (
-            get_city_from_iata(destination_iata) if destination_iata else None
+            airport_svc.get_city_from_iata(destination_iata)
+            if destination_iata
+            else None
         )
 
         if origin_iata:
@@ -355,18 +386,77 @@ async def scan_new_trip_boarding_pass(
         holder_name = first.holder_name
         seat = first.seat_or_room
 
-        dep_dt = meta.get("flight_date") or first.start_time
+        dep_dt = (
+            meta.get("flight_date") or meta.get("departure_date") or first.start_time
+        )
         if dep_dt:
             departure_date = dep_dt.split("T")[0].split(" ")[0]
+
+        flight_departure_hour = meta.get("flight_departure_hour")
+        flight_arrival_hour = meta.get("flight_arrival_hour")
+        return_departure_hour = meta.get("return_departure_hour")
+        return_arrival_hour = meta.get("return_arrival_hour")
+
+        return_date = meta.get("return_date")
 
         if len(flight_drafts) > 1:
             second = flight_drafts[1]
             ret_meta = second.metadata or {}
-            ret_dt = ret_meta.get("flight_date") or second.start_time
+            ret_dt = (
+                ret_meta.get("flight_date")
+                or ret_meta.get("departure_date")
+                or second.start_time
+            )
             if ret_dt:
                 return_date = ret_dt.split("T")[0].split(" ")[0]
+            if not return_departure_hour:
+                return_departure_hour = ret_meta.get("flight_departure_hour")
+            if not return_arrival_hour:
+                return_arrival_hour = ret_meta.get("flight_arrival_hour")
+
+        # Trip start hour in destination: flight landing arrival time on Day 1
+        departure_hour = (
+            flight_arrival_hour
+            or meta.get("departure_hour")
+            or flight_departure_hour
+            or "09:00"
+        )
+        # Trip end hour in destination: return flight takeoff departure time
+        arrival_hour = return_departure_hour or meta.get("arrival_hour") or "20:00"
+
+    elif hotel_drafts:
+        document_type = "hotel"
+        first_h = hotel_drafts[0]
+        h_meta = first_h.metadata or {}
+
+        hotel_name = h_meta.get("hotel_name") or first_h.title
+        hotel_address = h_meta.get("address") or first_h.location_or_venue
+        destination_city = h_meta.get("destination_city")
+        destination_iata = h_meta.get("destination_iata")
+
+        if destination_iata:
+            ap_dest = airport_svc.get_airport(destination_iata)
+            if ap_dest:
+                destination_airport = ap_dest.name
+        elif destination_city:
+            destination_iata = airport_svc.get_iata_from_city(destination_city)
+            if destination_iata:
+                ap_dest = airport_svc.get_airport(destination_iata)
+                if ap_dest:
+                    destination_airport = ap_dest.name
+
+        check_in_date = h_meta.get("check_in_date")
+        check_out_date = h_meta.get("check_out_date")
+        check_in_hour = h_meta.get("check_in_hour") or "15:00"
+        check_out_hour = h_meta.get("check_out_hour") or "11:00"
+
+        departure_date = check_in_date
+        return_date = check_out_date
+        departure_hour = check_in_hour
+        arrival_hour = check_out_hour
 
     return BoardingPassScanResponse(
+        document_type=document_type,
         origin_city=origin_city,
         origin_iata=origin_iata,
         origin_airport=origin_airport,
@@ -375,10 +465,22 @@ async def scan_new_trip_boarding_pass(
         destination_airport=destination_airport,
         departure_date=departure_date,
         return_date=return_date,
+        departure_hour=departure_hour,
+        arrival_hour=arrival_hour,
+        flight_departure_hour=flight_departure_hour,
+        flight_arrival_hour=flight_arrival_hour,
+        return_departure_hour=return_departure_hour,
+        return_arrival_hour=return_arrival_hour,
         flight_number=flight_number,
         carrier=carrier,
         holder_name=holder_name,
         seat=seat,
+        hotel_name=hotel_name,
+        hotel_address=hotel_address,
+        check_in_date=check_in_date,
+        check_out_date=check_out_date,
+        check_in_hour=check_in_hour,
+        check_out_hour=check_out_hour,
         excerpt=excerpt,
         drafts=[d.model_dump() for d in drafts],
     )

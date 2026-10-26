@@ -2,6 +2,7 @@ import io
 import json
 import logging
 import re
+import subprocess
 import zipfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -221,6 +222,105 @@ def extract_text_from_pdf(content: bytes) -> tuple[str, list[bytes]]:
     return "\n".join(full_text), extracted_images
 
 
+def normalize_time_str(val: str | None) -> str | None:
+    if not val:
+        return None
+    val = val.strip()
+    is_pm = bool(re.search(r"pm", val, re.IGNORECASE))
+    is_am = bool(re.search(r"am", val, re.IGNORECASE))
+    m = re.search(r"(\d{1,2})[:.](\d{2})", val)
+    if not m:
+        return None
+    h = int(m.group(1))
+    mins = int(m.group(2))
+    if is_pm and h < 12:
+        h += 12
+    elif is_am and h == 12:
+        h = 0
+    if 0 <= h <= 23 and 0 <= mins <= 59:
+        return f"{h:02d}:{mins:02d}"
+    return None
+
+
+def normalize_date_str(val: str | None, trip_start_year: int = 2026) -> str | None:
+    if not val:
+        return None
+    val = val.strip()
+    iso_m = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", val)
+    if iso_m:
+        return val
+    dm_m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$", val)
+    if dm_m:
+        p1, p2, yr_str = int(dm_m.group(1)), int(dm_m.group(2)), dm_m.group(3)
+        yr = int(yr_str)
+        if yr < 100:
+            yr += 2000
+        if p2 > 12 and p1 <= 12:
+            month, day = p1, p2
+        else:
+            day, month = p1, p2
+        try:
+            return date(yr, month, day).isoformat()
+        except Exception:
+            pass
+    return None
+
+
+def extract_dates_from_text(text: str, trip_start_year: int = 2026) -> list[str]:
+    found_dates: list[str] = []
+    date_matches = re.findall(
+        r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", text
+    )
+    for dm in date_matches:
+        norm = normalize_date_str(dm, trip_start_year)
+        if norm and norm not in found_dates:
+            found_dates.append(norm)
+
+    month_regex = r"\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember))\b(?:\s+(\d{4}))?"
+    for m in re.finditer(month_regex, text, re.IGNORECASE):
+        day = int(m.group(1))
+        mon_str = m.group(2)[:3].lower()
+        yr = int(m.group(3)) if m.group(3) else trip_start_year
+        month_map = {
+            "jan": 1,
+            "feb": 2,
+            "mar": 3,
+            "apr": 4,
+            "may": 5,
+            "jun": 6,
+            "jul": 7,
+            "aug": 8,
+            "sep": 9,
+            "oct": 10,
+            "nov": 11,
+            "dec": 12,
+        }
+        if mon_str in month_map:
+            try:
+                iso = date(yr, month_map[mon_str], day).isoformat()
+                if iso not in found_dates:
+                    found_dates.append(iso)
+            except Exception:
+                pass
+    return found_dates
+
+
+def run_tesseract_ocr(img_bytes: bytes) -> str:
+    try:
+        proc = subprocess.run(
+            ["tesseract", "stdin", "stdout"],
+            input=img_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15,
+        )
+        if proc.returncode == 0:
+            return proc.stdout.decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.debug(f"Tesseract OCR failed: {e}")
+    return ""
+
+
 def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     text_lower = text.lower()
     warnings: list[str] = []
@@ -234,6 +334,31 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
             orig = bcbp_parsed["origin_iata"]
             dest = bcbp_parsed["destination_iata"]
             fl_num = bcbp_parsed["flight_number"]
+            airport_svc = get_airport_service()
+            orig_city = airport_svc.get_city_from_iata(orig)
+            dest_city = airport_svc.get_city_from_iata(dest)
+
+            # Check if text around barcode has hours
+            dep_h = None
+            arr_h = None
+            dep_m = re.search(
+                r"(?:departs?|departure|salida|départ|std|boarding(?:\s+time)?|hora(?:\s+de\s+salida)?|takeoff)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+                text,
+                re.IGNORECASE,
+            )
+            if dep_m:
+                dep_h = normalize_time_str(dep_m.group(1))
+
+            arr_m = re.search(
+                r"(?:arrives?|arrival|llegada|lands?|landing|sta|hora(?:\s+de\s+llegada)?|estimated\s+arrival)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+                text,
+                re.IGNORECASE,
+            )
+            if arr_m:
+                arr_h = normalize_time_str(arr_m.group(1))
+
+            trip_start_hour = arr_h or dep_h or "09:00"
+
             conf.update(
                 {
                     "ticket_type": 0.99,
@@ -248,7 +373,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
                 provider=bcbp_parsed.get("carrier") or "Commercial Airline",
                 reference_code=bcbp_parsed["reference_code"],
                 holder_name=bcbp_parsed["holder_name"],
-                start_time=f"{bcbp_parsed['flight_date']}T10:00:00"
+                start_time=f"{bcbp_parsed['flight_date']}T{dep_h or '10:00'}:00"
                 if bcbp_parsed["flight_date"]
                 else None,
                 seat_or_room=bcbp_parsed.get("seat"),
@@ -258,7 +383,15 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
                     "flight_number": fl_num,
                     "origin_iata": orig,
                     "destination_iata": dest,
+                    "origin_city": orig_city,
+                    "destination_city": dest_city,
                     "cabin_class": bcbp_parsed.get("cabin_class"),
+                    "carrier": bcbp_parsed.get("carrier"),
+                    "flight_date": bcbp_parsed.get("flight_date"),
+                    "flight_departure_hour": dep_h,
+                    "flight_arrival_hour": arr_h,
+                    "departure_hour": trip_start_hour,
+                    "arrival_hour": "20:00",
                 },
                 field_confidence=conf,
                 warnings=warnings,
@@ -271,11 +404,18 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         "flight",
         "vuelo",
         "airline",
+        "aerolinea",
         "boarding time",
         "gate",
         "asiento",
         "pnr",
         "terminal",
+        "departure",
+        "arrival",
+        "departs",
+        "arrives",
+        "airport",
+        "aeropuerto",
     )
     hotel_keywords = (
         "hotel",
@@ -290,6 +430,9 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         "código de acceso",
         "pin",
         "lockbox",
+        "booking",
+        "guest",
+        "huesped",
     )
     attraction_keywords = (
         "museum",
@@ -359,9 +502,59 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         )
     access_code = code_match.group(1) if code_match else None
 
-    # Dates
-    date_match = re.search(r"\b(\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4})\b", text)
-    date_found = date_match.group(1) if date_match else None
+    # Dates extraction (supports single or multi-date itineraries)
+    extracted_dates = extract_dates_from_text(text, trip_start_year)
+    date_found = extracted_dates[0] if extracted_dates else None
+    return_date_found = extracted_dates[1] if len(extracted_dates) > 1 else None
+
+    # Time extraction
+    dep_hour = None
+    arr_hour = None
+
+    dep_m = re.search(
+        r"(?:departs?|departure|salida|départ|leaves?|std|boarding(?:\s+time)?|hora(?:\s+de\s+salida)?|takeoff)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        text,
+        re.IGNORECASE,
+    )
+    if dep_m:
+        dep_hour = normalize_time_str(dep_m.group(1))
+
+    arr_m = re.search(
+        r"(?:arrives?|arrival|llegada|lands?|landing|sta|hora(?:\s+de\s+llegada)?|estimated\s+arrival)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        text,
+        re.IGNORECASE,
+    )
+    if arr_m:
+        arr_hour = normalize_time_str(arr_m.group(1))
+
+    if not dep_hour or not arr_hour:
+        found_times = re.findall(
+            r"\b([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)\b", text, re.IGNORECASE
+        )
+        norm_times = [
+            normalize_time_str(t) for t in found_times if normalize_time_str(t)
+        ]
+        if not dep_hour and norm_times:
+            dep_hour = norm_times[0]
+        if not arr_hour and len(norm_times) > 1:
+            arr_hour = norm_times[1]
+
+    # Return/outbound takeoff time if explicitly stated
+    ret_dep_hour = None
+    ret_m = re.search(
+        r"(?:return|regreso|vuelta|outbound|inbound).*?(?:departs?|departure|salida|std|takeoff)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        text,
+        re.IGNORECASE,
+    )
+    if ret_m:
+        ret_dep_hour = normalize_time_str(ret_m.group(1))
+
+    # User rule: trip start hour is determined by flight landing arrival at destination;
+    # trip end hour is determined by outbound flight takeoff departure from destination.
+    trip_start_hour = arr_hour or dep_hour or "09:00"
+    trip_end_hour = ret_dep_hour or (
+        dep_hour if (dep_hour and arr_hour and dep_hour != arr_hour) else "20:00"
+    )
 
     if best_score >= 2 and best_type == "flight":
         # Extract IATAs
@@ -370,6 +563,8 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         valid_iatas = [i for i in iatas if airport_svc.is_valid_iata(i)]
         orig = valid_iatas[0] if len(valid_iatas) > 0 else "MAD"
         dest = valid_iatas[1] if len(valid_iatas) > 1 else "SVQ"
+        orig_city = airport_svc.get_city_from_iata(orig)
+        dest_city = airport_svc.get_city_from_iata(dest)
 
         title = f"{flight_num or 'Flight'} {orig} → {dest}"
         conf.update({"ticket_type": 0.85, "title": 0.8})
@@ -377,11 +572,19 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
             ticket_type="flight",
             title=title,
             reference_code=ref_code,
-            start_time=f"{date_found}T10:00:00" if date_found else None,
+            start_time=f"{date_found}T{dep_hour or '10:00'}:00" if date_found else None,
             metadata={
                 "origin_iata": orig,
                 "destination_iata": dest,
+                "origin_city": orig_city,
+                "destination_city": dest_city,
                 "flight_number": flight_num,
+                "departure_date": date_found,
+                "return_date": return_date_found,
+                "flight_departure_hour": dep_hour,
+                "flight_arrival_hour": arr_hour,
+                "departure_hour": trip_start_hour,
+                "arrival_hour": trip_end_hour,
             },
             field_confidence=conf,
             warnings=["Verification advised for extracted airport times"]
@@ -390,18 +593,128 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         )
 
     if best_score >= 2 and best_type == "hotel":
-        # Extract hotel title from first line or keyword
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-        title = lines[0][:60] if lines else "Hotel Lodging"
+        hotel_name = None
+        hotel_m = re.search(
+            r"\b(?:Hotel|Hostel|Resort|Accommodation|Alojamiento)[:\s#]+([^\n\r]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if hotel_m and not re.search(
+            r"\b(?:reservation|confirmation|booking)\b",
+            hotel_m.group(1),
+            re.IGNORECASE,
+        ):
+            hotel_name = hotel_m.group(1).strip()[:60]
+        else:
+            for line in lines[:8]:
+                if re.search(
+                    r"\b(?:reservation|confirmation|booking)\b", line, re.IGNORECASE
+                ):
+                    continue
+                if re.search(
+                    r"\b(?:hotel|hostel|resort|suites|inn|lodging|apartamentos)\b",
+                    line,
+                    re.IGNORECASE,
+                ):
+                    hotel_name = line[:60].strip()
+                    break
+        if not hotel_name and lines:
+            for line in lines[:5]:
+                if not re.search(
+                    r"\b(?:reservation|confirmation|booking)\b", line, re.IGNORECASE
+                ):
+                    hotel_name = line[:60].strip()
+                    break
+
+        checkin_m = re.search(
+            r"(?:check-?in|entrada|arrival)[:\s#]*(?:(?:from|starting|at|desde|after)?\s*)?([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+            text,
+            re.IGNORECASE,
+        )
+        checkin_hour = normalize_time_str(checkin_m.group(1)) if checkin_m else "15:00"
+
+        checkout_m = re.search(
+            r"(?:check-?out|checkout|salida|departure)[:\s#]*(?:(?:until|before|by|hasta)?\s*)?([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+            text,
+            re.IGNORECASE,
+        )
+        checkout_hour = (
+            normalize_time_str(checkout_m.group(1)) if checkout_m else "11:00"
+        )
+
+        # Identify city in hotel text
+        hotel_city = None
+        hotel_iata = None
+        airport_svc = get_airport_service()
+
+        city_m = re.search(
+            r"\b(?:City|Ciudad|Location|Ubicación|Destination)[:\s#]*([A-Za-z\s-]{3,30})\b",
+            text,
+            re.IGNORECASE,
+        )
+        if city_m:
+            candidate = city_m.group(1).strip()
+            found_iata = airport_svc.get_iata_from_city(candidate)
+            if found_iata:
+                hotel_city = candidate
+                hotel_iata = found_iata
+
+        if not hotel_city:
+            stop_words = {
+                "hotel",
+                "hostel",
+                "reservation",
+                "confirmation",
+                "booking",
+                "checkin",
+                "checkout",
+                "guest",
+                "room",
+                "arrival",
+                "departure",
+                "grand",
+                "central",
+                "resort",
+                "suites",
+                "inn",
+                "door",
+                "code",
+                "access",
+                "lodging",
+                "alojamiento",
+                "reserva",
+                "habitacion",
+            }
+            for word in re.findall(r"\b[A-Z][a-zA-Z]{2,}\b", text):
+                if word.lower() in stop_words:
+                    continue
+                found_iata = airport_svc.get_iata_from_city(word)
+                if found_iata:
+                    hotel_city = word
+                    hotel_iata = found_iata
+                    break
+
         conf.update({"ticket_type": 0.85, "title": 0.75})
         if access_code:
             conf["access_code"] = 0.95
         return ScanDraft(
             ticket_type="hotel",
-            title=title,
+            title=hotel_name or "Hotel Lodging",
             reference_code=ref_code,
             access_code=access_code,
-            start_time=f"{date_found}T15:00:00" if date_found else None,
+            start_time=f"{date_found}T{checkin_hour}:00" if date_found else None,
+            metadata={
+                "hotel_name": hotel_name,
+                "destination_city": hotel_city,
+                "destination_iata": hotel_iata,
+                "check_in_date": date_found,
+                "check_out_date": return_date_found,
+                "check_in_hour": checkin_hour,
+                "check_out_hour": checkout_hour,
+                "departure_hour": checkin_hour,
+                "arrival_hour": checkout_hour,
+            },
             field_confidence=conf,
             warnings=["Extracted room access code requires verification"]
             if access_code
@@ -554,6 +867,15 @@ async def scan_ticket_document(
                     )
                 )
                 return drafts, f"Decoded IATA BCBP from image: {barcode_val[:50]}..."
+        # If no BCBP detected in image, run sovereign local OCR on image screenshot
+        ocr_text = run_tesseract_ocr(content)
+        if ocr_text and len(ocr_text.strip()) > 15:
+            draft = classify_text_document(ocr_text, trip_start_year)
+            if barcode_val:
+                draft.barcode_value = barcode_val
+                draft.barcode_format = barcode_fmt
+            drafts.append(draft)
+            return drafts, f"Extracted via local OCR: {ocr_text.strip()[:300]}..."
         elif barcode_val:
             drafts.append(
                 ScanDraft(
@@ -571,7 +893,9 @@ async def scan_ticket_document(
                     ticket_type="other",
                     title=f"Uploaded {Path(filename).stem}",
                     field_confidence={"ticket_type": 0.5},
-                    warnings=["No scannable barcode detected in image."],
+                    warnings=[
+                        "No scannable barcode or readable text detected in image."
+                    ],
                 )
             )
             return drafts, "Image saved as document."
