@@ -28,6 +28,7 @@ import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyW
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
 import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager';
+import { PhotoUploadModal } from './PhotoUploadModal';
 
 interface TripCreationBoxesProps {
   onPersonalizedSubmit: (prompt: string, extras: Record<string, unknown>) => void;
@@ -121,7 +122,8 @@ export function TripCreationBoxes({
 
   const travelersCount = Math.max(1, participants.length);
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [startDate, setStartDate] = useState(() => initialStartDate || '');
   const [endDate, setEndDate] = useState(() => initialEndDate || '');
   const [budgetUsd, setBudgetUsd] = useState(initialBudget);
@@ -153,16 +155,10 @@ export function TripCreationBoxes({
     return diff > 0 ? diff : 1;
   }, [startDate, endDate]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setCustomPhotoUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+  const handlePhotoSelect = (dataUrl: string) => {
+    setCustomPhotoUrl(dataUrl);
+    setIsPhotoRemoved(false);
+    setIsUploadModalOpen(false);
   };
 
   const getDestinationPhotoUrl = (city: string) => {
@@ -180,6 +176,8 @@ export function TripCreationBoxes({
     if (c.includes('berlin')) return 'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=1200&q=80';
     return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80';
   };
+
+  const currentPhoto = !isPhotoRemoved ? (customPhotoUrl || getDestinationPhotoUrl(destination)) : '';
 
   const handleExtracted = (data: BoardingPassExtractedData) => {
     if (data.origin_city) setOrigin(data.origin_city);
@@ -548,30 +546,36 @@ export function TripCreationBoxes({
                 borderRadius: '20px',
                 overflow: 'hidden',
                 border: '1px solid var(--color-border)',
-                background: 'var(--color-bg-main, #F0F2F4)',
+                background: currentPhoto
+                  ? 'var(--color-bg-main, #F0F2F4)'
+                  : 'linear-gradient(135deg, #1C2028 0%, #111317 100%)',
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getDestinationPhotoUrl(destination)}
-                alt={destination || 'Travel destination'}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'brightness(0.85)',
-                  transition: 'all 0.4s ease',
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
-                }}
-              />
+              {currentPhoto && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={currentPhoto}
+                    alt={destination || 'Travel destination'}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: 'brightness(0.85)',
+                      transition: 'all 0.4s ease',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
+                    }}
+                  />
+                </>
+              )}
 
-              {/* Top-Right Upload Photo Trigger Button */}
+              {/* Top-Right Upload Photo Trigger Button & Remove Cross */}
               <div
                 style={{
                   position: 'absolute',
@@ -583,16 +587,9 @@ export function TripCreationBoxes({
                   zIndex: 2,
                 }}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handlePhotoUpload}
-                />
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setIsUploadModalOpen(true)}
                   title="Upload your own trip photo"
                   style={{
                     display: 'inline-flex',
@@ -615,11 +612,15 @@ export function TripCreationBoxes({
                   <PaperclipIcon size={12} color="#FFFFFF" />
                   <span>Upload Photo</span>
                 </button>
-                {customPhotoUrl && (
+
+                {currentPhoto ? (
                   <button
                     type="button"
-                    onClick={() => setCustomPhotoUrl('')}
-                    title="Reset to dynamic photo"
+                    onClick={() => {
+                      setIsPhotoRemoved(true);
+                      setCustomPhotoUrl('');
+                    }}
+                    title="Remove photo altogether"
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -628,12 +629,42 @@ export function TripCreationBoxes({
                       height: '26px',
                       borderRadius: '50%',
                       background: 'rgba(0, 0, 0, 0.55)',
+                      backdropFilter: 'blur(8px)',
                       border: '1px solid rgba(255, 255, 255, 0.3)',
                       color: '#FFFFFF',
                       cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <CloseIcon size={12} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPhotoRemoved(false);
+                      setCustomPhotoUrl('');
+                    }}
+                    title="Restore default destination photo"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px 10px',
+                      borderRadius: '9999px',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    Reset
                   </button>
                 )}
               </div>
@@ -1158,6 +1189,13 @@ export function TripCreationBoxes({
         selectedCurrency={currency}
         onSelectCurrency={(cur: CurrencyInfo) => setCurrency(cur.code)}
         defaultCurrency={systemCurrency}
+      />
+
+      {/* Cover Photo Upload Modal */}
+      <PhotoUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onPhotoSelect={handlePhotoSelect}
       />
     </div>
   );
