@@ -100,7 +100,19 @@ def decode_barcode_from_image(img_bytes: bytes) -> tuple[str | None, str | None]
         return None, None
     try:
         image = Image.open(io.BytesIO(img_bytes))
+        # Pass 1: raw image as-is
         results = zxingcpp.read_barcodes(image)
+
+        # Pass 2: Grayscale conversion for screenshots with compression / colored backgrounds
+        if not results:
+            gray = image.convert("L")
+            results = zxingcpp.read_barcodes(gray)
+
+        # Pass 3: Monochrome high-contrast binarization for dark-mode mobile screenshots
+        if not results:
+            mono = image.convert("1")
+            results = zxingcpp.read_barcodes(mono)
+
         if results:
             res = results[0]
             fmt_str = str(res.format).split(".")[-1].lower()
@@ -477,10 +489,29 @@ async def scan_ticket_document(
             if barcode_val.startswith("M1") or barcode_val.startswith("M2"):
                 bcbp = parse_iata_bcbp(barcode_val, trip_start_year)
                 if bcbp:
+                    orig_city = get_airport_service().get_city_from_iata(
+                        bcbp["origin_iata"]
+                    )
+                    dest_city = get_airport_service().get_city_from_iata(
+                        bcbp["destination_iata"]
+                    )
                     draft.ticket_type = "flight"
                     draft.reference_code = bcbp["reference_code"]
                     draft.holder_name = bcbp["holder_name"]
                     draft.seat_or_room = bcbp.get("seat")
+                    draft.start_time = bcbp.get("flight_date")
+                    draft.metadata.update(
+                        {
+                            "origin_iata": bcbp["origin_iata"],
+                            "destination_iata": bcbp["destination_iata"],
+                            "origin_city": orig_city,
+                            "destination_city": dest_city,
+                            "flight_number": bcbp.get("flight_number"),
+                            "carrier": bcbp.get("carrier"),
+                            "seat": bcbp.get("seat"),
+                            "flight_date": bcbp.get("flight_date"),
+                        }
+                    )
 
         drafts.append(draft)
         return drafts, text_excerpt
@@ -492,6 +523,12 @@ async def scan_ticket_document(
         ):
             bcbp = parse_iata_bcbp(barcode_val, trip_start_year)
             if bcbp:
+                orig_city = get_airport_service().get_city_from_iata(
+                    bcbp["origin_iata"]
+                )
+                dest_city = get_airport_service().get_city_from_iata(
+                    bcbp["destination_iata"]
+                )
                 drafts.append(
                     ScanDraft(
                         ticket_type="flight",
@@ -499,9 +536,20 @@ async def scan_ticket_document(
                         provider=bcbp.get("carrier") or "Aviation Carrier",
                         reference_code=bcbp["reference_code"],
                         holder_name=bcbp["holder_name"],
+                        start_time=bcbp.get("flight_date"),
                         seat_or_room=bcbp.get("seat"),
                         barcode_value=barcode_val,
                         barcode_format=barcode_fmt,
+                        metadata={
+                            "origin_iata": bcbp["origin_iata"],
+                            "destination_iata": bcbp["destination_iata"],
+                            "origin_city": orig_city,
+                            "destination_city": dest_city,
+                            "flight_number": bcbp.get("flight_number"),
+                            "carrier": bcbp.get("carrier"),
+                            "seat": bcbp.get("seat"),
+                            "flight_date": bcbp.get("flight_date"),
+                        },
                         field_confidence={"ticket_type": 0.99, "barcode_value": 0.99},
                     )
                 )

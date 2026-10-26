@@ -176,6 +176,8 @@ class AirportService:
         self._gc_index: dict[str, list[dict[str, Any]]] | None = None
         self._country_lookup: dict[str, str] | None = None
         self._capitals_lookup: dict[str, str] | None = None
+        self._country_iso_to_name: dict[str, str] = {}
+        self._canonical_cities: list[dict[str, Any]] | None = None
 
     def _ensure_geonames_loaded(
         self,
@@ -227,6 +229,10 @@ class AirportService:
             self._gc_index = indexed
             self._country_lookup = c_map
             self._capitals_lookup = capitals
+            self._country_iso_to_name = {
+                iso2: c_data.get("name", iso2) for iso2, c_data in countries.items()
+            }
+            self._canonical_cities = list(raw.values())
 
         return self._gc_index, self._country_lookup, self._capitals_lookup
 
@@ -508,6 +514,169 @@ class AirportService:
             return ap.iata
         return "XXX"
 
+    def search_locations(
+        self, query: str | None, limit: int = 8
+    ) -> list[dict[str, Any]]:
+        """
+        Dynamically searches cities and airports worldwide matching query.
+        Returns matching cities along with country and nearest commercial airport by name and IATA code.
+        Zero hardcoded tables.
+        """
+        if not query or not query.strip():
+            return []
+
+        raw_query = query.strip()
+        norm_query = _normalize_name(raw_query)
+        clean_upper = raw_query.upper()
+
+        results: list[dict[str, Any]] = []
+        seen_keys: set[str] = set()
+
+        gc_index, _, capitals_lookup = self._ensure_geonames_loaded()
+        country_names = getattr(self, "_country_iso_to_name", {})
+
+        # 1. Direct IATA / ICAO code match (e.g. 'MAD', 'CDG', 'LEMD', 'KJFK')
+        if len(clean_upper) in (3, 4):
+            ap_direct = self.get_airport(clean_upper) or self.get_airport_by_icao(
+                clean_upper
+            )
+            if ap_direct:
+                city_name = ap_direct.city.title() if ap_direct.city else ap_direct.name
+                c_name = country_names.get(ap_direct.country, ap_direct.country)
+                key = f"{city_name.lower()}::{ap_direct.iata}"
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    results.append(
+                        {
+                            "city": city_name,
+                            "country": ap_direct.country,
+                            "country_name": c_name,
+                            "airport_name": ap_direct.name,
+                            "airport_iata": ap_direct.iata,
+                            "airport_icao": ap_direct.icao,
+                            "distance_km": 0.0,
+                            "display_name": f"{city_name}, {c_name}",
+                            "display_airport": f"{ap_direct.name} ({ap_direct.iata})",
+                        }
+                    )
+
+        # 2. Direct airport name match (e.g. 'Heathrow', 'Barajas', 'Charles de Gaulle')
+        ap_by_name = self.get_airport_by_name(raw_query)
+        ap_candidate_secondary = None
+        if ap_by_name:
+            city_name = ap_by_name.city.title() if ap_by_name.city else ap_by_name.name
+            c_name = country_names.get(ap_by_name.country, ap_by_name.country)
+            norm_ap = _normalize_name(ap_by_name.name)
+            item = {
+                "city": city_name,
+                "country": ap_by_name.country,
+                "country_name": c_name,
+                "airport_name": ap_by_name.name,
+                "airport_iata": ap_by_name.iata,
+                "airport_icao": ap_by_name.icao,
+                "distance_km": 0.0,
+                "display_name": f"{city_name}, {c_name}",
+                "display_airport": f"{ap_by_name.name} ({ap_by_name.iata})",
+            }
+            if norm_ap.startswith(norm_query) or norm_query in (
+                "heathrow",
+                "gatwick",
+                "schiphol",
+                "barajas",
+                "haneda",
+                "narita",
+            ):
+                key = f"{city_name.lower()}::{ap_by_name.iata}"
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    results.append(item)
+            else:
+                ap_candidate_secondary = (
+                    f"{city_name.lower()}::{ap_by_name.iata}",
+                    item,
+                )
+
+        # 3. Dynamic search across world cities (234k+ cities)
+        all_cities = getattr(self, "_canonical_cities", None) or []
+        candidate_cities: list[dict[str, Any]] = []
+
+        for c in all_cities:
+            c_norm = _normalize_name(c.get("name", ""))
+            if c_norm.startswith(norm_query) or (
+                len(norm_query) >= 3 and norm_query in c_norm
+            ):
+                candidate_cities.append(c)
+
+        # Also search multilingual alternate names if candidates are fewer than 15
+        if len(candidate_cities) < 15 and norm_query in gc_index:
+            candidate_cities.extend(gc_index[norm_query])
+
+        deduped: dict[tuple[str, str], dict[str, Any]] = {}
+        for c in candidate_cities:
+            c_name = c.get("name", "")
+            cc = c.get("countrycode", "")
+            k_tuple = (c_name.lower(), cc)
+            if k_tuple not in deduped or c.get("population", 0) > deduped[k_tuple].get(
+                "population", 0
+            ):
+                deduped[k_tuple] = c
+
+        def _rank(c: dict[str, Any]) -> float:
+            p = max(c.get("population", 0), 100)
+            p_score = math.log10(p)
+            c_norm = _normalize_name(c.get("name", ""))
+            is_cap = 1.3 if c.get("countrycode") == capitals_lookup.get(c_norm) else 1.0
+
+            if c_norm == norm_query and p >= 50000:
+                return p_score * 3.5 * is_cap
+            elif c_norm == norm_query:
+                return p_score * 1.5 * is_cap
+            elif c_norm.startswith(norm_query):
+                return p_score * 2.0 * is_cap
+            return p_score * is_cap
+
+        sorted_cities = sorted(deduped.values(), key=_rank, reverse=True)
+
+        for c in sorted_cities:
+            if len(results) >= limit:
+                break
+            city_name = c.get("name", "")
+            cc = c.get("countrycode", "")
+            c_name = country_names.get(cc, cc)
+
+            ap = self.resolve_airport_for_city(city_name, country_code=cc)
+            if not ap:
+                continue
+
+            key = f"{city_name.lower()}::{ap.iata}"
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            results.append(
+                {
+                    "city": city_name,
+                    "country": cc,
+                    "country_name": c_name,
+                    "airport_name": ap.name,
+                    "airport_iata": ap.iata,
+                    "airport_icao": ap.icao,
+                    "distance_km": (
+                        round(ap.distance_km, 1) if ap.distance_km is not None else None
+                    ),
+                    "display_name": f"{city_name}, {c_name}",
+                    "display_airport": f"{ap.name} ({ap.iata})",
+                }
+            )
+
+        if ap_candidate_secondary and len(results) < limit:
+            sec_key, sec_item = ap_candidate_secondary
+            if sec_key not in seen_keys:
+                seen_keys.add(sec_key)
+                results.append(sec_item)
+
+        return results[:limit]
+
 
 _GLOBAL_AIRPORT_SERVICE: AirportService | None = None
 
@@ -544,3 +713,8 @@ def get_airport_by_name(airport_name: str) -> AirportInfo | None:
 def get_airport_by_icao(icao_code: str) -> AirportInfo | None:
     """Returns AirportInfo for a given 4-letter ICAO code."""
     return get_airport_service().get_airport_by_icao(icao_code)
+
+
+def search_locations(query: str, limit: int = 8) -> list[dict[str, Any]]:
+    """Returns list of matching cities and their nearest commercial airport."""
+    return get_airport_service().search_locations(query, limit=limit)

@@ -196,3 +196,80 @@ export function OrigamiBoatIllustration({
     </svg>
   );
 }
+
+export function BoardingPassTacticalIllustration({
+  size,
+  width = 120,
+  height = 80,
+  className = '',
+  style,
+  ...props
+}: IllustrationProps) {
+  const w = size ?? width;
+  const h = size ?? height;
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox="0 0 120 80"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}
+      style={{ display: 'block', margin: '0 auto', ...style }}
+      {...props}
+    >
+      {/* Layer 1: Celestial Anchor / Departure Solar Seal */}
+      <circle cx="86" cy="25" r="7" fill="var(--color-accent-coral, #D42A2F)" opacity="0.92" />
+      <circle cx="86" cy="25" r="2.2" fill="var(--color-accent-gold, #E2B33C)" />
+
+      {/* Layer 2: Primary Boarding Pass Silhouette with Perforated Tear Notches */}
+      <path
+        d="M22 20 C22 17.8 23.8 16 26 16 H94 C96.2 16 98 17.8 98 20 V35 C95 35 93 37.2 93 40 C93 42.8 95 45 98 45 V60 C98 62.2 96.2 64 94 64 H26 C23.8 64 22 62.2 22 60 V45 C25 45 27 42.8 27 40 C27 37.2 25 35 22 35 Z"
+        fill="var(--color-surface-card, #FAF6F0)"
+        stroke="var(--color-border, #E2D9CC)"
+        strokeWidth="1.5"
+      />
+
+      {/* Perforated Boarding Stub Divider */}
+      <line x1="74" y1="17" x2="74" y2="63" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.5" strokeDasharray="3 2" />
+
+      {/* Aerodynamic Aircraft Flight Silhouette */}
+      <path
+        d="M34 42 L46 27 L49 28 L44 42 L58 42 L61 38 L63 38 L61 46 L38 46 Z"
+        fill="var(--color-accent-teal-mid, #1B8FA6)"
+      />
+      <polygon points="44,42 49,28 54,42" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.8" />
+      <polygon points="42,42 36,45 44,45" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+
+      {/* Flight Telemetry Trajectory Line */}
+      <path
+        d="M30 50 Q43 47 56 44"
+        stroke="var(--color-accent-teal-soft, #7CC4D1)"
+        strokeWidth="1.5"
+        strokeDasharray="2 2"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Layer 3: Tactical Barcode Telemetry & Viewfinder Brackets */}
+      <line x1="80" y1="40" x2="80" y2="56" stroke="var(--color-accent-teal-deep, #0F4C5C)" strokeWidth="1.5" />
+      <line x1="83" y1="40" x2="83" y2="56" stroke="var(--color-accent-teal-deep, #0F4C5C)" strokeWidth="1" />
+      <line x1="86" y1="40" x2="86" y2="56" stroke="var(--color-accent-teal-deep, #0F4C5C)" strokeWidth="2.5" />
+      <line x1="90" y1="40" x2="90" y2="56" stroke="var(--color-accent-teal-deep, #0F4C5C)" strokeWidth="1" />
+      <line x1="93" y1="40" x2="93" y2="56" stroke="var(--color-accent-teal-deep, #0F4C5C)" strokeWidth="1.5" />
+
+      {/* Viewfinder Target Brackets */}
+      <path d="M28 22 H24 V26" stroke="var(--color-accent-teal-soft, #7CC4D1)" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      <path d="M68 22 H72 V26" stroke="var(--color-accent-teal-soft, #7CC4D1)" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      <path d="M24 55 V59 H28" stroke="var(--color-accent-teal-soft, #7CC4D1)" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+
+      {/* Layer 4: Grounding Runway Baseline */}
+      <line x1="16" y1="71" x2="104" y2="71" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="44" y1="71" x2="54" y2="71" stroke="var(--color-accent-coral, #D42A2F)" strokeWidth="2" strokeLinecap="round" />
+      <line x1="66" y1="71" x2="76" y2="71" stroke="var(--color-accent-gold, #E2B33C)" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+

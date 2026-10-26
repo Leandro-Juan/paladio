@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.currency import router as currency_router
+from app.api.locations import router as locations_router
 from app.api.market import router as market_router
 from app.api.pois import router as pois_router
 from app.api.trips import router as trips_router
@@ -98,6 +99,7 @@ app.include_router(trips_router, prefix="/api/trips", tags=["trips"])
 app.include_router(currency_router, prefix="/api/currency", tags=["currency"])
 app.include_router(pois_router, prefix="/api/pois", tags=["pois"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
+app.include_router(locations_router, prefix="/api/locations", tags=["locations"])
 
 # Legacy /api/v1 aliases for backward compatibility (hidden from OpenAPI schema)
 app.include_router(
@@ -123,4 +125,10 @@ app.include_router(
 )
 app.include_router(
     market_router, prefix="/api/v1/market", tags=["market"], include_in_schema=False
+)
+app.include_router(
+    locations_router,
+    prefix="/api/v1/locations",
+    tags=["locations"],
+    include_in_schema=False,
 )

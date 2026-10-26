@@ -90,7 +90,7 @@ export default function EnginePage() {
   }, [itinerary, handleSaveTrip]);
 
   return (
-    <div style={{ maxWidth: '1040px', margin: '0 auto', width: '100%', padding: '1.5rem 1rem' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%', padding: '1.5rem 1rem' }}>
       <div style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
         <h2 className="font-display" style={{ margin: 0, fontSize: '2.25rem', fontWeight: 600, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
           NEW TRIP

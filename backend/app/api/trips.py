@@ -16,11 +16,23 @@ from app.db.models import (
     UserModel,
 )
 from app.db.session import get_db
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from app.wallet.scan import scan_ticket_document
+from app.services.airport_service import get_airport_service, get_city_from_iata
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +258,130 @@ async def _get_trip_tickets_count(trip_id: str, session: AsyncSession) -> int:
         return int(res.scalar() or 0)
     except Exception:
         return 0
+
+
+class BoardingPassScanResponse(BaseModel):
+    origin_city: str | None = None
+    origin_iata: str | None = None
+    origin_airport: str | None = None
+    destination_city: str | None = None
+    destination_iata: str | None = None
+    destination_airport: str | None = None
+    departure_date: str | None = None
+    return_date: str | None = None
+    flight_number: str | None = None
+    carrier: str | None = None
+    holder_name: str | None = None
+    seat: str | None = None
+    excerpt: str = ""
+    drafts: list[dict[str, Any]] = []
+
+
+@router.post(
+    "/scan-boarding-pass",
+    response_model=BoardingPassScanResponse,
+    summary="Scan boarding pass (PDF, Apple Wallet pass, image screenshot, or text) to extract origin, destination, and dates",
+)
+async def scan_new_trip_boarding_pass(
+    file: UploadFile | None = File(None),
+    raw_text: str | None = Form(None),
+):
+    content: bytes
+    filename = "document.txt"
+
+    if file:
+        content = await file.read()
+        filename = file.filename or "upload"
+    elif raw_text and raw_text.strip():
+        content = raw_text.encode("utf-8")
+        filename = "pasted_text.txt"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must provide an uploaded boarding pass (PDF, screenshot/image, pkpass) or raw text.",
+        )
+
+    trip_year = datetime.now(timezone.utc).year
+    try:
+        drafts, excerpt = await scan_ticket_document(content, filename, trip_year)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error scanning boarding pass: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to scan boarding pass: {e}",
+        )
+
+    origin_city = None
+    origin_iata = None
+    origin_airport = None
+    destination_city = None
+    destination_iata = None
+    destination_airport = None
+    departure_date = None
+    return_date = None
+    flight_number = None
+    carrier = None
+    holder_name = None
+    seat = None
+
+    airport_svc = get_airport_service()
+
+    flight_drafts = [d for d in drafts if d.ticket_type == "flight"]
+    if flight_drafts:
+        first = flight_drafts[0]
+        meta = first.metadata or {}
+        origin_iata = meta.get("origin_iata")
+        destination_iata = meta.get("destination_iata")
+        origin_city = meta.get("origin_city") or (
+            get_city_from_iata(origin_iata) if origin_iata else None
+        )
+        destination_city = meta.get("destination_city") or (
+            get_city_from_iata(destination_iata) if destination_iata else None
+        )
+
+        if origin_iata:
+            ap_orig = airport_svc.get_airport(origin_iata)
+            if ap_orig:
+                origin_airport = ap_orig.name
+        if destination_iata:
+            ap_dest = airport_svc.get_airport(destination_iata)
+            if ap_dest:
+                destination_airport = ap_dest.name
+
+        flight_number = meta.get("flight_number") or first.title
+        carrier = meta.get("carrier") or first.provider
+        holder_name = first.holder_name
+        seat = first.seat_or_room
+
+        dep_dt = meta.get("flight_date") or first.start_time
+        if dep_dt:
+            departure_date = dep_dt.split("T")[0].split(" ")[0]
+
+        if len(flight_drafts) > 1:
+            second = flight_drafts[1]
+            ret_meta = second.metadata or {}
+            ret_dt = ret_meta.get("flight_date") or second.start_time
+            if ret_dt:
+                return_date = ret_dt.split("T")[0].split(" ")[0]
+
+    return BoardingPassScanResponse(
+        origin_city=origin_city,
+        origin_iata=origin_iata,
+        origin_airport=origin_airport,
+        destination_city=destination_city,
+        destination_iata=destination_iata,
+        destination_airport=destination_airport,
+        departure_date=departure_date,
+        return_date=return_date,
+        flight_number=flight_number,
+        carrier=carrier,
+        holder_name=holder_name,
+        seat=seat,
+        excerpt=excerpt,
+        drafts=[d.model_dump() for d in drafts],
+    )
 
 
 @router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
