@@ -1,110 +1,69 @@
 """
 Canonical Paladio Logo Generator
-Generates the circular ASCII art logo and distributes all asset variants
+Generates the sovereign monogram logo and distributes all asset variants
 (mark, horizontal lockups, masks, and favicons) across the repository.
 """
 
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+
 import numpy as np
+from PIL import Image
 
-# Matriz corregida (10 filas x 17 columnas) para silueta circular
-ascii_art = [
-    "     .:*@@@@@    ",
-    "   ..::***@@@@@@ ",
-    " ..::***@@@@@@@@@",
-    "...::***@@@@@@@@@@",
-    "...::***@@@@@@@@@@",
-    "....::****@@@@@@@@",
-    "  ....::****@@@@@",
-    "   .....:::******",
-    "     ......::*   ",
-]
-
-# Paleta de azules (sombra suave abajo-izquierda -> foco intenso arriba-derecha)
-colors = {
-    ".": "#99C2FF",  # Azul claro
-    ":": "#4D94FF",  # Azul medio
-    "*": "#0066FF",  # Azul vibrante
-    "@": "#002B80",  # Azul marino intenso
-}
-
-FONT_PATHS = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-    "/usr/share/fonts/dejavu/DejaVuSansMono-Bold.ttf",
-]
+CANONICAL_MARK_PATH = Path(__file__).resolve().parent / "assets" / "canonical_mark.png"
+BRAND_NAVY = (32, 60, 99)  # #203C63
 
 
-def get_font(size: int):
-    for fp in FONT_PATHS:
-        try:
-            return ImageFont.truetype(fp, size)
-        except IOError:
-            continue
-    return ImageFont.load_default()
+def load_canonical_mark() -> Image.Image:
+    if not CANONICAL_MARK_PATH.exists():
+        raise FileNotFoundError(f"Canonical mark not found at {CANONICAL_MARK_PATH}")
+    return Image.open(CANONICAL_MARK_PATH).convert("RGBA")
 
 
 def render_mark(
     canvas_size: int = 2048,
     target_diameter: float | None = None,
     transparent: bool = True,
-    monochrome_color: str | None = None,
+    monochrome_color: str | tuple | None = None,
     bg_color: str = "white",
 ) -> Image.Image:
+    mark = load_canonical_mark()
+    w, h = mark.size
+
     if target_diameter is None:
         target_diameter = canvas_size * 0.95
 
+    scale = target_diameter / max(w, h)
+    new_w = max(1, round(w * scale))
+    new_h = max(1, round(h * scale))
+
+    # Process monochrome coloring if requested
+    if monochrome_color is not None:
+        if isinstance(monochrome_color, str) and monochrome_color.startswith("#"):
+            c = monochrome_color.lstrip("#")
+            r, g, b = tuple(int(c[i : i + 2], 16) for i in (0, 2, 4))
+        elif isinstance(monochrome_color, (tuple, list)):
+            r, g, b = monochrome_color[:3]
+        else:
+            r, g, b = (255, 255, 255)
+
+        arr = np.array(mark)
+        arr[:, :, 0] = r
+        arr[:, :, 1] = g
+        arr[:, :, 2] = b
+        mark = Image.fromarray(arr, "RGBA")
+
+    # Resize mark with high-quality resampling
+    resized_mark = mark.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
     mode = "RGBA" if transparent else "RGB"
     bg = (0, 0, 0, 0) if transparent else bg_color
-    img = Image.new(mode, (canvas_size, canvas_size), bg)
-    draw = ImageDraw.Draw(img)
+    canvas = Image.new(mode, (canvas_size, canvas_size), bg)
 
-    font_size = int(target_diameter * (76.0 / 740.0))
-    font = get_font(font_size)
+    start_x = (canvas_size - new_w) // 2
+    start_y = (canvas_size - new_h) // 2
 
-    rows = len(ascii_art)
-    cols = max(len(line) for line in ascii_art)
-    char_w = target_diameter / cols
-    char_h = target_diameter / rows
-
-    start_x = (canvas_size - target_diameter) / 2
-    start_y = (canvas_size - target_diameter) / 2
-
-    for row_idx, line in enumerate(ascii_art):
-        for col_idx, char in enumerate(line):
-            if char in colors:
-                x = start_x + col_idx * char_w
-                y = start_y + row_idx * char_h
-                fill = (
-                    monochrome_color if monochrome_color is not None else colors[char]
-                )
-                # Optical stroke weighting to prevent subpixel downsampling fade
-                sw = 0
-                if char == ".":
-                    sw = max(2, int(font_size * 0.12))
-                elif char in (":", "-"):
-                    sw = max(1, int(font_size * 0.06))
-
-                draw.text(
-                    (x + char_w / 2, y + char_h / 2),
-                    char,
-                    fill=fill,
-                    font=font,
-                    anchor="mm",
-                    stroke_width=sw,
-                    stroke_fill=fill if sw > 0 else None,
-                )
-
-    return img
-
-
-def apply_alpha_threshold(image: Image.Image, threshold: int = 20) -> Image.Image:
-    """Ensure anti-aliased subpixel dots (e.g. periods) have solid 100% mask opacity."""
-    if image.mode != "RGBA":
-        image = image.convert("RGBA")
-    arr = np.array(image)
-    arr[:, :, 3] = np.where(arr[:, :, 3] > threshold, 255, 0)
-    return Image.fromarray(arr)
+    canvas.paste(resized_mark, (start_x, start_y), resized_mark)
+    return canvas
 
 
 def generate_all():
@@ -112,24 +71,18 @@ def generate_all():
     repo_root = script_dir.parent.parent
     assets_dir = script_dir / "assets"
 
-    # 1. logo_ascii.png (1024x1024 white RGB)
-    logo_ascii = render_mark(canvas_size=1024, transparent=False, bg_color="white")
-    logo_ascii.save(script_dir.parent / "logo_ascii.png")
-    print("Guardado como logo_ascii.png (proporción 1:1)")
-
-    # 2. logo.png (2048x2048 RGBA transparent)
+    # 1. logo.png (2048x2048 RGBA transparent)
     logo_png = render_mark(canvas_size=2048, transparent=True)
 
-    # 3. logo.jpeg (2048x2048 RGB white)
+    # 2. logo.jpeg (2048x2048 RGB white)
     logo_jpeg = render_mark(canvas_size=2048, transparent=False, bg_color="white")
 
-    # 4. logo-white.png (2048x2048 RGBA pure white with alpha thresholding for crisp mask rendering)
+    # 3. logo-white.png (2048x2048 RGBA pure white for crisp mask rendering and dark mode)
     logo_white = render_mark(
         canvas_size=2048, transparent=True, monochrome_color="#FFFFFF"
     )
-    logo_white = apply_alpha_threshold(logo_white, threshold=20)
 
-    # 5. Horizontal lockups
+    # 4. Horizontal lockups
     mark_horiz_color = render_mark(
         canvas_size=600, target_diameter=600, transparent=True
     )
@@ -167,7 +120,7 @@ def generate_all():
     h_caps_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
     h_caps_dark.paste(text_caps_dark, (813, 0), text_caps_dark)
 
-    # 6. Favicon 48x48 (White)
+    # 5. Favicon 48x48 (White)
     arr_white = np.array(logo_white)
     alpha_white = arr_white[:, :, 3]
     ys_w, xs_w = np.where(alpha_white > 0)
@@ -181,6 +134,7 @@ def generate_all():
         repo_root / "docs" / "assets",
         repo_root / "cpp_core" / "assets",
         repo_root / "site" / "assets",
+        repo_root / "scratch" / "generated",
     ]
 
     for target in targets:
