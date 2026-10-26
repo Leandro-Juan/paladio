@@ -429,6 +429,43 @@ async def create_trip(
         role="organizer",
     )
     session.add(first_p)
+
+    # Seed any additional participants chosen at trip creation
+    raw_participants = itin_data.get("participants") or itin_data.get(
+        "travel_constraints", {}
+    ).get("participants", [])
+    if isinstance(raw_participants, list):
+        for p in raw_participants:
+            if not isinstance(p, dict):
+                continue
+            p_name = p.get("name", "").strip()
+            p_uid = p.get("user_id")
+            p_email = p.get("email")
+            if not p_name:
+                continue
+            if current_user and p_uid == current_user.id:
+                continue
+            if p_name.lower() in (organizer_name.lower(), "you"):
+                continue
+
+            valid_user_id = None
+            if p_uid:
+                u_check = await session.execute(
+                    select(UserModel.id).where(UserModel.id == p_uid)
+                )
+                if u_check.scalar_one_or_none():
+                    valid_user_id = p_uid
+
+            extra_p = TripParticipantModel(
+                id=str(uuid.uuid4()),
+                trip_id=db_trip.id,
+                user_id=valid_user_id,
+                name=p_name,
+                email=p_email,
+                role="traveler",
+            )
+            session.add(extra_p)
+
     await session.commit()
     await session.refresh(db_trip)
 
@@ -467,6 +504,13 @@ async def create_trip(
 
     t_count = await _get_trip_tickets_count(db_trip.id, session)
 
+    all_p_res = await session.execute(
+        select(TripParticipantModel)
+        .where(TripParticipantModel.trip_id == db_trip.id)
+        .order_by(TripParticipantModel.created_at.asc())
+    )
+    all_p = all_p_res.scalars().all()
+
     return TripResponse(
         id=db_trip.id,
         user_id=db_trip.user_id,
@@ -477,7 +521,7 @@ async def create_trip(
         created_at=db_trip.created_at.isoformat()
         if db_trip.created_at
         else datetime.now(timezone.utc).isoformat(),
-        participants=[_participant_to_response(first_p)],
+        participants=[_participant_to_response(p) for p in all_p],
         tickets_count=t_count,
     )
 

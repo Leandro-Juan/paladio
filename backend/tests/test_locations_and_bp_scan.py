@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
 
@@ -48,3 +50,34 @@ async def test_scan_boarding_pass_for_new_trip(async_client: AsyncClient):
     assert data["destination_city"] in ["Sevilla", "Seville"]
     assert "3166" in data["flight_number"]
     assert data["departure_date"] is not None
+
+
+@pytest.mark.asyncio
+async def test_create_trip_with_participants(async_client: AsyncClient):
+    payload = {
+        "destination": "Paris",
+        "start_date": "2026-11-01T09:00:00Z",
+        "end_date": "2026-11-06T20:00:00Z",
+        "itinerary_data": {
+            "title": "Trip to Paris",
+            "participants": [
+                {"name": "Sarah Connor", "is_guest": True},
+                {
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "user_id": "u-123",
+                    "is_guest": False,
+                },
+            ],
+            "days": [],
+        },
+    }
+    with patch("app.engine.city_readiness.ensure_city_ready"):
+        res = await async_client.post("/api/trips/", json=payload)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["destination"] == "Paris"
+    participants = data.get("participants", [])
+    names = [p["name"] for p in participants]
+    assert "Sarah Connor" in names
+    assert "John Doe" in names

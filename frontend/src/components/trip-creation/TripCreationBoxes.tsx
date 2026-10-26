@@ -27,6 +27,7 @@ import { BoardingPassUploadIntake, BoardingPassExtractedData } from './BoardingP
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
+import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager';
 
 interface TripCreationBoxesProps {
   onPersonalizedSubmit: (prompt: string, extras: Record<string, unknown>) => void;
@@ -84,7 +85,41 @@ export function TripCreationBoxes({
   const [tripDescription, setTripDescription] = useState('');
   const [departureHour, setDepartureHour] = useState('09:00');
   const [arrivalHour, setArrivalHour] = useState('20:00');
-  const [travelersCount, setTravelersCount] = useState(2);
+
+  // Participants management (defaults to current user as organizer)
+  const [participants, setParticipants] = useState<SelectedParticipant[]>(() => [
+    {
+      id: currentUser?.id || 'creator',
+      name: currentUser?.username || 'You',
+      email: currentUser?.email || undefined,
+      user_id: currentUser?.id,
+      is_guest: false,
+      is_organizer: true,
+    },
+  ]);
+
+  // Synchronize creator when currentUser loads (render phase state adjustment)
+  const [syncedUserId, setSyncedUserId] = useState(currentUser?.id);
+  if (currentUser?.id && currentUser.id !== syncedUserId) {
+    setSyncedUserId(currentUser.id);
+    const hasSelf = participants.some((p) => p.user_id === currentUser.id);
+    if (!hasSelf) {
+      const withoutFallback = participants.filter((p) => p.id !== 'creator');
+      setParticipants([
+        {
+          id: currentUser.id,
+          name: currentUser.username || 'You',
+          email: currentUser.email || undefined,
+          user_id: currentUser.id,
+          is_guest: false,
+          is_organizer: true,
+        },
+        ...withoutFallback,
+      ]);
+    }
+  }
+
+  const travelersCount = Math.max(1, participants.length);
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [startDate, setStartDate] = useState(() => initialStartDate || formatDateOffset(7));
@@ -201,6 +236,13 @@ export function TripCreationBoxes({
         destination: destination.trim(),
         origin: origin.trim() || undefined,
         description: tripDescription.trim() || undefined,
+        participants: participants.map((p) => ({
+          id: p.id,
+          user_id: p.user_id,
+          name: p.name,
+          email: p.email,
+          is_guest: p.is_guest,
+        })),
         travel_constraints: {
           destination_city: destination.trim(),
           destination_iata: destIata.trim().toUpperCase() || undefined,
@@ -214,6 +256,13 @@ export function TripCreationBoxes({
           budget_usd: Number(budgetUsd) || 1500,
           currency: currency,
           travelers: travelersCount,
+          participants: participants.map((p) => ({
+            id: p.id,
+            user_id: p.user_id,
+            name: p.name,
+            email: p.email,
+            is_guest: p.is_guest,
+          })),
           accommodation: hotelArea.trim() || undefined,
         },
         days,
@@ -267,6 +316,13 @@ export function TripCreationBoxes({
       budget_usd: Number(budgetUsd) || 1500,
       currency: currency,
       travelers: travelersCount,
+      participants: participants.map((p) => ({
+        id: p.id,
+        user_id: p.user_id,
+        name: p.name,
+        email: p.email,
+        is_guest: p.is_guest,
+      })),
       meals,
       manual_constraints: {
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
@@ -279,6 +335,13 @@ export function TripCreationBoxes({
         budget_usd: Number(budgetUsd) || 1500,
         currency: currency,
         travelers: travelersCount,
+        participants: participants.map((p) => ({
+          id: p.id,
+          user_id: p.user_id,
+          name: p.name,
+          email: p.email,
+          is_guest: p.is_guest,
+        })),
         departure_hour: departureHour,
         arrival_hour: arrivalHour,
         meals,
@@ -768,58 +831,15 @@ export function TripCreationBoxes({
                 </div>
               </div>
 
-              {/* Travelers Count Selector */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--color-text-muted)',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Travelers
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    background: 'var(--color-bg-main, #FAF8F5)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '9999px',
-                    padding: '4px',
-                    gap: '2px',
-                  }}
-                >
-                  {[1, 2, 3, 4].map((count) => {
-                    const isSelected = count === 4 ? travelersCount >= 4 : travelersCount === count;
-                    return (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() => setTravelersCount(count)}
-                        style={{
-                          flex: 1,
-                          padding: '6px 6px',
-                          borderRadius: '9999px',
-                          border: 'none',
-                          background: isSelected ? 'var(--color-surface-raised, #FFFFFF)' : 'transparent',
-                          color: isSelected ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                          boxShadow: isSelected ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: '12px',
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        {count === 4 ? '4+' : count} {count === 1 ? 'Guest' : 'Guests'}
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Travelers & Participants Manager */}
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <ParticipantsManager
+                  participants={participants}
+                  onChange={setParticipants}
+                  disabled={disabled}
+                  currentUserId={currentUser?.id}
+                  currentUsername={currentUser?.username}
+                />
               </div>
             </div>
 

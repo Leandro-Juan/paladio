@@ -1280,3 +1280,28 @@ export function CalendarIcon({ size = 14, className, style, color = 'currentColo
   );
 }
 
+/**
+ * User / Person icon for travelers and participants.
+ */
+export function UserIcon({ size = 14, className, style, color = 'currentColor' }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+

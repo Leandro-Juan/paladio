@@ -134,6 +134,7 @@ docs/NOMENCLATURE.md
 
 data/wallet_attachments/
 data/wallet_temp_uploads/
+data/custom_files/
 
 # Pacific Jazz UI Baseline & Scratch
 ui-baseline/
