@@ -65,15 +65,36 @@ export function PaladioDateRangePicker({
 
   // Intermediate selection state: 'start' or 'end'
   const [selectingStep, setSelectingStep] = useState<'start' | 'end'>('start');
-  const [tempStart, setTempStart] = useState<string>(startDate);
-  const [tempEnd, setTempEnd] = useState<string>(endDate);
+  const [tempStart, setTempStart] = useState<string>(startDate || '');
+  const [tempEnd, setTempEnd] = useState<string>(endDate || '');
   const [hoverDate, setHoverDate] = useState<string | null>(null);
+
+  // Sync internal state if controlled props change
+  const [lastPropStart, setLastPropStart] = useState(startDate);
+  const [lastPropEnd, setLastPropEnd] = useState(endDate);
+  if (startDate !== lastPropStart || endDate !== lastPropEnd) {
+    setLastPropStart(startDate);
+    setLastPropEnd(endDate);
+    setTempStart(startDate || '');
+    setTempEnd(endDate || '');
+  }
 
   // Month 1 (left) and Month 2 (right)
   const leftMonthDate = useMemo(() => new Date(viewYear, viewMonth, 1), [viewYear, viewMonth]);
   const rightMonthDate = useMemo(() => new Date(viewYear, viewMonth + 1, 1), [viewYear, viewMonth]);
 
+  const todayStr = useMemo(() => formatDateStr(new Date()), []);
+  const currentMonthDate = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }, []);
+
+  const isPrevMonthDisabled = useMemo(() => {
+    return leftMonthDate <= currentMonthDate;
+  }, [leftMonthDate, currentMonthDate]);
+
   const handlePrevMonth = () => {
+    if (isPrevMonthDisabled) return;
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear((y) => y - 1);
@@ -92,6 +113,7 @@ export function PaladioDateRangePicker({
   };
 
   const handleDayClick = (dateStr: string) => {
+    if (dateStr < todayStr) return; // Prevent selecting past dates
     if (selectingStep === 'start') {
       setTempStart(dateStr);
       setTempEnd('');
@@ -205,16 +227,17 @@ export function PaladioDateRangePicker({
             const effectiveEnd = tempEnd || (selectingStep === 'end' && hoverDate && hoverDate >= tempStart ? hoverDate : '');
             const inRange = tempStart && effectiveEnd && dateStr > tempStart && dateStr < effectiveEnd;
 
-            // Today check
-            const todayStr = formatDateStr(new Date());
+            // Today check and past check
             const isToday = dateStr === todayStr;
+            const isPast = dateStr < todayStr;
 
             return (
               <button
                 key={dateStr}
                 type="button"
+                disabled={isPast}
                 onClick={() => handleDayClick(dateStr)}
-                onMouseEnter={() => selectingStep === 'end' && setHoverDate(dateStr)}
+                onMouseEnter={() => !isPast && selectingStep === 'end' && setHoverDate(dateStr)}
                 style={{
                   height: '36px',
                   width: '100%',
@@ -225,7 +248,10 @@ export function PaladioDateRangePicker({
                     : 'transparent',
                   color: isStart || isEnd
                     ? '#FFFFFF'
+                    : isPast
+                    ? 'var(--color-text-muted, #9E9E9E)'
                     : 'var(--color-text-primary, #1A1A1A)',
+                  opacity: isPast ? 0.38 : 1,
                   border: isToday && !isStart && !isEnd ? '1px solid var(--color-accent-coral, #D42A2F)' : 'none',
                   borderRadius: isStart
                     ? inRange || effectiveEnd ? '8px 0 0 8px' : '8px'
@@ -240,7 +266,7 @@ export function PaladioDateRangePicker({
                   fontSize: '13px',
                   fontWeight: isStart || isEnd ? 600 : isToday ? 600 : 400,
                   fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
+                  cursor: isPast ? 'not-allowed' : 'pointer',
                   transition: 'background 0.15s ease',
                   position: 'relative',
                 }}
@@ -281,20 +307,22 @@ export function PaladioDateRangePicker({
       >
         <button
           type="button"
+          disabled={isPrevMonthDisabled}
           onClick={handlePrevMonth}
           aria-label="Previous month"
           style={{
-            background: 'var(--color-surface-raised, #FFFFFF)',
-            border: '1px solid var(--color-border, #E2D9CC)',
+            background: isPrevMonthDisabled ? 'transparent' : 'var(--color-surface-raised, #FFFFFF)',
+            border: isPrevMonthDisabled ? '1px solid transparent' : '1px solid var(--color-border, #E2D9CC)',
             borderRadius: '50%',
             width: '32px',
             height: '32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
-            color: 'var(--color-text-primary, #1A1A1A)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            cursor: isPrevMonthDisabled ? 'not-allowed' : 'pointer',
+            color: isPrevMonthDisabled ? 'var(--color-text-muted, #B0B0B0)' : 'var(--color-text-primary, #1A1A1A)',
+            opacity: isPrevMonthDisabled ? 0.35 : 1,
+            boxShadow: isPrevMonthDisabled ? 'none' : '0 1px 3px rgba(0,0,0,0.03)',
             transition: 'all 0.15s ease',
           }}
         >
@@ -384,22 +412,30 @@ export function PaladioDateRangePicker({
           }}
         >
           <CalendarIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-          <span style={{ fontWeight: 600 }}>
-            {formatDisplayDate(tempStart)} &nbsp;—&nbsp; {formatDisplayDate(tempEnd || tempStart)}
-          </span>
-          <span
-            className="font-mono"
-            style={{
-              fontSize: '11px',
-              color: 'var(--color-accent-primary, #0F4C5C)',
-              background: 'rgba(15, 76, 92, 0.08)',
-              padding: '2px 8px',
-              borderRadius: '9999px',
-              fontWeight: 600,
-            }}
-          >
-            {durationDays} {durationDays === 1 ? 'day' : 'days'}
-          </span>
+          {tempStart ? (
+            <>
+              <span style={{ fontWeight: 600 }}>
+                {formatDisplayDate(tempStart)} &nbsp;—&nbsp; {formatDisplayDate(tempEnd || tempStart)}
+              </span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-accent-primary, #0F4C5C)',
+                  background: 'rgba(15, 76, 92, 0.08)',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  fontWeight: 600,
+                }}
+              >
+                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+              </span>
+            </>
+          ) : (
+            <span style={{ fontWeight: 500, color: 'var(--color-text-muted)' }}>
+              No dates selected — choose departure date
+            </span>
+          )}
         </div>
 
         {!inline && onClose && (

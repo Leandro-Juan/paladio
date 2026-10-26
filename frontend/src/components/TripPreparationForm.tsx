@@ -53,8 +53,8 @@ export function TripPreparationForm({
   // Simulated Anchors (Test Mode) fields
   const [originCity, setOriginCity] = useState(initialOrigin || 'Madrid');
   const [destinationCity, setDestinationCity] = useState(initialDestination || 'Paris');
-  const [startDate, setStartDate] = useState(() => initialStartDate || formatDateOffset(7));
-  const [endDate, setEndDate] = useState(() => initialEndDate || formatDateOffset(12));
+  const [startDate, setStartDate] = useState(() => initialStartDate || '');
+  const [endDate, setEndDate] = useState(() => initialEndDate || '');
 
 
 

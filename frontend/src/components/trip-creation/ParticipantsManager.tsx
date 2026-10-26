@@ -73,8 +73,8 @@ export function ParticipantsManager({
   const handleToggleUser = (user: CollaboratorOption) => {
     const isSelected = participants.some((p) => p.user_id === user.id || p.id === user.id);
     if (isSelected) {
-      // Do not allow removing current user if they are the sole organizer
-      if (user.id === currentUserId && participants.length === 1) return;
+      // Always ensure at least 1 participant remains
+      if (participants.length <= 1) return;
       onChange(participants.filter((p) => p.user_id !== user.id && p.id !== user.id));
     } else {
       const newParticipant: SelectedParticipant = {

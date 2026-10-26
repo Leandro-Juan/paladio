@@ -30,7 +30,22 @@ interface RouteIntakeBarProps {
   arrivalHour?: string;
   onDepartureHourChange?: (val: string) => void;
   onArrivalHourChange?: (val: string) => void;
+  startDate?: string;
+  endDate?: string;
   disabled?: boolean;
+}
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatHeaderDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const mIndex = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  const mStr = MONTH_ABBR[mIndex] || parts[1];
+  const ddStr = d < 10 ? `0${d}` : `${d}`;
+  return `${mStr} ${ddStr}`;
 }
 
 export function RouteIntakeBar({
@@ -46,6 +61,8 @@ export function RouteIntakeBar({
   arrivalHour = '20:00',
   onDepartureHourChange,
   onArrivalHourChange,
+  startDate,
+  endDate,
   disabled = false,
 }: RouteIntakeBarProps) {
   // Active dropdown: null | 'origin' | 'destination'
@@ -301,31 +318,55 @@ export function RouteIntakeBar({
             />
           </div>
 
-          {/* Departure Hour Pill */}
+          {/* Outbound Time Card */}
           {onDepartureHourChange && (
             <button
               type="button"
               disabled={disabled}
               onClick={() => setActiveHourPicker('departure')}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(0,0,0,0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                gap: '3px',
+                background: 'var(--color-surface-raised, #FFFFFF)',
                 border: '1px solid var(--color-border)',
-                padding: '4px 12px',
-                borderRadius: '9999px',
+                padding: '6px 14px',
+                borderRadius: '12px',
                 cursor: 'pointer',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: 'var(--color-text-secondary)',
                 transition: 'all 0.15s ease',
+                width: '100%',
+                maxWidth: '220px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
               }}
-              title="Click to customize departure time"
+              title="Click to customize arrival time at destination"
             >
-              <ClockIcon size={12} color="var(--color-text-muted)" />
-              <span>{departureHour || '09:00'}</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Outbound{startDate ? ` · ${formatHeaderDate(startDate)}` : ''}
+              </span>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                <ClockIcon size={12} color="var(--color-text-muted)" />
+                <span>Arr: {departureHour || '09:00'}</span>
+              </div>
             </button>
           )}
         </div>
@@ -440,31 +481,55 @@ export function RouteIntakeBar({
             />
           </div>
 
-          {/* Arrival / Return Hour Pill */}
+          {/* Return Time Card */}
           {onArrivalHourChange && (
             <button
               type="button"
               disabled={disabled}
               onClick={() => setActiveHourPicker('arrival')}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(0,0,0,0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                gap: '3px',
+                background: 'var(--color-surface-raised, #FFFFFF)',
                 border: '1px solid var(--color-border)',
-                padding: '4px 12px',
-                borderRadius: '9999px',
+                padding: '6px 14px',
+                borderRadius: '12px',
                 cursor: 'pointer',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: 'var(--color-text-secondary)',
                 transition: 'all 0.15s ease',
+                width: '100%',
+                maxWidth: '220px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
               }}
-              title="Click to customize arrival / return time"
+              title="Click to customize return / departure time"
             >
-              <ClockIcon size={12} color="var(--color-text-muted)" />
-              <span>{arrivalHour || '20:00'}</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Return{endDate ? ` · ${formatHeaderDate(endDate)}` : ''}
+              </span>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                <ClockIcon size={12} color="var(--color-text-muted)" />
+                <span>Dep: {arrivalHour || '20:00'}</span>
+              </div>
             </button>
           )}
         </div>

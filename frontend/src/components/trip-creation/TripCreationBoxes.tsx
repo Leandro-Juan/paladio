@@ -122,8 +122,8 @@ export function TripCreationBoxes({
   const travelersCount = Math.max(1, participants.length);
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [startDate, setStartDate] = useState(() => initialStartDate || formatDateOffset(7));
-  const [endDate, setEndDate] = useState(() => initialEndDate || formatDateOffset(12));
+  const [startDate, setStartDate] = useState(() => initialStartDate || '');
+  const [endDate, setEndDate] = useState(() => initialEndDate || '');
   const [budgetUsd, setBudgetUsd] = useState(initialBudget);
 
   // Blank trip specific fields
@@ -214,6 +214,19 @@ export function TripCreationBoxes({
       setBlankError('Destination city is required.');
       return;
     }
+    if (!startDate || !endDate) {
+      setBlankError('Please select departure and return dates on the calendar.');
+      return;
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (startDate < todayStr) {
+      setBlankError('Travel dates cannot be in the past.');
+      return;
+    }
+    if (!participants || participants.length === 0) {
+      setBlankError('At least one traveler or participant must be added to the trip.');
+      return;
+    }
     setBlankError(null);
     setIsCreatingBlank(true);
 
@@ -298,6 +311,20 @@ export function TripCreationBoxes({
   const handlePersonalizedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!personalizedPrompt.trim()) return;
+    if (!startDate || !endDate) {
+      setBlankError('Please select departure and return dates on the calendar.');
+      return;
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (startDate < todayStr) {
+      setBlankError('Travel dates cannot be in the past.');
+      return;
+    }
+    if (!participants || participants.length === 0) {
+      setBlankError('At least one traveler or participant must be added to the trip.');
+      return;
+    }
+    setBlankError(null);
 
     const extras: Record<string, unknown> = {
       test_mode: anchorMode === 'simulated',
@@ -742,6 +769,8 @@ export function TripCreationBoxes({
                   onDestIataChange={setDestIata}
                   departureHour={departureHour}
                   arrivalHour={arrivalHour}
+                  startDate={startDate}
+                  endDate={endDate}
                   onOriginChange={setOrigin}
                   onDestinationChange={setDestination}
                   onDepartureHourChange={setDepartureHour}
@@ -838,7 +867,6 @@ export function TripCreationBoxes({
                   onChange={setParticipants}
                   disabled={disabled}
                   currentUserId={currentUser?.id}
-                  currentUsername={currentUser?.username}
                 />
               </div>
             </div>
