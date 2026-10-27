@@ -633,8 +633,14 @@ def classify_text_document(
     score_attraction = sum(1 for k in attraction_keywords if k in text_lower)
     score_transit = sum(1 for k in transit_keywords if k in text_lower)
 
-    # Flight regexes
-    flight_num_match = re.search(r"\b([A-Z]{2}\s?\d{3,4})\b", text)
+    # Flight regexes (prefer labeled flight numbers like Flight: LH 1112)
+    flight_num_match = re.search(
+        r"(?:flight|vuelo|flt|fl)[\s#:]*([A-Z0-9]{2}\s?\d{3,4})\b",
+        text,
+        re.IGNORECASE,
+    )
+    if not flight_num_match:
+        flight_num_match = re.search(r"\b([A-Z]{2}\s?\d{3,4})\b", text)
     flight_num = (
         flight_num_match.group(1).replace(" ", "") if flight_num_match else None
     )
@@ -1007,7 +1013,7 @@ def classify_text_document(
         airport_svc = get_airport_service()
 
         city_m = re.search(
-            r"\b(?:City|Ciudad|Location|Ubicación|Destination)[:\s#]*([A-Za-z\s-]{3,30})\b",
+            r"\b(?:City|Ciudad|Location|Ubicación|Destination)[:\s#]*([^\n\r,]{3,40})",
             text,
             re.IGNORECASE,
         )
