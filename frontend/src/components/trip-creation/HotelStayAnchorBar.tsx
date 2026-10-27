@@ -178,7 +178,7 @@ export function HotelStayAnchorBar({
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Label and Pinned Badge Row */}
+      {/* Label Row */}
       <div
         style={{
           display: 'flex',
@@ -199,28 +199,6 @@ export function HotelStayAnchorBar({
         >
           Hotel / Stay Anchor
         </label>
-
-        {isPinned && (
-          <span
-            className="font-mono"
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              color: 'var(--color-accent-teal, #0F4C5C)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(15, 76, 92, 0.08)',
-              padding: '2px 8px',
-              borderRadius: '9999px',
-            }}
-          >
-            <CheckIcon size={12} color="var(--color-accent-teal, #0F4C5C)" />
-            <span>
-              Pinned ({hotelLat?.toFixed(3)}, {hotelLng?.toFixed(3)})
-            </span>
-          </span>
-        )}
       </div>
 
       {/* Main Pill Search Box matching RouteIntakeBar aesthetic */}
@@ -292,20 +270,18 @@ export function HotelStayAnchorBar({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                background: 'rgba(16, 185, 129, 0.12)',
+                justifyContent: 'center',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.14)',
                 color: '#059669',
-                fontSize: '11px',
-                fontWeight: 600,
                 flexShrink: 0,
                 userSelect: 'none',
                 cursor: 'default',
               }}
             >
               <CheckIcon size={12} color="#059669" />
-              <span>Found</span>
             </span>
           )}
         </div>

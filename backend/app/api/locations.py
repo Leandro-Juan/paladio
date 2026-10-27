@@ -136,9 +136,23 @@ async def search_hotels(
                 else:
                     candidates.append(cleaned)
 
-            # Stripped generic words ('hotel', 'hostel', 'resort')
+            # Spaced alphanumeric query (e.g. Hotel101 -> Hotel 101)
+            spaced_num = re.sub(r"([a-zA-Z]+)(\d+)", r"\1 \2", cleaned).strip()
+            if spaced_num != cleaned:
+                if clean_city and clean_city.lower() in spaced_num.lower():
+                    candidates.append(spaced_num)
+                elif clean_city:
+                    candidates.append(f"{spaced_num}, {clean_city}")
+                else:
+                    candidates.append(spaced_num)
+
+            # Stripped generic accommodation words ('hotel', 'hostel', 'resort', 'apartments', 'suites')
             for base in [clean_q, cleaned]:
-                stripped = re.sub(r"(?i)\b(hotel|hostel|resort)\b", "", base).strip()
+                stripped = re.sub(
+                    r"(?i)\b(hotel|hostel|resort|apartments?|apartamentos?|suites?)\b",
+                    "",
+                    base,
+                ).strip()
                 stripped = re.sub(r"\s+", " ", stripped)
                 if stripped and stripped.lower() != clean_q.lower():
                     if clean_city and clean_city.lower() in stripped.lower():
@@ -147,6 +161,18 @@ async def search_hotels(
                         candidates.append(f"{stripped}, {clean_city}")
                     else:
                         candidates.append(stripped)
+
+            # Drop neighborhood suffix if brand has accommodation type in middle (e.g. "Welcomer Apartments Bernabéu" -> "Welcomer Apartments")
+            m_apart = re.match(
+                r"(?i)^([A-Za-z0-9]+)\s+(Apartments?|Apartamentos?|Suites?|Hotel|Hostal)\b",
+                clean_q,
+            )
+            if m_apart:
+                brand_only = m_apart.group(0).strip()
+                if clean_city and clean_city.lower() not in brand_only.lower():
+                    candidates.append(f"{brand_only}, {clean_city}")
+                else:
+                    candidates.append(brand_only)
 
             # Street address candidates for apartment/flat listings
             addr_match = re.search(
