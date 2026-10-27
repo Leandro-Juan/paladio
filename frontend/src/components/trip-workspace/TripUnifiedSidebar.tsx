@@ -1196,7 +1196,6 @@ export function TripUnifiedSidebar({
   availableDays = [],
   initialDay = 1,
   isEditMode = false,
-  onToggleEditMode,
   onReoptimizeDay,
   isReoptimizing = false,
   onToggleTransitMode,
@@ -2052,78 +2051,46 @@ export function TripUnifiedSidebar({
                     />
                     {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
                   </div>
-                ) : (
+                ) : isEditMode && onReoptimizeDay ? (
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    {isEditMode && onReoptimizeDay && (
-                      <button
-                        type="button"
-                        onClick={onReoptimizeDay}
-                        disabled={isReoptimizing}
-                        data-testid="route-reoptimize-btn"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          background: 'rgba(15, 76, 92, 0.08)',
-                          color: 'var(--color-accent-teal-deep, #0F4C5C)',
-                          border: '1px solid rgba(15, 76, 92, 0.25)',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: isReoptimizing ? 'wait' : 'pointer',
-                          opacity: isReoptimizing ? 0.7 : 1,
-                        }}
-                        title="Re-run C++ optimization solver with locked stops preserved"
+                    <button
+                      type="button"
+                      onClick={onReoptimizeDay}
+                      disabled={isReoptimizing}
+                      data-testid="route-reoptimize-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        background: 'rgba(15, 76, 92, 0.08)',
+                        color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                        border: '1px solid rgba(15, 76, 92, 0.25)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: isReoptimizing ? 'wait' : 'pointer',
+                        opacity: isReoptimizing ? 0.7 : 1,
+                      }}
+                      title="Re-run C++ optimization solver with locked stops preserved"
+                    >
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ animation: isReoptimizing ? 'spin 1s linear infinite' : 'none' }}
                       >
-                        <svg
-                          width="11"
-                          height="11"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          style={{ animation: isReoptimizing ? 'spin 1s linear infinite' : 'none' }}
-                        >
-                          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                        </svg>
-                        <span>{isReoptimizing ? 'Solving...' : 'Solve'}</span>
-                      </button>
-                    )}
-
-                    {onToggleEditMode && (
-                      <button
-                        type="button"
-                        data-testid="route-edit-mode-toggle"
-                        onClick={onToggleEditMode}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '4px 11px',
-                          borderRadius: 'var(--radius-full)',
-                          background: isEditMode ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.08)',
-                          color: isEditMode ? '#FFFFFF' : 'var(--color-text-primary)',
-                          border: `1px solid ${isEditMode ? 'var(--color-accent-primary)' : 'rgba(15, 76, 92, 0.25)'}`,
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          boxShadow: isEditMode ? '0 2px 8px rgba(15, 76, 92, 0.3)' : 'none',
-                          transition: 'all 0.18s ease',
-                        }}
-                        title={isEditMode ? 'Exit edit mode' : 'Edit route order & lock waypoints'}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                        </svg>
-                        <span>{isEditMode ? 'Done' : 'Edit'}</span>
-                      </button>
-                    )}
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                      </svg>
+                      <span>{isReoptimizing ? 'Solving...' : 'Solve'}</span>
+                    </button>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Secondary Sub-Bar with Smooth Edge-Hover Scrolling */}

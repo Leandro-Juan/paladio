@@ -13,6 +13,7 @@ import { VectorBasemap } from '@/components/VectorBasemap';
 import { InfoIcon } from '@/components/icons';
 import { createRouteCardDragImage } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
+import { ActiveTransitLineData } from '@/utils/transitColors';
 
 export interface MapPoi {
   id?: string;
@@ -99,6 +100,8 @@ interface TripMapViewProps {
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isSidebarOpen?: boolean;
   sidebarTab?: 'route' | 'search' | 'saved';
+  activeTransitLine?: ActiveTransitLineData | null;
+  onClearTransitLine?: () => void;
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -686,6 +689,8 @@ export default function TripMapView({
   onInspectPoi,
   isSidebarOpen = true,
   sidebarTab = 'route',
+  activeTransitLine,
+  onClearTransitLine,
 }: TripMapViewProps) {
   const effectiveLeftPadding = useMemo(() => {
     if (!isSidebarOpen) return 60;
@@ -972,6 +977,10 @@ export default function TripMapView({
 
   // Active bounds points (zooms strictly to convex hulls / sightseeing territories, ignoring distant transit anchors)
   const activeBoundsPoints: LatLngPoint[] = useMemo(() => {
+    if (activeTransitLine && activeTransitLine.stations.length > 0) {
+      return activeTransitLine.stations.map((s) => ({ lat: s.lat, lng: s.lng }));
+    }
+
     let points: LatLngPoint[] = [];
 
     if (activeDay === 'all') {
@@ -1027,7 +1036,7 @@ export default function TripMapView({
     }
 
     return points;
-  }, [activeDay, days, activeDayData, dayClusters, hotel, activeCategory, categoryPois]);
+  }, [activeDay, days, activeDayData, dayClusters, hotel, activeCategory, categoryPois, activeTransitLine]);
 
   // Centroid fallback
   const centerPosition: [number, number] = useMemo(() => {
@@ -1672,7 +1681,146 @@ export default function TripMapView({
               );
             })
         )}
+
+        {/* 6. Active Transit Line Full Route & Stations */}
+        {activeTransitLine && (
+          <>
+            {activeTransitLine.polyline.length > 1 && (
+              <>
+                <Polyline
+                  key={`active-transit-glow-${activeTransitLine.line}`}
+                  positions={activeTransitLine.polyline}
+                  pathOptions={{
+                    color: activeTransitLine.color,
+                    weight: 8,
+                    opacity: 0.3,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
+                <Polyline
+                  key={`active-transit-core-${activeTransitLine.line}`}
+                  positions={activeTransitLine.polyline}
+                  pathOptions={{
+                    color: activeTransitLine.color,
+                    weight: 4.5,
+                    opacity: 0.95,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
+              </>
+            )}
+            {activeTransitLine.stations.map((st, idx) => (
+              <CircleMarker
+                key={`transit-line-st-${st.id}-${idx}`}
+                center={[st.lat, st.lng]}
+                radius={idx === 0 || idx === activeTransitLine.stations.length - 1 ? 6.5 : 4.5}
+                pathOptions={{
+                  fillColor: '#FFFFFF',
+                  fillOpacity: 1,
+                  color: activeTransitLine.color,
+                  weight: 2.5,
+                }}
+                eventHandlers={{
+                  click: () => {
+                    onInspectPoi?.(st.id, {
+                      id: st.id,
+                      name: st.name,
+                      lat: st.lat,
+                      lng: st.lng,
+                      category: st.category,
+                      transit_info: {
+                        lines: st.lines,
+                        station_type: st.station_type,
+                      },
+                    });
+                  },
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
+                  <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                    {st.name}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
+                    Line {activeTransitLine.line} • Stop {idx + 1} of {activeTransitLine.stations.length}
+                  </div>
+                </Tooltip>
+              </CircleMarker>
+            ))}
+          </>
+        )}
       </MapContainer>
+
+      {/* Floating Active Transit Line Banner */}
+      {activeTransitLine && (
+        <div
+          data-testid="active-transit-line-banner"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: isSidebarOpen ? 'calc(50% + 180px)' : '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 900,
+            background: 'var(--color-surface-card, #FFFFFF)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: `1.5px solid ${activeTransitLine.color}`,
+            borderRadius: '9999px',
+            padding: '5px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            boxShadow: '0 8px 24px -4px rgba(15, 76, 92, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
+            fontFamily: 'var(--font-sans, inherit)',
+            fontSize: '12px',
+            pointerEvents: 'auto',
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: activeTransitLine.color,
+              boxShadow: `0 0 8px ${activeTransitLine.color}`,
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            Line {activeTransitLine.line}
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+            ({activeTransitLine.stations.length} station{activeTransitLine.stations.length === 1 ? '' : 's'})
+          </span>
+          {onClearTransitLine && (
+            <button
+              type="button"
+              onClick={onClearTransitLine}
+              title="Clear line highlight"
+              style={{
+                marginLeft: '2px',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgba(0,0,0,0.06)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-text-secondary)',
+                fontSize: '10px',
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Floating Detailed Transit Route Legend */}
       {transitMode === 'detailed' && (

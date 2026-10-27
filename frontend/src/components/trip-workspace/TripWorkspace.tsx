@@ -16,6 +16,7 @@ import { PoiDetailView } from './PoiDetailView';
 import { PlaceItem, PoiApiItem } from './TripPlacesSidebar';
 import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
+import { ActiveTransitLineData } from '@/utils/transitColors';
 import { TripCostsView } from './TripCostsView';
 import { TripCollabView } from './TripCollabView';
 import { TripPhotosView } from './TripPhotosView';
@@ -43,6 +44,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
+  const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -410,8 +412,24 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     const handleSwitchToRoute = () => {
       setIsSidebarOpen(true);
     };
+    const handleShowTransitLine = (e: Event) => {
+      const customEvent = e as CustomEvent<ActiveTransitLineData>;
+      if (customEvent.detail) {
+        setActiveTransitLine(customEvent.detail);
+      }
+    };
+    const handleClearTransitLine = () => {
+      setActiveTransitLine(null);
+    };
+
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
-    return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
+    window.addEventListener('paladio:show-transit-line', handleShowTransitLine);
+    window.addEventListener('paladio:clear-transit-line', handleClearTransitLine);
+    return () => {
+      window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
+      window.removeEventListener('paladio:show-transit-line', handleShowTransitLine);
+      window.removeEventListener('paladio:clear-transit-line', handleClearTransitLine);
+    };
   }, []);
 
   const handleFocusFromDrawer = useCallback(
@@ -531,6 +549,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             categoryPois={sidebarTab === 'route' ? [] : categoryPois}
             isSidebarOpen={isSidebarOpen}
             sidebarTab={sidebarTab}
+            activeTransitLine={activeTransitLine}
+            onClearTransitLine={() => setActiveTransitLine(null)}
             onInspectPoi={handleInspectPoi}
             onSelectCategoryPoi={(poi) =>
               handlePlaceClick({
@@ -682,6 +702,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
                   tripStartDate={trip.start_date}
                   scheduledDay={scheduledPoiDay}
+                  activeTransitLine={activeTransitLine}
+                  onSelectTransitLine={setActiveTransitLine}
                   onDragStartPoi={() => {
                     if (!isSidebarOpen) setIsSidebarOpen(true);
                     window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
