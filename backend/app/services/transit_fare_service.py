@@ -880,27 +880,39 @@ class TransitFareService:
             fare = cls.get_city_transit_fare(city)
 
         has_airport = is_airport_leg
-        if not has_airport and origin:
+        orig_is_airport = False
+        if origin:
             orig_cat = str(origin.get("category") or "").strip().upper()
             orig_name = str(origin.get("name") or "").lower()
             if (
                 orig_cat == "AIRPORT"
                 or "airport" in orig_name
                 or "aeropuerto" in orig_name
+                or cls.is_airport_station(orig_name, fare.airport_station_keywords)
             ):
-                has_airport = True
+                orig_is_airport = True
 
-        if not has_airport and destination:
+        dest_is_airport = False
+        if destination:
             dest_cat = str(destination.get("category") or "").strip().upper()
             dest_name = str(destination.get("name") or "").lower()
             if (
                 dest_cat == "AIRPORT"
                 or "airport" in dest_name
                 or "aeropuerto" in dest_name
+                or cls.is_airport_station(dest_name, fare.airport_station_keywords)
             ):
-                has_airport = True
+                dest_is_airport = True
 
-        if not has_airport:
+        if is_airport_leg or orig_is_airport or dest_is_airport:
+            has_airport = True
+        elif origin is not None and destination is not None:
+            # Both endpoints are explicitly known and neither is an airport:
+            # An intra-city transit ride must NOT be tagged as airport leg just because
+            # the train's terminal destination / headsign points towards an airport.
+            has_airport = False
+        else:
+            # Endpoints omitted (e.g. step-only tests): inspect step station/instruction/headsign
             for s in steps:
                 for field_val in (s.station_name, s.instruction, s.headsign):
                     if field_val and cls.is_airport_station(

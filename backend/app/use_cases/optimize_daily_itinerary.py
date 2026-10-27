@@ -171,6 +171,39 @@ class OptimizeDailyItineraryUseCase:
                 None,
             )
 
+        if not selected_airport and (outbound or ret_flight):
+            iata = None
+            if ret_flight and isinstance(ret_flight, dict):
+                iata = ret_flight.get("origin_iata") or ret_flight.get(
+                    "destination_iata"
+                )
+            if not iata and outbound and isinstance(outbound, dict):
+                iata = outbound.get("destination_iata") or outbound.get("origin_iata")
+            if iata:
+                try:
+                    from app.services.airport_service import get_airport_service
+
+                    ap_info = get_airport_service().get_airport(iata)
+                    if ap_info:
+                        selected_airport = {
+                            "name": ap_info.name,
+                            "city": ap_info.city or city,
+                            "category": "AIRPORT",
+                            "cost_eur": 0.0,
+                            "cost_is_estimated": False,
+                            "cost_source": "official_airport_free_entry",
+                            "duration_mins": 120,
+                            "open_time_mins_by_day": [0] * 7,
+                            "close_time_mins_by_day": [1440] * 7,
+                            "location": {
+                                "latitude": ap_info.latitude,
+                                "longitude": ap_info.longitude,
+                            },
+                            "scoring": {"google_rating": 4.5, "reviews": 500},
+                        }
+                except Exception as e:
+                    logger.debug(f"Airport resolution fallback: {e}")
+
         # Resolve Repository
         repo = self.poi_repo
         if repo is None:
@@ -315,7 +348,17 @@ class OptimizeDailyItineraryUseCase:
                         "distance_meters": 8500,
                     },
                 }
-                itin_dict.setdefault("path", []).append(airport_node)
+                path_list = itin_dict.setdefault("path", [])
+                if path_list and (
+                    str(path_list[-1].get("poi", {}).get("category", "")).upper()
+                    == "HOTEL"
+                    or "hotel"
+                    in str(path_list[-1].get("poi", {}).get("name", "")).lower()
+                ):
+                    path_list[-1] = airport_node
+                else:
+                    path_list.append(airport_node)
+
                 itin_dict["total_time_mins"] = (
                     itin_dict.get("total_time_mins", 0) + 120 + 30
                 )

@@ -143,6 +143,34 @@ def test_non_airport_legs_verified_cities(city, expected_fare):
     )
     assert res.total_cost == expected_fare
     assert res.airport_surcharge_eur == 0.0
+
+
+def test_intra_city_leg_with_airport_headsign_does_not_charge_surcharge():
+    """An intra-city leg on a line whose train heads toward an airport (e.g. Asakusa Line toward Narita)
+    must NOT incur an airport surcharge when neither origin nor destination is an airport."""
+    steps = [
+        TransitStep(
+            type="walk", instruction="Walk to Asakusa Station", duration_mins=5
+        ),
+        TransitStep(
+            type="transit",
+            instruction="Take the 浅草線 toward Keisei-narita (京成成田)",
+            duration_mins=6,
+            station_name="Asakusa (浅草)",
+            headsign="京成成田",
+            transit_line="Asakusa Line (浅草線)",
+        ),
+        TransitStep(type="walk", instruction="Walk to Tokyo Skytree", duration_mins=4),
+    ]
+    origin = {"category": "RESTAURANT", "name": "Asakusa Imahan"}
+    destination = {"category": "MONUMENT", "name": "Tokyo Skytree"}
+
+    res = TransitFareService.calculate_transit_leg_fare(
+        "tokyo", steps, origin=origin, destination=destination
+    )
+    assert res.has_airport is False
+    assert res.airport_surcharge_eur == 0.0
+    assert res.total_cost == 1.20  # Base single fare only!
     assert res.has_airport is False
     assert res.cost_is_estimated is False
 

@@ -24,6 +24,7 @@ from app.domain.entities.poi import (
 from app.engine.budget import redistribute_budget_slack
 from app.engine.day_assignment import AssignedDay
 from app.engine.feasibility import probe_mandatory_feasibility
+from app.engine.transit_matrix import haversine_distance
 from app.engine.meals import (
     select_daily_meal_candidates,
     snap_corridor_meals,
@@ -170,6 +171,125 @@ def _two_opt_smooth_path(
                 break
 
     return best_route, best_arr
+
+
+def _smooth_post_snap_itinerary(
+    day_itinerary: Itinerary,
+    assigned_day: AssignedDay,
+    rhythm: RhythmProfile | None = None,
+) -> Itinerary:
+    """Smooths final trajectory after meal snapping to untangle zigzags while respecting time windows."""
+    path = day_itinerary.path
+    if len(path) <= 3:
+        return day_itinerary
+
+    # Extract coordinates
+    coords = []
+    for step in path:
+        loc = step.poi.location
+        lat = loc.latitude if loc else 0.0
+        lon = loc.longitude if loc else 0.0
+        coords.append((float(lat or 0.0), float(lon or 0.0)))
+
+    def tour_dist(route_indices: list[int]) -> float:
+        d = 0.0
+        for idx in range(len(route_indices) - 1):
+            u, v = route_indices[idx], route_indices[idx + 1]
+            d += haversine_distance(
+                coords[u][0], coords[u][1], coords[v][0], coords[v][1]
+            )
+        return d
+
+    best_indices = list(range(len(path)))
+    best_dist = tour_dist(best_indices)
+    n = len(path)
+
+    improved = True
+    passes = 0
+    while improved and passes < 20:
+        improved = False
+        passes += 1
+        # 1. 2-opt edge inversions
+        for i in range(1, n - 2):
+            for j in range(i + 1, n - 1):
+                cand_indices = (
+                    best_indices[:i]
+                    + best_indices[i : j + 1][::-1]
+                    + best_indices[j + 1 :]
+                )
+                cand_dist = tour_dist(cand_indices)
+                if cand_dist < best_dist - 0.05:
+                    cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
+                    cand_itin = Itinerary(
+                        total_score=day_itinerary.total_score,
+                        total_cost_eur=day_itinerary.total_cost_eur,
+                        total_time_mins=day_itinerary.total_time_mins,
+                        path=cand_path,
+                    )
+                    try:
+                        verify_day_schedule(
+                            cand_itin,
+                            day_weekday=assigned_day.weekday,
+                            day_end_mins=assigned_day.end_time_mins,
+                            day_start_mins=assigned_day.start_time_mins,
+                            rhythm=rhythm,
+                        )
+                        best_indices = cand_indices
+                        best_dist = cand_dist
+                        improved = True
+                        break
+                    except Exception:
+                        pass
+            if improved:
+                break
+        if improved:
+            continue
+
+        # 2. Or-opt single node relocation
+        for i in range(1, n - 1):
+            for j in range(1, n - 1):
+                if i == j:
+                    continue
+                cand_indices = list(best_indices)
+                node = cand_indices.pop(i)
+                cand_indices.insert(j, node)
+                cand_dist = tour_dist(cand_indices)
+                if cand_dist < best_dist - 0.05:
+                    cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
+                    cand_itin = Itinerary(
+                        total_score=day_itinerary.total_score,
+                        total_cost_eur=day_itinerary.total_cost_eur,
+                        total_time_mins=day_itinerary.total_time_mins,
+                        path=cand_path,
+                    )
+                    try:
+                        verify_day_schedule(
+                            cand_itin,
+                            day_weekday=assigned_day.weekday,
+                            day_end_mins=assigned_day.end_time_mins,
+                            day_start_mins=assigned_day.start_time_mins,
+                            rhythm=rhythm,
+                        )
+                        best_indices = cand_indices
+                        best_dist = cand_dist
+                        improved = True
+                        break
+                    except Exception:
+                        pass
+            if improved:
+                break
+
+    if best_indices != list(range(len(path))):
+        new_path = [path[k] for k in best_indices]
+        day_itinerary.path = new_path
+        return verify_day_schedule(
+            day_itinerary,
+            day_weekday=assigned_day.weekday,
+            day_end_mins=assigned_day.end_time_mins,
+            day_start_mins=assigned_day.start_time_mins,
+            rhythm=rhythm,
+        )
+    return day_itinerary
 
 
 async def solve_day_v2(
@@ -641,6 +761,12 @@ async def solve_day_v2(
         day_weekday=assigned_day.weekday,
         day_end_mins=assigned_day.end_time_mins,
         day_start_mins=assigned_day.start_time_mins,
+        rhythm=rhythm,
+    )
+    # Phase 7: Post-Meal-Snapping Trajectory Smoothing (2-opt & Or-opt untangling)
+    day_itin = _smooth_post_snap_itinerary(
+        day_itinerary=day_itin,
+        assigned_day=assigned_day,
         rhythm=rhythm,
     )
 

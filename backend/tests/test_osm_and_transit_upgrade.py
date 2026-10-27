@@ -229,6 +229,9 @@ async def test_upgrade_trip_transit_handles_none_transit_from_previous():
     with patch(
         "app.use_cases.upgrade_trip_transit.get_detailed_transit_leg",
         side_effect=[TransitRoutingError("No route to airport"), leg2],
+    ), patch(
+        "app.use_cases.upgrade_trip_transit.synthesize_fallback_transit_leg",
+        return_value=None,
     ):
         use_case = UpgradeTripTransitUseCase(mock_session)
         res = await use_case.execute("trip-none-transit")

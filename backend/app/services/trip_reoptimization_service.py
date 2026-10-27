@@ -83,6 +83,41 @@ class TripReoptimizationService:
                     path[0]["scheduled_end"] = _format_time_hh_mm(start_mins + dur)
                 continue
 
+            # If this day has an explicit departure flight and an airport is in intermediate stops,
+            # the airport MUST be the terminal end_stop (the traveller leaves the city, not returns to hotel)
+            flight_dict = (
+                day_obj.get("outbound_flight") or day_obj.get("flight_info") or {}
+            )
+            is_dep_flight = flight_dict.get("direction") == "departure"
+            if (
+                is_dep_flight
+                and len(path) > 1
+                and str((path[0].get("poi") or {}).get("category", "")).upper()
+                != "AIRPORT"
+            ):
+                airport_idx = next(
+                    (
+                        idx
+                        for idx, it in enumerate(path[1:], start=1)
+                        if str((it.get("poi") or {}).get("category", "")).upper()
+                        == "AIRPORT"
+                        or "airport"
+                        in str((it.get("poi") or {}).get("name", "")).lower()
+                    ),
+                    None,
+                )
+                if airport_idx is not None and airport_idx != len(path) - 1:
+                    ap_item = path.pop(airport_idx)
+                    # If former end was accommodation depot, replace it with the departure airport
+                    last_p = path[-1].get("poi") or {}
+                    if (
+                        str(last_p.get("category", "")).upper() == "HOTEL"
+                        or "hotel" in str(last_p.get("name", "")).lower()
+                    ):
+                        path[-1] = ap_item
+                    else:
+                        path.append(ap_item)
+
             # Sanitize path to deduplicate consecutive identical stops and redundant un-locked depot stops
             sanitized_path: list[dict[str, Any]] = []
             if len(path) > 2:
