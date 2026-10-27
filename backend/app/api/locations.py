@@ -95,8 +95,21 @@ async def search_hotels(
         except Exception:
             pass
 
-    # 2. Query Nominatim if more results needed
+    # 2. Resolve destination city coordinates dynamically for spatial biasing
+    city_lat: float | None = None
+    city_lon: float | None = None
+    if clean_city:
+        try:
+            city_matches = search_locations(clean_city, limit=1)
+            if city_matches:
+                city_lat = float(city_matches[0]["latitude"])
+                city_lon = float(city_matches[0]["longitude"])
+        except Exception:
+            pass
+
+    # 3. Query Photon OSM & Nominatim if more results needed
     if len(results) < limit:
+        PHOTON_URL = "https://photon.komoot.io/api"
         candidates: list[str] = []
         if clean_q:
             # Base candidate
@@ -107,25 +120,58 @@ async def search_hotels(
             else:
                 candidates.append(clean_q)
 
-            # Stripped generic words ('hotel', 'hostel', 'resort')
-            stripped = re.sub(r"(?i)\b(hotel|hostel|resort)\b", "", clean_q).strip()
-            stripped = re.sub(r"\s+", " ", stripped)
-            if stripped and stripped.lower() != clean_q.lower():
-                if clean_city and clean_city.lower() in stripped.lower():
-                    candidates.append(stripped)
-                elif clean_city:
-                    candidates.append(f"{stripped}, {clean_city}")
-                else:
-                    candidates.append(stripped)
+            # Strip marketing noise, OTA suffixes, and partner labels
+            cleaned = re.sub(r"(?i)\s*-\s*ALQUILER\s+TEMPORAL.*", "", clean_q)
+            cleaned = re.sub(r"(?i)\s+anteriormente\s+.*", "", cleaned)
+            cleaned = re.sub(r"(?i)\s+by\s+[A-Za-z0-9\s]+", "", cleaned)
+            cleaned = re.sub(r"(?i)\b(ALQUILER TEMPORAL)\b", "", cleaned)
+            cleaned = re.sub(r"(?i)\b(Collection|Hotel Life)\b", "", cleaned)
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-            # Strip city from query then add cleanly at end
-            if clean_city and clean_city.lower() in clean_q.lower():
-                without_city = re.sub(
-                    r"(?i)\b" + re.escape(clean_city) + r"\b", "", clean_q
-                ).strip()
-                without_city = re.sub(r"\s+", " ", without_city)
-                if without_city:
-                    candidates.append(f"{without_city}, {clean_city}")
+            if cleaned and cleaned.lower() != clean_q.lower():
+                if clean_city and clean_city.lower() in cleaned.lower():
+                    candidates.append(cleaned)
+                elif clean_city:
+                    candidates.append(f"{cleaned}, {clean_city}")
+                else:
+                    candidates.append(cleaned)
+
+            # Stripped generic words ('hotel', 'hostel', 'resort')
+            for base in [clean_q, cleaned]:
+                stripped = re.sub(r"(?i)\b(hotel|hostel|resort)\b", "", base).strip()
+                stripped = re.sub(r"\s+", " ", stripped)
+                if stripped and stripped.lower() != clean_q.lower():
+                    if clean_city and clean_city.lower() in stripped.lower():
+                        candidates.append(stripped)
+                    elif clean_city:
+                        candidates.append(f"{stripped}, {clean_city}")
+                    else:
+                        candidates.append(stripped)
+
+            # Street address candidates for apartment/flat listings
+            addr_match = re.search(
+                r"(?i)\b(?:Calle|Avenida|Paseo|Plaza|Gran V[ií]a|Ruda)\b.*", clean_q
+            )
+            if addr_match:
+                addr_candidate = addr_match.group(0).strip()
+                if clean_city and clean_city.lower() not in addr_candidate.lower():
+                    candidates.append(f"{addr_candidate}, {clean_city}")
+                else:
+                    candidates.append(addr_candidate)
+            elif re.match(r"(?i)^ESTUDIOS\s+(.*)", clean_q):
+                sub_addr = re.sub(r"(?i)^ESTUDIOS\s+", "Calle ", clean_q)
+                if clean_city and clean_city.lower() not in sub_addr.lower():
+                    candidates.append(f"{sub_addr}, {clean_city}")
+                else:
+                    candidates.append(sub_addr)
+
+            # Core brand name (first 2 words for lengthy title listings)
+            words = cleaned.split()
+            if len(words) >= 4 and not addr_match:
+                short_q = " ".join(words[:2])
+                if clean_city and clean_city.lower() not in short_q.lower():
+                    candidates.append(f"{short_q}, {clean_city}")
+
         elif clean_city:
             candidates.append(f"hotels in {clean_city}")
 
@@ -137,31 +183,41 @@ async def search_hotels(
                 seen_cands.add(cand.lower())
                 deduped_candidates.append(cand)
 
+        # Step A: Query Photon OSM (instant, elasticsearch typo-tolerant, biased by destination city)
         for search_query in deduped_candidates:
             if len(results) >= limit:
                 break
             try:
-                await acquire_nominatim_slot()
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                params: dict[str, Any] = {
+                    "q": search_query,
+                    "limit": limit * 2,
+                }
+                if city_lat is not None and city_lon is not None:
+                    params["lat"] = city_lat
+                    params["lon"] = city_lon
+                async with httpx.AsyncClient(timeout=8.0) as client:
                     resp = await client.get(
-                        NOMINATIM_URL,
-                        params={
-                            "q": search_query,
-                            "format": "jsonv2",
-                            "limit": limit * 2,
-                            "addressdetails": 1,
-                            "accept-language": "en",
-                        },
+                        PHOTON_URL,
+                        params=params,
                         headers={"User-Agent": USER_AGENT},
                     )
                     if resp.status_code == 200:
                         data = resp.json()
-                        for item in data:
+                        for feat in data.get("features", []):
                             if len(results) >= limit:
                                 break
+                            props = feat.get("properties", {})
+                            geom = feat.get("geometry", {})
+                            coords = geom.get("coordinates", [])
+                            if len(coords) < 2:
+                                continue
+                            lat = float(coords[1])
+                            lng = float(coords[0])
+
                             name = (
-                                item.get("name")
-                                or item.get("display_name", "").split(",")[0]
+                                props.get("name")
+                                or props.get("street")
+                                or search_query.split(",")[0].strip()
                             )
                             if not name:
                                 continue
@@ -170,42 +226,132 @@ async def search_hotels(
                                 continue
                             seen_names.add(norm)
 
-                            addr = item.get("address", {})
-                            road = addr.get("road", "")
-                            suburb = (
-                                addr.get("suburb")
-                                or addr.get("neighbourhood")
-                                or addr.get("city_district", "")
+                            street = props.get("street", "")
+                            housenumber = props.get("housenumber", "")
+                            district = (
+                                props.get("district")
+                                or props.get("locality")
+                                or props.get("suburb", "")
                             )
-                            item_city = (
-                                addr.get("city")
-                                or addr.get("town")
-                                or addr.get("village")
-                                or clean_city
-                            )
-                            country = addr.get("country", "")
+                            item_city = props.get("city") or clean_city
+                            country = props.get("country", "")
 
-                            address_parts = [p for p in [road, suburb, item_city] if p]
+                            road_part = (
+                                f"{street} {housenumber}".strip() if street else ""
+                            )
+                            addr_parts = [
+                                p for p in [road_part, district, item_city] if p
+                            ]
                             formatted_address = (
-                                ", ".join(address_parts)
-                                if address_parts
-                                else item.get("display_name", name)
+                                ", ".join(addr_parts) if addr_parts else name
+                            )
+
+                            raw_osm_val = props.get("osm_value", "hotel")
+                            category = (
+                                raw_osm_val
+                                if raw_osm_val
+                                in (
+                                    "hotel",
+                                    "hostel",
+                                    "apartment",
+                                    "guest_house",
+                                    "motel",
+                                )
+                                else "hotel"
                             )
 
                             results.append(
                                 {
                                     "name": name,
-                                    "display_name": item.get("display_name", name),
+                                    "display_name": (
+                                        f"{name}, {formatted_address}"
+                                        if road_part
+                                        else formatted_address
+                                    ),
                                     "address": formatted_address,
                                     "city": item_city,
                                     "country": country,
-                                    "lat": float(item["lat"]),
-                                    "lng": float(item["lon"]),
-                                    "category": "hotel",
+                                    "lat": lat,
+                                    "lng": lng,
+                                    "category": category,
                                 }
                             )
             except Exception:
                 pass
+
+        # Step B: Fallback to Nominatim if results still insufficient
+        if len(results) < limit:
+            for search_query in deduped_candidates:
+                if len(results) >= limit:
+                    break
+                try:
+                    await acquire_nominatim_slot()
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.get(
+                            NOMINATIM_URL,
+                            params={
+                                "q": search_query,
+                                "format": "jsonv2",
+                                "limit": limit * 2,
+                                "addressdetails": 1,
+                                "accept-language": "en",
+                            },
+                            headers={"User-Agent": USER_AGENT},
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            for item in data:
+                                if len(results) >= limit:
+                                    break
+                                name = (
+                                    item.get("name")
+                                    or item.get("display_name", "").split(",")[0]
+                                )
+                                if not name:
+                                    continue
+                                norm = name.lower().strip()
+                                if norm in seen_names:
+                                    continue
+                                seen_names.add(norm)
+
+                                addr = item.get("address", {})
+                                road = addr.get("road", "")
+                                suburb = (
+                                    addr.get("suburb")
+                                    or addr.get("neighbourhood")
+                                    or addr.get("city_district", "")
+                                )
+                                item_city = (
+                                    addr.get("city")
+                                    or addr.get("town")
+                                    or addr.get("village")
+                                    or clean_city
+                                )
+                                country = addr.get("country", "")
+
+                                address_parts = [
+                                    p for p in [road, suburb, item_city] if p
+                                ]
+                                formatted_address = (
+                                    ", ".join(address_parts)
+                                    if address_parts
+                                    else item.get("display_name", name)
+                                )
+
+                                results.append(
+                                    {
+                                        "name": name,
+                                        "display_name": item.get("display_name", name),
+                                        "address": formatted_address,
+                                        "city": item_city,
+                                        "country": country,
+                                        "lat": float(item["lat"]),
+                                        "lng": float(item["lon"]),
+                                        "category": "hotel",
+                                    }
+                                )
+                except Exception:
+                    pass
 
     return results[:limit]
 

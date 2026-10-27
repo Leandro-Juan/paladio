@@ -1,7 +1,7 @@
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
@@ -458,6 +458,96 @@ async def scan_new_trip_boarding_pass(
         return_date = check_out_date
         departure_hour = check_in_hour
         arrival_hour = check_out_hour
+
+    today = datetime.now(timezone.utc).date()
+
+    # Validate departure date
+    if departure_date:
+        try:
+            dep_d = date.fromisoformat(departure_date.split("T")[0].split(" ")[0])
+            if dep_d < today:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The uploaded pass contains an invalid departure date ({departure_date}) that precedes the current date ({today.isoformat()}). Past dates cannot be used for trip creation.",
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The uploaded pass contains an unparseable departure date: {departure_date}.",
+            )
+
+    # Validate check-in date
+    if check_in_date:
+        try:
+            cin_d = date.fromisoformat(check_in_date.split("T")[0].split(" ")[0])
+            if cin_d < today:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The uploaded pass contains an invalid check-in date ({check_in_date}) that precedes the current date ({today.isoformat()}). Past dates cannot be used for trip creation.",
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The uploaded pass contains an unparseable check-in date: {check_in_date}.",
+            )
+
+    # Validate return date
+    if return_date:
+        try:
+            ret_d = date.fromisoformat(return_date.split("T")[0].split(" ")[0])
+            if ret_d < today:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The uploaded pass contains an invalid return date ({return_date}) that precedes the current date ({today.isoformat()}). Past dates cannot be used for trip creation.",
+                )
+            if departure_date:
+                dep_d = date.fromisoformat(departure_date.split("T")[0].split(" ")[0])
+                if ret_d < dep_d:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"The uploaded pass contains an invalid date range: return date ({return_date}) precedes departure date ({departure_date}).",
+                    )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The uploaded pass contains an unparseable return date: {return_date}.",
+            )
+
+    # Validate check-out date
+    if check_out_date:
+        try:
+            cout_d = date.fromisoformat(check_out_date.split("T")[0].split(" ")[0])
+            if cout_d < today:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The uploaded pass contains an invalid check-out date ({check_out_date}) that precedes the current date ({today.isoformat()}). Past dates cannot be used for trip creation.",
+                )
+            if check_in_date:
+                cin_d = date.fromisoformat(check_in_date.split("T")[0].split(" ")[0])
+                if cout_d < cin_d:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"The uploaded pass contains an invalid booking window: check-out date ({check_out_date}) precedes check-in date ({check_in_date}).",
+                    )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The uploaded pass contains an unparseable check-out date: {check_out_date}.",
+            )
+
+    # Validate all draft start_times (attractions, events, other tickets)
+    for d in drafts:
+        if d.start_time:
+            dt_part = d.start_time.split("T")[0].split(" ")[0]
+            try:
+                st_d = date.fromisoformat(dt_part)
+                if st_d < today:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"The uploaded pass contains an invalid date ({dt_part}) that precedes the current date ({today.isoformat()}). Past dates cannot be used for trip creation.",
+                    )
+            except ValueError:
+                pass
 
     return BoardingPassScanResponse(
         document_type=document_type,

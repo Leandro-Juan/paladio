@@ -21,6 +21,31 @@ export interface HotelSearchResult {
   category?: string;
 }
 
+export function getHotelCategoryBadge(item: HotelSearchResult): string {
+  const normName = item.name.toLowerCase();
+  const normCat = (item.category || '').toLowerCase();
+  if (
+    normName.includes('hostal') ||
+    normName.includes('hostel') ||
+    normCat.includes('hostel') ||
+    normCat.includes('guest_house')
+  ) {
+    return 'HOSTEL';
+  }
+  if (
+    normName.includes('suite') ||
+    normName.includes('apart') ||
+    normName.includes('estudio') ||
+    normCat.includes('apartment')
+  ) {
+    return 'SUITE';
+  }
+  if (normName.includes('resort') || normCat.includes('resort')) {
+    return 'RESORT';
+  }
+  return 'HOTEL';
+}
+
 interface HotelStayAnchorBarProps {
   hotelArea: string;
   hotelAddress?: string;
@@ -45,6 +70,7 @@ export function HotelStayAnchorBar({
 }: HotelStayAnchorBarProps) {
   const [query, setQuery] = useState(hotelArea);
   const [results, setResults] = useState<HotelSearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,10 +122,32 @@ export function HotelStayAnchorBar({
     setIsMenuOpen(true);
 
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!val.trim()) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
     searchTimerRef.current = setTimeout(async () => {
       const items = await fetchHotels(val);
       setResults(items);
-    }, 200);
+      setIsLoading(false);
+
+      // Auto-bind coordinates if top item strongly matches query
+      if (items.length > 0) {
+        const top = items[0];
+        const normVal = val.toLowerCase().trim();
+        const normTop = top.name.toLowerCase().trim();
+        if (normTop === normVal || normTop.includes(normVal) || normVal.includes(normTop)) {
+          onChange(val, {
+            address: top.address,
+            lat: top.lat,
+            lng: top.lng,
+          });
+        }
+      }
+    }, 250);
   };
 
   const handleSelectHotel = (item: HotelSearchResult) => {
@@ -193,7 +241,10 @@ export function HotelStayAnchorBar({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-          <HotelIcon size={15} color="var(--color-text-muted)" />
+          <HotelIcon
+            size={15}
+            color={isPinned ? 'var(--color-accent-teal, #0F4C5C)' : 'var(--color-text-muted)'}
+          />
           <input
             type="text"
             disabled={disabled}
@@ -202,7 +253,11 @@ export function HotelStayAnchorBar({
             onFocus={() => {
               setIsMenuOpen(true);
               if (results.length === 0 && (query || hotelArea)) {
-                void fetchHotels(query || hotelArea).then(setResults);
+                setIsLoading(true);
+                void fetchHotels(query || hotelArea).then((items) => {
+                  setResults(items);
+                  setIsLoading(false);
+                });
               }
             }}
             onKeyDown={(e) => {
@@ -228,6 +283,31 @@ export function HotelStayAnchorBar({
               padding: 0,
             }}
           />
+
+          {/* Tick Indicator on the right to the hotel name showing that it correctly found it */}
+          {isPinned && query.trim().length > 0 && (
+            <span
+              title={`Hotel verified: ${hotelAddress || query} (${hotelLat?.toFixed(4)}, ${hotelLng?.toFixed(4)})`}
+              data-testid="hotel-verified-tick"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: '#059669',
+                fontSize: '11px',
+                fontWeight: 600,
+                flexShrink: 0,
+                userSelect: 'none',
+                cursor: 'default',
+              }}
+            >
+              <CheckIcon size={12} color="#059669" />
+              <span>Found</span>
+            </span>
+          )}
         </div>
 
         {/* Locate on Map Trigger Button */}
@@ -275,7 +355,7 @@ export function HotelStayAnchorBar({
       </div>
 
       {/* Deployed Dropdown Menu matching RouteIntakeBar city search aesthetic */}
-      {isMenuOpen && results.length > 0 && (
+      {isMenuOpen && (results.length > 0 || isLoading || (query && query.trim().length > 0)) && (
         <div
           style={{
             position: 'absolute',
@@ -293,84 +373,144 @@ export function HotelStayAnchorBar({
           <div
             className="no-scrollbar"
             style={{
-              maxHeight: '220px',
+              maxHeight: '240px',
               overflowY: 'auto',
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
             }}
           >
-            {results.map((item, idx) => (
+            {isLoading && (
               <div
-                key={`${item.name}-${item.lat}-${idx}`}
-                onClick={() => handleSelectHotel(item)}
                 style={{
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontSize: '13px',
+                  color: 'var(--color-text-muted, #71717A)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
+                  justifyContent: 'center',
                   gap: '8px',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background =
-                    'var(--color-bg-main, #F7F9FA)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: '13.5px',
-                      fontWeight: 600,
-                      color: 'var(--color-text-primary, #1A1A1A)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {item.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11.5px',
-                      color: 'var(--color-text-muted, #71717A)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      marginTop: '2px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    <span>{item.address || item.city}</span>
-                  </div>
-                </div>
+                <HotelIcon size={14} color="var(--color-accent-teal, #0F4C5C)" />
+                <span>Searching hotels in {destination || 'destination'}...</span>
+              </div>
+            )}
 
+            {!isLoading && results.length === 0 && query.trim().length > 0 && (
+              <div
+                style={{
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontSize: '13px',
+                  color: 'var(--color-text-muted, #71717A)',
+                }}
+              >
+                No matching hotels found for &quot;{query}&quot;
+              </div>
+            )}
+
+            {!isLoading &&
+              results.map((item, idx) => (
                 <div
+                  key={`${item.name}-${item.lat}-${idx}`}
+                  onClick={() => handleSelectHotel(item)}
                   style={{
-                    display: 'inline-flex',
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: 'var(--color-text-muted)',
-                    background: 'rgba(0,0,0,0.03)',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    flexShrink: 0,
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
                   }}
                 >
-                  <PinIcon size={11} color="var(--color-text-muted)" />
-                  <span>Pin</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '13.5px',
+                          fontWeight: 600,
+                          color: 'var(--color-text-primary, #1A1A1A)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {item.name}
+                      </span>
+                      {typeof item.lat === 'number' && typeof item.lng === 'number' && (
+                        <span
+                          title="Verified Hotel Location"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '15px',
+                            height: '15px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            color: '#059669',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CheckIcon size={10} color="#059669" />
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--color-text-muted, #71717A)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        marginTop: '2px',
+                      }}
+                    >
+                      <HotelIcon size={12} color="var(--color-text-muted)" />
+                      <span
+                        style={{
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {item.address || item.city}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className="font-mono"
+                    style={{
+                      background: 'rgba(15, 76, 92, 0.08)',
+                      color: 'var(--color-accent-primary, #0F4C5C)',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      padding: '3px 7px',
+                      borderRadius: '6px',
+                      flexShrink: 0,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {getHotelCategoryBadge(item)}
+                  </span>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}

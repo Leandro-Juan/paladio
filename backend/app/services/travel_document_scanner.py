@@ -236,16 +236,38 @@ def parse_pkpass(
                     reference_code=barcode_val[:12] if barcode_val else None,
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
+                    start_time=pass_data.get("relevantDate"),
                     metadata={"origin_iata": orig_iata, "destination_iata": dest_iata}
                     if (orig_iata or dest_iata)
                     else {},
                     field_confidence={"title": 0.95, "provider": 0.9},
                 )
             elif "eventTicket" in pass_data:
+                et_info = pass_data["eventTicket"]
+                event_date = pass_data.get("relevantDate")
+                if not event_date:
+                    for sec in (
+                        "primaryFields",
+                        "secondaryFields",
+                        "auxiliaryFields",
+                        "headerFields",
+                    ):
+                        for fld in et_info.get(sec, []):
+                            k = str(fld.get("key", "")).lower()
+                            lbl = str(fld.get("label", "")).lower()
+                            if any(
+                                w in k or w in lbl
+                                for w in ("date", "fecha", "time", "hora")
+                            ):
+                                event_date = fld.get("value")
+                                break
+                        if event_date:
+                            break
                 return TravelDocumentDraft(
                     ticket_type="attraction",
                     title=desc,
                     provider=org,
+                    start_time=event_date,
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
                     field_confidence={"title": 0.95},
@@ -268,6 +290,8 @@ def parse_pkpass(
                 )
                 pin_code = None
                 room_num = None
+                check_in_date = None
+                check_out_date = None
                 for fld in all_fields:
                     k = str(fld.get("key", "")).lower()
                     v = str(fld.get("value", ""))
@@ -275,20 +299,43 @@ def parse_pkpass(
                         pin_code = v
                     if "room" in k or "suite" in k:
                         room_num = v
+                    if any(
+                        w in k
+                        for w in ("checkin", "check-in", "check in", "arrival", "fecha")
+                    ):
+                        check_in_date = v
+                    if any(
+                        w in k
+                        for w in (
+                            "checkout",
+                            "check-out",
+                            "check out",
+                            "departure",
+                            "salida",
+                        )
+                    ):
+                        check_out_date = v
 
                 is_hotel = any(
                     w in desc.lower() or w in org.lower()
                     for w in ("hotel", "resort", "inn", "room", "key", "suite")
                 )
                 ticket_type = "hotel" if is_hotel else "other"
+                gen_meta: dict[str, Any] = {}
+                if check_in_date:
+                    gen_meta["check_in_date"] = check_in_date
+                if check_out_date:
+                    gen_meta["check_out_date"] = check_out_date
                 return TravelDocumentDraft(
                     ticket_type=ticket_type,
                     title=desc or f"{org} Pass",
                     provider=org,
                     access_code=pin_code,
                     seat_or_room=room_num,
+                    start_time=check_in_date or pass_data.get("relevantDate"),
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
+                    metadata=gen_meta,
                     field_confidence={
                         "title": 0.9,
                         "access_code": 0.95 if pin_code else 0.5,

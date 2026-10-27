@@ -216,6 +216,17 @@ export function TripCreationBoxes({
   const currentPhoto = !isPhotoRemoved ? (customPhotoUrl || getDestinationPhotoUrl(destination)) : '';
 
   const handleExtracted = (data: ExtractedTravelDocData) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (data.departure_date && data.departure_date < today) {
+      setBlankError(`Invalid travel pass: Departure date (${data.departure_date}) precedes today's date (${today}). Past dates cannot be used.`);
+      return;
+    }
+    if (data.check_in_date && data.check_in_date < today) {
+      setBlankError(`Invalid travel pass: Check-in date (${data.check_in_date}) precedes today's date (${today}). Past dates cannot be used.`);
+      return;
+    }
+    setBlankError(null);
+
     if (data.origin_city) setOrigin(data.origin_city);
     else if (data.origin_iata) setOrigin(data.origin_iata);
     if (data.origin_iata) setOriginIata(data.origin_iata);
@@ -336,6 +347,15 @@ export function TripCreationBoxes({
       setBlankError('Please select departure and return dates on the calendar.');
       return;
     }
+    const today = new Date().toISOString().split('T')[0];
+    if (startDate < today) {
+      setBlankError(`Trip departure date (${startDate}) cannot precede today's date (${today}).`);
+      return;
+    }
+    if (endDate < startDate) {
+      setBlankError('Trip return date cannot precede departure date.');
+      return;
+    }
     if (!participants || participants.length === 0) {
       setBlankError('At least one traveler or participant must be added to the trip.');
       return;
@@ -447,6 +467,15 @@ export function TripCreationBoxes({
     if (!personalizedPrompt.trim()) return;
     if (!startDate || !endDate) {
       setBlankError('Please select departure and return dates on the calendar.');
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    if (startDate < today) {
+      setBlankError(`Trip departure date (${startDate}) cannot precede today's date (${today}).`);
+      return;
+    }
+    if (endDate < startDate) {
+      setBlankError('Trip return date cannot precede departure date.');
       return;
     }
     if (!participants || participants.length === 0) {

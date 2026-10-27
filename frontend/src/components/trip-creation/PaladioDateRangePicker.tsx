@@ -95,12 +95,8 @@ export function PaladioDateRangePicker({
   }, []);
 
   const isPrevMonthDisabled = useMemo(() => {
-    const minStart = parseDateStr(tempStart || startDate);
-    const earliestMonth = minStart && minStart < currentMonthDate
-      ? new Date(minStart.getFullYear(), minStart.getMonth(), 1)
-      : currentMonthDate;
-    return leftMonthDate <= earliestMonth;
-  }, [leftMonthDate, currentMonthDate, tempStart, startDate]);
+    return leftMonthDate <= currentMonthDate;
+  }, [leftMonthDate, currentMonthDate]);
 
   const handlePrevMonth = () => {
     if (isPrevMonthDisabled) return;
@@ -122,8 +118,7 @@ export function PaladioDateRangePicker({
   };
 
   const handleDayClick = (dateStr: string) => {
-    const minAllowed = tempStart && tempStart < todayStr ? tempStart : todayStr;
-    if (dateStr < minAllowed && !tempStart) return;
+    if (dateStr < todayStr) return;
     if (selectingStep === 'start') {
       setTempStart(dateStr);
       setTempEnd('');
@@ -241,8 +236,7 @@ export function PaladioDateRangePicker({
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
             const isSelectedOrRange = isStart || isEnd || inRange;
-            const isSelectablePast = Boolean(tempStart && tempStart < todayStr && dateStr >= tempStart);
-            const isDisabled = isPast && !isSelectablePast && !isSelectedOrRange;
+            const isDisabled = isPast;
 
             return (
               <button

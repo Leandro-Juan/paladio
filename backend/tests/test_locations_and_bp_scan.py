@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -36,8 +37,12 @@ async def test_locations_search_dynamic(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_scan_boarding_pass_for_new_trip(async_client: AsyncClient):
-    # Standard IATA BCBP string
-    sample_bcbp = "M1GARCIA/CARLOS       EIB1234 MADSVQIB 3166 291Y012A0001 100"
+    # Standard IATA BCBP string with future date (e.g. +14 days)
+    future_date = datetime.now(timezone.utc).date() + timedelta(days=14)
+    future_julian = future_date.timetuple().tm_yday
+    sample_bcbp = (
+        f"M1GARCIA/CARLOS       EIB1234 MADSVQIB 3166 {future_julian:03d}Y012A0001 100"
+    )
     res = await async_client.post(
         "/api/trips/scan-boarding-pass",
         data={"raw_text": sample_bcbp},
@@ -49,7 +54,45 @@ async def test_scan_boarding_pass_for_new_trip(async_client: AsyncClient):
     assert data["origin_city"] == "Madrid"
     assert data["destination_city"] in ["Sevilla", "Seville"]
     assert "3166" in data["flight_number"]
-    assert data["departure_date"] is not None
+    assert data["departure_date"] == future_date.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_scan_boarding_pass_past_date_rejected(async_client: AsyncClient):
+    # Pass with departure date preceding current date must be rejected with 400
+    past_date = datetime.now(timezone.utc).date() - timedelta(days=5)
+    past_julian = past_date.timetuple().tm_yday
+    sample_bcbp = (
+        f"M1GARCIA/CARLOS       EIB1234 MADSVQIB 3166 {past_julian:03d}Y012A0001 100"
+    )
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass",
+        data={"raw_text": sample_bcbp},
+    )
+    assert res.status_code == 400
+    data = res.json()
+    assert "precedes the current date" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_scan_boarding_pass_invalid_date_range_rejected(
+    async_client: AsyncClient,
+):
+    # Return date preceding departure date must be rejected with 400
+    flight_text = """
+    AIRLINE CONFIRMATION - FLIGHT AF1234
+    Booking Ref: PNR789
+    Departure: 2026-11-20 Departs: 07:30 MAD Madrid
+    Arrival: Lands: 09:45 CDG Paris
+    Return flight: 2026-11-10 Departure: 19:15 CDG Paris to MAD
+    """
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass",
+        data={"raw_text": flight_text},
+    )
+    assert res.status_code == 400
+    data = res.json()
+    assert "precedes departure date" in data["detail"]
 
 
 @pytest.mark.asyncio
@@ -187,7 +230,7 @@ async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
-    raw_ocr = (
+    raw_ocr_past = (
         "Lynsey-Anne Duncan-Williams\n\n"
         "Queue\nPriority\nBoarding\nFront Door\n\n"
         "Seat\nSeq Booking ref\n"
@@ -199,8 +242,28 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
         "18 Sep 2015 12.35 13:05"
     )
 
+    # 1. Historical pass with 2015 date must be rejected when creating a trip
+    res_past = await async_client.post(
+        "/api/trips/scan-boarding-pass", data={"raw_text": raw_ocr_past}
+    )
+    assert res_past.status_code == 400
+    assert "precedes the current date" in res_past.json()["detail"]
+
+    # 2. Upcoming pass with valid future date must succeed
+    raw_ocr_future = (
+        "Lynsey-Anne Duncan-Williams\n\n"
+        "Queue\nPriority\nBoarding\nFront Door\n\n"
+        "Seat\nSeq Booking ref\n"
+        "28A Window 123 OSGTSE\n\n"
+        "RYANAIR FR112\n\n"
+        "DUB —— MAD\n\n"
+        "Dublin Madrid\n\n"
+        "Date Boarding Departs\n"
+        "18 Nov 2026 12.35 13:05"
+    )
+
     res = await async_client.post(
-        "/api/trips/scan-boarding-pass", data={"raw_text": raw_ocr}
+        "/api/trips/scan-boarding-pass", data={"raw_text": raw_ocr_future}
     )
     assert res.status_code == 200
     data = res.json()
@@ -214,7 +277,7 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
     assert data["seat"] == "28A"
     assert data["reference_code"] == "OSGTSE"
     assert data["holder_name"] == "Lynsey-Anne Duncan-Williams"
-    assert data["departure_date"] == "2015-09-18"
+    assert data["departure_date"] == "2026-11-18"
     assert data["flight_departure_hour"] == "13:05"
 
 

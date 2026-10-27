@@ -143,6 +143,33 @@ export function DocumentUploadModal({
         );
       }
 
+      const today = new Date().toISOString().split('T')[0];
+      if (data.departure_date && data.departure_date < today) {
+        throw new Error(
+          `The uploaded pass contains an invalid departure date (${data.departure_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
+        );
+      }
+      if (data.check_in_date && data.check_in_date < today) {
+        throw new Error(
+          `The uploaded pass contains an invalid check-in date (${data.check_in_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
+        );
+      }
+      if (data.return_date && data.return_date < today) {
+        throw new Error(
+          `The uploaded pass contains an invalid return date (${data.return_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
+        );
+      }
+      if (data.return_date && data.departure_date && data.return_date < data.departure_date) {
+        throw new Error(
+          `The uploaded pass return date (${data.return_date}) cannot precede the departure date (${data.departure_date}).`
+        );
+      }
+      if (data.check_out_date && data.check_in_date && data.check_out_date < data.check_in_date) {
+        throw new Error(
+          `The uploaded pass check-out date (${data.check_out_date}) cannot precede the check-in date (${data.check_in_date}).`
+        );
+      }
+
       setExtractedResult(data);
     } catch (err: unknown) {
       setScanError(err instanceof Error ? err.message : 'Error scanning document.');
@@ -173,6 +200,15 @@ export function DocumentUploadModal({
 
   const handleApplyExtracted = () => {
     if (extractedResult) {
+      const today = new Date().toISOString().split('T')[0];
+      if (extractedResult.departure_date && extractedResult.departure_date < today) {
+        setScanError(`Cannot use pass: Departure date (${extractedResult.departure_date}) precedes today's date (${today}).`);
+        return;
+      }
+      if (extractedResult.check_in_date && extractedResult.check_in_date < today) {
+        setScanError(`Cannot use pass: Check-in date (${extractedResult.check_in_date}) precedes today's date (${today}).`);
+        return;
+      }
       onExtracted(extractedResult);
       onClose();
     }
