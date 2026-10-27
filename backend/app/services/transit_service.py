@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 from app.domain.entities.poi import TransitLeg, TransitStep
+from app.services.gtfs_route_service import get_gtfs_route_finder
 from app.services.transit_fare_service import TransitFareService
 
 logger = logging.getLogger(__name__)
@@ -193,6 +194,17 @@ async def get_detailed_transit_leg(
                             used_fallback_costing = candidate
                             break
 
+            if resp.status_code == 400:
+                city_name = str(
+                    origin.get("city") or destination.get("city") or ""
+                ).strip()
+                return synthesize_fallback_transit_leg(
+                    origin=origin,
+                    destination=destination,
+                    city=city_name,
+                    is_airport_leg=is_airport_leg,
+                )
+
             resp.raise_for_status()
             data = resp.json()
 
@@ -213,6 +225,23 @@ async def get_detailed_transit_leg(
                     else:
                         full_geometry.extend(leg_coords[1:])
 
+            if used_fallback_costing in ("bus", "auto"):
+                city_name = str(
+                    origin.get("city") or destination.get("city") or ""
+                ).strip()
+                return synthesize_fallback_transit_leg(
+                    origin=origin,
+                    destination=destination,
+                    city=city_name,
+                    is_airport_leg=is_airport_leg,
+                    geometry=full_geometry,
+                    duration_mins=total_duration_mins,
+                )
+
+            for leg in legs:
+                leg_shape = leg.get("shape", "")
+                leg_coords = decode_polyline6(leg_shape) if leg_shape else []
+
                 for m_idx, m in enumerate(leg.get("maneuvers", [])):
                     instruction = m.get("instruction", "")
                     m_time_mins = max(1, int(round(m.get("time", 60) / 60)))
@@ -224,26 +253,76 @@ async def get_detailed_transit_leg(
                     headsign = None
                     station = None
 
+                    city_clean = str(
+                        origin.get("city") or destination.get("city") or ""
+                    ).strip()
+                    finder = get_gtfs_route_finder(city_clean)
+
                     if transit_info:
                         has_transit_step = True
                         step_type = "transit"
-                        line_name = transit_info.get("short_name") or transit_info.get(
+                        raw_line = transit_info.get("short_name") or transit_info.get(
                             "long_name"
                         )
-                        headsign = transit_info.get("headsign")
-                        station = transit_info.get("description") or "Transit Stop"
-                    elif used_fallback_costing in ("bus", "auto"):
-                        has_transit_step = True
-                        step_type = "transit"
-                        if is_airport_leg:
-                            line_name = "Airport Express"
-                            headsign = dest_name
-                            station = orig_name if m_idx == 0 else None
+                        raw_headsign = transit_info.get("headsign")
+                        stops_list = transit_info.get("transit_stops", [])
+                        raw_station = (
+                            stops_list[0].get("name")
+                            if stops_list
+                            else transit_info.get("description")
+                        )
+
+                        if finder and finder.translations:
+                            en_line = finder.translations.get(("routes", raw_line), "")
+                            line_name = (
+                                f"{en_line} ({raw_line})"
+                                if en_line and en_line != raw_line
+                                else (en_line or raw_line)
+                            )
+                            en_head = finder.translations.get(
+                                ("stops", raw_headsign), ""
+                            )
+                            headsign = (
+                                f"{en_head} ({raw_headsign})"
+                                if en_head and en_head != raw_headsign
+                                else (en_head or raw_headsign)
+                            )
+                            en_sta = finder.translations.get(("stops", raw_station), "")
+                            station = (
+                                f"{en_sta} ({raw_station})"
+                                if en_sta and en_sta != raw_station
+                                else (en_sta or raw_station)
+                            )
                         else:
-                            line_name = "Transit"
-                            headsign = dest_name
+                            line_name = raw_line
+                            headsign = raw_headsign
+                            station = raw_station or "Transit Stop"
                     elif used_fallback_costing == "pedestrian":
                         step_type = "walk"
+
+                    # Translate Japanese / foreign station names in pedestrian enter/exit instructions
+                    if finder and finder.translations and instruction:
+                        sorted_trans = sorted(
+                            finder.translations.items(),
+                            key=lambda x: len(x[0][1]),
+                            reverse=True,
+                        )
+                        for (_, val), trans in sorted_trans:
+                            if val in instruction and trans != val:
+                                instruction = instruction.replace(
+                                    val, f"{trans} ({val})"
+                                )
+                                break
+
+                    # Safeguard: prevent vehicle driving instructions from leaking into passenger steps
+                    if step_type == "transit" and instruction.lower().startswith(
+                        "drive "
+                    ):
+                        instruction = f"Take transit towards {headsign or dest_name}"
+                    elif step_type == "walk" and instruction.lower().startswith(
+                        "drive "
+                    ):
+                        instruction = f"Walk towards {headsign or dest_name}"
 
                     b_idx = m.get("begin_shape_index", 0)
                     e_idx = m.get("end_shape_index", b_idx)
@@ -285,9 +364,6 @@ async def get_detailed_transit_leg(
             mode = "transit" if has_transit_step else "pedestrian"
 
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-        logger.error(
-            f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}."
-        )
         raise TransitRoutingError(
             f"Could not fetch multimodal route between '{orig_name}' and '{dest_name}': {exc}"
         ) from exc
@@ -406,6 +482,8 @@ def synthesize_fallback_transit_leg(
     destination: dict[str, Any],
     city: str | None = None,
     is_airport_leg: bool = False,
+    geometry: list[list[float]] | None = None,
+    duration_mins: int | None = None,
 ) -> TransitLeg:
     """
     Synthesizes a realistic fallback transit leg with step-by-step instructions
@@ -447,12 +525,16 @@ def synthesize_fallback_transit_leg(
     is_airport = is_airport_leg or orig_is_airport or dest_is_airport
 
     fallback_geom = (
-        [[float(orig_lat), float(orig_lon)], [float(dest_lat), float(dest_lon)]]
-        if orig_lat is not None
-        and orig_lon is not None
-        and dest_lat is not None
-        and dest_lon is not None
-        else []
+        geometry
+        if geometry
+        else (
+            [[float(orig_lat), float(orig_lon)], [float(dest_lat), float(dest_lon)]]
+            if orig_lat is not None
+            and orig_lon is not None
+            and dest_lat is not None
+            and dest_lon is not None
+            else []
+        )
     )
 
     # If distance < 1.2 km and not airport: Pedestrian walk
@@ -480,7 +562,11 @@ def synthesize_fallback_transit_leg(
         )
 
     # Multimodal transit route
-    dur_mins = max(15, int(dist_km / 22.0 * 60) + 8)
+    dur_mins = (
+        duration_mins
+        if duration_mins is not None
+        else max(15, int(dist_km / 22.0 * 60) + 8)
+    )
     walk1_dist = round(min(0.4, dist_km * 0.1), 2)
     walk2_dist = round(min(0.3, dist_km * 0.08), 2)
     transit_dist = round(max(0.5, dist_km - walk1_dist - walk2_dist), 2)
@@ -503,6 +589,7 @@ def synthesize_fallback_transit_leg(
                     transit_line="Airport Line",
                     headsign=dest_name,
                     station_name=orig_name,
+                    geometry=fallback_geom,
                 ),
                 TransitStep(
                     type="transit_alight",
@@ -527,6 +614,7 @@ def synthesize_fallback_transit_leg(
                     transit_line="Airport Line",
                     headsign=dest_name,
                     station_name=dest_name,
+                    geometry=fallback_geom,
                 ),
                 TransitStep(
                     type="transit_alight",
@@ -537,28 +625,165 @@ def synthesize_fallback_transit_leg(
                 ),
             ]
     else:
-        steps = [
-            TransitStep(
-                type="walk",
-                instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
-                duration_mins=5,
-                distance_km=walk1_dist,
-            ),
-            TransitStep(
-                type="transit_board",
-                instruction=f"Board public transit towards {dest_name}",
-                duration_mins=max(7, dur_mins - 9),
-                distance_km=transit_dist,
-                transit_line="Transit",
-                headsign=dest_name,
-            ),
-            TransitStep(
-                type="transit_alight",
-                instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
-                duration_mins=4,
-                distance_km=walk2_dist,
-            ),
-        ]
+        gtfs_finder = get_gtfs_route_finder(city_name)
+        gtfs_res = (
+            gtfs_finder.find_route(
+                float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+            )
+            if gtfs_finder and orig_lat is not None and dest_lat is not None
+            else None
+        )
+
+        if gtfs_res and gtfs_res.get("mode") == "direct":
+            b_stop = gtfs_res["board_stop"]["display_name"]
+            a_stop = gtfs_res["alight_stop"]["display_name"]
+            r_name = gtfs_res["route_1"]["name"]
+            r_type = gtfs_res["route_1"].get("type", "Metro")
+            w1_km = gtfs_res.get("walk1_km", walk1_dist)
+            w2_km = gtfs_res.get("walk2_km", walk2_dist)
+            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+            t_dur = max(5, dur_mins - w1_dur - w2_dur)
+
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
+                    duration_mins=w1_dur,
+                    distance_km=w1_km,
+                    station_name=b_stop,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}",
+                    duration_mins=t_dur,
+                    distance_km=transit_dist,
+                    transit_line=r_name,
+                    headsign=a_stop,
+                    station_name=b_stop,
+                    geometry=fallback_geom,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
+                    duration_mins=w2_dur,
+                    distance_km=w2_km,
+                    station_name=a_stop,
+                ),
+            ]
+        elif gtfs_res and gtfs_res.get("mode") == "transfer":
+            b_stop = gtfs_res["board_stop"]["display_name"]
+            t_stop = gtfs_res["transfer_stop"]["display_name"]
+            a_stop = gtfs_res["alight_stop"]["display_name"]
+            r1_name = gtfs_res["route_1"]["name"]
+            r1_type = gtfs_res["route_1"].get("type", "Metro")
+            r2_name = gtfs_res["route_2"]["name"]
+            r2_type = gtfs_res["route_2"].get("type", "Metro")
+            w1_km = gtfs_res.get("walk1_km", walk1_dist)
+            w2_km = gtfs_res.get("walk2_km", walk2_dist)
+            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+            remaining_dur = max(8, dur_mins - w1_dur - w2_dur - 3)
+            t1_dur = max(4, int(remaining_dur * 0.5))
+            t2_dur = max(4, remaining_dur - t1_dur)
+            t1_dist = round(transit_dist * 0.5, 2)
+            t2_dist = round(max(0.2, transit_dist - t1_dist), 2)
+
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
+                    duration_mins=w1_dur,
+                    distance_km=w1_km,
+                    station_name=b_stop,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board {r1_name} ({r1_type}) at {b_stop} towards {t_stop}",
+                    duration_mins=t1_dur,
+                    distance_km=t1_dist,
+                    transit_line=r1_name,
+                    headsign=t_stop,
+                    station_name=b_stop,
+                    geometry=fallback_geom,
+                ),
+                TransitStep(
+                    type="transit_transfer",
+                    instruction=f"Transfer at {t_stop} to {r2_name} ({r2_type}) towards {a_stop}",
+                    duration_mins=t2_dur,
+                    distance_km=t2_dist,
+                    transit_line=r2_name,
+                    station_name=t_stop,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
+                    duration_mins=w2_dur,
+                    distance_km=w2_km,
+                    station_name=a_stop,
+                ),
+            ]
+        elif gtfs_res and gtfs_res.get("mode") == "nearest_stations":
+            b_stop = gtfs_res["board_stop"]["display_name"]
+            a_stop = gtfs_res["alight_stop"]["display_name"]
+            r_name = gtfs_res["route_1"]["name"]
+            r_type = gtfs_res["route_1"].get("type", "Metro")
+            w1_km = gtfs_res.get("walk1_km", walk1_dist)
+            w2_km = gtfs_res.get("walk2_km", walk2_dist)
+            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+            t_dur = max(5, dur_mins - w1_dur - w2_dur)
+
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
+                    duration_mins=w1_dur,
+                    distance_km=w1_km,
+                    station_name=b_stop,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}",
+                    duration_mins=t_dur,
+                    distance_km=transit_dist,
+                    transit_line=r_name,
+                    headsign=a_stop,
+                    station_name=b_stop,
+                    geometry=fallback_geom,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
+                    duration_mins=w2_dur,
+                    distance_km=w2_km,
+                    station_name=a_stop,
+                ),
+            ]
+        else:
+            steps = [
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
+                    duration_mins=5,
+                    distance_km=walk1_dist,
+                ),
+                TransitStep(
+                    type="transit_board",
+                    instruction=f"Board public transit towards {dest_name}",
+                    duration_mins=max(7, dur_mins - 9),
+                    distance_km=transit_dist,
+                    transit_line="Transit",
+                    headsign=dest_name,
+                    geometry=fallback_geom,
+                ),
+                TransitStep(
+                    type="transit_alight",
+                    instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
+                    duration_mins=4,
+                    distance_km=walk2_dist,
+                ),
+            ]
 
     fare_res = TransitFareService.calculate_transit_leg_fare(
         city_name,
@@ -661,12 +886,7 @@ async def ensure_walking_legs_populated(
                     )
                     path[k]["transit_from_previous"] = synth.model_dump(mode="json")
             else:
-                # Public transit leg: provide estimated transit with real corridor geometry from Valhalla
-                dest_name = curr_poi.get("name", "Stop")
-                fare_info = TransitFareService.get_city_transit_fare(city)
-                single_fare = fare_info.single_fare if fare_info else 1.5
-
-                transit_steps: list[dict[str, Any]] = []
+                # Public transit leg: provide realistic transit with corridor geometry from Valhalla
                 leg_geometry: list[list[float]] = []
                 trans_dur = (
                     int(round(float(existing_transit.get("duration_mins", 20))))
@@ -711,58 +931,18 @@ async def ensure_walking_legs_populated(
                                             leg_geometry.extend(cl_coords)
                                         else:
                                             leg_geometry.extend(cl_coords[1:])
-                                    for cm in cl.get("maneuvers", []):
-                                        b_idx = cm.get("begin_shape_index", 0)
-                                        e_idx = cm.get("end_shape_index", b_idx)
-                                        transit_steps.append(
-                                            {
-                                                "type": "transit",
-                                                "transit_line": (
-                                                    "Airport Express"
-                                                    if is_airport_leg
-                                                    else "Transit"
-                                                ),
-                                                "instruction": cm.get(
-                                                    "instruction",
-                                                    f"Transit towards {dest_name}",
-                                                ),
-                                                "duration_mins": max(
-                                                    1,
-                                                    int(round(cm.get("time", 60) / 60)),
-                                                ),
-                                                "distance_km": round(
-                                                    cm.get("length", 0.0), 2
-                                                ),
-                                                "geometry": (
-                                                    cl_coords[b_idx : e_idx + 1]
-                                                    if cl_coords
-                                                    else []
-                                                ),
-                                            }
-                                        )
                     except Exception as route_err:
                         logger.debug(f"Could not pre-fetch corridor route: {route_err}")
 
-                if not transit_steps:
-                    transit_steps = [
-                        {
-                            "type": "transit_board",
-                            "transit_line": "Transit",
-                            "instruction": f"Board public transit towards {dest_name}",
-                            "duration_mins": trans_dur,
-                            "distance_km": round(dist_km, 2) if dist_km < 100 else 0.0,
-                            "geometry": leg_geometry,
-                        }
-                    ]
-
-                path[k]["transit_from_previous"] = {
-                    "mode": "transit",
-                    "duration_mins": trans_dur,
-                    "cost_eur": single_fare,
-                    "cost_is_estimated": True,
-                    "price_source": "estimated_city_transit_fare",
-                    "steps": transit_steps,
-                    "geometry": leg_geometry,
-                }
+                synth = synthesize_fallback_transit_leg(
+                    origin=prev_poi,
+                    destination=curr_poi,
+                    city=city,
+                    is_airport_leg=is_airport_leg,
+                    geometry=leg_geometry if leg_geometry else None,
+                    duration_mins=trans_dur,
+                )
+                synth.cost_is_estimated = True
+                path[k]["transit_from_previous"] = synth.model_dump(mode="json")
 
     return itinerary

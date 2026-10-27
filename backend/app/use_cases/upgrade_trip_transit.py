@@ -11,6 +11,7 @@ from app.services.transit_service import (
     calculate_haversine_km,
     get_detailed_transit_leg,
     is_poi_airport,
+    synthesize_fallback_transit_leg,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -159,9 +160,17 @@ class UpgradeTripTransitUseCase:
                         RuntimeError,
                     ) as exc:
                         logger.warning(
-                            f"Could not fetch real transit leg on upgrade ({exc}), retaining previous."
+                            f"Could not fetch real transit leg on upgrade ({exc}), synthesizing dynamic GTFS fallback."
                         )
-                        transit_leg = None
+                        city_name = str(
+                            prev_poi.get("city") or curr_poi.get("city") or city or ""
+                        ).strip()
+                        transit_leg = synthesize_fallback_transit_leg(
+                            origin=prev_poi,
+                            destination=curr_poi,
+                            city=city_name,
+                            is_airport_leg=is_airport_leg,
+                        )
 
                     if transit_leg:
                         total_upgraded_legs += 1

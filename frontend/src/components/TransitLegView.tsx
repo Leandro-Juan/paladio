@@ -53,6 +53,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
       case 'transit_alight':
         return <ArrivalIcon size={14} color="var(--color-success)" />;
       case 'transfer':
+      case 'transit_transfer':
         return <TransferIcon size={14} color="var(--color-accent-warning)" />;
       case 'walk':
       default:
@@ -126,7 +127,14 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
                 letterSpacing: '0.5px',
               }}
             >
-              LINE {line}
+              {line.toLowerCase() === 'transit'
+                ? 'TRANSIT'
+                : line.toLowerCase().includes('line') ||
+                  line.toLowerCase().includes('metro') ||
+                  line.toLowerCase().includes('tram') ||
+                  line.toLowerCase().includes('rer')
+                  ? line.toUpperCase()
+                  : `LINE ${line}`}
             </span>
           ))}
 
