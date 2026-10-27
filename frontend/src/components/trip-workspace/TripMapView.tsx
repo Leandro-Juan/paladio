@@ -173,8 +173,15 @@ function getCategorySvg(type: PoiCategoryType): string {
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 11v11M19 3l-7 8-7-8h14z"/></svg>`;
     case 'shopping':
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>`;
-    case 'transit':
     case 'bus_stop':
+      return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2l.64-2.54a6 6 0 0 0 .36-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v6.46a6 6 0 0 0 .36 2L3 17h2"/><path d="M4 11h16"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>`;
+    case 'metro':
+      return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="15" rx="3"/><path d="M4 11h16"/><path d="M8 19l-2 3M16 19l2 3"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/><path d="M9 7h6"/></svg>`;
+    case 'train':
+      return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="13" rx="2"/><path d="M4 10h16"/><path d="M12 3v7"/><path d="M4 21h16"/><path d="M7 16l-3 5M17 16l3 5"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg>`;
+    case 'tram':
+      return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="13" rx="2"/><path d="M4 12h16"/><path d="M8 19l-1 3M16 19l1 3"/><path d="M12 2v4M8 2h8"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg>`;
+    case 'transit':
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16M12 3v8M8 19l-3 3M16 19l3 3M8 15h.01M16 15h.01"/></svg>`;
     case 'general':
       return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
@@ -217,7 +224,7 @@ function renderTeardropPinHtml({
   const svg = getCategorySvg(meta.type);
   const nameSafe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const hullColor = typeof dayNumber === 'number' && dayNumber > 0 ? getDayColor(dayNumber) : null;
-  const pinColor = hullColor || (isFocused ? '#1E293B' : '#475569');
+  const pinColor = hullColor || (isFocused ? '#1E293B' : (meta.color || '#475569'));
   const pinBorderColor = isFocused
     ? 'var(--color-accent-teal-mid, #14788D)'
     : hullColor

@@ -56,6 +56,7 @@ class PoiSearchItem(BaseModel):
     scoring: dict[str, Any] = Field(default_factory=dict)
     photo_url: str | None = None
     thumbnail_url: str | None = None
+    transit_info: dict[str, Any] | None = None
 
 
 class PoiSearchResponse(BaseModel):
@@ -115,6 +116,7 @@ class PoiDetailResponse(BaseModel):
     osm_opening_hours: str | None = None
     daily_windows: list[Any] = Field(default_factory=list)
     photos: list[PoiPhotoItem] = Field(default_factory=list)
+    transit_info: dict[str, Any] | None = None
 
 
 def _normalize_text(s: str) -> str:
@@ -203,7 +205,121 @@ CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "park": ["park", "garden", "nature"],
     "shopping": ["shop", "shopping", "market", "store"],
     "hotel": ["hotel", "hostel", "lodging"],
+    "transit": [
+        "transit",
+        "metro",
+        "subway",
+        "train",
+        "railway",
+        "bus",
+        "bus_stop",
+        "bus_station",
+        "tram",
+        "station",
+    ],
+    "metro": ["metro", "subway"],
+    "train": ["train", "railway", "station"],
+    "bus": ["bus", "bus_stop", "bus_station"],
+    "bus_stop": ["bus_stop", "bus_station", "bus"],
+    "tram": ["tram", "tram_stop", "light_rail"],
 }
+
+
+def _extract_transit_info(
+    p: AttractionModel, meta: dict[str, Any]
+) -> dict[str, Any] | None:
+    category = (p.category or "").lower()
+    name = p.name or ""
+    tags = dict(meta.get("tags") or {})
+
+    is_transit = (
+        category in ("transit", "metro", "train", "bus_stop", "tram", "subway")
+        or "transit_info" in meta
+        or tags.get("railway") in ("station", "subway_entrance", "tram_stop", "halt")
+        or tags.get("station") in ("subway", "train", "light_rail")
+        or tags.get("highway") == "bus_stop"
+        or tags.get("amenity") in ("bus_station", "ferry_terminal")
+    )
+    if not is_transit:
+        return None
+
+    if meta.get("transit_info"):
+        return meta["transit_info"]
+
+    transit_mode = "transit"
+    if (
+        category == "metro"
+        or tags.get("station") == "subway"
+        or tags.get("railway") == "subway_entrance"
+        or "metro" in name.lower()
+        or tags.get("subway") == "yes"
+    ):
+        transit_mode = "metro"
+    elif (
+        category == "train"
+        or tags.get("railway") in ("station", "halt")
+        or tags.get("station") == "train"
+        or "cercanías" in name.lower()
+        or "renfe" in name.lower()
+        or "gare" in name.lower()
+    ):
+        transit_mode = "train"
+    elif (
+        category == "tram"
+        or tags.get("railway") == "tram_stop"
+        or tags.get("tram") == "yes"
+    ):
+        transit_mode = "tram"
+    elif (
+        category in ("bus", "bus_stop")
+        or tags.get("amenity") == "bus_station"
+        or tags.get("highway") == "bus_stop"
+        or tags.get("bus") == "yes"
+    ):
+        transit_mode = "bus_stop"
+
+    lines: list[str] = []
+    for line_key in ("lines", "route_ref", "line", "ref", "routes"):
+        val = tags.get(line_key) or meta.get(line_key)
+        if val:
+            if isinstance(val, list):
+                lines.extend([str(x).strip() for x in val if str(x).strip()])
+            elif isinstance(val, str):
+                lines.extend([x.strip() for x in re.split(r"[,;/|]", val) if x.strip()])
+
+    operator = (
+        tags.get("operator")
+        or meta.get("operator")
+        or meta.get("network")
+        or tags.get("network")
+    )
+
+    station_type = (
+        "Underground Metro Station"
+        if transit_mode == "metro"
+        else "Railway Station"
+        if transit_mode == "train"
+        else "Tram Stop"
+        if transit_mode == "tram"
+        else "Bus Station / Stop"
+    )
+
+    wheelchair = tags.get("wheelchair") or meta.get("wheelchair")
+    schedule = p.osm_opening_hours or tags.get("opening_hours")
+    frequency = tags.get("interval") or tags.get("frequency") or meta.get("frequency")
+    zone = tags.get("zone") or meta.get("zone")
+
+    return {
+        "type": transit_mode,
+        "lines": sorted(list(dict.fromkeys(lines))) if lines else [],
+        "operator": operator,
+        "network": tags.get("network") or operator,
+        "station_type": station_type,
+        "wheelchair": wheelchair,
+        "zone": zone,
+        "schedule": schedule,
+        "frequency": frequency,
+    }
 
 
 def is_point_in_polygon(
@@ -270,6 +386,7 @@ def _model_to_search_item(
         facets=meta.get("facets") or {},
         doc_quality=meta.get("doc_quality") or "C",
         hours_known=bool(p.osm_opening_hours),
+        transit_info=_extract_transit_info(p, meta),
     )
 
 
@@ -1390,6 +1507,7 @@ async def get_poi_details(
         osm_opening_hours=poi.osm_opening_hours,
         daily_windows=list(getattr(poi, "daily_windows", []) or []),
         photos=[PoiPhotoItem(**p) for p in photos_data],
+        transit_info=_extract_transit_info(poi, meta),
     )
 
     # Dynamic fallback: if daily_windows is unpopulated or empty, parse osm_opening_hours or tags

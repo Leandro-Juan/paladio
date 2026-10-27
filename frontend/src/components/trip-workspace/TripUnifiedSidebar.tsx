@@ -184,13 +184,13 @@ export type MainTabType = 'route' | 'search' | 'saved';
 
 const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType }[] = [
   { id: 'all', label: 'All', iconType: 'general' },
+  { id: 'transit', label: 'Transit', iconType: 'transit' },
   { id: 'attraction', label: 'Attractions', iconType: 'attraction' },
   { id: 'museum', label: 'Museums', iconType: 'museum' },
   { id: 'restaurant', label: 'Restaurants', iconType: 'restaurant' },
   { id: 'cafe', label: 'Cafés', iconType: 'cafe' },
   { id: 'landmark', label: 'Monuments', iconType: 'landmark' },
   { id: 'park', label: 'Parks', iconType: 'park' },
-  { id: 'transit', label: 'Transit', iconType: 'transit' },
   { id: 'hotel', label: 'Stays', iconType: 'hotel' },
   { id: 'shopping', label: 'Shopping', iconType: 'shopping' },
 ];

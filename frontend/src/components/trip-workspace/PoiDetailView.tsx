@@ -185,6 +185,7 @@ export function PoiDetailView({
         description: fallbackPoi.description || '',
         photos: fallbackPoi.photos || (fallbackPoi.photo_url ? [{ url: fallbackPoi.photo_url, thumbnail_url: fallbackPoi.photo_url }] : []),
         scoring: fallbackPoi.scoring || {},
+        transit_info: fallbackPoi.transit_info,
       } as PoiDetail;
     }
     return null;
@@ -303,6 +304,7 @@ export function PoiDetailView({
             cost_eur: data.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
             city: data.city || fallbackPoi?.city || city || '',
             scoring: data.scoring && Object.keys(data.scoring).length > 0 ? data.scoring : fallbackPoi?.scoring || {},
+            transit_info: data.transit_info || fallbackPoi?.transit_info || null,
           });
           setLoading(false);
         }
@@ -1023,6 +1025,272 @@ export function PoiDetailView({
                   </div>
                 </div>
               </div>
+
+              {/* Public Transit Specifications Card */}
+              {poi?.transit_info && (
+                <div
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid rgba(8, 145, 178, 0.25)',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '2px',
+                      background: 'linear-gradient(90deg, #C026D3 0%, #2563EB 50%, #0D9488 100%)',
+                    }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: 'var(--color-accent-teal-mid, #0891B2)',
+                          boxShadow: '0 0 6px var(--color-accent-teal-mid, #0891B2)',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--color-accent-teal-mid, #0891B2)',
+                        }}
+                      >
+                        Public Transit Intel
+                      </span>
+                    </div>
+                    {poi.transit_info.station_type && (
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '9.5px',
+                          color: 'var(--color-text-muted)',
+                        }}
+                      >
+                        {poi.transit_info.station_type}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Served Lines Badges */}
+                  {Array.isArray(poi.transit_info.lines) && poi.transit_info.lines.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-muted)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        Lines Served
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                        {poi.transit_info.lines.map((line) => {
+                          const isMetro = line.toUpperCase().startsWith('L') || line.toUpperCase().includes('METRO');
+                          const isTrain = line.toUpperCase().startsWith('C') || line.toUpperCase().includes('LINE');
+                          const badgeBg = isMetro
+                            ? 'rgba(192, 38, 211, 0.12)'
+                            : isTrain
+                            ? 'rgba(37, 99, 235, 0.12)'
+                            : 'rgba(13, 148, 136, 0.12)';
+                          const badgeColor = isMetro ? '#C026D3' : isTrain ? '#2563EB' : '#0D9488';
+                          const badgeBorder = isMetro
+                            ? 'rgba(192, 38, 211, 0.3)'
+                            : isTrain
+                            ? 'rgba(37, 99, 235, 0.3)'
+                            : 'rgba(13, 148, 136, 0.3)';
+
+                          return (
+                            <span
+                              key={line}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                background: badgeBg,
+                                color: badgeColor,
+                                border: `1px solid ${badgeBorder}`,
+                                fontFamily: 'var(--font-code, monospace)',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {line}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transit Spec Key-Values Grid */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
+                      paddingTop: '4px',
+                      borderTop: '1px dashed var(--color-border)',
+                    }}
+                  >
+                    {poi.transit_info.operator && (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '8.5px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Operator / Network
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={poi.transit_info.operator}
+                        >
+                          {poi.transit_info.operator}
+                        </span>
+                      </div>
+                    )}
+
+                    {poi.transit_info.frequency && (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '8.5px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Frequency
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {poi.transit_info.frequency}
+                        </span>
+                      </div>
+                    )}
+
+                    {poi.transit_info.schedule && (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '8.5px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Operating Hours
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {poi.transit_info.schedule}
+                        </span>
+                      </div>
+                    )}
+
+                    {poi.transit_info.wheelchair && (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '8.5px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Accessibility
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color:
+                              poi.transit_info.wheelchair === 'yes'
+                                ? 'var(--color-success, #10B981)'
+                                : 'var(--color-text-primary)',
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {poi.transit_info.wheelchair === 'yes'
+                            ? 'Step-Free / Accessible'
+                            : poi.transit_info.wheelchair === 'limited'
+                            ? 'Limited Access'
+                            : poi.transit_info.wheelchair}
+                        </span>
+                      </div>
+                    )}
+
+                    {poi.transit_info.zone && (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span
+                          style={{
+                            fontSize: '8.5px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Fare Zone
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {poi.transit_info.zone}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Description Overview */}
               {overviewDescription && (

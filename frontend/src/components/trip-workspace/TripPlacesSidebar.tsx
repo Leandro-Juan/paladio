@@ -45,6 +45,7 @@ export interface PoiApiItem {
   similarity: number;
   match_type?: string;
   description?: string;
+  transit_info?: import('@/types/domain').PoiTransitInfo | null;
 }
 
 interface PoiSearchResponseData {
@@ -685,7 +686,7 @@ export function TripPlacesSidebar({
 
                 {/* Category Pills Row */}
                 <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none', paddingTop: '2px' }}>
-                  {['all', 'museum', 'cafe', 'restaurant', 'monument', 'attraction'].map((cat) => (
+                  {['all', 'transit', 'attraction', 'museum', 'restaurant', 'cafe', 'monument'].map((cat) => (
                     <button
                       key={cat}
                       type="button"
@@ -904,7 +905,7 @@ export function TripPlacesSidebar({
                               onDragEnd={() => setActiveDragPlace(null)}
                               onClick={() => {
                                 if (poi.id) {
-                                  onInspectPoi?.(poi.id);
+                                  onInspectPoi?.(poi.id, poi as unknown as Record<string, unknown>);
                                 }
                                 onPlaceClick?.({
                                   id: poi.id,
@@ -965,7 +966,7 @@ export function TripPlacesSidebar({
                     onDragEnd={() => setActiveDragPlace(null)}
                     onClick={() => {
                       if (searchData.exact_match?.id) {
-                        onInspectPoi?.(searchData.exact_match.id);
+                        onInspectPoi?.(searchData.exact_match.id, searchData.exact_match as unknown as Record<string, unknown>);
                       }
                       onPlaceClick?.({
                         id: searchData.exact_match!.id,
@@ -1041,7 +1042,7 @@ export function TripPlacesSidebar({
                         onDragEnd={() => setActiveDragPlace(null)}
                         onClick={() => {
                           if (poi.id) {
-                            onInspectPoi?.(poi.id);
+                            onInspectPoi?.(poi.id, poi as unknown as Record<string, unknown>);
                           }
                           onPlaceClick?.({
                             id: poi.id,

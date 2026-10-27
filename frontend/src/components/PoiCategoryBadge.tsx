@@ -33,7 +33,44 @@ function CategoryIcon({ type, size = 12 }: { type: PoiCategoryType; size?: numbe
     case 'bus_stop':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 16h16M4 6h16M7 21v-2M17 21v-2M5 3h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 12h.01M15 12h.01" />
+          <path d="M19 17h2l.64-2.54a6 6 0 0 0 .36-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v6.46a6 6 0 0 0 .36 2L3 17h2" />
+          <path d="M4 11h16" />
+          <circle cx="7" cy="17" r="2" />
+          <circle cx="17" cy="17" r="2" />
+        </svg>
+      );
+    case 'metro':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="4" width="16" height="15" rx="3" />
+          <path d="M4 11h16" />
+          <path d="M8 19l-2 3M16 19l2 3" />
+          <circle cx="8" cy="15" r="1.5" />
+          <circle cx="16" cy="15" r="1.5" />
+          <path d="M9 7h6" />
+        </svg>
+      );
+    case 'train':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="3" width="16" height="13" rx="2" />
+          <path d="M4 10h16" />
+          <path d="M12 3v7" />
+          <path d="M4 21h16" />
+          <path d="M7 16l-3 5M17 16l3 5" />
+          <circle cx="8" cy="13" r="1" />
+          <circle cx="16" cy="13" r="1" />
+        </svg>
+      );
+    case 'tram':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="6" width="16" height="13" rx="2" />
+          <path d="M4 12h16" />
+          <path d="M8 19l-1 3M16 19l1 3" />
+          <path d="M12 2v4M8 2h8" />
+          <circle cx="8" cy="16" r="1" />
+          <circle cx="16" cy="16" r="1" />
         </svg>
       );
     case 'transit':

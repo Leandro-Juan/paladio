@@ -4,6 +4,9 @@ export type PoiCategoryType =
   | 'cafe'
   | 'bus_stop'
   | 'transit'
+  | 'metro'
+  | 'train'
+  | 'tram'
   | 'hotel'
   | 'bar'
   | 'landmark'
@@ -52,6 +55,24 @@ const CATEGORY_DEFINITIONS: Record<PoiCategoryType, { label: string; bg: string;
     bg: 'rgba(8, 145, 178, 0.08)',
     color: '#0891B2',
     borderColor: 'rgba(8, 145, 178, 0.25)',
+  },
+  metro: {
+    label: 'METRO',
+    bg: 'rgba(217, 70, 239, 0.08)',
+    color: '#C026D3',
+    borderColor: 'rgba(217, 70, 239, 0.25)',
+  },
+  train: {
+    label: 'TRAIN',
+    bg: 'rgba(37, 99, 235, 0.08)',
+    color: '#2563EB',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
+  },
+  tram: {
+    label: 'TRAM',
+    bg: 'rgba(245, 158, 11, 0.08)',
+    color: '#D97706',
+    borderColor: 'rgba(245, 158, 11, 0.25)',
   },
   hotel: {
     label: 'HOTEL',
@@ -127,17 +148,19 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
   if (normCat.includes('museum') || normCat.includes('gallery') || normCat.includes('exhibition')) {
     return { type: 'museum', ...CATEGORY_DEFINITIONS.museum };
   }
-  if (normCat.includes('bus stop') || normCat.includes('bus station') || normCat === 'bus') {
+  if (normCat.includes('metro') || normCat.includes('subway')) {
+    return { type: 'metro', ...CATEGORY_DEFINITIONS.metro };
+  }
+  if (normCat.includes('train') || normCat.includes('rail') || normCat.includes('cercanias') || normCat.includes('rer') || normCat.includes('s-bahn')) {
+    return { type: 'train', ...CATEGORY_DEFINITIONS.train };
+  }
+  if (normCat.includes('tram') || normCat.includes('light_rail') || normCat.includes('tranvia')) {
+    return { type: 'tram', ...CATEGORY_DEFINITIONS.tram };
+  }
+  if (normCat.includes('bus stop') || normCat.includes('bus station') || normCat === 'bus' || normCat.includes('autobus')) {
     return { type: 'bus_stop', ...CATEGORY_DEFINITIONS.bus_stop };
   }
-  if (
-    normCat.includes('metro') ||
-    normCat.includes('subway') ||
-    normCat.includes('train') ||
-    normCat.includes('station') ||
-    normCat.includes('transit') ||
-    normCat.includes('tram')
-  ) {
+  if (normCat.includes('station') || normCat.includes('transit') || normCat.includes('ferry') || normCat.includes('terminal')) {
     return { type: 'transit', ...CATEGORY_DEFINITIONS.transit };
   }
   if (normCat.includes('cafe') || normCat.includes('bakery') || normCat.includes('coffee')) {
@@ -180,10 +203,19 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
     if (/\b(museum|musee|museo|gallery|galerie)\b/i.test(normName)) {
       return { type: 'museum', ...CATEGORY_DEFINITIONS.museum };
     }
-    if (/\b(bus stop|bus station|arret de bus|parada de autobus)\b/i.test(normName)) {
+    if (/\b(metro|subway|u-bahn|m-)\b/i.test(normName)) {
+      return { type: 'metro', ...CATEGORY_DEFINITIONS.metro };
+    }
+    if (/\b(train station|gare|estacion de tren|railway|bahnhof|renfe|cercanias|sncf|s-bahn|rer)\b/i.test(normName)) {
+      return { type: 'train', ...CATEGORY_DEFINITIONS.train };
+    }
+    if (/\b(tram|tramway|tranvia|strassenbahn)\b/i.test(normName)) {
+      return { type: 'tram', ...CATEGORY_DEFINITIONS.tram };
+    }
+    if (/\b(bus stop|bus station|arret de bus|parada de autobus|parada de bus|intercambiador)\b/i.test(normName)) {
       return { type: 'bus_stop', ...CATEGORY_DEFINITIONS.bus_stop };
     }
-    if (/\b(metro|subway|gare|train station|estacion|transit)\b/i.test(normName)) {
+    if (/\b(transit|ferry|terminal|estacion)\b/i.test(normName)) {
       return { type: 'transit', ...CATEGORY_DEFINITIONS.transit };
     }
     if (/\b(cafe|coffee|espresso|bakery|boulangerie|patisserie)\b/i.test(normName)) {
@@ -243,7 +275,7 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
  * Checks whether a POI category matches a filter category.
  * In travel planning, landmarks and attractions are mutually compatible
  * (e.g. selecting "Landmark" includes both historical landmarks and cultural attractions).
- * Transit also covers bus stops.
+ * Transit covers metro, train, bus stops, tram, and general transit.
  */
 export function isCategoryMatch(
   filterCategory: PoiCategoryType | string | null | undefined,
@@ -261,10 +293,25 @@ export function isCategoryMatch(
     return true;
   }
 
-  // Transit and bus stops
+  // Transit covers all transit sub-modes
+  if (filterCategory === 'transit') {
+    return (
+      targetCategory === 'transit' ||
+      targetCategory === 'metro' ||
+      targetCategory === 'train' ||
+      targetCategory === 'bus_stop' ||
+      targetCategory === 'tram' ||
+      targetCategory === 'bus' ||
+      targetCategory === 'subway'
+    );
+  }
+
+  // Bus stop / metro / train / tram matching with aliases
   if (
-    (filterCategory === 'transit' && targetCategory === 'bus_stop') ||
-    (filterCategory === 'bus_stop' && targetCategory === 'transit')
+    (filterCategory === 'bus_stop' && (targetCategory === 'bus_stop' || targetCategory === 'bus' || targetCategory === 'transit')) ||
+    (filterCategory === 'metro' && (targetCategory === 'metro' || targetCategory === 'subway' || targetCategory === 'transit')) ||
+    (filterCategory === 'train' && (targetCategory === 'train' || targetCategory === 'transit')) ||
+    (filterCategory === 'tram' && (targetCategory === 'tram' || targetCategory === 'transit'))
   ) {
     return true;
   }

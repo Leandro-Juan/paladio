@@ -201,6 +201,18 @@ export interface PoiPhotoItem {
   license_url?: string | null;
 }
 
+export interface PoiTransitInfo {
+  type?: string;
+  lines?: string[];
+  operator?: string | null;
+  network?: string | null;
+  station_type?: string | null;
+  wheelchair?: string | null;
+  zone?: string | null;
+  schedule?: string | null;
+  frequency?: string | null;
+}
+
 export interface PoiDetail {
   id: string;
   name: string;
@@ -227,5 +239,6 @@ export interface PoiDetail {
   osm_opening_hours?: string | null;
   daily_windows?: Array<Array<{ start: number; end: number }>>;
   photos: PoiPhotoItem[];
+  transit_info?: PoiTransitInfo | null;
 }
 
