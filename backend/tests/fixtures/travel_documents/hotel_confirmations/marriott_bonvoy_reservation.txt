@@ -1,0 +1,17 @@
+============================================================
+MARRIOTT BONVOY RESERVATION CONFIRMATION
+============================================================
+Confirmation Number: MRT77129
+Guest Name: Carlos Garcia
+
+Hotel: AC Hotel Sevilla Torneo
+Address: Avenida de Sanchez Pizjuan 32, Sevilla, 41009 Spain
+Location: Sevilla
+
+Check-in: 2026-10-18 (from 15:00)
+Check-out: 2026-10-23 (until 12:00)
+Room: 1 King Bed, Non-smoking
+Access Code: 7129
+
+We look forward to welcoming you to Sevilla!
+============================================================

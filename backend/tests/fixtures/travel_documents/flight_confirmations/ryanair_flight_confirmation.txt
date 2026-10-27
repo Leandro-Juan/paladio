@@ -1,0 +1,13 @@
+Ryanair Travel Itinerary & Booking Confirmation
+Booking Reference: FR98421
+Passenger Name: Liam Smith
+
+Flight: FR 1182
+From: London Stansted (STN)
+To: Madrid Barajas (MAD)
+Departure Date: 2026-10-18
+Departure Time: 08:30
+Arrival Time: 12:05
+Seat: 17B (Priority & 2 Cabin Bags)
+
+Check-in online is required before arriving at the airport.

@@ -137,7 +137,9 @@ def decode_barcode_from_image(img_bytes: bytes) -> tuple[str | None, str | None]
     return None, None
 
 
-def parse_pkpass(content: bytes) -> TravelDocumentDraft | None:
+def parse_pkpass(
+    content: bytes, trip_start_year: int = 2026
+) -> TravelDocumentDraft | None:
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as z:
             if "pass.json" not in z.namelist():
@@ -174,13 +176,69 @@ def parse_pkpass(content: bytes) -> TravelDocumentDraft | None:
 
             # Check boarding pass
             if "boardingPass" in pass_data:
+                bp_info = pass_data["boardingPass"]
+                # Try parsing BCBP barcode if available
+                if barcode_val and (
+                    barcode_val.startswith("M1") or barcode_val.startswith("M2")
+                ):
+                    bcbp = parse_iata_bcbp(barcode_val, trip_start_year)
+                    if bcbp:
+                        airport_svc = get_airport_service()
+                        orig_city = airport_svc.get_city_from_iata(bcbp["origin_iata"])
+                        dest_city = airport_svc.get_city_from_iata(
+                            bcbp["destination_iata"]
+                        )
+                        return TravelDocumentDraft(
+                            ticket_type="flight",
+                            title=f"{bcbp['flight_number']} {bcbp['origin_iata']} → {bcbp['destination_iata']}",
+                            provider=bcbp.get("carrier") or org or "Aviation Carrier",
+                            reference_code=bcbp["reference_code"],
+                            holder_name=bcbp["holder_name"],
+                            start_time=bcbp.get("flight_date"),
+                            seat_or_room=bcbp.get("seat"),
+                            barcode_value=barcode_val,
+                            barcode_format=barcode_fmt,
+                            metadata={
+                                "origin_iata": bcbp["origin_iata"],
+                                "destination_iata": bcbp["destination_iata"],
+                                "origin_city": orig_city,
+                                "destination_city": dest_city,
+                                "flight_number": bcbp.get("flight_number"),
+                                "carrier": bcbp.get("carrier") or org,
+                                "seat": bcbp.get("seat"),
+                                "flight_date": bcbp.get("flight_date"),
+                            },
+                            field_confidence={
+                                "ticket_type": 0.99,
+                                "barcode_value": 0.99,
+                                "title": 0.95,
+                            },
+                        )
+
+                # Fallback to fields in pass.json
+                orig_iata = None
+                dest_iata = None
+                for fld in bp_info.get("primaryFields", []):
+                    if fld.get("key") in ("origin", "from", "departure"):
+                        orig_iata = fld.get("value")
+                    elif fld.get("key") in ("destination", "to", "arrival"):
+                        dest_iata = fld.get("value")
+
+                title = (
+                    f"{org} {orig_iata or ''} → {dest_iata or ''}".strip()
+                    if (orig_iata or dest_iata)
+                    else (f"{org} Boarding Pass" if org else desc)
+                )
                 return TravelDocumentDraft(
                     ticket_type="flight",
-                    title=f"{org} Boarding Pass" if org else desc,
+                    title=title,
                     provider=org,
                     reference_code=barcode_val[:12] if barcode_val else None,
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
+                    metadata={"origin_iata": orig_iata, "destination_iata": dest_iata}
+                    if (orig_iata or dest_iata)
+                    else {},
                     field_confidence={"title": 0.95, "provider": 0.9},
                 )
             elif "eventTicket" in pass_data:
@@ -191,6 +249,50 @@ def parse_pkpass(content: bytes) -> TravelDocumentDraft | None:
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
                     field_confidence={"title": 0.95},
+                )
+            elif (
+                "generic" in pass_data
+                or "storeCard" in pass_data
+                or "coupon" in pass_data
+            ):
+                style_dict = (
+                    pass_data.get("generic")
+                    or pass_data.get("storeCard")
+                    or pass_data.get("coupon")
+                    or {}
+                )
+                all_fields = (
+                    style_dict.get("primaryFields", [])
+                    + style_dict.get("secondaryFields", [])
+                    + style_dict.get("auxiliaryFields", [])
+                )
+                pin_code = None
+                room_num = None
+                for fld in all_fields:
+                    k = str(fld.get("key", "")).lower()
+                    v = str(fld.get("value", ""))
+                    if "pin" in k or "code" in k or "access" in k:
+                        pin_code = v
+                    if "room" in k or "suite" in k:
+                        room_num = v
+
+                is_hotel = any(
+                    w in desc.lower() or w in org.lower()
+                    for w in ("hotel", "resort", "inn", "room", "key", "suite")
+                )
+                ticket_type = "hotel" if is_hotel else "other"
+                return TravelDocumentDraft(
+                    ticket_type=ticket_type,
+                    title=desc or f"{org} Pass",
+                    provider=org,
+                    access_code=pin_code,
+                    seat_or_room=room_num,
+                    barcode_value=barcode_val,
+                    barcode_format=barcode_fmt,
+                    field_confidence={
+                        "title": 0.9,
+                        "access_code": 0.95 if pin_code else 0.5,
+                    },
                 )
     except Exception as e:
         logger.debug(f"PKPASS parse error: {e}")
@@ -541,8 +643,41 @@ def classify_text_document(
 
     # IATA code validation in scoring
     airport_svc = get_airport_service()
+    NON_AIRPORT_ACRONYMS = {
+        "PNR",
+        "ETA",
+        "ETD",
+        "STD",
+        "STA",
+        "UTC",
+        "GMT",
+        "EUR",
+        "USD",
+        "GBP",
+        "PIN",
+        "REF",
+        "AVE",
+        "BUS",
+        "CAR",
+        "TAX",
+        "DAY",
+        "DOE",
+        "THE",
+        "AND",
+        "FOR",
+        "AIR",
+        "VIP",
+        "NEW",
+        "NOT",
+        "YES",
+        "ALL",
+    }
     iatas = re.findall(r"\b([A-Z]{3})\b", text)
-    valid_iatas = [i for i in iatas if airport_svc.is_valid_iata(i)]
+    valid_iatas = [
+        i
+        for i in iatas
+        if i not in NON_AIRPORT_ACRONYMS and airport_svc.is_valid_iata(i)
+    ]
     if len(valid_iatas) >= 2:
         score_flight += 2
 
@@ -556,31 +691,85 @@ def classify_text_document(
     best_type, best_score = scores[0]
 
     # Regex search helpers
+    INVALID_REF_CODES = {
+        "REFERENCE",
+        "BOOKING",
+        "DETAILS",
+        "CONFIRMATION",
+        "RESERVATION",
+        "NUMBER",
+        "LOCALIZADOR",
+        "INFORMATION",
+        "PASSENGER",
+        "CUSTOMER",
+        "FLIGHT",
+        "HOTEL",
+        "ROOM",
+        "STATUS",
+        "STREET",
+        "AVENIDA",
+        "ERENCE",
+    }
+
     pnr_match = re.search(
-        r"\b(?:PNR|Booking\s*Ref|Reservation(?:\s*Ref)?|Localizador|Ref)[:\s#]*([A-Z0-9]{5,12})\b",
+        r"\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation(?:\s*Number|\s*Code|\s*Ref)?|Reference|Ref)(?:[\s/]+(?:PNR|Ref|Código|Code))*(?:[\s#:\(\)\-]+)+([A-Z0-9\-]{5,14})\b",
         text,
         re.IGNORECASE,
     )
-    ref_code = pnr_match.group(1) if pnr_match else None
+    ref_code = None
+    if pnr_match and pnr_match.group(1).upper() not in INVALID_REF_CODES:
+        candidate = pnr_match.group(1)
+        if not (flight_num and candidate.upper() == flight_num.upper()):
+            ref_code = candidate
     if not ref_code:
-        pnr_m = re.search(
-            r"(?i:\b(?:PNR|Booking\s*Ref|Reservation(?:\s*Ref)?|Localizador|Ref)[\s\S]{0,40}?\b)([A-Z0-9]{5,7})\b",
+        for pnr_m in re.finditer(
+            r"(?i:\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation)[\s\S]{0,40}?\b)([A-Z0-9\-]{5,10})\b",
             text,
-        )
-        if pnr_m:
-            ref_code = pnr_m.group(1)
+        ):
+            candidate = pnr_m.group(1).upper()
+            if (
+                candidate not in INVALID_REF_CODES
+                and not candidate.startswith("-")
+                and not (flight_num and candidate == flight_num.upper())
+            ):
+                ref_code = pnr_m.group(1)
+                break
 
     # Hotel access code / pin
+    INVALID_ACCESS_CODES = {
+        "THE",
+        "CODE",
+        "DOOR",
+        "PIN",
+        "KEYPAD",
+        "LOCKBOX",
+        "ACCESS",
+        "ROOM",
+        "USE",
+        "FOR",
+        "AND",
+    }
     code_match = re.search(
-        r"(?:door\s+code|access\s+code|código(?:\s+de\s+acceso)?|keypad\s+pin|pin|lockbox|keypad)[:\s#]+([A-Za-z0-9\-]{3,10})",
+        r"(?:door\s+code|access\s+code|código(?:\s+de\s+acceso)?|keypad\s+pin|smart\s+lock(?:\s+keypad)?\s+pin|lockbox(?:\s+code)?|keypad|pin)(?:[\s/]+(?:pin|code|keypad|lockbox))*[:\s#]+(?:is\s+)?([A-Za-z0-9\-#]{3,10})",
         text,
         re.IGNORECASE,
     )
-    if not code_match:
-        code_match = re.search(
-            r"\b(?:PIN|Code)[:\s#]+([A-Za-z0-9\-]{3,10})", text, re.IGNORECASE
-        )
-    access_code = code_match.group(1) if code_match else None
+    access_code = None
+    if (
+        code_match
+        and code_match.group(1).upper().rstrip("#") not in INVALID_ACCESS_CODES
+    ):
+        access_code = code_match.group(1).rstrip("#")
+    if not access_code:
+        for cm in re.finditer(
+            r"\b(?:PIN|Door\s*Code|Lockbox)[:\s#]+(?:is\s+)?([A-Za-z0-9\-#]{3,10})",
+            text,
+            re.IGNORECASE,
+        ):
+            cand = cm.group(1).upper().rstrip("#")
+            if cand not in INVALID_ACCESS_CODES:
+                access_code = cm.group(1).rstrip("#")
+                break
 
     # Dates extraction (supports single or multi-date itineraries)
     extracted_dates = extract_dates_from_text(text, trip_start_year)
@@ -943,7 +1132,7 @@ async def scan_travel_document(
     text_excerpt = ""
 
     if magic == "application/vnd.apple.pkpass":
-        draft = parse_pkpass(content)
+        draft = parse_pkpass(content, trip_start_year)
         if draft:
             drafts.append(draft)
             return drafts, "Apple Wallet pass decoded."
@@ -1079,8 +1268,26 @@ async def scan_travel_document(
             )
             return drafts, "Image saved as document."
 
-    # Text plain
+    # Text plain or email
     text_str = content.decode("utf-8", errors="replace")
+    if filename.lower().endswith(".eml") or (
+        "from:" in text_str[:200].lower() and "subject:" in text_str[:500].lower()
+    ):
+        try:
+            import email
+            from email import policy
+
+            eml_msg = email.message_from_bytes(content, policy=policy.default)
+            subject = eml_msg.get("subject", "")
+            body = eml_msg.get_body(preferencelist=("plain", "html"))
+            if body:
+                extracted_body = body.get_content()
+                if body.get_content_type() == "text/html":
+                    extracted_body = re.sub(r"<[^>]+>", " ", extracted_body)
+                text_str = f"{subject}\n\n{extracted_body}"
+        except Exception as e:
+            logger.debug(f"EML parsing fallback: {e}")
+
     draft = classify_text_document(text_str, trip_start_year)
     drafts.append(draft)
     return drafts, text_str[:400]
