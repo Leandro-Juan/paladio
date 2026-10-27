@@ -6,6 +6,7 @@ import { useTrips } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
 import { extractDestination } from '@/utils/tripParser';
 import { TripCreationBoxes } from '@/components/trip-creation/TripCreationBoxes';
+import { useTripDraftStore } from '@/stores/tripDraftStore';
 
 
 export default function EnginePage() {
@@ -30,8 +31,10 @@ export default function EnginePage() {
 
   const isSavingRef = useRef(false);
   const savedTripIdRef = useRef<string | null>(null);
+  const lastExtrasRef = useRef<Record<string, unknown>>({});
 
   const handlePrepSubmit = (prompt: string, extras: Record<string, unknown>) => {
+    lastExtrasRef.current = extras;
     const newThreadId = 'paladio_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
     sendMessage(prompt, { ...extras, thread_id: newThreadId });
   };
@@ -68,13 +71,19 @@ export default function EnginePage() {
       endDate.setDate(endDate.getDate() + Math.max(0, daysLength - 1));
     }
     
+    const itineraryPayload = {
+      ...itinerary,
+      ...(lastExtrasRef.current.scanned_documents ? { scanned_documents: lastExtrasRef.current.scanned_documents } : {}),
+    };
+
     const saved = await saveTrip({
       destination: destination,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
-      itinerary_data: itinerary
+      itinerary_data: itineraryPayload
     });
     if (saved?.id) {
+      useTripDraftStore.getState().resetDraft();
       savedTripIdRef.current = saved.id;
       router.push(`/trips/${saved.id}`);
     }

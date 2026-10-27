@@ -7,6 +7,7 @@ import {
 } from '@/components/illustrations';
 import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
+import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 
 export interface ExtractedTravelDocData {
   document_type?: 'flight' | 'hotel' | 'other';
@@ -28,6 +29,7 @@ export interface ExtractedTravelDocData {
   carrier?: string | null;
   holder_name?: string | null;
   seat?: string | null;
+  reference_code?: string | null;
   hotel_name?: string | null;
   hotel_address?: string | null;
   check_in_date?: string | null;
@@ -35,6 +37,7 @@ export interface ExtractedTravelDocData {
   check_in_hour?: string | null;
   check_out_hour?: string | null;
   excerpt?: string;
+  drafts?: TravelDocumentDraft[];
 }
 
 interface DocumentUploadModalProps {

@@ -77,6 +77,11 @@ export function PaladioDateRangePicker({
     setLastPropEnd(endDate);
     setTempStart(startDate || '');
     setTempEnd(endDate || '');
+    const parsedStart = parseDateStr(startDate);
+    if (parsedStart) {
+      setViewYear(parsedStart.getFullYear());
+      setViewMonth(parsedStart.getMonth());
+    }
   }
 
   // Month 1 (left) and Month 2 (right)
@@ -90,8 +95,12 @@ export function PaladioDateRangePicker({
   }, []);
 
   const isPrevMonthDisabled = useMemo(() => {
-    return leftMonthDate <= currentMonthDate;
-  }, [leftMonthDate, currentMonthDate]);
+    const minStart = parseDateStr(tempStart || startDate);
+    const earliestMonth = minStart && minStart < currentMonthDate
+      ? new Date(minStart.getFullYear(), minStart.getMonth(), 1)
+      : currentMonthDate;
+    return leftMonthDate <= earliestMonth;
+  }, [leftMonthDate, currentMonthDate, tempStart, startDate]);
 
   const handlePrevMonth = () => {
     if (isPrevMonthDisabled) return;
@@ -113,7 +122,8 @@ export function PaladioDateRangePicker({
   };
 
   const handleDayClick = (dateStr: string) => {
-    if (dateStr < todayStr) return; // Prevent selecting past dates
+    const minAllowed = tempStart && tempStart < todayStr ? tempStart : todayStr;
+    if (dateStr < minAllowed && !tempStart) return;
     if (selectingStep === 'start') {
       setTempStart(dateStr);
       setTempEnd('');
@@ -230,14 +240,17 @@ export function PaladioDateRangePicker({
             // Today check and past check
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
+            const isSelectedOrRange = isStart || isEnd || inRange;
+            const isSelectablePast = Boolean(tempStart && tempStart < todayStr && dateStr >= tempStart);
+            const isDisabled = isPast && !isSelectablePast && !isSelectedOrRange;
 
             return (
               <button
                 key={dateStr}
                 type="button"
-                disabled={isPast}
+                disabled={isDisabled}
                 onClick={() => handleDayClick(dateStr)}
-                onMouseEnter={() => !isPast && selectingStep === 'end' && setHoverDate(dateStr)}
+                onMouseEnter={() => !isDisabled && selectingStep === 'end' && setHoverDate(dateStr)}
                 style={{
                   height: '36px',
                   width: '100%',
@@ -248,10 +261,10 @@ export function PaladioDateRangePicker({
                     : 'transparent',
                   color: isStart || isEnd
                     ? '#FFFFFF'
-                    : isPast
+                    : isPast && !isSelectedOrRange
                     ? 'var(--color-text-muted, #9E9E9E)'
                     : 'var(--color-text-primary, #1A1A1A)',
-                  opacity: isPast ? 0.38 : 1,
+                  opacity: isSelectedOrRange ? 1 : isPast ? 0.38 : 1,
                   border: isToday && !isStart && !isEnd ? '1px solid var(--color-accent-coral, #D42A2F)' : 'none',
                   borderRadius: isStart
                     ? inRange || effectiveEnd ? '8px 0 0 8px' : '8px'

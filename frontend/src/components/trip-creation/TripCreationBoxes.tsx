@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTrips } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +25,8 @@ import {
 import { RouteIntakeBar } from './RouteIntakeBar';
 import { PaladioDateRangePicker } from './PaladioDateRangePicker';
 import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
+import { TravelDocumentDraft } from '@/hooks/useTripTickets';
+import { useTripDraftStore } from '@/stores/tripDraftStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
@@ -62,92 +64,108 @@ export function TripCreationBoxes({
   const { saveTrip } = useTrips();
   const { user: currentUser } = useAuth();
 
-  // Mode: 'personalized' (default) | 'blank'
-  const [selectedMode, setSelectedMode] = useState<'personalized' | 'blank'>('personalized');
+  const draft = useTripDraftStore();
+  const {
+    destination,
+    origin,
+    originIata,
+    destIata,
+    startDate,
+    endDate,
+    departureHour,
+    arrivalHour,
+    budgetUsd,
+    currency,
+    tripTitle,
+    tripDescription,
+    hotelArea,
+    hotelCheckInHour,
+    hotelCheckOutHour,
+    participants,
+    customPhotoUrl,
+    isPhotoRemoved,
+    personalizedPrompt,
+    anchorMode,
+    rawBookingText,
+    scannedDocuments,
+    selectedMode,
+    hasUserModified,
+    updateDraft,
+    resetDraft,
+    initializeWithUser,
+  } = draft;
+
+  const systemCurrency = (currentUser?.preferences?.default_currency as string) || 'EUR';
+
+  // Initialize organizer from logged-in user
+  useEffect(() => {
+    if (currentUser) {
+      initializeWithUser(currentUser);
+    }
+  }, [currentUser, initializeWithUser]);
+
+  // Synchronize initial query props if the user hasn't explicitly customized yet
+  useEffect(() => {
+    if (!hasUserModified) {
+      const updates: Partial<typeof draft> = {};
+      if (initialDestination && initialDestination !== destination) updates.destination = initialDestination;
+      if (initialOrigin && initialOrigin !== origin) updates.origin = initialOrigin;
+      if (initialStartDate && initialStartDate !== startDate) updates.startDate = initialStartDate;
+      if (initialEndDate && initialEndDate !== endDate) updates.endDate = initialEndDate;
+      if (initialBudget && initialBudget !== budgetUsd) updates.budgetUsd = initialBudget;
+      if (Object.keys(updates).length > 0) {
+        updateDraft(updates);
+      }
+    }
+  }, [initialDestination, initialOrigin, initialStartDate, initialEndDate, initialBudget, hasUserModified]);
+
   // Document upload modal state
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
-
-  // Currency & Spin Dial state (defaults to system currency)
-  const systemCurrency = (currentUser?.preferences?.default_currency as string) || 'EUR';
-  const [currency, setCurrency] = useState(systemCurrency);
   const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
-
-  const [prevUserCurrency, setPrevUserCurrency] = useState(currentUser?.preferences?.default_currency);
-  if (currentUser?.preferences?.default_currency && currentUser.preferences.default_currency !== prevUserCurrency) {
-    setPrevUserCurrency(currentUser.preferences.default_currency);
-    setCurrency(currentUser.preferences.default_currency as string);
-  }
-
-  // Shared form state
-  const [destination, setDestination] = useState(initialDestination);
-  const [origin, setOrigin] = useState(initialOrigin);
-  const [originIata, setOriginIata] = useState('MAD');
-  const [destIata, setDestIata] = useState('CDG');
-  const [tripTitle, setTripTitle] = useState('');
-  const [tripDescription, setTripDescription] = useState('');
-  const [departureHour, setDepartureHour] = useState('09:00');
-  const [arrivalHour, setArrivalHour] = useState('20:00');
-  const [hotelCheckInHour, setHotelCheckInHour] = useState('15:00');
-  const [hotelCheckOutHour, setHotelCheckOutHour] = useState('11:00');
-
-  // Participants management (defaults to current user as organizer)
-  const [participants, setParticipants] = useState<SelectedParticipant[]>(() => [
-    {
-      id: currentUser?.id || 'creator',
-      name: currentUser?.username || 'You',
-      email: currentUser?.email || undefined,
-      user_id: currentUser?.id,
-      is_guest: false,
-      is_organizer: true,
-    },
-  ]);
-
-  // Synchronize creator when currentUser loads (render phase state adjustment)
-  const [syncedUserId, setSyncedUserId] = useState(currentUser?.id);
-  if (currentUser?.id && currentUser.id !== syncedUserId) {
-    setSyncedUserId(currentUser.id);
-    const hasSelf = participants.some((p) => p.user_id === currentUser.id);
-    if (!hasSelf) {
-      const withoutFallback = participants.filter((p) => p.id !== 'creator');
-      setParticipants([
-        {
-          id: currentUser.id,
-          name: currentUser.username || 'You',
-          email: currentUser.email || undefined,
-          user_id: currentUser.id,
-          is_guest: false,
-          is_organizer: true,
-        },
-        ...withoutFallback,
-      ]);
-    }
-  }
-
-  const travelersCount = Math.max(1, participants.length);
-  const [customPhotoUrl, setCustomPhotoUrl] = useState('');
-  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [startDate, setStartDate] = useState(() => initialStartDate || '');
-  const [endDate, setEndDate] = useState(() => initialEndDate || '');
-  const [budgetUsd, setBudgetUsd] = useState(initialBudget);
-
-  // Blank trip specific fields
-  const [hotelArea, setHotelArea] = useState('');
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const [blankError, setBlankError] = useState<string | null>(null);
   const [blankSuccess, setBlankSuccess] = useState<string | null>(null);
 
-  // Personalized trip specific fields
-  const [personalizedPrompt, setPersonalizedPrompt] = useState(
-    'Visit the main cultural landmarks and museums. Love traditional bistros and relaxed cafes.'
-  );
+  // Setters delegating to persistent draft store
+  const setSelectedMode = (mode: 'personalized' | 'blank') => updateDraft({ selectedMode: mode });
+  const setDestination = (val: string) => updateDraft({ destination: val });
+  const setOrigin = (val: string) => updateDraft({ origin: val });
+  const setOriginIata = (val: string) => updateDraft({ originIata: val });
+  const setDestIata = (val: string) => updateDraft({ destIata: val });
+  const setStartDate = (val: string) => updateDraft({ startDate: val });
+  const setEndDate = (val: string) => updateDraft({ endDate: val });
+  const setDepartureHour = (val: string) => updateDraft({ departureHour: val });
+  const setArrivalHour = (val: string) => updateDraft({ arrivalHour: val });
+  const setBudgetUsd = (val: number) => updateDraft({ budgetUsd: val });
+  const setCurrency = (val: string) => updateDraft({ currency: val });
+  const setTripTitle = (val: string) => updateDraft({ tripTitle: val });
+  const setTripDescription = (val: string) => updateDraft({ tripDescription: val });
+  const setHotelArea = (val: string) => updateDraft({ hotelArea: val });
+  const setHotelCheckInHour = (val: string) => updateDraft({ hotelCheckInHour: val });
+  const setHotelCheckOutHour = (val: string) => updateDraft({ hotelCheckOutHour: val });
+  const setParticipants = (val: SelectedParticipant[]) => updateDraft({ participants: val });
+  const setCustomPhotoUrl = (val: string) => updateDraft({ customPhotoUrl: val });
+  const setIsPhotoRemoved = (val: boolean) => updateDraft({ isPhotoRemoved: val });
+  const setPersonalizedPrompt = (val: string) => updateDraft({ personalizedPrompt: val });
+  const setAnchorMode = (val: 'simulated' | 'direct') => updateDraft({ anchorMode: val });
+  const setRawBookingText = (val: string) => updateDraft({ rawBookingText: val });
+  const setScannedDocuments = (
+    updater: TravelDocumentDraft[] | ((prev: TravelDocumentDraft[]) => TravelDocumentDraft[])
+  ) => {
+    if (typeof updater === 'function') {
+      updateDraft({ scannedDocuments: updater(scannedDocuments) });
+    } else {
+      updateDraft({ scannedDocuments: updater });
+    }
+  };
+
+  const travelersCount = Math.max(1, participants.length);
   const [meals] = useState<MealRequirement[]>([
     { meal_type: 'BREAKFAST', start_time: '08:00', end_time: '10:00' },
     { meal_type: 'LUNCH', start_time: '12:00', end_time: '14:30' },
     { meal_type: 'DINNER', start_time: '19:30', end_time: '22:00' },
   ]);
-  const [anchorMode] = useState<'simulated' | 'direct'>('simulated');
-  const rawBookingText = '';
 
   // Calculate duration
   const tripDurationDays = useMemo(() => {
@@ -230,6 +248,66 @@ export function TripCreationBoxes({
     if (data.check_out_hour) {
       setHotelCheckOutHour(data.check_out_hour);
     }
+
+    // Save full document draft(s) into state for later wallet persistence
+    if (data.drafts && data.drafts.length > 0) {
+      setScannedDocuments((prev) => [...prev, ...data.drafts!]);
+    } else if (data.document_type === 'flight' || data.flight_number || data.carrier) {
+      const depTime = data.departure_date
+        ? `${data.departure_date}T${data.flight_departure_hour || data.departure_hour || '12:00'}:00`
+        : undefined;
+      const synthesized: TravelDocumentDraft = {
+        ticket_type: 'flight',
+        title: `${data.flight_number || 'Flight'} ${data.origin_iata || data.origin_city || 'Origin'} → ${data.destination_iata || data.destination_city || 'Destination'}`,
+        provider: data.carrier || undefined,
+        reference_code: data.reference_code || undefined,
+        holder_name: data.holder_name || undefined,
+        start_time: depTime,
+        seat_or_room: data.seat || undefined,
+        status: 'confirmed',
+        metadata: {
+          flight_number: data.flight_number,
+          carrier: data.carrier,
+          origin_iata: data.origin_iata,
+          destination_iata: data.destination_iata,
+          origin_city: data.origin_city,
+          destination_city: data.destination_city,
+          seat: data.seat,
+          departure_date: data.departure_date,
+          departure_hour: data.flight_departure_hour || data.departure_hour,
+        },
+        field_confidence: {},
+        warnings: [],
+      };
+      setScannedDocuments((prev) => [...prev, synthesized]);
+    } else if (data.hotel_name) {
+      const checkInTime = data.check_in_date
+        ? `${data.check_in_date}T${data.check_in_hour || '15:00'}:00`
+        : undefined;
+      const checkOutTime = data.check_out_date
+        ? `${data.check_out_date}T${data.check_out_hour || '11:00'}:00`
+        : undefined;
+      const synthesized: TravelDocumentDraft = {
+        ticket_type: 'hotel',
+        title: `${data.hotel_name} Stay`,
+        provider: data.hotel_name,
+        reference_code: data.reference_code || undefined,
+        holder_name: data.holder_name || undefined,
+        start_time: checkInTime,
+        end_time: checkOutTime,
+        location_or_venue: data.hotel_address || undefined,
+        status: 'confirmed',
+        metadata: {
+          hotel_name: data.hotel_name,
+          address: data.hotel_address,
+          check_in_date: data.check_in_date,
+          check_out_date: data.check_out_date,
+        },
+        field_confidence: {},
+        warnings: [],
+      };
+      setScannedDocuments((prev) => [...prev, synthesized]);
+    }
   };
 
   // Handle Blank Trip Submission
@@ -241,11 +319,6 @@ export function TripCreationBoxes({
     }
     if (!startDate || !endDate) {
       setBlankError('Please select departure and return dates on the calendar.');
-      return;
-    }
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (startDate < todayStr) {
-      setBlankError('Travel dates cannot be in the past.');
       return;
     }
     if (!participants || participants.length === 0) {
@@ -269,6 +342,7 @@ export function TripCreationBoxes({
         });
       }
 
+      const outboundFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight');
       const blankItineraryData = {
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
         destination: destination.trim(),
@@ -281,6 +355,17 @@ export function TripCreationBoxes({
           email: p.email,
           is_guest: p.is_guest,
         })),
+        outbound_flight: outboundFlightDoc ? {
+          airline: outboundFlightDoc.provider || undefined,
+          flight_number: (outboundFlightDoc.metadata?.flight_number as string) || undefined,
+          origin_iata: (outboundFlightDoc.metadata?.origin_iata as string) || originIata || undefined,
+          destination_iata: (outboundFlightDoc.metadata?.destination_iata as string) || destIata || undefined,
+          departure_time: outboundFlightDoc.start_time || `${startDate}T${departureHour || '10:00'}:00`,
+          seat: outboundFlightDoc.seat_or_room || undefined,
+          pnr: outboundFlightDoc.reference_code || undefined,
+          holder_name: outboundFlightDoc.holder_name || undefined,
+        } : undefined,
+        scanned_documents: scannedDocuments,
         travel_constraints: {
           destination_city: destination.trim(),
           destination_iata: destIata.trim().toUpperCase() || undefined,
@@ -323,6 +408,7 @@ export function TripCreationBoxes({
       });
 
       if (createdTrip?.id) {
+        resetDraft();
         setBlankSuccess('Trip created! Seeding POIs & GTFS in background...');
         setTimeout(() => {
           router.push(`/trips/${createdTrip.id}`);
@@ -345,11 +431,6 @@ export function TripCreationBoxes({
       setBlankError('Please select departure and return dates on the calendar.');
       return;
     }
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (startDate < todayStr) {
-      setBlankError('Travel dates cannot be in the past.');
-      return;
-    }
     if (!participants || participants.length === 0) {
       setBlankError('At least one traveler or participant must be added to the trip.');
       return;
@@ -361,6 +442,7 @@ export function TripCreationBoxes({
       title: tripTitle.trim() || `Trip to ${destination.trim()}`,
       description: tripDescription.trim() || undefined,
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
+      scanned_documents: scannedDocuments,
       origin_city: origin.trim() || 'Madrid',
       origin_iata: originIata.trim().toUpperCase() || 'MAD',
       destination_city: destination.trim() || 'Paris',

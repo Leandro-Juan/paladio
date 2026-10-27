@@ -269,3 +269,54 @@ async def test_bcbp_and_scan_pipeline(async_client: AsyncClient):
     confirmed = confirm_res.json()
     assert len(confirmed["attachments"]) == 1
     assert confirmed["attachments"][0]["filename"] == "pasted_text.txt"
+
+
+@pytest.mark.asyncio
+async def test_trip_creation_seeds_scanned_documents(async_client: AsyncClient):
+    scanned_doc = {
+        "ticket_type": "flight",
+        "title": "FR112 DUB → MAD",
+        "provider": "Ryanair",
+        "reference_code": "OSGTSE",
+        "holder_name": "Lynsey-Anne Duncan-Williams",
+        "seat_or_room": "28A",
+        "departure_date": "2015-09-18 13:05:00",
+        "metadata": {
+            "origin_iata": "DUB",
+            "destination_iata": "MAD",
+            "flight_number": "FR112",
+            "carrier": "Ryanair",
+            "seat": "28A",
+        },
+        "status": "confirmed",
+    }
+
+    create_res = await async_client.post(
+        "/api/v1/trips/",
+        json={
+            "destination": "Madrid",
+            "start_date": "2015-09-18T13:05:00",
+            "end_date": "2015-09-23T18:00:00",
+            "itinerary_data": {
+                "destination": "Madrid",
+                "days": [],
+                "scanned_documents": [scanned_doc],
+            },
+        },
+    )
+    assert create_res.status_code == 201
+    trip_id = create_res.json()["id"]
+
+    # Retrieve wallet tickets for this trip
+    tickets_res = await async_client.get(f"/api/v1/trips/{trip_id}/tickets")
+    assert tickets_res.status_code == 200
+    tickets = tickets_res.json()
+    assert len(tickets) >= 1
+
+    flight_ticket = next((t for t in tickets if t["reference_code"] == "OSGTSE"), None)
+    assert flight_ticket is not None
+    assert flight_ticket["ticket_type"] == "flight"
+    assert flight_ticket["provider"] == "Ryanair"
+    assert flight_ticket["holder_name"] == "Lynsey-Anne Duncan-Williams"
+    assert flight_ticket["seat_or_room"] == "28A"
+    assert flight_ticket["status"] == "confirmed"

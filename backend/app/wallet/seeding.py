@@ -137,13 +137,17 @@ def extract_itinerary_seeds(
                 "title": title,
                 "provider": airline_name,
                 "reference_code": f.get("pnr") or f.get("booking_ref"),
+                "holder_name": f.get("holder_name") or f.get("passenger_name"),
                 "start_time": start_dt,
                 "end_time": end_dt,
                 "start_tz": start_tz,
                 "end_tz": end_tz,
                 "seat_or_room": f.get("seat"),
                 "location_or_venue": f"Airport {dest}",
-                "status": "planned",
+                "status": f.get("status") or "planned",
+                "barcode_value": f.get("barcode_value"),
+                "barcode_format": f.get("barcode_format"),
+                "source": "itinerary",
                 "metadata": {
                     "airline_code": f.get("airline_code")
                     or (flight_num[:2] if len(flight_num) >= 2 else None),
@@ -214,10 +218,94 @@ def extract_itinerary_seeds(
                     "checkin_time": "15:00",
                     "checkout_time": "11:00",
                 },
+                "source": "itinerary",
             }
         )
 
-    # 3. Attraction Suggestions Extraction (non-persisted)
+    # 3. Scanned Travel Documents Extraction
+    scanned_docs = (
+        itin.get("scanned_documents")
+        or itin.get("wallet_documents")
+        or itin.get("documents")
+        or []
+    )
+    if isinstance(scanned_docs, list):
+        for idx, doc in enumerate(scanned_docs):
+            if not isinstance(doc, dict):
+                continue
+            doc_type = doc.get("ticket_type") or doc.get("document_type") or "other"
+            ref_code = doc.get("reference_code") or doc.get("booking_reference")
+            provider = doc.get("provider") or doc.get("carrier")
+            title = doc.get("title") or f"Scanned {doc_type.title()}"
+            holder_name = doc.get("holder_name")
+            seat = doc.get("seat_or_room") or doc.get("seat")
+            start_str = doc.get("start_time") or doc.get("departure_date")
+            end_str = doc.get("end_time") or doc.get("return_date")
+
+            city_context = (
+                doc.get("metadata", {}).get("origin_iata")
+                or doc.get("origin_city")
+                or trip.destination
+            )
+            dest_context = (
+                doc.get("metadata", {}).get("destination_iata")
+                or doc.get("destination_city")
+                or trip.destination
+            )
+            start_dt, start_tz = _safe_parse_aware_datetime(start_str, city_context)
+            end_dt, end_tz = _safe_parse_aware_datetime(end_str, dest_context)
+
+            source_ref = f"scanned:{doc_type}:{ref_code or idx}"
+
+            meta = dict(doc.get("metadata") or {})
+            for k in (
+                "origin_iata",
+                "destination_iata",
+                "origin_city",
+                "destination_city",
+                "flight_number",
+                "carrier",
+                "seat",
+                "flight_date",
+                "departure_date",
+                "departure_hour",
+                "arrival_hour",
+                "address",
+            ):
+                if k in doc and k not in meta and doc[k] is not None:
+                    meta[k] = doc[k]
+
+            seeds.append(
+                {
+                    "source_ref": source_ref,
+                    "ticket_type": doc_type,
+                    "title": title,
+                    "provider": provider,
+                    "reference_code": ref_code,
+                    "holder_name": holder_name,
+                    "start_time": start_dt,
+                    "end_time": end_dt,
+                    "start_tz": start_tz,
+                    "end_tz": end_tz,
+                    "seat_or_room": seat,
+                    "location_or_venue": (
+                        doc.get("location_or_venue")
+                        or doc.get("hotel_address")
+                        or (
+                            f"Airport {meta.get('destination_iata')}"
+                            if meta.get("destination_iata")
+                            else trip.destination
+                        )
+                    ),
+                    "status": doc.get("status") or "confirmed",
+                    "barcode_value": doc.get("barcode_value"),
+                    "barcode_format": doc.get("barcode_format"),
+                    "metadata": meta,
+                    "source": "scan",
+                }
+            )
+
+    # 4. Attraction Suggestions Extraction (non-persisted)
     seen_pois = set()
     for d_idx, day in enumerate(days):
         day_num = day.get("day", d_idx + 1)
@@ -298,11 +386,16 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
             # Update from fresh itinerary
             existing.title = s["title"]
             existing.provider = s["provider"]
+            existing.reference_code = s.get("reference_code") or existing.reference_code
+            existing.holder_name = s.get("holder_name") or existing.holder_name
             existing.start_time = s["start_time"]
             existing.end_time = s["end_time"]
             existing.start_tz = s["start_tz"]
             existing.end_tz = s["end_tz"]
+            existing.seat_or_room = s.get("seat_or_room") or existing.seat_or_room
             existing.location_or_venue = s["location_or_venue"]
+            existing.barcode_value = s.get("barcode_value") or existing.barcode_value
+            existing.barcode_format = s.get("barcode_format") or existing.barcode_format
             existing.ticket_metadata = s["metadata"]
             updated_count += 1
         else:
@@ -314,6 +407,7 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
                 title=s["title"],
                 provider=s["provider"],
                 reference_code=s["reference_code"],
+                holder_name=s.get("holder_name"),
                 start_time=s["start_time"],
                 end_time=s["end_time"],
                 start_tz=s["start_tz"],
@@ -322,9 +416,11 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
                 location_or_venue=s["location_or_venue"],
                 price=None,
                 currency="EUR",
-                status="planned",
+                status=s.get("status", "planned"),
+                barcode_value=s.get("barcode_value"),
+                barcode_format=s.get("barcode_format"),
                 ticket_metadata=s["metadata"],
-                source="itinerary",
+                source=s.get("source", "itinerary"),
                 source_ref=ref,
                 user_modified=False,
                 visibility="trip",
