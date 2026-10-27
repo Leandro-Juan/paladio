@@ -564,6 +564,8 @@ class AirportService:
                             "distance_km": 0.0,
                             "display_name": f"{city_name}, {c_name}",
                             "display_airport": f"{ap_direct.name} ({ap_direct.iata})",
+                            "latitude": getattr(ap_direct, "latitude", None),
+                            "longitude": getattr(ap_direct, "longitude", None),
                         }
                     )
 
@@ -584,6 +586,8 @@ class AirportService:
                 "distance_km": 0.0,
                 "display_name": f"{city_name}, {c_name}",
                 "display_airport": f"{ap_by_name.name} ({ap_by_name.iata})",
+                "latitude": getattr(ap_by_name, "latitude", None),
+                "longitude": getattr(ap_by_name, "longitude", None),
             }
             if norm_ap.startswith(norm_query) or norm_query in (
                 "heathrow",
@@ -620,6 +624,7 @@ class AirportService:
                     -(a.elevation or 0.0),
                 ),
             )
+            city_gc_matches = gc_index.get(norm_query) or []
             for ap in sorted_city_aps:
                 if len(results) >= limit:
                     break
@@ -629,6 +634,20 @@ class AirportService:
                 c_name = country_names.get(ap.country, ap.country)
                 seen_keys.add(f"{city_name.lower()}::{ap.iata}")
                 seen_iatas.add(ap.iata)
+                matched_city = next(
+                    (c for c in city_gc_matches if c.get("countrycode") == ap.country),
+                    city_gc_matches[0] if city_gc_matches else None,
+                )
+                lat = (
+                    float(matched_city["latitude"])
+                    if matched_city and matched_city.get("latitude") is not None
+                    else getattr(ap, "latitude", None)
+                )
+                lon = (
+                    float(matched_city["longitude"])
+                    if matched_city and matched_city.get("longitude") is not None
+                    else getattr(ap, "longitude", None)
+                )
                 results.append(
                     {
                         "city": city_name,
@@ -640,6 +659,8 @@ class AirportService:
                         "distance_km": 0.0,
                         "display_name": f"{city_name}, {c_name}",
                         "display_airport": f"{ap.name} ({ap.iata})",
+                        "latitude": lat,
+                        "longitude": lon,
                     }
                 )
 
@@ -717,6 +738,12 @@ class AirportService:
                     ),
                     "display_name": f"{city_name}, {c_name}",
                     "display_airport": f"{ap.name} ({ap.iata})",
+                    "latitude": float(c.get("latitude"))
+                    if c.get("latitude") is not None
+                    else getattr(ap, "latitude", None),
+                    "longitude": float(c.get("longitude"))
+                    if c.get("longitude") is not None
+                    else getattr(ap, "longitude", None),
                 }
             )
 

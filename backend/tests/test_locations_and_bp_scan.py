@@ -216,3 +216,29 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
     assert data["holder_name"] == "Lynsey-Anne Duncan-Williams"
     assert data["departure_date"] == "2015-09-18"
     assert data["flight_departure_hour"] == "13:05"
+
+
+@pytest.mark.asyncio
+async def test_hotel_search_and_reverse_geocode(async_client: AsyncClient):
+    # Test hotel search by name and city
+    res_hotel = await async_client.get(
+        "/api/locations/hotels?city=Paris&q=Hilton&limit=3"
+    )
+    assert res_hotel.status_code == 200
+    data_hotel = res_hotel.json()
+    assert isinstance(data_hotel, list)
+    if len(data_hotel) > 0:
+        item = data_hotel[0]
+        assert "name" in item
+        assert "lat" in item
+        assert "lng" in item
+
+    # Test reverse geocode
+    res_reverse = await async_client.get(
+        "/api/locations/reverse?lat=48.8566&lon=2.3522"
+    )
+    assert res_reverse.status_code == 200
+    data_reverse = res_reverse.json()
+    assert "lat" in data_reverse
+    assert "lng" in data_reverse
+    assert "name" in data_reverse

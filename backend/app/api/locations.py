@@ -5,9 +5,20 @@ Uses AirportService backed by geonamescache and airportsdata KDTree.
 Zero hardcoded mappings.
 """
 
+import re
 from typing import Any
-from fastapi import APIRouter, Query
+import httpx
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import AttractionModel
+from app.db.session import get_db
+from app.infrastructure.providers.osm_http_client import (
+    NOMINATIM_URL,
+    USER_AGENT,
+    acquire_nominatim_slot,
+)
 from app.services.airport_service import search_locations
 
 router = APIRouter()
@@ -27,3 +38,249 @@ async def search_city_airports(
     Returns city name, country name, nearest airport name, IATA code, and geodesic distance.
     """
     return search_locations(q, limit=limit)
+
+
+@router.get(
+    "/hotels", summary="Search hotels and accommodations by name and destination"
+)
+async def search_hotels(
+    city: str = Query("", description="Destination city name (e.g. Paris, Madrid)"),
+    q: str = Query("", description="Hotel name or search query"),
+    limit: int = Query(8, ge=1, le=20, description="Max results"),
+    session: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """
+    Dynamically resolves hotel / accommodation search queries against local DB POIs
+    and OpenStreetMap Nominatim with rate-limit compliance.
+    Zero hardcoded mock data.
+    """
+    results: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+
+    clean_city = city.strip()
+    clean_q = q.strip()
+
+    # 1. Search local DB for POIs matching hotel category or name
+    if clean_city:
+        stmt = select(AttractionModel).where(
+            AttractionModel.city.ilike(f"%{clean_city}%"),
+            or_(
+                AttractionModel.category.ilike("%hotel%"),
+                AttractionModel.category.ilike("%lodging%"),
+                AttractionModel.category.ilike("%accommodation%"),
+                AttractionModel.name.ilike(f"%{clean_q}%") if clean_q else False,
+            ),
+        )
+        if clean_q:
+            stmt = stmt.where(AttractionModel.name.ilike(f"%{clean_q}%"))
+        stmt = stmt.limit(limit)
+
+        try:
+            db_res = (await session.execute(stmt)).scalars().all()
+            for poi in db_res:
+                norm = poi.name.lower().strip()
+                if norm not in seen_names:
+                    seen_names.add(norm)
+                    results.append(
+                        {
+                            "name": poi.name,
+                            "display_name": f"{poi.name}, {poi.city}",
+                            "address": poi.address or f"{poi.name}, {poi.city}",
+                            "city": poi.city,
+                            "lat": float(poi.latitude),
+                            "lng": float(poi.longitude),
+                            "category": "hotel",
+                        }
+                    )
+        except Exception:
+            pass
+
+    # 2. Query Nominatim if more results needed
+    if len(results) < limit:
+        candidates: list[str] = []
+        if clean_q:
+            # Base candidate
+            if clean_city and clean_city.lower() in clean_q.lower():
+                candidates.append(clean_q)
+            elif clean_city:
+                candidates.append(f"{clean_q}, {clean_city}")
+            else:
+                candidates.append(clean_q)
+
+            # Stripped generic words ('hotel', 'hostel', 'resort')
+            stripped = re.sub(r"(?i)\b(hotel|hostel|resort)\b", "", clean_q).strip()
+            stripped = re.sub(r"\s+", " ", stripped)
+            if stripped and stripped.lower() != clean_q.lower():
+                if clean_city and clean_city.lower() in stripped.lower():
+                    candidates.append(stripped)
+                elif clean_city:
+                    candidates.append(f"{stripped}, {clean_city}")
+                else:
+                    candidates.append(stripped)
+
+            # Strip city from query then add cleanly at end
+            if clean_city and clean_city.lower() in clean_q.lower():
+                without_city = re.sub(
+                    r"(?i)\b" + re.escape(clean_city) + r"\b", "", clean_q
+                ).strip()
+                without_city = re.sub(r"\s+", " ", without_city)
+                if without_city:
+                    candidates.append(f"{without_city}, {clean_city}")
+        elif clean_city:
+            candidates.append(f"hotels in {clean_city}")
+
+        # Deduplicate candidates while keeping order
+        deduped_candidates: list[str] = []
+        seen_cands: set[str] = set()
+        for cand in candidates:
+            if cand.lower() not in seen_cands:
+                seen_cands.add(cand.lower())
+                deduped_candidates.append(cand)
+
+        for search_query in deduped_candidates:
+            if len(results) >= limit:
+                break
+            try:
+                await acquire_nominatim_slot()
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(
+                        NOMINATIM_URL,
+                        params={
+                            "q": search_query,
+                            "format": "jsonv2",
+                            "limit": limit * 2,
+                            "addressdetails": 1,
+                            "accept-language": "en",
+                        },
+                        headers={"User-Agent": USER_AGENT},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for item in data:
+                            if len(results) >= limit:
+                                break
+                            name = (
+                                item.get("name")
+                                or item.get("display_name", "").split(",")[0]
+                            )
+                            if not name:
+                                continue
+                            norm = name.lower().strip()
+                            if norm in seen_names:
+                                continue
+                            seen_names.add(norm)
+
+                            addr = item.get("address", {})
+                            road = addr.get("road", "")
+                            suburb = (
+                                addr.get("suburb")
+                                or addr.get("neighbourhood")
+                                or addr.get("city_district", "")
+                            )
+                            item_city = (
+                                addr.get("city")
+                                or addr.get("town")
+                                or addr.get("village")
+                                or clean_city
+                            )
+                            country = addr.get("country", "")
+
+                            address_parts = [p for p in [road, suburb, item_city] if p]
+                            formatted_address = (
+                                ", ".join(address_parts)
+                                if address_parts
+                                else item.get("display_name", name)
+                            )
+
+                            results.append(
+                                {
+                                    "name": name,
+                                    "display_name": item.get("display_name", name),
+                                    "address": formatted_address,
+                                    "city": item_city,
+                                    "country": country,
+                                    "lat": float(item["lat"]),
+                                    "lng": float(item["lon"]),
+                                    "category": "hotel",
+                                }
+                            )
+            except Exception:
+                pass
+
+    return results[:limit]
+
+
+@router.get(
+    "/reverse", summary="Reverse geocode coordinates to place/hotel name and address"
+)
+async def reverse_geocode(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+) -> dict[str, Any]:
+    """
+    Reverse-geocodes coordinate pair into location name and formatted address.
+    Used by interactive map pin placement.
+    """
+    try:
+        await acquire_nominatim_slot()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={
+                    "lat": lat,
+                    "lon": lon,
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                    "accept-language": "en",
+                },
+                headers={"User-Agent": USER_AGENT},
+            )
+            if resp.status_code == 200:
+                item = resp.json()
+                name = item.get("name")
+                addr = item.get("address", {})
+                road = addr.get("road", "")
+                house_num = addr.get("house_number", "")
+                suburb = (
+                    addr.get("suburb")
+                    or addr.get("neighbourhood")
+                    or addr.get("city_district", "")
+                )
+                city = addr.get("city") or addr.get("town") or addr.get("village", "")
+                country = addr.get("country", "")
+
+                primary_name = (
+                    name
+                    or (f"{road} {house_num}".strip() if road else "")
+                    or item.get("display_name", "").split(",")[0]
+                )
+                address_parts = [
+                    p for p in [f"{road} {house_num}".strip(), suburb, city] if p
+                ]
+                formatted_address = (
+                    ", ".join(address_parts)
+                    if address_parts
+                    else item.get("display_name", primary_name)
+                )
+
+                return {
+                    "name": primary_name,
+                    "display_name": item.get("display_name", primary_name),
+                    "address": formatted_address,
+                    "city": city,
+                    "country": country,
+                    "lat": lat,
+                    "lng": lon,
+                }
+    except Exception:
+        pass
+
+    return {
+        "name": f"Pin ({lat:.4f}, {lon:.4f})",
+        "display_name": f"Location at {lat:.4f}, {lon:.4f}",
+        "address": f"{lat:.4f}, {lon:.4f}",
+        "city": "",
+        "country": "",
+        "lat": lat,
+        "lng": lon,
+    }

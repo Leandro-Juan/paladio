@@ -15,6 +15,8 @@ export interface LocationItem {
   distance_km?: number | null;
   display_name: string;
   display_airport: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface RouteIntakeBarProps {
@@ -73,8 +75,8 @@ export function RouteIntakeBar({
   const [destinationQuery, setDestinationQuery] = useState(destination);
 
   // Resolved IATAs (internal fallback if not controlled)
-  const [internalOriginIata, setInternalOriginIata] = useState('MAD');
-  const [internalDestIata, setInternalDestIata] = useState('CDG');
+  const [internalOriginIata, setInternalOriginIata] = useState('');
+  const [internalDestIata, setInternalDestIata] = useState('');
 
   const originIata = controlledOriginIata ?? internalOriginIata;
   const destIata = controlledDestIata ?? internalDestIata;
@@ -552,21 +554,15 @@ export function RouteIntakeBar({
             zIndex: 60,
           }}
         >
-          {isLoadingOrigin && (
-            <div
-              className="font-mono text-xs"
-              style={{
-                padding: '4px 10px',
-                color: 'var(--color-text-muted, #71717A)',
-                textAlign: 'right',
-                fontSize: '11px',
-              }}
-            >
-              SEARCHING...
-            </div>
-          )}
-
-          <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+          <div
+            className="no-scrollbar"
+            style={{
+              maxHeight: '240px',
+              overflowY: 'auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
             {originResults.length === 0 && !isLoadingOrigin && (
               <div
                 style={{
@@ -673,21 +669,15 @@ export function RouteIntakeBar({
             zIndex: 60,
           }}
         >
-          {isLoadingDest && (
-            <div
-              className="font-mono text-xs"
-              style={{
-                padding: '4px 10px',
-                color: 'var(--color-accent-coral, #D42A2F)',
-                textAlign: 'right',
-                fontSize: '11px',
-              }}
-            >
-              SEARCHING...
-            </div>
-          )}
-
-          <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+          <div
+            className="no-scrollbar"
+            style={{
+              maxHeight: '240px',
+              overflowY: 'auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
             {destinationResults.length === 0 && !isLoadingDest && (
               <div
                 style={{

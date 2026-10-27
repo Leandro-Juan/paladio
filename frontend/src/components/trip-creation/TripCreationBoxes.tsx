@@ -23,6 +23,7 @@ import {
   PlusIcon,
 } from '@/components/icons';
 import { RouteIntakeBar } from './RouteIntakeBar';
+import { HotelStayAnchorBar } from './HotelStayAnchorBar';
 import { PaladioDateRangePicker } from './PaladioDateRangePicker';
 import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
@@ -53,8 +54,8 @@ const formatDateOffset = (offsetDays: number): string => {
 export function TripCreationBoxes({
   onPersonalizedSubmit,
   disabled = false,
-  initialDestination = 'Paris',
-  initialOrigin = 'Madrid',
+  initialDestination = '',
+  initialOrigin = '',
   initialStartDate,
   initialEndDate,
   initialBudget = 1500,
@@ -79,6 +80,9 @@ export function TripCreationBoxes({
     tripTitle,
     tripDescription,
     hotelArea,
+    hotelAddress,
+    hotelLat,
+    hotelLng,
     hotelCheckInHour,
     hotelCheckOutHour,
     participants,
@@ -142,6 +146,17 @@ export function TripCreationBoxes({
   const setTripTitle = (val: string) => updateDraft({ tripTitle: val });
   const setTripDescription = (val: string) => updateDraft({ tripDescription: val });
   const setHotelArea = (val: string) => updateDraft({ hotelArea: val });
+  const setHotelInfo = (
+    name: string,
+    extra?: { address?: string; lat?: number; lng?: number }
+  ) => {
+    updateDraft({
+      hotelArea: name,
+      hotelAddress: extra?.address !== undefined ? extra.address : draft.hotelAddress,
+      hotelLat: extra?.lat !== undefined ? extra.lat : draft.hotelLat,
+      hotelLng: extra?.lng !== undefined ? extra.lng : draft.hotelLng,
+    });
+  };
   const setHotelCheckInHour = (val: string) => updateDraft({ hotelCheckInHour: val });
   const setHotelCheckOutHour = (val: string) => updateDraft({ hotelCheckOutHour: val });
   const setParticipants = (val: SelectedParticipant[]) => updateDraft({ participants: val });
@@ -389,6 +404,9 @@ export function TripCreationBoxes({
           accommodation: hotelArea.trim() || undefined,
           hotel: hotelArea.trim() ? {
             name: hotelArea.trim(),
+            address: hotelAddress || undefined,
+            lat: hotelLat,
+            lng: hotelLng,
             check_in_time: hotelCheckInHour || '15:00',
             check_out_time: hotelCheckOutHour || '11:00',
           } : undefined,
@@ -443,10 +461,10 @@ export function TripCreationBoxes({
       description: tripDescription.trim() || undefined,
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
       scanned_documents: scannedDocuments,
-      origin_city: origin.trim() || 'Madrid',
-      origin_iata: originIata.trim().toUpperCase() || 'MAD',
-      destination_city: destination.trim() || 'Paris',
-      destination_iata: destIata.trim().toUpperCase() || 'CDG',
+      origin_city: origin.trim() || undefined,
+      origin_iata: originIata.trim().toUpperCase() || undefined,
+      destination_city: destination.trim(),
+      destination_iata: destIata.trim().toUpperCase() || undefined,
       start_date: startDate,
       end_date: endDate,
       departure_hour: departureHour,
@@ -466,16 +484,19 @@ export function TripCreationBoxes({
       accommodation: hotelArea.trim() || undefined,
       hotel: hotelArea.trim() ? {
         name: hotelArea.trim(),
+        address: hotelAddress || undefined,
+        lat: hotelLat,
+        lng: hotelLng,
         check_in_time: hotelCheckInHour || '15:00',
         check_out_time: hotelCheckOutHour || '11:00',
       } : undefined,
       manual_constraints: {
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
         description: tripDescription.trim() || undefined,
-        origin_city: origin.trim() || 'Madrid',
-        origin_iata: originIata.trim().toUpperCase() || 'MAD',
-        destination_city: destination.trim() || 'Paris',
-        destination_iata: destIata.trim().toUpperCase() || 'CDG',
+        origin_city: origin.trim() || undefined,
+        origin_iata: originIata.trim().toUpperCase() || undefined,
+        destination_city: destination.trim(),
+        destination_iata: destIata.trim().toUpperCase() || undefined,
         budget: Number(budgetUsd) || 1500,
         budget_usd: Number(budgetUsd) || 1500,
         currency: currency,
@@ -492,6 +513,9 @@ export function TripCreationBoxes({
         accommodation: hotelArea.trim() || undefined,
         hotel: hotelArea.trim() ? {
           name: hotelArea.trim(),
+          address: hotelAddress || undefined,
+          lat: hotelLat,
+          lng: hotelLng,
           check_in_time: hotelCheckInHour || '15:00',
           check_out_time: hotelCheckOutHour || '11:00',
         } : undefined,
@@ -928,7 +952,18 @@ export function TripCreationBoxes({
               />
             </div>
 
-            {/* Parameters: Budget Pill + Travelers + (Hotel Anchor) */}
+            {/* Hotel / Stay Anchor Section (Available for both Personalized and Blank Trips) */}
+            <HotelStayAnchorBar
+              hotelArea={hotelArea}
+              hotelAddress={hotelAddress}
+              hotelLat={hotelLat}
+              hotelLng={hotelLng}
+              destination={destination}
+              onChange={setHotelInfo}
+              disabled={disabled}
+            />
+
+            {/* Parameters: Budget Pill + Travelers */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               {/* Budget Pill with Currency Wheel Picker Button */}
               <div>
@@ -1018,53 +1053,6 @@ export function TripCreationBoxes({
                 />
               </div>
             </div>
-
-            {/* Blank mode: Hotel Anchor Input */}
-            {selectedMode === 'blank' && (
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--color-text-muted)',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Hotel / Stay Anchor
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: 'var(--color-bg-main, #FAF8F5)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '9999px',
-                    padding: '8px 14px',
-                  }}
-                >
-                  <HotelIcon size={14} color="var(--color-text-muted)" />
-                  <input
-                    type="text"
-                    value={hotelArea}
-                    onChange={(e) => setHotelArea(e.target.value)}
-                    placeholder="Hotel or neighborhood anchor..."
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      outline: 'none',
-                      width: '100%',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: '13px',
-                      color: 'var(--color-text-primary)',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Column B (Right): 2-Month Calendar Side-by-Side + Execution Action */}

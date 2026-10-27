@@ -16,6 +16,9 @@ export interface TripDraftData {
   tripTitle: string;
   tripDescription: string;
   hotelArea: string;
+  hotelAddress?: string;
+  hotelLat?: number;
+  hotelLng?: number;
   hotelCheckInHour: string;
   hotelCheckOutHour: string;
   participants: SelectedParticipant[];
@@ -40,10 +43,10 @@ export interface TripDraftStore extends TripDraftData {
 const STORAGE_KEY = 'paladio-trip-creation-draft';
 
 const DEFAULT_DRAFT: TripDraftData = {
-  destination: 'Paris',
-  origin: 'Madrid',
-  originIata: 'MAD',
-  destIata: 'CDG',
+  destination: '',
+  origin: '',
+  originIata: '',
+  destIata: '',
   startDate: '',
   endDate: '',
   departureHour: '09:00',
@@ -53,6 +56,9 @@ const DEFAULT_DRAFT: TripDraftData = {
   tripTitle: '',
   tripDescription: '',
   hotelArea: '',
+  hotelAddress: '',
+  hotelLat: undefined,
+  hotelLng: undefined,
   hotelCheckInHour: '15:00',
   hotelCheckOutHour: '11:00',
   participants: [
