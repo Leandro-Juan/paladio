@@ -25,7 +25,7 @@ from app.schemas.ticket import (
     TripTicketUpdate,
 )
 from app.services.wallet_storage import save_temp_upload
-from app.wallet.scan import scan_ticket_document
+from app.services.travel_document_scanner import scan_travel_document
 from app.wallet.seeding import extract_itinerary_seeds, sync_trip_tickets
 from app.wallet.service import (
     check_trip_access,
@@ -215,7 +215,7 @@ async def scan_ticket(
             pass
 
     try:
-        drafts, excerpt = await scan_ticket_document(content, filename, trip_year)
+        drafts, excerpt = await scan_travel_document(content, filename, trip_year)
     except ValueError as e:
         err_msg = str(e)
         if "maximum size limit" in err_msg:

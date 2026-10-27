@@ -31,7 +31,7 @@ from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.wallet.scan import scan_ticket_document
+from app.services.travel_document_scanner import scan_travel_document
 from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
@@ -280,6 +280,7 @@ class BoardingPassScanResponse(BaseModel):
     carrier: str | None = None
     holder_name: str | None = None
     seat: str | None = None
+    reference_code: str | None = None
     hotel_name: str | None = None
     hotel_address: str | None = None
     check_in_date: str | None = None
@@ -316,7 +317,7 @@ async def scan_new_trip_boarding_pass(
 
     trip_year = datetime.now(timezone.utc).year
     try:
-        drafts, excerpt = await scan_ticket_document(content, filename, trip_year)
+        drafts, excerpt = await scan_travel_document(content, filename, trip_year)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -345,6 +346,7 @@ async def scan_new_trip_boarding_pass(
     carrier = None
     holder_name = None
     seat = None
+    reference_code = None
     hotel_name = None
     hotel_address = None
     check_in_date = None
@@ -385,6 +387,7 @@ async def scan_new_trip_boarding_pass(
         carrier = meta.get("carrier") or first.provider
         holder_name = first.holder_name
         seat = first.seat_or_room
+        reference_code = first.reference_code
 
         dep_dt = (
             meta.get("flight_date") or meta.get("departure_date") or first.start_time
@@ -431,6 +434,7 @@ async def scan_new_trip_boarding_pass(
 
         hotel_name = h_meta.get("hotel_name") or first_h.title
         hotel_address = h_meta.get("address") or first_h.location_or_venue
+        reference_code = first_h.reference_code
         destination_city = h_meta.get("destination_city")
         destination_iata = h_meta.get("destination_iata")
 
@@ -475,6 +479,7 @@ async def scan_new_trip_boarding_pass(
         carrier=carrier,
         holder_name=holder_name,
         seat=seat,
+        reference_code=reference_code,
         hotel_name=hotel_name,
         hotel_address=hotel_address,
         check_in_date=check_in_date,

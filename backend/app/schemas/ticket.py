@@ -3,6 +3,8 @@ from decimal import Decimal
 from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.travel_document import TravelDocumentDraft
+
 
 TicketType = Literal["flight", "hotel", "attraction", "transit", "other"]
 TicketStatus = Literal["planned", "confirmed", "used", "cancelled"]
@@ -229,31 +231,7 @@ class TripTicketsListResponse(BaseModel):
     has_drift: bool = False
 
 
-class ScanDraft(BaseModel):
-    ticket_type: TicketType
-    title: str
-    provider: str | None = None
-    reference_code: str | None = None
-    holder_name: str | None = None
-    start_time: str | None = None
-    end_time: str | None = None
-    start_tz: str | None = None
-    end_tz: str | None = None
-    seat_or_room: str | None = None
-    location_or_venue: str | None = None
-    price: float | None = None
-    currency: str | None = "EUR"
-    status: TicketStatus = "confirmed"
-    access_code: str | None = None
-    barcode_value: str | None = None
-    barcode_format: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
-    notes: str | None = None
-    field_confidence: dict[str, float] = Field(default_factory=dict)
-    warnings: list[str] = Field(default_factory=list)
-
-
 class ScanResponse(BaseModel):
-    drafts: list[ScanDraft]
+    drafts: list[TravelDocumentDraft]
     upload_id: str | None = None
     raw_text_excerpt: str | None = None

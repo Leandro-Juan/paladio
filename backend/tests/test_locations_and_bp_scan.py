@@ -143,13 +143,22 @@ async def test_scan_hotel_booking_document(async_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
     import io
+    import os
     from PIL import Image, ImageDraw, ImageFont
 
-    try:
-        font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 24
-        )
-    except Exception:
+    font = None
+    for font_path in [
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]:
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, 24)
+                break
+            except Exception:
+                pass
+    if font is None:
         font = ImageFont.load_default()
 
     img = Image.new("RGB", (500, 160), color="white")
@@ -174,3 +183,36 @@ async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
     assert data["departure_hour"] == "09:45"
     assert data["flight_departure_hour"] == "08:30"
     assert data["flight_arrival_hour"] == "09:45"
+
+
+@pytest.mark.asyncio
+async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
+    raw_ocr = (
+        "Lynsey-Anne Duncan-Williams\n\n"
+        "Queue\nPriority\nBoarding\nFront Door\n\n"
+        "Seat\nSeq Booking ref\n"
+        "28A Window 123 OSGTSE\n\n"
+        "RYANAIR FR112\n\n"
+        "DUB —— MAD\n\n"
+        "Dublin Madrid\n\n"
+        "Date Boarding Departs\n"
+        "18 Sep 2015 12.35 13:05"
+    )
+
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass", data={"raw_text": raw_ocr}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["document_type"] == "flight"
+    assert data["origin_iata"] == "DUB"
+    assert data["origin_city"] == "Dublin"
+    assert data["destination_iata"] == "MAD"
+    assert data["destination_city"] == "Madrid"
+    assert data["flight_number"] == "FR112"
+    assert data["carrier"] == "Ryanair"
+    assert data["seat"] == "28A"
+    assert data["reference_code"] == "OSGTSE"
+    assert data["holder_name"] == "Lynsey-Anne Duncan-Williams"
+    assert data["departure_date"] == "2015-09-18"
+    assert data["flight_departure_hour"] == "13:05"

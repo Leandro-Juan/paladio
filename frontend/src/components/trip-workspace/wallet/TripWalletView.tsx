@@ -8,7 +8,7 @@ import {
   useTripTickets,
   TripTicketCreateInput,
   TripTicketUpdateInput,
-  ScanDraft,
+  TravelDocumentDraft,
 } from '@/hooks/useTripTickets';
 import { FlightBoardingPassCard } from './cards/FlightBoardingPassCard';
 import { HotelAccessCard } from './cards/HotelAccessCard';
@@ -47,7 +47,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
 
   // Scanning state
   const [isScanning, setIsScanning] = useState(false);
-  const [scanDrafts, setScanDrafts] = useState<ScanDraft[]>([]);
+  const [scanDrafts, setScanDrafts] = useState<TravelDocumentDraft[]>([]);
   const [scanUploadId, setScanUploadId] = useState<string | undefined>();
   const [scanExcerpt, setScanExcerpt] = useState<string | undefined>();
   const [isScanReviewOpen, setIsScanReviewOpen] = useState(false);
@@ -122,7 +122,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
     }
   };
 
-  const handleConfirmScanDrafts = async (drafts: ScanDraft[], uploadId?: string) => {
+  const handleConfirmScanDrafts = async (drafts: TravelDocumentDraft[], uploadId?: string) => {
     for (const d of drafts) {
       const createPayload: TripTicketCreateInput = {
         ticket_type: d.ticket_type,

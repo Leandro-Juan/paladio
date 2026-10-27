@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
-import { ScanDraft, TicketType } from '@/hooks/useTripTickets';
+import { TravelDocumentDraft, TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
 import { AlertTriangleIcon, CloseIcon } from '@/components/icons';
@@ -11,10 +11,10 @@ import { AlertTriangleIcon, CloseIcon } from '@/components/icons';
 interface ScanReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  drafts: ScanDraft[];
+  drafts: TravelDocumentDraft[];
   uploadId?: string;
   rawTextExcerpt?: string;
-  onConfirmDrafts: (drafts: ScanDraft[], uploadId?: string) => Promise<void>;
+  onConfirmDrafts: (drafts: TravelDocumentDraft[], uploadId?: string) => Promise<void>;
 }
 
 export function ScanReviewModal({
@@ -60,12 +60,12 @@ function ScanReviewDialog({
   onConfirmDrafts,
 }: {
   onClose: () => void;
-  drafts: ScanDraft[];
+  drafts: TravelDocumentDraft[];
   uploadId?: string;
   rawTextExcerpt?: string;
-  onConfirmDrafts: (drafts: ScanDraft[], uploadId?: string) => Promise<void>;
+  onConfirmDrafts: (drafts: TravelDocumentDraft[], uploadId?: string) => Promise<void>;
 }) {
-  const [editedDrafts, setEditedDrafts] = useState<ScanDraft[]>(drafts);
+  const [editedDrafts, setEditedDrafts] = useState<TravelDocumentDraft[]>(drafts);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
     new Set(drafts.map((_, idx) => idx))
   );
@@ -84,7 +84,7 @@ function ScanReviewDialog({
     });
   };
 
-  const handleFieldChange = (index: number, field: keyof ScanDraft, value: unknown) => {
+  const handleFieldChange = (index: number, field: keyof TravelDocumentDraft, value: unknown) => {
     setEditedDrafts((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };

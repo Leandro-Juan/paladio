@@ -76,7 +76,7 @@ export interface AttractionSuggestion {
   suggested_time?: string | null;
 }
 
-export interface ScanDraft {
+export interface TravelDocumentDraft {
   ticket_type: TicketType;
   title: string;
   provider?: string | null;
@@ -104,7 +104,7 @@ export interface ScanDraft {
 }
 
 export interface ScanResponse {
-  drafts: ScanDraft[];
+  drafts: TravelDocumentDraft[];
   upload_id?: string | null;
   raw_text_excerpt?: string | null;
 }

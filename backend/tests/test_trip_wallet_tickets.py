@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.core.wallet_encryption import decrypt_wallet_secret
 from app.db.models import TripTicketModel
-from app.wallet.scan import parse_iata_bcbp
+from app.services.travel_document_scanner import parse_iata_bcbp
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

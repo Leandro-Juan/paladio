@@ -1,8 +1,10 @@
 import io
 import json
 import logging
+import os
 import re
 import subprocess
+import tempfile
 import zipfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -18,7 +20,7 @@ try:
 except ImportError:
     HAS_ZXING = False
 
-from app.schemas.ticket import ScanDraft
+from app.schemas.travel_document import TravelDocumentDraft
 from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
@@ -135,7 +137,7 @@ def decode_barcode_from_image(img_bytes: bytes) -> tuple[str | None, str | None]
     return None, None
 
 
-def parse_pkpass(content: bytes) -> ScanDraft | None:
+def parse_pkpass(content: bytes) -> TravelDocumentDraft | None:
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as z:
             if "pass.json" not in z.namelist():
@@ -172,7 +174,7 @@ def parse_pkpass(content: bytes) -> ScanDraft | None:
 
             # Check boarding pass
             if "boardingPass" in pass_data:
-                return ScanDraft(
+                return TravelDocumentDraft(
                     ticket_type="flight",
                     title=f"{org} Boarding Pass" if org else desc,
                     provider=org,
@@ -182,7 +184,7 @@ def parse_pkpass(content: bytes) -> ScanDraft | None:
                     field_confidence={"title": 0.95, "provider": 0.9},
                 )
             elif "eventTicket" in pass_data:
-                return ScanDraft(
+                return TravelDocumentDraft(
                     ticket_type="attraction",
                     title=desc,
                     provider=org,
@@ -193,6 +195,34 @@ def parse_pkpass(content: bytes) -> ScanDraft | None:
     except Exception as e:
         logger.debug(f"PKPASS parse error: {e}")
     return None
+
+
+def render_pdf_to_images(content: bytes, max_pages: int = 3) -> list[bytes]:
+    rendered_images: list[bytes] = []
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proc = subprocess.run(
+                [
+                    "pdftoppm",
+                    "-png",
+                    "-r",
+                    "150",
+                    "-l",
+                    str(max_pages),
+                    "-",
+                    os.path.join(tmpdir, "page"),
+                ],
+                input=content,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=15,
+            )
+            if proc.returncode == 0:
+                for img_path in sorted(Path(tmpdir).glob("page-*.png")):
+                    rendered_images.append(img_path.read_bytes())
+    except Exception as e:
+        logger.debug(f"pdftoppm rendering failed: {e}")
+    return rendered_images
 
 
 def extract_text_from_pdf(content: bytes) -> tuple[str, list[bytes]]:
@@ -219,7 +249,11 @@ def extract_text_from_pdf(content: bytes) -> tuple[str, list[bytes]]:
             except Exception:
                 pass
 
-    return "\n".join(full_text), extracted_images
+    joined_text = "\n".join(full_text)
+    if not extracted_images and len(joined_text.strip()) < 30:
+        extracted_images = render_pdf_to_images(content, max_pages=min(num_pages, 3))
+
+    return joined_text, extracted_images
 
 
 def normalize_time_str(val: str | None) -> str | None:
@@ -228,7 +262,7 @@ def normalize_time_str(val: str | None) -> str | None:
     val = val.strip()
     is_pm = bool(re.search(r"pm", val, re.IGNORECASE))
     is_am = bool(re.search(r"am", val, re.IGNORECASE))
-    m = re.search(r"(\d{1,2})[:.](\d{2})", val)
+    m = re.search(r"(\d{1,2})[:.\-](\d{2})", val)
     if not m:
         return None
     h = int(m.group(1))
@@ -308,6 +342,19 @@ def extract_dates_from_text(text: str, trip_start_year: int = 2026) -> list[str]
 def run_tesseract_ocr(img_bytes: bytes) -> str:
     try:
         proc = subprocess.run(
+            ["tesseract", "stdin", "stdout", "-l", "eng+spa"],
+            input=img_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15,
+        )
+        if proc.returncode == 0:
+            return proc.stdout.decode("utf-8", errors="replace")
+    except Exception:
+        pass
+
+    try:
+        proc = subprocess.run(
             ["tesseract", "stdin", "stdout"],
             input=img_bytes,
             stdout=subprocess.PIPE,
@@ -321,7 +368,9 @@ def run_tesseract_ocr(img_bytes: bytes) -> str:
     return ""
 
 
-def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
+def classify_text_document(
+    text: str, trip_start_year: int = 2026
+) -> TravelDocumentDraft:
     text_lower = text.lower()
     warnings: list[str] = []
     conf: dict[str, float] = {}
@@ -367,7 +416,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
                     "flight_number": 0.95,
                 }
             )
-            return ScanDraft(
+            return TravelDocumentDraft(
                 ticket_type="flight",
                 title=f"{fl_num} {orig} → {dest}",
                 provider=bcbp_parsed.get("carrier") or "Commercial Airline",
@@ -406,8 +455,11 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         "airline",
         "aerolinea",
         "boarding time",
+        "boarding",
         "gate",
         "asiento",
+        "seat",
+        "priority",
         "pnr",
         "terminal",
         "departure",
@@ -416,6 +468,15 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         "arrives",
         "airport",
         "aeropuerto",
+        "ryanair",
+        "iberia",
+        "vueling",
+        "easyjet",
+        "lufthansa",
+        "aer lingus",
+        "british airways",
+        "booking ref",
+        "seq",
     )
     hotel_keywords = (
         "hotel",
@@ -463,9 +524,27 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     )
 
     score_flight = sum(1 for k in flight_keywords if k in text_lower)
-    score_hotel = sum(1 for k in hotel_keywords if k in text_lower)
+    hotel_clean_text = re.sub(
+        r"\bbooking\s*(?:ref|reference|code|number)\b", "", text_lower
+    )
+    score_hotel = sum(1 for k in hotel_keywords if k in hotel_clean_text)
     score_attraction = sum(1 for k in attraction_keywords if k in text_lower)
     score_transit = sum(1 for k in transit_keywords if k in text_lower)
+
+    # Flight regexes
+    flight_num_match = re.search(r"\b([A-Z]{2}\s?\d{3,4})\b", text)
+    flight_num = (
+        flight_num_match.group(1).replace(" ", "") if flight_num_match else None
+    )
+    if flight_num:
+        score_flight += 3
+
+    # IATA code validation in scoring
+    airport_svc = get_airport_service()
+    iatas = re.findall(r"\b([A-Z]{3})\b", text)
+    valid_iatas = [i for i in iatas if airport_svc.is_valid_iata(i)]
+    if len(valid_iatas) >= 2:
+        score_flight += 2
 
     scores = [
         ("flight", score_flight),
@@ -483,12 +562,13 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         re.IGNORECASE,
     )
     ref_code = pnr_match.group(1) if pnr_match else None
-
-    # Flight regexes
-    flight_num_match = re.search(r"\b([A-Z]{2}\s?\d{3,4})\b", text)
-    flight_num = (
-        flight_num_match.group(1).replace(" ", "") if flight_num_match else None
-    )
+    if not ref_code:
+        pnr_m = re.search(
+            r"(?i:\b(?:PNR|Booking\s*Ref|Reservation(?:\s*Ref)?|Localizador|Ref)[\s\S]{0,40}?\b)([A-Z0-9]{5,7})\b",
+            text,
+        )
+        if pnr_m:
+            ref_code = pnr_m.group(1)
 
     # Hotel access code / pin
     code_match = re.search(
@@ -512,7 +592,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     arr_hour = None
 
     dep_m = re.search(
-        r"(?:departs?|departure|salida|départ|leaves?|std|boarding(?:\s+time)?|hora(?:\s+de\s+salida)?|takeoff)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        r"(?:departs?|departure|salida|départ|leaves?|std|boarding(?:\s+time)?|hora(?:\s+de\s+salida)?|takeoff)[:\s#]*([0-2]?\d[:.\-][0-5]\d(?:\s*(?:am|pm))?)",
         text,
         re.IGNORECASE,
     )
@@ -520,29 +600,30 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         dep_hour = normalize_time_str(dep_m.group(1))
 
     arr_m = re.search(
-        r"(?:arrives?|arrival|llegada|lands?|landing|sta|hora(?:\s+de\s+llegada)?|estimated\s+arrival)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        r"(?:arrives?|arrival|llegada|lands?|landing|sta|hora(?:\s+de\s+llegada)?|estimated\s+arrival)[:\s#]*([0-2]?\d[:.\-][0-5]\d(?:\s*(?:am|pm))?)",
         text,
         re.IGNORECASE,
     )
     if arr_m:
         arr_hour = normalize_time_str(arr_m.group(1))
 
-    if not dep_hour or not arr_hour:
-        found_times = re.findall(
-            r"\b([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)\b", text, re.IGNORECASE
-        )
-        norm_times = [
-            normalize_time_str(t) for t in found_times if normalize_time_str(t)
-        ]
-        if not dep_hour and norm_times:
-            dep_hour = norm_times[0]
-        if not arr_hour and len(norm_times) > 1:
-            arr_hour = norm_times[1]
+    found_times = re.findall(
+        r"\b([0-2]?\d[:.\-][0-5]\d(?:\s*(?:am|pm))?)\b", text, re.IGNORECASE
+    )
+    norm_times = [normalize_time_str(t) for t in found_times if normalize_time_str(t)]
+    if not dep_hour and norm_times:
+        dep_hour = norm_times[0]
+    if not arr_hour and len(norm_times) > 1:
+        arr_hour = norm_times[1]
+
+    # Special case: boarding time vs departure takeoff time
+    if "departs" in text_lower and len(norm_times) >= 2 and "boarding" in text_lower:
+        dep_hour = norm_times[-1]
 
     # Return/outbound takeoff time if explicitly stated
     ret_dep_hour = None
     ret_m = re.search(
-        r"(?:return|regreso|vuelta|outbound|inbound).*?(?:departs?|departure|salida|std|takeoff)[:\s#]*([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
+        r"(?:return|regreso|vuelta|outbound|inbound).*?(?:departs?|departure|salida|std|takeoff)[:\s#]*([0-2]?\d[:.\-][0-5]\d(?:\s*(?:am|pm))?)",
         text,
         re.IGNORECASE,
     )
@@ -557,21 +638,107 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     )
 
     if best_score >= 2 and best_type == "flight":
-        # Extract IATAs
-        iatas = re.findall(r"\b([A-Z]{3})\b", text)
-        airport_svc = get_airport_service()
-        valid_iatas = [i for i in iatas if airport_svc.is_valid_iata(i)]
-        orig = valid_iatas[0] if len(valid_iatas) > 0 else "MAD"
-        dest = valid_iatas[1] if len(valid_iatas) > 1 else "SVQ"
-        orig_city = airport_svc.get_city_from_iata(orig)
-        dest_city = airport_svc.get_city_from_iata(dest)
+        orig = valid_iatas[0] if len(valid_iatas) > 0 else None
+        dest = valid_iatas[1] if len(valid_iatas) > 1 else None
 
-        title = f"{flight_num or 'Flight'} {orig} → {dest}"
+        # Fallback to city detection if IATAs not explicitly formatted
+        if not orig or not dest:
+            for word in re.findall(r"\b[A-Z][a-zA-Z]{2,}\b", text):
+                found_i = airport_svc.get_iata_from_city(word)
+                if found_i:
+                    if not orig:
+                        orig = found_i
+                    elif not dest and found_i != orig:
+                        dest = found_i
+                        break
+
+        orig_city = airport_svc.get_city_from_iata(orig) if orig else None
+        dest_city = airport_svc.get_city_from_iata(dest) if dest else None
+
+        # Carrier detection
+        carrier = None
+        known_carriers = {
+            "FR": "Ryanair",
+            "IB": "Iberia",
+            "VY": "Vueling",
+            "U2": "easyJet",
+            "EZY": "easyJet",
+            "LH": "Lufthansa",
+            "BA": "British Airways",
+            "AF": "Air France",
+            "KL": "KLM",
+            "EI": "Aer Lingus",
+            "W6": "Wizz Air",
+        }
+        for name in [
+            "ryanair",
+            "iberia",
+            "vueling",
+            "easyjet",
+            "lufthansa",
+            "british airways",
+            "air france",
+            "klm",
+            "aer lingus",
+            "wizz air",
+        ]:
+            if name in text_lower:
+                carrier = name.title()
+                break
+        if not carrier and flight_num and flight_num[:2] in known_carriers:
+            carrier = known_carriers[flight_num[:2]]
+
+        # Seat extraction
+        seat = None
+        seat_m = re.search(
+            r"\b(?:seat|asiento)[\s\S]{0,30}?\b([0-9]{1,3}[A-K])\b",
+            text,
+            re.IGNORECASE,
+        )
+        if seat_m:
+            seat = seat_m.group(1)
+        if not seat:
+            seat_m2 = re.search(
+                r"\b([0-9]{1,3}[A-K])\s+(?:window|aisle|middle|wincow)\b",
+                text,
+                re.IGNORECASE,
+            )
+            if seat_m2:
+                seat = seat_m2.group(1)
+
+        # Passenger name extraction
+        holder_name = None
+        name_m = re.search(
+            r"\b(?:passenger|passenger\s*name|name|pasajero|nombre|viajero)[:\s#]+([A-Z][a-zA-Z\s\-]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if name_m:
+            holder_name = name_m.group(1).strip()
+        else:
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            if lines:
+                first_line = lines[0]
+                if (
+                    re.match(r"^[A-Z][a-zA-Z\s\-]+$", first_line)
+                    and len(first_line.split()) >= 2
+                    and len(first_line) < 50
+                    and not any(
+                        k in first_line.lower()
+                        for k in ("flight", "vuelo", "boarding", "hotel")
+                    )
+                ):
+                    holder_name = first_line
+
+        title = f"{flight_num or 'Flight'} {orig or orig_city or 'Flight'} → {dest or dest_city or 'Arrival'}"
         conf.update({"ticket_type": 0.85, "title": 0.8})
-        return ScanDraft(
+        return TravelDocumentDraft(
             ticket_type="flight",
             title=title,
+            provider=carrier or "Aviation Carrier",
             reference_code=ref_code,
+            holder_name=holder_name,
+            seat_or_room=seat,
             start_time=f"{date_found}T{dep_hour or '10:00'}:00" if date_found else None,
             metadata={
                 "origin_iata": orig,
@@ -579,6 +746,8 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
                 "origin_city": orig_city,
                 "destination_city": dest_city,
                 "flight_number": flight_num,
+                "carrier": carrier,
+                "seat": seat,
                 "departure_date": date_found,
                 "return_date": return_date_found,
                 "flight_departure_hour": dep_hour,
@@ -698,7 +867,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         conf.update({"ticket_type": 0.85, "title": 0.75})
         if access_code:
             conf["access_code"] = 0.95
-        return ScanDraft(
+        return TravelDocumentDraft(
             ticket_type="hotel",
             title=hotel_name or "Hotel Lodging",
             reference_code=ref_code,
@@ -725,7 +894,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         title = lines[0][:60] if lines else "Museum & Attraction Pass"
         conf.update({"ticket_type": 0.8, "title": 0.7})
-        return ScanDraft(
+        return TravelDocumentDraft(
             ticket_type="attraction",
             title=title,
             reference_code=ref_code,
@@ -738,7 +907,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         title = lines[0][:60] if lines else "Transit Ticket"
         conf.update({"ticket_type": 0.8, "title": 0.7})
-        return ScanDraft(
+        return TravelDocumentDraft(
             ticket_type="transit",
             title=title,
             reference_code=ref_code,
@@ -750,7 +919,7 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     # Fallback to other
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     title = lines[0][:60] if lines else "Scanned Document"
-    return ScanDraft(
+    return TravelDocumentDraft(
         ticket_type="other",
         title=title,
         reference_code=ref_code,
@@ -760,9 +929,9 @@ def classify_text_document(text: str, trip_start_year: int = 2026) -> ScanDraft:
     )
 
 
-async def scan_ticket_document(
+async def scan_travel_document(
     content: bytes, filename: str, trip_start_year: int = 2026
-) -> tuple[list[ScanDraft], str]:
+) -> tuple[list[TravelDocumentDraft], str]:
     if len(content) > MAX_FILE_SIZE:
         raise ValueError("File exceeds maximum size limit of 10 MB.")
 
@@ -770,7 +939,7 @@ async def scan_ticket_document(
     if not magic:
         raise ValueError("Unsupported file format or unreadable binary content.")
 
-    drafts: list[ScanDraft] = []
+    drafts: list[TravelDocumentDraft] = []
     text_excerpt = ""
 
     if magic == "application/vnd.apple.pkpass":
@@ -792,6 +961,16 @@ async def scan_ticket_document(
                 barcode_val = b_val
                 barcode_fmt = b_fmt
                 break
+
+        if len(extracted_text.strip()) < 30 and images:
+            ocr_parts = []
+            for img in images:
+                txt = run_tesseract_ocr(img)
+                if txt.strip():
+                    ocr_parts.append(txt.strip())
+            if ocr_parts:
+                extracted_text = "\n\n".join(ocr_parts)
+                text_excerpt = extracted_text[:400]
 
         draft = classify_text_document(extracted_text, trip_start_year)
         if barcode_val and not draft.barcode_value:
@@ -843,7 +1022,7 @@ async def scan_ticket_document(
                     bcbp["destination_iata"]
                 )
                 drafts.append(
-                    ScanDraft(
+                    TravelDocumentDraft(
                         ticket_type="flight",
                         title=f"{bcbp['flight_number']} {bcbp['origin_iata']} → {bcbp['destination_iata']}",
                         provider=bcbp.get("carrier") or "Aviation Carrier",
@@ -878,7 +1057,7 @@ async def scan_ticket_document(
             return drafts, f"Extracted via local OCR: {ocr_text.strip()[:300]}..."
         elif barcode_val:
             drafts.append(
-                ScanDraft(
+                TravelDocumentDraft(
                     ticket_type="other",
                     title=f"Scanned {barcode_fmt.upper() if barcode_fmt else 'Barcode'} Ticket",
                     barcode_value=barcode_val,
@@ -889,7 +1068,7 @@ async def scan_ticket_document(
             return drafts, f"Decoded {barcode_fmt} barcode from image."
         else:
             drafts.append(
-                ScanDraft(
+                TravelDocumentDraft(
                     ticket_type="other",
                     title=f"Uploaded {Path(filename).stem}",
                     field_confidence={"ticket_type": 0.5},
