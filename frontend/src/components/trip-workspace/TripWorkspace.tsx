@@ -39,7 +39,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
   const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'saved'>('route');
+  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'transit' | 'saved'>('route');
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
@@ -84,15 +84,17 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setCategoryPois([]);
   }, []);
 
-  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'saved') => {
+  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'transit' | 'saved') => {
     setSidebarTab(tab);
-    if (tab === 'route') {
-      // Clear category search and unselect focused search POI so only route/convex hull waypoints appear
+    if (tab === 'route' || tab === 'transit') {
+      // Clear category search and unselect focused search POI
       setCategoryFilter(null);
       setCategoryPois([]);
       setFocusedPlace(null);
-      setInspectedPoiId(null);
-      setInspectedPoiFallback(null);
+      if (tab === 'route') {
+        setInspectedPoiId(null);
+        setInspectedPoiFallback(null);
+      }
     }
   }, []);
 

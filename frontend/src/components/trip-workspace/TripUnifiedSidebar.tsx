@@ -7,6 +7,7 @@ import { PoiCategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge
 import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { TransitRecommendationCard, TransitLegView } from '@/components/TransitLegView';
 import { EmptyState } from '@/components/EmptyState';
+import { TripTransitTab } from './TripTransitTab';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
@@ -180,11 +181,10 @@ export interface TripUnifiedSidebarProps {
   onTabChange?: (tab: MainTabType) => void;
 }
 
-export type MainTabType = 'route' | 'search' | 'saved';
+export type MainTabType = 'route' | 'search' | 'transit' | 'saved';
 
 const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType }[] = [
   { id: 'all', label: 'All', iconType: 'general' },
-  { id: 'transit', label: 'Transit', iconType: 'transit' },
   { id: 'attraction', label: 'Attractions', iconType: 'attraction' },
   { id: 'museum', label: 'Museums', iconType: 'museum' },
   { id: 'restaurant', label: 'Restaurants', iconType: 'restaurant' },
@@ -1981,6 +1981,38 @@ export function TripUnifiedSidebar({
                     <span>Search</span>
                   </button>
 
+                  {/* Transit Tab */}
+                  <button
+                    type="button"
+                    data-testid="tab-transit"
+                    onClick={() => setActiveTab('transit')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '7px 16px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      background: activeTab === 'transit' ? 'var(--color-accent-primary)' : 'transparent',
+                      color: activeTab === 'transit' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontSize: '13px',
+                      fontWeight: activeTab === 'transit' ? 600 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: activeTab === 'transit' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="15" rx="2" />
+                      <circle cx="7" cy="14" r="1" />
+                      <circle cx="17" cy="14" r="1" />
+                      <path d="M7 8h10" />
+                      <path d="M5 21l2-3" />
+                      <path d="M19 21l-2-3" />
+                    </svg>
+                    <span>Transit</span>
+                  </button>
+
                   {/* Saved Tab */}
                   <button
                     type="button"
@@ -2157,7 +2189,7 @@ export function TripUnifiedSidebar({
                       );
                     })}
                   </HoverScrollRow>
-                ) : (
+                ) : activeTab === 'search' ? (
                   /* 2. Categories Bar for Search View (Smooth Hover-to-Scroll) */
                   <HoverScrollRow
                     testId="category-selector-tabs"
@@ -2199,7 +2231,7 @@ export function TripUnifiedSidebar({
                     );
                   })}
                 </HoverScrollRow>
-              )}
+              ) : null}
 
               {/* Main Content Area */}
               <div
@@ -2796,7 +2828,18 @@ export function TripUnifiedSidebar({
                   </div>
                 )}
 
-                {/* VIEW C: SAVED TAB CONTENT */}
+                {/* VIEW C: TRANSIT TAB CONTENT */}
+                {activeTab === 'transit' && (
+                  <TripTransitTab
+                    tripId={tripId}
+                    destinationCity={destinationCity}
+                    selectedDay={selectedDay}
+                    savedPoiIds={savedPoiIds}
+                    onToggleSavePoi={toggleSavePoi}
+                  />
+                )}
+
+                {/* VIEW D: SAVED TAB CONTENT */}
                 {activeTab === 'saved' && (
                   <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>

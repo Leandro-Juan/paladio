@@ -224,26 +224,11 @@ CATEGORY_SYNONYMS: dict[str, list[str]] = {
     "park": ["park", "garden", "nature"],
     "shopping": ["shop", "shopping", "market", "store"],
     "hotel": ["hotel", "hostel", "lodging"],
-    "transit": [
-        "transit",
-        "metro",
-        "subway",
-        "train",
-        "railway",
-        "bus",
-        "bus_stop",
-        "bus_station",
-        "tram",
-        "station",
-    ],
-    "metro": ["metro", "subway"],
-    "train": ["train", "railway", "station"],
-    "bus": ["bus", "bus_stop", "bus_station"],
-    "bus_stop": ["bus_stop", "bus_station", "bus"],
-    "tram": ["tram", "tram_stop", "light_rail"],
 }
 
 
+# TODO(Phase 6): Deprecated legacy transit info extraction.
+# Transit stops are now handled exclusively via the Transit tab and its dedicated endpoints.
 def _extract_transit_info(
     p: AttractionModel, meta: dict[str, Any]
 ) -> dict[str, Any] | None:
@@ -557,6 +542,24 @@ async def search_pois(
     if not clean_query:
         if category and category.lower() != "all":
             cat_lower = category.lower().strip()
+            if cat_lower in (
+                "transit",
+                "metro",
+                "train",
+                "bus",
+                "bus_stop",
+                "tram",
+                "subway",
+            ):
+                return PoiSearchResponse(
+                    city=city_name,
+                    query="",
+                    search_type="category_browse",
+                    exact_match_found=False,
+                    exact_match=None,
+                    results=[],
+                    total=0,
+                )
             target_cats = CATEGORY_SYNONYMS.get(cat_lower, [cat_lower])
 
             count_stmt = (
@@ -569,6 +572,8 @@ async def search_pois(
                     )
                 )
                 .where(func.lower(AttractionModel.category).in_(target_cats))
+                .where(func.lower(AttractionModel.category) != "transit")
+                .where(~AttractionModel.id.like("OSM-transit-%"))
             )
             total_count = (await session.execute(count_stmt)).scalar() or 0
 
@@ -597,6 +602,8 @@ async def search_pois(
                         )
                     )
                     .where(func.lower(AttractionModel.category).in_(target_cats))
+                    .where(func.lower(AttractionModel.category) != "transit")
+                    .where(~AttractionModel.id.like("OSM-transit-%"))
                     .order_by(*order_clauses)
                     .offset(fetch_offset)
                     .limit(fetch_limit)
@@ -623,6 +630,8 @@ async def search_pois(
                         )
                     )
                     .where(func.lower(AttractionModel.category).in_(target_cats))
+                    .where(func.lower(AttractionModel.category) != "transit")
+                    .where(~AttractionModel.id.like("OSM-transit-%"))
                     .order_by(*order_clauses)
                     .offset(fetch_offset)
                     .limit(fetch_limit)
@@ -669,6 +678,8 @@ async def search_pois(
                         AttractionModel.city_id == city_id,
                     )
                 )
+                .where(func.lower(AttractionModel.category) != "transit")
+                .where(~AttractionModel.id.like("OSM-transit-%"))
             )
             total_count = (await session.execute(count_stmt)).scalar() or 0
 
@@ -694,6 +705,8 @@ async def search_pois(
                             AttractionModel.city_id == city_id,
                         )
                     )
+                    .where(func.lower(AttractionModel.category) != "transit")
+                    .where(~AttractionModel.id.like("OSM-transit-%"))
                     .where(AttractionModel.embedding.isnot(None))
                     .order_by(*order_clauses)
                     .offset(offset)
@@ -728,6 +741,8 @@ async def search_pois(
                             AttractionModel.city_id == city_id,
                         )
                     )
+                    .where(func.lower(AttractionModel.category) != "transit")
+                    .where(~AttractionModel.id.like("OSM-transit-%"))
                     .order_by(*order_clauses)
                     .offset(offset)
                     .limit(limit)
@@ -932,6 +947,7 @@ async def search_pois(
         city_id=city_id,
         query_vec=None,
         clean_query=clean_query,
+        exclude_transit=True,
         limit=5,
         w_vec=0.0,
         w_fts=0.4,
@@ -1029,6 +1045,7 @@ async def search_pois(
                     city_id=city_id,
                     query_vec=emb_list,
                     clean_query="",
+                    exclude_transit=True,
                     limit=limit + 1,
                     w_vec=1.0,
                     w_fts=0.0,
@@ -1079,6 +1096,7 @@ async def search_pois(
         max_cost_eur=sq.max_cost_eur,
         max_tier=sq.max_tier,
         require_rain_friendly=sq.require_rain_friendly,
+        exclude_transit=True,
         limit=max(100, limit + offset)
         if (polygon_pts or day_bounds)
         else (limit + offset),
@@ -1087,6 +1105,14 @@ async def search_pois(
         w_trgm=0.20 if sq.clean_query else 0.0,
         apply_mmr=True,
     )
+
+    candidates = [
+        c
+        for c in candidates
+        if str(c.get("category", "")).lower()
+        not in ("transit", "metro", "train", "bus_stop", "tram", "subway")
+        and not str(c.get("id", "")).startswith("OSM-transit-")
+    ]
 
     if category and category.lower() != "all":
         cat_lower = category.lower().strip()
@@ -1100,7 +1126,9 @@ async def search_pois(
         or_(
             AttractionModel.city.ilike(city_name),
             AttractionModel.city_id == city_id,
-        )
+        ),
+        func.lower(AttractionModel.category) != "transit",
+        ~AttractionModel.id.like("OSM-transit-%"),
     ]
     if category and category.lower() != "all":
         cat_lower = category.lower().strip()
@@ -1624,13 +1652,15 @@ def _order_transit_stations(
     return ordered
 
 
+# TODO(Phase 6): Deprecated legacy transit line endpoint based on nearest-neighbor POI ordering.
+# Replaced by dedicated GTFS transit lines endpoint in Phase 3.
 @router.get("/transit-line", response_model=TransitLineDetailResponse)
 async def get_transit_line(
     city: str = Query(..., description="Target city name"),
     line: str = Query(..., description="Transit line identifier"),
     session: AsyncSession = Depends(get_db),
 ) -> TransitLineDetailResponse:
-    """Retrieves all stations for a transit line in a city, returning ordered stations and route polyline."""
+    """[DEPRECATED] Retrieves all stations for a transit line in a city, returning ordered stations and route polyline."""
     norm_city = city.strip()
     norm_line = line.strip()
 

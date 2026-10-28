@@ -218,6 +218,7 @@ class HybridRetriever:
         max_tier: int | None = None,
         max_cost_eur: float | None = None,
         require_rain_friendly: bool = False,
+        exclude_transit: bool = False,
         limit: int = 50,
         w_vec: float = 0.50,
         w_fts: float = 0.30,
@@ -250,6 +251,7 @@ class HybridRetriever:
             AND (CAST(:max_tier AS integer) IS NULL OR tier <= CAST(:max_tier AS integer))
             AND (CAST(:max_cost_eur AS float) IS NULL OR cost_eur <= CAST(:max_cost_eur AS float))
             AND (CAST(:require_rain_friendly AS boolean) = FALSE OR (facets->>'rain_friendly')::boolean = TRUE)
+            AND (CAST(:exclude_transit AS boolean) = FALSE OR (lower(category) NOT IN ('transit', 'metro', 'train', 'bus_stop', 'tram', 'subway') AND id NOT LIKE 'OSM-transit-%'))
         ),
         semantic_rank AS (
           SELECT id,
@@ -326,6 +328,7 @@ class HybridRetriever:
             "max_tier": max_tier,
             "max_cost_eur": max_cost_eur,
             "require_rain_friendly": require_rain_friendly,
+            "exclude_transit": exclude_transit,
             "w_vec": w_vec if has_vec else 0.0,
             "w_fts": w_fts if has_text else 0.0,
             "w_trgm": w_trgm if has_text else 0.0,

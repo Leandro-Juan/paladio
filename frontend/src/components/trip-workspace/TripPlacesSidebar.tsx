@@ -686,7 +686,7 @@ export function TripPlacesSidebar({
 
                 {/* Category Pills Row */}
                 <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none', paddingTop: '2px' }}>
-                  {['all', 'transit', 'attraction', 'museum', 'restaurant', 'cafe', 'monument'].map((cat) => (
+                  {['all', 'attraction', 'museum', 'restaurant', 'cafe', 'monument'].map((cat) => (
                     <button
                       key={cat}
                       type="button"

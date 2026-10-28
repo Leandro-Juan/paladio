@@ -99,7 +99,7 @@ interface TripMapViewProps {
   onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isSidebarOpen?: boolean;
-  sidebarTab?: 'route' | 'search' | 'saved';
+  sidebarTab?: 'route' | 'search' | 'transit' | 'saved';
   activeTransitLine?: ActiveTransitLineData | null;
   onClearTransitLine?: () => void;
 }

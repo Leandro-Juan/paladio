@@ -69,7 +69,6 @@ def extract_transit_from_gtfs(
                     continue
 
                 stop_code = (row.get("stop_code") or "").strip()
-                lines = [stop_code] if stop_code else []
                 category = (
                     "metro"
                     if "subway" in gtfs_dir.lower() or "metro" in gtfs_dir.lower()
@@ -90,7 +89,8 @@ def extract_transit_from_gtfs(
                         "category": category,
                         "lat": lat,
                         "lng": lon,
-                        "lines": lines,
+                        "lines": [],
+                        "stop_code": stop_code if stop_code else None,
                         "wheelchair": wheelchair,
                     }
                 )
@@ -365,7 +365,8 @@ async def ingest_city_transit(
 
             transit_meta = {
                 "type": s["category"],
-                "lines": lines,
+                "lines": [line for line in lines if line != s.get("stop_code")],
+                "stop_code": s.get("stop_code"),
                 "operator": s.get("operator"),
                 "wheelchair": s.get("wheelchair"),
                 "station_type": f"{s['category'].title()} Station",
