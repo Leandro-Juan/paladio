@@ -2836,6 +2836,8 @@ export function TripUnifiedSidebar({
                     selectedDay={selectedDay}
                     savedPoiIds={savedPoiIds}
                     onToggleSavePoi={toggleSavePoi}
+                    onInspectPoi={onInspectPoi}
+                    onFocusFromInspector={onFocusFromInspector}
                   />
                 )}
 
