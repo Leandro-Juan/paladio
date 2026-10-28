@@ -10,6 +10,7 @@ from app.api.currency import router as currency_router
 from app.api.locations import router as locations_router
 from app.api.market import router as market_router
 from app.api.pois import router as pois_router
+from app.api.transit import router as transit_router
 from app.api.trips import router as trips_router
 from app.api.users import router as users_router
 from app.api.websockets import router as websockets_router
@@ -100,6 +101,7 @@ app.include_router(currency_router, prefix="/api/currency", tags=["currency"])
 app.include_router(pois_router, prefix="/api/pois", tags=["pois"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
 app.include_router(locations_router, prefix="/api/locations", tags=["locations"])
+app.include_router(transit_router, prefix="/api", tags=["transit"])
 
 # Legacy /api/v1 aliases for backward compatibility (hidden from OpenAPI schema)
 app.include_router(
@@ -131,4 +133,7 @@ app.include_router(
     prefix="/api/v1/locations",
     tags=["locations"],
     include_in_schema=False,
+)
+app.include_router(
+    transit_router, prefix="/api/v1", tags=["transit"], include_in_schema=False
 )

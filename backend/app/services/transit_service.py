@@ -946,3 +946,296 @@ async def ensure_walking_legs_populated(
                 path[k]["transit_from_previous"] = synth.model_dump(mode="json")
 
     return itinerary
+
+
+def calculate_haversine_meters(
+    lat1: float, lon1: float, lat2: float, lon2: float
+) -> float:
+    import math
+
+    r = 6371000.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2.0) ** 2
+    )
+    return r * 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+
+
+class TransitService:
+    """
+    Application service orchestrating transit availability, nearby station search,
+    lines browsing, line detail, station inspector, and scheduled departures.
+    """
+
+    def __init__(self, repo: Any):
+        self.repo = repo
+
+    async def get_availability(self, city: str) -> dict[str, Any]:
+        from datetime import datetime, timezone
+
+        cache = await self.repo.get_transit_cache(city)
+        if not cache:
+            return {
+                "city": city,
+                "status": "NOT_REQUESTED",
+                "derived_status": "NOT_REQUESTED",
+                "reason": "Transit data has not been built for this city.",
+                "capabilities": {},
+                "agencies": [],
+                "feed_valid_from": None,
+                "feed_valid_to": None,
+                "as_of": None,
+            }
+
+        status = cache.get("status", "PENDING")
+        gtfs_status = cache.get("gtfs_status", "PENDING")
+        derived_status = cache.get("derived_status", "PENDING")
+
+        agencies = []
+        build_id = cache.get("active_build_id")
+        if build_id:
+            agencies = await self.repo.get_agencies(city, build_id)
+
+        now = datetime.now(timezone.utc)
+        is_expired = False
+        if cache.get("valid_until"):
+            try:
+                vu = datetime.fromisoformat(cache["valid_until"])
+                if now > vu:
+                    is_expired = True
+            except ValueError:
+                pass
+
+        final_status = derived_status
+        if derived_status == "READY" and is_expired:
+            final_status = "EXPIRED"
+
+        return {
+            "city": city,
+            "status": status,
+            "gtfs_status": gtfs_status,
+            "derived_status": final_status,
+            "reason": None,
+            "capabilities": cache.get("capabilities", {}),
+            "agencies": agencies,
+            "feed_valid_from": cache.get("feed_valid_from"),
+            "feed_valid_to": cache.get("feed_valid_to"),
+            "as_of": cache.get("derived_at"),
+        }
+
+    async def get_nearby_stations_for_anchors(
+        self,
+        city: str,
+        anchors: list[dict[str, Any]],
+        radius_meters: float = 800.0,
+        modes: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        import math
+
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return await self._get_nearby_osm_fallback(city, anchors, radius_meters)
+
+        valid_anchors = [
+            a for a in anchors if a.get("lat") is not None and a.get("lon") is not None
+        ]
+        if not valid_anchors:
+            return []
+
+        lat_buf = (radius_meters + 200.0) / 111000.0
+        lon_buf = (radius_meters + 200.0) / (
+            111000.0 * math.cos(math.radians(valid_anchors[0]["lat"]))
+        )
+
+        all_stations_found: dict[str, dict[str, Any]] = {}
+
+        for anchor in valid_anchors:
+            a_lat = anchor["lat"]
+            a_lon = anchor["lon"]
+            box_stations = await self.repo.get_stations_by_bbox(
+                city=city,
+                build_id=build_id,
+                min_lat=a_lat - lat_buf,
+                min_lon=a_lon - lon_buf,
+                max_lat=a_lat + lat_buf,
+                max_lon=a_lon + lon_buf,
+                limit=100,
+            )
+            for st in box_stations:
+                all_stations_found[st["id"]] = st
+
+        station_assignments: dict[str, dict[str, Any]] = {}
+        for st_id, st in all_stations_found.items():
+            if modes:
+                st_modes = {line["mode"].lower() for line in st.get("lines", [])}
+                if not any(m.lower() in st_modes for m in modes):
+                    continue
+
+            best_anchor = None
+            min_dist = float("inf")
+            for anchor in valid_anchors:
+                dist = calculate_haversine_meters(
+                    anchor["lat"], anchor["lon"], st["lat"], st["lon"]
+                )
+                if dist < min_dist:
+                    min_dist = dist
+                    best_anchor = anchor
+
+            if best_anchor and min_dist <= radius_meters:
+                walk_mins = max(1, round(min_dist / 80.0))
+                station_assignments[st_id] = {
+                    "station": st,
+                    "anchor_id": best_anchor["id"],
+                    "anchor_name": best_anchor["name"],
+                    "anchor_type": best_anchor.get("type", "stop"),
+                    "distance_meters": round(min_dist),
+                    "walk_mins": walk_mins,
+                }
+
+        grouped: dict[str, dict[str, Any]] = {}
+        for anchor in valid_anchors:
+            grouped[anchor["id"]] = {
+                "anchor_id": anchor["id"],
+                "anchor_name": anchor["name"],
+                "anchor_type": anchor.get("type", "stop"),
+                "stations": [],
+            }
+
+        for st_id, item in station_assignments.items():
+            a_id = item["anchor_id"]
+            if a_id in grouped:
+                st_data = dict(item["station"])
+                st_data["distance_meters"] = item["distance_meters"]
+                st_data["walk_mins"] = item["walk_mins"]
+                grouped[a_id]["stations"].append(st_data)
+
+        out = []
+        for g in grouped.values():
+            g["stations"].sort(key=lambda s: s["distance_meters"])
+            if g["stations"]:
+                out.append(g)
+
+        return out
+
+    async def _get_nearby_osm_fallback(
+        self, city: str, anchors: list[dict[str, Any]], radius_meters: float
+    ) -> list[dict[str, Any]]:
+        import math
+
+        valid_anchors = [
+            a for a in anchors if a.get("lat") is not None and a.get("lon") is not None
+        ]
+        if not valid_anchors:
+            return []
+
+        lat_buf = (radius_meters + 200.0) / 111000.0
+        lon_buf = (radius_meters + 200.0) / (
+            111000.0 * math.cos(math.radians(valid_anchors[0]["lat"]))
+        )
+
+        all_osm: dict[str, dict[str, Any]] = {}
+        for anchor in valid_anchors:
+            osm_stations = await self.repo.get_osm_stations_by_bbox(
+                city=city,
+                min_lat=anchor["lat"] - lat_buf,
+                min_lon=anchor["lon"] - lon_buf,
+                max_lat=anchor["lat"] + lat_buf,
+                max_lon=anchor["lon"] + lon_buf,
+                limit=50,
+            )
+            for st in osm_stations:
+                all_osm[st["id"]] = st
+
+        grouped: dict[str, dict[str, Any]] = {}
+        for anchor in valid_anchors:
+            grouped[anchor["id"]] = {
+                "anchor_id": anchor["id"],
+                "anchor_name": anchor["name"],
+                "anchor_type": anchor.get("type", "stop"),
+                "stations": [],
+            }
+
+        for st_id, st in all_osm.items():
+            best_anchor = None
+            min_dist = float("inf")
+            for anchor in valid_anchors:
+                dist = calculate_haversine_meters(
+                    anchor["lat"], anchor["lon"], st["lat"], st["lon"]
+                )
+                if dist < min_dist:
+                    min_dist = dist
+                    best_anchor = anchor
+
+            if best_anchor and min_dist <= radius_meters:
+                walk_mins = max(1, round(min_dist / 80.0))
+                st_copy = dict(st)
+                st_copy["distance_meters"] = round(min_dist)
+                st_copy["walk_mins"] = walk_mins
+                st_copy["lines"] = []
+                grouped[best_anchor["id"]]["stations"].append(st_copy)
+
+        out = []
+        for g in grouped.values():
+            g["stations"].sort(key=lambda s: s["distance_meters"])
+            if g["stations"]:
+                out.append(g)
+        return out
+
+    async def get_lines(
+        self, city: str, mode: str | None = None
+    ) -> list[dict[str, Any]]:
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return []
+        return await self.repo.get_lines(city, build_id, mode=mode)
+
+    async def get_line_detail(self, city: str, line_id: str) -> dict[str, Any] | None:
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return None
+        return await self.repo.get_line_detail(city, build_id, line_id)
+
+    async def get_station_detail(
+        self, city: str, station_id: str
+    ) -> dict[str, Any] | None:
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return None
+        return await self.repo.get_station_detail(city, build_id, station_id)
+
+    async def get_station_departures(
+        self,
+        city: str,
+        station_id: str,
+        target_date: str,
+        target_seconds: int,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return []
+        return await self.repo.get_station_departures(
+            city, build_id, station_id, target_date, target_seconds, limit=limit
+        )
+
+    async def get_map_stations(
+        self,
+        city: str,
+        min_lat: float,
+        min_lon: float,
+        max_lat: float,
+        max_lon: float,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        build_id = await self.repo.get_active_build_id(city)
+        if not build_id:
+            return await self.repo.get_osm_stations_by_bbox(
+                city, min_lat, min_lon, max_lat, max_lon, limit=limit
+            )
+        return await self.repo.get_stations_by_bbox(
+            city, build_id, min_lat, min_lon, max_lat, max_lon, limit=limit
+        )
