@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, apiFetch } from '@/utils/api';
 import { getTransitLineTheme, ActiveTransitLineData } from '@/utils/transitColors';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
@@ -63,6 +63,63 @@ function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: s
   return <ToriiGateIllustration size={size} />;
 }
 
+export interface ServingLineDetail {
+  line_id: string;
+  direction_id: number;
+  headsign?: string | null;
+  short_name?: string | null;
+  long_name?: string | null;
+  mode: string;
+  color?: string | null;
+  text_color?: string | null;
+}
+
+export interface ServiceSummaryDetail {
+  line_id: string;
+  direction_id: number;
+  day_type: string;
+  first_departure_seconds: number;
+  last_departure_seconds: number;
+  headways_by_band?: Record<string, number | null>;
+}
+
+export interface StationDetailData {
+  id: string;
+  name: string;
+  original_name?: string | null;
+  lat: number;
+  lon: number;
+  wheelchair_boarding: number;
+  stop_count: number;
+  serving_lines: ServingLineDetail[];
+  service_summary: ServiceSummaryDetail[];
+  transfers?: Array<{
+    to_station_id: string;
+    transfer_type: number;
+    min_transfer_time?: number;
+    to_station_name: string;
+  }> | null;
+}
+
+export interface StationDepartureItem {
+  line_id: string;
+  line_short_name: string;
+  mode: string;
+  color: string;
+  text_color: string;
+  headsign?: string | null;
+  departure_seconds: number;
+}
+
+function formatDepartureSeconds(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const isNextDay = h >= 24;
+  const displayH = String(h % 24).padStart(2, '0');
+  const displayM = String(m).padStart(2, '0');
+  return `${displayH}:${displayM}${isNextDay ? ' (+1)' : ''}`;
+}
+
 const TRANSIT_CATEGORIES = new Set([
   'bus_stop',
   'bus',
@@ -78,7 +135,7 @@ const TRANSIT_CATEGORIES = new Set([
 
 export function isTransitPoi(p?: Partial<PoiDetail> | null): boolean {
   if (!p) return false;
-  if (p.id && p.id.toLowerCase().startsWith('osm-transit-')) return true;
+  if (p.id && (p.id.toLowerCase().startsWith('gtfs:') || p.id.toLowerCase().startsWith('osm-transit-'))) return true;
   if (p.transit_info) return true;
   const cat = (p.category || '').toLowerCase().trim();
   if (TRANSIT_CATEGORIES.has(cat)) return true;
@@ -278,10 +335,18 @@ export function PoiDetailView({
 
   const isTransit = useMemo(() => isTransitPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
+  const [stationDetail, setStationDetail] = useState<StationDetailData | null>(null);
+  const [stationDepartures, setStationDepartures] = useState<StationDepartureItem[]>([]);
+  const [loadingDepartures, setLoadingDepartures] = useState<boolean>(false);
   const [loadingTransitLine, setLoadingTransitLine] = useState<string | null>(null);
 
-  const handleTransitLineClick = useCallback(async (lineName: string) => {
-    if (activeTransitLine && activeTransitLine.line.toLowerCase() === lineName.toLowerCase()) {
+  const isGtfsStation = useMemo(() => {
+    const id = poiId || poi?.id || fallbackPoi?.id || '';
+    return id.startsWith('gtfs:');
+  }, [poiId, poi?.id, fallbackPoi?.id]);
+
+  const handleTransitLineClick = useCallback(async (lineIdentifier: string) => {
+    if (activeTransitLine && activeTransitLine.line.toLowerCase() === lineIdentifier.toLowerCase()) {
       onSelectTransitLine?.(null);
       window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
       return;
@@ -290,17 +355,37 @@ export function PoiDetailView({
     const targetCity = poi?.city || fallbackPoi?.city || city || '';
     if (!targetCity) return;
 
-    setLoadingTransitLine(lineName);
+    setLoadingTransitLine(lineIdentifier);
     try {
-      const res = await fetch(
-        `${getApiBaseUrl()}/api/pois/transit-line?city=${encodeURIComponent(targetCity)}&line=${encodeURIComponent(lineName)}`
-      );
-      if (!res.ok) {
-        throw new Error(`Transit line ${lineName} data not available`);
+      const detail = await apiFetch<{
+        id: string;
+        short_name?: string;
+        color: string;
+        patterns: Array<{
+          geometry: { coordinates: [number, number][] };
+          stops: Array<{ station_id: string; name: string; lat: number; lon: number }>;
+        }>;
+      }>(`/transit/${encodeURIComponent(targetCity.toLowerCase())}/lines/${encodeURIComponent(lineIdentifier)}`);
+
+      if (detail && detail.patterns && detail.patterns.length > 0) {
+        const primary = detail.patterns[0];
+        const activeLineData: ActiveTransitLineData = {
+          line: detail.short_name || detail.id,
+          city: targetCity,
+          color: detail.color || '#007AFF',
+          polyline: primary.geometry?.coordinates || [],
+          stations: (primary.stops || []).map((s) => ({
+            id: s.station_id,
+            name: s.name,
+            lat: s.lat,
+            lng: s.lon,
+            category: 'transit',
+            lines: [detail.short_name || detail.id],
+          })),
+        };
+        onSelectTransitLine?.(activeLineData);
+        window.dispatchEvent(new CustomEvent('paladio:show-transit-line', { detail: activeLineData }));
       }
-      const data: ActiveTransitLineData = await res.json();
-      onSelectTransitLine?.(data);
-      window.dispatchEvent(new CustomEvent('paladio:show-transit-line', { detail: data }));
     } catch (err) {
       console.warn('Failed to load transit line data:', err);
     } finally {
@@ -368,11 +453,72 @@ export function PoiDetailView({
       setActivePhotoIdx(0);
       setLightboxOpen(false);
 
+      const effectiveId = poiId || fallbackPoi?.id || fallbackPoi?.name || '';
+      const effectiveCity = fallbackPoi?.city || city || '';
+
+      // GTFS station fetch:
+      if (effectiveId.startsWith('gtfs:') && effectiveCity) {
+        const parts = effectiveId.split(':');
+        const stationCity = parts[1] || effectiveCity;
+        const stationRawId = parts.slice(2).join(':');
+
+        try {
+          const stData = await apiFetch<StationDetailData>(
+            `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}`
+          );
+          if (isMounted && stData) {
+            setStationDetail(stData);
+            setPoi({
+              id: effectiveId,
+              name: stData.name,
+              category: 'transit',
+              city: stationCity,
+              lat: stData.lat,
+              lng: stData.lon,
+              duration_mins: 15,
+              cost_eur: 0,
+              cost_is_estimated: false,
+              description: stData.original_name && stData.original_name !== stData.name ? stData.original_name : '',
+              photos: [],
+              scoring: {},
+              transit_info: {
+                lines: stData.serving_lines.map((l) => l.short_name || l.line_id),
+                station_type: stData.serving_lines[0]?.mode || 'station',
+              },
+            } as unknown as PoiDetail);
+            setLoading(false);
+
+            // Fetch departures
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const secs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            setLoadingDepartures(true);
+            apiFetch<StationDepartureItem[]>(
+              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${dateStr}&seconds=${secs}&limit=8`
+            )
+              .then((deps) => {
+                if (isMounted && Array.isArray(deps)) {
+                  setStationDepartures(deps);
+                }
+              })
+              .catch((err) => console.warn('Could not load departures:', err))
+              .finally(() => {
+                if (isMounted) setLoadingDepartures(false);
+              });
+          }
+          return;
+        } catch (err) {
+          console.warn('Failed to load GTFS station detail:', err);
+          if (fallbackPoi && isMounted) {
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       try {
         const baseUrl = getApiBaseUrl();
-        const effectiveId = poiId || fallbackPoi?.id || fallbackPoi?.name || '';
         const effectiveName = fallbackPoi?.name || (!effectiveId.startsWith('OSM-') && !effectiveId.startsWith('uuid-') ? effectiveId : '');
-        const effectiveCity = fallbackPoi?.city || city || '';
 
         const params = new URLSearchParams();
         if (effectiveName) params.set('name', effectiveName);
@@ -856,6 +1002,7 @@ export function PoiDetailView({
                 /* Authentic Category Vector Illustration Fallback */
                 <div
                   style={{
+                    position: 'relative',
                     padding: '28px 16px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -878,6 +1025,73 @@ export function PoiDetailView({
                   >
                     {`// ${poi.category || 'ATTRACTION'} ARCHIVE`}
                   </span>
+
+                  {/* Circular Action Buttons (Map Focus & Bookmark) */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '12px',
+                      right: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFocusClick();
+                      }}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'var(--color-surface-raised, rgba(15, 23, 42, 0.72))',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease',
+                      }}
+                      title="Focus on Map"
+                      aria-label="Focus on Map"
+                    >
+                      <CompassIcon size={15} color="currentColor" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSaved((prev) => !prev);
+                      }}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'var(--color-surface-raised, rgba(15, 23, 42, 0.72))',
+                        border: isSaved
+                          ? '1px solid #F59E0B'
+                          : '1px solid var(--color-border)',
+                        color: isSaved ? '#F59E0B' : 'var(--color-text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                      aria-label={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                    >
+                      <BookmarkIcon
+                        size={15}
+                        color={isSaved ? '#F59E0B' : 'currentColor'}
+                        fill={isSaved ? '#F59E0B' : 'none'}
+                      />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -891,39 +1105,39 @@ export function PoiDetailView({
                 gap: '12px',
               }}
             >
-              {/* Pricing & Rating Row */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                  paddingTop: '2px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span
-                    style={{
-                      fontSize: '22px',
-                      fontWeight: 800,
-                      letterSpacing: '-0.02em',
-                      fontFamily: 'var(--font-display, inherit)',
-                      color: 'var(--color-text-primary)',
-                    }}
-                  >
-                    {poi.cost_eur === 0 ? 'Free' : `${currencySymbol}${Math.round(poi.cost_eur)}`}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--color-text-muted)',
-                      fontFamily: 'var(--font-code, monospace)',
-                    }}
-                  >
-                    / person
-                  </span>
-                </div>
+              {/* Pricing & Rating Row (Hidden for transit stations) */}
+              {!isTransit && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    paddingTop: '2px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <span
+                      style={{
+                        fontSize: '22px',
+                        fontWeight: 800,
+                        letterSpacing: '-0.02em',
+                        fontFamily: 'var(--font-display, inherit)',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      {poi.cost_eur === 0 ? 'Free' : `${currencySymbol}${Math.round(poi.cost_eur)}`}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--color-text-muted)',
+                        fontFamily: 'var(--font-code, monospace)',
+                      }}
+                    >
+                      / person
+                    </span>
+                  </div>
 
-                {!isTransit && (
                   <div
                     title="Taste match calculated from your travel preferences"
                     style={{
@@ -949,8 +1163,8 @@ export function PoiDetailView({
                       {tasteMatchPct}% Taste Match
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Subtle Divider */}
               <div style={{ height: '1px', background: 'var(--color-border)', opacity: 0.6 }} />
@@ -1257,189 +1471,377 @@ export function PoiDetailView({
                 </div>
               )}
 
-              {/* Collapsible Opening Hours */}
-              <div
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '10px',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span
+              {/* Transit Station Real-Time Details (Serving Lines, Accessibility, Departures) */}
+              {isTransit && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Wheelchair Accessibility Badge */}
+                  {stationDetail && (
+                    <div
                       style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: '50%',
-                        background: isOpenOnTargetDay
-                          ? 'var(--color-success, #10B981)'
-                          : poi?.hours_known
-                          ? '#B45309'
-                          : 'var(--color-text-muted)',
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-code, monospace)',
-                        fontSize: '10.5px',
-                        fontWeight: 700,
-                        color: isOpenOnTargetDay
-                          ? 'var(--color-success, #10B981)'
-                          : poi?.hours_known
-                          ? '#B45309'
-                          : 'var(--color-text-primary)',
-                      }}
-                    >
-                      {isOpenOnTargetDay
-                        ? `OPEN ON DAY ${effectiveDayNumber}`
-                        : poi?.hours_known
-                        ? `CLOSED ON DAY ${effectiveDayNumber}`
-                        : 'HOURS UNLISTED'}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10.5px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                      }}
-                    >
-                      ({isOpenOnTargetDay ? targetDayHoursLabel : poi?.hours_known ? 'Closed all day' : 'Check website'})
-                    </span>
-                  </div>
-
-                  {poi?.daily_windows && (
-                    <button
-                      type="button"
-                      onClick={() => setShowHoursGrid((prev) => !prev)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--color-accent-primary)',
-                        fontSize: '10.5px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: 0,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '2px',
+                        gap: '6px',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: stationDetail.wheelchair_boarding === 1
+                          ? 'rgba(16, 185, 129, 0.1)'
+                          : 'var(--color-surface-raised)',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: stationDetail.wheelchair_boarding === 1
+                          ? '#10B981'
+                          : 'var(--color-text-muted)',
                       }}
                     >
-                      <span>All Days</span>
-                      {showHoursGrid ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
-                    </button>
+                      <span style={{ fontWeight: 700 }}>
+                        {stationDetail.wheelchair_boarding === 1
+                          ? '✓ Wheelchair Accessible Platform'
+                          : stationDetail.wheelchair_boarding === 2
+                          ? '✗ Not Wheelchair Accessible'
+                          : 'Wheelchair Accessibility Unspecified'}
+                      </span>
+                    </div>
                   )}
-                </div>
 
-                {/* Day Context Switcher for Searched POIs not yet in Route */}
-                {!isScheduledInRoute && (availableDays || [1, 2, 3]).length > 1 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 0 2px 0',
-                      borderTop: '1px dashed var(--color-border)',
-                      fontSize: '10px',
-                    }}
-                  >
-                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
-                      Preview:
-                    </span>
-                    {(availableDays || [1, 2, 3]).map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => setSelectedPreviewDay(d)}
+                  {/* Serving Lines Section */}
+                  {stationDetail && stationDetail.serving_lines && stationDetail.serving_lines.length > 0 && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        background: 'var(--color-surface-raised)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      <span
                         style={{
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          border: 'none',
-                          background: effectiveDayNumber === d ? 'var(--color-accent-primary)' : 'rgba(0,0,0,0.06)',
-                          color: effectiveDayNumber === d ? '#FFFFFF' : 'var(--color-text-muted)',
-                          fontSize: '10px',
-                          fontWeight: effectiveDayNumber === d ? 700 : 500,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          color: 'var(--color-text-muted)',
+                          fontWeight: 700,
                         }}
                       >
-                        Day {d}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        Serving Lines & Directions
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {stationDetail.serving_lines.map((l, idx) => {
+                          const theme = getTransitLineTheme(l.short_name || l.line_id);
+                          const isLineActive = activeTransitLine?.line.toLowerCase() === (l.short_name || l.line_id).toLowerCase();
+                          return (
+                            <div
+                              key={`${l.line_id}-${l.direction_id}-${idx}`}
+                              onClick={() => handleTransitLineClick(l.short_name || l.line_id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                background: isLineActive ? `${theme.solid}15` : 'var(--color-surface-card)',
+                                border: `1px solid ${isLineActive ? theme.solid : 'var(--color-border)'}`,
+                                cursor: 'pointer',
+                              }}
+                              title="Click to view full line route on map"
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span
+                                  style={{
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: l.color || theme.solid,
+                                    color: l.text_color || '#FFFFFF',
+                                    fontSize: '10.5px',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-code, monospace)',
+                                  }}
+                                >
+                                  {l.short_name || l.line_id}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--color-text-primary)' }}>
+                                  {l.headsign ? `towards ${l.headsign}` : (l.long_name || l.mode)}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '9px', fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-muted)' }}>
+                                {l.mode}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-                {showHoursGrid && poi?.daily_windows && (
+                  {/* Scheduled Departures Section */}
                   <div
                     style={{
-                      marginTop: '4px',
-                      paddingTop: '6px',
-                      borderTop: '1px dashed var(--color-border)',
+                      padding: '10px 12px',
+                      background: 'var(--color-surface-raised)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '10px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '4px',
+                      gap: '8px',
                     }}
                   >
-                    {DAY_NAMES.map((dName, dayIdx) => {
-                      const win = poi.daily_windows?.[dayIdx];
-                      const isTarget = dayIdx === targetDayOfWeekIdx;
-                      let hoursStr = poi?.hours_known ? 'Closed' : 'Not listed';
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '9.5px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          color: 'var(--color-text-muted)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Today&apos;s Next Departures
+                      </span>
+                      {loadingDepartures && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
+                          Loading...
+                        </span>
+                      )}
+                    </div>
 
-                      if (Array.isArray(win) && win.length > 0) {
-                        const parsedList = win
-                          .map(formatWindowTime)
-                          .filter((str): str is string => Boolean(str));
-
-                        if (parsedList.length > 0) {
-                          hoursStr = parsedList.join(', ');
-                        }
-                      }
-
-                      return (
-                        <div
-                          key={dName}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '10.5px',
-                            fontFamily: 'var(--font-code, monospace)',
-                            color: isTarget ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                            fontWeight: isTarget ? 700 : 400,
-                            padding: isTarget ? '2px 6px' : '0px',
-                            background: isTarget ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{dName}:</span>
-                            {isTarget && (
+                    {stationDepartures.length === 0 && !loadingDepartures ? (
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                        No upcoming scheduled departures in timetable for today.
+                      </span>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {stationDepartures.map((dep, idx) => (
+                          <div
+                            key={`${dep.line_id}-${dep.departure_seconds}-${idx}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '4px 6px',
+                              borderRadius: '4px',
+                              background: 'var(--color-surface-card)',
+                              fontSize: '11px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span
                                 style={{
-                                  fontSize: '9px',
                                   padding: '1px 5px',
-                                  borderRadius: '999px',
-                                  background: 'var(--color-accent-primary)',
-                                  color: '#FFFFFF',
+                                  borderRadius: '3px',
+                                  background: dep.color || '#007AFF',
+                                  color: dep.text_color || '#FFFFFF',
+                                  fontSize: '10px',
                                   fontWeight: 700,
+                                  fontFamily: 'var(--font-code, monospace)',
                                 }}
                               >
-                                DAY {effectiveDayNumber}
+                                {dep.line_short_name}
                               </span>
-                            )}
+                              <span style={{ color: 'var(--color-text-primary)' }}>
+                                {dep.headsign ? `to ${dep.headsign}` : dep.mode}
+                              </span>
+                            </div>
+                            <span style={{ fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-accent-primary)' }}>
+                              {formatDepartureSeconds(dep.departure_seconds)}
+                            </span>
                           </div>
-                          <span>{hoursStr}</span>
-                        </div>
-                      );
-                    })}
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Collapsible Opening Hours (Hidden for transit stations) */}
+              {!isTransit && (
+                <div
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          background: isOpenOnTargetDay
+                            ? 'var(--color-success, #10B981)'
+                            : poi?.hours_known
+                            ? '#B45309'
+                            : 'var(--color-text-muted)',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          color: isOpenOnTargetDay
+                            ? 'var(--color-success, #10B981)'
+                            : poi?.hours_known
+                            ? '#B45309'
+                            : 'var(--color-text-primary)',
+                        }}
+                      >
+                        {isOpenOnTargetDay
+                          ? `OPEN ON DAY ${effectiveDayNumber}`
+                          : poi?.hours_known
+                          ? `CLOSED ON DAY ${effectiveDayNumber}`
+                          : 'HOURS UNLISTED'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10.5px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-muted)',
+                        }}
+                      >
+                        ({isOpenOnTargetDay ? targetDayHoursLabel : poi?.hours_known ? 'Closed all day' : 'Check website'})
+                      </span>
+                    </div>
+
+                    {poi?.daily_windows && (
+                      <button
+                        type="button"
+                        onClick={() => setShowHoursGrid((prev) => !prev)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-accent-primary)',
+                          fontSize: '10.5px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                        }}
+                      >
+                        <span>All Days</span>
+                        {showHoursGrid ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Day Context Switcher for Searched POIs not yet in Route */}
+                  {!isScheduledInRoute && (availableDays || [1, 2, 3]).length > 1 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 0 2px 0',
+                        borderTop: '1px dashed var(--color-border)',
+                        fontSize: '10px',
+                      }}
+                    >
+                      <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
+                        Preview:
+                      </span>
+                      {(availableDays || [1, 2, 3]).map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setSelectedPreviewDay(d)}
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            border: 'none',
+                            background: effectiveDayNumber === d ? 'var(--color-accent-primary)' : 'rgba(0,0,0,0.06)',
+                            color: effectiveDayNumber === d ? '#FFFFFF' : 'var(--color-text-muted)',
+                            fontSize: '10px',
+                            fontWeight: effectiveDayNumber === d ? 700 : 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          Day {d}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {showHoursGrid && poi?.daily_windows && (
+                    <div
+                      style={{
+                        marginTop: '4px',
+                        paddingTop: '6px',
+                        borderTop: '1px dashed var(--color-border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}
+                    >
+                      {DAY_NAMES.map((dName, dayIdx) => {
+                        const win = poi.daily_windows?.[dayIdx];
+                        const isTarget = dayIdx === targetDayOfWeekIdx;
+                        let hoursStr = poi?.hours_known ? 'Closed' : 'Not listed';
+
+                        if (Array.isArray(win) && win.length > 0) {
+                          const parsedList = win
+                            .map(formatWindowTime)
+                            .filter((str): str is string => Boolean(str));
+
+                          if (parsedList.length > 0) {
+                            hoursStr = parsedList.join(', ');
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={dName}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '10.5px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: isTarget ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                              fontWeight: isTarget ? 700 : 400,
+                              padding: isTarget ? '2px 6px' : '0px',
+                              background: isTarget ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{dName}:</span>
+                              {isTarget && (
+                                <span
+                                  style={{
+                                    fontSize: '9px',
+                                    padding: '1px 5px',
+                                    borderRadius: '999px',
+                                    background: 'var(--color-accent-primary)',
+                                    color: '#FFFFFF',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  DAY {effectiveDayNumber}
+                                </span>
+                              )}
+                            </div>
+                            <span>{hoursStr}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Technical GPS Metadata */}
               <div

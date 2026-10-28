@@ -14,6 +14,7 @@ import { InfoIcon } from '@/components/icons';
 import { createRouteCardDragImage } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
+import { apiFetch } from '@/utils/api';
 
 export interface MapPoi {
   id?: string;
@@ -100,6 +101,7 @@ interface TripMapViewProps {
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isSidebarOpen?: boolean;
   sidebarTab?: 'route' | 'search' | 'transit' | 'saved';
+  destinationCity?: string;
   activeTransitLine?: ActiveTransitLineData | null;
   onClearTransitLine?: () => void;
 }
@@ -674,6 +676,77 @@ function MapViewportController({
   return null;
 }
 
+export interface StationBboxItem {
+  id: string;
+  name: string;
+  original_name?: string | null;
+  lat: number;
+  lon: number;
+  wheelchair_boarding: number;
+  stop_count: number;
+  lines: Array<{
+    line_id: string;
+    short_name?: string | null;
+    mode: string;
+    color?: string | null;
+    text_color?: string | null;
+  }>;
+}
+
+function MapBboxSync({
+  enabled,
+  city,
+  onStationsLoaded,
+}: {
+  enabled: boolean;
+  city: string;
+  onStationsLoaded: (stations: StationBboxItem[]) => void;
+}) {
+  const map = useMap();
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchStationsForBounds = useCallback(() => {
+    if (!enabled || !city || !map) return;
+    const b = map.getBounds();
+    const minLat = b.getSouth();
+    const minLon = b.getWest();
+    const maxLat = b.getNorth();
+    const maxLon = b.getEast();
+
+    apiFetch<StationBboxItem[]>(
+      `/transit/${encodeURIComponent(city.toLowerCase())}/map-stations?bbox=${minLat.toFixed(5)},${minLon.toFixed(5)},${maxLat.toFixed(5)},${maxLon.toFixed(5)}&limit=150`
+    )
+      .then((data) => {
+        if (Array.isArray(data)) {
+          onStationsLoaded(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load map stations for bbox:', err);
+      });
+  }, [enabled, city, map, onStationsLoaded]);
+
+  useEffect(() => {
+    if (!enabled || !city || !map) return;
+    fetchStationsForBounds();
+
+    const onMoveEnd = () => {
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = setTimeout(() => {
+        fetchStationsForBounds();
+      }, 350);
+    };
+
+    map.on('moveend', onMoveEnd);
+    return () => {
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+      map.off('moveend', onMoveEnd);
+    };
+  }, [enabled, city, map, fetchStationsForBounds]);
+
+  return null;
+}
+
 export default function TripMapView({
   days = [],
   hotel,
@@ -689,6 +762,7 @@ export default function TripMapView({
   onInspectPoi,
   isSidebarOpen = true,
   sidebarTab = 'route',
+  destinationCity = '',
   activeTransitLine,
   onClearTransitLine,
 }: TripMapViewProps) {
@@ -704,6 +778,7 @@ export default function TripMapView({
 
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
+  const [mapStations, setMapStations] = useState<StationBboxItem[]>([]);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [displayedHoveredDay, setDisplayedHoveredDay] = useState<number | null>(null);
   const [isHoverExiting, setIsHoverExiting] = useState(false);
@@ -1137,6 +1212,11 @@ export default function TripMapView({
           activePoints={activeBoundsPoints}
           focusedPlace={focusedPlace}
           leftPadding={effectiveLeftPadding}
+        />
+        <MapBboxSync
+          enabled={sidebarTab === 'transit'}
+          city={destinationCity}
+          onStationsLoaded={setMapStations}
         />
 
         {focusedPlace &&
@@ -1724,12 +1804,13 @@ export default function TripMapView({
                 }}
                 eventHandlers={{
                   click: () => {
-                    onInspectPoi?.(st.id, {
-                      id: st.id,
+                    const stableId = st.id.startsWith('gtfs:') ? st.id : `gtfs:${destinationCity}:${st.id}`;
+                    onInspectPoi?.(stableId, {
+                      id: stableId,
                       name: st.name,
                       lat: st.lat,
                       lng: st.lng,
-                      category: st.category,
+                      category: st.category || 'transit',
                       transit_info: {
                         lines: st.lines,
                         station_type: st.station_type,
@@ -1749,6 +1830,53 @@ export default function TripMapView({
               </CircleMarker>
             ))}
           </>
+        )}
+
+        {/* 7. Transit Tab Bounding Box Stations Layer */}
+        {sidebarTab === 'transit' && !activeTransitLine && mapStations && mapStations.length > 0 && (
+          mapStations.map((st) => {
+            const stableId = `gtfs:${destinationCity}:${st.id}`;
+            const primaryLineColor = st.lines?.[0]?.color || '#007AFF';
+            return (
+              <CircleMarker
+                key={`map-transit-st-${st.id}`}
+                center={[st.lat, st.lon]}
+                radius={5}
+                pathOptions={{
+                  fillColor: '#FFFFFF',
+                  fillOpacity: 1,
+                  color: primaryLineColor,
+                  weight: 2.5,
+                }}
+                eventHandlers={{
+                  click: () => {
+                    onInspectPoi?.(stableId, {
+                      id: stableId,
+                      name: st.name,
+                      lat: st.lat,
+                      lng: st.lon,
+                      category: 'transit',
+                      transit_info: {
+                        lines: st.lines.map((l) => l.short_name || l.line_id),
+                        station_type: st.lines?.[0]?.mode || 'station',
+                      },
+                    });
+                  },
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
+                  <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                    {st.name}
+                  </div>
+                  {st.lines.length > 0 && (
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
+                      {st.lines.map((l) => l.short_name || l.line_id).join(', ')}
+                    </div>
+                  )}
+                </Tooltip>
+              </CircleMarker>
+            );
+          })
         )}
       </MapContainer>
 

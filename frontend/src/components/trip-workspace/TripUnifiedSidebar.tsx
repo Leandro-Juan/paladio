@@ -2853,35 +2853,84 @@ export function TripUnifiedSidebar({
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {Array.from(savedPoiIds).map((id) => (
-                          <div
-                            key={id}
-                            style={{
-                              padding: '10px 14px',
-                              borderRadius: '12px',
-                              border: '1px solid var(--color-border)',
-                              background: 'var(--color-surface-card)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ fontSize: '12px', fontWeight: 600 }}>Saved Stop #{id}</span>
-                            <button
-                              type="button"
-                              onClick={() => toggleSavePoi(id)}
+                        {Array.from(savedPoiIds).map((id) => {
+                          const isStation = id.startsWith('gtfs:') || id.toLowerCase().startsWith('osm-transit-');
+                          const displayName = isStation
+                            ? (id.startsWith('gtfs:') ? id.split(':').slice(2).join(':') : id)
+                            : id;
+
+                          return (
+                            <div
+                              key={id}
+                              onClick={() => {
+                                onInspectPoi?.(id, {
+                                  id,
+                                  name: isStation ? `Station ${displayName}` : `Saved Place #${id}`,
+                                  category: isStation ? 'transit' : 'attraction',
+                                });
+                              }}
                               style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--color-danger)',
-                                fontSize: '11px',
+                                padding: '10px 14px',
+                                borderRadius: '12px',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-surface-card)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 cursor: 'pointer',
+                                transition: 'transform 0.1s ease',
                               }}
                             >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    fontWeight: 700,
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: isStation ? 'rgba(8, 145, 178, 0.12)' : 'rgba(15, 76, 92, 0.08)',
+                                    color: isStation ? 'var(--color-accent-teal-mid, #0891B2)' : 'var(--color-accent-primary)',
+                                    textTransform: 'uppercase',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {isStation ? 'Transit' : 'Place'}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: 'var(--color-text-primary)',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {isStation ? `Station (${displayName})` : `Place #${id}`}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSavePoi(id);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--color-danger, #EF4444)',
+                                  fontSize: '11px',
+                                  cursor: 'pointer',
+                                  padding: '4px 6px',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

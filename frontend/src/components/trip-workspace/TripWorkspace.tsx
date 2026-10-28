@@ -551,6 +551,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             categoryPois={sidebarTab === 'route' ? [] : categoryPois}
             isSidebarOpen={isSidebarOpen}
             sidebarTab={sidebarTab}
+            destinationCity={trip.destination}
             activeTransitLine={activeTransitLine}
             onClearTransitLine={() => setActiveTransitLine(null)}
             onInspectPoi={handleInspectPoi}
