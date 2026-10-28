@@ -58,3 +58,10 @@ frontend/src/
 - Connects to `ws://localhost:8000/ws/stream`.
 - Handles real-time lifecycle event streaming (`PARSING_TICKETS`, `EVALUATING_ROUTES`, `SOLVING_TSPTW`).
 - Listens for `HUMAN_INTERRUPTION` events and prompts the user to supply missing constraints before continuing.
+
+### 2.5. `TripTransitTab.tsx` & Transit Workspace
+- Dedicated sidebar tab in `TripUnifiedSidebar` (`Route`, `Search`, `Transit`, `Saved`).
+- **Nearby Anchor Stations**: Stations adjacent to trip lodging and day sightseeing POIs sorted by walking distance with mode badges.
+- **Lines Directory**: Comprehensive catalog of subway, rail, tram, and bus lines with GTFS route colors.
+- **Map Synchronization**: Viewport bounding-box station fetching via `MapBboxSync` in `TripMapView.tsx`.
+- **Station Detail Inspector**: `PoiDetailView` dedicated transit profile with zero fake per-person fees, wheelchair accessibility tags, serving lines, and scheduled timetable departures.

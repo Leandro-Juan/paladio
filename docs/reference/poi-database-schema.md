@@ -128,6 +128,87 @@ CREATE TABLE city_transit_fares (
 
 ---
 
+### 1.4. Derived Transit Relational Schema
+
+Compact PostgreSQL tables derived from raw GTFS feeds via `TransitDerivationService` (`derive_city_transit_task` / `backend/app/cli/derive_transit.py`), supporting fast zero-calculation transit queries:
+
+```sql
+-- Derived transit station nodes (collapsed parent stations)
+CREATE TABLE transit_stations (
+    city VARCHAR NOT NULL,
+    build_id VARCHAR NOT NULL,
+    station_id VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    original_name VARCHAR,
+    lat DOUBLE PRECISION NOT NULL,
+    lon DOUBLE PRECISION NOT NULL,
+    wheelchair_boarding INTEGER NOT NULL DEFAULT 0,
+    stop_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (city, build_id, station_id)
+);
+CREATE INDEX idx_transit_stations_geo ON transit_stations (city, build_id, lat, lon);
+
+-- Derived transit lines with route modes and authentic GTFS brand colors
+CREATE TABLE transit_lines (
+    city VARCHAR NOT NULL,
+    build_id VARCHAR NOT NULL,
+    line_id VARCHAR NOT NULL,
+    agency_id VARCHAR,
+    short_name VARCHAR,
+    long_name VARCHAR,
+    mode VARCHAR NOT NULL,
+    color VARCHAR,
+    text_color VARCHAR,
+    color_source VARCHAR NOT NULL DEFAULT 'agency',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (city, build_id, line_id)
+);
+
+-- Serving line junctions linking stations to lines and directions
+CREATE TABLE transit_station_lines (
+    city VARCHAR NOT NULL,
+    build_id VARCHAR NOT NULL,
+    station_id VARCHAR NOT NULL,
+    line_id VARCHAR NOT NULL,
+    direction_id INTEGER NOT NULL DEFAULT 0,
+    headsign VARCHAR,
+    PRIMARY KEY (city, build_id, station_id, line_id, direction_id)
+);
+
+-- Service span, first/last departure, and headway frequency by time-of-day band
+CREATE TABLE transit_service_summaries (
+    city VARCHAR NOT NULL,
+    build_id VARCHAR NOT NULL,
+    station_id VARCHAR NOT NULL,
+    line_id VARCHAR NOT NULL,
+    direction_id INTEGER NOT NULL DEFAULT 0,
+    day_type VARCHAR NOT NULL DEFAULT 'weekday',
+    first_departure_seconds INTEGER NOT NULL,
+    last_departure_seconds INTEGER NOT NULL,
+    headways_by_band JSONB NOT NULL DEFAULT '{}'::jsonb,
+    PRIMARY KEY (city, build_id, station_id, line_id, direction_id, day_type)
+);
+
+-- Scheduled departure timetable (seconds from midnight for target service calendar)
+CREATE TABLE transit_scheduled_departures (
+    city VARCHAR NOT NULL,
+    build_id VARCHAR NOT NULL,
+    station_id VARCHAR NOT NULL,
+    line_id VARCHAR NOT NULL,
+    trip_id VARCHAR NOT NULL,
+    service_id VARCHAR NOT NULL,
+    direction_id INTEGER NOT NULL DEFAULT 0,
+    departure_seconds INTEGER NOT NULL,
+    headsign VARCHAR,
+    PRIMARY KEY (city, build_id, station_id, trip_id, departure_seconds)
+);
+CREATE INDEX idx_transit_sched_deps_lookup 
+ON transit_scheduled_departures (city, build_id, station_id, service_id, departure_seconds);
+```
+
+---
+
 ## 2. Vector Cosine Similarity Search Pattern
 
 To perform semantic RAG against destination POIs using a user's prompt vector:
@@ -141,3 +222,4 @@ WHERE city = :destination_city
 ORDER BY embedding <=> :query_vector ASC
 LIMIT 50;
 ```
+

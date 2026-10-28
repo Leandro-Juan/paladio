@@ -19,6 +19,16 @@ Returns the health status of the gateway.
 }
 ```
 
+### Transit Network Endpoints (`/api/v1/transit` / `/api/transit`)
+
+- **`GET /api/transit/{city}/status`**: Returns GTFS availability, coverage date range, and derived table build status.
+- **`GET /api/transit/{city}/nearby`**: Finds nearest stations to trip anchor coordinates (lodging, daily POIs) grouped by anchor with walking duration and serving line badges.
+- **`GET /api/transit/{city}/lines`**: Lists all transit lines for a destination city with modes and color palettes.
+- **`GET /api/transit/{city}/lines/{line_id}`**: Detailed line pattern, stop sequences, and spatial polyline.
+- **`GET /api/transit/{city}/stations/{station_id}`**: Detailed station info, serving lines, directions, wheelchair boarding, and service summaries.
+- **`GET /api/transit/{city}/stations/{station_id}/departures`**: Real-time scheduled timetable departures from target date and seconds.
+- **`GET /api/transit/{city}/map-stations?bbox=min_lat,min_lon,max_lat,max_lon`**: Returns stations with serving line chips bounded by geographic viewport for interactive map layers.
+
 ## WebSocket Streaming Endpoint
 
 ### `WS /api/v1/ws/stream`
