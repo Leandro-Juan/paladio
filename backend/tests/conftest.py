@@ -410,3 +410,18 @@ async def async_client(
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """
+    Ensures that tests marked as 'live_integration' or 'slow' are skipped by default
+    when running the full test suite, but run when explicitly requested via -k or
+    an exact test nodeid (::).
+    """
+    cli_args = getattr(config.invocation_params, "args", sys.argv)
+    has_cli_m = any(a == "-m" or a.startswith("-m=") for a in cli_args)
+    has_k = bool(config.option.keyword)
+    has_specific_node = any("::" in a for a in cli_args)
+    if not has_cli_m and (has_k or has_specific_node):
+        config.option.markexpr = ""

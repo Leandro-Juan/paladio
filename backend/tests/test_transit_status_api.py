@@ -112,6 +112,7 @@ async def test_transit_registry(async_client: AsyncClient, db_session):
     assert "barcelona" not in city_names
 
 
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 async def test_trigger_city_gtfs_compile(async_client: AsyncClient, db_session):
     res = await async_client.post(

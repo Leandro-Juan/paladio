@@ -27,6 +27,8 @@ services:
       redis:
         condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
+    mem_limit: 2048m
+    mem_reservation: 512m
     security_opt:
       - no-new-privileges:true
 
@@ -91,7 +93,10 @@ services:
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     restart: unless-stopped
-    shm_size: 4g
+    shm_size: 512m
+    mem_limit: 3072m
+    mem_reservation: 1024m
+    cpus: 2.0
     ports:
       - "127.0.0.1:8002:8002"
     volumes:
@@ -109,6 +114,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       target: dev
+    mem_limit: 2048m
+    mem_reservation: 512m
     volumes:
       - ./backend:/app
       - /app/.venv
@@ -128,7 +135,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    command: celery -A app.celery_app worker --loglevel=info -Q celery,transit_build,poi_hydration -c 2 --prefetch-multiplier=1
+    command: celery -A app.celery_app worker --loglevel=info -Q celery,transit_build,poi_hydration -c 2 --prefetch-multiplier=1 --max-memory-per-child=350000 --max-tasks-per-child=50
     security_opt:
       - no-new-privileges:true
 

@@ -2086,13 +2086,14 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
         container.exec_run(
             f"sh -c 'mkdir -p /custom_files/active_transit_feeds && ln -sf /gtfs_feeds/{city_lower} /custom_files/active_transit_feeds/{city_lower}'"
         )
+        # Update valhalla.json to enforce low-memory settings (concurrency 1, max_cache_size 256MB, id_table_size 350MB)
         container.exec_run(
-            "python3 -c \"import json; p = '/custom_files/valhalla.json'; f = open(p, 'r'); c = json.load(f); f.close(); c.setdefault('mjolnir', {})['transit_feeds_dir'] = '/custom_files/active_transit_feeds'; f = open(p, 'w'); json.dump(c, f, indent=2); f.close()\""
+            "python3 -c \"import json; p = '/custom_files/valhalla.json'; f = open(p, 'r'); c = json.load(f); f.close(); m = c.setdefault('mjolnir', {}); m['transit_feeds_dir'] = '/custom_files/active_transit_feeds'; m['concurrency'] = '1'; m['max_cache_size'] = 268435456; m['id_table_size'] = 350000000; f = open(p, 'w'); json.dump(c, f, indent=2); f.close()\""
         )
 
         logger.info(f"Executing Valhalla transit ingest for {city_lower}...")
         res_ingest = container.exec_run(
-            f"valhalla_ingest_transit -c /custom_files/valhalla.json -j {concurrency}"
+            f"nice -n 19 valhalla_ingest_transit -c /custom_files/valhalla.json -j {concurrency}"
         )
         if res_ingest.exit_code != 0:
             err_msg = (
@@ -2106,7 +2107,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 
         logger.info(f"Executing Valhalla transit convert for {city_lower}...")
         res_convert = container.exec_run(
-            f"valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
+            f"nice -n 19 valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
         )
         if res_convert.exit_code != 0:
             err_msg = (
@@ -2122,7 +2123,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             f"Executing Valhalla road tile build pipeline for {city_osm_pbf}..."
         )
         res_build = container.exec_run(
-            f"valhalla_build_tiles -c /custom_files/valhalla.json -j {concurrency} /custom_files/{city_osm_pbf}"
+            f"nice -n 19 valhalla_build_tiles -c /custom_files/valhalla.json -j {concurrency} /custom_files/{city_osm_pbf}"
         )
         if res_build.exit_code != 0:
             err_msg = (
@@ -2142,7 +2143,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
         container.exec_run("chown -R valhalla:valhalla /custom_files", user="root")
         container.exec_run("rm -f /custom_files/valhalla_tiles.tar")
         res_extract = container.exec_run(
-            "valhalla_build_extract -c /custom_files/valhalla.json -v --overwrite"
+            "nice -n 19 valhalla_build_extract -c /custom_files/valhalla.json -v --overwrite"
         )
         if res_extract.exit_code != 0:
             err_msg = (
@@ -2153,6 +2154,14 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             raise RuntimeError(
                 f"valhalla_build_extract failed with code {res_extract.exit_code}: {err_msg}"
             )
+
+        # Clean intermediate transit tiles directory to reclaim disk and memory cache
+        container.exec_run(
+            "rm -rf /custom_files/transit_tiles /custom_files/active_transit_feeds"
+        )
+        import gc
+
+        gc.collect()
 
         logger.info("Reloading Valhalla container...")
         container.restart()
