@@ -299,10 +299,184 @@ class TransitCacheModel(Base):
     valid_until = Column(DateTime(timezone=True), nullable=True)
     gtfs_feed_name = Column(String, nullable=True)
 
+    # Derived transit data extensions (PLAN.md Section 7)
+    derived_status = Column(String(32), default="PENDING", nullable=False)
+    derived_at = Column(DateTime(timezone=True), nullable=True)
+    active_build_id = Column(String(36), nullable=True)
+    capabilities = Column(JSONB, nullable=True)
+    feed_valid_from = Column(DateTime(timezone=True), nullable=True)
+    feed_valid_to = Column(DateTime(timezone=True), nullable=True)
+    quality = Column(JSONB, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
     )
+
+
+class TransitAgencyModel(Base):
+    __tablename__ = "transit_agencies"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    agency_id = Column(String(128), primary_key=True)
+    name = Column(String(256), nullable=False)
+    url = Column(String(512), nullable=True)
+    timezone = Column(String(64), nullable=True)
+    phone = Column(String(64), nullable=True)
+    fare_url = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransitLineModel(Base):
+    __tablename__ = "transit_lines"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    line_id = Column(String(128), primary_key=True)
+    agency_id = Column(String(128), nullable=True)
+    short_name = Column(String(64), nullable=True)
+    long_name = Column(String(256), nullable=True)
+    mode = Column(String(32), nullable=False, index=True)
+    color = Column(String(16), nullable=False)
+    text_color = Column(String(16), nullable=False)
+    color_source = Column(String(16), default="gtfs", nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransitStationModel(Base):
+    __tablename__ = "transit_stations"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    station_id = Column(String(128), primary_key=True)
+    name = Column(String(256), nullable=False, index=True)
+    original_name = Column(String(256), nullable=True)
+    lat = Column(Float, nullable=False)
+    lon = Column(Float, nullable=False)
+    wheelchair_boarding = Column(Integer, nullable=True)
+    stop_count = Column(Integer, default=1, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_transit_stations_spatial_model", "build_id", "city", "lat", "lon"),
+    )
+
+
+class TransitPatternModel(Base):
+    __tablename__ = "transit_patterns"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    pattern_id = Column(String(64), primary_key=True)
+    line_id = Column(String(128), nullable=False, index=True)
+    direction_id = Column(Integer, default=0, nullable=False)
+    headsign = Column(String(256), nullable=True)
+    is_primary = Column(Boolean, default=False, nullable=False)
+    stop_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransitPatternStopModel(Base):
+    __tablename__ = "transit_pattern_stops"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    pattern_id = Column(String(64), primary_key=True)
+    stop_sequence = Column(Integer, primary_key=True)
+    station_id = Column(String(128), nullable=False, index=True)
+    time_offset_seconds = Column(Integer, default=0, nullable=False)
+
+
+class TransitPatternTripModel(Base):
+    __tablename__ = "transit_pattern_trips"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    pattern_id = Column(String(64), primary_key=True)
+    service_id = Column(String(128), primary_key=True)
+    departure_seconds = Column(Integer, primary_key=True)
+    trip_id = Column(String(128), nullable=True)
+
+
+class TransitStationLineModel(Base):
+    __tablename__ = "transit_station_lines"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    station_id = Column(String(128), primary_key=True, index=True)
+    line_id = Column(String(128), primary_key=True)
+    direction_id = Column(Integer, primary_key=True, default=0)
+    headsign = Column(String(256), nullable=True)
+
+
+class TransitServiceSummaryModel(Base):
+    __tablename__ = "transit_service_summary"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    station_id = Column(String(128), primary_key=True, index=True)
+    line_id = Column(String(128), primary_key=True)
+    direction_id = Column(Integer, primary_key=True, default=0)
+    day_type = Column(
+        String(16), primary_key=True
+    )  # weekday, saturday, sunday, holiday
+    first_departure_seconds = Column(Integer, nullable=True)
+    last_departure_seconds = Column(Integer, nullable=True)
+    headways_by_band = Column(JSONB, nullable=True)
+
+
+class TransitServiceDayModel(Base):
+    __tablename__ = "transit_service_days"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    service_id = Column(String(128), primary_key=True)
+    start_date = Column(Integer, nullable=False)
+    end_date = Column(Integer, nullable=False)
+    monday = Column(Integer, default=0, nullable=False)
+    tuesday = Column(Integer, default=0, nullable=False)
+    wednesday = Column(Integer, default=0, nullable=False)
+    thursday = Column(Integer, default=0, nullable=False)
+    friday = Column(Integer, default=0, nullable=False)
+    saturday = Column(Integer, default=0, nullable=False)
+    sunday = Column(Integer, default=0, nullable=False)
+    exception_dates = Column(JSONB, nullable=True)
+
+
+class TransitShapeModel(Base):
+    __tablename__ = "transit_shapes"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    shape_id = Column(String(128), primary_key=True)
+    line_id = Column(String(128), nullable=True, index=True)
+    coordinates = Column(JSONB, nullable=False)  # [[lat, lon], ...]
+
+
+class TransitTransferModel(Base):
+    __tablename__ = "transit_transfers"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    from_station_id = Column(String(128), primary_key=True)
+    to_station_id = Column(String(128), primary_key=True)
+    transfer_type = Column(Integer, default=0, nullable=False)
+    min_transfer_time = Column(Integer, nullable=True)
+
+
+class TransitFareModel(Base):
+    __tablename__ = "transit_fares"
+
+    build_id = Column(String(36), primary_key=True)
+    city = Column(String(128), primary_key=True, index=True)
+    fare_id = Column(String(128), primary_key=True)
+    price = Column(Float, nullable=False)
+    currency = Column(String(8), default="EUR", nullable=False)
+    payment_method = Column(Integer, default=0, nullable=False)
+    transfers = Column(Integer, nullable=True)
+    transfer_duration = Column(Integer, nullable=True)
 
 
 class CityTransitFareModel(Base):

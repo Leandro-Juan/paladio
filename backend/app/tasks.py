@@ -2011,6 +2011,16 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 max_radius_km=70.0,
             )
 
+        # 4a. Queue transit derivation immediately after download and pruning
+        # Runs asynchronously without blocking Valhalla compile
+        try:
+            derive_city_transit_task.delay(city_name=city_lower, trip_id=trip_id)
+            logger.info(f"Dispatched derive_city_transit_task for {city_lower}")
+        except Exception as derive_dispatch_err:
+            logger.warning(
+                f"Could not dispatch derive_city_transit_task for {city_lower}: {derive_dispatch_err}"
+            )
+
         # 4b. Valhalla container setup & timezone check
         client = docker.from_env()
         container = client.containers.get("paladio-valhalla-1")
@@ -2212,6 +2222,75 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             trigger_next_queued_city()
         except Exception as q_err:
             logger.debug(f"Queue advancement note for {city_name}: {q_err}")
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.derive_city_transit_task",
+    queue="default",
+    max_retries=2,
+    default_retry_delay=10,
+)
+def derive_city_transit_task(
+    self, city_name: str, trip_id: str | None = None
+) -> dict[str, Any]:
+    """
+    Derives compact, high-performance PostgreSQL tables from the pruned GTFS feed
+    for the specified city. Operates safely with versioned builds and atomic active_build_id swap.
+    """
+    from sqlalchemy import select
+
+    from app.db.models import TransitCacheModel
+    from app.services.transit_derivation_service import TransitDerivationService
+
+    city_lower = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+    gtfs_base = os.getenv("GTFS_BASE_DIR", "/gtfs_feeds")
+    logger.info(f"Task {self.request.id}: Starting transit derivation for {city_lower}")
+
+    async def _derive():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                service = TransitDerivationService(session, gtfs_base_dir=gtfs_base)
+                result = await service.derive_city(city_lower)
+                _publish_transit_event(
+                    "TRANSIT_DERIVATION_READY",
+                    city_lower,
+                    city_name,
+                    trip_id,
+                    build_id=result.get("build_id"),
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Transit derivation failed for {city_lower}: {e}")
+                # Update derived_status to FAILED without altering active_build_id
+                try:
+                    q_cache = await session.execute(
+                        select(TransitCacheModel).where(
+                            TransitCacheModel.city == city_lower
+                        )
+                    )
+                    c_row = q_cache.scalars().first()
+                    if c_row:
+                        c_row.derived_status = "FAILED"
+                        await session.commit()
+                except Exception as db_err:
+                    logger.warning(
+                        f"Failed to record FAILED derived_status for {city_lower}: {db_err}"
+                    )
+
+                _publish_transit_event(
+                    "TRANSIT_DERIVATION_FAILED",
+                    city_lower,
+                    city_name,
+                    trip_id,
+                    error=str(e),
+                )
+                raise
+            finally:
+                await engine.dispose()
+
+    return _run_async(_derive())
 
 
 @app.task(name="app.tasks.periodic_market_scan_task")

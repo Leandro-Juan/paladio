@@ -6,6 +6,8 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from app.services.gtfs_translation_helper import GTFSTranslationHelper
+
 logger = logging.getLogger(__name__)
 
 GTFS_BASE_DIR = os.getenv("GTFS_BASE_DIR", "/gtfs_feeds")
@@ -45,19 +47,8 @@ class GTFSRouteFinder:
             return
 
         # 1. Translations
-        trans_file = os.path.join(self.gtfs_dir, "translations.txt")
-        if os.path.exists(trans_file):
-            try:
-                with open(trans_file, "r", encoding="utf-8", errors="replace") as f:
-                    for row in csv.DictReader(f):
-                        if row.get("language") == "en":
-                            self.translations[
-                                (row["table_name"], row["field_value"])
-                            ] = row["translation"]
-            except Exception as e:
-                logger.debug(
-                    f"Could not load translations.txt from {self.gtfs_dir}: {e}"
-                )
+        helper = GTFSTranslationHelper(self.gtfs_dir)
+        self.translations = helper.translations
 
         # 2. Stops
         stops_file = os.path.join(self.gtfs_dir, "stops.txt")

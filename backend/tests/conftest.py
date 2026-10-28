@@ -333,6 +333,16 @@ async def db_engine():
                     "ALTER TABLE trips ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'saved';"
                 )
             )
+            for col_stmt in [
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS derived_status VARCHAR(32) DEFAULT 'PENDING';",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS derived_at TIMESTAMPTZ;",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS active_build_id VARCHAR(36);",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS capabilities JSONB;",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS feed_valid_from TIMESTAMPTZ;",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS feed_valid_to TIMESTAMPTZ;",
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS quality JSONB;",
+            ]:
+                await conn.execute(text(col_stmt))
             await conn.execute(
                 text(
                     "SELECT create_hypertable('market_price_ticks', 'observed_at', "
