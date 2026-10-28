@@ -246,3 +246,48 @@ async def get_city_map_stations(
         max_lon=max_lon,
         limit=limit,
     )
+
+
+@router.get("/transit/{city}/stations/{station_id}")
+async def get_city_station_detail(
+    city: str,
+    station_id: str,
+    transit_svc: TransitService = Depends(get_transit_service),
+) -> dict[str, Any]:
+    city_clean = city.strip().lower()
+    station = await transit_svc.get_station_detail(city_clean, station_id)
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    return station
+
+
+@router.get("/transit/{city}/stations/{station_id}/departures")
+async def get_city_station_departures(
+    city: str,
+    station_id: str,
+    date: str = Query(..., description="Date YYYY-MM-DD"),
+    seconds: int = Query(..., ge=0, description="Seconds from midnight"),
+    limit: int = Query(10, ge=1, le=50),
+    transit_svc: TransitService = Depends(get_transit_service),
+) -> list[dict[str, Any]]:
+    city_clean = city.strip().lower()
+    return await transit_svc.get_station_departures(
+        city=city_clean,
+        station_id=station_id,
+        target_date=date,
+        target_seconds=seconds,
+        limit=limit,
+    )
+
+
+@router.get("/transit/{city}/lines/{line_id}")
+async def get_city_line_detail(
+    city: str,
+    line_id: str,
+    transit_svc: TransitService = Depends(get_transit_service),
+) -> dict[str, Any]:
+    city_clean = city.strip().lower()
+    line_detail = await transit_svc.get_line_detail(city_clean, line_id)
+    if not line_detail:
+        raise HTTPException(status_code=404, detail="Line not found")
+    return line_detail

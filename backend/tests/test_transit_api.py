@@ -185,3 +185,16 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     map_data = res_map.json()
     assert len(map_data) == 1
     assert map_data[0]["id"] == "G01"
+
+    # TEST 7: City-scoped station detail
+    res_city_st = await async_client.get(f"/api/v1/transit/{city}/stations/G01")
+    assert res_city_st.status_code == 200
+    city_st_data = res_city_st.json()
+    assert city_st_data["id"] == "G01"
+    assert city_st_data["name"] == "Shibuya"
+
+    # TEST 8: City-scoped line detail
+    res_city_line = await async_client.get(f"/api/v1/transit/{city}/lines/G")
+    assert res_city_line.status_code == 200
+    city_line_data = res_city_line.json()
+    assert city_line_data["id"] == "G"
