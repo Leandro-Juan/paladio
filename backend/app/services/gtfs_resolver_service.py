@@ -3,12 +3,17 @@ import csv
 import logging
 import math
 import os
-import re
 import time
-from dataclasses import dataclass
+import unicodedata
+from dataclasses import dataclass, field
 
 import httpx
 
+from app.domain.city_key import (
+    resolve_city_identity,
+    clean_ascii_slug,
+    _get_geonamescache,
+)
 from app.services.osm_map_service import OSMMapService
 
 logger = logging.getLogger(__name__)
@@ -67,7 +72,7 @@ GEOFABRIK_COUNTRY_TO_ISO = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class GTFSFeedInfo:
     feed_id: str
     provider: str
@@ -81,12 +86,20 @@ class GTFSFeedInfo:
     max_lat: float
     min_lon: float
     max_lon: float
+    source: str = "mobility_database"
+    licence: str = "open"
+    requires_auth: bool = False
+    modes: list[str] = field(default_factory=list)
 
     @property
     def bbox_area(self) -> float:
-        return max(
-            0.0001, (self.max_lat - self.min_lat) * (self.max_lon - self.min_lon)
+        d_lat = max(0.0001, self.max_lat - self.min_lat)
+        d_lon = (
+            (self.max_lon - self.min_lon)
+            if self.min_lon <= self.max_lon
+            else (180.0 - self.min_lon + self.max_lon + 180.0)
         )
+        return max(0.0001, d_lat * max(0.0001, d_lon))
 
 
 class GTFSResolverService:
@@ -266,49 +279,83 @@ class GTFSResolverService:
         center_lat: float,
         center_lon: float,
         city_country: str | None,
+        aliases: set[str] | list[str] | None = None,
     ) -> float:
         """
         Scores a candidate GTFS feed for a target city.
         Higher score = better match. Returns < 0 for disqualification.
+        Unicode-aware: matches against native scripts (東京, Москва, 서울) and Latin aliases.
         """
         # 1. Country code validation: if city country is known, feed MUST match country
         if city_country and feed.country and feed.country != city_country:
             return -1.0
 
-        # 2. Spatial check: feed must enclose city center coordinate
-        if not (
-            feed.min_lat <= center_lat <= feed.max_lat
-            and feed.min_lon <= center_lon <= feed.max_lon
+        # Reject corrupt or uninitialized bounding boxes (e.g. 0.0, 0.0)
+        if (
+            abs(feed.min_lat) < 1e-4
+            and abs(feed.max_lat) < 1e-4
+            and abs(feed.min_lon) < 1e-4
+            and abs(feed.max_lon) < 1e-4
         ):
             return -1.0
+
+        # Reject swapped latitudes
+        if feed.min_lat > feed.max_lat:
+            return -1.0
+
+        # 2. Spatial check: feed must enclose city center coordinate
+        # Latitude containment
+        if not (feed.min_lat <= center_lat <= feed.max_lat):
+            return -1.0
+
+        # Longitude containment with antimeridian support
+        if feed.min_lon <= feed.max_lon:
+            if not (feed.min_lon <= center_lon <= feed.max_lon):
+                return -1.0
+        else:
+            # Crosses 180° meridian (e.g. Suva, Fiji or Anadyr, Russia)
+            if not (center_lon >= feed.min_lon or center_lon <= feed.max_lon):
+                return -1.0
 
         score = 50.0
 
         # 3. Anti-Tour Operator Filtering:
-        # Check provider and name against tour/sightseeing blacklist
         desc_text = f"{feed.provider} {feed.name}".lower()
         for kw in TOUR_BLACKLIST_KEYWORDS:
             if kw in desc_text:
                 score -= 150.0
 
         # 4. Compactness score:
-        # Penalize huge bounding boxes (continent/state-wide rail) and reward municipal metro networks
         area = feed.bbox_area
         score += max(0.0, 60.0 - (math.log(area + 1.0) * 12.0))
 
-        # 5. Text relevance to city name
-        muni_lower = feed.municipality.lower()
-        subdiv_lower = feed.subdivision.lower()
-        muni_clean = re.sub(r"[^a-z0-9]", "", muni_lower)
-        subdiv_clean = re.sub(r"[^a-z0-9]", "", subdiv_lower)
-        desc_clean = re.sub(r"[^a-z0-9]", "", desc_text)
+        # 5. Unicode-aware text relevance
+        city_tokens: set[str] = set()
+        if aliases:
+            for a in aliases:
+                if a:
+                    city_tokens.add(unicodedata.normalize("NFKC", a.strip()).casefold())
+        if city_lower:
+            city_tokens.add(
+                unicodedata.normalize("NFKC", city_lower.strip()).casefold()
+            )
 
-        if city_lower in muni_lower or city_lower in muni_clean:
-            score += 90.0
-        elif city_lower in subdiv_lower or city_lower in subdiv_clean:
-            score += 50.0
-        elif city_lower in desc_text or city_lower in desc_clean:
-            score += 35.0
+        muni_folded = unicodedata.normalize("NFKC", feed.municipality).casefold()
+        subdiv_folded = unicodedata.normalize("NFKC", feed.subdivision).casefold()
+        desc_folded = unicodedata.normalize("NFKC", desc_text).casefold()
+
+        for tok in city_tokens:
+            if not tok or len(tok) < 2:
+                continue
+            if tok in muni_folded:
+                score += 90.0
+                break
+            elif tok in subdiv_folded:
+                score += 50.0
+                break
+            elif tok in desc_folded:
+                score += 35.0
+                break
 
         # 6. Official Transit Authority boost
         if feed.is_official:
@@ -317,88 +364,152 @@ class GTFSResolverService:
         return score
 
     @classmethod
-    async def resolve_gtfs_feed(cls, city_name: str) -> GTFSFeedInfo | None:
+    async def resolve_gtfs_feeds(
+        cls,
+        city_identifier: str,
+        country_code: str | None = None,
+        max_feeds: int = 5,
+    ) -> list[GTFSFeedInfo]:
         """
-        Dynamically finds the best official GTFS transit feed for any city worldwide.
-        Returns GTFSFeedInfo if an active open feed is found, or None.
-        STRICT ZERO MOCKED FALLBACK: Does not fabricate or return mocked schedule data.
+        Dynamically resolves one or more official GTFS transit feeds for any city worldwide.
+        Applies multi-feed greedy set cover for multi-operator cities (Metro + Bus + Rail).
+        Guarantees zero mocked or synthetic data.
         """
-        if not city_name:
-            return None
-
-        city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
-        if not city_clean:
-            return None
+        if not city_identifier or not city_identifier.strip():
+            return []
 
         await cls.ensure_catalog_loaded()
         if not cls._catalog_cache:
             logger.warning(
-                f"GTFS catalog is empty; cannot resolve GTFS feed for {city_name}."
+                f"GTFS catalog is empty; cannot resolve GTFS feeds for {city_identifier}."
             )
-            return None
+            return []
 
-        # 1. Determine city country code and center coordinates dynamically
-        city_country: str | None = None
+        # 1. Resolve city identity, country, and aliases
+        clean_input = city_identifier.strip()
+        resolved_name, resolved_cc, geonames_id = resolve_city_identity(
+            clean_input, country_code=country_code
+        )
+
+        city_country = country_code or resolved_cc
+        if city_country == "XX":
+            city_country = None
+
         center_lat: float | None = None
         center_lon: float | None = None
+        aliases: set[str] = {
+            clean_input.lower(),
+            resolved_name.lower(),
+            clean_ascii_slug(clean_input),
+            clean_ascii_slug(resolved_name),
+        }
 
-        try:
-            from app.adapters.repositories.sql_city_repository import SqlCityRepository
-            from app.db.session import async_session
+        # Check GeoNames for alternate names and coordinates
+        gc = _get_geonamescache()
+        if gc and geonames_id:
+            city_entry = gc.get_cities().get(geonames_id)
+            if city_entry:
+                center_lat = float(city_entry["latitude"])
+                center_lon = float(city_entry["longitude"])
+                if not city_country:
+                    city_country = city_entry.get("countrycode")
+                for alt in city_entry.get("alternatenames", []):
+                    if alt:
+                        aliases.add(alt.strip().lower())
 
-            async with async_session() as s:
-                c_repo = SqlCityRepository(s)
-                c_ent = await c_repo.find_by_name_or_alias(city_clean)
-                if c_ent:
-                    city_country = c_ent.country_code
-                    center_lat, center_lon = c_ent.center_lat, c_ent.center_lon
-        except Exception as exc:
-            logger.debug(f"City repo lookup for {city_clean} skipped: {exc}")
+        # Check DB city repository if coordinates not found yet
+        if center_lat is None or center_lon is None:
+            try:
+                from app.adapters.repositories.sql_city_repository import (
+                    SqlCityRepository,
+                )
+                from app.db.session import async_session
 
-        if not city_country or center_lat is None:
+                async with async_session() as s:
+                    c_repo = SqlCityRepository(s)
+                    c_ent = await c_repo.find_by_name_or_alias(clean_input)
+                    if c_ent:
+                        city_country = c_ent.country_code or city_country
+                        center_lat, center_lon = c_ent.center_lat, c_ent.center_lon
+                        aliases.add(c_ent.name.lower())
+                        for a in c_ent.aliases or []:
+                            aliases.add(a.lower())
+            except Exception as exc:
+                logger.debug(f"City repo lookup skipped: {exc}")
+
+        # OSM geocoder fallback
+        if center_lat is None or center_lon is None:
             try:
                 from app.infrastructure.providers.osm_city_ingest import geocode_city
 
-                query_name = city_name.strip().replace("_", " ").replace("-", " ")
-                geo = await geocode_city(query_name)
-                city_country = geo.country_code.upper() if geo.country_code else None
-                center_lat, center_lon = geo.lat, geo.lon
+                geo = await geocode_city(resolved_name or clean_input)
+                if geo:
+                    city_country = (
+                        geo.country_code.upper() if geo.country_code else city_country
+                    )
+                    center_lat, center_lon = geo.lat, geo.lon
+                    aliases.add(geo.display_name.lower())
             except Exception:
-                bounds = await OSMMapService.get_city_extract_bounds(city_name)
+                bounds = await OSMMapService.get_city_extract_bounds(clean_input)
                 if bounds:
                     center_lat = (bounds["min_lat"] + bounds["max_lat"]) / 2.0
                     center_lon = (bounds["min_lon"] + bounds["max_lon"]) / 2.0
 
         if center_lat is None or center_lon is None:
             logger.info(
-                f"Could not determine geographic center for {city_name}; no GTFS matched."
+                f"Could not determine geographic center for {city_identifier}; no GTFS matched."
             )
-            return None
+            return []
 
-        # 2. In-memory candidate evaluation & scoring
-        best_feed: GTFSFeedInfo | None = None
-        best_score = 0.0
-
+        # 2. Score candidates
+        scored_candidates: list[tuple[float, GTFSFeedInfo]] = []
         for feed in cls._catalog_cache:
             score = cls._score_candidate(
                 feed=feed,
-                city_lower=city_clean,
+                city_lower=clean_input.lower(),
                 center_lat=center_lat,
                 center_lon=center_lon,
                 city_country=city_country,
+                aliases=aliases,
             )
-            if score > best_score:
-                best_score = score
-                best_feed = feed
+            if score > 0.0:
+                scored_candidates.append((score, feed))
 
-        if best_feed:
+        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+        if not scored_candidates:
             logger.info(
-                f"Resolved GTFS feed for {city_name} (score {best_score:.1f}): "
-                f"[{best_feed.feed_id}] {best_feed.provider} - {best_feed.name} ({best_feed.download_url})"
+                f"No valid open GTFS schedule feed found in global catalog for {city_identifier}."
             )
-            return best_feed
+            return []
+
+        # 3. Greedy Set Cover: collect up to max_feeds distinct operators/providers
+        selected_feeds: list[GTFSFeedInfo] = []
+        seen_providers: set[str] = set()
+        best_score = scored_candidates[0][0]
+
+        for score, feed in scored_candidates:
+            # Cut off feeds whose score is drastically lower than the best candidate (< 40% of best score)
+            if score < max(35.0, best_score * 0.4):
+                break
+            norm_prov = clean_ascii_slug(feed.provider or feed.name)
+            if norm_prov not in seen_providers:
+                seen_providers.add(norm_prov)
+                selected_feeds.append(feed)
+                if len(selected_feeds) >= max_feeds:
+                    break
 
         logger.info(
-            f"No valid open GTFS schedule feed found in global catalog for {city_name}."
+            f"Resolved {len(selected_feeds)} GTFS feed(s) for {city_identifier}: "
+            f"{[f.name for f in selected_feeds]}"
         )
-        return None
+        return selected_feeds
+
+    @classmethod
+    async def resolve_gtfs_feed(cls, city_name: str) -> GTFSFeedInfo | None:
+        """
+        Dynamically finds the best official GTFS transit feed for any city worldwide.
+        Returns GTFSFeedInfo if an active open feed is found, or None.
+        STRICT ZERO MOCKED FALLBACK: Does not fabricate or return mocked schedule data.
+        """
+        feeds = await cls.resolve_gtfs_feeds(city_name, max_feeds=1)
+        return feeds[0] if feeds else None
