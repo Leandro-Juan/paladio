@@ -15,10 +15,17 @@ interface TransitLegViewProps {
   transitLeg?: TransitLeg | null;
   originName?: string;
   destinationName?: string;
+  defaultExpanded?: boolean;
 }
 
-export function TransitLegView({ transitLeg, originName, destinationName }: TransitLegViewProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function TransitLegView({
+  transitLeg,
+  originName,
+  destinationName,
+  defaultExpanded = false,
+}: TransitLegViewProps) {
+  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+  const isExpanded = userExpanded !== null ? userExpanded : defaultExpanded;
 
   if (!transitLeg) {
     return null;
@@ -205,7 +212,7 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
           <button
             type="button"
             data-testid="toggle-transit-steps-btn"
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => setUserExpanded(!isExpanded)}
             aria-expanded={isExpanded}
             style={{
               background: 'transparent',
@@ -275,7 +282,10 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
                     )}
                     {step.distance_km > 0 && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                        <RulerIcon size={11} color="var(--color-text-muted)" /> {step.distance_km} km
+                        <RulerIcon size={11} color="var(--color-text-muted)" />{' '}
+                        {step.distance_km < 1
+                          ? `${Math.round(step.distance_km * 1000)}m`
+                          : `${step.distance_km} km`}
                       </span>
                     )}
                     {step.transit_line && (
@@ -286,6 +296,24 @@ export function TransitLegView({ transitLeg, originName, destinationName }: Tran
                     {step.headsign && <span>Towards: {step.headsign}</span>}
                     {step.station_name && <span>Station: {step.station_name}</span>}
                   </div>
+                  {step.intermediate_stops && step.intermediate_stops.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: '4px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(15, 76, 92, 0.05)',
+                        borderLeft: '2px solid var(--color-accent-primary)',
+                        fontSize: '0.68rem',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                        Intermediate Stops ({step.intermediate_stops.length}):
+                      </span>{' '}
+                      {step.intermediate_stops.join(' → ')}
+                    </div>
+                  )}
                 </div>
               </div>
             );

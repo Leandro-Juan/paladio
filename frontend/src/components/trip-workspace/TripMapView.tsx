@@ -142,6 +142,35 @@ function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.Div
   });
 }
 
+function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.DivIcon {
+  const bg = role === 'transfer' ? '#D97706' : role === 'alight' ? '#059669' : '#0F4C5C';
+  return L.divIcon({
+    className: 'paladio-directions-station-node',
+    html: `
+      <div style="
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        border: 2.5px solid ${bg};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+      ">
+        <div style="
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: ${bg};
+        "></div>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
 function DirectionsMapEventsHandler({
   activeMapPickField,
   onCancelMapPick,
@@ -204,6 +233,17 @@ function DirectionsMapEventsHandler({
     }
     if (directionsRoute.activeLeg.geometry && directionsRoute.activeLeg.geometry.length > 0) {
       directionsRoute.activeLeg.geometry.forEach(([lat, lon]) => points.push([lat, lon]));
+    }
+    if (directionsRoute.activeLeg.steps) {
+      directionsRoute.activeLeg.steps.forEach((s: any) => {
+        if (s.geometry && Array.isArray(s.geometry)) {
+          s.geometry.forEach(([lat, lon]: [number, number]) => {
+            if (typeof lat === 'number' && typeof lon === 'number') {
+              points.push([lat, lon]);
+            }
+          });
+        }
+      });
     }
     if (points.length >= 2) {
       map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 16 });
@@ -2107,51 +2147,159 @@ export default function TripMapView({
               </Marker>
             )}
 
-            {/* Route Polyline */}
+            {/* Transit Station Markers along Directions Route */}
             {activeDirectionsRoute.activeLeg &&
-              activeDirectionsRoute.activeLeg.geometry &&
-              activeDirectionsRoute.activeLeg.geometry.length > 1 && (
-                <>
-                  {activeDirectionsRoute.activeLeg.mode === 'pedestrian' ? (
-                    <Polyline
-                      positions={activeDirectionsRoute.activeLeg.geometry}
-                      pathOptions={{
-                        color: '#0F4C5C',
-                        weight: 4.5,
-                        dashArray: '6, 8',
-                        opacity: 0.95,
-                        lineCap: 'round',
-                        lineJoin: 'round',
-                      }}
-                    />
-                  ) : (
-                    <>
+              activeDirectionsRoute.activeLeg.steps &&
+              activeDirectionsRoute.activeLeg.steps
+                .filter(
+                  (s: any) =>
+                    ['transit_board', 'transit_transfer', 'transit_alight'].includes(s.type) &&
+                    s.station_name &&
+                    s.geometry &&
+                    s.geometry.length > 0
+                )
+                .map((s: any, sIdx: number) => {
+                  const pos = s.geometry[0];
+                  if (!pos || typeof pos[0] !== 'number' || typeof pos[1] !== 'number') return null;
+                  const role =
+                    s.type === 'transit_board'
+                      ? 'board'
+                      : s.type === 'transit_transfer'
+                      ? 'transfer'
+                      : 'alight';
+                  const roleLabel =
+                    role === 'board'
+                      ? 'Boarding Station'
+                      : role === 'transfer'
+                      ? 'Transfer Station'
+                      : 'Alight Station';
+                  return (
+                    <Marker
+                      key={`dir-station-${sIdx}-${s.station_name}`}
+                      position={[pos[0], pos[1]]}
+                      icon={createDirectionsStationIcon(role)}
+                    >
+                      <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
+                        <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                          <span
+                            style={{
+                              textTransform: 'uppercase',
+                              fontSize: '9px',
+                              opacity: 0.8,
+                              display: 'block',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            {roleLabel}
+                          </span>
+                          {s.station_name}
+                        </div>
+                      </Tooltip>
+                    </Marker>
+                  );
+                })}
+
+            {/* Route Polyline */}
+            {activeDirectionsRoute.activeLeg && (
+              <>
+                {/* 1. If individual steps have geometries, render them segment-by-segment */}
+                {activeDirectionsRoute.activeLeg.steps &&
+                activeDirectionsRoute.activeLeg.steps.some(
+                  (s: any) => s.geometry && s.geometry.length > 1
+                ) ? (
+                  activeDirectionsRoute.activeLeg.steps.map((s: any, idx: number) => {
+                    if (!s.geometry || s.geometry.length < 2) return null;
+                    const isWalk =
+                      s.type === 'walk' ||
+                      s.type === 'pedestrian' ||
+                      (typeof s.instruction === 'string' &&
+                        s.instruction.toLowerCase().startsWith('walk'));
+                    return isWalk ? (
                       <Polyline
-                        key="directions-transit-glow"
-                        positions={activeDirectionsRoute.activeLeg.geometry}
+                        key={`step-polyline-${idx}`}
+                        positions={s.geometry}
                         pathOptions={{
-                          color: '#0F4C5C',
-                          weight: 8,
-                          opacity: 0.25,
-                          lineCap: 'round',
-                          lineJoin: 'round',
-                        }}
-                      />
-                      <Polyline
-                        key="directions-transit-core"
-                        positions={activeDirectionsRoute.activeLeg.geometry}
-                        pathOptions={{
-                          color: '#0F4C5C',
+                          color: '#71717A',
                           weight: 4.5,
+                          dashArray: '6, 8',
                           opacity: 0.95,
                           lineCap: 'round',
                           lineJoin: 'round',
                         }}
                       />
+                    ) : (
+                      <React.Fragment key={`step-polyline-${idx}`}>
+                        <Polyline
+                          positions={s.geometry}
+                          pathOptions={{
+                            color: '#0F4C5C',
+                            weight: 8,
+                            opacity: 0.3,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                          }}
+                        />
+                        <Polyline
+                          positions={s.geometry}
+                          pathOptions={{
+                            color: '#0F4C5C',
+                            weight: 5,
+                            opacity: 0.95,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                          }}
+                        />
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  /* 2. Fallback to leg-level geometry */
+                  activeDirectionsRoute.activeLeg.geometry &&
+                  activeDirectionsRoute.activeLeg.geometry.length > 1 && (
+                    <>
+                      {activeDirectionsRoute.activeLeg.mode === 'pedestrian' ? (
+                        <Polyline
+                          positions={activeDirectionsRoute.activeLeg.geometry}
+                          pathOptions={{
+                            color: '#0F4C5C',
+                            weight: 4.5,
+                            dashArray: '6, 8',
+                            opacity: 0.95,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <Polyline
+                            key="directions-transit-glow"
+                            positions={activeDirectionsRoute.activeLeg.geometry}
+                            pathOptions={{
+                              color: '#0F4C5C',
+                              weight: 8,
+                              opacity: 0.25,
+                              lineCap: 'round',
+                              lineJoin: 'round',
+                            }}
+                          />
+                          <Polyline
+                            key="directions-transit-core"
+                            positions={activeDirectionsRoute.activeLeg.geometry}
+                            pathOptions={{
+                              color: '#0F4C5C',
+                              weight: 4.5,
+                              opacity: 0.95,
+                              lineCap: 'round',
+                              lineJoin: 'round',
+                            }}
+                          />
+                        </>
+                      )}
                     </>
-                  )}
-                </>
-              )}
+                  )
+                )}
+              </>
+            )}
           </>
         )}
       </MapContainer>

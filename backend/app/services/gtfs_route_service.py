@@ -40,6 +40,7 @@ class GTFSRouteFinder:
         self.stop_routes: dict[str, set[str]] = defaultdict(set)
         self.route_stops: dict[str, list[str]] = defaultdict(list)
         self.route_stop_names: dict[str, set[str]] = defaultdict(set)
+        self.transfer_hubs: dict[str, list[tuple[str, float]]] = defaultdict(list)
         self.load()
 
     def load(self) -> None:
@@ -66,11 +67,16 @@ class GTFSRouteFinder:
                         except (ValueError, KeyError):
                             continue
                         en_name = self.translations.get(("stops", raw_name), "")
-                        display_name = (
-                            f"{en_name} ({raw_name})"
-                            if en_name and en_name != raw_name
-                            else raw_name
-                        )
+                        if (
+                            en_name
+                            and en_name != raw_name
+                            and not raw_name.startswith(f"{en_name} (")
+                            and not raw_name.startswith(f"{en_name}<")
+                            and not raw_name.startswith(f"{en_name} ")
+                        ):
+                            display_name = f"{en_name} ({raw_name})"
+                        else:
+                            display_name = raw_name
                         self.stops[s_id] = {
                             "id": s_id,
                             "raw_name": raw_name,
@@ -101,9 +107,15 @@ class GTFSRouteFinder:
                         r_type = type_names.get(
                             str(row.get("route_type", "1")).strip(), "Metro"
                         )
+                        if r_raw.startswith(f"{r_en} (") or r_raw.startswith(
+                            f"{r_en} "
+                        ):
+                            r_name = r_raw
+                        else:
+                            r_name = r_en
                         self.routes[r_id] = {
                             "id": r_id,
-                            "name": r_en,
+                            "name": r_name,
                             "raw_name": r_raw,
                             "type": r_type,
                         }
@@ -148,6 +160,51 @@ class GTFSRouteFinder:
             except Exception as e:
                 logger.debug(f"Could not load stop_times.txt from {self.gtfs_dir}: {e}")
 
+        # 5. Precompute spatial grid for transfer hubs (stations within 350m of each other)
+        grid: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
+        for s in self.stops.values():
+            key = (int(s["lat"] * 200), int(s["lon"] * 200))
+            grid[key].append(s)
+
+        for s1 in self.stops.values():
+            k_lat, k_lon = int(s1["lat"] * 200), int(s1["lon"] * 200)
+            for d_lat in (-1, 0, 1):
+                for d_lon in (-1, 0, 1):
+                    for s2 in grid.get((k_lat + d_lat, k_lon + d_lon), []):
+                        if s1["id"] != s2["id"]:
+                            d = calculate_haversine_km(
+                                s1["lat"], s1["lon"], s2["lat"], s2["lon"]
+                            )
+                            if d <= 0.35:
+                                self.transfer_hubs[s1["id"]].append(
+                                    (s2["id"], round(d, 3))
+                                )
+
+    def get_intermediate_stops(
+        self, route_id: str, board_stop_id: str, alight_stop_id: str
+    ) -> list[dict[str, Any]]:
+        """
+        Returns the ordered list of intermediate stop dictionaries along the route
+        between board_stop and alight_stop.
+        """
+        stops_seq = self.route_stops.get(route_id, [])
+        if board_stop_id in stops_seq and alight_stop_id in stops_seq:
+            i1 = stops_seq.index(board_stop_id)
+            i2 = stops_seq.index(alight_stop_id)
+            if i1 < i2:
+                sub_ids = stops_seq[i1 : i2 + 1]
+            else:
+                sub_ids = stops_seq[i2 : i1 + 1][::-1]
+            return [self.stops[sid] for sid in sub_ids if sid in self.stops]
+        b_s = self.stops.get(board_stop_id)
+        a_s = self.stops.get(alight_stop_id)
+        res = []
+        if b_s:
+            res.append(b_s)
+        if a_s and a_s != b_s:
+            res.append(a_s)
+        return res
+
     def find_route(
         self,
         orig_lat: float,
@@ -158,8 +215,8 @@ class GTFSRouteFinder:
         """
         Dynamically finds the optimal public transit connection between
         origin and destination coordinates:
-        1. Direct line connection
-        2. 1-transfer connection
+        1. Direct line connection (scored by travel efficiency)
+        2. 1-transfer connection (via shared station names or physical transfer hubs <= 350m)
         3. Nearest station proximity fallback
         """
         if not self.stops:
@@ -170,85 +227,191 @@ class GTFSRouteFinder:
             key=lambda s: calculate_haversine_km(
                 orig_lat, orig_lon, s["lat"], s["lon"]
             ),
-        )[:6]
+        )[:10]
         dest_cands = sorted(
             self.stops.values(),
             key=lambda s: calculate_haversine_km(
                 dest_lat, dest_lon, s["lat"], s["lon"]
             ),
-        )[:6]
+        )[:10]
 
-        # 1. Direct route
+        # 1. Direct route candidates
+        direct_candidates = []
         for o_s in orig_cands:
             o_dist = calculate_haversine_km(orig_lat, orig_lon, o_s["lat"], o_s["lon"])
-            if o_dist > 2.5:
+            if o_dist > 3.5:
                 continue
             for d_s in dest_cands:
                 d_dist = calculate_haversine_km(
                     dest_lat, dest_lon, d_s["lat"], d_s["lon"]
                 )
-                if d_dist > 2.5 or o_s["id"] == d_s["id"]:
+                if d_dist > 3.5 or o_s["id"] == d_s["id"]:
                     continue
                 common = self.stop_routes[o_s["id"]].intersection(
                     self.stop_routes[d_s["id"]]
                 )
-                if common:
-                    r_id = list(common)[0]
-                    return {
-                        "mode": "direct",
-                        "board_stop": o_s,
-                        "walk1_km": round(o_dist, 2),
-                        "route_1": self.routes.get(
-                            r_id, {"name": "Transit", "type": "Metro"}
-                        ),
-                        "alight_stop": d_s,
-                        "walk2_km": round(d_dist, 2),
-                    }
+                for r_id in common:
+                    intermediate = self.get_intermediate_stops(
+                        r_id, o_s["id"], d_s["id"]
+                    )
+                    score = o_dist + (len(intermediate) * 0.25) + d_dist
+                    direct_candidates.append(
+                        (
+                            score,
+                            {
+                                "mode": "direct",
+                                "board_stop": o_s,
+                                "walk1_km": round(o_dist, 2),
+                                "route_1": self.routes.get(
+                                    r_id, {"name": "Transit", "type": "Metro"}
+                                ),
+                                "alight_stop": d_s,
+                                "walk2_km": round(d_dist, 2),
+                                "intermediate_stops": intermediate,
+                            },
+                        )
+                    )
 
-        # 2. 1-transfer route
+        if direct_candidates:
+            direct_candidates.sort(key=lambda x: x[0])
+            return direct_candidates[0][1]
+
+        # 2. 1-transfer route candidates
+        transfer_candidates = []
         for o_s in orig_cands:
             o_dist = calculate_haversine_km(orig_lat, orig_lon, o_s["lat"], o_s["lon"])
-            if o_dist > 2.5:
+            if o_dist > 3.5:
                 continue
             for d_s in dest_cands:
                 d_dist = calculate_haversine_km(
                     dest_lat, dest_lon, d_s["lat"], d_s["lon"]
                 )
-                if d_dist > 2.5 or o_s["id"] == d_s["id"]:
+                if d_dist > 3.5 or o_s["id"] == d_s["id"]:
                     continue
                 for r1 in self.stop_routes[o_s["id"]]:
                     for r2 in self.stop_routes[d_s["id"]]:
                         if r1 == r2:
                             continue
+
+                        # A) Shared station name transfer
                         common_names = self.route_stop_names[r1].intersection(
                             self.route_stop_names[r2]
                         )
-                        if common_names:
-                            t_raw_name = list(common_names)[0]
-                            t_s = next(
+                        for t_raw_name in common_names:
+                            t_s1 = next(
                                 (
-                                    s
-                                    for s in self.stops.values()
-                                    if s["raw_name"] == t_raw_name
+                                    self.stops[sid]
+                                    for sid in self.route_stops[r1]
+                                    if self.stops[sid]["raw_name"] == t_raw_name
                                 ),
                                 None,
                             )
-                            if not t_s:
+                            t_s2 = next(
+                                (
+                                    self.stops[sid]
+                                    for sid in self.route_stops[r2]
+                                    if self.stops[sid]["raw_name"] == t_raw_name
+                                ),
+                                None,
+                            )
+                            if not t_s1 or not t_s2:
                                 continue
-                            return {
-                                "mode": "transfer",
-                                "board_stop": o_s,
-                                "walk1_km": round(o_dist, 2),
-                                "route_1": self.routes.get(
-                                    r1, {"name": "Transit", "type": "Metro"}
-                                ),
-                                "transfer_stop": t_s,
-                                "route_2": self.routes.get(
-                                    r2, {"name": "Transit", "type": "Metro"}
-                                ),
-                                "alight_stop": d_s,
-                                "walk2_km": round(d_dist, 2),
-                            }
+                            inter1 = self.get_intermediate_stops(
+                                r1, o_s["id"], t_s1["id"]
+                            )
+                            inter2 = self.get_intermediate_stops(
+                                r2, t_s2["id"], d_s["id"]
+                            )
+                            transfer_walk = calculate_haversine_km(
+                                t_s1["lat"], t_s1["lon"], t_s2["lat"], t_s2["lon"]
+                            )
+                            score = (
+                                o_dist
+                                + (len(inter1) * 0.25)
+                                + transfer_walk
+                                + (len(inter2) * 0.25)
+                                + d_dist
+                            )
+                            transfer_candidates.append(
+                                (
+                                    score,
+                                    {
+                                        "mode": "transfer",
+                                        "board_stop": o_s,
+                                        "walk1_km": round(o_dist, 2),
+                                        "route_1": self.routes.get(
+                                            r1, {"name": "Transit", "type": "Metro"}
+                                        ),
+                                        "transfer_stop_1": t_s1,
+                                        "transfer_stop": t_s1,
+                                        "walk_transfer_km": round(transfer_walk, 3),
+                                        "transfer_stop_2": t_s2,
+                                        "route_2": self.routes.get(
+                                            r2, {"name": "Transit", "type": "Metro"}
+                                        ),
+                                        "alight_stop": d_s,
+                                        "walk2_km": round(d_dist, 2),
+                                        "intermediate_stops_1": inter1,
+                                        "intermediate_stops_2": inter2,
+                                    },
+                                )
+                            )
+
+                        # B) Hub transfer (stations within <= 350m of each other)
+                        for s1_id in self.route_stops[r1]:
+                            for s2_id, hub_walk in self.transfer_hubs.get(s1_id, []):
+                                if r2 in self.stop_routes[s2_id]:
+                                    t_s1 = self.stops[s1_id]
+                                    t_s2 = self.stops[s2_id]
+                                    inter1 = self.get_intermediate_stops(
+                                        r1, o_s["id"], s1_id
+                                    )
+                                    inter2 = self.get_intermediate_stops(
+                                        r2, s2_id, d_s["id"]
+                                    )
+                                    score = (
+                                        o_dist
+                                        + (len(inter1) * 0.25)
+                                        + hub_walk
+                                        + (len(inter2) * 0.25)
+                                        + d_dist
+                                    )
+                                    transfer_candidates.append(
+                                        (
+                                            score,
+                                            {
+                                                "mode": "transfer",
+                                                "board_stop": o_s,
+                                                "walk1_km": round(o_dist, 2),
+                                                "route_1": self.routes.get(
+                                                    r1,
+                                                    {
+                                                        "name": "Transit",
+                                                        "type": "Metro",
+                                                    },
+                                                ),
+                                                "transfer_stop_1": t_s1,
+                                                "transfer_stop": t_s1,
+                                                "walk_transfer_km": round(hub_walk, 3),
+                                                "transfer_stop_2": t_s2,
+                                                "route_2": self.routes.get(
+                                                    r2,
+                                                    {
+                                                        "name": "Transit",
+                                                        "type": "Metro",
+                                                    },
+                                                ),
+                                                "alight_stop": d_s,
+                                                "walk2_km": round(d_dist, 2),
+                                                "intermediate_stops_1": inter1,
+                                                "intermediate_stops_2": inter2,
+                                            },
+                                        )
+                                    )
+
+        if transfer_candidates:
+            transfer_candidates.sort(key=lambda x: x[0])
+            return transfer_candidates[0][1]
 
         # 3. Nearest station proximity fallback
         best_o = orig_cands[0]

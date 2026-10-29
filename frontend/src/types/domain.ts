@@ -38,6 +38,7 @@ export interface TransitStep {
     headsign?: string | null;
     station_name?: string | null;
     geometry?: [number, number][];
+    intermediate_stops?: string[];
 }
 
 export interface TransitLeg {

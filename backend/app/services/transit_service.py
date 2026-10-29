@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any
@@ -121,7 +122,7 @@ async def get_detailed_transit_leg(
         is_airport_leg = is_poi_airport(origin) or is_poi_airport(destination)
 
     if not departure_iso:
-        departure_iso = "2026-09-10T09:00"
+        departure_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
     req_payload = {
         "locations": [
@@ -512,6 +513,8 @@ async def calculate_point_to_point_directions(
     if isinstance(walk_res, Exception):
         orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
         orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+        orig_name = origin.get("name", "Origin")
+        dest_name = destination.get("name", "Destination")
         dest_lat = destination.get("location", {}).get(
             "latitude", destination.get("lat", 0.0)
         )
@@ -522,19 +525,76 @@ async def calculate_point_to_point_directions(
             float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
         )
         est_walk_mins = max(1, int(round((dist_km / 4.5) * 60)))
+
+        # Build progressive turn maneuvers when offline routing tiles are not loaded
+        walk_steps: list[TransitStep] = []
+        if dist_km <= 0.6:
+            walk_steps.append(
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk directly {int(dist_km * 1000)}m towards {dest_name}",
+                    duration_mins=est_walk_mins,
+                    distance_km=round(dist_km, 2),
+                    geometry=[
+                        [float(orig_lat), float(orig_lon)],
+                        [float(dest_lat), float(dest_lon)],
+                    ],
+                )
+            )
+        else:
+            # Multi-segment pedestrian steps
+            # 1. Depart origin
+            d1_km = round(min(0.3, dist_km * 0.15), 2)
+            t1 = max(2, int(round(d1_km / 4.5 * 60)))
+            lat1 = float(orig_lat) + (float(dest_lat) - float(orig_lat)) * 0.15
+            lon1 = float(orig_lon) + (float(dest_lon) - float(orig_lon)) * 0.15
+            walk_steps.append(
+                TransitStep(
+                    type="walk",
+                    instruction=f"Depart {orig_name} and walk {int(d1_km * 1000)}m towards the main pedestrian avenue",
+                    duration_mins=t1,
+                    distance_km=d1_km,
+                    geometry=[[float(orig_lat), float(orig_lon)], [lat1, lon1]],
+                )
+            )
+            # 2. Main thoroughfare stretch
+            d2_km = round(dist_km - d1_km - min(0.3, dist_km * 0.15), 2)
+            t2 = max(
+                3,
+                est_walk_mins
+                - t1
+                - max(2, int(round(min(0.3, dist_km * 0.15) / 4.5 * 60))),
+            )
+            lat2 = float(orig_lat) + (float(dest_lat) - float(orig_lat)) * 0.85
+            lon2 = float(orig_lon) + (float(dest_lon) - float(orig_lon)) * 0.85
+            walk_steps.append(
+                TransitStep(
+                    type="walk",
+                    instruction=f"Continue along the pedestrian street towards {dest_name}",
+                    duration_mins=t2,
+                    distance_km=d2_km,
+                    geometry=[[lat1, lon1], [lat2, lon2]],
+                )
+            )
+            # 3. Final approach
+            d3_km = round(dist_km - d1_km - d2_km, 2)
+            t3 = max(1, est_walk_mins - t1 - t2)
+            walk_steps.append(
+                TransitStep(
+                    type="walk",
+                    instruction=f"Turn towards {dest_name} and arrive at destination ({int(d3_km * 1000)}m)",
+                    duration_mins=t3,
+                    distance_km=d3_km,
+                    geometry=[[lat2, lon2], [float(dest_lat), float(dest_lon)]],
+                )
+            )
+
         walk_leg = TransitLeg(
             duration_mins=est_walk_mins,
             cost_eur=0.0,
             cost_is_estimated=False,
             mode="pedestrian",
-            steps=[
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {dist_km:.1f} km to {destination.get('name', 'destination')}",
-                    duration_mins=est_walk_mins,
-                    distance_meters=int(dist_km * 1000),
-                )
-            ],
+            steps=walk_steps,
             geometry=[
                 [float(orig_lat), float(orig_lon)],
                 [float(dest_lat), float(dest_lon)],
@@ -702,220 +762,464 @@ def synthesize_fallback_transit_leg(
     walk2_dist = round(min(0.3, dist_km * 0.08), 2)
     transit_dist = round(max(0.5, dist_km - walk1_dist - walk2_dist), 2)
 
-    if is_airport:
-        if orig_is_airport:
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(walk1_dist * 1000)}m to the airport metro / rail terminal station",
-                    duration_mins=5,
-                    distance_km=walk1_dist,
-                    station_name=orig_name,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board airport metro / express line towards {dest_name}",
-                    duration_mins=max(10, dur_mins - 9),
-                    distance_km=transit_dist,
-                    transit_line="Airport Line",
-                    headsign=dest_name,
-                    station_name=orig_name,
-                    geometry=fallback_geom,
-                ),
-                TransitStep(
-                    type="transit_alight",
-                    instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
-                    duration_mins=4,
-                    distance_km=walk2_dist,
-                ),
+    gtfs_finder = get_gtfs_route_finder(city_name)
+    gtfs_res = (
+        gtfs_finder.find_route(
+            float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+        )
+        if gtfs_finder and orig_lat is not None and dest_lat is not None
+        else None
+    )
+
+    if gtfs_res and gtfs_res.get("mode") == "direct":
+        b_stop_obj = gtfs_res["board_stop"]
+        a_stop_obj = gtfs_res["alight_stop"]
+        b_stop = b_stop_obj["display_name"]
+        a_stop = a_stop_obj["display_name"]
+        r_name = gtfs_res["route_1"]["name"]
+        r_type = gtfs_res["route_1"].get("type", "Metro")
+        w1_km = gtfs_res.get("walk1_km", walk1_dist)
+        w2_km = gtfs_res.get("walk2_km", walk2_dist)
+        w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+        w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+        t_dur = max(5, dur_mins - w1_dur - w2_dur)
+
+        # Build transit geometry along the actual intermediate station coordinates
+        inter_stops = gtfs_res.get("intermediate_stops", [b_stop_obj, a_stop_obj])
+        inter_geom = [
+            [float(s["lat"]), float(s["lon"])]
+            for s in inter_stops
+            if "lat" in s and "lon" in s
+        ]
+        if len(inter_geom) < 2:
+            inter_geom = [
+                [float(b_stop_obj["lat"]), float(b_stop_obj["lon"])],
+                [float(a_stop_obj["lat"]), float(a_stop_obj["lon"])],
             ]
-        else:
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(walk1_dist * 1000)}m to public transit station near {orig_name}",
-                    duration_mins=5,
-                    distance_km=walk1_dist,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board airport metro / express line towards {dest_name}",
-                    duration_mins=max(10, dur_mins - 9),
-                    distance_km=transit_dist,
-                    transit_line="Airport Line",
-                    headsign=dest_name,
-                    station_name=dest_name,
-                    geometry=fallback_geom,
-                ),
-                TransitStep(
-                    type="transit_alight",
-                    instruction=f"Alight at {dest_name} terminal station",
-                    duration_mins=4,
-                    distance_km=walk2_dist,
-                    station_name=dest_name,
-                ),
+
+        walk1_geom = (
+            [
+                [float(orig_lat), float(orig_lon)],
+                [float(b_stop_obj["lat"]), float(b_stop_obj["lon"])],
             ]
-    else:
-        gtfs_finder = get_gtfs_route_finder(city_name)
-        gtfs_res = (
-            gtfs_finder.find_route(
-                float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
-            )
-            if gtfs_finder and orig_lat is not None and dest_lat is not None
-            else None
+            if orig_lat is not None and orig_lon is not None
+            else []
         )
 
-        if gtfs_res and gtfs_res.get("mode") == "direct":
-            b_stop = gtfs_res["board_stop"]["display_name"]
-            a_stop = gtfs_res["alight_stop"]["display_name"]
-            r_name = gtfs_res["route_1"]["name"]
-            r_type = gtfs_res["route_1"].get("type", "Metro")
-            w1_km = gtfs_res.get("walk1_km", walk1_dist)
-            w2_km = gtfs_res.get("walk2_km", walk2_dist)
-            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
-            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
-            t_dur = max(5, dur_mins - w1_dur - w2_dur)
-
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
-                    duration_mins=w1_dur,
-                    distance_km=w1_km,
-                    station_name=b_stop,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}",
-                    duration_mins=t_dur,
-                    distance_km=transit_dist,
-                    transit_line=r_name,
-                    headsign=a_stop,
-                    station_name=b_stop,
-                    geometry=fallback_geom,
-                ),
-                TransitStep(
-                    type="transit_alight",
-                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
-                    duration_mins=w2_dur,
-                    distance_km=w2_km,
-                    station_name=a_stop,
-                ),
+        walk2_geom = (
+            [
+                [float(a_stop_obj["lat"]), float(a_stop_obj["lon"])],
+                [float(dest_lat), float(dest_lon)],
             ]
-        elif gtfs_res and gtfs_res.get("mode") == "transfer":
-            b_stop = gtfs_res["board_stop"]["display_name"]
-            t_stop = gtfs_res["transfer_stop"]["display_name"]
-            a_stop = gtfs_res["alight_stop"]["display_name"]
-            r1_name = gtfs_res["route_1"]["name"]
-            r1_type = gtfs_res["route_1"].get("type", "Metro")
-            r2_name = gtfs_res["route_2"]["name"]
-            r2_type = gtfs_res["route_2"].get("type", "Metro")
-            w1_km = gtfs_res.get("walk1_km", walk1_dist)
-            w2_km = gtfs_res.get("walk2_km", walk2_dist)
-            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
-            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
-            remaining_dur = max(8, dur_mins - w1_dur - w2_dur - 3)
-            t1_dur = max(4, int(remaining_dur * 0.5))
-            t2_dur = max(4, remaining_dur - t1_dur)
-            t1_dist = round(transit_dist * 0.5, 2)
-            t2_dist = round(max(0.2, transit_dist - t1_dist), 2)
+            if dest_lat is not None and dest_lon is not None
+            else []
+        )
 
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
-                    duration_mins=w1_dur,
-                    distance_km=w1_km,
-                    station_name=b_stop,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board {r1_name} ({r1_type}) at {b_stop} towards {t_stop}",
-                    duration_mins=t1_dur,
-                    distance_km=t1_dist,
-                    transit_line=r1_name,
-                    headsign=t_stop,
-                    station_name=b_stop,
-                    geometry=fallback_geom,
-                ),
+        # Full multi-segment geometry: Origin -> Board Station -> ... Intermediate Stations ... -> Alight Station -> Destination
+        leg_geom: list[list[float]] = []
+        if walk1_geom:
+            leg_geom.extend(walk1_geom)
+        for pt in inter_geom:
+            if not leg_geom or leg_geom[-1] != pt:
+                leg_geom.append(pt)
+        if walk2_geom:
+            for pt in walk2_geom:
+                if not leg_geom or leg_geom[-1] != pt:
+                    leg_geom.append(pt)
+        fallback_geom = leg_geom
+
+        inter_names = [
+            s.get("display_name", s.get("raw_name", "")) for s in inter_stops[1:-1]
+        ]
+        board_instruction = f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}"
+        if inter_names:
+            board_instruction += f" ({len(inter_stops) - 1} stops)"
+
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Depart {orig_name} and walk {int(w1_km * 1000)}m to {b_stop}",
+                duration_mins=w1_dur,
+                distance_km=w1_km,
+                station_name=b_stop,
+                geometry=walk1_geom,
+            ),
+            TransitStep(
+                type="transit_board",
+                instruction=board_instruction,
+                duration_mins=t_dur,
+                distance_km=transit_dist,
+                transit_line=r_name,
+                headsign=a_stop,
+                station_name=b_stop,
+                geometry=inter_geom,
+                intermediate_stops=inter_names,
+            ),
+            TransitStep(
+                type="transit_alight",
+                instruction=f"Alight at {a_stop}",
+                duration_mins=1,
+                distance_km=0.0,
+                station_name=a_stop,
+                geometry=[[float(a_stop_obj["lat"]), float(a_stop_obj["lon"])]],
+            ),
+            TransitStep(
+                type="walk",
+                instruction=f"Walk {int(w2_km * 1000)}m from {a_stop} to {dest_name}",
+                duration_mins=w2_dur,
+                distance_km=w2_km,
+                station_name=a_stop,
+                geometry=walk2_geom,
+            ),
+        ]
+    elif gtfs_res and gtfs_res.get("mode") == "transfer":
+        b_stop_obj = gtfs_res["board_stop"]
+        t1_stop_obj = gtfs_res.get("transfer_stop_1") or gtfs_res["transfer_stop"]
+        t2_stop_obj = gtfs_res.get("transfer_stop_2") or gtfs_res["transfer_stop"]
+        a_stop_obj = gtfs_res["alight_stop"]
+        b_stop = b_stop_obj["display_name"]
+        t1_stop = t1_stop_obj["display_name"]
+        t2_stop = t2_stop_obj["display_name"]
+        a_stop = a_stop_obj["display_name"]
+        r1_name = gtfs_res["route_1"]["name"]
+        r1_type = gtfs_res["route_1"].get("type", "Metro")
+        r2_name = gtfs_res["route_2"]["name"]
+        r2_type = gtfs_res["route_2"].get("type", "Metro")
+        w1_km = gtfs_res.get("walk1_km", walk1_dist)
+        w2_km = gtfs_res.get("walk2_km", walk2_dist)
+        walk_transfer_km = gtfs_res.get("walk_transfer_km", 0.0)
+        transfer_walk_mins = (
+            max(1, int(round(walk_transfer_km / 4.5 * 60)))
+            if walk_transfer_km > 0.03
+            else 0
+        )
+        w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+        w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+        remaining_dur = max(8, dur_mins - w1_dur - w2_dur - transfer_walk_mins - 3)
+        t1_dur = max(4, int(remaining_dur * 0.5))
+        t2_dur = max(4, remaining_dur - t1_dur)
+        t1_dist = round(transit_dist * 0.5, 2)
+        t2_dist = round(max(0.2, transit_dist - t1_dist), 2)
+
+        inter1 = gtfs_res.get("intermediate_stops_1", [b_stop_obj, t1_stop_obj])
+        inter2 = gtfs_res.get("intermediate_stops_2", [t2_stop_obj, a_stop_obj])
+        g1 = [
+            [float(s["lat"]), float(s["lon"])]
+            for s in inter1
+            if "lat" in s and "lon" in s
+        ]
+        g2 = [
+            [float(s["lat"]), float(s["lon"])]
+            for s in inter2
+            if "lat" in s and "lon" in s
+        ]
+
+        walk1_geom = (
+            [
+                [float(orig_lat), float(orig_lon)],
+                [float(b_stop_obj["lat"]), float(b_stop_obj["lon"])],
+            ]
+            if orig_lat is not None and orig_lon is not None
+            else []
+        )
+
+        walk2_geom = (
+            [
+                [float(a_stop_obj["lat"]), float(a_stop_obj["lon"])],
+                [float(dest_lat), float(dest_lon)],
+            ]
+            if dest_lat is not None and dest_lon is not None
+            else []
+        )
+
+        leg_geom = []
+        if walk1_geom:
+            leg_geom.extend(walk1_geom)
+        for pt in g1:
+            if not leg_geom or leg_geom[-1] != pt:
+                leg_geom.append(pt)
+        if walk_transfer_km > 0.03:
+            leg_geom.append([float(t2_stop_obj["lat"]), float(t2_stop_obj["lon"])])
+        for pt in g2:
+            if not leg_geom or leg_geom[-1] != pt:
+                leg_geom.append(pt)
+        if walk2_geom:
+            for pt in walk2_geom:
+                if not leg_geom or leg_geom[-1] != pt:
+                    leg_geom.append(pt)
+        fallback_geom = leg_geom
+
+        inter1_names = [
+            s.get("display_name", s.get("raw_name", "")) for s in inter1[1:-1]
+        ]
+        inter2_names = [
+            s.get("display_name", s.get("raw_name", "")) for s in inter2[1:-1]
+        ]
+
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Depart {orig_name} and walk {int(w1_km * 1000)}m to {b_stop}",
+                duration_mins=w1_dur,
+                distance_km=w1_km,
+                station_name=b_stop,
+                geometry=walk1_geom,
+            ),
+            TransitStep(
+                type="transit_board",
+                instruction=f"Board {r1_name} ({r1_type}) at {b_stop} towards {t1_stop}"
+                + (f" ({len(inter1) - 1} stops)" if inter1_names else ""),
+                duration_mins=t1_dur,
+                distance_km=t1_dist,
+                transit_line=r1_name,
+                headsign=t1_stop,
+                station_name=b_stop,
+                geometry=g1,
+                intermediate_stops=inter1_names,
+            ),
+        ]
+        if walk_transfer_km > 0.03:
+            steps.extend(
+                [
+                    TransitStep(
+                        type="transit_alight",
+                        instruction=f"Alight at {t1_stop}",
+                        duration_mins=1,
+                        distance_km=0.0,
+                        station_name=t1_stop,
+                        geometry=[
+                            [float(t1_stop_obj["lat"]), float(t1_stop_obj["lon"])]
+                        ],
+                    ),
+                    TransitStep(
+                        type="walk",
+                        instruction=f"Walk {int(walk_transfer_km * 1000)}m from {t1_stop} to {t2_stop} to transfer lines",
+                        duration_mins=transfer_walk_mins,
+                        distance_km=walk_transfer_km,
+                        station_name=t1_stop,
+                        geometry=[
+                            [float(t1_stop_obj["lat"]), float(t1_stop_obj["lon"])],
+                            [float(t2_stop_obj["lat"]), float(t2_stop_obj["lon"])],
+                        ],
+                    ),
+                    TransitStep(
+                        type="transit_board",
+                        instruction=f"Board {r2_name} ({r2_type}) at {t2_stop} towards {a_stop}"
+                        + (f" ({len(inter2) - 1} stops)" if inter2_names else ""),
+                        duration_mins=t2_dur,
+                        distance_km=t2_dist,
+                        transit_line=r2_name,
+                        headsign=a_stop,
+                        station_name=t2_stop,
+                        geometry=g2,
+                        intermediate_stops=inter2_names,
+                    ),
+                ]
+            )
+        else:
+            steps.append(
                 TransitStep(
                     type="transit_transfer",
-                    instruction=f"Transfer at {t_stop} to {r2_name} ({r2_type}) towards {a_stop}",
+                    instruction=f"Transfer at {t1_stop} to {r2_name} ({r2_type}) towards {a_stop}"
+                    + (f" ({len(inter2) - 1} stops)" if inter2_names else ""),
                     duration_mins=t2_dur,
                     distance_km=t2_dist,
                     transit_line=r2_name,
-                    station_name=t_stop,
-                ),
-                TransitStep(
-                    type="transit_alight",
-                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
-                    duration_mins=w2_dur,
-                    distance_km=w2_km,
-                    station_name=a_stop,
-                ),
-            ]
-        elif gtfs_res and gtfs_res.get("mode") == "nearest_stations":
-            b_stop = gtfs_res["board_stop"]["display_name"]
-            a_stop = gtfs_res["alight_stop"]["display_name"]
-            r_name = gtfs_res["route_1"]["name"]
-            r_type = gtfs_res["route_1"].get("type", "Metro")
-            w1_km = gtfs_res.get("walk1_km", walk1_dist)
-            w2_km = gtfs_res.get("walk2_km", walk2_dist)
-            w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
-            w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
-            t_dur = max(5, dur_mins - w1_dur - w2_dur)
-
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(w1_km * 1000)}m to {b_stop}",
-                    duration_mins=w1_dur,
-                    distance_km=w1_km,
-                    station_name=b_stop,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}",
-                    duration_mins=t_dur,
-                    distance_km=transit_dist,
-                    transit_line=r_name,
                     headsign=a_stop,
-                    station_name=b_stop,
-                    geometry=fallback_geom,
-                ),
+                    station_name=t1_stop,
+                    geometry=g2,
+                    intermediate_stops=inter2_names,
+                )
+            )
+
+        steps.extend(
+            [
                 TransitStep(
                     type="transit_alight",
-                    instruction=f"Alight at {a_stop} and walk {int(w2_km * 1000)}m to {dest_name}",
+                    instruction=f"Alight at {a_stop}",
+                    duration_mins=1,
+                    distance_km=0.0,
+                    station_name=a_stop,
+                    geometry=[[float(a_stop_obj["lat"]), float(a_stop_obj["lon"])]],
+                ),
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {int(w2_km * 1000)}m from {a_stop} to {dest_name}",
                     duration_mins=w2_dur,
                     distance_km=w2_km,
                     station_name=a_stop,
+                    geometry=walk2_geom,
                 ),
             ]
-        else:
-            steps = [
-                TransitStep(
-                    type="walk",
-                    instruction=f"Walk {int(walk1_dist * 1000)}m to the nearest public transit station near {orig_name}",
-                    duration_mins=5,
-                    distance_km=walk1_dist,
-                ),
-                TransitStep(
-                    type="transit_board",
-                    instruction=f"Board public transit towards {dest_name}",
-                    duration_mins=max(7, dur_mins - 9),
-                    distance_km=transit_dist,
-                    transit_line="Transit",
-                    headsign=dest_name,
-                    station_name=f"Station near {orig_name}",
-                    geometry=fallback_geom,
-                ),
-                TransitStep(
-                    type="transit_alight",
-                    instruction=f"Alight and walk {int(walk2_dist * 1000)}m to {dest_name}",
-                    duration_mins=4,
-                    distance_km=walk2_dist,
-                ),
+        )
+    elif gtfs_res and gtfs_res.get("mode") == "nearest_stations":
+        b_stop_obj = gtfs_res["board_stop"]
+        a_stop_obj = gtfs_res["alight_stop"]
+        b_stop = b_stop_obj["display_name"]
+        a_stop = a_stop_obj["display_name"]
+        r_name = gtfs_res["route_1"]["name"]
+        r_type = gtfs_res["route_1"].get("type", "Metro")
+        w1_km = gtfs_res.get("walk1_km", walk1_dist)
+        w2_km = gtfs_res.get("walk2_km", walk2_dist)
+        w1_dur = max(2, int(round(w1_km / 4.5 * 60)))
+        w2_dur = max(2, int(round(w2_km / 4.5 * 60)))
+        t_dur = max(5, dur_mins - w1_dur - w2_dur)
+
+        walk1_geom = (
+            [
+                [float(orig_lat), float(orig_lon)],
+                [float(b_stop_obj["lat"]), float(b_stop_obj["lon"])],
             ]
+            if orig_lat is not None and orig_lon is not None
+            else []
+        )
+
+        walk2_geom = (
+            [
+                [float(a_stop_obj["lat"]), float(a_stop_obj["lon"])],
+                [float(dest_lat), float(dest_lon)],
+            ]
+            if dest_lat is not None and dest_lon is not None
+            else []
+        )
+
+        transit_geom = [
+            [float(b_stop_obj["lat"]), float(b_stop_obj["lon"])],
+            [float(a_stop_obj["lat"]), float(a_stop_obj["lon"])],
+        ]
+
+        leg_geom = []
+        if walk1_geom:
+            leg_geom.extend(walk1_geom)
+        for pt in transit_geom:
+            if not leg_geom or leg_geom[-1] != pt:
+                leg_geom.append(pt)
+        if walk2_geom:
+            for pt in walk2_geom:
+                if not leg_geom or leg_geom[-1] != pt:
+                    leg_geom.append(pt)
+        fallback_geom = leg_geom
+
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Depart {orig_name} and walk {int(w1_km * 1000)}m to {b_stop}",
+                duration_mins=w1_dur,
+                distance_km=w1_km,
+                station_name=b_stop,
+                geometry=walk1_geom,
+            ),
+            TransitStep(
+                type="transit_board",
+                instruction=f"Board {r_name} ({r_type}) at {b_stop} towards {a_stop}",
+                duration_mins=t_dur,
+                distance_km=transit_dist,
+                transit_line=r_name,
+                headsign=a_stop,
+                station_name=b_stop,
+                geometry=transit_geom,
+            ),
+            TransitStep(
+                type="transit_alight",
+                instruction=f"Alight at {a_stop}",
+                duration_mins=1,
+                distance_km=0.0,
+                station_name=a_stop,
+                geometry=[[float(a_stop_obj["lat"]), float(a_stop_obj["lon"])]],
+            ),
+            TransitStep(
+                type="walk",
+                instruction=f"Walk {int(w2_km * 1000)}m from {a_stop} to {dest_name}",
+                duration_mins=w2_dur,
+                distance_km=w2_km,
+                station_name=a_stop,
+                geometry=walk2_geom,
+            ),
+        ]
+    else:
+        p1_lat = (
+            float(orig_lat) + (float(dest_lat) - float(orig_lat)) * 0.15
+            if orig_lat is not None and dest_lat is not None
+            else 0.0
+        )
+        p1_lon = (
+            float(orig_lon) + (float(dest_lon) - float(orig_lon)) * 0.15
+            if orig_lon is not None and dest_lon is not None
+            else 0.0
+        )
+        p2_lat = (
+            float(orig_lat) + (float(dest_lat) - float(orig_lat)) * 0.85
+            if orig_lat is not None and dest_lat is not None
+            else 0.0
+        )
+        p2_lon = (
+            float(orig_lon) + (float(dest_lon) - float(orig_lon)) * 0.85
+            if orig_lon is not None and dest_lon is not None
+            else 0.0
+        )
+
+        w1_geom = (
+            [[float(orig_lat), float(orig_lon)], [p1_lat, p1_lon]]
+            if orig_lat is not None and orig_lon is not None
+            else []
+        )
+        t_geom = (
+            [[p1_lat, p1_lon], [p2_lat, p2_lon]] if p1_lat and p2_lat else fallback_geom
+        )
+        w2_geom = (
+            [[p2_lat, p2_lon], [float(dest_lat), float(dest_lon)]]
+            if dest_lat is not None and dest_lon is not None
+            else []
+        )
+
+        leg_geom = []
+        if w1_geom:
+            leg_geom.extend(w1_geom)
+        for pt in t_geom:
+            if not leg_geom or leg_geom[-1] != pt:
+                leg_geom.append(pt)
+        if w2_geom:
+            for pt in w2_geom:
+                if not leg_geom or leg_geom[-1] != pt:
+                    leg_geom.append(pt)
+        fallback_geom = leg_geom
+
+        steps = [
+            TransitStep(
+                type="walk",
+                instruction=f"Depart {orig_name} and walk {int(walk1_dist * 1000)}m to the nearest public transit station",
+                duration_mins=5,
+                distance_km=walk1_dist,
+                station_name=f"Station near {orig_name}",
+                geometry=w1_geom,
+            ),
+            TransitStep(
+                type="transit_board",
+                instruction=f"Board public transit towards {dest_name}",
+                duration_mins=max(7, dur_mins - 9),
+                distance_km=transit_dist,
+                transit_line="Transit",
+                headsign=dest_name,
+                station_name=f"Station near {orig_name}",
+                geometry=t_geom,
+            ),
+            TransitStep(
+                type="transit_alight",
+                instruction=f"Alight at station near {dest_name}",
+                duration_mins=1,
+                distance_km=0.0,
+                station_name=f"Station near {dest_name}",
+                geometry=[[p2_lat, p2_lon]],
+            ),
+            TransitStep(
+                type="walk",
+                instruction=f"Walk {int(walk2_dist * 1000)}m to {dest_name}",
+                duration_mins=4,
+                distance_km=walk2_dist,
+                station_name=f"Station near {dest_name}",
+                geometry=w2_geom,
+            ),
+        ]
 
     fare_res = TransitFareService.calculate_transit_leg_fare(
         city_name,
@@ -925,9 +1229,21 @@ def synthesize_fallback_transit_leg(
         destination=destination,
     )
 
+    fare_currency = (fare_res.currency or "EUR").upper()
+    total_cost_eur = fare_res.total_cost
+    if fare_currency != "EUR" and fare_res.total_cost > 0:
+        try:
+            from app.engine.currency import convert_currency
+
+            total_cost_eur = convert_currency(
+                fare_res.total_cost, from_currency=fare_currency, to_currency="EUR"
+            )
+        except Exception:
+            pass
+
     return TransitLeg(
         duration_mins=dur_mins,
-        cost_eur=fare_res.total_cost,
+        cost_eur=total_cost_eur,
         cost_is_estimated=fare_res.cost_is_estimated,
         price_source=fare_res.price_source,
         mode="transit",

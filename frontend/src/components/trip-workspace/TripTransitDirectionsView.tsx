@@ -105,7 +105,7 @@ export function TripTransitDirectionsView({
 
   // Schedule Controls
   const [scheduleMode, setScheduleMode] = useState<'depart_at' | 'arrive_by'>('depart_at');
-  const [prevSelectedDay, setPrevSelectedDay] = useState<number | undefined>(selectedDay);
+  const [prevSelectedDay, setPrevSelectedDay] = useState<number | 'all' | undefined>(selectedDay);
   const [selectedDayOption, setSelectedDayOption] = useState<number | 'general'>(
     typeof selectedDay === 'number' ? selectedDay : 1
   );
@@ -462,14 +462,20 @@ export function TripTransitDirectionsView({
       });
     }
 
-    // Include day POIs
-    const activeDayPois =
+    // Include day POIs (or all trip POIs if 'general' any-day mode is selected)
+    const rawPois =
       typeof selectedDayOption === 'number'
         ? tripDays.find((d) => d.day_number === selectedDayOption)?.pois || []
-        : [];
+        : tripDays.flatMap((d) => d.pois || []);
 
-    activeDayPois.forEach((p) => {
-      if (typeof p.lat === 'number' && typeof p.lng === 'number') {
+    const seenNames = new Set<string>();
+    rawPois.forEach((p) => {
+      if (
+        typeof p.lat === 'number' &&
+        typeof p.lng === 'number' &&
+        !seenNames.has(p.name)
+      ) {
+        seenNames.add(p.name);
         anchors.push({
           name: p.name,
           lat: p.lat,
@@ -1194,6 +1200,7 @@ export function TripTransitDirectionsView({
               transitLeg={activeDisplayLeg}
               originName={routeResult.origin.name}
               destinationName={routeResult.destination.name}
+              defaultExpanded={true}
             />
           </div>
 

@@ -169,8 +169,8 @@ def test_intra_city_leg_with_airport_headsign_does_not_charge_surcharge():
         "tokyo", steps, origin=origin, destination=destination
     )
     assert res.has_airport is False
-    assert res.airport_surcharge_eur == 0.0
-    assert res.total_cost == 1.20  # Base single fare only!
+    assert res.total_cost == 168.0  # Real GTFS base single fare in JPY!
+    assert res.currency == "JPY"
     assert res.has_airport is False
     assert res.cost_is_estimated is False
 

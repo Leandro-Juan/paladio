@@ -473,10 +473,102 @@ class TransitFareModel(Base):
     city = Column(String(128), primary_key=True, index=True)
     fare_id = Column(String(128), primary_key=True)
     price = Column(Float, nullable=False)
-    currency = Column(String(8), default="EUR", nullable=False)
+    currency = Column(String(8), nullable=False)
     payment_method = Column(Integer, default=0, nullable=False)
     transfers = Column(Integer, nullable=True)
     transfer_duration = Column(Integer, nullable=True)
+    agency_id = Column(String(128), nullable=True)
+    fare_name = Column(String(256), nullable=True)
+
+
+class TransitFareRuleModel(Base):
+    __tablename__ = "transit_fare_rules"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    build_id = Column(String(36), nullable=False)
+    city = Column(String(128), nullable=False, index=True)
+    fare_id = Column(String(128), nullable=False, index=True)
+    route_id = Column(String(128), nullable=True, index=True)
+    origin_id = Column(String(128), nullable=True)
+    destination_id = Column(String(128), nullable=True)
+    contains_id = Column(String(128), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransitFareQuoteModel(Base):
+    __tablename__ = "transit_fare_quotes"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    city = Column(String(128), nullable=False, index=True)
+    operator = Column(String(128), nullable=True)
+    product_type = Column(String(64), nullable=False)  # single | day_pass | supplement
+    rider = Column(String(32), nullable=False, default="adult")
+    medium = Column(String(32), nullable=False, default="ticket")
+    from_station_id = Column(String(128), nullable=True)
+    to_station_id = Column(String(128), nullable=True)
+    zone_from = Column(String(64), nullable=True)
+    zone_to = Column(String(64), nullable=True)
+    amount_minor = Column(Integer, nullable=False)
+    currency = Column(String(8), nullable=False)
+    tier = Column(
+        Integer, nullable=False
+    )  # 0: GTFS, 1: ODPT/API, 2: Official Web, 3: Grounded LLM, 4: Unknown
+    source_url = Column(Text, nullable=True)
+    fetched_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_to = Column(DateTime(timezone=True), nullable=True)
+    evidence_hash = Column(String(64), nullable=False, index=True)
+    evidence_quote = Column(Text, nullable=True)
+    confidence = Column(Float, nullable=False, default=1.0)
+    status = Column(
+        String(32), nullable=False, default="active"
+    )  # active | stale | superseded
+    amount_eur_at_fetch = Column(Float, nullable=True)
+
+
+class TransitFeedModel(Base):
+    __tablename__ = "transit_feeds"
+
+    id = Column(String(128), primary_key=True)
+    city = Column(String(128), nullable=False, index=True)
+    operator = Column(String(128), nullable=True)
+    feed_name = Column(String(256), nullable=False)
+    feed_url = Column(Text, nullable=False)
+    auth_type = Column(String(32), nullable=False, default="none")
+    bbox = Column(JSONB, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    last_fetched_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class TransitProviderHealthModel(Base):
+    __tablename__ = "transit_provider_health"
+
+    provider_id = Column(String(128), primary_key=True)
+    provider_name = Column(String(128), nullable=False)
+    success_count = Column(Integer, nullable=False, default=0)
+    failure_count = Column(Integer, nullable=False, default=0)
+    consecutive_failures = Column(Integer, nullable=False, default=0)
+    circuit_open = Column(Boolean, nullable=False, default=False)
+    circuit_opened_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    last_latency_ms = Column(Float, nullable=True)
+    last_checked_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 
 class CityTransitFareModel(Base):
@@ -484,15 +576,13 @@ class CityTransitFareModel(Base):
 
     city_name = Column("city", String, primary_key=True, index=True)
     country = Column(String, nullable=True)
-    currency = Column(String, default="EUR", nullable=False)
+    currency = Column(String, nullable=False)
     agency_name = Column(String, nullable=True)
-    single_fare_eur = Column("single_fare", Float, nullable=False, default=2.0)
+    single_fare_eur = Column("single_fare", Float, nullable=False)
     day_pass_fare_eur = Column("pass_24h_price", Float, nullable=True)
     day_pass_name = Column("pass_24h_name", String, nullable=True)
     pass_24h_includes_airport = Column(Boolean, default=False, nullable=False)
-    airport_surcharge_eur = Column(
-        "airport_surcharge", Float, default=0.0, nullable=False
-    )
+    airport_surcharge_eur = Column("airport_surcharge", Float, nullable=False)
     airport_station_keywords = Column(JSONB, default=list, nullable=False)
     source = Column("source", String, nullable=True)
     is_estimated = Column(Boolean, default=False, nullable=False)

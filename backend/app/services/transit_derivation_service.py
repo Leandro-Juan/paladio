@@ -14,6 +14,7 @@ from app.db.models import (
     TransitAgencyModel,
     TransitCacheModel,
     TransitFareModel,
+    TransitFareRuleModel,
     TransitLineModel,
     TransitPatternModel,
     TransitPatternStopModel,
@@ -238,10 +239,20 @@ class TransitDerivationService:
         if transfers:
             capabilities["has_transfers"] = True
 
-        # 9. Derive Fares (optional)
-        fares = self._derive_fares(feed_dir, build_id, city_lower, quality_report)
-        if fares:
-            capabilities["has_gtfs_fares"] = True
+        # 9. Derive Fares & Fare Rules (optional)
+        fares, fare_rules = self._derive_fares(
+            feed_dir, build_id, city_lower, quality_report
+        )
+        capabilities["fares_v1"] = bool(fares)
+        capabilities["has_gtfs_fares"] = bool(fares)
+        capabilities["has_gtfs_fare_rules"] = bool(fare_rules)
+        v2_files = [
+            os.path.join(feed_dir, f)
+            for f in ("fare_products.txt", "fare_leg_rules.txt")
+        ]
+        capabilities["fares_v2"] = any(
+            os.path.exists(p) and os.path.getsize(p) > 10 for p in v2_files
+        )
 
         # 10. Check frequencies.txt
         freq_path = os.path.join(feed_dir, "frequencies.txt")
@@ -264,6 +275,7 @@ class TransitDerivationService:
             shapes=shapes,
             transfers=transfers,
             fares=fares,
+            fare_rules=fare_rules,
             capabilities=capabilities,
             quality_report=quality_report,
             feed_valid_from=feed_valid_from,
@@ -1108,11 +1120,13 @@ class TransitDerivationService:
         build_id: str,
         city_lower: str,
         quality_report: dict[str, Any],
-    ) -> list[TransitFareModel]:
+    ) -> tuple[list[TransitFareModel], list[TransitFareRuleModel]]:
         fare_file = os.path.join(feed_dir, "fare_attributes.txt")
+        rule_file = os.path.join(feed_dir, "fare_rules.txt")
         fares: list[TransitFareModel] = []
+        fare_rules: list[TransitFareRuleModel] = []
         if not os.path.exists(fare_file):
-            return fares
+            return fares, fare_rules
 
         read_count = 0
         with open(fare_file, "r", encoding="utf-8", errors="replace") as f:
@@ -1126,7 +1140,14 @@ class TransitDerivationService:
                 except (ValueError, KeyError):
                     continue
 
-                curr = (row.get("currency_type") or "EUR").strip().upper()
+                curr = (row.get("currency_type") or "").strip().upper()
+                if not curr:
+                    # Never fall back silently to EUR: skip fare without verified currency
+                    logger.warning(
+                        f"Skipping fare {fare_id} in {city_lower}: missing currency_type"
+                    )
+                    continue
+
                 pay_method = 0
                 try:
                     pay_method = int(row.get("payment_method", 0))
@@ -1150,6 +1171,9 @@ class TransitDerivationService:
                     except ValueError:
                         pass
 
+                agency_id = (row.get("agency_id") or "").strip() or None
+                fare_name = (row.get("fare_name") or "").strip() or None
+
                 fares.append(
                     TransitFareModel(
                         build_id=build_id,
@@ -1160,11 +1184,41 @@ class TransitDerivationService:
                         payment_method=pay_method,
                         transfers=transfers,
                         transfer_duration=trans_dur,
+                        agency_id=agency_id,
+                        fare_name=fare_name,
                     )
                 )
 
         quality_report["rows_read"]["fare_attributes.txt"] = read_count
-        return fares
+
+        # Ingest fare_rules.txt if present
+        if os.path.exists(rule_file):
+            rule_count = 0
+            with open(rule_file, "r", encoding="utf-8", errors="replace") as f:
+                for row in csv.DictReader(f):
+                    rule_count += 1
+                    fid = (row.get("fare_id") or "").strip()
+                    if not fid:
+                        continue
+                    route_id = (row.get("route_id") or "").strip() or None
+                    orig_id = (row.get("origin_id") or "").strip() or None
+                    dest_id = (row.get("destination_id") or "").strip() or None
+                    cont_id = (row.get("contains_id") or "").strip() or None
+
+                    fare_rules.append(
+                        TransitFareRuleModel(
+                            build_id=build_id,
+                            city=city_lower,
+                            fare_id=fid,
+                            route_id=route_id,
+                            origin_id=orig_id,
+                            destination_id=dest_id,
+                            contains_id=cont_id,
+                        )
+                    )
+            quality_report["rows_read"]["fare_rules.txt"] = rule_count
+
+        return fares, fare_rules
 
     async def _commit_build(
         self,
@@ -1182,6 +1236,7 @@ class TransitDerivationService:
         shapes: list[TransitShapeModel],
         transfers: list[TransitTransferModel],
         fares: list[TransitFareModel],
+        fare_rules: list[TransitFareRuleModel],
         capabilities: dict[str, Any],
         quality_report: dict[str, Any],
         feed_valid_from: datetime | None,
@@ -1212,6 +1267,7 @@ class TransitDerivationService:
             shapes,
             transfers,
             fares,
+            fare_rules,
         ]
 
         for items in batch_collections:
@@ -1254,6 +1310,7 @@ class TransitDerivationService:
                 f"Purging old derived transit build {old_build_id} for {city_lower}"
             )
             for model_cls in [
+                TransitFareRuleModel,
                 TransitFareModel,
                 TransitTransferModel,
                 TransitShapeModel,
