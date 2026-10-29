@@ -287,12 +287,16 @@ class TransitCacheStatus(str, enum.Enum):
     BUILDING = "BUILDING"
     READY = "READY"
     FAILED = "FAILED"
+    UNAVAILABLE = "UNAVAILABLE"
+    PARTIAL = "PARTIAL"
+    STALE = "STALE"
 
 
 class TransitCacheModel(Base):
     __tablename__ = "transit_cache"
 
     city = Column(String, primary_key=True, index=True)
+    city_key = Column(String(128), index=True, nullable=True)
     status = Column(String, default=TransitCacheStatus.BUILDING.value, nullable=False)
     osm_status = Column(String, default="PENDING", nullable=False)
     gtfs_status = Column(String, default="PENDING", nullable=False)
@@ -311,6 +315,30 @@ class TransitCacheModel(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )
+
+
+class TransitCoverageModel(Base):
+    """Global city transit coverage ledger tracking honest end-states and capabilities across T0-T5."""
+
+    __tablename__ = "transit_coverage"
+
+    city_key = Column(String(128), primary_key=True, index=True)
+    city_name = Column(String(256), nullable=False)
+    country_code = Column(String(2), nullable=False, index=True)
+    tier = Column(String(16), nullable=False, index=True)  # T0, T1, T2, T3, T4, T5
+    reason_code = Column(
+        String(64), nullable=True
+    )  # NO_FEED, LICENCE_BLOCKED, AUTH_REQUIRED, EXPIRED, TOO_SPARSE, etc.
+    feed_ids = Column(ARRAY(String), default=list, nullable=False)
+    stage_reached = Column(
+        String(32), default="RESOLVED", nullable=False
+    )  # RESOLVED, FETCHED, VALIDATED, NORMALIZED, PRUNED, DERIVED, ROUTABLE
+    quality = Column(JSONB, default=dict, nullable=False)
+    polygon = Column(JSONB, nullable=True)  # GeoJSON polygon or bounding hull
+    population = Column(Integer, default=0, nullable=False)
+    last_checked_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -387,6 +415,7 @@ class TransitPatternStopModel(Base):
     stop_sequence = Column(Integer, primary_key=True)
     station_id = Column(String(128), nullable=False, index=True)
     time_offset_seconds = Column(Integer, default=0, nullable=False)
+    is_interpolated = Column(Boolean, default=False, nullable=False)
 
 
 class TransitPatternTripModel(Base):

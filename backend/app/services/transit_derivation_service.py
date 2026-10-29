@@ -66,6 +66,45 @@ def parse_gtfs_time_seconds(time_str: str | None) -> int | None:
         return None
 
 
+def interpolate_trip_stop_times(
+    stops: list[tuple[int, str, int]],
+) -> list[tuple[int, str, int, bool]]:
+    """
+    Interpolates missing departure times (dep_s == -1) linearly between known bounding timepoints.
+    Returns list of (seq, station_id, dep_s, is_interpolated).
+    STRICT ZERO-FABRICATION: If times cannot be bounded, dep_s remains -1 without inventing timings.
+    """
+    n = len(stops)
+    if n == 0:
+        return []
+
+    # Identify indices with valid departure times
+    known_indices = [i for i, s in enumerate(stops) if s[2] >= 0]
+    if not known_indices:
+        # No known times in entire trip: zero times can be fabricated
+        return [(s[0], s[1], -1, False) for s in stops]
+
+    dep_values = [s[2] for s in stops]
+    interpolated_flags = [False] * n
+
+    # Interpolate segments between known timepoints
+    for idx_k in range(len(known_indices) - 1):
+        i = known_indices[idx_k]
+        j = known_indices[idx_k + 1]
+        t_i = dep_values[i]
+        t_j = dep_values[j]
+        gap = j - i
+        if gap > 1 and t_j >= t_i:
+            for k in range(i + 1, j):
+                dep_values[k] = t_i + int((t_j - t_i) * (k - i) / gap)
+                interpolated_flags[k] = True
+
+    result: list[tuple[int, str, int, bool]] = []
+    for i, s in enumerate(stops):
+        result.append((s[0], s[1], dep_values[i], interpolated_flags[i]))
+    return result
+
+
 def map_gtfs_route_type(route_type_val: Any) -> str:
     """
     Maps GTFS standard & hierarchical route_type codes to standard modes:
@@ -853,16 +892,25 @@ class TransitDerivationService:
             dir_id = meta["direction_id"]
             key = (r_id, dir_id, station_sequence)
 
+            interpolated_stops = interpolate_trip_stop_times(collapsed_stops)
+
             if key not in pattern_map:
                 pat_id = f"{r_id}_{dir_id}_{len(pattern_map) + 1}"
                 pattern_map[key] = pat_id
 
-                # Calculate average or sample time offsets from first stop
-                first_dep = collapsed_stops[0][2]
+                # Calculate average or sample time offsets from first valid stop
+                first_dep = interpolated_stops[0][2]
                 if first_dep < 0:
-                    first_dep = 0
-                for idx, (seq, st_id, dep_s) in enumerate(collapsed_stops):
-                    offset = max(0, dep_s - first_dep) if dep_s >= 0 else (idx * 120)
+                    first_known = next(
+                        (s[2] for s in interpolated_stops if s[2] >= 0), 0
+                    )
+                else:
+                    first_known = first_dep
+
+                for idx, (seq, st_id, dep_s, is_interp) in enumerate(
+                    interpolated_stops
+                ):
+                    offset = max(0, dep_s - first_known) if dep_s >= 0 else 0
                     pattern_stops_list.append(
                         TransitPatternStopModel(
                             build_id=build_id,
@@ -871,6 +919,7 @@ class TransitDerivationService:
                             stop_sequence=idx + 1,
                             station_id=st_id,
                             time_offset_seconds=offset,
+                            is_interpolated=is_interp,
                         )
                     )
 
@@ -879,8 +928,8 @@ class TransitDerivationService:
             if not pattern_headsigns.get(pat_id) and meta["headsign"]:
                 pattern_headsigns[pat_id] = meta["headsign"]
 
-            # First departure for this trip
-            first_dep = collapsed_stops[0][2]
+            # First departure for this trip (from interpolated or real schedule)
+            first_dep = interpolated_stops[0][2]
             if first_dep >= 0:
                 pattern_trips_list.append(
                     TransitPatternTripModel(
@@ -912,12 +961,16 @@ class TransitDerivationService:
                 else:
                     day_types.append("weekday")
 
-                # Accumulate station departures for headways
-                for idx, (seq, st_id, dep_s) in enumerate(collapsed_stops):
-                    st_dep = dep_s if dep_s >= 0 else (first_dep + idx * 120)
+                # Accumulate station departures for headways (ONLY for real or interpolated departures)
+                for idx, (seq, st_id, dep_s, is_interp) in enumerate(
+                    interpolated_stops
+                ):
                     station_lines_set.add((st_id, r_id, dir_id, meta["headsign"]))
-                    for d_type in day_types:
-                        station_departures[(st_id, r_id, dir_id, d_type)].append(st_dep)
+                    if dep_s >= 0:
+                        for d_type in day_types:
+                            station_departures[(st_id, r_id, dir_id, d_type)].append(
+                                dep_s
+                            )
 
         # Build TransitPatternModel list and identify primary pattern per route/direction
         # Group patterns by (route_id, direction_id)
