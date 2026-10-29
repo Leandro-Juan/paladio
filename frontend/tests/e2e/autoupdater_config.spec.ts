@@ -6,9 +6,9 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     await mockAuthenticatedUser(page);
   });
 
-  test('displays auto-updater, toggles stop automatic updates, and checks releases', async ({ page }) => {
+  test('displays auto-updater disabled by default, enables automatic updates, and prompts with patch notes on release', async ({ page }) => {
     let mockStatus = {
-      auto_update_enabled: true,
+      auto_update_enabled: false,
       check_interval_hours: 6,
       github_repo: 'Leandro-Juan/paladio',
       last_checked_at: '2026-10-29T18:00:00Z',
@@ -66,6 +66,21 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
       });
     });
 
+    await page.route(/.*\/api(\/v1)?\/system\/update\/download.*/, async (route) => {
+      mockStatus = {
+        ...mockStatus,
+        download_status: 'downloaded',
+        downloaded_file: '/app/data/updates/paladio-v2.1.0.tar.gz',
+        file_sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        file_size_bytes: 1048576,
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', download: mockStatus }),
+      });
+    });
+
     // Mock other config page dependencies to prevent unhandled errors
     await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
       await route.fulfill({
@@ -99,25 +114,42 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     await expect(page.getByText('GITHUB REPO: Leandro-Juan/paladio')).toBeVisible();
     await expect(page.getByText('v2.0.0').first()).toBeVisible();
 
-    // 3. Verify Active Auto-Update status and STOP button
-    const stopButton = page.getByRole('button', { name: 'STOP AUTOMATIC UPDATES' });
-    await expect(stopButton).toBeVisible();
-
-    // 4. Click STOP AUTOMATIC UPDATES
-    await stopButton.click();
-
-    // 5. Verify status changed to STOPPED and button changed to ENABLE AUTOMATIC UPDATES
-    await expect(page.getByText('STOPPED', { exact: true })).toBeVisible();
-    await expect(page.getByText('Automatic updates stopped.')).toBeVisible();
+    // 3. Verify Disabled Auto-Update status by default and ENABLE button
+    const statusBadge = page.getByTestId('auto-update-status-badge');
+    await expect(statusBadge).toHaveText('DISABLED');
+    await expect(page.getByText('Automatic updates are off by default. Paladio will notify you with patch notes and ask before installing.')).toBeVisible();
     const enableButton = page.getByRole('button', { name: 'ENABLE AUTOMATIC UPDATES' });
     await expect(enableButton).toBeVisible();
+
+    // 4. Click ENABLE AUTOMATIC UPDATES
+    await enableButton.click();
+
+    // 5. Verify status changed to ACTIVE and button changed to DISABLE AUTOMATIC UPDATES
+    await expect(statusBadge).toHaveText('ACTIVE');
+    await expect(page.getByText('System automatically downloads and installs new releases in the background.')).toBeVisible();
+    const disableButton = page.getByRole('button', { name: 'DISABLE AUTOMATIC UPDATES' });
+    await expect(disableButton).toBeVisible();
 
     // 6. Trigger Check for Updates
     const checkButton = page.getByRole('button', { name: 'CHECK FOR UPDATES' });
     await checkButton.click();
 
-    // 7. Verify update detected
-    await expect(page.getByText('New update found: v2.1.0')).toBeVisible();
-    await expect(page.getByText('DOWNLOAD LATEST (v2.1.0)')).toBeVisible();
+    // 7. Verify update detected and patch notes prompt displayed
+    await expect(page.getByText('NEW UPDATE AVAILABLE', { exact: true })).toBeVisible();
+    await expect(page.getByText('New Update Available: v2.1.0')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Paladio 2.1.0 Feature Release' })).toBeVisible();
+    await expect(page.getByText('// NEW FEATURES & PATCH NOTES:')).toBeVisible();
+    await expect(page.getByText('New sovereign transit caching and auto-updater enhancements.')).toBeVisible();
+    await expect(page.getByText('Would you like to install this update?')).toBeVisible();
+
+    // 8. Verify action buttons in prompt: REMIND ME LATER and INSTALL UPDATE NOW
+    const remindButton = page.getByRole('button', { name: 'REMIND ME LATER' });
+    const installButton = page.getByRole('button', { name: 'INSTALL UPDATE NOW (v2.1.0)' });
+    await expect(remindButton).toBeVisible();
+    await expect(installButton).toBeVisible();
+
+    // 9. Click INSTALL UPDATE NOW and verify download action triggers
+    await installButton.click();
+    await expect(page.getByText('Successfully downloaded Paladio v2.1.0 archive!')).toBeVisible();
   });
 });

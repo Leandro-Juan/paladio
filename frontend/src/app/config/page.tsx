@@ -214,19 +214,12 @@ export default function ConfigPage() {
     }
   };
 
-  const fetchGtfsData = useCallback(async (showLoading: boolean = false) => {
-    if (showLoading) {
-      setGtfsLoading(true);
-    }
+  const fetchGtfsData = useCallback(async () => {
     try {
       const data = await fetchGtfsRegistryApi();
       setGtfsTelemetry(data);
     } catch (err: unknown) {
       console.warn('Failed to fetch GTFS registry:', err);
-    } finally {
-      if (showLoading) {
-        setGtfsLoading(false);
-      }
     }
   }, []);
 
@@ -240,10 +233,6 @@ export default function ConfigPage() {
         }
       } catch (err: unknown) {
         console.warn('Failed to fetch GTFS registry:', err);
-      } finally {
-        if (!ignore) {
-          setGtfsLoading(false);
-        }
       }
     }
     load();
@@ -2227,6 +2216,7 @@ export default function ConfigPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span className="font-mono text-muted" style={{ fontSize: '11px' }}>AUTOMATIC UPDATES</span>
                 <span
+                  data-testid="auto-update-status-badge"
                   className="font-mono"
                   style={{
                     fontSize: '10px',
