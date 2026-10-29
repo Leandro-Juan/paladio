@@ -2040,6 +2040,130 @@ export default function ConfigPage() {
           </div>
         )}
 
+        {/* Interactive Update Notification & Installation Prompt */}
+        {updaterStatus?.update_available && !installPromptDismissed && (
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '2px solid var(--color-gold, #E2B33C)',
+              borderRadius: '10px',
+              padding: '1.5rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 0 24px rgba(226, 179, 60, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: '10px',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
+                      color: 'var(--color-gold, #E2B33C)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    NEW UPDATE AVAILABLE
+                  </span>
+                  <h4 className="font-display" style={{ fontSize: '1.25rem', margin: 0 }}>
+                    {updaterStatus.release_title || `Paladio v${updaterStatus.latest_version}`}
+                  </h4>
+                </div>
+                <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                  Installed version: v{updaterStatus.current_version} → Latest version: v{updaterStatus.latest_version}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setInstallPromptDismissed(true)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  REMIND ME LATER
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadUpdate}
+                  disabled={updaterDownloading || updaterStatus.download_status === 'downloading'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#1a1815',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    cursor: updaterDownloading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {updaterDownloading || updaterStatus.download_status === 'downloading' ? (
+                    <>
+                      <Spinner size={12} color="#1a1815" />
+                      <span>DOWNLOADING & INSTALLING...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LightningIcon size={12} />
+                      <span>INSTALL UPDATE NOW (v{updaterStatus.latest_version})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Features and Patch Notes */}
+            <div style={{ marginTop: '0.75rem' }}>
+              <p className="font-mono text-muted" style={{ fontSize: '10px', marginBottom: '6px', fontWeight: 600 }}>
+                {'// NEW FEATURES & PATCH NOTES:'}
+              </p>
+              <div
+                style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderRadius: '6px',
+                  padding: '0.85rem 1rem',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                }}
+              >
+                <pre
+                  className="font-mono"
+                  style={{
+                    margin: 0,
+                    fontSize: '11px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {updaterStatus.release_notes || 'No patch notes provided.'}
+                </pre>
+              </div>
+              <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '8px', marginBottom: 0 }}>
+                Would you like to install this update? Click &quot;INSTALL UPDATE NOW&quot; to download and apply the latest release.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Status and Configuration Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
           {/* Version Info Card */}
@@ -2087,7 +2211,7 @@ export default function ConfigPage() {
             </p>
           </div>
 
-          {/* Auto-Update State & Stop Option Card */}
+          {/* Auto-Update State & Toggle Button Card */}
           <div
             style={{
               background: 'var(--color-surface-card)',
@@ -2109,17 +2233,18 @@ export default function ConfigPage() {
                     fontWeight: 700,
                     padding: '2px 8px',
                     borderRadius: '4px',
-                    background: updaterStatus?.auto_update_enabled ? 'var(--color-success-soft)' : 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))',
-                    color: updaterStatus?.auto_update_enabled ? 'var(--color-success)' : 'var(--color-danger, #EF4444)',
+                    background: updaterStatus?.auto_update_enabled ? 'var(--color-success-soft)' : 'var(--color-surface)',
+                    color: updaterStatus?.auto_update_enabled ? 'var(--color-success)' : 'var(--color-text-muted)',
+                    border: '1px solid var(--color-border-subtle)',
                   }}
                 >
-                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'STOPPED'}
+                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'DISABLED'}
                 </span>
               </div>
               <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
                 {updaterStatus?.auto_update_enabled
-                  ? 'System periodically checks GitHub and automatically downloads updates.'
-                  : 'Automatic updates are stopped. No background checks or downloads will run.'}
+                  ? 'System automatically downloads and installs new releases in the background.'
+                  : 'Automatic updates are off by default. Paladio will notify you with patch notes and ask before installing.'}
               </p>
             </div>
 
@@ -2137,20 +2262,20 @@ export default function ConfigPage() {
                   fontWeight: 600,
                   cursor: updaterToggling ? 'not-allowed' : 'pointer',
                   border: updaterStatus?.auto_update_enabled
-                    ? '1px solid var(--color-danger, #EF4444)'
+                    ? '1px solid var(--color-border-subtle)'
                     : '1px solid var(--color-success)',
                   background: updaterStatus?.auto_update_enabled
-                    ? 'var(--color-danger-soft, rgba(239, 68, 68, 0.1))'
+                    ? 'var(--color-surface)'
                     : 'var(--color-success-soft)',
                   color: updaterStatus?.auto_update_enabled
-                    ? 'var(--color-danger, #EF4444)'
+                    ? 'var(--color-text-muted)'
                     : 'var(--color-success)',
                 }}
               >
                 {updaterToggling ? (
                   <Spinner size={10} />
                 ) : updaterStatus?.auto_update_enabled ? (
-                  'STOP AUTOMATIC UPDATES'
+                  'DISABLE AUTOMATIC UPDATES'
                 ) : (
                   'ENABLE AUTOMATIC UPDATES'
                 )}
