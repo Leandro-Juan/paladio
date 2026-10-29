@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from typing import Any
@@ -98,6 +99,7 @@ async def get_detailed_transit_leg(
     destination: dict[str, Any],
     departure_iso: str | None = None,
     is_airport_leg: bool = False,
+    date_time_type: int = 1,
 ) -> TransitLeg:
     """
     Retrieves detailed multimodal transit maneuvers (walk to stop, board line,
@@ -128,7 +130,7 @@ async def get_detailed_transit_leg(
         ],
         "costing": "multimodal",
         "date_time": {
-            "type": 1,  # 1 = depart at
+            "type": date_time_type,  # 1 = depart at, 2 = arrive by
             "value": departure_iso,
         },
         "costing_options": {
@@ -477,6 +479,135 @@ async def get_detailed_walking_leg(
         ) from exc
 
 
+async def calculate_point_to_point_directions(
+    origin: dict[str, Any],
+    destination: dict[str, Any],
+    departure_iso: str | None = None,
+    date_time_type: int = 1,
+    city: str | None = None,
+) -> dict[str, Any]:
+    """
+    Calculates multimodal public transit and pedestrian routes between origin and destination.
+    Evaluates both routes and applies the Reasonable Route Rule to select the primary
+    recommended route and provide the other as an alternative.
+    """
+    if city:
+        if "city" not in origin or not origin["city"]:
+            origin["city"] = city
+        if "city" not in destination or not destination["city"]:
+            destination["city"] = city
+
+    transit_res, walk_res = await asyncio.gather(
+        get_detailed_transit_leg(
+            origin,
+            destination,
+            departure_iso=departure_iso,
+            date_time_type=date_time_type,
+        ),
+        get_detailed_walking_leg(origin, destination),
+        return_exceptions=True,
+    )
+
+    # Handle fallback if walking raised an exception
+    if isinstance(walk_res, Exception):
+        orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
+        orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+        dest_lat = destination.get("location", {}).get(
+            "latitude", destination.get("lat", 0.0)
+        )
+        dest_lon = destination.get("location", {}).get(
+            "longitude", destination.get("lon", 0.0)
+        )
+        dist_km = calculate_haversine_km(
+            float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+        )
+        est_walk_mins = max(1, int(round((dist_km / 4.5) * 60)))
+        walk_leg = TransitLeg(
+            duration_mins=est_walk_mins,
+            cost_eur=0.0,
+            cost_is_estimated=False,
+            mode="pedestrian",
+            steps=[
+                TransitStep(
+                    type="walk",
+                    instruction=f"Walk {dist_km:.1f} km to {destination.get('name', 'destination')}",
+                    duration_mins=est_walk_mins,
+                    distance_meters=int(dist_km * 1000),
+                )
+            ],
+            geometry=[
+                [float(orig_lat), float(orig_lon)],
+                [float(dest_lat), float(dest_lon)],
+            ],
+        )
+    else:
+        walk_leg = walk_res
+
+    # Handle fallback if transit raised an exception
+    if isinstance(transit_res, Exception):
+        transit_leg = None
+    else:
+        transit_leg = transit_res
+
+    # Check whether the transit leg contains actual transit steps
+    has_transit_steps = False
+    if transit_leg and transit_leg.steps:
+        has_transit_steps = any(
+            step.type in ("transit", "transit_board")
+            or bool(getattr(step, "transit_line", None))
+            for step in transit_leg.steps
+        )
+
+    # Apply the Reasonable Route Rule
+    if not transit_leg or not has_transit_steps:
+        primary_leg = walk_leg
+        alternative_leg = None
+        primary_mode = "pedestrian"
+        recommendation_reason = "Direct walking route is recommended (no faster transit line available for this path)."
+    else:
+        walk_mins = walk_leg.duration_mins
+        transit_mins = transit_leg.duration_mins
+
+        if walk_mins <= 15:
+            # Short walk: direct walking is faster/more reasonable than waiting for transit
+            primary_leg = walk_leg
+            alternative_leg = transit_leg
+            primary_mode = "pedestrian"
+            recommendation_reason = (
+                f"Direct walking ({walk_mins} min) is recommended for short distances "
+                f"to avoid waiting for transit ({transit_mins} min)."
+            )
+        elif walk_mins > 20:
+            # Long walk: transit is strongly preferred (e.g. 1.5 hours walk vs 25 min transit)
+            primary_leg = transit_leg
+            alternative_leg = walk_leg
+            primary_mode = "transit"
+            diff = walk_mins - transit_mins
+            if diff > 0:
+                recommendation_reason = f"Public transit saves {diff} minutes compared to a {walk_mins}-minute walk."
+            else:
+                recommendation_reason = f"Public transit ({transit_mins} min) is recommended over a long {walk_mins}-minute walk."
+        else:
+            # 15 < walk_mins <= 20
+            if transit_mins <= walk_mins - 4:
+                primary_leg = transit_leg
+                alternative_leg = walk_leg
+                primary_mode = "transit"
+                recommendation_reason = f"Public transit is faster ({transit_mins} min vs {walk_mins} min walk)."
+            else:
+                primary_leg = walk_leg
+                alternative_leg = transit_leg
+                primary_mode = "pedestrian"
+                recommendation_reason = f"Direct walking is direct and comparable in travel time ({walk_mins} min vs {transit_mins} min transit)."
+
+    return {
+        "primary_mode": primary_mode,
+        "primary_leg": primary_leg,
+        "alternative_leg": alternative_leg,
+        "recommendation_reason": recommendation_reason,
+    }
+
+
 def synthesize_fallback_transit_leg(
     origin: dict[str, Any],
     destination: dict[str, Any],
@@ -775,6 +906,7 @@ def synthesize_fallback_transit_leg(
                     distance_km=transit_dist,
                     transit_line="Transit",
                     headsign=dest_name,
+                    station_name=f"Station near {orig_name}",
                     geometry=fallback_geom,
                 ),
                 TransitStep(

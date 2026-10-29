@@ -5,15 +5,34 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel, Field
+
 from app.adapters.repositories.sql_transit_repository import SQLTransitRepository
 from app.api.deps import get_optional_user
 from app.db.models import TripModel, UserModel
 from app.db.session import get_db
-from app.services.transit_service import TransitService
+from app.services.transit_service import (
+    TransitService,
+    calculate_point_to_point_directions,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class DirectionsLocation(BaseModel):
+    name: str = "Location"
+    lat: float
+    lon: float
+
+
+class TransitDirectionsRequest(BaseModel):
+    origin: DirectionsLocation
+    destination: DirectionsLocation
+    date_time: str | None = None
+    date_time_type: int = Field(1, description="1 for Depart At, 2 for Arrive By")
+    city: str | None = None
 
 
 def get_transit_service(session: AsyncSession = Depends(get_db)) -> TransitService:
@@ -291,3 +310,62 @@ async def get_city_line_detail(
     if not line_detail:
         raise HTTPException(status_code=404, detail="Line not found")
     return line_detail
+
+
+@router.post("/trips/{trip_id}/transit/directions")
+async def get_trip_transit_directions(
+    trip_id: str,
+    payload: TransitDirectionsRequest,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Computes multimodal public transit and walking directions between two locations
+    for a given trip, enforcing realistic travel heuristics and dynamic fare computation.
+    """
+    trip = await _get_authorized_trip(trip_id, current_user, session)
+    resolved_city = payload.city or trip.destination
+    return await calculate_point_to_point_directions(
+        origin={
+            "name": payload.origin.name,
+            "lat": payload.origin.lat,
+            "lon": payload.origin.lon,
+            "city": resolved_city,
+        },
+        destination={
+            "name": payload.destination.name,
+            "lat": payload.destination.lat,
+            "lon": payload.destination.lon,
+            "city": resolved_city,
+        },
+        departure_iso=payload.date_time,
+        date_time_type=payload.date_time_type,
+        city=resolved_city,
+    )
+
+
+@router.post("/transit/directions")
+async def get_general_transit_directions(
+    payload: TransitDirectionsRequest,
+) -> dict[str, Any]:
+    """
+    General point-to-point transit and walking routing for any city.
+    """
+    resolved_city = payload.city or ""
+    return await calculate_point_to_point_directions(
+        origin={
+            "name": payload.origin.name,
+            "lat": payload.origin.lat,
+            "lon": payload.origin.lon,
+            "city": resolved_city,
+        },
+        destination={
+            "name": payload.destination.name,
+            "lat": payload.destination.lat,
+            "lon": payload.destination.lon,
+            "city": resolved_city,
+        },
+        departure_iso=payload.date_time,
+        date_time_type=payload.date_time_type,
+        city=resolved_city,
+    )

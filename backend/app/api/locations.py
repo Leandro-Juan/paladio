@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AttractionModel
+from app.db.models import AttractionModel, TransitStationModel
 from app.db.session import get_db
 from app.infrastructure.providers.osm_http_client import (
     NOMINATIM_URL,
@@ -456,3 +456,184 @@ async def reverse_geocode(
         "lat": lat,
         "lng": lon,
     }
+
+
+@router.get(
+    "/places",
+    summary="Search city attractions, hotels, transit stations, and general places",
+)
+async def search_places(
+    q: str = Query(
+        ..., min_length=1, description="Place, attraction, station, or address query"
+    ),
+    city: str = Query("", description="Destination city name (e.g. Madrid, Paris)"),
+    limit: int = Query(10, ge=1, le=25, description="Maximum results"),
+    session: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """
+    Dynamically resolves place searches across attractions/hotels in the database,
+    compiled GTFS transit stations, and OSM Photon/Nominatim with city context biasing.
+    """
+    results: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    clean_city = city.strip()
+    clean_q = q.strip()
+
+    # 1. Search local DB attractions & hotels matching query and city
+    if clean_city or clean_q:
+        stmt = select(AttractionModel)
+        if clean_city:
+            stmt = stmt.where(AttractionModel.city.ilike(f"%{clean_city}%"))
+        if clean_q:
+            stmt = stmt.where(
+                or_(
+                    AttractionModel.name.ilike(f"%{clean_q}%"),
+                    AttractionModel.neighborhood.ilike(f"%{clean_q}%"),
+                )
+            )
+        stmt = stmt.limit(limit)
+
+        try:
+            db_res = (await session.execute(stmt)).scalars().all()
+            for poi in db_res:
+                norm = poi.name.lower().strip()
+                if norm not in seen_names:
+                    seen_names.add(norm)
+                    formatted_addr = (
+                        f"{poi.neighborhood}, {poi.city}"
+                        if poi.neighborhood
+                        else f"{poi.name}, {poi.city}"
+                    )
+                    results.append(
+                        {
+                            "name": poi.name,
+                            "display_name": f"{poi.name}, {poi.city}",
+                            "address": formatted_addr,
+                            "city": poi.city,
+                            "lat": float(poi.latitude),
+                            "lng": float(poi.longitude),
+                            "category": poi.category or "attraction",
+                        }
+                    )
+        except Exception:
+            pass
+
+    # 2. Search local DB compiled GTFS transit stations
+    if len(results) < limit and clean_q:
+        st_stmt = select(TransitStationModel)
+        if clean_city:
+            st_stmt = st_stmt.where(TransitStationModel.city.ilike(f"%{clean_city}%"))
+        st_stmt = st_stmt.where(
+            or_(
+                TransitStationModel.name.ilike(f"%{clean_q}%"),
+                TransitStationModel.original_name.ilike(f"%{clean_q}%"),
+            )
+        ).limit(limit - len(results))
+
+        try:
+            st_res = (await session.execute(st_stmt)).scalars().all()
+            for st in st_res:
+                norm = st.name.lower().strip()
+                if norm not in seen_names:
+                    seen_names.add(norm)
+                    results.append(
+                        {
+                            "name": st.name,
+                            "display_name": f"{st.name} (Station), {st.city}",
+                            "address": f"{st.name}, {st.city}",
+                            "city": st.city,
+                            "lat": float(st.lat),
+                            "lng": float(st.lon),
+                            "category": "transit",
+                        }
+                    )
+        except Exception:
+            pass
+
+    # 3. Query Photon OSM with city biasing if more results needed
+    if len(results) < limit and clean_q:
+        PHOTON_URL = "https://photon.komoot.io/api"
+        search_target = (
+            f"{clean_q}, {clean_city}"
+            if clean_city and clean_city.lower() not in clean_q.lower()
+            else clean_q
+        )
+
+        # Resolve destination city coordinates dynamically for spatial biasing
+        city_lat: float | None = None
+        city_lon: float | None = None
+        if clean_city:
+            try:
+                city_matches = search_locations(clean_city, limit=1)
+                if city_matches:
+                    city_lat = float(city_matches[0]["latitude"])
+                    city_lon = float(city_matches[0]["longitude"])
+            except Exception:
+                pass
+
+        try:
+            params: dict[str, Any] = {"q": search_target, "limit": limit * 2}
+            if city_lat is not None and city_lon is not None:
+                params["lat"] = city_lat
+                params["lon"] = city_lon
+
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.get(PHOTON_URL, params=params)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    features = data.get("features", [])
+                    for feat in features:
+                        if len(results) >= limit:
+                            break
+                        props = feat.get("properties", {})
+                        geom = feat.get("geometry", {})
+                        coords = geom.get("coordinates", [])
+                        if len(coords) < 2:
+                            continue
+
+                        name = (
+                            props.get("name")
+                            or props.get("street")
+                            or search_target.split(",")[0].strip()
+                        )
+                        if not name:
+                            continue
+                        norm = name.lower().strip()
+                        if norm in seen_names:
+                            continue
+                        seen_names.add(norm)
+
+                        street = props.get("street", "")
+                        housenumber = props.get("housenumber", "")
+                        district = props.get("district") or props.get("suburb", "")
+                        item_city = props.get("city") or clean_city
+                        country = props.get("country", "")
+
+                        road_part = f"{street} {housenumber}".strip() if street else ""
+                        addr_parts = [p for p in [road_part, district, item_city] if p]
+                        formatted_address = (
+                            ", ".join(addr_parts) if addr_parts else name
+                        )
+
+                        osm_val = props.get("osm_value", "place")
+                        results.append(
+                            {
+                                "name": name,
+                                "display_name": f"{name}, {formatted_address}"
+                                if road_part
+                                else formatted_address,
+                                "address": formatted_address,
+                                "city": item_city,
+                                "country": country,
+                                "lat": float(coords[1]),
+                                "lng": float(coords[0]),
+                                "category": osm_val
+                                if osm_val
+                                in ("hotel", "station", "museum", "restaurant", "park")
+                                else "place",
+                            }
+                        )
+        except Exception:
+            pass
+
+    return results[:limit]
