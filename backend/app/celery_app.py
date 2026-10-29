@@ -53,6 +53,10 @@ app.conf.update(
             "task": "app.tasks.periodic_baseline_compute_task",
             "schedule": 86400.0,  # daily
         },
+        "periodic-autoupdate-check": {
+            "task": "app.tasks.periodic_autoupdate_check_task",
+            "schedule": 21600.0,  # every 6 hours
+        },
     },
 )
 

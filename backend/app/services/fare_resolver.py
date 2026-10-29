@@ -146,9 +146,9 @@ class FareResolver:
             return quotes
 
         # ====================================================================
-        # TIER 1: Operator Open-Data APIs (ODPT for Tokyo, etc.)
+        # TIER 1: Operator Open-Data APIs (ODPT for Tokyo, TfL for London, etc.)
         # ====================================================================
-        if city_lower == "tokyo":
+        if self.odpt_adapter.supports_city(city_lower):
             try:
                 odpt_quotes = await self.odpt_adapter.fetch_city_quotes(city_lower)
                 if odpt_quotes:
@@ -159,6 +159,21 @@ class FareResolver:
                     return quotes
             except Exception as e:
                 logger.warning(f"Tier 1 ODPT lookup skipped or failed: {e}")
+
+        if city_lower == "london":
+            try:
+                from app.adapters.fares.tfl import TflFareAdapter
+
+                tfl_adapter = TflFareAdapter()
+                tfl_quotes = await tfl_adapter.fetch_city_quotes(city_lower)
+                if tfl_quotes:
+                    for tq in tfl_quotes:
+                        self.db.add(tq)
+                        quotes.append(tq)
+                    await self.db.commit()
+                    return quotes
+            except Exception as e:
+                logger.warning(f"Tier 1 TfL lookup skipped or failed: {e}")
 
         # ====================================================================
         # TIER 2: Official Tariff Pages (via transit_agencies.fare_url)
@@ -186,7 +201,47 @@ class FareResolver:
         # ====================================================================
         # TIER 3: Grounded LLM Extraction from Official or Wiki Context
         # ====================================================================
-        # Grounded extraction strictly enforces substring verification before acceptance.
+        try:
+            from app.services.transit_fare_service import TransitFareService
+
+            scraped_fare = await TransitFareService.resolve_city_transit_fare(
+                city_lower, db=self.db
+            )
+            if (
+                scraped_fare
+                and not scraped_fare.fare_unknown
+                and scraped_fare.single_fare
+            ):
+                amount_minor = to_minor_units(
+                    scraped_fare.single_fare, scraped_fare.currency
+                )
+                h_scraped = hashlib.sha256(
+                    f"tier3_{city_lower}_{scraped_fare.single_fare}_{scraped_fare.currency}".encode()
+                ).hexdigest()
+                scraped_quote = TransitFareQuoteModel(
+                    city=city_lower,
+                    operator=scraped_fare.agency_name or "Official",
+                    product_type="single",
+                    rider="adult",
+                    medium="ticket",
+                    amount_minor=amount_minor,
+                    currency=scraped_fare.currency,
+                    tier=3,
+                    source_url=scraped_fare.source_url,
+                    fetched_at=now,
+                    evidence_hash=h_scraped,
+                    evidence_quote=f"Live grounded extraction for {city_lower}: {scraped_fare.single_fare} {scraped_fare.currency}",
+                    confidence=0.9,
+                    status="active",
+                )
+                self.db.add(scraped_quote)
+                quotes.append(scraped_quote)
+                await self.db.commit()
+                return quotes
+        except Exception as e:
+            logger.warning(
+                f"Tier 3 live grounded discovery failed for {city_lower}: {e}"
+            )
 
         # ====================================================================
         # TIER 4: Honest Unknown (Negative Control / Unindexed City)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import hashlib
 import logging
 import math
 import os
@@ -351,7 +352,13 @@ async def ingest_city_transit(
 
         inserted = 0
         for s in capped:
-            osm_id = s.get("osm_id") or abs(hash(s["name"] + str(s["lat"])))
+            if s.get("osm_id"):
+                osm_id = s["osm_id"]
+            else:
+                raw_fp = f"{s.get('name', '')}:{s.get('lat', 0.0):.6f}:{s.get('lon', 0.0):.6f}"
+                osm_id = int(
+                    hashlib.sha256(raw_fp.encode("utf-8")).hexdigest()[:12], 16
+                )
             poi_id = f"OSM-transit-{s['category']}-{osm_id}"
 
             # Check if exists

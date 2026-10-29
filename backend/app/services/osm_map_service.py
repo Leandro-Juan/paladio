@@ -142,9 +142,40 @@ class OSMMapService:
                 )
                 return best_url, filename
 
-        # Fallback to direct name PBF if index is unreachable
+        # Dynamic fallback if index is unreachable (never assume Europe hardcoded)
+        from app.domain.city_key import resolve_city_identity
+
+        _, resolved_cc, _ = resolve_city_identity(city_name)
+        cc = (resolved_cc or "XX").upper()
+        continent_map = {
+            "US": "north-america",
+            "CA": "north-america",
+            "MX": "north-america",
+            "JP": "asia",
+            "CN": "asia",
+            "KR": "asia",
+            "IN": "asia",
+            "TH": "asia",
+            "VN": "asia",
+            "IL": "asia",
+            "GE": "asia",
+            "BR": "south-america",
+            "AR": "south-america",
+            "CL": "south-america",
+            "CO": "south-america",
+            "VE": "south-america",
+            "EG": "africa",
+            "ZA": "africa",
+            "NG": "africa",
+            "KE": "africa",
+            "MA": "africa",
+            "AU": "australia-oceania",
+            "NZ": "australia-oceania",
+            "FJ": "australia-oceania",
+        }
+        continent_slug = continent_map.get(cc, "europe")
         filename = f"{city_clean}-latest.osm.pbf"
-        url = f"https://download.geofabrik.de/europe/{filename}"
+        url = f"https://download.geofabrik.de/{continent_slug}/{filename}"
         return url, filename
 
     @classmethod

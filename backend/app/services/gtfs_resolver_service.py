@@ -8,11 +8,10 @@ import unicodedata
 from dataclasses import dataclass, field
 
 import httpx
-
 from app.domain.city_key import (
-    resolve_city_identity,
-    clean_ascii_slug,
     _get_geonamescache,
+    clean_ascii_slug,
+    resolve_city_identity,
 )
 from app.services.osm_map_service import OSMMapService
 

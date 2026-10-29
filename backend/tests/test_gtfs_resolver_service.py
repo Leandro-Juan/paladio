@@ -1,8 +1,8 @@
 import pytest
 from app.services.gtfs_resolver_service import (
+    TOUR_BLACKLIST_KEYWORDS,
     GTFSFeedInfo,
     GTFSResolverService,
-    TOUR_BLACKLIST_KEYWORDS,
 )
 
 
@@ -125,3 +125,87 @@ async def test_nonexistent_city_returns_none_without_mocks():
     """Strict test: non-existent city must return None and NEVER mock fake GTFS data."""
     result = await GTFSResolverService.resolve_gtfs_feed("totally_fake_city_xyz_999")
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_unicode_native_scripts_scoring():
+    """Verify that feeds with non-Latin text match correctly without character stripping."""
+    tokyo_feed = GTFSFeedInfo(
+        feed_id="jp-tokyo-metro-1",
+        provider="東京地下鉄株式会社",
+        name="Tokyo Metro Subway",
+        municipality="東京都",
+        subdivision="Tokyo",
+        country="JP",
+        download_url="https://example.com/tokyometro.zip",
+        is_official=True,
+        min_lat=35.5,
+        max_lat=35.8,
+        min_lon=139.6,
+        max_lon=139.9,
+    )
+
+    # Score with native Japanese Kanji "東京"
+    score = GTFSResolverService._score_candidate(
+        feed=tokyo_feed,
+        city_lower="東京",
+        center_lat=35.6895,
+        center_lon=139.6917,
+        city_country="JP",
+        aliases={"東京", "tokyo", "東京都"},
+    )
+    assert score > 100.0, f"Expected high score for native script match, got {score}"
+
+
+@pytest.mark.asyncio
+async def test_antimeridian_and_corrupt_bbox():
+    """Verify rejection of (0,0) corrupt bbox and acceptance of valid antimeridian feeds."""
+    corrupt_feed = GTFSFeedInfo(
+        feed_id="corrupt-00",
+        provider="Corrupt Feed",
+        name="Bad BBox",
+        municipality="Suva",
+        subdivision="Central",
+        country="FJ",
+        download_url="https://example.com/bad.zip",
+        is_official=True,
+        min_lat=0.0,
+        max_lat=0.0,
+        min_lon=0.0,
+        max_lon=0.0,
+    )
+    score_corrupt = GTFSResolverService._score_candidate(
+        feed=corrupt_feed,
+        city_lower="suva",
+        center_lat=-18.1416,
+        center_lon=178.4419,
+        city_country="FJ",
+    )
+    assert score_corrupt < 0.0, "Corrupt (0,0) bbox must be disqualified"
+
+    # Antimeridian feed (spanning across 180° meridian, e.g. min_lon=177, max_lon=-179)
+    antimeridian_feed = GTFSFeedInfo(
+        feed_id="fiji-suva-transit",
+        provider="Fiji Public Transport",
+        name="Suva Urban Network",
+        municipality="Suva",
+        subdivision="Central",
+        country="FJ",
+        download_url="https://example.com/suva.zip",
+        is_official=True,
+        min_lat=-18.25,
+        max_lat=-18.05,
+        min_lon=178.0,
+        max_lon=-179.0,  # Crosses 180°
+    )
+    score_antimeridian = GTFSResolverService._score_candidate(
+        feed=antimeridian_feed,
+        city_lower="suva",
+        center_lat=-18.1416,
+        center_lon=178.4419,
+        city_country="FJ",
+        aliases={"suva"},
+    )
+    assert (
+        score_antimeridian > 50.0
+    ), f"Valid antimeridian feed must be accepted, got {score_antimeridian}"

@@ -1356,3 +1356,21 @@ class FXRateModel(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class SystemConfigModel(Base):
+    """
+    Sovereign system configuration key-value storage.
+    Used for runtime cluster settings, auto-updater preferences, and system telemetry.
+    """
+
+    __tablename__ = "system_config"
+
+    key = Column(String, primary_key=True, index=True)
+    value = Column(JSONB, nullable=False, default=dict)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

@@ -38,13 +38,22 @@ class ODPTFareAdapter(BaseFareAdapter):
             base_url or os.getenv("ODPT_BASE_URL") or DEFAULT_ODPT_BASE_URL
         ).rstrip("/")
 
+    def supports_city(self, city: str, country_code: str | None = None) -> bool:
+        """Determines dynamically whether ODPT API covers this city/country."""
+        if country_code and country_code.upper() == "JP":
+            return True
+        from app.domain.city_key import resolve_city_identity
+
+        _, resolved_cc, _ = resolve_city_identity(city)
+        return resolved_cc == "JP"
+
     async def fetch_station_pair_fares(
         self,
         city: str,
         from_station_id: str | None = None,
         to_station_id: str | None = None,
     ) -> list[TransitFareQuoteModel]:
-        if city.lower() != "tokyo":
+        if not self.supports_city(city):
             return []
 
         if not self.api_key:

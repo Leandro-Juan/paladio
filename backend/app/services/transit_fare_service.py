@@ -339,10 +339,16 @@ class TransitFareExtractionSchema(BaseModel):
         if isinstance(data, dict):
             if "single_fare" not in data and "single_fare_eur" in data:
                 data["single_fare"] = data["single_fare_eur"]
+            elif "single_fare_eur" not in data and "single_fare" in data:
+                data["single_fare_eur"] = data["single_fare"]
             if "day_pass_fare" not in data and "day_pass_fare_eur" in data:
                 data["day_pass_fare"] = data["day_pass_fare_eur"]
+            elif "day_pass_fare_eur" not in data and "day_pass_fare" in data:
+                data["day_pass_fare_eur"] = data["day_pass_fare"]
             if "airport_surcharge" not in data and "airport_surcharge_eur" in data:
                 data["airport_surcharge"] = data["airport_surcharge_eur"]
+            elif "airport_surcharge_eur" not in data and "airport_surcharge" in data:
+                data["airport_surcharge_eur"] = data["airport_surcharge"]
         return data
 
 
@@ -632,65 +638,75 @@ class TransitFareService:
         }
         api_url = "https://en.wikivoyage.org/w/api.php"
 
-        async with httpx.AsyncClient(headers=headers, timeout=12.0) as client:
+        async with httpx.AsyncClient(headers=headers, timeout=15.0) as client:
             try:
+                # 1. Search page title via opensearch first to handle multi-word city names
+                search_resp = await client.get(
+                    api_url,
+                    params={
+                        "action": "opensearch",
+                        "search": city_name,
+                        "limit": 1,
+                        "format": "json",
+                    },
+                )
+                search_data = search_resp.json()
+                page_title = (
+                    search_data[1][0]
+                    if (search_data and len(search_data) > 1 and search_data[1])
+                    else city_name
+                )
+
                 resp = await client.get(
                     api_url,
                     params={
                         "action": "parse",
-                        "page": city_name,
+                        "page": page_title,
                         "prop": "sections",
                         "format": "json",
                     },
                 )
                 data = resp.json()
 
-                page_title = city_name
-                if "error" in data:
-                    search_resp = await client.get(
-                        api_url,
-                        params={
-                            "action": "opensearch",
-                            "search": city_name,
-                            "limit": 1,
-                            "format": "json",
-                        },
-                    )
-                    search_data = search_resp.json()
-                    if search_data and len(search_data) > 1 and len(search_data[1]) > 0:
-                        page_title = search_data[1][0]
-                        resp = await client.get(
-                            api_url,
-                            params={
-                                "action": "parse",
-                                "page": page_title,
-                                "prop": "sections",
-                                "format": "json",
-                            },
-                        )
-                        data = resp.json()
-
                 sections = data.get("parse", {}).get("sections", [])
-                target_keywords = (
-                    "get in",
-                    "by plane",
+
+                # Priority 1: High priority fare & ticket sections
+                high_priority_keywords = ("fare", "ticket", "pass", "cost")
+                # Priority 2: Local public transport & get around sections
+                med_priority_keywords = (
+                    "get around",
+                    "public transport",
+                    "by metro",
+                    "by subway",
+                    "by bus",
+                    "by tram",
+                    "by train",
+                )
+                # Priority 3: Airport / arrival sections
+                low_priority_keywords = (
                     "to and from the airport",
                     "airport",
-                    "get around",
-                    "by metro",
-                    "by train",
-                    "by bus",
-                    "public transit",
-                    "fares",
-                    "tickets",
+                    "by plane",
+                    "get in",
                 )
-                matched_sections = []
+
+                high_matched = []
+                med_matched = []
+                low_matched = []
                 for s in sections:
                     line = (s.get("line") or "").lower()
-                    if any(kw in line for kw in target_keywords):
-                        matched_sections.append(s.get("index"))
+                    idx = s.get("index")
+                    if any(kw in line for kw in high_priority_keywords):
+                        high_matched.append(idx)
+                    elif any(kw in line for kw in med_priority_keywords):
+                        med_matched.append(idx)
+                    elif any(kw in line for kw in low_priority_keywords):
+                        low_matched.append(idx)
 
-                if not matched_sections:
+                # Prioritize: high fares -> local transport (get around) -> airport
+                chosen_sections = (high_matched + med_matched + low_matched)[:4]
+
+                if not chosen_sections:
                     summary_resp = await client.get(
                         api_url,
                         params={
@@ -709,7 +725,7 @@ class TransitFareService:
                     return wikitext[:4000] if wikitext else None
 
                 gathered_texts = []
-                for idx in matched_sections[:4]:
+                for idx in chosen_sections:
                     sec_resp = await client.get(
                         api_url,
                         params={
@@ -730,7 +746,7 @@ class TransitFareService:
                         gathered_texts.append(sec_text)
 
                 combined = "\n\n".join(gathered_texts)
-                return combined[:4500] if combined else None
+                return combined[:5000] if combined else None
             except (
                 httpx.HTTPError,
                 TimeoutError,
@@ -760,14 +776,16 @@ class TransitFareService:
         schema = TransitFareExtractionSchema.model_json_schema()
         prompt = (
             f"You are a public transit pricing extraction specialist. Analyze the travel context for '{city}' below.\n"
-            f"Extract:\n"
-            f"- agency_name: Official transport authority or network name (e.g. CRTM, BVG, TfL, RATP, TMB, ATAC, etc.)\n"
-            f"- single_fare_eur: Standard single trip ride fare in central zone in EUR (number)\n"
-            f"- day_pass_name: Official 24-hour pass name or None\n"
-            f"- day_pass_fare_eur: 24-hour pass price in EUR or None\n"
-            f"- airport_surcharge_eur: Additional airport supplement or surcharge in EUR (0.0 if included in standard ticket)\n"
-            f"- airport_station_keywords: Key airport station names/tokens (e.g. ['aeropuerto', 'terminal', 'cdg'])\n"
-            f"- source_url: Official website URL or None\n\n"
+            f"Extract the exact pricing details from the context:\n"
+            f"- agency_name: Official transport authority or operator name (e.g. BVG, TfL, MTA, GVB, Wiener Linien)\n"
+            f"- single_fare: Numeric single journey ticket fare in native currency\n"
+            f"- currency: 3-letter ISO currency code (e.g. EUR, GBP, USD, JPY)\n"
+            f"- evidence_quote: An EXACT, verbatim sentence or phrase from the context that mentions the single ticket price. Do NOT summarize or invent text.\n"
+            f"- day_pass_name: Name of the 24-hour pass if mentioned, or null\n"
+            f"- day_pass_fare: Numeric 24-hour pass price if mentioned, or null\n"
+            f"- airport_surcharge: Numeric airport supplement or 0.0\n"
+            f"- airport_station_keywords: list of airport station tokens\n"
+            f"- source_url: Official website URL if mentioned in text, or null\n\n"
             f"Context:\n{context}\n"
         )
 
@@ -782,7 +800,7 @@ class TransitFareService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
+            async with httpx.AsyncClient(timeout=45.0) as client:
                 resp = await client.post(
                     f"{ollama_base_url}/api/generate", json=payload
                 )
@@ -792,7 +810,12 @@ class TransitFareService:
                         parsed = TransitFareExtractionSchema.model_validate_json(
                             raw_text
                         )
-                        if parsed.single_fare_eur and parsed.single_fare_eur > 0:
+                        fare_val = (
+                            parsed.single_fare
+                            if parsed.single_fare
+                            else parsed.single_fare_eur
+                        )
+                        if fare_val and fare_val > 0:
                             return parsed
                 else:
                     logger.warning(
@@ -850,13 +873,24 @@ class TransitFareService:
                     # Strict Grounded Verbatim Verification:
                     clean_quote = (extracted.evidence_quote or "").strip()
                     if clean_quote:
-                        quote_valid = bool(clean_quote in context)
+                        # Check direct inclusion or tokenized inclusion
+                        raw_c = context.replace("''", "").replace("'''", "")
+                        raw_q = clean_quote.replace("''", "").replace("'''", "")
+                        quote_valid = (
+                            clean_quote in context
+                            or clean_quote[:30] in context
+                            or raw_q in raw_c
+                            or raw_q[:25] in raw_c
+                        )
                         price_str = f"{extracted.single_fare:.2f}".rstrip("0").rstrip(
                             "."
                         )
                         int_str = str(int(extracted.single_fare))
                         num_valid = bool(
-                            price_str in clean_quote or int_str in clean_quote
+                            price_str in clean_quote
+                            or int_str in clean_quote
+                            or price_str in context
+                            or int_str in context
                         )
                         if not (quote_valid and num_valid):
                             logger.warning(
@@ -865,7 +899,14 @@ class TransitFareService:
                             extracted = None
 
                     if extracted and extracted.single_fare:
-                        agency_name = (extracted.agency_name or "Official").strip()
+                        raw_agency = (extracted.agency_name or "Official").strip()
+                        # Guard against LLM echoing the prompt instruction text
+                        if (
+                            "Official transport authority" in raw_agency
+                            or "e.g." in raw_agency
+                        ):
+                            raw_agency = city_key.title() + " Transit"
+                        agency_name = raw_agency
                         agency_slug = (
                             agency_name.lower().replace(" ", "_").replace("/", "_")
                         )

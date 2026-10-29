@@ -66,6 +66,7 @@ def _publish_city_hydration_event(
 ) -> None:
     try:
         import json
+
         import redis
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -98,8 +99,8 @@ async def _run_ingest_city_pois(city_name: str, force: bool = False) -> dict[str
     from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
     from app.domain.entities.city import City
     from app.domain.reference.iso_currencies import get_country_currency
-    from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
     from app.engine.tiering import tier_city_attractions
+    from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
     from app.infrastructure.providers.osm_city_ingest import (
         fetch_city_records,
         geocode_city,
@@ -199,7 +200,6 @@ async def _run_enrich_tier12_city_pois(
     from app.engine.hydration.document_builder import PoiDocumentBuilder
     from app.engine.hydration.facet_extractor import FacetExtractor
     from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
-    from app.utils.opening_hours_parser import parse_osm_opening_hours
     from app.infrastructure.providers.ollama_embedding_provider import (
         OllamaEmbeddingProvider,
     )
@@ -207,6 +207,7 @@ async def _run_enrich_tier12_city_pois(
         WikimediaEnrichmentProvider,
     )
     from app.services.poi_pricing_service import PoiPricingService
+    from app.utils.opening_hours_parser import parse_osm_opening_hours
 
     name = " ".join(city_name.strip().split()).title()
     city_lower = name.lower()
@@ -538,13 +539,13 @@ async def _run_enrich_long_tail_city_pois(
     from app.db.models import AttractionModel, CityModel
     from app.engine.hydration.document_builder import PoiDocumentBuilder
     from app.engine.hydration.facet_extractor import FacetExtractor
-    from app.utils.opening_hours_parser import parse_osm_opening_hours
     from app.infrastructure.providers.ollama_embedding_provider import (
         OllamaEmbeddingProvider,
     )
     from app.infrastructure.providers.wikimedia_enrichment_provider import (
         WikimediaEnrichmentProvider,
     )
+    from app.utils.opening_hours_parser import parse_osm_opening_hours
 
     name = " ".join(city_name.strip().split()).title()
     city_lower = name.lower()
@@ -1012,9 +1013,10 @@ def sanitize_gtfs_feed(
 
         valid_trip_ids = {tid for tid, count in trip_stops_count.items() if count >= 2}
 
-        with open(stop_times_file, "r", encoding="utf-8") as in_f, open(
-            stop_times_file + ".tmp", "w", encoding="utf-8", newline=""
-        ) as out_f:
+        with (
+            open(stop_times_file, "r", encoding="utf-8") as in_f,
+            open(stop_times_file + ".tmp", "w", encoding="utf-8", newline="") as out_f,
+        ):
             reader = csv.DictReader(in_f)
             writer = csv.DictWriter(out_f, fieldnames=fieldnames_stop_times)
             writer.writeheader()
@@ -1023,9 +1025,10 @@ def sanitize_gtfs_feed(
                     writer.writerow(r)
 
         if os.path.exists(trips_file):
-            with open(trips_file, "r", encoding="utf-8") as in_f, open(
-                trips_file + ".tmp", "w", encoding="utf-8", newline=""
-            ) as out_f:
+            with (
+                open(trips_file, "r", encoding="utf-8") as in_f,
+                open(trips_file + ".tmp", "w", encoding="utf-8", newline="") as out_f,
+            ):
                 reader = csv.DictReader(in_f)
                 writer = csv.DictWriter(out_f, fieldnames=reader.fieldnames)
                 writer.writeheader()
@@ -1034,9 +1037,12 @@ def sanitize_gtfs_feed(
                         writer.writerow(r)
 
         if os.path.exists(transfers_file):
-            with open(transfers_file, "r", encoding="utf-8") as in_f, open(
-                transfers_file + ".tmp", "w", encoding="utf-8", newline=""
-            ) as out_f:
+            with (
+                open(transfers_file, "r", encoding="utf-8") as in_f,
+                open(
+                    transfers_file + ".tmp", "w", encoding="utf-8", newline=""
+                ) as out_f,
+            ):
                 reader = csv.DictReader(in_f)
                 writer = csv.DictWriter(out_f, fieldnames=reader.fieldnames)
                 writer.writeheader()
@@ -1107,6 +1113,7 @@ def is_transit_task_alive(city_clean: str) -> bool:
     """
     try:
         import redis
+
         from app.celery_app import app as celery_app
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -1183,6 +1190,7 @@ async def async_trigger_next_queued_city(session: Any | None = None) -> str | No
     """
     try:
         from sqlalchemy import select
+
         from app.db.models import TransitCacheModel
 
         async def _find_next(db_session):
@@ -1208,8 +1216,10 @@ async def async_trigger_next_queued_city(session: Any | None = None) -> str | No
             return None
 
         import os
+
         import redis
         from celery.result import AsyncResult
+
         from app.celery_app import app as celery_app
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -1486,6 +1496,7 @@ def extract_gtfs_expiry(gtfs_dir: str) -> datetime:
 
 async def _city_exists_in_transit_cache(city_name: str) -> bool:
     from sqlalchemy import select
+
     from app.db.models import TransitCacheModel
 
     session_maker, task_engine = _get_task_session_maker()
@@ -1922,8 +1933,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 with client.stream("GET", gtfs_url, headers=download_headers) as resp:
                     resp.raise_for_status()
                     with open(zip_tmp, "wb") as out_f:
-                        for chunk in resp.iter_bytes(chunk_size=65536):
-                            out_f.write(chunk)
+                        out_f.writelines(resp.iter_bytes(chunk_size=65536))
 
             with zipfile.ZipFile(zip_tmp, "r") as zip_ref:
                 target_base = os.path.abspath(gtfs_dest_dir)
@@ -2385,9 +2395,10 @@ def prewarm_route_lodging_task(
     Zero hardcoded data, zero mock data.
     """
     from datetime import date, timedelta
+
+    from app.engine.market.adapters import OpenLodgingFeed
     from app.engine.market.corpus import get_top_candidate_deal_dates
     from app.engine.market.ingest import ingest_lodging_ticks
-    from app.engine.market.adapters import OpenLodgingFeed
 
     async def _prewarm():
         session_maker, engine = _get_task_session_maker()
@@ -2440,6 +2451,7 @@ def reconcile_interrupted_transit_builds(self):
     Ensures safe, automatic resumption of the sequential GTFS compilation pipeline.
     """
     from sqlalchemy import select
+
     from app.db.models import TransitCacheModel
 
     logger.info("Scanning for interrupted transit builds to resume...")
@@ -2474,3 +2486,35 @@ def reconcile_interrupted_transit_builds(self):
             logger.info(f"Task for city {city} is already active, skipping re-queue.")
 
     return {"status": "reconciled", "resumed_cities": resumed}
+
+
+@app.task(
+    name="app.tasks.periodic_autoupdate_check_task",
+    queue="celery",
+)
+def periodic_autoupdate_check_task() -> dict[str, Any]:
+    """
+    Checks the GitHub repository for updates and automatically downloads the latest version
+    if auto_update_enabled is set to True in the configuration.
+    If automatic updates are disabled / stopped in the config, skips check and download.
+    """
+    from app.services.updater_service import UpdaterService
+
+    async def _run():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                state = await UpdaterService.get_state(session)
+                if not state.get("auto_update_enabled", True):
+                    logger.info(
+                        "Automatic updates are stopped / disabled in configuration. Skipping."
+                    )
+                    return {"status": "skipped", "reason": "auto_update_stopped"}
+
+                logger.info("Running automatic GitHub update check...")
+                result = await UpdaterService.check_for_updates(session=session)
+                return {"status": "completed", "result": result}
+            finally:
+                await engine.dispose()
+
+    return _run_async(_run())

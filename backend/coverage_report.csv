@@ -1,0 +1,46 @@
+city_key,city_name,country_code,tier,reason_code,feed_count,feed_ids,stage_reached,population,note
+tokyo-jp-1850147,Tokyo,JP,T0,OPEN_SCHEDULE,3,mdb-3176;mdb-3175;jbda-shinkikanko-limonbus,RESOLVED,0,"Rich GTFS, large"
+paris-fr-2988507,Paris,FR,T0,OPEN_SCHEDULE,5,tdg-80931;tdg-67595;tdg-83530;tdg-83620;tdg-81474,RESOLVED,0,"Rich GTFS, large"
+london-gb-2643743,London,GB,T0,OPEN_SCHEDULE,3,mdb-2688;mdb-2014;mdb-2900,RESOLVED,0,"Rich GTFS, large"
+new-york-city-us-5128581,New York City,US,T0,OPEN_SCHEDULE,5,mdb-519;mdb-513;ntd-20226;mdb-515;tld-4380,RESOLVED,0,"Rich GTFS, large"
+seoul-kr-1835848,Seoul,KR,T5,NO_FEED,0,,RESOLVED,0,"Rich GTFS, large"
+madrid-es-3117735,Madrid,ES,T0,OPEN_SCHEDULE,5,mdb-793;mdb-2802;mdb-2720;mdb-791;mdb-2820,RESOLVED,0,"Rich GTFS, large"
+barcelona-es-3128760,Barcelona,ES,T0,OPEN_SCHEDULE,4,mdb-1856;mdb-892;mdb-2926;mdb-2653,RESOLVED,0,"Rich GTFS, large"
+berlin-de-2950159,Berlin,DE,T0,OPEN_SCHEDULE,2,mdb-782;mdb-3107,RESOLVED,0,"Rich GTFS, large"
+sydney-au-2147714,Sydney,AU,T5,NO_FEED,0,,RESOLVED,0,"Rich GTFS, large"
+toronto-ca-6167865,Toronto,CA,T0,OPEN_SCHEDULE,3,mdb-1995;mdb-732;mdb-1993,RESOLVED,0,"Rich GTFS, large"
+chicago-us-4887398,Chicago,US,T0,OPEN_SCHEDULE,5,tld-4472;mdb-389;mdb-620;mdb-2347;mdb-2256,RESOLVED,0,Multi-operator
+zurich-ch-2657896,Zürich,CH,T0,OPEN_SCHEDULE,1,mdb-2053,RESOLVED,0,Multi-operator
+amsterdam-nl-2759794,Amsterdam,NL,T5,NO_FEED,0,,RESOLVED,0,Multi-operator
+hong-kong-hk-1819729,Hong Kong,HK,T0,OPEN_SCHEDULE,2,mdb-1924;mdb-2933,RESOLVED,0,Multi-operator
+tokyo-jp-1850147,Tokyo,JP,T0,OPEN_SCHEDULE,3,mdb-3176;mdb-3175;jbda-shinkikanko-limonbus,RESOLVED,0,Non-Latin
+moscow-ru-524901,Moscow,RU,T5,NO_FEED,0,,RESOLVED,0,Non-Latin
+seoul-kr-1835848,Seoul,KR,T5,NO_FEED,0,,RESOLVED,0,Non-Latin
+cairo-eg-360630,Cairo,EG,T5,NO_FEED,0,,RESOLVED,0,Non-Latin
+bangkok-th-1609350,Bangkok,TH,T0,OPEN_SCHEDULE,1,mdb-1831,RESOLVED,0,Non-Latin
+athens-gr-264371,Athens,GR,T5,NO_FEED,0,,RESOLVED,0,Non-Latin
+tbilisi-ge-611717,Tbilisi,GE,T5,NO_FEED,0,,RESOLVED,0,Non-Latin
+tel-aviv-il-293397,Tel Aviv,IL,T0,OPEN_SCHEDULE,1,mdb-2519,RESOLVED,0,Non-Latin
+mumbai-in-1275339,Mumbai,IN,T0,OPEN_SCHEDULE,1,mdb-3138,RESOLVED,0,Non-Latin
+sao-paulo-br-3448439,São Paulo,BR,T0,OPEN_SCHEDULE,1,mdb-8,RESOLVED,0,Diacritics & Collision
+zurich-ch-2657896,Zürich,CH,T0,OPEN_SCHEDULE,1,mdb-2053,RESOLVED,0,Diacritics & Collision
+cordoba-ar-3860259,Córdoba,AR,T0,OPEN_SCHEDULE,1,mdb-2653,RESOLVED,0,Diacritics & Collision
+cordoba-es-2519240,Córdoba,ES,T0,OPEN_SCHEDULE,1,mdb-2653,RESOLVED,0,Diacritics & Collision
+birmingham-gb-2655603,Birmingham,GB,T0,OPEN_SCHEDULE,2,mdb-2014;mdb-2900,RESOLVED,0,Diacritics & Collision
+birmingham-us-4049979,Birmingham,US,T0,OPEN_SCHEDULE,2,mdb-2014;mdb-2900,RESOLVED,0,Diacritics & Collision
+valencia-es-2509954,Valencia,ES,T0,OPEN_SCHEDULE,3,mdb-795;mdb-1870;mdb-2653,RESOLVED,0,Diacritics & Collision
+valencia-ve-3625549,Valencia,VE,T0,OPEN_SCHEDULE,3,mdb-795;mdb-1870;mdb-2653,RESOLVED,0,Diacritics & Collision
+santiago-cl-3871336,Santiago,CL,T5,NO_FEED,0,,RESOLVED,0,Diacritics & Collision
+santiago-de-compostela-es-3109642,Santiago de Compostela,ES,T5,NO_FEED,0,,RESOLVED,0,Diacritics & Collision
+suva-fj-2198148,Suva,FJ,T5,NO_FEED,0,,RESOLVED,0,Edge geography
+anadyr-ru-2127202,Anadyr,RU,T5,NO_FEED,0,,RESOLVED,0,Edge geography
+reykjavik-is-3413829,Reykjavík,IS,T0,OPEN_SCHEDULE,1,tld-4056,RESOLVED,0,Edge geography
+longyearbyen-sj-2729907,Longyearbyen,SJ,T5,NO_FEED,0,,RESOLVED,0,Edge geography
+honolulu-us-5856195,Honolulu,US,T0,OPEN_SCHEDULE,1,mdb-2350,RESOLVED,0,Edge geography
+singapore-sg-1880252,Singapore,SG,T0,OPEN_SCHEDULE,1,mdb-1076,RESOLVED,0,Edge geography
+monaco-mc-2993458,Monaco,MC,T0,OPEN_SCHEDULE,1,tdg-83756,RESOLVED,0,Edge geography
+istanbul-tr-745044,Istanbul,TR,T0,OPEN_SCHEDULE,1,mdb-2922,RESOLVED,0,Edge geography
+nairobi-ke-184745,Nairobi,KE,T5,NO_FEED,0,,RESOLVED,0,Informal/Thin
+lagos-ng-2332459,Lagos,NG,T0,OPEN_SCHEDULE,1,mdb-3144,RESOLVED,0,Informal/Thin
+havana-cu-3553478,Havana,CU,T5,NO_FEED,0,,RESOLVED,0,No open data
+ulan-bator-mn-2028462,Ulan Bator,MN,T5,NO_FEED,0,,RESOLVED,0,No open data
