@@ -334,6 +334,7 @@ async def db_engine():
                 )
             )
             for col_stmt in [
+                "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS city_key VARCHAR(128);",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS derived_status VARCHAR(32) DEFAULT 'PENDING';",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS derived_at TIMESTAMPTZ;",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS active_build_id VARCHAR(36);",
@@ -341,6 +342,7 @@ async def db_engine():
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS feed_valid_from TIMESTAMPTZ;",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS feed_valid_to TIMESTAMPTZ;",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS quality JSONB;",
+                "ALTER TABLE transit_pattern_stops ADD COLUMN IF NOT EXISTS is_interpolated BOOLEAN DEFAULT FALSE NOT NULL;",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(
