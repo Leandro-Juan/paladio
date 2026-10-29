@@ -45,6 +45,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
   const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
+  const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -554,6 +555,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             destinationCity={trip.destination}
             activeTransitLine={activeTransitLine}
             onClearTransitLine={() => setActiveTransitLine(null)}
+            activeMapPickField={activeMapPickField}
+            onCancelMapPick={() => setActiveMapPickField(null)}
             onInspectPoi={handleInspectPoi}
             onSelectCategoryPoi={(poi) =>
               handlePlaceClick({
@@ -604,6 +607,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onReoptimizeDay={handleReoptimizeDay}
             isReoptimizing={isReoptimizing}
             onToggleTransitMode={handleToggleTransitMode}
+            activeMapPickField={activeMapPickField}
+            onStartMapPick={(field) => setActiveMapPickField(field)}
+            onCancelMapPick={() => setActiveMapPickField(null)}
           />
 
           {/* Radiating Speed Dial Actions Button docked next to left panel bottom */}

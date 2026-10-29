@@ -6,12 +6,28 @@ import { notify } from '@/utils/notify';
 import { BookmarkIcon, CompassIcon } from '@/components/icons';
 import { getTripDayDate } from '@/utils/date';
 import { registerTransitLineColor } from '@/utils/transitColors';
+import {
+  TripTransitDirectionsView,
+  DirectionsRouteResult,
+} from './TripTransitDirectionsView';
 
 export interface TripTransitTabProps {
   tripId?: string;
   tripStartDate?: string;
   destinationCity: string;
   selectedDay: number | 'all';
+  tripDays?: Array<{
+    day_number: number;
+    pois: Array<{
+      id: string;
+      name: string;
+      lat: number;
+      lng: number;
+      category?: string;
+    }>;
+  }>;
+  hotel?: { name: string; address?: string; lat?: number; lng?: number } | null;
+  airport?: { name: string; iata?: string; lat?: number; lng?: number } | null;
   savedPoiIds: Set<string>;
   onToggleSavePoi: (id: string) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
@@ -24,9 +40,16 @@ export interface TripTransitTabProps {
     durationMins?: number;
     costEur?: number;
   }) => void;
+  activeMapPickField?: 'origin' | 'destination' | null;
+  onStartMapPick?: (field: 'origin' | 'destination') => void;
+  onCancelMapPick?: () => void;
+  onRouteCalculated?: (
+    routeResult: DirectionsRouteResult | null,
+    activeMode: 'primary' | 'alternative'
+  ) => void;
 }
 
-export type TransitSubView = 'nearby' | 'lines';
+export type TransitSubView = 'directions' | 'lines' | 'nearby';
 export type TransitModeFilter = 'metro' | 'rail' | 'tram' | 'bus';
 
 interface TransitLineChip {
@@ -95,12 +118,19 @@ export function TripTransitTab({
   tripStartDate,
   destinationCity,
   selectedDay,
+  tripDays = [],
+  hotel,
+  airport,
   savedPoiIds,
   onToggleSavePoi,
   onInspectPoi,
   onFocusFromInspector,
+  activeMapPickField,
+  onStartMapPick,
+  onCancelMapPick,
+  onRouteCalculated,
 }: TripTransitTabProps) {
-  const [subView, setSubView] = useState<TransitSubView>('nearby');
+  const [subView, setSubView] = useState<TransitSubView>('directions');
   const [activeModes, setActiveModes] = useState<Set<TransitModeFilter>>(
     new Set(ALL_TRANSIT_MODES)
   );
@@ -702,7 +732,7 @@ export function TripTransitTab({
         </div>
       )}
 
-      {/* Segmented Control: [ Nearby | Lines ] */}
+      {/* Segmented Control: [ Directions | Lines | Nearby ] */}
       <div
         style={{
           display: 'flex',
@@ -716,22 +746,22 @@ export function TripTransitTab({
           type="button"
           onClick={() => {
             setDrillStationId(null);
-            setSubView('nearby');
+            setSubView('directions');
           }}
           style={{
             flex: 1,
             padding: '6px 0',
             fontSize: '12px',
-            fontWeight: subView === 'nearby' ? 700 : 500,
+            fontWeight: subView === 'directions' ? 700 : 500,
             borderRadius: '6px',
             border: 'none',
-            background: subView === 'nearby' ? 'var(--color-surface-card)' : 'transparent',
-            color: subView === 'nearby' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-            boxShadow: subView === 'nearby' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            background: subView === 'directions' ? 'var(--color-surface-card)' : 'transparent',
+            color: subView === 'directions' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            boxShadow: subView === 'directions' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
             cursor: 'pointer',
           }}
         >
-          Nearby
+          Directions
         </button>
         <button
           type="button"
@@ -753,6 +783,27 @@ export function TripTransitTab({
           }}
         >
           Lines
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDrillStationId(null);
+            setSubView('nearby');
+          }}
+          style={{
+            flex: 1,
+            padding: '6px 0',
+            fontSize: '12px',
+            fontWeight: subView === 'nearby' ? 700 : 500,
+            borderRadius: '6px',
+            border: 'none',
+            background: subView === 'nearby' ? 'var(--color-surface-card)' : 'transparent',
+            color: subView === 'nearby' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            boxShadow: subView === 'nearby' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Nearby
         </button>
       </div>
 
@@ -786,7 +837,21 @@ export function TripTransitTab({
       )}
 
       {/* Subview Content */}
-      {isLoadingData ? (
+      {subView === 'directions' ? (
+        <TripTransitDirectionsView
+          tripId={tripId}
+          destinationCity={destinationCity}
+          tripStartDate={tripStartDate}
+          selectedDay={selectedDay}
+          tripDays={tripDays}
+          hotel={hotel}
+          airport={airport}
+          activeMapPickField={activeMapPickField}
+          onStartMapPick={onStartMapPick}
+          onCancelMapPick={onCancelMapPick}
+          onRouteCalculated={onRouteCalculated}
+        />
+      ) : isLoadingData ? (
         <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
           Loading {subView === 'nearby' ? 'nearby stations...' : 'network lines...'}
         </div>

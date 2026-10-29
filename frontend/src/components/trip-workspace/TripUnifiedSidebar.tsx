@@ -178,6 +178,10 @@ export interface TripUnifiedSidebarProps {
   onReoptimizeDay?: () => Promise<void>;
   isReoptimizing?: boolean;
   onToggleTransitMode?: () => void;
+  activeMapPickField?: 'origin' | 'destination' | null;
+  onStartMapPick?: (field: 'origin' | 'destination') => void;
+  onCancelMapPick?: () => void;
+  onRouteCalculated?: (routeResult: any, activeMode: 'primary' | 'alternative') => void;
   sidebarTab?: MainTabType;
   onTabChange?: (tab: MainTabType) => void;
 }
@@ -1201,6 +1205,10 @@ export function TripUnifiedSidebar({
   onReoptimizeDay,
   isReoptimizing = false,
   onToggleTransitMode,
+  activeMapPickField,
+  onStartMapPick,
+  onCancelMapPick,
+  onRouteCalculated,
   sidebarTab,
   onTabChange,
 }: TripUnifiedSidebarProps) {
@@ -2837,10 +2845,26 @@ export function TripUnifiedSidebar({
                     tripStartDate={tripStartDate}
                     destinationCity={destinationCity}
                     selectedDay={selectedDay}
+                    tripDays={days.map((d: DayOutput) => ({
+                      day_number: d.day,
+                      pois: (d.itinerary?.path || []).map((s: ScheduledPoi, sIdx: number) => ({
+                        id: s.poi.id || `poi-${d.day}-${sIdx}`,
+                        name: s.poi.name,
+                        lat: s.poi.location.latitude,
+                        lng: s.poi.location.longitude,
+                        category: s.poi.category,
+                      })),
+                    }))}
+                    hotel={hotelAnchor}
+                    airport={airportAnchor}
                     savedPoiIds={savedPoiIds}
                     onToggleSavePoi={toggleSavePoi}
                     onInspectPoi={onInspectPoi}
                     onFocusFromInspector={onFocusFromInspector}
+                    activeMapPickField={activeMapPickField}
+                    onStartMapPick={onStartMapPick}
+                    onCancelMapPick={onCancelMapPick}
+                    onRouteCalculated={onRouteCalculated}
                   />
                 )}
 

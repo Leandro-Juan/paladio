@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, Tooltip, CircleMarker } from 'react-leaflet';
+import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, useMapEvents, Tooltip, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -10,11 +10,11 @@ import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clu
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
-import { InfoIcon } from '@/components/icons';
+import { InfoIcon, CrosshairIcon, CloseIcon } from '@/components/icons';
 import { createRouteCardDragImage } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, getApiBaseUrl } from '@/utils/api';
 
 export interface MapPoi {
   id?: string;
@@ -104,6 +104,113 @@ interface TripMapViewProps {
   destinationCity?: string;
   activeTransitLine?: ActiveTransitLineData | null;
   onClearTransitLine?: () => void;
+  activeMapPickField?: 'origin' | 'destination' | null;
+  onCancelMapPick?: () => void;
+  directionsRoute?: {
+    activeLeg: TransitLeg;
+    primary_leg?: TransitLeg;
+    alternative_leg?: TransitLeg | null;
+    origin: { name: string; lat: number; lng: number };
+    destination: { name: string; lat: number; lng: number };
+  } | null;
+}
+
+function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.DivIcon {
+  return L.divIcon({
+    className: 'paladio-directions-pin',
+    html: `
+      <div style="
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: ${color};
+        color: #FFFFFF;
+        font-family: var(--font-code, monospace);
+        font-weight: 700;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        border: 2px solid #FFFFFF;
+      ">
+        ${label}
+      </div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+function DirectionsMapEventsHandler({
+  activeMapPickField,
+  onCancelMapPick,
+  directionsRoute,
+}: {
+  activeMapPickField?: 'origin' | 'destination' | null;
+  onCancelMapPick?: () => void;
+  directionsRoute?: {
+    activeLeg: TransitLeg;
+    origin: { name: string; lat: number; lng: number };
+    destination: { name: string; lat: number; lng: number };
+  } | null;
+}) {
+  const map = useMap();
+
+  useMapEvents({
+    click: async (e) => {
+      if (!activeMapPickField) return;
+      const { lat, lng } = e.latlng;
+      let placeName = `Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/locations/reverse?lat=${lat}&lon=${lng}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.name) placeName = data.name;
+          if (data.address) address = data.address;
+        }
+      } catch {
+        // Fallback to coordinates
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('paladio:map-picked-location', {
+          detail: {
+            field: activeMapPickField,
+            name: placeName,
+            lat,
+            lng,
+            address,
+          },
+        })
+      );
+
+      if (onCancelMapPick) onCancelMapPick();
+    },
+  });
+
+  // Auto-fit camera when directions route is set or updated
+  useEffect(() => {
+    if (!directionsRoute || !directionsRoute.activeLeg) return;
+    const points: [number, number][] = [];
+    if (directionsRoute.origin) {
+      points.push([directionsRoute.origin.lat, directionsRoute.origin.lng]);
+    }
+    if (directionsRoute.destination) {
+      points.push([directionsRoute.destination.lat, directionsRoute.destination.lng]);
+    }
+    if (directionsRoute.activeLeg.geometry && directionsRoute.activeLeg.geometry.length > 0) {
+      directionsRoute.activeLeg.geometry.forEach(([lat, lon]) => points.push([lat, lon]));
+    }
+    if (points.length >= 2) {
+      map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 16 });
+    }
+  }, [directionsRoute, map]);
+
+  return null;
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -765,7 +872,45 @@ export default function TripMapView({
   destinationCity = '',
   activeTransitLine,
   onClearTransitLine,
+  activeMapPickField,
+  onCancelMapPick,
+  directionsRoute,
 }: TripMapViewProps) {
+  const [internalDirectionsRoute, setInternalDirectionsRoute] = useState<{
+    activeLeg: TransitLeg;
+    primary_leg?: TransitLeg;
+    alternative_leg?: TransitLeg | null;
+    origin: { name: string; lat: number; lng: number };
+    destination: { name: string; lat: number; lng: number };
+  } | null>(null);
+
+  const activeDirectionsRoute = directionsRoute || internalDirectionsRoute;
+
+  useEffect(() => {
+    const handleShowDirections = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        activeLeg: TransitLeg;
+        primary_leg?: TransitLeg;
+        alternative_leg?: TransitLeg | null;
+        origin: { name: string; lat: number; lng: number };
+        destination: { name: string; lat: number; lng: number };
+      }>;
+      if (customEvent.detail) {
+        setInternalDirectionsRoute(customEvent.detail);
+      }
+    };
+    const handleClearDirections = () => {
+      setInternalDirectionsRoute(null);
+    };
+
+    window.addEventListener('paladio:show-directions-route', handleShowDirections);
+    window.addEventListener('paladio:clear-directions-route', handleClearDirections);
+    return () => {
+      window.removeEventListener('paladio:show-directions-route', handleShowDirections);
+      window.removeEventListener('paladio:clear-directions-route', handleClearDirections);
+    };
+  }, []);
+
   const effectiveLeftPadding = useMemo(() => {
     if (!isSidebarOpen) return 60;
     const isClient = typeof window !== 'undefined';
@@ -1196,6 +1341,53 @@ export default function TripMapView({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Tactical Map Picking Active Banner */}
+      {activeMapPickField && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'rgba(15, 76, 92, 0.95)',
+            backdropFilter: 'blur(8px)',
+            color: '#FFFFFF',
+            borderRadius: '9999px',
+            padding: '8px 18px',
+            fontSize: '12px',
+            fontWeight: 600,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            pointerEvents: 'auto',
+          }}
+        >
+          <CrosshairIcon size={14} color="#FFFFFF" />
+          <span>Click on the map to set {activeMapPickField === 'origin' ? 'Origin (A)' : 'Destination (B)'}</span>
+          <button
+            type="button"
+            onClick={onCancelMapPick}
+            style={{
+              border: 'none',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '50%',
+              color: '#FFFFFF',
+              width: '18px',
+              height: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              marginLeft: '4px',
+            }}
+          >
+            <CloseIcon size={10} />
+          </button>
+        </div>
+      )}
+
       {/* Map Canvas */}
       <MapContainer
         center={centerPosition}
@@ -1204,10 +1396,15 @@ export default function TripMapView({
         maxBounds={[[-85, -180], [85, 180]]}
         maxBoundsViscosity={1.0}
         zoomControl={false}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', cursor: activeMapPickField ? 'crosshair' : undefined }}
         attributionControl={false}
       >
         <ZoomControl position="bottomright" />
+        <DirectionsMapEventsHandler
+          activeMapPickField={activeMapPickField}
+          onCancelMapPick={onCancelMapPick}
+          directionsRoute={activeDirectionsRoute}
+        />
         <MapViewportController
           activePoints={activeBoundsPoints}
           focusedPlace={focusedPlace}
@@ -1877,6 +2074,85 @@ export default function TripMapView({
               </CircleMarker>
             );
           })
+        )}
+
+        {/* 8. Directions Route & Pins Layer */}
+        {activeDirectionsRoute && (
+          <>
+            {/* Origin Pin A */}
+            {activeDirectionsRoute.origin && (
+              <Marker
+                position={[activeDirectionsRoute.origin.lat, activeDirectionsRoute.origin.lng]}
+                icon={createDirectionsTacticalPinIcon('A', '#0F4C5C')}
+              >
+                <Tooltip direction="top" offset={[0, -14]} opacity={0.95} permanent>
+                  <div style={{ fontWeight: 700, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                    Origin: {activeDirectionsRoute.origin.name}
+                  </div>
+                </Tooltip>
+              </Marker>
+            )}
+
+            {/* Destination Pin B */}
+            {activeDirectionsRoute.destination && (
+              <Marker
+                position={[activeDirectionsRoute.destination.lat, activeDirectionsRoute.destination.lng]}
+                icon={createDirectionsTacticalPinIcon('B', '#059669')}
+              >
+                <Tooltip direction="top" offset={[0, -14]} opacity={0.95} permanent>
+                  <div style={{ fontWeight: 700, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                    Destination: {activeDirectionsRoute.destination.name}
+                  </div>
+                </Tooltip>
+              </Marker>
+            )}
+
+            {/* Route Polyline */}
+            {activeDirectionsRoute.activeLeg &&
+              activeDirectionsRoute.activeLeg.geometry &&
+              activeDirectionsRoute.activeLeg.geometry.length > 1 && (
+                <>
+                  {activeDirectionsRoute.activeLeg.mode === 'pedestrian' ? (
+                    <Polyline
+                      positions={activeDirectionsRoute.activeLeg.geometry}
+                      pathOptions={{
+                        color: '#0F4C5C',
+                        weight: 4.5,
+                        dashArray: '6, 8',
+                        opacity: 0.95,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <Polyline
+                        key="directions-transit-glow"
+                        positions={activeDirectionsRoute.activeLeg.geometry}
+                        pathOptions={{
+                          color: '#0F4C5C',
+                          weight: 8,
+                          opacity: 0.25,
+                          lineCap: 'round',
+                          lineJoin: 'round',
+                        }}
+                      />
+                      <Polyline
+                        key="directions-transit-core"
+                        positions={activeDirectionsRoute.activeLeg.geometry}
+                        pathOptions={{
+                          color: '#0F4C5C',
+                          weight: 4.5,
+                          opacity: 0.95,
+                          lineCap: 'round',
+                          lineJoin: 'round',
+                        }}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+          </>
         )}
       </MapContainer>
 
