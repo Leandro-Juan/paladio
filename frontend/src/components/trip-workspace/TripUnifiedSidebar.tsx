@@ -143,6 +143,7 @@ export interface TripUnifiedSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   tripId?: string;
+  tripStartDate?: string;
   destinationCity?: string;
   days: DayOutput[];
   selectedDay: number | 'all';
@@ -1173,6 +1174,7 @@ export function TripUnifiedSidebar({
   isOpen,
   onToggle,
   tripId,
+  tripStartDate,
   destinationCity = '',
   days,
   selectedDay,
@@ -2832,6 +2834,7 @@ export function TripUnifiedSidebar({
                 {activeTab === 'transit' && (
                   <TripTransitTab
                     tripId={tripId}
+                    tripStartDate={tripStartDate}
                     destinationCity={destinationCity}
                     selectedDay={selectedDay}
                     savedPoiIds={savedPoiIds}

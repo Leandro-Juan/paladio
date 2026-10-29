@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 import { getApiBaseUrl, apiFetch } from '@/utils/api';
+import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData } from '@/utils/transitColors';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
@@ -93,6 +94,7 @@ export interface StationDetailData {
   stop_count: number;
   serving_lines: ServingLineDetail[];
   service_summary: ServiceSummaryDetail[];
+  photos?: PoiPhotoItem[];
   transfers?: Array<{
     to_station_id: string;
     transfer_type: number;
@@ -208,6 +210,7 @@ interface PoiDetailViewProps {
   onClose: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
   onFocusOnMap?: (poi: {
+    id?: string;
     lat: number;
     lng: number;
     name: string;
@@ -219,6 +222,7 @@ interface PoiDetailViewProps {
   initialDay?: number;
   onDragStartPoi?: () => void;
   tripStartDate?: string;
+  selectedDay?: number | 'all';
   scheduledDay?: number | null;
   activeTransitLine?: ActiveTransitLineData | null;
   onSelectTransitLine?: (lineData: ActiveTransitLineData | null) => void;
@@ -295,6 +299,7 @@ export function PoiDetailView({
   initialDay = 1,
   onDragStartPoi,
   tripStartDate,
+  selectedDay,
   scheduledDay,
   activeTransitLine,
   onSelectTransitLine,
@@ -337,8 +342,21 @@ export function PoiDetailView({
   const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
   const [stationDetail, setStationDetail] = useState<StationDetailData | null>(null);
   const [stationDepartures, setStationDepartures] = useState<StationDepartureItem[]>([]);
+  const [departureTimeSeconds, setDepartureTimeSeconds] = useState<number>(32400); // 09:00 AM default
   const [loadingDepartures, setLoadingDepartures] = useState<boolean>(false);
   const [loadingTransitLine, setLoadingTransitLine] = useState<string | null>(null);
+
+  // User can toggle preview day when POI does not belong to a specific route day
+  const [selectedPreviewDay, setSelectedPreviewDay] = useState<number>(initialDay || 1);
+
+  // If POI is already placed in a route day, that day ALWAYS governs.
+  // Otherwise, use user's selected day (or preview day).
+  const isScheduledInRoute = typeof scheduledDay === 'number';
+  const effectiveDayNumber = isScheduledInRoute
+    ? scheduledDay!
+    : typeof selectedDay === 'number'
+    ? selectedDay
+    : selectedPreviewDay;
 
   const isGtfsStation = useMemo(() => {
     const id = poiId || poi?.id || fallbackPoi?.id || '';
@@ -369,12 +387,45 @@ export function PoiDetailView({
 
       if (detail && detail.patterns && detail.patterns.length > 0) {
         const primary = detail.patterns[0];
+        const stops = primary.stops || [];
+
+        // Verify that this line actually serves the current station:
+        const currentStationId = stationDetail?.id || poiId || poi?.id || fallbackPoi?.id || '';
+        const currentStationName = (stationDetail?.name || poi?.name || fallbackPoi?.name || '').trim().toLowerCase();
+        const currentOrigName = (stationDetail?.original_name || '').trim().toLowerCase();
+        const currentLat = typeof stationDetail?.lat === 'number' ? stationDetail.lat : (typeof poi?.lat === 'number' ? poi.lat : fallbackPoi?.lat);
+        const currentLng = typeof stationDetail?.lon === 'number' ? stationDetail.lon : (typeof poi?.lng === 'number' ? poi.lng : fallbackPoi?.lng);
+
+        const servesStation = stops.some((s) => {
+          if (currentStationId && (s.station_id === currentStationId || currentStationId.endsWith(`:${s.station_id}`))) {
+            return true;
+          }
+          const sName = (s.name || '').trim().toLowerCase();
+          if (currentStationName && (sName === currentStationName || sName.includes(currentStationName) || currentStationName.includes(sName))) {
+            return true;
+          }
+          if (currentOrigName && (sName === currentOrigName || sName.includes(currentOrigName))) {
+            return true;
+          }
+          if (typeof currentLat === 'number' && typeof currentLng === 'number' && !isNaN(currentLat) && !isNaN(currentLng)) {
+            const dLat = (s.lat - currentLat) * 111000;
+            const dLng = (s.lon - currentLng) * 111000 * Math.cos((currentLat * Math.PI) / 180);
+            return Math.sqrt(dLat * dLat + dLng * dLng) <= 600;
+          }
+          return false;
+        });
+
+        if (!servesStation) {
+          console.warn(`Line ${lineIdentifier} does not serve station ${currentStationName || currentStationId}`);
+          return;
+        }
+
         const activeLineData: ActiveTransitLineData = {
           line: detail.short_name || detail.id,
           city: targetCity,
           color: detail.color || '#007AFF',
           polyline: primary.geometry?.coordinates || [],
-          stations: (primary.stops || []).map((s) => ({
+          stations: stops.map((s) => ({
             id: s.station_id,
             name: s.name,
             lat: s.lat,
@@ -391,7 +442,7 @@ export function PoiDetailView({
     } finally {
       setLoadingTransitLine(null);
     }
-  }, [activeTransitLine, onSelectTransitLine, poi?.city, fallbackPoi?.city, city]);
+  }, [activeTransitLine, onSelectTransitLine, poi, fallbackPoi, city, stationDetail, poiId]);
 
   const overviewDescription = useMemo(() => {
     const rawDesc = poi?.description?.trim() || fallbackPoi?.description?.trim() || '';
@@ -479,22 +530,20 @@ export function PoiDetailView({
               cost_eur: 0,
               cost_is_estimated: false,
               description: stData.original_name && stData.original_name !== stData.name ? stData.original_name : '',
-              photos: [],
+              photos: (stData.photos && stData.photos.length > 0) ? stData.photos : initialPhotos,
               scoring: {},
               transit_info: {
-                lines: stData.serving_lines.map((l) => l.short_name || l.line_id),
+                lines: Array.from(new Set(stData.serving_lines.map((l) => (l.short_name || l.line_id || '').trim()).filter((l) => l.length > 0))),
                 station_type: stData.serving_lines[0]?.mode || 'station',
               },
             } as unknown as PoiDetail);
             setLoading(false);
 
-            // Fetch departures
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0];
-            const secs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+            // Fetch departures for planned trip day
+            const targetDateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
             setLoadingDepartures(true);
             apiFetch<StationDepartureItem[]>(
-              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${dateStr}&seconds=${secs}&limit=8`
+              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${targetDateStr}&seconds=${departureTimeSeconds}&limit=8`
             )
               .then((deps) => {
                 if (isMounted && Array.isArray(deps)) {
@@ -523,6 +572,7 @@ export function PoiDetailView({
         const params = new URLSearchParams();
         if (effectiveName) params.set('name', effectiveName);
         if (effectiveCity) params.set('city', effectiveCity);
+        if (fallbackPoi?.category) params.set('category', fallbackPoi.category);
         if (typeof fallbackPoi?.lat === 'number' && !isNaN(fallbackPoi.lat) && fallbackPoi.lat !== 0) {
           params.set('lat', String(fallbackPoi.lat));
         }
@@ -584,7 +634,8 @@ export function PoiDetailView({
     return () => {
       isMounted = false;
     };
-  }, [poiId, fallbackPoi, city]);
+  }, [poiId, fallbackPoi, city, tripStartDate, effectiveDayNumber, departureTimeSeconds]);
+
 
   // Handle escape key to close view or lightbox
   useEffect(() => {
@@ -606,6 +657,7 @@ export function PoiDetailView({
   const handleFocusClick = useCallback(() => {
     if (!poi || !onFocusOnMap) return;
     onFocusOnMap({
+      id: poi.id,
       lat: poi.lat,
       lng: poi.lng,
       name: poi.name,
@@ -614,14 +666,6 @@ export function PoiDetailView({
       costEur: poi.cost_eur,
     });
   }, [poi, onFocusOnMap]);
-
-  // User can toggle preview day when POI does not belong to a specific route day
-  const [selectedPreviewDay, setSelectedPreviewDay] = useState<number>(initialDay || 1);
-
-  // If POI is already placed in a route day, that day ALWAYS governs.
-  // Otherwise, use user's selected preview day (or default day).
-  const isScheduledInRoute = typeof scheduledDay === 'number';
-  const effectiveDayNumber = isScheduledInRoute ? scheduledDay! : selectedPreviewDay;
 
   // Calculate day of week index (0 = Monday, 6 = Sunday) for effectiveDayNumber
   const targetDayOfWeekIdx = useMemo(() => {
@@ -1215,9 +1259,16 @@ export function PoiDetailView({
                       {transitStationLabel}
                     </span>
                   )}
-                  {Array.isArray(poi?.transit_info?.lines) && poi.transit_info.lines.length > 0 && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                      {poi.transit_info.lines.map((line) => {
+                  {Array.isArray(poi?.transit_info?.lines) && (() => {
+                    const uniqueLines = Array.from(new Set(
+                      poi.transit_info.lines
+                        .filter((l): l is string => typeof l === 'string' && l.trim().length > 0)
+                        .map((l) => l.trim())
+                    ));
+                    if (uniqueLines.length === 0) return null;
+                    return (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        {uniqueLines.map((line) => {
                         const theme = getTransitLineTheme(line);
                         const isLineActive = activeTransitLine?.line.toLowerCase() === line.toLowerCase();
                         const isLoading = loadingTransitLine?.toLowerCase() === line.toLowerCase();
@@ -1263,7 +1314,8 @@ export function PoiDetailView({
                         );
                       })}
                     </div>
-                  )}
+                  );
+                })()}
                 </div>
                 <div
                   style={{
@@ -1589,7 +1641,7 @@ export function PoiDetailView({
                       gap: '8px',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                       <span
                         style={{
                           fontSize: '9.5px',
@@ -1600,18 +1652,48 @@ export function PoiDetailView({
                           fontWeight: 700,
                         }}
                       >
-                        Today&apos;s Next Departures
+                        {selectedDay === 'all' && !isScheduledInRoute ? 'All Days' : `Day ${effectiveDayNumber}`} Scheduled Departures
                       </span>
-                      {loadingDepartures && (
-                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
-                          Loading...
-                        </span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        {[
+                          { label: '09:00', secs: 32400 },
+                          { label: '12:00', secs: 43200 },
+                          { label: '15:00', secs: 54000 },
+                          { label: '18:00', secs: 64800 },
+                        ].map((slot) => {
+                          const isSlotActive = departureTimeSeconds === slot.secs;
+                          return (
+                            <button
+                              key={slot.secs}
+                              type="button"
+                              onClick={() => setDepartureTimeSeconds(slot.secs)}
+                              style={{
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                border: `1px solid ${isSlotActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+                                background: isSlotActive ? 'var(--color-accent-primary)' : 'transparent',
+                                color: isSlotActive ? '#FFFFFF' : 'var(--color-text-muted)',
+                                fontSize: '9.5px',
+                                fontFamily: 'var(--font-code, monospace)',
+                                fontWeight: isSlotActive ? 700 : 500,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {slot.label}
+                            </button>
+                          );
+                        })}
+                        {loadingDepartures && (
+                          <span style={{ fontSize: '9.5px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)', marginLeft: '3px' }}>
+                            ...
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {stationDepartures.length === 0 && !loadingDepartures ? (
                       <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                        No upcoming scheduled departures in timetable for today.
+                        No upcoming scheduled departures in timetable for {selectedDay === 'all' && !isScheduledInRoute ? 'all days' : `Day ${effectiveDayNumber}`}.
                       </span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

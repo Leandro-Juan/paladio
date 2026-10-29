@@ -229,7 +229,31 @@ def _extract_transit_info(
         return None
 
     if meta.get("transit_info"):
-        return meta["transit_info"]
+        ti = dict(meta["transit_info"])
+        # Dynamically sanitize lines to ensure no entrance exit refs or stop codes leak
+        raw_lines = ti.get("lines") or []
+        stop_ref = (
+            tags.get("ref") or meta.get("tags", {}).get("ref") or ti.get("stop_code")
+        )
+        is_entrance = (
+            tags.get("railway") == "subway_entrance"
+            or meta.get("tags", {}).get("railway") == "subway_entrance"
+        )
+        if is_entrance:
+            # Subway entrances never have transit lines unless explicitly tagged via route_ref
+            clean_l = [
+                str(x).strip()
+                for x in (tags.get("route_ref") or tags.get("lines") or "").split(";")
+                if str(x).strip() and str(x).strip() != stop_ref
+            ]
+            ti["lines"] = clean_l
+        else:
+            ti["lines"] = [
+                str(x).strip()
+                for x in raw_lines
+                if str(x).strip() and str(x).strip() != stop_ref
+            ]
+        return ti
 
     transit_mode = "transit"
     if (
@@ -264,13 +288,24 @@ def _extract_transit_info(
         transit_mode = "bus_stop"
 
     lines: list[str] = []
-    for line_key in ("lines", "route_ref", "line", "ref", "routes"):
+    # Only legitimate route tags represent transit lines in OpenStreetMap
+    is_entrance = tags.get("railway") == "subway_entrance"
+    line_keys = (
+        ("route_ref", "lines")
+        if is_entrance
+        else ("lines", "route_ref", "line", "routes")
+    )
+    for line_key in line_keys:
         val = tags.get(line_key) or meta.get(line_key)
         if val:
             if isinstance(val, list):
                 lines.extend([str(x).strip() for x in val if str(x).strip()])
             elif isinstance(val, str):
                 lines.extend([x.strip() for x in re.split(r"[,;/|]", val) if x.strip()])
+
+    stop_ref = tags.get("ref") or meta.get("tags", {}).get("ref")
+    if stop_ref:
+        lines = [x for x in lines if x != str(stop_ref).strip()]
 
     operator = (
         tags.get("operator")
@@ -1355,6 +1390,9 @@ async def get_poi_details(
     city: str | None = Query(
         None, description="Optional POI city for fallback photo resolution"
     ),
+    category: str | None = Query(
+        None, description="Optional POI category filter (e.g., 'transit')"
+    ),
     lat: float | None = Query(
         None, description="Optional POI latitude for client coordinate preservation"
     ),
@@ -1364,6 +1402,80 @@ async def get_poi_details(
     session: AsyncSession = Depends(get_db),
 ) -> PoiDetailResponse:
     """Retrieves full POI details and dynamically resolves real photos from Wikimedia/Wikipedia."""
+    # 0. Check if this is an explicit GTFS or transit station lookup
+    is_explicit_transit = poi_id.startswith("gtfs:") or (
+        category
+        and category.lower()
+        in ("transit", "station", "metro", "train", "tram", "bus", "subway")
+    )
+    if is_explicit_transit:
+        from app.adapters.repositories.sql_transit_repository import (
+            SQLTransitRepository,
+        )
+        from app.services.transit_service import TransitService
+
+        target_city = city or ""
+        station_lookup = poi_id
+        if poi_id.startswith("gtfs:"):
+            parts = poi_id.split(":")
+            if len(parts) > 1 and not target_city:
+                target_city = parts[1]
+            station_lookup = parts[2] if len(parts) > 2 else poi_id
+        elif name:
+            station_lookup = name
+
+        if target_city:
+            transit_repo = SQLTransitRepository(session)
+            transit_svc = TransitService(transit_repo)
+            st_data = await transit_svc.get_station_detail(target_city, station_lookup)
+            if st_data:
+                lines = list(
+                    dict.fromkeys(
+                        line_info.get("short_name") or line_info.get("line_id")
+                        for line_info in st_data.get("serving_lines", [])
+                        if line_info.get("short_name") or line_info.get("line_id")
+                    )
+                )
+                first_mode = (
+                    st_data.get("serving_lines", [{}])[0].get("mode", "station")
+                    if st_data.get("serving_lines")
+                    else "station"
+                )
+                st_photos = [
+                    PoiPhotoItem(**p)
+                    if isinstance(p, dict)
+                    else PoiPhotoItem(
+                        url=p.url,
+                        thumbnail_url=p.thumbnail_url,
+                        caption=p.caption,
+                        author=p.author,
+                        license_name=p.license_name,
+                        license_url=p.license_url,
+                    )
+                    for p in st_data.get("photos", [])
+                ]
+                return PoiDetailResponse(
+                    id=f"gtfs:{target_city}:{st_data.get('id', station_lookup)}",
+                    name=st_data.get("name") or station_lookup,
+                    category="transit",
+                    city=target_city,
+                    lat=float(st_data.get("lat") or (lat or 0.0)),
+                    lng=float(st_data.get("lon") or (lng or 0.0)),
+                    duration_mins=15,
+                    cost_eur=0.0,
+                    cost_is_estimated=False,
+                    cost_source=None,
+                    scoring={},
+                    description=st_data.get("original_name")
+                    if st_data.get("original_name") != st_data.get("name")
+                    else "",
+                    photos=st_photos,
+                    transit_info={
+                        "lines": lines,
+                        "station_type": first_mode,
+                    },
+                )
+
     stmt = select(AttractionModel).where(AttractionModel.id == poi_id)
     res = await session.execute(stmt)
     poi = res.scalar_one_or_none()
@@ -1384,6 +1496,65 @@ async def get_poi_details(
         stmt = stmt.limit(1)
         res = await session.execute(stmt)
         poi = res.scalar_one_or_none()
+
+    if not poi and target_name and city:
+        from app.adapters.repositories.sql_transit_repository import (
+            SQLTransitRepository,
+        )
+        from app.services.transit_service import TransitService
+
+        transit_repo = SQLTransitRepository(session)
+        transit_svc = TransitService(transit_repo)
+        st_data = await transit_svc.get_station_detail(
+            city.strip().lower(), target_name
+        )
+        if st_data:
+            lines = list(
+                dict.fromkeys(
+                    line_info.get("short_name") or line_info.get("line_id")
+                    for line_info in st_data.get("serving_lines", [])
+                    if line_info.get("short_name") or line_info.get("line_id")
+                )
+            )
+            first_mode = (
+                st_data.get("serving_lines", [{}])[0].get("mode", "station")
+                if st_data.get("serving_lines")
+                else "station"
+            )
+            st_photos = [
+                PoiPhotoItem(**p)
+                if isinstance(p, dict)
+                else PoiPhotoItem(
+                    url=p.url,
+                    thumbnail_url=p.thumbnail_url,
+                    caption=p.caption,
+                    author=p.author,
+                    license_name=p.license_name,
+                    license_url=p.license_url,
+                )
+                for p in st_data.get("photos", [])
+            ]
+            return PoiDetailResponse(
+                id=f"gtfs:{city}:{st_data.get('id', target_name)}",
+                name=st_data.get("name") or target_name,
+                category="transit",
+                city=city,
+                lat=float(st_data.get("lat") or (lat or 0.0)),
+                lng=float(st_data.get("lon") or (lng or 0.0)),
+                duration_mins=15,
+                cost_eur=0.0,
+                cost_is_estimated=False,
+                cost_source=None,
+                scoring={},
+                description=st_data.get("original_name")
+                if st_data.get("original_name") != st_data.get("name")
+                else "",
+                photos=st_photos,
+                transit_info={
+                    "lines": lines,
+                    "station_type": first_mode,
+                },
+            )
 
     if not poi and target_name:
         # 2. Substring match

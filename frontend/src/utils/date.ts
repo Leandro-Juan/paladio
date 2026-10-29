@@ -170,3 +170,20 @@ export function getPoiOpeningHours(
   return `Open ${oH}:${oM} – ${cH}:${cM}${nextDay}`;
 }
 
+/**
+ * Resolves the calendar date (YYYY-MM-DD) for a specific trip day.
+ * - If `selectedDay` is a number (e.g. 1, 2, 3), offsets from `tripStartDate`.
+ * - If `selectedDay` is 'all' or omitted, returns `tripStartDate` (Day 1).
+ * - Gracefully falls back to current date if tripStartDate is missing/invalid.
+ */
+export function getTripDayDate(startDate?: string | null, selectedDay?: number | 'all' | null): string {
+  if (startDate) {
+    const d = new Date(startDate);
+    if (!isNaN(d.getTime())) {
+      const dayOffset = typeof selectedDay === 'number' && selectedDay > 1 ? selectedDay - 1 : 0;
+      d.setUTCDate(d.getUTCDate() + dayOffset);
+      return d.toISOString().slice(0, 10);
+    }
+  }
+  return new Date().toISOString().slice(0, 10);
+}

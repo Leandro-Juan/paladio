@@ -1,8 +1,6 @@
 import uuid
 
 import pytest
-from httpx import AsyncClient
-
 from app.db.models import (
     TransitAgencyModel,
     TransitCacheModel,
@@ -11,6 +9,7 @@ from app.db.models import (
     TransitStationModel,
     TripModel,
 )
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -193,8 +192,69 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert city_st_data["id"] == "G01"
     assert city_st_data["name"] == "Shibuya"
 
-    # TEST 8: City-scoped line detail
+    # TEST 8: City-scoped line detail (by line_id and flexible long_name)
     res_city_line = await async_client.get(f"/api/v1/transit/{city}/lines/G")
     assert res_city_line.status_code == 200
     city_line_data = res_city_line.json()
     assert city_line_data["id"] == "G"
+
+    res_city_line_long = await async_client.get(
+        f"/api/v1/transit/{city}/lines/Ginza%20Line"
+    )
+    assert res_city_line_long.status_code == 200
+    assert res_city_line_long.json()["id"] == "G"
+
+
+@pytest.mark.asyncio
+async def test_transit_line_extraction_sanitization():
+    from app.api.pois import _extract_transit_info
+    from app.db.models import AttractionModel
+
+    # 1. Subway entrance with ref="2" (Exit 2) must NEVER have line "2"
+    p_entrance = AttractionModel(
+        id="test-entrance", name="Yoyogi-koen Exit 2", category="metro"
+    )
+    meta_entrance = {
+        "tags": {
+            "ref": "2",
+            "railway": "subway_entrance",
+            "name": "代々木公園",
+        },
+        "transit_info": {
+            "lines": ["2", "4", "C02", "3"],
+            "type": "metro",
+        },
+    }
+    info_entrance = _extract_transit_info(p_entrance, meta_entrance)
+    assert info_entrance is not None
+    assert "2" not in info_entrance["lines"]
+    assert "4" not in info_entrance["lines"]
+    assert "3" not in info_entrance["lines"]
+    assert info_entrance["lines"] == []
+
+    # 2. Bus stop with CRTM pole ref="08717" without route_ref must NOT have line "08717"
+    p_bus = AttractionModel(id="test-bus", name="Pozuelo Oeste", category="bus_stop")
+    meta_bus = {
+        "tags": {
+            "ref": "08717",
+            "highway": "bus_stop",
+            "bus": "yes",
+        }
+    }
+    info_bus = _extract_transit_info(p_bus, meta_bus)
+    assert info_bus is not None
+    assert info_bus["lines"] == []
+
+    # 3. Stop with genuine route_ref="211;212;827" must extract only real lines
+    p_route = AttractionModel(id="test-route", name="Av. Logrono", category="bus_stop")
+    meta_route = {
+        "tags": {
+            "ref": "07324",
+            "highway": "bus_stop",
+            "route_ref": "211;212;827;828",
+        }
+    }
+    info_route = _extract_transit_info(p_route, meta_route)
+    assert info_route is not None
+    assert info_route["lines"] == ["211", "212", "827", "828"]
+    assert "07324" not in info_route["lines"]

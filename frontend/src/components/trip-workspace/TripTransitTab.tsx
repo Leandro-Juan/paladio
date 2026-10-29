@@ -4,15 +4,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { BookmarkIcon, CompassIcon } from '@/components/icons';
+import { getTripDayDate } from '@/utils/date';
 
 export interface TripTransitTabProps {
   tripId?: string;
+  tripStartDate?: string;
   destinationCity: string;
   selectedDay: number | 'all';
   savedPoiIds: Set<string>;
   onToggleSavePoi: (id: string) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   onFocusFromInspector?: (poi: {
+    id?: string;
     lat: number;
     lng: number;
     name: string;
@@ -86,6 +89,7 @@ function formatDepartureSeconds(seconds: number): string {
 
 export function TripTransitTab({
   tripId,
+  tripStartDate,
   destinationCity,
   selectedDay,
   savedPoiIds,
@@ -111,6 +115,7 @@ export function TripTransitTab({
   const [drillStationId, setDrillStationId] = useState<string | null>(null);
   const [stationDetail, setStationDetail] = useState<Record<string, unknown> | null>(null);
   const [departures, setDepartures] = useState<StationDeparture[]>([]);
+  const [departureTimeSeconds, setDepartureTimeSeconds] = useState<number>(32400); // Default to 09:00 AM morning schedule
   const [isLoadingDrill, setIsLoadingDrill] = useState<boolean>(false);
 
   // 1. Fetch Availability
@@ -233,12 +238,10 @@ export function TripTransitTab({
           setStationDetail(detail);
         }
 
-        // Fetch departures for current time
-        const now = new Date();
-        const dateStr = now.toISOString().slice(0, 10);
-        const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60;
+        // Fetch departures for planned trip day
+        const dateStr = getTripDayDate(tripStartDate, selectedDay);
         const deps = await apiFetch<StationDeparture[]>(
-          `/trips/${tripId}/transit/stations/${drillStationId}/departures?date=${dateStr}&seconds=${currentSeconds}&limit=8`
+          `/trips/${tripId}/transit/stations/${drillStationId}/departures?date=${dateStr}&seconds=${departureTimeSeconds}&limit=8`
         );
         if (!isCancelled) {
           setDepartures(deps || []);
@@ -254,7 +257,7 @@ export function TripTransitTab({
     return () => {
       isCancelled = true;
     };
-  }, [drillStationId, tripId]);
+  }, [drillStationId, tripId, tripStartDate, selectedDay, departureTimeSeconds]);
 
   const toggleMode = (mode: TransitModeFilter) => {
     setActiveModes((prev) => {
@@ -287,10 +290,11 @@ export function TripTransitTab({
 
   // Station card click handler (selects station and opens drill-in / inspector)
   const handleStationClick = (st: TransitStationSummary) => {
+    const stableId = st.id.startsWith('gtfs:') ? st.id : `gtfs:${destinationCity}:${st.id}`;
     setDrillStationId(st.id);
     if (onInspectPoi) {
-      onInspectPoi(`gtfs:${destinationCity}:${st.id}`, {
-        id: `gtfs:${destinationCity}:${st.id}`,
+      onInspectPoi(stableId, {
+        id: stableId,
         name: st.name,
         original_name: st.original_name,
         lat: st.lat,
@@ -302,6 +306,7 @@ export function TripTransitTab({
     }
     if (onFocusFromInspector) {
       onFocusFromInspector({
+        id: stableId,
         lat: st.lat,
         lng: st.lon,
         name: st.name,
@@ -535,44 +540,78 @@ export function TripTransitTab({
         )}
 
         {/* Serving Lines Chips */}
-        <div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-            Serving Lines
+        {sLines.length > 0 && (
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+              Serving Lines
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {sLines.map((sl, idx) => {
+                const chipBg = (sl.color as string) || '#007AFF';
+                const chipColor = (sl.text_color as string) || '#FFFFFF';
+                const sNameShort = (sl.short_name as string) || (sl.line_id as string);
+                const headsign = sl.headsign as string | null;
+                return (
+                  <div
+                    key={`${sl.line_id}-${idx}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: chipBg,
+                      color: chipColor,
+                      fontSize: '11px',
+                      fontWeight: 700,
+                    }}
+                    title={headsign ? `Towards ${headsign}` : undefined}
+                  >
+                    <span>{sNameShort}</span>
+                    {headsign && <span style={{ opacity: 0.85, fontWeight: 500, fontSize: '10px' }}>→ {headsign}</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {sLines.map((sl, idx) => {
-              const chipBg = (sl.color as string) || '#007AFF';
-              const chipColor = (sl.text_color as string) || '#FFFFFF';
-              const sNameShort = (sl.short_name as string) || (sl.line_id as string);
-              const headsign = sl.headsign as string | null;
-              return (
-                <div
-                  key={`${sl.line_id}-${idx}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    background: chipBg,
-                    color: chipColor,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                  }}
-                  title={headsign ? `Towards ${headsign}` : undefined}
-                >
-                  <span>{sNameShort}</span>
-                  {headsign && <span style={{ opacity: 0.85, fontWeight: 500, fontSize: '10px' }}>→ {headsign}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
-        {/* Next Scheduled Departures (PLAN.md Section 3.4) */}
+        {/* Scheduled Departures for Selected Trip Day */}
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-            Scheduled Departures (Today)
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              Scheduled Departures ({selectedDay === 'all' ? 'All Days' : `Day ${selectedDay}`})
+            </div>
+            <div style={{ display: 'flex', gap: '3px' }}>
+              {[
+                { label: '09:00', secs: 32400 },
+                { label: '12:00', secs: 43200 },
+                { label: '15:00', secs: 54000 },
+                { label: '18:00', secs: 64800 },
+              ].map((slot) => {
+                const isSlotActive = departureTimeSeconds === slot.secs;
+                return (
+                  <button
+                    key={slot.secs}
+                    type="button"
+                    onClick={() => setDepartureTimeSeconds(slot.secs)}
+                    style={{
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      border: `1px solid ${isSlotActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
+                      background: isSlotActive ? 'var(--color-accent-primary)' : 'transparent',
+                      color: isSlotActive ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-code, monospace)',
+                      fontWeight: isSlotActive ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {slot.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {isLoadingDrill ? (
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Loading scheduled departures...</div>
@@ -617,7 +656,7 @@ export function TripTransitTab({
             </div>
           ) : (
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-              No further scheduled departures today.
+              No further scheduled departures for {selectedDay === 'all' ? 'all days' : `Day ${selectedDay}`}.
             </div>
           )}
         </div>

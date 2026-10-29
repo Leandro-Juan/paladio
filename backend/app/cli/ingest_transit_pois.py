@@ -11,9 +11,10 @@ import os
 import re
 from typing import Any
 
+from sqlalchemy import func, select
+
 from app.db.models import AttractionModel, CityModel
 from app.db.session import async_session
-from sqlalchemy import func, select
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -178,12 +179,22 @@ def extract_transit_from_pbf(
             if not category:
                 return
 
-            lines = _clean_lines(
-                tags.get("lines")
-                or tags.get("route_ref")
-                or tags.get("ref")
-                or tags.get("line")
-            )
+            # Entrance nodes (subway_entrance) have 'ref' for exit numbers (e.g. Exit 1, 2, A1)
+            # Station and stop nodes have 'ref' for internal station/pole codes.
+            # Never treat 'ref' as a transit line. Only legitimate route tags indicate serving lines.
+            if rw == "subway_entrance":
+                lines = _clean_lines(tags.get("route_ref") or tags.get("lines"))
+            else:
+                lines = _clean_lines(
+                    tags.get("lines")
+                    or tags.get("route_ref")
+                    or tags.get("line")
+                    or tags.get("routes")
+                )
+            # Remove any line that matches stop/entrance ref code
+            ref_val = tags.get("ref")
+            if ref_val and ref_val in lines:
+                lines = [line_code for line_code in lines if line_code != ref_val]
             operator = tags.get("operator") or tags.get("network")
 
             self.raw_stops.append(
@@ -365,7 +376,12 @@ async def ingest_city_transit(
 
             transit_meta = {
                 "type": s["category"],
-                "lines": [line for line in lines if line != s.get("stop_code")],
+                "lines": [
+                    line
+                    for line in lines
+                    if line != s.get("stop_code")
+                    and line != s.get("tags", {}).get("ref")
+                ],
                 "stop_code": s.get("stop_code"),
                 "operator": s.get("operator"),
                 "wheelchair": s.get("wheelchair"),

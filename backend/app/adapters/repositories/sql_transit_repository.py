@@ -2,9 +2,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import (
     AttractionModel,
     TransitAgencyModel,
@@ -20,6 +17,8 @@ from app.db.models import (
     TransitTransferModel,
 )
 from app.domain.interfaces.transit_repository import ITransitRepository
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +132,11 @@ class SQLTransitRepository(ITransitRepository):
         l_stmt = select(TransitLineModel).where(
             TransitLineModel.build_id == build_id,
             TransitLineModel.city == city,
-            TransitLineModel.line_id == line_id,
+            or_(
+                TransitLineModel.line_id == line_id,
+                TransitLineModel.short_name == line_id,
+                TransitLineModel.long_name.ilike(line_id),
+            ),
         )
         l_res = await self.db.execute(l_stmt)
         line = l_res.scalars().first()
@@ -146,7 +149,7 @@ class SQLTransitRepository(ITransitRepository):
             .where(
                 TransitPatternModel.build_id == build_id,
                 TransitPatternModel.city == city,
-                TransitPatternModel.line_id == line_id,
+                TransitPatternModel.line_id == line.line_id,
             )
             .order_by(
                 TransitPatternModel.direction_id, TransitPatternModel.is_primary.desc()
@@ -321,16 +324,33 @@ class SQLTransitRepository(ITransitRepository):
     async def get_station_detail(
         self, city: str, build_id: str, station_id: str
     ) -> dict[str, Any] | None:
+        city = city.strip().lower()
         # 1. Station basic info
+        clean_name = (
+            station_id.removesuffix(" Station")
+            .removesuffix(" station")
+            .removesuffix("駅")
+            .strip()
+        )
         st_stmt = select(TransitStationModel).where(
             TransitStationModel.build_id == build_id,
             TransitStationModel.city == city,
-            TransitStationModel.station_id == station_id,
+            or_(
+                TransitStationModel.station_id == station_id,
+                TransitStationModel.name.ilike(station_id),
+                TransitStationModel.original_name.ilike(station_id),
+                TransitStationModel.name.ilike(clean_name),
+                TransitStationModel.name.ilike(f"{clean_name} Station"),
+                TransitStationModel.original_name.ilike(clean_name),
+                TransitStationModel.original_name.ilike(f"{clean_name}駅"),
+            ),
         )
         st_res = await self.db.execute(st_stmt)
         station = st_res.scalars().first()
         if not station:
             return None
+
+        actual_station_id = station.station_id
 
         # 2. Serving lines with directions & headsigns
         lines_stmt = (
@@ -355,7 +375,7 @@ class SQLTransitRepository(ITransitRepository):
             .where(
                 TransitStationLineModel.build_id == build_id,
                 TransitStationLineModel.city == city,
-                TransitStationLineModel.station_id == station_id,
+                TransitStationLineModel.station_id == actual_station_id,
             )
         )
         lines_res = await self.db.execute(lines_stmt)
@@ -377,7 +397,7 @@ class SQLTransitRepository(ITransitRepository):
         sum_stmt = select(TransitServiceSummaryModel).where(
             TransitServiceSummaryModel.build_id == build_id,
             TransitServiceSummaryModel.city == city,
-            TransitServiceSummaryModel.station_id == station_id,
+            TransitServiceSummaryModel.station_id == actual_station_id,
         )
         sum_res = await self.db.execute(sum_stmt)
         summaries = [
@@ -412,7 +432,7 @@ class SQLTransitRepository(ITransitRepository):
             .where(
                 TransitTransferModel.build_id == build_id,
                 TransitTransferModel.city == city,
-                TransitTransferModel.from_station_id == station_id,
+                TransitTransferModel.from_station_id == actual_station_id,
             )
         )
         tr_res = await self.db.execute(tr_stmt)

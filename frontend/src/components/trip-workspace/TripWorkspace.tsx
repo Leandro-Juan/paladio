@@ -435,9 +435,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   }, []);
 
   const handleFocusFromDrawer = useCallback(
-    (poi: { lat: number; lng: number; name: string; category: string; durationMins?: number; costEur?: number }) => {
+    (poi: { id?: string; lat: number; lng: number; name: string; category: string; durationMins?: number; costEur?: number }) => {
       handlePlaceClick({
-        id: inspectedPoiId || undefined,
+        id: poi.id || inspectedPoiId || undefined,
         name: poi.name,
         lat: poi.lat,
         lng: poi.lng,
@@ -574,6 +574,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             isOpen={isSidebarOpen}
             onToggle={handleToggleSidebar}
             tripId={trip.id}
+            tripStartDate={trip.start_date}
             destinationCity={trip.destination}
             days={daysOutput}
             selectedDay={selectedDay}
@@ -703,6 +704,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   onFocusOnMap={handleFocusFromDrawer}
                   availableDays={daysOutput.map((d) => d.day)}
                   initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
+                  selectedDay={selectedDay}
                   tripStartDate={trip.start_date}
                   scheduledDay={scheduledPoiDay}
                   activeTransitLine={activeTransitLine}

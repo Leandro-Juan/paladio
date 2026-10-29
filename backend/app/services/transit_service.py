@@ -1159,7 +1159,7 @@ class TransitService:
                 "stations": [],
             }
 
-        for st_id, st in all_osm.items():
+        for st in all_osm.values():
             best_anchor = None
             min_dist = float("inf")
             for anchor in valid_anchors:
@@ -1205,7 +1205,58 @@ class TransitService:
         build_id = await self.repo.get_active_build_id(city)
         if not build_id:
             return None
-        return await self.repo.get_station_detail(city, build_id, station_id)
+        st_data = await self.repo.get_station_detail(city, build_id, station_id)
+        if not st_data:
+            return None
+
+        # Dynamically enrich transit stations with authentic photos from Wikimedia
+        try:
+            from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
+
+            st_name = st_data.get("name") or station_id
+            st_orig = st_data.get("original_name")
+            query_name = (
+                f"{st_name} Station" if "station" not in st_name.lower() else st_name
+            )
+            photos, _ = await WikimediaPhotoResolver.resolve_photos(
+                poi_id=f"gtfs:{city}:{st_data.get('id', station_id)}",
+                name=query_name,
+                city=city,
+            )
+            if not photos and st_orig:
+                photos, _ = await WikimediaPhotoResolver.resolve_photos(
+                    poi_id=f"gtfs:{city}:{st_data.get('id', station_id)}:orig",
+                    name=st_orig,
+                    city=city,
+                )
+            if photos:
+                st_data["photos"] = [
+                    p
+                    if isinstance(p, dict)
+                    else {
+                        "url": getattr(p, "url", ""),
+                        "thumbnail_url": getattr(p, "thumbnail_url", ""),
+                        "caption": getattr(p, "caption", "") or f"{st_name} Station",
+                        "author": getattr(p, "author", None),
+                        "license_name": getattr(p, "license_name", None),
+                        "license_url": getattr(p, "license_url", None),
+                    }
+                    for p in photos
+                ]
+            else:
+                st_data["photos"] = []
+        except (
+            httpx.HTTPError,
+            KeyError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            IndexError,
+        ) as err:
+            logger.debug(f"Failed to resolve transit station photos: {err}")
+            st_data["photos"] = []
+
+        return st_data
 
     async def get_station_departures(
         self,
