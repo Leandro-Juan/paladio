@@ -21,7 +21,7 @@ _RATES_CACHE: dict[str, tuple[float, dict[str, float]]] = {}
 _CACHE_TTL_SECONDS = 3600.0  # 1 hour cache
 
 SNAPSHOT_PATH = (
-    Path(__file__).resolve().parent.parent.parent
+    Path(__file__).resolve().parent.parent
     / "domain"
     / "reference"
     / "fx_rates_snapshot.json"
@@ -59,7 +59,9 @@ class CurrencyRateError(RuntimeError):
 
 
 async def fetch_live_rates(base_currency: str = "USD") -> dict[str, float]:
-    """Dynamically fetches real live exchange rates from the live API or local snapshot."""
+    """Dynamically fetches real live exchange rates from open.er-api.com (166+ currencies),
+    European Central Bank / Frankfurter, or local air-gapped snapshot.
+    """
     base = base_currency.upper().strip()
     now = time.time()
 
@@ -68,40 +70,70 @@ async def fetch_live_rates(base_currency: str = "USD") -> dict[str, float]:
         if now - cached_time < _CACHE_TTL_SECONDS:
             return rates
 
-    url = f"https://api.frankfurter.app/latest?from={base}"
+    # 1. Primary: open.er-api.com (supports all 166 global fiat currencies dynamically, free & keyless)
+    primary_url = f"https://open.er-api.com/v6/latest/{base}"
     try:
         async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "PaladioApp/1.0"})
+            resp = await client.get(
+                primary_url, headers={"User-Agent": "PaladioApp/1.0"}
+            )
             if resp.status_code == 200:
                 data: dict[str, Any] = resp.json()
-                rates = data.get("rates", {})
+                if data.get("result") == "success" and "rates" in data:
+                    rates = {k.upper(): float(v) for k, v in data["rates"].items()}
+                    rates[base] = 1.0
+                    _RATES_CACHE[base] = (now, rates)
+                    logger.info(
+                        f"Dynamically fetched {len(rates)} live currency rates for base {base} from open.er-api.com"
+                    )
+                    return rates
+    except Exception as e:
+        logger.warning(
+            f"Primary FX fetch from open.er-api.com failed ({e}); trying secondary..."
+        )
+
+    # 2. Secondary: European Central Bank via Frankfurter API
+    secondary_url = f"https://api.frankfurter.dev/v1/latest?base={base}"
+    try:
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            resp = await client.get(
+                secondary_url, headers={"User-Agent": "PaladioApp/1.0"}
+            )
+            if resp.status_code == 200:
+                data: dict[str, Any] = resp.json()
+                rates = {k.upper(): float(v) for k, v in data.get("rates", {}).items()}
                 rates[base] = 1.0
                 _RATES_CACHE[base] = (now, rates)
                 logger.info(
-                    f"Dynamically fetched {len(rates)} live currency rates for base {base}"
+                    f"Dynamically fetched {len(rates)} live currency rates for base {base} from Frankfurter"
                 )
                 return rates
-            raise CurrencyRateError(
-                f"Currency API returned HTTP {resp.status_code} for base {base}"
-            )
     except Exception as e:
-        if base in _RATES_CACHE:
-            logger.warning(f"Live currency fetch failed ({e}); using expired cache.")
-            return _RATES_CACHE[base][1]
-        snapshot = _load_snapshot_rates(base)
-        if snapshot is not None:
-            logger.info(
-                f"Live currency fetch failed ({e}); loaded local air-gapped FX snapshot."
-            )
-            _RATES_CACHE[base] = (now, snapshot)
-            return snapshot
-        raise CurrencyRateError(
-            f"Could not dynamically acquire live currency rates for {base}: {e}"
-        ) from e
+        logger.warning(f"Secondary FX fetch from Frankfurter failed ({e})")
+
+    # 3. Cache fallback (expired)
+    if base in _RATES_CACHE:
+        logger.warning(
+            f"Live currency fetch failed; using expired cache for base {base}."
+        )
+        return _RATES_CACHE[base][1]
+
+    # 4. Air-gapped snapshot fallback
+    snapshot = _load_snapshot_rates(base)
+    if snapshot is not None:
+        logger.info(
+            f"Live currency fetch failed; loaded local air-gapped FX snapshot for base {base}."
+        )
+        _RATES_CACHE[base] = (now, snapshot)
+        return snapshot
+
+    raise CurrencyRateError(
+        f"Could not dynamically acquire live currency rates for {base}"
+    )
 
 
 def fetch_live_rates_sync(base_currency: str = "USD") -> dict[str, float]:
-    """Synchronously fetches real live exchange rates from the live Frankfurter API or local snapshot."""
+    """Synchronously fetches real live exchange rates from open.er-api.com, Frankfurter, or local snapshot."""
     base = base_currency.upper().strip()
     now = time.time()
 
@@ -110,38 +142,62 @@ def fetch_live_rates_sync(base_currency: str = "USD") -> dict[str, float]:
         if now - cached_time < _CACHE_TTL_SECONDS:
             return rates
 
-    url = f"https://api.frankfurter.app/latest?from={base}"
+    # 1. Primary: open.er-api.com
+    primary_url = f"https://open.er-api.com/v6/latest/{base}"
     try:
         with httpx.Client(timeout=6.0, follow_redirects=True) as client:
-            resp = client.get(url, headers={"User-Agent": "PaladioApp/1.0"})
+            resp = client.get(primary_url, headers={"User-Agent": "PaladioApp/1.0"})
             if resp.status_code == 200:
                 data: dict[str, Any] = resp.json()
-                rates = data.get("rates", {})
+                if data.get("result") == "success" and "rates" in data:
+                    rates = {k.upper(): float(v) for k, v in data["rates"].items()}
+                    rates[base] = 1.0
+                    _RATES_CACHE[base] = (now, rates)
+                    logger.info(
+                        f"Dynamically fetched {len(rates)} live currency rates (sync) for base {base} from open.er-api.com"
+                    )
+                    return rates
+    except Exception as e:
+        logger.warning(
+            f"Sync FX fetch from open.er-api.com failed ({e}); trying secondary..."
+        )
+
+    # 2. Secondary: Frankfurter
+    secondary_url = f"https://api.frankfurter.dev/v1/latest?base={base}"
+    try:
+        with httpx.Client(timeout=6.0, follow_redirects=True) as client:
+            resp = client.get(secondary_url, headers={"User-Agent": "PaladioApp/1.0"})
+            if resp.status_code == 200:
+                data: dict[str, Any] = resp.json()
+                rates = {k.upper(): float(v) for k, v in data.get("rates", {}).items()}
                 rates[base] = 1.0
                 _RATES_CACHE[base] = (now, rates)
                 logger.info(
-                    f"Dynamically fetched {len(rates)} live currency rates (sync) for base {base}"
+                    f"Dynamically fetched {len(rates)} live currency rates (sync) for base {base} from Frankfurter"
                 )
                 return rates
-            raise CurrencyRateError(
-                f"Currency API returned HTTP {resp.status_code} for base {base}"
-            )
     except Exception as e:
-        if base in _RATES_CACHE:
-            logger.warning(
-                f"Live currency sync fetch failed ({e}); using expired cache."
-            )
-            return _RATES_CACHE[base][1]
-        snapshot = _load_snapshot_rates(base)
-        if snapshot is not None:
-            logger.info(
-                f"Live currency sync fetch failed ({e}); loaded local air-gapped FX snapshot."
-            )
-            _RATES_CACHE[base] = (now, snapshot)
-            return snapshot
-        raise CurrencyRateError(
-            f"Could not dynamically acquire live currency rates for {base}: {e}"
-        ) from e
+        logger.warning(f"Sync FX fetch from Frankfurter failed ({e})")
+
+    # 3. Cache fallback (expired)
+    if base in _RATES_CACHE:
+        logger.warning(
+            f"Live currency sync fetch failed; using expired cache for base {base}."
+        )
+        return _RATES_CACHE[base][1]
+
+    # 4. Air-gapped snapshot fallback
+    snapshot = _load_snapshot_rates(base)
+    if snapshot is not None:
+        logger.info(
+            f"Live currency sync fetch failed; loaded local air-gapped FX snapshot for base {base}."
+        )
+        _RATES_CACHE[base] = (now, snapshot)
+        return snapshot
+
+    raise CurrencyRateError(
+        f"Could not dynamically acquire live currency rates for {base}"
+    )
 
 
 def set_cached_rates(base: str, rates: dict[str, float]) -> None:

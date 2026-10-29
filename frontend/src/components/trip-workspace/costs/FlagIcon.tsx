@@ -1,4 +1,5 @@
 import React from 'react';
+import { SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
 
 interface FlagIconProps {
   countryCode: string;
@@ -460,19 +461,57 @@ export function FlagIcon({
         </span>
       );
 
-    default: // Global or unknown fallback: clean European Union / Globe style
+    default: {
+      if (code === 'EU' || !code) {
+        return (
+          <span style={containerStyle} className={className} title="European Union">
+            <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
+              <rect width="640" height="480" fill="#003399" />
+              {Array.from({ length: 12 }).map((_, i) => {
+                const angle = (i * 30 * Math.PI) / 180;
+                const cx = 320 + Math.sin(angle) * 125;
+                const cy = 240 - Math.cos(angle) * 125;
+                return <polygon key={i} points={createStarPoints(cx, cy, 18, 7.5)} fill="#FFCC00" />;
+              })}
+            </svg>
+          </span>
+        );
+      }
+      const match = SUPPORTED_CURRENCY_LIST.find((c) => c.countryCode.toUpperCase() === code);
+      if (match?.flag) {
+        return (
+          <span
+            style={{
+              ...containerStyle,
+              fontSize: `${Math.round(height * 0.92)}px`,
+              lineHeight: 1,
+              userSelect: 'none',
+            }}
+            className={className}
+            title={match.country || code}
+          >
+            {match.flag}
+          </span>
+        );
+      }
       return (
-        <span style={containerStyle} className={className} title={code || 'Global'}>
-          <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
-            <rect width="640" height="480" fill="#003399" />
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 30 * Math.PI) / 180;
-              const cx = 320 + Math.sin(angle) * 125;
-              const cy = 240 - Math.cos(angle) * 125;
-              return <polygon key={i} points={createStarPoints(cx, cy, 18, 7.5)} fill="#FFCC00" />;
-            })}
-          </svg>
+        <span
+          style={{
+            ...containerStyle,
+            background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.12))',
+            border: '1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.2))',
+            fontSize: '9px',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontWeight: 700,
+            color: 'var(--color-text-muted, #4B5563)',
+            borderRadius: '2px',
+          }}
+          className={className}
+          title={code}
+        >
+          {code.slice(0, 2)}
         </span>
       );
+    }
   }
 }

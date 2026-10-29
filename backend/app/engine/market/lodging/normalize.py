@@ -11,34 +11,49 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import FXRateModel
 
 
-CURRENCY_SYMBOLS: dict[str, str] = {
+from app.domain.reference.iso_currencies import COUNTRY_TO_CURRENCY
+
+# Build set of all unique standard ISO 4217 currency codes
+ALL_ISO_CURRENCIES: set[str] = set(COUNTRY_TO_CURRENCY.values())
+
+# Common international currency symbols and unit representations mapped to ISO 4217
+STANDARD_SYMBOL_MAP: dict[str, str] = {
     "€": "EUR",
-    "EUR": "EUR",
     "$": "USD",
-    "USD": "USD",
     "US$": "USD",
+    "A$": "AUD",
+    "CA$": "CAD",
+    "NZ$": "NZD",
+    "Mex$": "MXN",
+    "S$": "SGD",
+    "HK$": "HKD",
     "£": "GBP",
-    "GBP": "GBP",
-    "CHF": "CHF",
-    "PLN": "PLN",
-    "zł": "PLN",
-    "CZK": "CZK",
-    "Kč": "CZK",
-    "HUF": "HUF",
-    "Ft": "HUF",
-    "SEK": "SEK",
-    "kr": "SEK",
-    "NOK": "NOK",
-    "DKK": "DKK",
-    "RON": "RON",
-    "lei": "RON",
-    "BGN": "BGN",
-    "лв": "BGN",
-    "TRY": "TRY",
-    "₺": "TRY",
-    "JPY": "JPY",
     "¥": "JPY",
+    "₹": "INR",
+    "₩": "KRW",
+    "₽": "RUB",
+    "₺": "TRY",
+    "฿": "THB",
+    "₫": "VND",
+    "₱": "PHP",
+    "₴": "UAH",
+    "₪": "ILS",
+    "zł": "PLN",
+    "Kč": "CZK",
+    "Ft": "HUF",
+    "lei": "RON",
+    "лв": "BGN",
+    "kr": "SEK",
+    "R$": "BRL",
 }
+
+# Dynamically populate CURRENCY_SYMBOLS with all ISO currencies and standard symbols,
+# sorted by length descending so longer composite symbols (e.g. R$, US$, CA$) match first.
+_ALL_SYMBOLS: dict[str, str] = {code: code for code in ALL_ISO_CURRENCIES}
+_ALL_SYMBOLS.update(STANDARD_SYMBOL_MAP)
+CURRENCY_SYMBOLS: dict[str, str] = dict(
+    sorted(_ALL_SYMBOLS.items(), key=lambda item: len(item[0]), reverse=True)
+)
 
 
 def parse_money(
@@ -59,10 +74,14 @@ def parse_money(
     text = raw_text.strip().replace("\xa0", " ")
 
     detected_currency = default_currency
-    for symbol, code in CURRENCY_SYMBOLS.items():
-        if symbol in text:
-            detected_currency = code
-            break
+    iso_match = re.search(r"\b([A-Za-z]{3})\b", text)
+    if iso_match and iso_match.group(1).upper() in ALL_ISO_CURRENCIES:
+        detected_currency = iso_match.group(1).upper()
+    else:
+        for symbol, code in CURRENCY_SYMBOLS.items():
+            if symbol in text:
+                detected_currency = code
+                break
 
     # Strip currency symbols and letters, keeping digits, commas, dots, and minus
     cleaned = re.sub(r"[^\d,\.\-]", "", text)
@@ -200,5 +219,15 @@ async def convert_to_eur(
                 return round(amount / float(rate_val), 2)
         except Exception:
             pass
+
+    # If not in DB or session is None, dynamically query live rates
+    try:
+        from app.engine.currency import fetch_live_rates
+
+        rates = await fetch_live_rates("EUR")
+        if curr in rates and float(rates[curr]) > 0:
+            return round(amount / float(rates[curr]), 2)
+    except Exception:
+        pass
 
     return amount

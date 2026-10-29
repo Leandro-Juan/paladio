@@ -8,72 +8,13 @@ from app.domain.reference.iso_currencies import (
     get_country_currency,
 )
 from app.engine.currency import fetch_live_rates
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-CITY_TO_COUNTRY_CODE: dict[str, str] = {
-    "madrid": "ES",
-    "barcelona": "ES",
-    "seville": "ES",
-    "sevilla": "ES",
-    "valencia": "ES",
-    "paris": "FR",
-    "nice": "FR",
-    "lyon": "FR",
-    "rome": "IT",
-    "milan": "IT",
-    "florence": "IT",
-    "venice": "IT",
-    "berlin": "DE",
-    "munich": "DE",
-    "hamburg": "DE",
-    "amsterdam": "NL",
-    "rotterdam": "NL",
-    "london": "GB",
-    "edinburgh": "GB",
-    "manchester": "GB",
-    "dublin": "IE",
-    "lisbon": "PT",
-    "porto": "PT",
-    "vienna": "AT",
-    "brussels": "BE",
-    "geneva": "CH",
-    "zurich": "CH",
-    "oslo": "NO",
-    "stockholm": "SE",
-    "copenhagen": "DK",
-    "warsaw": "PL",
-    "krakow": "PL",
-    "prague": "CZ",
-    "budapest": "HU",
-    "athens": "GR",
-    "tokyo": "JP",
-    "kyoto": "JP",
-    "osaka": "JP",
-    "new york": "US",
-    "san francisco": "US",
-    "los angeles": "US",
-    "chicago": "US",
-    "toronto": "CA",
-    "vancouver": "CA",
-    "sydney": "AU",
-    "melbourne": "AU",
-    "singapore": "SG",
-    "seoul": "KR",
-    "bangkok": "TH",
-    "dubai": "AE",
-    "istanbul": "TR",
-    "mexico city": "MX",
-    "cancun": "MX",
-    "buenos aires": "AR",
-    "sao paulo": "BR",
-    "rio de janeiro": "BR",
-}
 
 
 class LiveRatesResponse(BaseModel):
@@ -118,7 +59,6 @@ async def get_destination_currency(
 ) -> Any:
     """Resolves destination city or region to its ISO country code and ISO-4217 currency."""
     dest_clean = destination.strip()
-    dest_lower = dest_clean.lower()
 
     # 1. Check City Repository in DB
     try:
@@ -134,16 +74,7 @@ async def get_destination_currency(
     except Exception as e:
         logger.debug(f"Database city lookup error for '{dest_clean}': {e}")
 
-    # 2. Check known city mapping
-    if dest_lower in CITY_TO_COUNTRY_CODE:
-        c_code = CITY_TO_COUNTRY_CODE[dest_lower]
-        return DestinationCurrencyResponse(
-            destination=dest_clean,
-            country_code=c_code,
-            currency=get_country_currency(c_code),
-        )
-
-    # 3. Check direct ISO alpha-2 country code
+    # 2. Check direct ISO alpha-2 country code
     upper_two = dest_clean.upper()
     if len(upper_two) == 2 and upper_two in COUNTRY_TO_CURRENCY:
         return DestinationCurrencyResponse(
@@ -152,9 +83,19 @@ async def get_destination_currency(
             currency=get_country_currency(upper_two),
         )
 
-    # Default fallback to EUR
-    return DestinationCurrencyResponse(
-        destination=dest_clean,
-        country_code="ES",
-        currency="EUR",
+    # 3. Dynamically resolve city identity via GeoNames
+    from app.domain.city_key import resolve_city_identity
+
+    resolved_name, cc, _ = resolve_city_identity(dest_clean)
+    if cc and cc != "XX":
+        curr = get_country_currency(cc)
+        return DestinationCurrencyResponse(
+            destination=dest_clean,
+            country_code=cc,
+            currency=curr,
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Destination '{dest_clean}' could not be resolved to a known country or currency.",
     )
