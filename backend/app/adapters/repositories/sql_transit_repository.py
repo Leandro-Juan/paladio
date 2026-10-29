@@ -580,7 +580,7 @@ class SQLTransitRepository(ITransitRepository):
                 departures.append(
                     {
                         "line_id": meta["line_id"],
-                        "line_short_name": meta["short_name"],
+                        "line_short_name": meta["short_name"] or meta["line_id"],
                         "mode": meta["mode"],
                         "color": meta["color"],
                         "text_color": meta["text_color"],

@@ -135,7 +135,36 @@ export const TRANSIT_LINE_THEMES: TransitLineTheme[] = [
   },
 ];
 
-export function getTransitLineTheme(line: string): TransitLineTheme {
+// Global in-memory registry for transit line colors (populated by GTFS line feeds and station queries)
+const lineColorsRegistry = new Map<string, string>();
+
+export function registerTransitLineColor(line: string, color: string): void {
+  if (line && color) {
+    const cleanKey = line.trim().toLowerCase();
+    const cleanColor = color.trim().startsWith('#') ? color.trim() : `#${color.trim()}`;
+    lineColorsRegistry.set(cleanKey, cleanColor);
+  }
+}
+
+export function getRegisteredTransitLineColor(line: string): string | undefined {
+  if (!line) return undefined;
+  return lineColorsRegistry.get(line.trim().toLowerCase());
+}
+
+export function getTransitLineTheme(line: string, customColor?: string | null): TransitLineTheme {
+  const resolvedColor = (customColor && customColor.trim()) ? customColor.trim() : getRegisteredTransitLineColor(line);
+  if (resolvedColor) {
+    const solid = resolvedColor.startsWith('#') ? resolvedColor : `#${resolvedColor}`;
+    return {
+      name: line,
+      solid,
+      bg: `${solid}1A`,
+      text: solid,
+      border: `${solid}4D`,
+      glow: `${solid}66`,
+    };
+  }
+
   const cleaned = (line || "").trim().toUpperCase();
   let hash = 0;
   for (let i = 0; i < cleaned.length; i++) {

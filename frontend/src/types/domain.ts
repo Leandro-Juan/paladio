@@ -204,6 +204,7 @@ export interface PoiPhotoItem {
 export interface PoiTransitInfo {
   type?: string;
   lines?: string[];
+  line_colors?: Record<string, { color: string; text_color?: string | null }>;
   operator?: string | null;
   network?: string | null;
   station_type?: string | null;

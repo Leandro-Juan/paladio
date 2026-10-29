@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 import { getApiBaseUrl, apiFetch } from '@/utils/api';
 import { getTripDayDate } from '@/utils/date';
-import { getTransitLineTheme, ActiveTransitLineData } from '@/utils/transitColors';
+import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import {
@@ -363,6 +363,71 @@ export function PoiDetailView({
     return id.startsWith('gtfs:');
   }, [poiId, poi?.id, fallbackPoi?.id]);
 
+  const lineColorsMap = useMemo(() => {
+    const map: Record<string, { color: string; textColor?: string }> = {};
+
+    // 1. From poi.transit_info.line_colors
+    const activePoi = poi || fallbackPoi;
+    if (activePoi?.transit_info?.line_colors) {
+      for (const [k, v] of Object.entries(activePoi.transit_info.line_colors)) {
+        if (v?.color) {
+          const entry = { color: v.color, textColor: v.text_color || undefined };
+          map[k.toLowerCase()] = entry;
+          registerTransitLineColor(k, v.color);
+        }
+      }
+    }
+
+    // 2. From stationDetail.serving_lines
+    if (stationDetail?.serving_lines) {
+      for (const sl of stationDetail.serving_lines) {
+        if (sl.color) {
+          const entry = { color: sl.color, textColor: sl.text_color || undefined };
+          if (sl.short_name) {
+            map[sl.short_name.toLowerCase()] = entry;
+            registerTransitLineColor(sl.short_name, sl.color);
+          }
+          if (sl.line_id) {
+            map[sl.line_id.toLowerCase()] = entry;
+            registerTransitLineColor(sl.line_id, sl.color);
+          }
+        }
+      }
+    }
+
+    // 3. From stationDepartures
+    for (const dep of stationDepartures) {
+      if (dep.color) {
+        const entry = { color: dep.color, textColor: dep.text_color || undefined };
+        if (dep.line_short_name) {
+          map[dep.line_short_name.toLowerCase()] = entry;
+          registerTransitLineColor(dep.line_short_name, dep.color);
+        }
+        if (dep.line_id) {
+          map[dep.line_id.toLowerCase()] = entry;
+          registerTransitLineColor(dep.line_id, dep.color);
+        }
+      }
+    }
+
+    // 4. From activeTransitLine
+    if (activeTransitLine?.line && activeTransitLine?.color) {
+      map[activeTransitLine.line.toLowerCase()] = { color: activeTransitLine.color };
+      registerTransitLineColor(activeTransitLine.line, activeTransitLine.color);
+    }
+
+    return map;
+  }, [poi, fallbackPoi, stationDetail, stationDepartures, activeTransitLine]);
+
+  const getLineThemeAndText = useCallback((lineKey: string, explicitColor?: string | null, explicitTextColor?: string | null) => {
+    const cleanKey = lineKey.trim().toLowerCase();
+    const meta = lineColorsMap[cleanKey];
+    const resolvedColor = (explicitColor && explicitColor.trim()) ? explicitColor.trim() : (meta?.color || getRegisteredTransitLineColor(lineKey));
+    const theme = getTransitLineTheme(lineKey, resolvedColor);
+    const textColor = (explicitTextColor && explicitTextColor.trim()) ? explicitTextColor.trim() : (meta?.textColor || (resolvedColor ? '#FFFFFF' : theme.text));
+    return { theme, resolvedColor: theme.solid, textColor };
+  }, [lineColorsMap]);
+
   const handleTransitLineClick = useCallback(async (lineIdentifier: string) => {
     if (activeTransitLine && activeTransitLine.line.toLowerCase() === lineIdentifier.toLowerCase()) {
       onSelectTransitLine?.(null);
@@ -418,6 +483,12 @@ export function PoiDetailView({
         if (!servesStation) {
           console.warn(`Line ${lineIdentifier} does not serve station ${currentStationName || currentStationId}`);
           return;
+        }
+
+        if (detail.color) {
+          if (detail.short_name) registerTransitLineColor(detail.short_name, detail.color);
+          if (detail.id) registerTransitLineColor(detail.id, detail.color);
+          registerTransitLineColor(lineIdentifier, detail.color);
         }
 
         const activeLineData: ActiveTransitLineData = {
@@ -1269,50 +1340,51 @@ export function PoiDetailView({
                     return (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                         {uniqueLines.map((line) => {
-                        const theme = getTransitLineTheme(line);
-                        const isLineActive = activeTransitLine?.line.toLowerCase() === line.toLowerCase();
-                        const isLoading = loadingTransitLine?.toLowerCase() === line.toLowerCase();
-                        return (
-                          <button
-                            key={line}
-                            type="button"
-                            onClick={() => handleTransitLineClick(line)}
-                            title={`Click to show full line ${line} route and stations on map`}
-                            data-testid={`transit-line-badge-${line}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 7px',
-                              borderRadius: '4px',
-                              background: isLineActive ? theme.solid : `${theme.solid}15`,
-                              color: isLineActive ? '#FFFFFF' : theme.solid,
-                              border: `1px solid ${isLineActive ? theme.solid : `${theme.solid}45`}`,
-                              fontFamily: 'var(--font-code, monospace)',
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              boxShadow: isLineActive ? `0 0 10px ${theme.solid}80` : 'none',
-                              opacity: isLoading ? 0.6 : 1,
-                              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                            }}
-                          >
-                            <span
+                          const { theme, textColor } = getLineThemeAndText(line);
+                          const isLineActive = activeTransitLine?.line.toLowerCase() === line.toLowerCase();
+                          const isLoading = loadingTransitLine?.toLowerCase() === line.toLowerCase();
+                          const activeText = textColor || '#FFFFFF';
+                          return (
+                            <button
+                              key={line}
+                              type="button"
+                              onClick={() => handleTransitLineClick(line)}
+                              title={`Click to show full line ${line} route and stations on map`}
+                              data-testid={`transit-line-badge-${line}`}
                               style={{
-                                width: 5,
-                                height: 5,
-                                borderRadius: '50%',
-                                background: isLineActive ? '#FFFFFF' : theme.solid,
-                                flexShrink: 0,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                background: isLineActive ? theme.solid : `${theme.solid}15`,
+                                color: isLineActive ? activeText : theme.solid,
+                                border: `1px solid ${isLineActive ? theme.solid : `${theme.solid}45`}`,
+                                fontFamily: 'var(--font-code, monospace)',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                boxShadow: isLineActive ? `0 0 10px ${theme.solid}80` : 'none',
+                                opacity: isLoading ? 0.6 : 1,
+                                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                               }}
-                            />
-                            <span>{line}</span>
-                            {isLoading && (
-                              <span style={{ fontSize: '9px', opacity: 0.8 }}>...</span>
-                            )}
-                          </button>
-                        );
-                      })}
+                            >
+                              <span
+                                style={{
+                                  width: 5,
+                                  height: 5,
+                                  borderRadius: '50%',
+                                  background: isLineActive ? activeText : theme.solid,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span>{line}</span>
+                              {isLoading && (
+                                <span style={{ fontSize: '9px', opacity: 0.8 }}>...</span>
+                              )}
+                            </button>
+                          );
+                        })}
                     </div>
                   );
                 })()}
@@ -1583,12 +1655,14 @@ export function PoiDetailView({
                       </span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {stationDetail.serving_lines.map((l, idx) => {
-                          const theme = getTransitLineTheme(l.short_name || l.line_id);
-                          const isLineActive = activeTransitLine?.line.toLowerCase() === (l.short_name || l.line_id).toLowerCase();
+                          const lineKey = l.short_name || l.line_id;
+                          const { theme, resolvedColor, textColor } = getLineThemeAndText(lineKey, l.color, l.text_color);
+                          const isLineActive = activeTransitLine?.line.toLowerCase() === lineKey.toLowerCase() ||
+                                               activeTransitLine?.line.toLowerCase() === l.line_id.toLowerCase();
                           return (
                             <div
                               key={`${l.line_id}-${l.direction_id}-${idx}`}
-                              onClick={() => handleTransitLineClick(l.short_name || l.line_id)}
+                              onClick={() => handleTransitLineClick(lineKey)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1606,14 +1680,14 @@ export function PoiDetailView({
                                   style={{
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    background: l.color || theme.solid,
-                                    color: l.text_color || '#FFFFFF',
+                                    background: resolvedColor,
+                                    color: textColor,
                                     fontSize: '10.5px',
                                     fontWeight: 700,
                                     fontFamily: 'var(--font-code, monospace)',
                                   }}
                                 >
-                                  {l.short_name || l.line_id}
+                                  {lineKey}
                                 </span>
                                 <span style={{ fontSize: '11px', color: 'var(--color-text-primary)' }}>
                                   {l.headsign ? `towards ${l.headsign}` : (l.long_name || l.mode)}
@@ -1697,42 +1771,46 @@ export function PoiDetailView({
                       </span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {stationDepartures.map((dep, idx) => (
-                          <div
-                            key={`${dep.line_id}-${dep.departure_seconds}-${idx}`}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '4px 6px',
-                              borderRadius: '4px',
-                              background: 'var(--color-surface-card)',
-                              fontSize: '11px',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span
-                                style={{
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  background: dep.color || '#007AFF',
-                                  color: dep.text_color || '#FFFFFF',
-                                  fontSize: '10px',
-                                  fontWeight: 700,
-                                  fontFamily: 'var(--font-code, monospace)',
-                                }}
-                              >
-                                {dep.line_short_name}
-                              </span>
-                              <span style={{ color: 'var(--color-text-primary)' }}>
-                                {dep.headsign ? `to ${dep.headsign}` : dep.mode}
-                              </span>
-                            </div>
+                        {stationDepartures.map((dep, idx) => {
+                          const lineKey = dep.line_short_name || dep.line_id;
+                          const { resolvedColor, textColor } = getLineThemeAndText(lineKey, dep.color, dep.text_color);
+                          return (
+                            <div
+                              key={`${dep.line_id}-${dep.departure_seconds}-${idx}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '4px 6px',
+                                borderRadius: '4px',
+                                background: 'var(--color-surface-card)',
+                                fontSize: '11px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span
+                                  style={{
+                                    padding: '1px 5px',
+                                    borderRadius: '3px',
+                                    background: resolvedColor,
+                                    color: textColor,
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-code, monospace)',
+                                  }}
+                                >
+                                  {lineKey}
+                                </span>
+                                <span style={{ color: 'var(--color-text-primary)' }}>
+                                  {dep.headsign ? `to ${dep.headsign}` : dep.mode}
+                                </span>
+                              </div>
                             <span style={{ fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-accent-primary)' }}>
                               {formatDepartureSeconds(dep.departure_seconds)}
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

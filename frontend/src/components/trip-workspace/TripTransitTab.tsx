@@ -5,6 +5,7 @@ import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { BookmarkIcon, CompassIcon } from '@/components/icons';
 import { getTripDayDate } from '@/utils/date';
+import { registerTransitLineColor } from '@/utils/transitColors';
 
 export interface TripTransitTabProps {
   tripId?: string;
@@ -87,6 +88,8 @@ function formatDepartureSeconds(seconds: number): string {
   return `${displayH}:${displayM}${isNextDay ? ' (+1)' : ''}`;
 }
 
+export const ALL_TRANSIT_MODES: TransitModeFilter[] = ['metro', 'rail', 'tram', 'bus'];
+
 export function TripTransitTab({
   tripId,
   tripStartDate,
@@ -99,7 +102,7 @@ export function TripTransitTab({
 }: TripTransitTabProps) {
   const [subView, setSubView] = useState<TransitSubView>('nearby');
   const [activeModes, setActiveModes] = useState<Set<TransitModeFilter>>(
-    new Set(['metro', 'rail'])
+    new Set(ALL_TRANSIT_MODES)
   );
   const [transitStatus, setTransitStatus] = useState<string>('CHECKING');
   const [coveredRange, setCoveredRange] = useState<{ start: string; end: string } | null>(null);
@@ -198,6 +201,16 @@ export function TripTransitTab({
           );
           if (!isCancelled) {
             setNearbyGroups(res.grouped_stations || []);
+            (res.grouped_stations || []).forEach((g) => {
+              (g.stations || []).forEach((s) => {
+                (s.lines || []).forEach((l) => {
+                  if (l.color) {
+                    if (l.short_name) registerTransitLineColor(l.short_name, l.color);
+                    if (l.line_id) registerTransitLineColor(l.line_id, l.color);
+                  }
+                });
+              });
+            });
           }
         } else {
           const res = await apiFetch<{ lines: TransitLineItem[] }>(
@@ -205,6 +218,12 @@ export function TripTransitTab({
           );
           if (!isCancelled) {
             setLines(res.lines || []);
+            (res.lines || []).forEach((l) => {
+              if (l.color) {
+                if (l.short_name) registerTransitLineColor(l.short_name, l.color);
+                if (l.id) registerTransitLineColor(l.id, l.color);
+              }
+            });
           }
         }
       } catch (err) {
@@ -740,7 +759,7 @@ export function TripTransitTab({
       {/* Mode Filter Chips: [ Metro, Rail, Tram, Bus ] */}
       {subView === 'nearby' && (
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {(['metro', 'rail', 'tram', 'bus'] as TransitModeFilter[]).map((mode) => {
+          {ALL_TRANSIT_MODES.map((mode) => {
             const isActive = activeModes.has(mode);
             return (
               <button

@@ -1454,6 +1454,15 @@ async def get_poi_details(
                     )
                     for p in st_data.get("photos", [])
                 ]
+                line_colors = {
+                    (line_info.get("short_name") or line_info.get("line_id")): {
+                        "color": line_info.get("color"),
+                        "text_color": line_info.get("text_color") or "#FFFFFF",
+                    }
+                    for line_info in st_data.get("serving_lines", [])
+                    if (line_info.get("short_name") or line_info.get("line_id"))
+                    and line_info.get("color")
+                }
                 return PoiDetailResponse(
                     id=f"gtfs:{target_city}:{st_data.get('id', station_lookup)}",
                     name=st_data.get("name") or station_lookup,
@@ -1472,6 +1481,7 @@ async def get_poi_details(
                     photos=st_photos,
                     transit_info={
                         "lines": lines,
+                        "line_colors": line_colors,
                         "station_type": first_mode,
                     },
                 )
@@ -1534,6 +1544,15 @@ async def get_poi_details(
                 )
                 for p in st_data.get("photos", [])
             ]
+            line_colors = {
+                (line_info.get("short_name") or line_info.get("line_id")): {
+                    "color": line_info.get("color"),
+                    "text_color": line_info.get("text_color") or "#FFFFFF",
+                }
+                for line_info in st_data.get("serving_lines", [])
+                if (line_info.get("short_name") or line_info.get("line_id"))
+                and line_info.get("color")
+            }
             return PoiDetailResponse(
                 id=f"gtfs:{city}:{st_data.get('id', target_name)}",
                 name=st_data.get("name") or target_name,
@@ -1552,6 +1571,7 @@ async def get_poi_details(
                 photos=st_photos,
                 transit_info={
                     "lines": lines,
+                    "line_colors": line_colors,
                     "station_type": first_mode,
                 },
             )
