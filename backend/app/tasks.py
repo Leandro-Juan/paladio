@@ -2494,9 +2494,9 @@ def reconcile_interrupted_transit_builds(self):
 )
 def periodic_autoupdate_check_task() -> dict[str, Any]:
     """
-    Checks the GitHub repository for updates and automatically downloads the latest version
-    if auto_update_enabled is set to True in the configuration.
-    If automatic updates are disabled / stopped in the config, skips check and download.
+    Checks the GitHub repository for updates and discovers new release notes and features.
+    If auto_update_enabled is set to True in the configuration, automatically downloads it;
+    otherwise records the update in the database so the user is notified with patch notes and prompted to install.
     """
     from app.services.updater_service import UpdaterService
 
@@ -2504,15 +2504,10 @@ def periodic_autoupdate_check_task() -> dict[str, Any]:
         session_maker, engine = _get_task_session_maker()
         async with session_maker() as session:
             try:
-                state = await UpdaterService.get_state(session)
-                if not state.get("auto_update_enabled", True):
-                    logger.info(
-                        "Automatic updates are stopped / disabled in configuration. Skipping."
-                    )
-                    return {"status": "skipped", "reason": "auto_update_stopped"}
-
-                logger.info("Running automatic GitHub update check...")
-                result = await UpdaterService.check_for_updates(session=session)
+                logger.info("Running periodic GitHub update check...")
+                result = await UpdaterService.check_for_updates(
+                    session=session, force_download=False
+                )
                 return {"status": "completed", "result": result}
             finally:
                 await engine.dispose()

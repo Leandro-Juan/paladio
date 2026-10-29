@@ -210,5 +210,66 @@ export const syncPlannedGtfsApi = (cities: string[]): Promise<SyncPlannedGtfsRes
   });
 };
 
+export interface SystemUpdateStatus {
+  auto_update_enabled: boolean;
+  check_interval_hours: number;
+  github_repo: string;
+  last_checked_at: string | null;
+  current_version: string;
+  latest_version: string;
+  update_available: boolean;
+  release_title: string | null;
+  release_notes: string | null;
+  release_url: string | null;
+  download_url: string | null;
+  download_status: 'idle' | 'checking' | 'downloading' | 'downloaded' | 'failed';
+  downloaded_file: string | null;
+  downloaded_at: string | null;
+  file_sha256: string | null;
+  file_size_bytes: number | null;
+  last_error: string | null;
+}
+
+export interface UpdateConfigPayload {
+  auto_update_enabled?: boolean;
+  check_interval_hours?: number;
+  github_repo?: string;
+}
+
+export const fetchUpdateStatusApi = (): Promise<SystemUpdateStatus> => {
+  return apiFetch<SystemUpdateStatus>('/system/update/status');
+};
+
+export const updateAutoUpdateConfigApi = (
+  data: UpdateConfigPayload
+): Promise<{ status: string; config: SystemUpdateStatus }> => {
+  return apiFetch<{ status: string; config: SystemUpdateStatus }>('/system/update/config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const triggerUpdateCheckApi = (
+  forceDownload: boolean = false
+): Promise<{ status: string; telemetry: SystemUpdateStatus }> => {
+  return apiFetch<{ status: string; telemetry: SystemUpdateStatus }>(
+    `/system/update/check?force_download=${forceDownload}`,
+    {
+      method: 'POST',
+    }
+  );
+};
+
+export const triggerUpdateDownloadApi = (
+  version?: string,
+  downloadUrl?: string
+): Promise<{ status: string; download: SystemUpdateStatus }> => {
+  return apiFetch<{ status: string; download: SystemUpdateStatus }>('/system/update/download', {
+    method: 'POST',
+    body: JSON.stringify({ version, download_url: downloadUrl }),
+  });
+};
+
+
 
 

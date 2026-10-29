@@ -13,15 +13,21 @@ import {
   deleteGtfsApi,
   GtfsRegistryResponse,
   CityGtfsItem,
+  fetchUpdateStatusApi,
+  updateAutoUpdateConfigApi,
+  triggerUpdateCheckApi,
+  triggerUpdateDownloadApi,
+  SystemUpdateStatus,
 } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon, SettingsIcon } from '@/components/icons';
-import { useThemeStore, THEMES, type Theme } from '@/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { useNavigationStore } from '@/stores/navigationStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
 import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
+import { notify } from '@/utils/notify';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -61,7 +67,6 @@ export default function ConfigPage() {
 
   // GTFS Telemetry State
   const [gtfsTelemetry, setGtfsTelemetry] = useState<GtfsRegistryResponse | null>(null);
-  const [gtfsLoading, setGtfsLoading] = useState<boolean>(false);
   const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Provision Modal State
@@ -96,6 +101,118 @@ export default function ConfigPage() {
   const [deleteGtfsCandidate, setDeleteGtfsCandidate] = useState<CityGtfsItem | null>(null);
   const [deletingGtfs, setDeletingGtfs] = useState(false);
   const [syncTripsModalOpen, setSyncTripsModalOpen] = useState(false);
+
+  // System Updates & Auto-Updater State
+  const [updaterStatus, setUpdaterStatus] = useState<SystemUpdateStatus | null>(null);
+  const [updaterChecking, setUpdaterChecking] = useState<boolean>(false);
+  const [updaterDownloading, setUpdaterDownloading] = useState<boolean>(false);
+  const [updaterToggling, setUpdaterToggling] = useState<boolean>(false);
+  const [updaterError, setUpdaterError] = useState<string | null>(null);
+  const [updaterSuccess, setUpdaterSuccess] = useState<string | null>(null);
+  const [showReleaseNotes, setShowReleaseNotes] = useState<boolean>(false);
+  const [installPromptDismissed, setInstallPromptDismissed] = useState<boolean>(false);
+  const notifiedVersionRef = React.useRef<string | null>(null);
+
+  const fetchUpdaterData = useCallback(async () => {
+    try {
+      const data = await fetchUpdateStatusApi();
+      setUpdaterStatus(data);
+      if (data.update_available && notifiedVersionRef.current !== data.latest_version) {
+        notifiedVersionRef.current = data.latest_version;
+        notify.info(
+          `New Update Available: v${data.latest_version}`,
+          data.release_title || `Paladio v${data.latest_version} has new features and patch notes available to install.`,
+          {
+            actionLabel: 'Review & Install',
+            actionLink: '/config',
+          }
+        );
+      }
+    } catch (err: unknown) {
+      console.warn('Failed to fetch updater status:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadUpdater() {
+      if (!ignore) {
+        await fetchUpdaterData();
+      }
+    }
+    loadUpdater();
+    return () => {
+      ignore = true;
+    };
+  }, [fetchUpdaterData]);
+
+  const handleToggleAutoUpdate = async () => {
+    if (!updaterStatus) return;
+    setUpdaterToggling(true);
+    setUpdaterError(null);
+    setUpdaterSuccess(null);
+    try {
+      const nextState = !updaterStatus.auto_update_enabled;
+      const res = await updateAutoUpdateConfigApi({ auto_update_enabled: nextState });
+      setUpdaterStatus(res.config);
+      setUpdaterSuccess(
+        nextState
+          ? 'Automatic updates enabled. Paladio will automatically download and install updates.'
+          : 'Automatic updates disabled. You will be notified with patch notes and asked before an update is installed.'
+      );
+    } catch (err: unknown) {
+      setUpdaterError(err instanceof Error ? err.message : 'Failed to update auto-update preferences');
+    } finally {
+      setUpdaterToggling(false);
+    }
+  };
+
+  const handleCheckForUpdates = async () => {
+    setUpdaterChecking(true);
+    setUpdaterError(null);
+    setUpdaterSuccess(null);
+    try {
+      const res = await triggerUpdateCheckApi(false);
+      setUpdaterStatus(res.telemetry);
+      if (res.telemetry.update_available) {
+        setInstallPromptDismissed(false);
+        setUpdaterSuccess(`New update found: v${res.telemetry.latest_version}`);
+        notify.info(
+          `New Update Available: v${res.telemetry.latest_version}`,
+          res.telemetry.release_title || `Paladio v${res.telemetry.latest_version} is available. Review features and install.`,
+          {
+            actionLabel: 'Review & Install',
+            actionLink: '/config',
+          }
+        );
+      } else {
+        setUpdaterSuccess('Paladio is up to date.');
+      }
+    } catch (err: unknown) {
+      setUpdaterError(err instanceof Error ? err.message : 'Failed to check GitHub repository');
+    } finally {
+      setUpdaterChecking(false);
+    }
+  };
+
+  const handleDownloadUpdate = async () => {
+    if (!updaterStatus) return;
+    setUpdaterDownloading(true);
+    setUpdaterError(null);
+    setUpdaterSuccess(null);
+    try {
+      const res = await triggerUpdateDownloadApi(
+        updaterStatus.latest_version,
+        updaterStatus.download_url || undefined
+      );
+      setUpdaterStatus(res.download);
+      setUpdaterSuccess(`Successfully downloaded Paladio v${res.download.latest_version} archive!`);
+    } catch (err: unknown) {
+      setUpdaterError(err instanceof Error ? err.message : 'Failed to download update archive');
+    } finally {
+      setUpdaterDownloading(false);
+    }
+  };
 
   const fetchGtfsData = useCallback(async (showLoading: boolean = false) => {
     if (showLoading) {
@@ -1814,6 +1931,354 @@ export default function ConfigPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* System Updates & Auto-Updater Section */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              System Updates & Auto-Updater
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// GITHUB REPOSITORY CONTINUOUS SYNCHRONIZATION & SOVEREIGN RELEASES'}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleCheckForUpdates}
+              disabled={updaterChecking || updaterDownloading}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-primary)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                cursor: updaterChecking ? 'not-allowed' : 'pointer',
+                opacity: updaterChecking ? 0.7 : 1,
+              }}
+            >
+              {updaterChecking ? <Spinner size={12} /> : <RefreshIcon size={12} />}
+              {updaterChecking ? 'CHECKING...' : 'CHECK FOR UPDATES'}
+            </button>
+
+            {updaterStatus?.update_available && (
+              <button
+                type="button"
+                onClick={handleDownloadUpdate}
+                disabled={updaterDownloading || updaterStatus?.download_status === 'downloading'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-gold, #E2B33C)',
+                  background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
+                  color: 'var(--color-gold, #E2B33C)',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  cursor: updaterDownloading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {updaterDownloading || updaterStatus?.download_status === 'downloading' ? (
+                  <>
+                    <Spinner size={12} />
+                    <span>DOWNLOADING...</span>
+                  </>
+                ) : (
+                  <>
+                    <LightningIcon size={12} />
+                    <span>DOWNLOAD LATEST (v{updaterStatus?.latest_version})</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Feedback Messages */}
+        {updaterError && (
+          <div
+            style={{
+              background: 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))',
+              border: '1px solid var(--color-danger, #EF4444)',
+              color: 'var(--color-danger, #EF4444)',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {updaterError}
+          </div>
+        )}
+
+        {updaterSuccess && (
+          <div
+            style={{
+              background: 'var(--color-success-soft, rgba(34, 197, 94, 0.15))',
+              border: '1px solid var(--color-success, #22C55E)',
+              color: 'var(--color-success, #22C55E)',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {updaterSuccess}
+          </div>
+        )}
+
+        {/* Status and Configuration Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+          {/* Version Info Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>INSTALLED VERSION</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-subtle)',
+                }}
+              >
+                v{updaterStatus?.current_version || '2.0.0'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>REMOTE RELEASE</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  background: updaterStatus?.update_available ? 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))' : 'var(--color-success-soft)',
+                  color: updaterStatus?.update_available ? 'var(--color-gold, #E2B33C)' : 'var(--color-success)',
+                }}
+              >
+                v{updaterStatus?.latest_version || updaterStatus?.current_version || '2.0.0'}
+              </span>
+            </div>
+            <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>
+              GITHUB REPO: {updaterStatus?.github_repo || 'Leandro-Juan/paladio'}
+            </p>
+          </div>
+
+          {/* Auto-Update State & Stop Option Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: updaterStatus?.auto_update_enabled ? '1px solid var(--color-success)' : '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>AUTOMATIC UPDATES</span>
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: updaterStatus?.auto_update_enabled ? 'var(--color-success-soft)' : 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))',
+                    color: updaterStatus?.auto_update_enabled ? 'var(--color-success)' : 'var(--color-danger, #EF4444)',
+                  }}
+                >
+                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'STOPPED'}
+                </span>
+              </div>
+              <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
+                {updaterStatus?.auto_update_enabled
+                  ? 'System periodically checks GitHub and automatically downloads updates.'
+                  : 'Automatic updates are stopped. No background checks or downloads will run.'}
+              </p>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={handleToggleAutoUpdate}
+                disabled={updaterToggling}
+                style={{
+                  width: '100%',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  cursor: updaterToggling ? 'not-allowed' : 'pointer',
+                  border: updaterStatus?.auto_update_enabled
+                    ? '1px solid var(--color-danger, #EF4444)'
+                    : '1px solid var(--color-success)',
+                  background: updaterStatus?.auto_update_enabled
+                    ? 'var(--color-danger-soft, rgba(239, 68, 68, 0.1))'
+                    : 'var(--color-success-soft)',
+                  color: updaterStatus?.auto_update_enabled
+                    ? 'var(--color-danger, #EF4444)'
+                    : 'var(--color-success)',
+                }}
+              >
+                {updaterToggling ? (
+                  <Spinner size={10} />
+                ) : updaterStatus?.auto_update_enabled ? (
+                  'STOP AUTOMATIC UPDATES'
+                ) : (
+                  'ENABLE AUTOMATIC UPDATES'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Download Telemetry Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>DOWNLOAD STATUS</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background:
+                    updaterStatus?.download_status === 'downloaded'
+                      ? 'var(--color-success-soft)'
+                      : updaterStatus?.download_status === 'downloading'
+                      ? 'rgba(59, 130, 246, 0.15)'
+                      : updaterStatus?.download_status === 'failed'
+                      ? 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))'
+                      : 'var(--color-surface)',
+                  color:
+                    updaterStatus?.download_status === 'downloaded'
+                      ? 'var(--color-success)'
+                      : updaterStatus?.download_status === 'downloading'
+                      ? '#3B82F6'
+                      : updaterStatus?.download_status === 'failed'
+                      ? 'var(--color-danger, #EF4444)'
+                      : 'var(--color-text-muted)',
+                }}
+              >
+                {updaterStatus?.download_status?.toUpperCase() || 'IDLE'}
+              </span>
+            </div>
+            {updaterStatus?.downloaded_file ? (
+              <div style={{ marginTop: '8px' }}>
+                <p className="font-mono" style={{ fontSize: '10px', margin: 0, wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>
+                  {updaterStatus.downloaded_file}
+                </p>
+                <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '4px', marginBottom: 0 }}>
+                  SIZE: {updaterStatus.file_size_bytes ? `${Math.round(updaterStatus.file_size_bytes / 1024)} KB` : 'N/A'}
+                  {updaterStatus.downloaded_at ? ` // ${new Date(updaterStatus.downloaded_at).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+            ) : (
+              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '8px', marginBottom: 0 }}>
+                {updaterStatus?.last_checked_at
+                  ? `LAST CHECK: ${new Date(updaterStatus.last_checked_at).toLocaleTimeString()}`
+                  : 'NO CHECKS RECORDED YET'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Release Notes Collapsible */}
+        {updaterStatus?.release_notes && (
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginTop: '1rem',
+            }}
+          >
+            <div
+              onClick={() => setShowReleaseNotes(!showReleaseNotes)}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="font-display" style={{ fontSize: '13px', fontWeight: 600 }}>
+                  {updaterStatus.release_title || `Release v${updaterStatus.latest_version}`}
+                </span>
+                {updaterStatus.release_url && (
+                  <a
+                    href={updaterStatus.release_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-mono"
+                    style={{ fontSize: '10px', color: 'var(--color-gold, #E2B33C)', textDecoration: 'underline' }}
+                  >
+                    View on GitHub
+                  </a>
+                )}
+              </div>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
+                {showReleaseNotes ? '[- HIDE NOTES]' : '[+ SHOW NOTES]'}
+              </span>
+            </div>
+
+            {showReleaseNotes && (
+              <pre
+                className="font-mono"
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.75rem',
+                  background: 'var(--color-surface)',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  whiteSpace: 'pre-wrap',
+                  overflowX: 'auto',
+                  maxHeight: '240px',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                {updaterStatus.release_notes}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Docker Instance Health Panel */}

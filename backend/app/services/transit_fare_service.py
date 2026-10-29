@@ -690,20 +690,33 @@ class TransitFareService:
                     "get in",
                 )
 
+                # Find index/prefix for 'get around'
+                get_around_prefix = None
+                for s in sections:
+                    if (s.get("line") or "").strip().lower() == "get around":
+                        get_around_prefix = str(s.get("number", "")) + "."
+                        break
+
                 high_matched = []
                 med_matched = []
                 low_matched = []
                 for s in sections:
                     line = (s.get("line") or "").lower()
                     idx = s.get("index")
+                    sec_num = str(s.get("number", ""))
+
+                    # Fare / ticket keywords are top priority anywhere
                     if any(kw in line for kw in high_priority_keywords):
                         high_matched.append(idx)
-                    elif any(kw in line for kw in med_priority_keywords):
+                    # Subsections of 'Get around' or local transport keywords
+                    elif (
+                        get_around_prefix and sec_num.startswith(get_around_prefix)
+                    ) or any(kw in line for kw in med_priority_keywords):
                         med_matched.append(idx)
                     elif any(kw in line for kw in low_priority_keywords):
                         low_matched.append(idx)
 
-                # Prioritize: high fares -> local transport (get around) -> airport
+                # Prioritize: fares -> Get around transit sub-sections -> airport/arrival
                 chosen_sections = (high_matched + med_matched + low_matched)[:4]
 
                 if not chosen_sections:
