@@ -19,7 +19,7 @@ except ImportError:
     paladio_core = None
 
 
-def _format_time_hh_mm(mins: int | float) -> str:
+def _format_time_hh_mm(mins: float) -> str:
     mins_total = int(round(float(mins)))
     h = (mins_total // 60) % 24
     m = mins_total % 60

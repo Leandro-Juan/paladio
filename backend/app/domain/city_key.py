@@ -74,6 +74,10 @@ def resolve_city_identity(
     _get_geonamescache()
     if _ALTERNATE_NAME_INDEX:
         candidates = _ALTERNATE_NAME_INDEX.get(raw_name.lower())
+        if not candidates and ("-" in raw_name or "_" in raw_name):
+            candidates = _ALTERNATE_NAME_INDEX.get(
+                raw_name.lower().replace("-", " ").replace("_", " ").strip()
+            )
         if candidates:
             # Filter by country if supplied
             if target_cc:
@@ -144,22 +148,7 @@ def generate_city_key(
     return key
 
 
-# Common legacy slug mapping for seamless backwards compatibility
-LEGACY_ALIASES: dict[str, str] = {
-    "tokyo": "tokyo-jp-1850147",
-    "paris": "paris-fr-2988507",
-    "london": "london-gb-2643743",
-    "madrid": "madrid-es-3117735",
-    "barcelona": "barcelona-es-3128760",
-    "berlin": "berlin-de-2950159",
-    "newyork": "new-york-city-us-5128581",
-    "new-york": "new-york-city-us-5128581",
-    "seoul": "seoul-kr-1835848",
-    "chicago": "chicago-us-4887398",
-    "sydney": "sydney-au-2147714",
-    "amsterdam": "amsterdam-nl-2759794",
-    "zurich": "zuerich-ch-2657896",
-}
+LEGACY_ALIASES: dict[str, str] = {}
 
 
 def normalize_to_canonical_city_key(city_input: str) -> str:
@@ -171,6 +160,6 @@ def normalize_to_canonical_city_key(city_input: str) -> str:
         return LEGACY_ALIASES[raw]
     # Check if already a valid city_key pattern: {slug}-{iso2}-{id}
     parts = raw.split("-")
-    if len(parts) >= 3 and len(parts[-2]) == 2:
+    if len(parts) >= 3 and len(parts[-2]) == 2 and parts[-1].isdigit():
         return raw
     return generate_city_key(raw)

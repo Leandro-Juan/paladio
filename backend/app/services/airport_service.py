@@ -11,11 +11,11 @@ All resolutions are computed dynamically via:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import math
 import re
 import unicodedata
+from dataclasses import dataclass
 from typing import Any
 from zoneinfo import ZoneInfo
 

@@ -190,8 +190,7 @@ def apply_spatial_semantic_mmr(
                 penalty = (
                     0.65 * cos_sim + 0.35 * (1.0 if same_cat else 0.0) * spatial_penalty
                 )
-                if penalty > max_penalty:
-                    max_penalty = penalty
+                max_penalty = max(max_penalty, penalty)
 
             mmr_val = mmr_lambda * score_i - (1.0 - mmr_lambda) * max_penalty
             if mmr_val > best_mmr:

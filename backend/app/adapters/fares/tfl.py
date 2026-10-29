@@ -27,6 +27,15 @@ class TflFareAdapter(BaseFareAdapter):
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self.client = http_client
 
+    def supports_city(self, city: str, country_code: str | None = None) -> bool:
+        """Determines dynamically whether TfL API covers this city/country."""
+        if country_code and country_code.upper() == "GB":
+            return "london" in city.lower()
+        from app.domain.city_key import resolve_city_identity
+
+        resolved_name, resolved_cc, _ = resolve_city_identity(city)
+        return resolved_cc == "GB" and "london" in resolved_name.lower()
+
     async def fetch_station_pair_fares(
         self,
         city: str,
@@ -34,7 +43,7 @@ class TflFareAdapter(BaseFareAdapter):
         to_station_id: str | None = None,
     ) -> list[TransitFareQuoteModel]:
         """Fetches live fare between two TfL StopPoints."""
-        if city.lower() != "london":
+        if not self.supports_city(city):
             return []
 
         # Default to Westminster -> Covent Garden if unprovided

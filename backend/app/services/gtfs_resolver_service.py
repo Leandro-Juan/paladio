@@ -41,35 +41,6 @@ TOUR_BLACKLIST_KEYWORDS = (
     "daytrip",
 )
 
-GEOFABRIK_COUNTRY_TO_ISO = {
-    "spain": "ES",
-    "france": "FR",
-    "germany": "DE",
-    "italy": "IT",
-    "portugal": "PT",
-    "austria": "AT",
-    "czech-republic": "CZ",
-    "united-kingdom": "GB",
-    "great-britain": "GB",
-    "netherlands": "NL",
-    "belgium": "BE",
-    "switzerland": "CH",
-    "japan": "JP",
-    "us": "US",
-    "canada": "CA",
-    "australia": "AU",
-    "mexico": "MX",
-    "ireland": "IE",
-    "denmark": "DK",
-    "norway": "NO",
-    "sweden": "SE",
-    "finland": "FI",
-    "poland": "PL",
-    "greece": "GR",
-    "hungary": "HU",
-    "croatia": "HR",
-}
-
 
 @dataclass
 class GTFSFeedInfo:
@@ -89,6 +60,8 @@ class GTFSFeedInfo:
     licence: str = "open"
     requires_auth: bool = False
     modes: list[str] = field(default_factory=list)
+    has_fares: bool = False
+    features: list[str] = field(default_factory=list)
 
     @property
     def bbox_area(self) -> float:
@@ -238,6 +211,10 @@ class GTFSResolverService:
                     if (max_lat - min_lat) > 30.0 or (max_lon - min_lon) > 50.0:
                         continue
 
+                    feats_str = (row.get("features") or "").strip()
+                    features = [f.strip() for f in feats_str.split("|") if f.strip()]
+                    has_fares = any("fare" in f.lower() for f in features)
+
                     loaded.append(
                         GTFSFeedInfo(
                             feed_id=row.get("id", "").strip(),
@@ -259,6 +236,8 @@ class GTFSResolverService:
                             max_lat=max_lat,
                             min_lon=min_lon,
                             max_lon=max_lon,
+                            has_fares=has_fares,
+                            features=features,
                         )
                     )
 
@@ -406,7 +385,9 @@ class GTFSResolverService:
         # Check GeoNames for alternate names and coordinates
         gc = _get_geonamescache()
         if gc and geonames_id:
-            city_entry = gc.get_cities().get(geonames_id)
+            city_entry = gc.get_cities().get(str(geonames_id)) or gc.get_cities().get(
+                geonames_id
+            )
             if city_entry:
                 center_lat = float(city_entry["latitude"])
                 center_lon = float(city_entry["longitude"])

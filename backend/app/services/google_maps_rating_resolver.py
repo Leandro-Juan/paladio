@@ -6,12 +6,12 @@ Caches results in Redis with a 30-day TTL and persists them to PostgreSQL.
 """
 
 import asyncio
-from datetime import datetime, timezone
 import json
 import logging
 import os
 import re
 import urllib.parse
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import text

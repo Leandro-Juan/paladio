@@ -88,6 +88,9 @@ class FareResolver:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.odpt_adapter = ODPTFareAdapter()
+        from app.adapters.fares.tfl import TflFareAdapter
+
+        self.tfl_adapter = TflFareAdapter()
 
     async def resolve_city(self, city: str) -> list[TransitFareQuoteModel]:
         """Resolves city transit fares following the 5-tier ladder."""
@@ -160,12 +163,9 @@ class FareResolver:
             except Exception as e:
                 logger.warning(f"Tier 1 ODPT lookup skipped or failed: {e}")
 
-        if city_lower == "london":
+        if self.tfl_adapter.supports_city(city_lower):
             try:
-                from app.adapters.fares.tfl import TflFareAdapter
-
-                tfl_adapter = TflFareAdapter()
-                tfl_quotes = await tfl_adapter.fetch_city_quotes(city_lower)
+                tfl_quotes = await self.tfl_adapter.fetch_city_quotes(city_lower)
                 if tfl_quotes:
                     for tq in tfl_quotes:
                         self.db.add(tq)

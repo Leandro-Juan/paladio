@@ -7,9 +7,6 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import (
     TransitAgencyModel,
     TransitCacheModel,
@@ -27,6 +24,8 @@ from app.db.models import (
     TransitTransferModel,
 )
 from app.services.gtfs_translation_helper import GTFSTranslationHelper
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

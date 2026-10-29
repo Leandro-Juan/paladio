@@ -148,7 +148,7 @@ def parse_pkpass(
 
             barcode_val = None
             barcode_fmt = None
-            if "barcodes" in pass_data and pass_data["barcodes"]:
+            if pass_data.get("barcodes"):
                 b = pass_data["barcodes"][0]
                 barcode_val = b.get("message")
                 raw_fmt = b.get("format", "").lower()

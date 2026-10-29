@@ -424,30 +424,13 @@ class TransitFareService:
         cls, city_key: str, db: AsyncSession | None = None
     ) -> CityTransitFare | None:
         async def _query(session: AsyncSession) -> CityTransitFare | None:
-            CITY_AIRPORT_KEYWORDS: dict[str, list[str]] = {
-                "madrid": [
-                    "aeropuerto t1-t2-t3",
-                    "aeropuerto t4",
-                    "aeropuerto",
-                    "barajas",
-                ],
-                "paris": [
-                    "aeroport charles de gaulle",
-                    "aeroport cdg",
-                    "cdg",
-                    "roissy",
-                    "aeroport d'orly",
-                    "orlyval",
-                ],
-                "lisbon": ["aeroporto", "aeroporto de lisboa"],
-                "barcelona": ["aeroport t1", "aeroport t2", "aeroport", "el prat"],
-                "rome": ["fiumicino", "aeroporto fiumicino", "ciampino"],
-                "tokyo": ["haneda", "narita", "羽田", "成田"],
-            }
-            city_keywords = list(
-                set(GENERIC_AIRPORT_KEYWORDS)
-                | set(CITY_AIRPORT_KEYWORDS.get(city_key, []))
+            # Dynamically retrieve any stored station keywords from city_transit_fares
+            cf_stmt = select(CityTransitFareModel.airport_station_keywords).where(
+                CityTransitFareModel.city_name == city_key
             )
+            cf_res = await session.execute(cf_stmt)
+            saved_keywords = cf_res.scalars().first() or []
+            city_keywords = list(set(GENERIC_AIRPORT_KEYWORDS) | set(saved_keywords))
 
             # 1. Query normalized active quotes from transit_fare_quotes
             q_stmt = (
@@ -549,7 +532,9 @@ class TransitFareService:
                     currency=model.currency,
                     single_fare=model.single_fare_eur,
                     pass_24h_price=model.day_pass_fare_eur,
-                    pass_24h_name=model.day_pass_name,
+                    pass_24h_name=model.day_pass_name
+                    if model.day_pass_fare_eur is not None
+                    else None,
                     pass_24h_includes_airport=model.pass_24h_includes_airport,
                     airport_surcharge=model.airport_surcharge_eur,
                     airport_station_keywords=model.airport_station_keywords or [],

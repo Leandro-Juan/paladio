@@ -186,13 +186,13 @@ class WikimediaPhotoResolver:
             if lang != "en":
                 titles_to_try.append(("en", title))
         else:
-            clean_name = name.replace(" ", "_")
-            # Try Spanish Wikipedia first if city is Madrid or in Spain, else English
-            primary_lang = (
-                "es"
-                if city.lower() in ("madrid", "barcelona", "seville", "valencia")
-                else "en"
+            from app.engine.retrieval.query_rewriter import (
+                resolve_city_primary_language,
             )
+
+            clean_name = name.replace(" ", "_")
+            city_lang = resolve_city_primary_language(city)
+            primary_lang = city_lang if city_lang else "en"
             titles_to_try.append((primary_lang, clean_name))
             if primary_lang != "en":
                 titles_to_try.append(("en", clean_name))
@@ -232,18 +232,14 @@ class WikimediaPhotoResolver:
 
             # Fallback A: Query Wikipedia Search API if summary not found by direct title
             if not lead_extract:
-                clean_city = (city or "").lower()
-                search_langs = ["en"]
-                if clean_city in ("madrid", "barcelona", "seville", "valencia"):
-                    search_langs = ["es", "en"]
-                elif clean_city in ("porto", "lisbon", "lisboa"):
-                    search_langs = ["pt", "en"]
-                elif clean_city in ("paris", "lyon", "marseille"):
-                    search_langs = ["fr", "en"]
-                elif clean_city in ("rome", "milan", "florence", "venice"):
-                    search_langs = ["it", "en"]
-                elif clean_city in ("tokyo", "kyoto", "osaka"):
-                    search_langs = ["ja", "en"]
+                from app.engine.retrieval.query_rewriter import (
+                    resolve_city_primary_language,
+                )
+
+                city_lang = resolve_city_primary_language(city)
+                search_langs = (
+                    [city_lang, "en"] if city_lang and city_lang != "en" else ["en"]
+                )
 
                 for s_lang in search_langs:
                     try:

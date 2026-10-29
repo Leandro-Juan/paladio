@@ -1,7 +1,7 @@
 import asyncio
-from datetime import datetime, timezone
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -80,19 +80,26 @@ def is_poi_airport(poi: dict | None) -> bool:
     if not isinstance(poi, dict):
         return False
     cat = str(poi.get("category") or "").upper()
+    sub_cat = str(poi.get("sub_category") or "").upper()
+    tags = poi.get("tags") or {}
     name = str(poi.get("name") or "").lower()
-    return (
-        cat == "AIRPORT"
-        or "airport" in cat.lower()
-        or "aerodrome" in cat.lower()
-        or "airport" in name
-        or "aeropuerto" in name
-        or "haneda" in name
-        or "narita" in name
-        or "barajas" in name
-        or "heathrow" in name
-        or "cdg" in name
-    )
+
+    if cat == "AIRPORT" or sub_cat == "AIRPORT":
+        return True
+    if any(
+        k in cat.lower() or k in sub_cat.lower()
+        for k in ("airport", "aerodrome", "airfield")
+    ):
+        return True
+    if isinstance(tags, dict) and any(
+        tags.get(k) in ("aerodrome", "terminal", "airport", "international")
+        for k in ("aeroway", "amenity", "building", "public_transport")
+    ):
+        return True
+
+    from app.services.transit_fare_service import GENERIC_AIRPORT_KEYWORDS
+
+    return any(kw in name for kw in GENERIC_AIRPORT_KEYWORDS) or "aerodrome" in name
 
 
 async def get_detailed_transit_leg(

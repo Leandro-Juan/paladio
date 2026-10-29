@@ -14,21 +14,28 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-CITY_LANG_MAP: dict[str, str] = {
-    "madrid": "es",
-    "barcelona": "es",
-    "seville": "es",
-    "valencia": "es",
-    "paris": "fr",
-    "lyon": "fr",
-    "rome": "it",
-    "florence": "it",
-    "milan": "it",
-    "lisbon": "pt",
-    "porto": "pt",
-    "berlin": "de",
-    "munich": "de",
-}
+
+def resolve_city_primary_language(city: str) -> str:
+    """Dynamically resolves the primary ISO 639-1 language code for any destination city worldwide."""
+    if not city:
+        return ""
+    try:
+        from app.domain.city_key import _get_geonamescache, resolve_city_identity
+
+        _, cc, _ = resolve_city_identity(city)
+        if not cc or cc == "XX":
+            return ""
+        gc = _get_geonamescache()
+        if gc:
+            countries = gc.get_countries()
+            country_info = countries.get(cc.upper())
+            if country_info and country_info.get("languages"):
+                first_lang = country_info["languages"].split(",")[0].strip()
+                return first_lang.split("-")[0].lower()
+    except Exception as e:
+        logger.debug(f"Could not resolve language for '{city}': {e}")
+    return ""
+
 
 EN_TO_LOCAL_VOCAB: dict[str, dict[str, str]] = {
     "es": {
@@ -208,7 +215,7 @@ class QueryRewriter:
         if destination_city:
             subqueries.append(f"{destination_city} {clean}".strip())
 
-        lang = CITY_LANG_MAP.get(destination_city.lower(), "")
+        lang = resolve_city_primary_language(destination_city)
         if lang and lang in EN_TO_LOCAL_VOCAB:
             vocab = EN_TO_LOCAL_VOCAB[lang]
             translated_tokens = []

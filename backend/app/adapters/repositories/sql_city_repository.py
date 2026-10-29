@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import func, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db.models import CityModel
 from app.domain.entities.city import City
 from app.domain.interfaces.city_repository import ICityRepository
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
