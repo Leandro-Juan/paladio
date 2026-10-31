@@ -5,7 +5,7 @@ import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 import { getApiBaseUrl, apiFetch } from '@/utils/api';
 import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import {
   IzakayaLanternIllustration,
@@ -304,7 +304,8 @@ export function PoiDetailView({
   activeTransitLine,
   onSelectTransitLine,
 }: PoiDetailViewProps) {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const destMeta = useMemo(() => resolveDestinationCurrency(city || fallbackPoi?.city), [city, fallbackPoi?.city]);
   const activeCurrencyCode = (user?.preferences?.default_currency as string) || destMeta.currency || 'EUR';
   const currencySymbol = useMemo(() => {
@@ -807,6 +808,57 @@ export function PoiDetailView({
         background: 'var(--color-surface-card)',
       }}
     >
+      {/* Sticky Inspector Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-surface-card)',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Return to POI Search"
+            aria-label="Back to Search"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              background: 'var(--color-surface-raised, #F8FAFC)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '9999px',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-code, monospace)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.18s cubic-bezier(0.23, 1, 0.32, 1)',
+            }}
+          >
+            <span>&larr; Search</span>
+          </button>
+          <span
+            style={{
+              fontFamily: 'var(--font-code, monospace)',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: 'var(--color-text-muted)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {'// POI INSPECTOR'}
+          </span>
+        </div>
+      </div>
+
       {/* Scrollable Content Area */}
       <div
         className="no-scrollbar"

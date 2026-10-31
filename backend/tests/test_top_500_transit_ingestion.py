@@ -20,7 +20,11 @@ from typing import Any
 
 import anyio
 import geonamescache
-import pycountry
+
+try:
+    import pycountry
+except ImportError:
+    pycountry = None  # type: ignore[assignment]
 import pytest
 from app.db.session import async_session
 from app.domain.city_key import generate_city_key, resolve_city_identity
@@ -69,12 +73,13 @@ def get_dynamic_top_500_cities() -> list[dict[str, Any]]:
                     if part in gc_countries:
                         cc = gc_countries[part]["iso"]
                         break
-                    try:
-                        c_obj = pycountry.countries.search_fuzzy(part)[0]
-                        cc = c_obj.alpha_2
-                        break
-                    except (LookupError, AttributeError):
-                        pass
+                    if pycountry is not None:
+                        try:
+                            c_obj = pycountry.countries.search_fuzzy(part)[0]
+                            cc = c_obj.alpha_2
+                            break
+                        except (LookupError, AttributeError):
+                            pass
             cc = cc or "XX"
 
             # Dynamic city resolution

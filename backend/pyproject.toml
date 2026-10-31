@@ -40,6 +40,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.5",
+    "pycountry>=24.6.1",
 ]
 
 [tool.pytest.ini_options]

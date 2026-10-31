@@ -10,6 +10,9 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
     ctPort: 3100,
+    launchOptions: {
+      args: ['--disable-gpu', '--disable-dev-shm-usage'],
+    },
   },
   projects: [
     {
