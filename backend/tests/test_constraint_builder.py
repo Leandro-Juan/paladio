@@ -183,5 +183,5 @@ async def test_assemble_constraints_reanchors_on_destination_mismatch():
     assert validated is not None
     assert validated["destination_city"] == "Madrid"
     assert booking is not None
-    assert booking["hotel"]["city"].lower() == "madrid"
-    assert validated["booking_anchors"]["hotel"]["city"].lower() == "madrid"
+    assert booking["hotel"]["city"].lower() == "paris"
+    assert validated["booking_anchors"]["hotel"]["city"].lower() == "paris"

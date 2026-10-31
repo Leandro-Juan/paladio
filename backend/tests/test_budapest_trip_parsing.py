@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock
 import pytest
 
+from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
 from app.swarm.agents.ticket_parser import ticket_parser_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
-from app.infrastructure.swarm.swarm_session_adapter import SwarmSessionAdapter
+from tests.fixtures.mock_tickets import generate_mock_tickets
 
 
 @pytest.mark.asyncio
@@ -26,7 +27,8 @@ async def test_ticket_parser_success_and_event_loop_safety():
 
 @pytest.mark.asyncio
 async def test_assemble_constraints_anchors_for_known_destination():
-    """Verify assemble_constraints_node anchors hotel and flights if destination is known."""
+    """Verify assemble_constraints_node anchors hotel and flights when booking anchors are provided."""
+    mock_res = generate_mock_tickets("Madrid", "Budapest", duration_days=5)
     state = {
         "manual_constraints": {
             "origin_city": "Madrid",
@@ -36,7 +38,7 @@ async def test_assemble_constraints_anchors_for_known_destination():
             "budget_usd": 1500,
             "meals": ["LUNCH", "DINNER"],
         },
-        "booking_anchors": None,
+        "booking_anchors": mock_res["booking_anchors"].model_dump(mode="json"),
     }
 
     output = await assemble_constraints_node(state)
@@ -51,7 +53,7 @@ async def test_assemble_constraints_anchors_for_known_destination():
 
 @pytest.mark.asyncio
 async def test_swarm_session_budapest_initial_state_and_pipeline():
-    """Verify swarm session adapter produces mock booking text for Budapest and downstream nodes assemble it."""
+    """Verify swarm session adapter accepts booking text for Budapest and downstream nodes assemble it."""
     mock_graph = AsyncMock()
     captured_initial_state = {}
 
@@ -72,12 +74,15 @@ async def test_swarm_session_budapest_initial_state_and_pipeline():
         travel_data_provider=MagicMock(),
     )
 
+    mock_res = generate_mock_tickets("Madrid", "Budapest", duration_days=5)
+
     data = {
         "test_mode": True,
         "origin_city": "Madrid",
         "destination_city": "Budapest",
         "start_date": "2026-10-23",
         "end_date": "2026-10-28",
+        "booking_text": mock_res["booking_text"],
     }
 
     async for _ in adapter.process_message(
