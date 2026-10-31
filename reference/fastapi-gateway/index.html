@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1091,6 +1091,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#transit-network-endpoints-apiv1transit-apitransit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transit Network Endpoints (/api/v1/transit / /api/transit)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1522,6 +1533,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#transit-network-endpoints-apiv1transit-apitransit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transit Network Endpoints (/api/v1/transit / /api/transit)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1632,6 +1654,16 @@
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Paladio Gateway"</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">}</span>
 </span></code></pre></div></p>
+<h3 id="transit-network-endpoints-apiv1transit-apitransit">Transit Network Endpoints (<code>/api/v1/transit</code> / <code>/api/transit</code>)<a class="headerlink" href="#transit-network-endpoints-apiv1transit-apitransit" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>GET /api/transit/{city}/status</code></strong>: Returns GTFS availability, coverage date range, and derived table build status.</li>
+<li><strong><code>GET /api/transit/{city}/nearby</code></strong>: Finds nearest stations to trip anchor coordinates (lodging, daily POIs) grouped by anchor with walking duration and serving line badges.</li>
+<li><strong><code>GET /api/transit/{city}/lines</code></strong>: Lists all transit lines for a destination city with modes and color palettes.</li>
+<li><strong><code>GET /api/transit/{city}/lines/{line_id}</code></strong>: Detailed line pattern, stop sequences, and spatial polyline.</li>
+<li><strong><code>GET /api/transit/{city}/stations/{station_id}</code></strong>: Detailed station info, serving lines, directions, wheelchair boarding, and service summaries.</li>
+<li><strong><code>GET /api/transit/{city}/stations/{station_id}/departures</code></strong>: Real-time scheduled timetable departures from target date and seconds.</li>
+<li><strong><code>GET /api/transit/{city}/map-stations?bbox=min_lat,min_lon,max_lat,max_lon</code></strong>: Returns stations with serving line chips bounded by geographic viewport for interactive map layers.</li>
+</ul>
 <h2 id="websocket-streaming-endpoint">WebSocket Streaming Endpoint<a class="headerlink" href="#websocket-streaming-endpoint" title="Permanent link">&para;</a></h2>
 <h3 id="ws-apiv1wsstream"><code>WS /api/v1/ws/stream</code><a class="headerlink" href="#ws-apiv1wsstream" title="Permanent link">&para;</a></h3>
 <p>This endpoint accepts text/JSON input and streams the execution state of the LangGraph swarm back to the client.</p>
@@ -1766,10 +1798,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
       

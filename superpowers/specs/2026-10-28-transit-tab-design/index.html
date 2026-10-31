@@ -1,0 +1,1788 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+      
+      
+        <meta name="author" content="Leandro Juan">
+      
+      
+        <link rel="canonical" href="https://leandro-juan.github.io/paladio/superpowers/specs/2026-10-28-transit-tab-design/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Design Specification: Dedicated Transit Tab Refactor - Paladio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    
+      <link rel="stylesheet" href="../../../css/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-specification-dedicated-transit-tab-refactor" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Paladio" class="md-header__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Paladio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Specification: Dedicated Transit Tab Refactor
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tutorials/quickstart-docker/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../how-to/run-offline-swarm/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/langgraph-swarm-architecture/" class="md-tabs__link">
+          
+  
+  
+  Technical Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../explanation/system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architectural Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Paladio" class="md-nav__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    Paladio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/quickstart-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart with Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Autonomous Swarm Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-offline-swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Offline Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Custom LangGraph Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/modify-engine-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify Engine Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/tune-ml-taste-learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tune ML Taste Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Hybrid Scoring Weights
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/handle-human-in-the-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Handle Human-in-the-Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydrate POI Embeddings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/langgraph-swarm-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/ml-feature-tensor-16d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16-D Feature Tensor (PoiEncoder)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/semantic-learning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Learning Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/poi-database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POI Database & Vault Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/frontend-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Frontend Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/websocket-gateway-telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Gateway Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fastapi-gateway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Gateway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/scraper_json_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scraper JSON Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/core-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Combinatorial Core (paladio-core)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architectural Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architectural Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macro System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/langgraph-vs-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm vs Linear Chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/sovereign-ml-and-semantic-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sovereign ML & Dense Semantic RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/continuous-to-discrete-harmonics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Continuous-to-Discrete Harmonics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/resilient-scraping-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resilient Scraping Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/roadmap-and-future-horizons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategic Roadmap & Future Horizons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview &amp; Motivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Overview &amp; Motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Objective
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-phase-0-audit-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Phase 0 Audit Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-architecture-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Architecture &amp; Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-phase-by-phase-execution-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Phase-by-Phase Execution Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Phase-by-Phase Execution Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-clean-up-search-and-add-tab-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Clean up Search and add Tab Shell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-derived-transit-database-schema-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Derived Transit Database Schema &amp; Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-services-api-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Services &amp; API Endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-transit-tab-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Transit Tab UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-map-layer-station-detail-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Map Layer &amp; Station Detail Panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-6-saved-items-legacy-retirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Saved Items &amp; Legacy Retirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-7-fares-clarification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 7: Fares Clarification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verification-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verification Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Leandro-Juan/Paladio/edit/main/docs/superpowers/specs/2026-10-28-transit-tab-design.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="design-specification-dedicated-transit-tab-refactor">Design Specification: Dedicated Transit Tab Refactor<a class="headerlink" href="#design-specification-dedicated-transit-tab-refactor" title="Permanent link">&para;</a></h1>
+<p><strong>Date</strong>: 2026-10-28<br />
+<strong>Author</strong>: Antigravity<br />
+<strong>Status</strong>: Draft for User Review &amp; Confirmation<br />
+<strong>Canonical Spec Path</strong>: <code>docs/superpowers/specs/2026-10-28-transit-tab-design.md</code><br />
+<strong>Tracking Source</strong>: <code>PLAN.md</code></p>
+<hr />
+<h2 id="1-overview-motivation">1. Overview &amp; Motivation<a class="headerlink" href="#1-overview-motivation" title="Permanent link">&para;</a></h2>
+<p>Transit stops are currently indexed as generic POIs in the <code>attractions</code> table (with IDs like <code>OSM-transit-&lt;category&gt;-&lt;id&gt;</code>). As a result, they appear indiscriminately in the Search tab alongside museums, restaurants, and sights, showing irrelevant fields on cards and detail inspectors (e.g. "Suggested stay: 10 mins", "% AFFINITY", star ratings, duration/price filters, photo carousels, and opening hours). Furthermore, station cards display a synthetic flat fare (e.g., €1.80 or €2 / person) derived from a citywide fallback, and stop codes (like <code>JB13</code>) are rendered as route badges.</p>
+<h3 id="core-objective">Core Objective<a class="headerlink" href="#core-objective" title="Permanent link">&para;</a></h3>
+<p>Move transit out of the Search tab into its own dedicated tab in the Plan left panel (<strong>Route</strong>, <strong>Search</strong>, <strong>Transit</strong>, <strong>Saved</strong>). Base the new tab on pruned GTFS feeds already compiled for Valhalla, using derived, compact PostgreSQL tables. Preserve existing Valhalla Route legs and itinerary generation completely intact.</p>
+<h3 id="key-invariants">Key Invariants<a class="headerlink" href="#key-invariants" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Zero Mock Data &amp; No Fabricated Fallbacks</strong>: Values missing in feeds are hidden, explained honestly, or degraded gracefully (e.g. stop-sequence polylines when shapes are absent). No synthetic station prices or color hashing.</li>
+<li><strong>Air-Gappable &amp; Self-Hosted</strong>: 100% local operation without external cloud APIs.</li>
+<li><strong>Deterministic &amp; High Performance</strong>: Derived tables precalculate stop sequences, service spans, headways, and offsets once per feed build. Zero runtime scanning of multi-gigabyte <code>stop_times.txt</code>.</li>
+<li><strong>Capability-Driven UI</strong>: Feeds vary by city (e.g. Tokyo has translations and fares but no shapes; Paris has shapes and transfers but no translations). The UI is a pure function of feed capability flags.</li>
+</ul>
+<hr />
+<h2 id="2-phase-0-audit-summary">2. Phase 0 Audit Summary<a class="headerlink" href="#2-phase-0-audit-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Area</th>
+<th style="text-align: left;">Key Findings</th>
+<th style="text-align: left;">References</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Frontend Architecture</strong></td>
+<td style="text-align: left;">The sidebar tabs in <code>TripUnifiedSidebar.tsx</code> define <code>MainTabType = 'route' \| 'search' \| 'saved'</code>. Top-level workspace tabs are <code>Plan</code>, <code>Wallet</code>, <code>Costs</code>, <code>Collab</code>, <code>Photos</code>. Category chips live in <code>PROJECT_CATEGORIES</code> (with <code>'transit'</code>). Right-hand detail panel is <code>PoiDetailView</code> in <code>TripWorkspace.tsx</code>. <code>DAY</code> state is managed centrally in <code>TripWorkspace.tsx</code> (<code>selectedDay</code>).</td>
+<td style="text-align: left;"><code>TripUnifiedSidebar.tsx:L183-196, L1930-2053</code>, <code>TripWorkspace.tsx:L34, L676-712</code>, <code>TripWorkspaceHeader.tsx:L112-141</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Search Backend &amp; Engine Isolation</strong></td>
+<td style="text-align: left;"><code>pois.py</code> extracts transit metadata via <code>_extract_transit_info()</code>. <code>find_tiered_pois(max_tier=2)</code> in <code>candidate_pool.py</code> includes metro/train rows (<code>tier=2</code>). Excluding transit from Search (<code>AttractionModel.category != 'transit'</code> and <code>not id.startswith('OSM-transit-')</code>) cleanly isolates Search without mutating the candidate pool or itinerary solver.</td>
+<td style="text-align: left;"><code>pois.py:L247-330, L408, L558-747</code>, <code>candidate_pool.py:L250-256</code>, <code>sql_poi_repository.py:L386-399</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Migrations</strong></td>
+<td style="text-align: left;">Standard <strong>Alembic</strong> async migrations (<code>backend/alembic.ini</code>, <code>backend/migrations/env.py</code>, <code>migrations/versions/</code>).</td>
+<td style="text-align: left;"><code>backend/migrations/env.py</code>, <code>backend/migrations/versions/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Real Feeds Matrix</strong></td>
+<td style="text-align: left;">Verified in Docker volume <code>paladio_gtfsdata</code>: <br>• <strong>Tokyo</strong>: <code>agency.txt</code>, <code>routes.txt</code>, <code>stops.txt</code>, <code>trips.txt</code>, <code>stop_times.txt</code> (5MB), <code>calendar.txt</code>, <code>calendar_dates.txt</code>, <code>translations.txt</code>, <code>fare_attributes.txt</code>, <code>fare_rules.txt</code>. <strong>No shapes.txt</strong>. Dates: <code>20260314</code>–<code>20270312</code>. Route types: <code>0</code> (Tram), <code>1</code> (Subway), <code>2</code> (Rail). <br>• <strong>Paris</strong>: <code>agency.txt</code>, <code>routes.txt</code>, <code>stops.txt</code>, <code>trips.txt</code>, <code>stop_times.txt</code> (1.0GB), <code>shapes.txt</code> (909MB), <code>transfers.txt</code>, <code>frequencies.txt</code>. <strong>No translations.txt</strong>. Dates: <code>20261024</code>–<code>20261124</code>. Route types: <code>0</code>, <code>1</code>, <code>3</code>, <code>6</code>, <code>7</code>, <code>108</code>, <code>109</code>, <code>200</code>, <code>702</code>, <code>715</code>.</td>
+<td style="text-align: left;"><code>paladio_gtfsdata:/gtfs/tokyo/</code>, <code>paladio_gtfsdata:/gtfs/paris/</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Status Plumbing</strong></td>
+<td style="text-align: left;"><code>TransitCacheModel</code> (<code>backend/app/db/models.py</code>) tracks <code>status</code>, <code>osm_status</code>, <code>gtfs_status</code>, <code>valid_until</code>. Status enum: <code>PENDING</code>, <code>QUEUED</code>, <code>BUILDING</code>, <code>READY</code>, <code>FAILED</code>, <code>UNAVAILABLE</code>. Monitored via <code>GET /trips/{id}/transit-status</code> and <code>GET /trips/transit/registry</code>.</td>
+<td style="text-align: left;"><code>models.py:L284-306</code>, <code>backend/app/api/trips.py:L779-802, L1008-1055</code>, <code>tasks.py:L1314-1980</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fares &amp; Saved Items</strong></td>
+<td style="text-align: left;">Card price (€1.80) originates from <code>ingest_transit_pois.py:390</code> (<code>cost_eur=1.80</code>). Inspector drawer rounds to €2 via <code>Math.round(poi.cost_eur)</code>. Saved items are stored client-side in <code>localStorage</code> under <code>paladio_saved_pois_${tripId}</code> as an array of IDs.</td>
+<td style="text-align: left;"><code>ingest_transit_pois.py:L390</code>, <code>PoiDetailView.tsx:L913-922</code>, <code>TripUnifiedSidebar.tsx:L1248-1275, L2704-2708</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-architecture-data-flow">3. Architecture &amp; Data Flow<a class="headerlink" href="#3-architecture-data-flow" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[ Pruned GTFS Feed on Disk (/gtfs_feeds/&lt;city&gt;) ]
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                    │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                    ▼ (Triggered after build_city_gtfs_task or backfill CLI)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[ Celery Task: derive_city_transit_task ]
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                    ├── 1. Compute Capability Flags &amp; Date Spans
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                    ├── 2. Collapse Platforms -&gt; transit_stations (WGS84 lat/lon indexed)
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                    ├── 3. Parse Routes &amp; Normalize Colors -&gt; transit_lines
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                    ├── 4. Group Stop Sequences -&gt; transit_patterns &amp; transit_pattern_stops
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                    ├── 5. Extract First Departures &amp; Offsets -&gt; transit_pattern_trips
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                    ├── 6. Summarize Spans &amp; Headways -&gt; transit_service_summary
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                    ├── 7. Optional Shapes / Transfers -&gt; transit_shapes, transit_transfers
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                    │
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>                    ▼ (Single-transaction atomic swap of active_build_id)
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>[ PostgreSQL: Compact Derived Transit Schema ]
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                    │
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                    ▼
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>[ FastAPI: /api/v1/trips/{trip_id}/transit/* &amp; /api/v1/transit/* ]
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   ├── /availability     -&gt; City state, capability flags, feed validity
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   ├── /nearby           -&gt; Stations grouped by anchor (Lodging + Day stops)
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   ├── /lines            -&gt; Lines grouped by agency &amp; mode
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   ├── /lines/{id}       -&gt; Pattern geometry, ordered stops
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   ├── /stations/{id}    -&gt; Lines, headways, next departures for selected Day
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   └── /map-stations     -&gt; Bounding-box station pins with mode/line badges
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>                    │
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>                    ▼
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>[ Next.js 16 Frontend: TripUnifiedSidebar (Transit Tab) ]
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>   ├── State Switcher: Empty / Building / Unavailable / Expired / Ready
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>   ├── Segmented Control: [ Nearby | Lines ] + Mode Chips [ Metro, Rail, Tram, Bus ]
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>   ├── Station Cards: Real lines, walking time from anchor, explicit accessibility
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>   ├── Drill-in Detail: Real schedule spans, next scheduled departures
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>   └── Map Synchronization: Station markers &amp; route polylines
+</span></code></pre></div>
+<hr />
+<h2 id="4-phase-by-phase-execution-plan">4. Phase-by-Phase Execution Plan<a class="headerlink" href="#4-phase-by-phase-execution-plan" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-clean-up-search-and-add-tab-shell">Phase 1: Clean up Search and add Tab Shell<a class="headerlink" href="#phase-1-clean-up-search-and-add-tab-shell" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Search Backend</strong>:</li>
+<li>In <code>backend/app/api/pois.py</code>, filter out transit POIs from <code>get_pois()</code> and <code>hybrid_retriever</code>:<ul>
+<li>Exclude <code>AttractionModel.category == 'transit'</code> and <code>AttractionModel.id.like('OSM-transit-%')</code>.</li>
+<li>Remove <code>'transit'</code> from <code>CATEGORY_SYNONYMS</code>.</li>
+</ul>
+</li>
+<li>Deprecate <code>_extract_transit_info</code> and <code>GET /transit-line</code> with TODO referencing Phase 6.</li>
+<li><strong>Search Frontend</strong>:</li>
+<li>In <code>TripUnifiedSidebar.tsx</code>, remove <code>'transit'</code> from <code>PROJECT_CATEGORIES</code>.</li>
+<li>Remove Transit toggle from <code>TripPlacesSidebar.tsx</code> and <code>TripSpeedDial.tsx</code> where applicable.</li>
+<li><strong>Ingest Fix</strong>:</li>
+<li>In <code>backend/app/cli/ingest_transit_pois.py</code>, ensure <code>stop_code</code> is stored in its own field rather than appended to the lines list.</li>
+<li><strong>Tab Shell</strong>:</li>
+<li>Extend <code>MainTabType = 'route' | 'search' | 'transit' | 'saved'</code>.</li>
+<li>Add the Transit tab button between Search and Saved.</li>
+<li>Implement the tab shell with capability and lifecycle awareness (Empty, Building/Queued, Failed, Unavailable, Expired, Ready).</li>
+</ol>
+<h3 id="phase-2-derived-transit-database-schema-ingestion">Phase 2: Derived Transit Database Schema &amp; Ingestion<a class="headerlink" href="#phase-2-derived-transit-database-schema-ingestion" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Alembic Migration</strong>:</li>
+<li>Create tables: <code>transit_agencies</code>, <code>transit_lines</code>, <code>transit_stations</code>, <code>transit_patterns</code>, <code>transit_pattern_stops</code>, <code>transit_pattern_trips</code>, <code>transit_service_summary</code>, <code>transit_service_days</code>, <code>transit_shapes</code>, <code>transit_transfers</code>, <code>transit_fares</code>.</li>
+<li>Add columns to <code>transit_cache</code>: <code>derived_status</code>, <code>derived_at</code>, <code>active_build_id</code>, <code>capabilities</code> (JSONB), <code>feed_valid_from</code>, <code>feed_valid_to</code>, <code>quality</code> (JSONB).</li>
+<li><strong>Derivation Engine (<code>backend/app/services/transit_derivation_service.py</code>)</strong>:</li>
+<li>Stream CSVs in batches (memory-safe for Paris-scale 1GB <code>stop_times.txt</code>).</li>
+<li>Parse GTFS times (handle <code>&gt; 24:00:00</code> as service day seconds).</li>
+<li>Collapse platforms into parent stations; compute fallback contrast colors.</li>
+<li>Versioned writes under a UUID <code>build_id</code>, atomic activation.</li>
+<li><strong>Celery Task &amp; CLI</strong>:</li>
+<li>Register <code>derive_city_transit_task</code> in <code>backend/app/tasks.py</code>.</li>
+<li>Add CLI <code>backend/app/cli/derive_transit.py</code> for backfilling ready cities.</li>
+</ol>
+<h3 id="phase-3-services-api-endpoints">Phase 3: Services &amp; API Endpoints<a class="headerlink" href="#phase-3-services-api-endpoints" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Repository &amp; Service</strong>:</li>
+<li><code>SQLTransitRepository</code> implementing <code>ITransitRepository</code>.</li>
+<li><code>TransitService</code> handling nearby spatial search (bounding box + Haversine), line details, and scheduled departures.</li>
+<li><strong>API Router (<code>backend/app/api/transit.py</code>)</strong>:</li>
+<li><code>GET /trips/{trip_id}/transit/availability</code></li>
+<li><code>GET /trips/{trip_id}/transit/nearby?day={day_index}</code></li>
+<li><code>GET /trips/{trip_id}/transit/lines</code></li>
+<li><code>GET /trips/{trip_id}/transit/lines/{line_id}</code></li>
+<li><code>GET /trips/{trip_id}/transit/stations/{station_id}</code></li>
+<li><code>GET /transit/{city}/map-stations?bbox=...</code></li>
+<li><strong>Redis Caching</strong>:</li>
+<li>Cache static line and station details briefly (TTL 1 hour).</li>
+</ol>
+<h3 id="phase-4-transit-tab-ui">Phase 4: Transit Tab UI<a class="headerlink" href="#phase-4-transit-tab-ui" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Nearby View</strong>:</li>
+<li>Anchors: Lodging + Day itinerary stops.</li>
+<li>Purpose-built station card: official line chips, walking minutes (~80m/min), distance, explicit accessibility badge, save button.</li>
+<li>Pure distance sort (no fake affinity or recommended rankings).</li>
+<li><strong>Lines View</strong>:</li>
+<li>Grouped by agency and mode.</li>
+<li>Drill-down: route pattern, ordered stations, map highlight.</li>
+<li><strong>Station Detail Drill-in</strong>:</li>
+<li>Header, serving lines, day-type headways, next scheduled departures.</li>
+<li><strong>Missing-Data States</strong>:</li>
+<li>Shared <code>TransitExplainBanner</code> explaining absence cleanly without empty cards.</li>
+</ol>
+<h3 id="phase-5-map-layer-station-detail-panel">Phase 5: Map Layer &amp; Station Detail Panel<a class="headerlink" href="#phase-5-map-layer-station-detail-panel" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Map Layer</strong>:</li>
+<li>Synchronize station markers and route polylines with the Transit tab.</li>
+<li>Approximate dashed polyline when <code>geometry_source == 'stop_sequence'</code>.</li>
+<li><strong>Station Inspector Drawer</strong>:</li>
+<li>When a station is selected, render a transit-specific station panel in <code>PoiDetailView</code> instead of the attraction inspector (no photo carousel, no per-person price, no suggested stay).</li>
+</ol>
+<h3 id="phase-6-saved-items-legacy-retirement">Phase 6: Saved Items &amp; Legacy Retirement<a class="headerlink" href="#phase-6-saved-items-legacy-retirement" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Station Saving</strong>:</li>
+<li>Use stable IDs <code>gtfs:&lt;city&gt;:&lt;station_id&gt;</code> in <code>localStorage</code>.</li>
+<li>Support backwards-compatibility for legacy <code>OSM-transit-*</code> IDs.</li>
+<li><strong>Retire Legacy Paths</strong>:</li>
+<li>Remove deprecated <code>transit_info</code> and legacy <code>/transit-line</code> endpoint once frontend has fully migrated.</li>
+</ol>
+<h3 id="phase-7-fares-clarification">Phase 7: Fares Clarification<a class="headerlink" href="#phase-7-fares-clarification" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Station Cards</strong>:</li>
+<li>Ensure stations display zero fare.</li>
+<li><strong>City-Level Transit Note</strong>:</li>
+<li>Display a single informational note in the Transit tab header sourced from <code>TransitFareService</code> only when <code>fare_unknown == false</code>.</li>
+<li>Label estimated fares clearly.</li>
+</ol>
+<hr />
+<h2 id="5-verification-plan">5. Verification Plan<a class="headerlink" href="#5-verification-plan" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Automated Tests (<code>backend/tests/</code>)</strong>:</li>
+<li><code>test_transit_search_exclusion.py</code>: Verify Search never returns transit POIs across category, All, and text search.</li>
+<li><code>test_transit_derivation.py</code>: Synthetic feeds for parent station collapsing, extended route types, <code>&gt;24h</code> times, missing files.</li>
+<li><code>test_transit_api.py</code>: Verify <code>/availability</code>, <code>/nearby</code>, <code>/lines</code>, and <code>/stations</code> with trip permission checks.</li>
+<li><strong>Frontend Tests</strong>:</li>
+<li>Verify tab navigation, state rendering, mode filtering, and absence banners.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+      
+        <script src="../../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../../js/mermaid.js"></script>
+      
+    
+  </body>
+</html>
