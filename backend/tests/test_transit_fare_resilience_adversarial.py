@@ -7,6 +7,7 @@ import httpx
 import pytest
 from app.domain.entities.poi import TransitStep
 from app.services.transit_fare_service import (
+    CityTransitFare,
     TransitFareExtractionSchema,
     TransitFareService,
     get_fare_cache,
@@ -33,6 +34,27 @@ async def test_preseeded_cities_o1_cache_hits():
     }
 
     cache = get_fare_cache()
+
+    # Pre-seed test entries into in-memory cache
+    for city, (
+        expected_single,
+        expected_pass,
+        expected_surcharge,
+        expected_source,
+    ) in preseeded.items():
+        cache.set(
+            city,
+            CityTransitFare(
+                city=city,
+                country="Country",
+                currency="EUR",
+                single_fare=expected_single,
+                pass_24h_price=expected_pass,
+                airport_surcharge=expected_surcharge,
+                source=expected_source,
+                is_estimated=False,
+            ),
+        )
 
     # Verify cache pre-seeding
     for city, (

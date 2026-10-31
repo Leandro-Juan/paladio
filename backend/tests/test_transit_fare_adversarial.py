@@ -14,9 +14,119 @@ import concurrent.futures
 import pytest
 from app.domain.entities.poi import TransitStep
 from app.services.transit_fare_service import (
+    CityTransitFare,
     TransitFareResult,
     TransitFareService,
+    get_fare_cache,
 )
+
+
+@pytest.fixture(autouse=True)
+def setup_test_fares():
+    cache = get_fare_cache()
+    fares = {
+        "madrid": CityTransitFare(
+            city="madrid",
+            country="Spain",
+            currency="EUR",
+            single_fare=1.50,
+            pass_24h_price=8.40,
+            pass_24h_name="Abono Turístico 1 Día (Zona A)",
+            pass_24h_includes_airport=True,
+            airport_surcharge=3.00,
+            airport_station_keywords=[
+                "aeropuerto t1-t2-t3",
+                "aeropuerto t4",
+                "aeropuerto",
+                "barajas",
+            ],
+            is_estimated=False,
+            source="official_crtm_tariff",
+        ),
+        "paris": CityTransitFare(
+            city="paris",
+            country="France",
+            currency="EUR",
+            single_fare=2.15,
+            pass_24h_price=8.45,
+            pass_24h_name="Navigo Jour (Zones 1-2)",
+            pass_24h_includes_airport=False,
+            airport_surcharge=9.65,
+            airport_station_keywords=[
+                "aeroport charles de gaulle",
+                "aeroport cdg",
+                "cdg",
+                "roissy",
+                "aeroport d'orly",
+                "orlyval",
+            ],
+            is_estimated=False,
+            source="official_idfm_tariff",
+        ),
+        "lisbon": CityTransitFare(
+            city="lisbon",
+            country="Portugal",
+            currency="EUR",
+            single_fare=1.80,
+            pass_24h_price=6.80,
+            pass_24h_name="Bilhete 24h Carris/Metro",
+            pass_24h_includes_airport=True,
+            airport_surcharge=0.0,
+            airport_station_keywords=["aeroporto", "aeroporto de lisboa"],
+            is_estimated=False,
+            source="official_carris_metro_tariff",
+        ),
+        "barcelona": CityTransitFare(
+            city="barcelona",
+            country="Spain",
+            currency="EUR",
+            single_fare=2.55,
+            pass_24h_price=11.20,
+            pass_24h_name="Hola Barcelona 24h Travel Card",
+            pass_24h_includes_airport=True,
+            airport_surcharge=2.95,
+            airport_station_keywords=[
+                "aeroport t1",
+                "aeroport t2",
+                "aeroport",
+                "el prat",
+            ],
+            is_estimated=False,
+            source="official_tmb_tariff",
+        ),
+        "rome": CityTransitFare(
+            city="rome",
+            country="Italy",
+            currency="EUR",
+            single_fare=1.50,
+            pass_24h_price=7.00,
+            pass_24h_name="Biglietto 24 Ore ATAC",
+            pass_24h_includes_airport=False,
+            airport_surcharge=12.50,
+            airport_station_keywords=["fiumicino", "aeroporto fiumicino", "ciampino"],
+            is_estimated=False,
+            source="official_atac_tariff",
+        ),
+        "tokyo": CityTransitFare(
+            city="tokyo",
+            country="Japan",
+            currency="JPY",
+            single_fare=168.0,
+            pass_24h_price=800.0,
+            pass_24h_name="Tokyo Subway 24-hour Ticket",
+            pass_24h_includes_airport=False,
+            airport_surcharge=0.0,
+            airport_station_keywords=["haneda", "narita", "羽田", "成田"],
+            is_estimated=False,
+            source="official_tokyo_metro_tariff",
+        ),
+    }
+    for k, v in fares.items():
+        cache.set(k, v)
+    yield
+    for k in fares:
+        cache.invalidate(k)
+
 
 # ============================================================================
 # 1. Madrid Airport -> Sol Specific Tests

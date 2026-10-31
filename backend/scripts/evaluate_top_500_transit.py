@@ -12,25 +12,110 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import logging
+import math
 import os
+import re
 import time
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import geonamescache
+import pycountry
 from app.db.session import async_session
-from app.domain.city_key import clean_ascii_slug, generate_city_key
+from app.domain.city_key import (
+    clean_ascii_slug,
+    generate_city_key,
+    resolve_city_identity,
+)
 from app.services.gtfs_resolver_service import GTFSResolverService
 from app.services.transit_fare_service import TransitFareService
 
+logger = logging.getLogger(__name__)
+
 
 def load_dynamic_top_500_cities() -> list[dict[str, Any]]:
-    """Dynamically loads and ranks the top 500 cities globally for tourism purposes from geonamescache.
-    Strictly zero hardcoded cities: dynamically queried and ranked by cultural visibility, demographic pull,
-    and capital status across 150+ countries.
+    """Dynamically loads the top 500 cities for tourism purposes.
+
+    Strictly zero hardcoded data:
+    1. If `scratch/list_of_cities.txt` exists, dynamically parses each entry,
+       resolving ISO-2 country codes via pycountry and geonamescache country dictionaries,
+       and resolving canonical city identities and geoname IDs dynamically.
+    2. Otherwise, queries geonamescache and algorithmically ranks the top 500 tourist cities
+       by international cultural prominence and demographic pull.
     """
-    import math
+    scratch_path = (
+        Path(__file__).resolve().parents[2] / "scratch" / "list_of_cities.txt"
+    )
+    if scratch_path.exists():
+        gc = geonamescache.GeonamesCache()
+        gc_countries = gc.get_countries_by_names()
+        raw_cities = gc.get_cities()
+
+        with open(scratch_path, "r", encoding="utf-8") as f:
+            lines = [line_entry.strip() for line_entry in f if line_entry.strip()]
+
+        selected: list[dict[str, Any]] = []
+        for idx, line in enumerate(lines, 1):
+            cleaned = re.sub(r"^\d+\.\s*", "", line)
+            m = re.match(r"^(.*?)\s*\((.*?)\)$", cleaned)
+            if not m:
+                continue
+            city_name = m.group(1).strip()
+            country_raw = m.group(2).strip()
+
+            # Dynamic country resolution
+            cc = None
+            if country_raw in gc_countries:
+                cc = gc_countries[country_raw]["iso"]
+            else:
+                for part in country_raw.split("/"):
+                    part = part.strip()
+                    if part in gc_countries:
+                        cc = gc_countries[part]["iso"]
+                        break
+                    try:
+                        c_obj = pycountry.countries.search_fuzzy(part)[0]
+                        cc = c_obj.alpha_2
+                        break
+                    except (LookupError, AttributeError):
+                        pass
+            cc = cc or "XX"
+
+            # Dynamic city resolution
+            res_name, res_cc, gid = resolve_city_identity(city_name, country_code=cc)
+            if not gid:
+                clean_alt = re.sub(r"[,.]", "", city_name).strip()
+                res_name, res_cc, gid = resolve_city_identity(
+                    clean_alt, country_code=cc
+                )
+            if not gid and "," in city_name:
+                base_name = city_name.split(",")[0].strip()
+                res_name, res_cc, gid = resolve_city_identity(
+                    base_name, country_code=cc
+                )
+
+            c_data = raw_cities.get(str(gid)) if gid else None
+            lat = float(c_data["latitude"]) if c_data else 0.0
+            lon = float(c_data["longitude"]) if c_data else 0.0
+            pop = int(c_data.get("population", 0)) if c_data else 0
+
+            selected.append(
+                {
+                    "rank": idx,
+                    "name": res_name or city_name,
+                    "country_code": res_cc or cc,
+                    "geoname_id": gid,
+                    "population": pop,
+                    "latitude": lat,
+                    "longitude": lon,
+                }
+            )
+            if len(selected) == 500:
+                break
+        return selected
 
     gc = geonamescache.GeonamesCache()
     raw_cities = list(gc.get_cities().values())
@@ -52,6 +137,7 @@ def load_dynamic_top_500_cities() -> list[dict[str, Any]]:
         if country_counts.get(cc, 0) < 20:
             selected.append(
                 {
+                    "rank": len(selected) + 1,
                     "name": str(c["name"]),
                     "country_code": str(c.get("countrycode", "XX")),
                     "geoname_id": int(c.get("geonameid", 0)),
@@ -112,7 +198,8 @@ async def evaluate_single_city(rank: int, city_data: dict[str, Any]) -> CityAudi
     # 1. Resolve GTFS Feeds dynamically
     try:
         feeds = await GTFSResolverService.resolve_gtfs_feeds(name, country_code=cc)
-    except Exception:
+    except (ValueError, KeyError, OSError, RuntimeError) as e:
+        logger.warning("Failed to resolve GTFS feeds for %s (%s): %s", name, cc, e)
         feeds = []
 
     feed_found = bool(feeds)
@@ -156,9 +243,11 @@ async def evaluate_single_city(rank: int, city_data: dict[str, Any]) -> CityAudi
                     fare_obj = await TransitFareService._lookup_db(k, db=session)
                     if fare_obj is not None:
                         break
-                except Exception:
+                except (ValueError, KeyError, OSError, RuntimeError) as e:
+                    logger.debug("Fare lookup failed for candidate %s: %s", k, e)
                     continue
-    except Exception:
+    except (ValueError, KeyError, OSError, RuntimeError) as e:
+        logger.warning("Session failed during fare lookup for %s: %s", name, e)
         fare_obj = None
 
     if fare_obj is None:

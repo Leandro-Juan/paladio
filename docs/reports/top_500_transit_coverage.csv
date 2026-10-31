@@ -1,501 +1,501 @@
 rank,city_name,country_code,geoname_id,population,city_key,feed_found,feed_count,feed_ids,primary_provider,download_url,is_official,tier,reason_code,has_gtfs_fares,fare_resolved,single_fare,currency,pass_24h_price,pass_24h_name,airport_surcharge,agency_name,fare_source,fare_unknown,missing_feed_defaults_to_empty,missing_pass_defaults_to_none,missing_agency_defaults_to_none,missing_fare_defaults_honestly
-1,Jerusalem,IL,281184,971800,jerusalem-il-281184,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-2,Beijing,CN,1816670,18960744,beijing-cn-1816670,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+1,Bangkok,TH,1609350,5104476,bangkok-th-1609350,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+2,Paris,FR,2988507,2138551,paris-fr-2988507,True,5,tdg-80931;tdg-67595;tdg-83530;tdg-83620;tdg-81474,Île-de-France Mobilités,https://files.mobilitydatabase.org/tdg-80931/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.15,EUR,8.45,IDFM 24h Pass,9.65,IDFM,official_idfm_tariff,False,True,True,True,True
 3,London,GB,2643743,8961989,london-gb-2643743,True,3,mdb-2688;mdb-2014;mdb-2900,Essex County Council,https://files.mobilitydatabase.org/mdb-2688/latest.zip,True,T0,OPEN_SCHEDULE,False,True,7.0,GBP,,,0.0,TfL,official_tfl_tariff,False,True,True,True,True
-4,Los Angeles,US,5368361,3820914,los-angeles-us-5368361,True,5,mdb-37;mdb-2201;mdb-1198;tld-1256;mdb-1210,Big Blue Bus,https://files.mobilitydatabase.org/mdb-37/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-5,Mogadishu,SO,53654,2587183,mogadishu-so-53654,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-6,Guangzhou,CN,1809858,16096724,guangzhou-cn-1809858,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-7,Paris,FR,2988507,2138551,paris-fr-2988507,True,5,tdg-80931;tdg-67595;tdg-83530;tdg-83620;tdg-81474,Île-de-France Mobilités,https://files.mobilitydatabase.org/tdg-80931/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.15,EUR,8.45,IDFM 24h Pass,9.65,IDFM,official_idfm_tariff,False,True,True,True,True
-8,Donetsk,UA,709717,901645,donetsk-ua-709717,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-9,Cape Town,ZA,3369157,4772846,cape-town-za-3369157,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-10,Algiers,DZ,2507480,2364230,algiers-dz-2507480,True,1,tdg-81023,Saint-Etienne Métropole,https://files.mobilitydatabase.org/tdg-81023/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-11,Alexandria,EG,361058,5263542,alexandria-eg-361058,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-12,Damascus,SY,170654,1569394,damascus-sy-170654,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-13,Kyiv,UA,703448,2952301,kyiv-ua-703448,True,1,mdb-3230,Kyiv,https://files.mobilitydatabase.org/mdb-3230/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-14,Amsterdam,NL,2759794,741636,amsterdam-nl-2759794,False,0,,,,False,T5,NO_FEED,False,True,3.4,EUR,10.0,GVB 24h Pass,0.0,GVB,official_gvb,False,True,True,True,True
-15,Ürümqi,CN,1529102,3029372,urumqi-cn-1529102,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-16,Ashgabat,TM,162183,1030063,ashgabat-tm-162183,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-17,Saint Petersburg,RU,498817,5351935,saint-petersburg-ru-498817,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-18,Rio de Janeiro,BR,3451190,6747815,rio-de-janeiro-br-3451190,True,1,mdb-1791,City Transport Secretary of Rio de Janeiro,https://files.mobilitydatabase.org/mdb-1791/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-19,Yerevan,AM,616052,1144700,yerevan-am-616052,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-20,Pyongyang,KP,1871859,3222000,pyongyang-kp-1871859,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-21,Moscow,RU,524901,10381222,moscow-ru-524901,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-22,Jakarta,ID,1642911,8540121,jakarta-id-1642911,True,1,mdb-1909,Transjakarta,https://files.mobilitydatabase.org/mdb-1909/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-23,New York City,US,5128581,8804190,new-york-city-us-5128581,True,5,mdb-519;mdb-513;ntd-20226;tld-4380;mdb-515,Downtown Alliance,https://files.mobilitydatabase.org/mdb-519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-24,Stockholm,SE,2673730,1515017,stockholm-se-2673730,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-25,Vientiane,LA,1651944,840940,vientiane-la-1651944,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-26,Luxembourg,LU,2960316,76684,luxembourg-lu-2960316,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-27,Hong Kong,HK,1819729,7396076,hong-kong-hk-1819729,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-28,Nicosia,CY,146268,200452,nicosia-cy-146268,True,3,mdb-2901;mdb-1918;mdb-1917,PAME EXPRESS,https://files.mobilitydatabase.org/mdb-2901/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-29,Buenos Aires,AR,3435910,2891082,buenos-aires-ar-3435910,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-30,Munich,DE,2867714,1505005,munich-de-2867714,True,3,mdb-2333;mdb-1085;mdb-772,Münchner Verkehrsgesellschaft (MVG),https://files.mobilitydatabase.org/mdb-2333/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-31,Rostov-on-Don,RU,501175,1130305,rostov-on-don-ru-501175,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-32,Istanbul,TR,745044,15701602,istanbul-tr-745044,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-33,Vagharshapat,AM,616062,47989,vagharshapat-am-616062,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-34,New Orleans,US,4335045,362701,new-orleans-us-4335045,True,1,ntd-60032,New Orleans Regional Transit Authority (NORTA),https://files.mobilitydatabase.org/ntd-60032/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-35,Beirut,LB,276781,1916100,beirut-lb-276781,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-36,Seoul,KR,1835848,10349312,seoul-kr-1835848,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-37,Helsinki,FI,658225,658864,helsinki-fi-658225,True,1,mdb-865,Helsingin seudun liikenne (HSL),https://files.mobilitydatabase.org/mdb-865/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-38,Jeddah,SA,105343,4697000,jeddah-sa-105343,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-39,Zürich,CH,2657896,415367,zurich-ch-2657896,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-40,Tel Aviv,IL,293397,432892,tel-aviv-il-293397,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-41,Bangkok,TH,1609350,5104476,bangkok-th-1609350,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-42,Mumbai,IN,1275339,12691836,mumbai-in-1275339,True,1,mdb-3138,"Mumbai Bus (BEST, KDMT)",https://files.mobilitydatabase.org/mdb-3138/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-43,Köln,DE,2886242,1024621,koln-de-2886242,True,4,mdb-778;mdb-1094;mdb-1085;mdb-769,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-44,Abu Dhabi,AE,292968,1807000,abu-dhabi-ae-292968,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-45,Budapest,HU,3054643,1741041,budapest-hu-3054643,True,2,mdb-990;tld-5862,Budapesti Közlekedési Központ (BKK),https://files.mobilitydatabase.org/mdb-990/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-46,Madrid,ES,3117735,3255944,madrid-es-3117735,True,5,mdb-793;mdb-2802;mdb-2720;mdb-791;mdb-2820,Empresa Municipal de Transportes de Madrid (EMT Madrid),https://files.mobilitydatabase.org/mdb-793/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,8.4,CRTM 24h Pass,3.0,CRTM,official_crtm_tariff,False,True,True,True,True
-47,Chelyabinsk,RU,1508291,1202371,chelyabinsk-ru-1508291,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-48,Djibouti,DJ,223817,626512,djibouti-dj-223817,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-49,San Marino,SM,3168070,4500,san-marino-sm-3168070,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-50,Riyadh,SA,108410,4205961,riyadh-sa-108410,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-51,Milwaukee,US,5263045,563531,milwaukee-us-5263045,True,3,mdb-2256;mdb-2321;tld-5741,Portage Area Regional Transportation Authority (PARTA),https://files.mobilitydatabase.org/mdb-2256/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-52,Shenzhen,CN,1795565,17494398,shenzhen-cn-1795565,True,2,mdb-1924;mdb-2933,Hong Kong Government Transport Department,https://files.mobilitydatabase.org/mdb-1924/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-53,São Paulo,BR,3448439,12400232,sao-paulo-br-3448439,True,1,mdb-8,São Paulo Transporte (SPTrans),https://files.mobilitydatabase.org/mdb-8/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-54,Sarajevo,BA,3191281,696731,sarajevo-ba-3191281,True,1,mdb-3427,Turistička agencija Li-Bus d.o.o. (Livnobus),https://files.mobilitydatabase.org/mdb-3427/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-55,Pretoria,ZA,964137,2112693,pretoria-za-964137,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-56,Mexico City,MX,3530597,12294193,mexico-city-mx-3530597,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-57,Brussels,BE,2800866,1019022,brussels-be-2800866,True,3,tdg-82199;mdb-1212;mdb-1868,Eurostar International Ltd.,https://files.mobilitydatabase.org/tdg-82199/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-58,Karachi,PK,1174872,11624219,karachi-pk-1174872,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-59,Nairobi,KE,184745,4397073,nairobi-ke-184745,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-60,Bratislava,SK,3060972,423737,bratislava-sk-3060972,True,2,tld-3363;mdb-2919,"Dopravný podnik Bratislava, a.s.",https://files.mobilitydatabase.org/tld-3363/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-61,Shenyang,CN,2034937,7050000,shenyang-cn-2034937,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-62,Kolkata,IN,1275004,4631392,kolkata-in-1275004,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-63,Athens,GR,264371,664046,athens-gr-264371,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-64,Zagreb,HR,3186886,663592,zagreb-hr-3186886,True,1,mdb-3043,HŽ Passenger Transport,https://files.mobilitydatabase.org/mdb-3043/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-65,Florence,IT,3176959,367150,florence-it-3176959,True,5,tld-6956;tld-6959;tld-6953;tld-6988;tld-6952,GEST S.p.A.,https://files.mobilitydatabase.org/tld-6956/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.7,EUR,,,0.0,AutolineeToscane,official_autolineetoscane,False,True,True,True,True
-66,Tashkent,UZ,1512569,1978028,tashkent-uz-1512569,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-67,Delhi,IN,1273294,11034555,delhi-in-1273294,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-68,Ganja,AZ,586523,330663,ganja-az-586523,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-69,Hangzhou,CN,1808926,9236032,hangzhou-cn-1808926,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-70,Cluj-Napoca,RO,681290,286598,cluj-napoca-ro-681290,True,1,mdb-2121,Compania de Transport Public Cluj-Napoca,https://files.mobilitydatabase.org/mdb-2121/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-71,Copenhagen,DK,2618425,1153615,copenhagen-dk-2618425,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-72,Ahmedabad,IN,1279233,6357693,ahmedabad-in-1279233,True,1,mdb-3131,"Ahmedabad Janmarg Ltd, Ahmedabad Municipal Transit Services",https://files.mobilitydatabase.org/mdb-3131/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-73,Beersheba,IL,295530,186600,beersheba-il-295530,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-74,Barcelona,ES,3128760,1686208,barcelona-es-3128760,True,4,mdb-1856;mdb-892;mdb-2926;mdb-2653,Railways of the Generalitat of Catalonia (Ferrocarrils de la Generalitat de Catalunya),https://files.mobilitydatabase.org/mdb-1856/latest.zip,True,T0,OPEN_SCHEDULE,True,True,2.55,EUR,11.2,TMB 24h Pass,2.95,TMB,official_tmb_tariff,False,True,True,True,True
-75,Québec,CA,6325494,531902,quebec-ca-6325494,True,3,mdb-757;mdb-763;tld-5721,Réseau de transport de la Capitale,https://files.mobilitydatabase.org/mdb-757/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-76,Ho Chi Minh City,VN,1566083,14002598,ho-chi-minh-city-vn-1566083,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-77,Grozny,RU,558418,297137,grozny-ru-558418,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-78,Strasbourg,FR,2973783,274845,strasbourg-fr-2973783,True,3,tdg-79220;tdg-80417;tdg-81653,CTS - Compagnie des Transports Strasbourgeois,https://files.mobilitydatabase.org/tdg-79220/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-79,Shanghai,CN,1796236,24874500,shanghai-cn-1796236,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-80,Chengdu,CN,1815286,13568357,chengdu-cn-1815286,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-81,Reykjavík,IS,3413829,118918,reykjavik-is-3413829,True,1,tld-4056,"Strætó BS, Reykjanesbær, Akureyri",https://files.mobilitydatabase.org/tld-4056/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-82,Marseille,FR,2995469,877215,marseille-fr-2995469,True,5,tdg-39589;tdg-83448;tdg-82136;tdg-82386;tdg-82321,Métropole d'Aix-Marseille-Provence,https://files.mobilitydatabase.org/tdg-39589/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-83,Wellington,NZ,2179537,381900,wellington-nz-2179537,True,1,mdb-1132,Metlink,https://files.mobilitydatabase.org/mdb-1132/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-84,Sofia,BG,727011,1152556,sofia-bg-727011,True,2,mdb-2848;mdb-3614,Urban Mobility Center - Sofia Traffic,https://files.mobilitydatabase.org/mdb-2848/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-85,Petropavlovsk-Kamchatsky,RU,2122104,181216,petropavlovsk-kamchatsky-ru-2122104,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-86,Chattogram,BD,1205733,3920222,chattogram-bd-1205733,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-87,Nanjing,CN,1799962,9314685,nanjing-cn-1799962,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-88,Tripoli,LY,2210247,1302947,tripoli-ly-2210247,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-89,Lviv,UA,702550,717273,lviv-ua-702550,True,1,mdb-2374,Lvivavtodor,https://files.mobilitydatabase.org/mdb-2374/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-90,Doha,QA,290030,344939,doha-qa-290030,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-91,Sharjah,AE,292672,1800000,sharjah-ae-292672,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-92,Cairo,EG,360630,9606916,cairo-eg-360630,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-93,Taipei,TW,1668341,7871900,taipei-tw-1668341,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-94,Shijiazhuang,CN,1795270,3938513,shijiazhuang-cn-1795270,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-95,Vienna,AT,2761369,1691468,vienna-at-2761369,True,1,mdb-648,"Wiener Lokalbahnen (WLB), Wiener Linien",https://files.mobilitydatabase.org/mdb-648/latest.zip,True,T0,OPEN_SCHEDULE,False,True,3.0,EUR,9.7,24-hour digital ticket,0.0,Wiener Linien,official_wiener_linien,False,True,True,True,True
-96,Johannesburg,ZA,993800,9418183,johannesburg-za-993800,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-97,Phnom Penh,KH,1821306,1573544,phnom-penh-kh-1821306,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-98,Hohhot,CN,2036892,2350000,hohhot-cn-2036892,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-99,Yuzhno-Sakhalinsk,RU,2119441,198973,yuzhno-sakhalinsk-ru-2119441,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-100,Tbilisi,GE,611717,1049498,tbilisi-ge-611717,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-101,Cheboksary,RU,569696,492331,cheboksary-ru-569696,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-102,Zhengzhou,CN,1784658,4253913,zhengzhou-cn-1784658,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-103,East Jerusalem,PS,7303419,428304,east-jerusalem-ps-7303419,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-104,Chongqing,CN,1814906,7457599,chongqing-cn-1814906,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-105,Philadelphia,US,4560349,1573916,philadelphia-us-4560349,True,5,mdb-3035;mdb-2877;mdb-502;mdb-509;tld-5783,PATCO Speedline,https://files.mobilitydatabase.org/mdb-3035/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-106,Tunis,TN,2464470,693210,tunis-tn-2464470,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-107,Gyumri,AM,616635,114667,gyumri-am-616635,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-108,Ljubljana,SI,3196359,272220,ljubljana-si-3196359,True,1,mdb-1827,Ljubljanski Potniški Promet,https://files.mobilitydatabase.org/mdb-1827/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-109,Hanoi,VN,1581130,8053663,hanoi-vn-1581130,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-110,Havana,CU,3553478,2163824,havana-cu-3553478,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-111,Vilnius,LT,593116,542366,vilnius-lt-593116,True,4,tld-4477;mdb-1044;mdb-2991;mdb-1834,"Lietuvos transporto saugos administracija, Lazdijų r. sav., Utenos r. sav., Šalčininkų rajono savivaldybės administracija, Širvintų r. sav., Šiaulių r. sav., Jurbarko r. sav., Alytaus r. sav., Vilniaus r. sav., Ignalinos r. sav., Neringos sav., Akcinė bendrovė ""SMILTYNĖS PERKĖLA"", UAB ""Joniškio autobusų parkas"", Rokiškio r. sav., Uždaroji akcinė bendrovė ""UKMERGĖS AUTOBUSŲ PARKAS"", Anykščių r. sav., Kaišiadorių r. sav., Kauno m. sav., Marijampolės savivaldybės administracija, Mažeikių r. sav., Molėtų r. sav., Pakruojo r. sav., Biržų r. sav., Jonavos r. sav., Klaipėdos r. sav., Kretingos r. sav., Kupiškio r. sav., Šiaulių m. sav., Šilutės r. sav., Kelmės r. sav., Plungės r. sav., Švenčionių r. sav., Ukmergės r. sav., Varėnos r. sav., Zarasų r. sav., Vilniaus m. sav., Akmenės r. sav., Alytaus m. sav., Pasvalio r. sav., Uždaroji akcinė bendrovė Kuršėnų autobusų parkas, UŽDAROJI AKCINĖ BENDROVĖ ""EMTRA"", Uždaroji akcinė bendrovė Širvintų autobusų parkas",https://files.mobilitydatabase.org/tld-4477/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-112,Warsaw,PL,756135,1702139,warsaw-pl-756135,True,3,mdb-2092;mdb-3191;mdb-2087,Warszawski Transport Publiczny (ZTM Warszawa),https://files.mobilitydatabase.org/mdb-2092/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-113,San Francisco,US,5391959,827526,san-francisco-us-5391959,True,1,mdb-53,Bay Area Rapid Transit (BART),https://files.mobilitydatabase.org/mdb-53/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-114,Kathmandu,NP,1283240,1442271,kathmandu-np-1283240,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-115,Boston,US,4930956,653833,boston-us-4930956,True,5,mdb-3033;mdb-2299;mdb-441;mdb-437;mdb-2297,Boston Express,https://files.mobilitydatabase.org/mdb-3033/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-116,Hamburg,DE,2911298,1973896,hamburg-de-2911298,True,1,mdb-3362,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-117,Madinah,SA,109223,1300000,madinah-sa-109223,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-118,Tianjin,CN,1792947,11090314,tianjin-cn-1792947,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-119,Changchun,CN,2038180,4714996,changchun-cn-2038180,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-120,Chennai,IN,1264527,4681087,chennai-in-1264527,True,1,mdb-3360,Chennai Transport Corporation,https://files.mobilitydatabase.org/mdb-3360/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-121,Fuzhou,CN,1810821,3740000,fuzhou-cn-1810821,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-122,Valparaíso,CL,3868626,282448,valparaiso-cl-3868626,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-123,Blagoveshchensk,RU,2026609,225091,blagoveshchensk-ru-2026609,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-124,Wrocław,PL,3081368,672545,wrocaw-pl-3081368,True,2,mdb-2087;mdb-3191,Polregio,https://files.mobilitydatabase.org/mdb-2087/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-125,Bishkek,KG,1528675,900000,bishkek-kg-1528675,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-126,Katowice,PL,3096472,286960,katowice-pl-3096472,True,4,mdb-2399;tld-7878;mdb-3122;mdb-2087,ZTM Katowice,https://files.mobilitydatabase.org/mdb-2399/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-127,Kuala Lumpur,MY,1735161,1453975,kuala-lumpur-my-1735161,True,2,tld-6771;tld-6758,Prasarana Malaysia,https://files.mobilitydatabase.org/tld-6771/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-128,Brasília,BR,3469058,2207718,brasilia-br-3469058,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-129,Ankara,TR,323786,3517182,ankara-tr-323786,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-130,Dublin,IE,2964574,1024027,dublin-ie-2964574,True,5,mdb-2638;tld-617;tld-635;mdb-2635;mdb-2639,LUAS,https://files.mobilitydatabase.org/mdb-2638/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-131,Sydney,AU,2147714,5638830,sydney-au-2147714,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-132,Astana,KZ,1526273,1544142,astana-kz-1526273,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-133,Kunming,CN,1804651,3855346,kunming-cn-1804651,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-134,Wuhan,CN,1791247,10392693,wuhan-cn-1791247,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-135,Valencia,ES,2509954,824340,valencia-es-2509954,True,3,mdb-795;mdb-1870;mdb-2653,Empresa Municipal de Transportes de Valencia (EMT Valencia),https://files.mobilitydatabase.org/mdb-795/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.5,EUR,,,0.0,ADIF,official_adif,False,True,True,True,True
-136,Tallinn,EE,588409,394024,tallinn-ee-588409,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-137,Jericho,PS,284899,19783,jericho-ps-284899,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-138,Dhaka,BD,1185241,10356500,dhaka-bd-1185241,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-139,New Haven,US,4839366,130322,new-haven-us-4839366,True,4,mdb-524;mdb-553;ntd-20226;mdb-2297,Metro-North Railroad,https://files.mobilitydatabase.org/mdb-524/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-140,Casablanca,MA,2553604,3665954,casablanca-ma-2553604,True,1,mdb-3462,Casatramway,https://files.mobilitydatabase.org/mdb-3462/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-141,Albany,US,5106834,101228,albany-us-5106834,True,5,mdb-3116;mdb-804;tld-6745;tld-5877;mdb-450,Columbia County Public Transportation,https://files.mobilitydatabase.org/mdb-3116/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-142,Deir ez-Zor,SY,170794,271800,deir-ez-zor-sy-170794,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-143,Chicago,US,4887398,2664452,chicago-us-4887398,True,5,mdb-389;mdb-2347;mdb-2256;mdb-2321;tld-5741,Chicago Transit Authority (CTA),https://files.mobilitydatabase.org/mdb-389/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-144,Kabul,AF,1138958,4434550,kabul-af-1138958,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-145,Al ‘Āshir min Ramaḑān,EG,353229,246148,al-ashir-min-ramadan-eg-353229,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-146,Concepción,CL,3893894,223574,concepcion-cl-3893894,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-147,San Jose,US,5392171,997368,san-jose-us-5392171,True,5,mdb-57;mdb-54;mdb-2273;mdb-74;mdb-2174,Santa Clara Valley Transportation Authority (VTA),https://files.mobilitydatabase.org/mdb-57/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-148,Yangon,MM,1298824,4477638,yangon-mm-1298824,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-149,Jinan,CN,1805753,4335989,jinan-cn-1805753,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-150,Iaşi,RO,675810,378954,iasi-ro-675810,True,1,mdb-2116,Compania de Transport Public Iași,https://files.mobilitydatabase.org/mdb-2116/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-151,Dnipro,UA,709930,968502,dnipro-ua-709930,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-152,Adıyaman,TR,325330,290883,adyaman-tr-325330,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-153,Skopje,MK,785842,474889,skopje-mk-785842,True,2,mdb-3045;mdb-3461,JSP Skopje,https://files.mobilitydatabase.org/mdb-3045/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-154,Montevideo,UY,3441575,1270737,montevideo-uy-3441575,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-155,Latakia,SY,173576,709000,latakia-sy-173576,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-156,Nashville,US,4644585,689447,nashville-us-4644585,True,3,mdb-360;mdb-2321;tld-5741,Nashville MTA WeGo Public Transit,https://files.mobilitydatabase.org/mdb-360/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-157,Thimphu,BT,1252416,98676,thimphu-bt-1252416,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-158,Astrakhan,RU,580497,533925,astrakhan-ru-580497,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-159,Salzburg,AT,2766824,157245,salzburg-at-2766824,True,2,mdb-3573;mdb-768,STA - Südtiroler Transportstrukturen AG,https://files.mobilitydatabase.org/mdb-3573/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-160,Kazan,RU,551487,1243500,kazan-ru-551487,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-161,Valletta,MT,2562305,6794,valletta-mt-2562305,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-162,Lanzhou,CN,1804430,3000000,lanzhou-cn-1804430,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-163,Amman,JO,250441,1275857,amman-jo-250441,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-164,Canberra,AU,2172517,367752,canberra-au-2172517,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-165,Edinburgh,GB,2650225,514990,edinburgh-gb-2650225,True,5,mdb-2911;mdb-2900;mdb-2906;mdb-1929;mdb-1957,Midland Bluebird,https://files.mobilitydatabase.org/mdb-2911/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-166,Jamshedpur,IN,1269300,1339438,jamshedpur-in-1269300,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-167,Rome,IT,3169070,2318895,rome-it-3169070,True,3,mdb-1294;mdb-1319;mdb-3386,Roma Servizi per la Mobilità,https://files.mobilitydatabase.org/mdb-1294/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,7.0,ATAC 24h Pass,12.5,ATAC,official_atac_tariff,False,True,True,True,True
-168,Szczecin,PL,3083829,395513,szczecin-pl-3083829,True,1,mdb-981,Zarząd Dróg i Transportu Miejskiego (ZDiTM),https://files.mobilitydatabase.org/mdb-981/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-169,Kinshasa,CD,2314302,16000000,kinshasa-cd-2314302,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-170,Port of Spain,TT,3573890,49031,port-of-spain-tt-3573890,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-171,Petaẖ Tiqva,IL,293918,253529,petah-tiqva-il-293918,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-172,Dar es Salaam,TZ,160263,5383728,dar-es-salaam-tz-160263,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-173,Phoenix,US,5308655,1650070,phoenix-us-5308655,True,3,mdb-147;mdb-2321;tld-5741,Valley Metro (VM),https://files.mobilitydatabase.org/mdb-147/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-174,Novosibirsk,RU,1496747,1612833,novosibirsk-ru-1496747,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-175,Gwangju,KR,1841811,1401235,gwangju-kr-1841811,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-176,Constanţa,RO,680963,317832,constanta-ro-680963,True,1,mdb-3236,Romanian Railway Operators,https://files.mobilitydatabase.org/mdb-3236/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-177,Adelaide,AU,2078025,1469163,adelaide-au-2078025,True,1,mdb-660,Adelaide Metro,https://files.mobilitydatabase.org/mdb-660/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-178,Kardzhali,BG,729794,44071,kardzhali-bg-729794,True,1,mdb-3614,BDZh Patnicheski Prevozi,https://files.mobilitydatabase.org/mdb-3614/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-179,Georgetown,GY,3378644,235017,georgetown-gy-3378644,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-180,Bandar Seri Begawan,BN,1820906,64409,bandar-seri-begawan-bn-1820906,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-181,Chisinau,MD,618426,635994,chisinau-md-618426,True,1,mdb-2341,"Regia Transport Electric Chișinău, Î.M. Parcul Urban de Autobuze",https://files.mobilitydatabase.org/mdb-2341/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-182,Targovishte,BG,726174,34793,targovishte-bg-726174,True,1,mdb-3614,BDZh Patnicheski Prevozi,https://files.mobilitydatabase.org/mdb-3614/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-183,Visakhapatnam,IN,1253102,1063178,visakhapatnam-in-1253102,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-184,Bucharest,RO,683506,1877155,bucharest-ro-683506,True,1,mdb-2098,Asociația de Dezvoltare Intercomunitară pentru Transport Public București – Ilfov (TPBI),https://files.mobilitydatabase.org/mdb-2098/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-185,Bengaluru,IN,1277333,8495492,bengaluru-in-1277333,True,1,mdb-2595,Bangalore Metropolitan Transport Corporation (BMTC),https://files.mobilitydatabase.org/mdb-2595/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-186,Ulan Bator,MN,2028462,844818,ulan-bator-mn-2028462,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-187,Timbuktu,ML,2449067,84208,timbuktu-ml-2449067,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-188,Denver,US,5419384,729019,denver-us-5419384,True,5,mdb-2054;mdb-2169;mdb-172;mdb-2280;mdb-2330,Regional Transportation District,https://files.mobilitydatabase.org/mdb-2054/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-189,Nouakchott,MR,2377450,1184530,nouakchott-mr-2377450,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-190,Vijayawada,IN,1253184,1143232,vijayawada-in-1253184,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-191,Kyzylorda,KZ,1519922,354800,kyzylorda-kz-1519922,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-192,Beverly Hills,US,5328041,34869,beverly-hills-us-5328041,True,5,mdb-30;mdb-37;tld-1256;mdb-1210;mdb-96,Los Angeles County Metropolitan Transportation Authority (LA Metro),https://files.mobilitydatabase.org/mdb-30/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-193,Santa Fe,US,5490263,87505,santa-fe-us-5490263,True,4,tld-5537;tld-1319;mdb-2321;tld-5741,NMDOT Park and Ride,https://files.mobilitydatabase.org/tld-5537/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-194,Jalandhar,IN,1268782,868929,jalandhar-in-1268782,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-195,Kraków,PL,3094802,816614,krakow-pl-3094802,True,3,mdb-1270;mdb-3122;tld-6055,Zarząd Transportu Publicznego w Krakowie (ZTP Kraków),https://files.mobilitydatabase.org/mdb-1270/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-196,Kropyvnytskyi,UA,705812,219676,kropyvnytskyi-ua-705812,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-197,Oklahoma City,US,4544349,681054,oklahoma-city-us-4544349,True,3,mdb-2062;mdb-2321;tld-5741,Embark,https://files.mobilitydatabase.org/mdb-2062/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-198,Ijevan,AM,616627,19500,ijevan-am-616627,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-199,Uetersen,DE,2818067,17921,uetersen-de-2818067,True,2,mdb-3362;mdb-1089,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-200,Hannover,DE,2910831,515140,hannover-de-2910831,True,5,mdb-3362;mdb-1085;mdb-769;mdb-3107;mdb-1089,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-201,Acre,IL,295721,51420,acre-il-295721,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-202,Ovruch,UA,698131,15332,ovruch-ua-698131,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-203,Pécs,HU,3046526,145347,pecs-hu-3046526,True,2,mdb-861;tld-5862,BIOKOM,https://files.mobilitydatabase.org/mdb-861/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-204,Islamabad,PK,1176615,601600,islamabad-pk-1176615,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-205,Khanty-Mansiysk,RU,1503772,101466,khanty-mansiysk-ru-1503772,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-206,Incheon,KR,1843564,3015482,incheon-kr-1843564,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-207,Thanjavur,IN,1254649,291067,thanjavur-in-1254649,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-208,Naples,IT,3172394,909048,naples-it-3172394,True,3,mdb-893;tld-47;tld-4833,Azienda Napoletana Mobilità,https://files.mobilitydatabase.org/mdb-893/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-209,Brisbane,AU,2174003,2780063,brisbane-au-2174003,True,1,mdb-3048,Translink South East Queensland (Translink SEQ),https://files.mobilitydatabase.org/mdb-3048/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-210,Daugavpils,LV,460413,78126,daugavpils-lv-460413,True,2,mdb-3494;mdb-992,Daugavpils satiksme,https://files.mobilitydatabase.org/mdb-3494/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-211,Vanadzor,AM,616530,78100,vanadzor-am-616530,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-212,Antananarivo,MG,1070940,1349501,antananarivo-mg-1070940,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-213,Sevilla,ES,2510911,686741,sevilla-es-2510911,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,3.5,Sevilla 24h,0.0,ATAC,official_atac,False,True,True,True,True
-214,Aleppo,SY,170063,2098210,aleppo-sy-170063,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-215,Ulyanovsk,RU,479123,626540,ulyanovsk-ru-479123,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-216,Jamnagar,IN,1269317,600943,jamnagar-in-1269317,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-217,Edirne,TR,747712,180002,edirne-tr-747712,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-218,Basel,CH,2661604,177595,basel-ch-2661604,True,1,tdg-80437,Fluo Grand Est,https://files.mobilitydatabase.org/tdg-80437/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-219,Nuremberg,DE,2861650,515543,nuremberg-de-2861650,True,5,mdb-858;mdb-774;mdb-1172;mdb-1085;mdb-769,Ver­kehrs­ver­bund Groß­raum Nürn­berg (VGN),https://files.mobilitydatabase.org/mdb-858/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-220,Oxford,GB,2640729,162100,oxford-gb-2640729,True,2,mdb-1947;mdb-1932,Oxford Bus,https://files.mobilitydatabase.org/mdb-1947/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.5,EUR,,,0.0,TfO (Transport for Oxford),official_tfo_(transport_for_oxford),False,True,True,True,True
-221,Isfahan,IR,418863,1547164,isfahan-ir-418863,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-222,Libreville,GA,2399697,846090,libreville-ga-2399697,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-223,Asunción,PY,3439389,1482200,asuncion-py-3439389,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-224,Tehran,IR,112931,7153309,tehran-ir-112931,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-225,Odesa,UA,698740,1010537,odesa-ua-698740,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-226,Jaipur,IN,1269515,3046163,jaipur-in-1269515,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-227,Chernihiv,UA,710735,282747,chernihiv-ua-710735,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-228,Port Louis,MU,934154,155226,port-louis-mu-934154,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-229,Düsseldorf,DE,2934246,618685,dusseldorf-de-2934246,True,5,mdb-778;mdb-1094;mdb-1085;mdb-769;mdb-3107,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-230,Berlin,DE,2950159,3426354,berlin-de-2950159,True,2,mdb-782;mdb-3107,Verkehrsverbund Berlin-Brandenburg (VBB),https://files.mobilitydatabase.org/mdb-782/latest.zip,True,T0,OPEN_SCHEDULE,False,True,4.0,EUR,11.2,24-hour Ticket,0.0,"Official transport authority or operator name (e.g. BVG, TfL, MTA, GVB, Wiener Linien)","official_official_transport_authority_or_operator_name_(e.g._bvg,_tfl,_mta,_gvb,_wiener_linien)",False,True,True,True,True
-231,New Delhi,IN,1261481,317797,new-delhi-in-1261481,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-232,Kozhikode,IN,1265873,550440,kozhikode-in-1265873,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-233,Antwerp,BE,2803138,529247,antwerp-be-2803138,True,2,mdb-686;tdg-82199,Société nationale des chemins de fer belges (NMBS-SNCB),https://files.mobilitydatabase.org/mdb-686/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-234,Venice,IT,3164603,51298,venice-it-3164603,True,5,mdb-891;mdb-1062;mdb-1063;mdb-3590;mdb-1319,Alilaguna,https://files.mobilitydatabase.org/mdb-891/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-235,Leipzig,DE,2879139,504971,leipzig-de-2879139,True,5,mdb-2360;mdb-782;mdb-1172;mdb-1085;mdb-769,Mitteldeutscher Verkehrsverbund GmbH (MDV),https://files.mobilitydatabase.org/mdb-2360/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-236,Gdańsk,PL,3099434,487371,gdansk-pl-3099434,True,1,mdb-2093,Zarząd Transportu Miejskiego Gdańsk (ZTM Gdańsk),https://files.mobilitydatabase.org/mdb-2093/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-237,Novhorod-Siverskyi,UA,699753,15175,novhorod-siverskyi-ua-699753,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-238,Kaliningrad,RU,554234,475056,kaliningrad-ru-554234,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-239,Charleston,US,4801859,46838,charleston-us-4801859,True,2,ntd-40206;mdb-352,TriCounty Link,https://files.mobilitydatabase.org/ntd-40206/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-240,Kayseri,TR,308464,1452458,kayseri-tr-308464,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-241,Muscat,OM,287286,797000,muscat-om-287286,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-242,Shymkent,KZ,1518980,1200000,shymkent-kz-1518980,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-243,Colombo,LK,1248991,648034,colombo-lk-1248991,True,1,mdb-3490,Lanka Metro Transit,https://files.mobilitydatabase.org/mdb-3490/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-244,Plovdiv,BG,728193,329489,plovdiv-bg-728193,True,2,mdb-3607;mdb-3614,Plovdiv Municipality Transport Organisation and Control,https://files.mobilitydatabase.org/mdb-3607/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-245,Volgograd,RU,472757,1013533,volgograd-ru-472757,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-246,Chernivtsi,UA,710719,264298,chernivtsi-ua-710719,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-247,San Juan,PR,4568127,418140,san-juan-pr-4568127,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-248,Gjirokastër,AL,783148,23437,gjirokaster-al-783148,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-249,Houston,US,4699066,2314157,houston-us-4699066,True,3,mdb-2060;mdb-2321;tld-5741,METRO Houston,https://files.mobilitydatabase.org/mdb-2060/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-250,Mashhad,IR,124665,2307177,mashhad-ir-124665,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-251,Kremenchuk,UA,704147,224997,kremenchuk-ua-704147,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-252,Mainz,DE,2874225,222889,mainz-de-2874225,True,4,mdb-778;mdb-1085;mdb-769;mdb-3107,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-253,Ta’if,SA,107968,688693,taif-sa-107968,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-254,Salt Lake City,US,5780993,215548,salt-lake-city-us-5780993,True,2,mdb-170;tld-7037,Utah Transit Authority (UTA),https://files.mobilitydatabase.org/mdb-170/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-255,Macau,MO,1821274,649335,macau-mo-1821274,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-256,Glasgow,GB,2648579,626410,glasgow-gb-2648579,True,5,mdb-1957;mdb-1941;mdb-2911;mdb-2014;mdb-2900,West Coast Motors,https://files.mobilitydatabase.org/mdb-1957/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-257,Mosul,IQ,99072,1683000,mosul-iq-99072,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-258,Abuja,NG,2352778,2690000,abuja-ng-2352778,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-259,Gaza,PS,281133,410000,gaza-ps-281133,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-260,Manas,KG,1528249,123239,manas-kg-1528249,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-261,Srinagar,IN,1255634,1206419,srinagar-in-1255634,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-262,Charlotte Amalie,VI,4795467,20000,charlotte-amalie-vi-4795467,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-263,Singapore,SG,1880252,5638700,singapore-sg-1880252,True,1,mdb-1076,"SMRT, SBS Transit (SBST), Land Transport Authority (LTA), Go Ahead Singapore (GAS), Tower Transit (TTS)",https://files.mobilitydatabase.org/mdb-1076/latest.zip,False,T0,OPEN_SCHEDULE,False,True,1.0,SGD,,,0.6,LTA (Land Transport Authority),official_lta_(land_transport_authority),False,True,True,True,True
-264,Pristina,XK,786714,550000,pristina-xk-786714,True,1,mdb-3483,ShowMeBus,https://files.mobilitydatabase.org/mdb-3483/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-265,Tyumen,RU,1488754,768358,tyumen-ru-1488754,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-266,Oslo,NO,3143244,1082575,oslo-no-3143244,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-267,Gothenburg,SE,2711537,608462,gothenburg-se-2711537,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-268,Oradea,RO,671768,183105,oradea-ro-671768,True,1,mdb-3236,Romanian Railway Operators,https://files.mobilitydatabase.org/mdb-3236/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-269,Saarbrücken,DE,2842647,182971,saarbrucken-de-2842647,True,4,tdg-80467;mdb-774;mdb-1085;mdb-769,Fluo Grand Est,https://files.mobilitydatabase.org/tdg-80467/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-270,Bilhorod-Dnistrovskyi,UA,712160,47727,bilhorod-dnistrovskyi-ua-712160,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-271,Baku,AZ,587084,2351300,baku-az-587084,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-272,Antakya,TR,323779,399045,antakya-tr-323779,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-273,San José,CR,3621849,335007,san-jose-cr-3621849,True,1,mdb-3480,INCOFER,https://files.mobilitydatabase.org/mdb-3480/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-274,Lisbon,PT,2267057,517802,lisbon-pt-2267057,True,5,tld-716;mdb-2929;mdb-2027;mdb-2057;mdb-3412,Metro de Lisboa (Metro),https://files.mobilitydatabase.org/tld-716/latest.zip,True,T0,OPEN_SCHEDULE,True,True,1.8,EUR,6.8,Carris/Metro 24h Pass,0.0,Carris/Metro,official_carris_metro_tariff,False,True,True,True,True
-275,Afyonkarahisar,TR,325303,251799,afyonkarahisar-tr-325303,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-276,Port-au-Prince,HT,3718426,1234742,port-au-prince-ht-3718426,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-277,Windhoek,NA,3352136,386219,windhoek-na-3352136,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-278,Łódź,PL,3093133,639890,odz-pl-3093133,True,1,mdb-3477,Lodz Suburban & Regional Bus,https://files.mobilitydatabase.org/mdb-3477/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-279,Abidjan,CI,2293538,6321017,abidjan-ci-2293538,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-280,Liège,BE,2792413,195278,liege-be-2792413,True,3,mdb-1212;tdg-82199;mdb-1868,Société Régionale Wallonne du Transport,https://files.mobilitydatabase.org/mdb-1212/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-281,Diyarbakır,TR,316541,1833684,diyarbakr-tr-316541,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-282,Ujjain,IN,1253914,515215,ujjain-in-1253914,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-283,Uliastay,MN,1515007,16265,uliastay-mn-1515007,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-284,Kyoto,JP,1857910,1463723,kyoto-jp-1857910,True,1,jbda-shinkikanko-limonbus,神姫観光,https://files.mobilitydatabase.org/jbda-shinkikanko-limonbus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-285,Nakhon Si Thammarat,TH,1151933,102152,nakhon-si-thammarat-th-1151933,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-286,Murmansk,RU,524305,295374,murmansk-ru-524305,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-287,Monrovia,LR,2274895,1542549,monrovia-lr-2274895,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-288,Belo Horizonte,BR,3470127,2721564,belo-horizonte-br-3470127,True,1,mdb-687,Empresa de Transportes e Transito de Belo Horizonte (BHTRANS),https://files.mobilitydatabase.org/mdb-687/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-289,Cherkasy,UA,710791,269836,cherkasy-ua-710791,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-290,Dili,TL,1645457,150000,dili-tl-1645457,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-291,Manama,BH,290340,147074,manama-bh-290340,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-292,N'Djamena,TD,2427123,1359526,n-djamena-td-2427123,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-293,Bern,CH,2661552,121631,bern-ch-2661552,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-294,Ottawa,CA,6094817,1017449,ottawa-ca-6094817,True,3,mdb-2154;mdb-740;mdb-739,Ottawa-Carleton Regional Transit Commission (OC Transpo),https://files.mobilitydatabase.org/mdb-2154/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-295,Poznań,PL,3088171,536151,poznan-pl-3088171,True,2,mdb-982;mdb-2087,Zarząd Transportu Miejskiego Poznań (ZTM Poznań),https://files.mobilitydatabase.org/mdb-982/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-296,Luanda,AO,2240449,2776168,luanda-ao-2240449,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-297,Jeju City,KR,1846266,488844,jeju-city-kr-1846266,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-298,Dubai,AE,292223,3790000,dubai-ae-292223,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-299,Santiago de Compostela,ES,3109642,99536,santiago-de-compostela-es-3109642,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-300,Magdeburg,DE,2874545,244329,magdeburg-de-2874545,True,5,mdb-3362;mdb-782;mdb-1085;mdb-769;mdb-3107,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-301,Belgrade,RS,792680,1273651,belgrade-rs-792680,True,2,mdb-1027;mdb-2925,Republic of Serbia,https://files.mobilitydatabase.org/mdb-1027/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-302,Sankt Pölten,AT,2766429,21911,sankt-polten-at-2766429,True,1,mdb-3573,STA - Südtiroler Transportstrukturen AG,https://files.mobilitydatabase.org/mdb-3573/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-303,Frankfurt am Main,DE,2925533,650000,frankfurt-am-main-de-2925533,True,5,mdb-1172;mdb-1085;mdb-769;mdb-3107;mdb-1089,Verkehrsverbund Mittelthüringen (VMT),https://files.mobilitydatabase.org/mdb-1172/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-304,Geneva,CH,2660646,201741,geneva-ch-2660646,True,3,tdg-76779;tdg-81585;mdb-2053,Communauté d'Agglomération Annemasse - les Voirons Agglomération,https://files.mobilitydatabase.org/tdg-76779/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-305,Vladivostok,RU,2013348,604901,vladivostok-ru-2013348,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-306,Makhachkala,RU,532096,596356,makhachkala-ru-532096,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-307,Manchester,GB,2643123,568996,manchester-gb-2643123,True,3,mdb-1103;mdb-1936;mdb-1953,"Transport for Greater Manchester Arriva in the North West, Atlantic Travel, Bestway Travel, Belle Vue Coaches, Blackburn Private Hire, The Burnley Bus Company, Bullocks Coaches, Cumfy Bus, D&G Bus, Don Fraser Coaches Ltd, Finch Coaches, First Halifax, Calder Valley & Huddersfield, First in Greater Manchester, Little Gem, Go North West, Diamond Bus North West, Harris Travel, Hattons Transport, Hiltons Travel, High Peak, Huyton Travel, Holmeswood Coaches, Link Network, The Blackburn Bus Company, Maghull Coaches, Metrolink, Olympia Travel UK Ltd, Preston Bus, Nexus Move, Rosso, Tyrers, Stagecoach Merseyside and South Lancashire, Stagecoach in Greater Manchester, Selwyn's Travel, South Pennine C.T., Stotts, Travel Assist, Team Pennine, Viking Coaches, Vision Bus, Warrington's Own Buses",https://files.mobilitydatabase.org/mdb-1103/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-308,Dresden,DE,2935022,564904,dresden-de-2935022,True,5,mdb-782;mdb-1172;mdb-769;mdb-3107;mdb-1089,Verkehrsverbund Berlin-Brandenburg (VBB),https://files.mobilitydatabase.org/mdb-782/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-309,Yamoussoukro,CI,2279755,275686,yamoussoukro-ci-2279755,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-310,Auckland,NZ,2193733,1547200,auckland-nz-2193733,True,2,mdb-3425;mdb-1029,Mahu City Express,https://files.mobilitydatabase.org/mdb-3425/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-311,Freetown,SL,2409306,802639,freetown-sl-2409306,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-312,Ramallah,PS,282239,43880,ramallah-ps-282239,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-313,Bandar Abbas,IR,141681,352173,bandar-abbas-ir-141681,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-314,Manila,PH,1701668,1600000,manila-ph-1701668,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-315,Aachen,DE,3247449,265208,aachen-de-3247449,True,3,mdb-1094;mdb-1085;mdb-769,"Rurtalbahn GmbH, ABELLIO Rail, VIAS GmbH, Aachener Straßenbahn und Energieversorgungs-AG, Rurtalbus GmbH, WestVerkehr GmbH, Staatsbahnen, National Express, ASEAG Netliner",https://files.mobilitydatabase.org/mdb-1094/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-316,Oaxaca,MX,3522507,255029,oaxaca-mx-3522507,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-317,Bujumbura,BI,425378,769317,bujumbura-bi-425378,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-318,Erzurum,TR,315368,767848,erzurum-tr-315368,True,2,mdb-3402;mdb-2922,KentKart Erzurum - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3402/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-319,Tirana,AL,3183875,418495,tirana-al-3183875,True,1,mdb-2345,Municipality of Tirana,https://files.mobilitydatabase.org/mdb-2345/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-320,Türkmenabat,TM,1219649,230861,turkmenabat-tm-1219649,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-321,Córdoba,AR,3860259,2106734,cordoba-ar-3860259,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-322,Curitiba,BR,3464975,1948626,curitiba-br-3464975,True,1,mdb-3225,URBS Curitiba,https://files.mobilitydatabase.org/mdb-3225/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-323,Vadodara,IN,1253573,1822221,vadodara-in-1253573,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-324,Lagos,NG,2332459,15388000,lagos-ng-2332459,True,1,mdb-3144,Lagos State Waterways,https://files.mobilitydatabase.org/mdb-3144/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-325,Tegucigalpa,HN,3600949,850848,tegucigalpa-hn-3600949,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-326,Ouagadougou,BF,2357048,2415266,ouagadougou-bf-2357048,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-327,Antalya,TR,323777,1335002,antalya-tr-323777,True,2,mdb-3406;mdb-2922,KentKart Antalya - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3406/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-328,Podgorica,ME,3193044,236852,podgorica-me-3193044,True,1,mdb-2377,Željeznički prevoz Crne Gore,https://files.mobilitydatabase.org/mdb-2377/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-329,Victoria,SC,241131,22881,victoria-sc-241131,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-330,Accra,GH,2306104,1963264,accra-gh-2306104,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-331,Brest,BY,629634,347138,brest-by-629634,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-332,Minsk,BY,625144,1742124,minsk-by-625144,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-333,Rabat,MA,2538475,1655753,rabat-ma-2538475,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-334,Dunkirk,FR,3020686,86263,dunkirk-fr-3020686,True,3,tdg-81828;tdg-81942;tdg-83582,Région Hauts-de-France,https://files.mobilitydatabase.org/tdg-81828/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-335,Bogotá,CO,3688689,7674366,bogota-co-3688689,True,1,mdb-3358,SIMUR Bogota,https://files.mobilitydatabase.org/mdb-3358/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-336,Addis Ababa,ET,344979,3860000,addis-ababa-et-344979,True,1,tld-6782,Addis Ababa Transport (all),https://files.mobilitydatabase.org/tld-6782/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-337,Vancouver,CA,6173331,662248,vancouver-ca-6173331,True,2,mdb-2389;mdb-696,Hullo Ferries,https://files.mobilitydatabase.org/mdb-2389/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-338,St. John's,CA,6324733,110525,st-john-s-ca-6324733,True,1,mdb-758,Metrobus Transit,https://files.mobilitydatabase.org/mdb-758/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-339,Durrës,AL,3185728,195920,durres-al-3185728,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-340,Stuttgart,DE,2825297,612663,stuttgart-de-2825297,True,5,mdb-906;mdb-2231;mdb-774;mdb-1085;mdb-772,VOLZ,https://files.mobilitydatabase.org/mdb-906/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-341,Benin City,NG,2347283,1782000,benin-city-ng-2347283,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-342,Saint-Étienne,FR,2980291,176280,saint-etienne-fr-2980291,True,5,tdg-38881;tdg-81026;tdg-81969;tdg-81653;tdg-82386,Région Auvergne-Rhône-Alpes,https://files.mobilitydatabase.org/tdg-38881/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-343,Erzincan,TR,315373,150714,erzincan-tr-315373,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-344,Shahrisabz,UZ,1216187,142700,shahrisabz-uz-1216187,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-345,Tripoli,LB,266826,229398,tripoli-lb-266826,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-346,Nakhon Ratchasima,TH,1608529,126391,nakhon-ratchasima-th-1608529,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-347,Gorzów Wielkopolski,PL,3098722,114567,gorzow-wielkopolski-pl-3098722,True,1,mdb-3545,MZK Gorzów Wielkopolskie,https://files.mobilitydatabase.org/mdb-3545/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-348,Khartoum,SD,379252,1974647,khartoum-sd-379252,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-349,Greenwich,GB,2647937,30578,greenwich-gb-2647937,True,3,mdb-2688;mdb-2014;mdb-2900,Essex County Council,https://files.mobilitydatabase.org/mdb-2688/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-350,Haifa,IL,294801,285316,haifa-il-294801,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-351,George Town,MY,1735106,158336,george-town-my-1735106,True,2,tld-6770;tld-6758,Prasarana Malaysia,https://files.mobilitydatabase.org/tld-6770/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-352,İskenderun,TR,311111,251682,iskenderun-tr-311111,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-353,Bissau,GW,2374775,439704,bissau-gw-2374775,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-354,Lucknow,IN,1264733,2472011,lucknow-in-1264733,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-355,Winnipeg,CA,6183235,749607,winnipeg-ca-6183235,True,1,mdb-717,Winnipeg Transit,https://files.mobilitydatabase.org/mdb-717/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-356,Daegu,KR,1835329,2365523,daegu-kr-1835329,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-357,Kanchipuram,IN,1268159,221715,kanchipuram-in-1268159,True,1,mdb-3360,Chennai Transport Corporation,https://files.mobilitydatabase.org/mdb-3360/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-358,Rzeszów,PL,759734,198317,rzeszow-pl-759734,True,3,mdb-2387;mdb-3156;mdb-3180,Zarząd Transportu Miejskiego Rzeszów (ZTM Rzeszów),https://files.mobilitydatabase.org/mdb-2387/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-359,Korçë,AL,782756,58259,korce-al-782756,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-360,Tokyo,JP,1850147,9733276,tokyo-jp-1850147,True,3,mdb-3176;mdb-3175;jbda-shinkikanko-limonbus,Tokyo Metropolitan Bureau of Transportation - Toei Train,https://files.mobilitydatabase.org/mdb-3176/latest.zip,True,T0,OPEN_SCHEDULE,True,True,168.0,JPY,,,0.0,toei,official_toei_tariff,False,True,True,True,True
-361,Bet She’an,IL,295435,16800,bet-shean-il-295435,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-362,Liverpool,GB,2644210,496770,liverpool-gb-2644210,True,3,mdb-1103;mdb-2014;mdb-2900,"Transport for Greater Manchester Arriva in the North West, Atlantic Travel, Bestway Travel, Belle Vue Coaches, Blackburn Private Hire, The Burnley Bus Company, Bullocks Coaches, Cumfy Bus, D&G Bus, Don Fraser Coaches Ltd, Finch Coaches, First Halifax, Calder Valley & Huddersfield, First in Greater Manchester, Little Gem, Go North West, Diamond Bus North West, Harris Travel, Hattons Transport, Hiltons Travel, High Peak, Huyton Travel, Holmeswood Coaches, Link Network, The Blackburn Bus Company, Maghull Coaches, Metrolink, Olympia Travel UK Ltd, Preston Bus, Nexus Move, Rosso, Tyrers, Stagecoach Merseyside and South Lancashire, Stagecoach in Greater Manchester, Selwyn's Travel, South Pennine C.T., Stotts, Travel Assist, Team Pennine, Viking Coaches, Vision Bus, Warrington's Own Buses",https://files.mobilitydatabase.org/mdb-1103/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-363,Najaf,IQ,98860,482576,najaf-iq-98860,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-364,Çanakkale,TR,749780,143622,canakkale-tr-749780,True,2,mdb-3404;mdb-2922,KentKart Canakkale - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3404/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-365,Gaborone,BW,933773,246325,gaborone-bw-933773,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-366,Christchurch,NZ,2192362,419200,christchurch-nz-2192362,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-367,Riga,LV,456172,742572,riga-lv-456172,True,4,mdb-3502;mdb-3501;mdb-3500;mdb-992,Rīgas Satiksme,https://files.mobilitydatabase.org/mdb-3502/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-368,Ajdabiya,LY,89113,131773,ajdabiya-ly-89113,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-369,Brugge,BE,2800931,118509,brugge-be-2800931,True,2,tdg-82199;mdb-686,Eurostar International Ltd.,https://files.mobilitydatabase.org/tdg-82199/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-370,Taldykorgan,KZ,1518542,116558,taldykorgan-kz-1518542,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-371,Mahilyow,BY,625665,352896,mahilyow-by-625665,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-372,Thessaloníki,GR,734077,317778,thessaloniki-gr-734077,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-373,San Salvador,SV,3583361,525990,san-salvador-sv-3583361,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-374,Bukhara,UZ,1217662,280187,bukhara-uz-1217662,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-375,João Pessoa,BR,3397277,817511,joao-pessoa-br-3397277,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-376,Blagoevgrad,BG,733191,67810,blagoevgrad-bg-733191,True,1,mdb-3614,BDZh Patnicheski Prevozi,https://files.mobilitydatabase.org/mdb-3614/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-377,La Paz,BO,3911925,2004652,la-paz-bo-3911925,True,1,mdb-3491,Mi Teleférico,https://files.mobilitydatabase.org/mdb-3491/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-378,Lilongwe,MW,927967,1115815,lilongwe-mw-927967,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-379,Kryvyy Rih,UA,703845,603904,kryvyy-rih-ua-703845,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-380,São Tomé,ST,2410763,53300,sao-tome-st-2410763,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-381,Piraeus,GR,255274,163688,piraeus-gr-255274,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-382,Victoria,CA,6174041,289625,victoria-ca-6174041,True,1,mdb-2571,BC Transit (Victoria Regional Transit System),https://files.mobilitydatabase.org/mdb-2571/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-383,Makkah,SA,104515,1578722,makkah-sa-104515,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-384,Port Sudan,SD,377039,489725,port-sudan-sd-377039,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-385,Kokshetau,KZ,1522203,150649,kokshetau-kz-1522203,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-386,Peshawar,PK,1168197,4758762,peshawar-pk-1168197,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-387,Balykchy,KG,1527004,42875,balykchy-kg-1527004,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-388,Lahore,PK,1172451,13004135,lahore-pk-1172451,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-389,Ubon Ratchathani,TH,1605245,122533,ubon-ratchathani-th-1605245,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-390,Kahramanmaraş,TR,310859,384953,kahramanmaras-tr-310859,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-391,Utrecht,NL,2745912,376435,utrecht-nl-2745912,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-392,Vitebsk,BY,620127,358927,vitebsk-by-620127,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-393,Šiauliai,LT,594739,99462,siauliai-lt-594739,True,4,mdb-1834;tld-4477;mdb-2385;mdb-2991,Busturas,https://files.mobilitydatabase.org/mdb-1834/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-394,Naxçıvan,AZ,147429,97200,naxcvan-az-147429,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-395,Turin,IT,3165524,847287,turin-it-3165524,True,2,mdb-2687;mdb-855,Gruppo Torinese Trasporti (GTT),https://files.mobilitydatabase.org/mdb-2687/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-396,Nazareth,IL,294098,77445,nazareth-il-294098,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-397,Zaporizhzhya,UA,687700,710052,zaporizhzhya-ua-687700,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-398,Gaziantep,TR,314830,2222415,gaziantep-tr-314830,True,2,mdb-3401;mdb-2922,KentKart Gaziantep - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3401/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-399,Banjul,GM,2413876,37274,banjul-gm-2413876,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-400,Puebla,MX,3521081,1692181,puebla-mx-3521081,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-401,Aydın,TR,322830,163022,aydn-tr-322830,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-402,Santiago de Querétaro,MX,3991164,1594212,santiago-de-queretaro-mx-3991164,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-403,Porto-Novo,BJ,2392087,264320,porto-novo-bj-2392087,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-404,Tabriz,IR,113646,1424641,tabriz-ir-113646,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-405,Lima,PE,3936456,7737002,lima-pe-3936456,True,1,mdb-1985,Aeroexpreso,https://files.mobilitydatabase.org/mdb-1985/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-406,Luxor,EG,360502,422407,luxor-eg-360502,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-407,Siracusa,IT,2523083,121605,siracusa-it-2523083,True,1,mdb-3569,TRENITALIA S.p.A.,https://files.mobilitydatabase.org/mdb-3569/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-408,Cayenne,GF,3382160,61550,cayenne-gf-3382160,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-409,Kuwait City,KW,285787,60064,kuwait-city-kw-285787,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-410,Simferopol,UA,693805,336460,simferopol-ua-693805,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-411,Bydgoszcz,PL,3102014,330038,bydgoszcz-pl-3102014,True,1,mdb-1009,ZDMiKP w Bydgoszczy,https://files.mobilitydatabase.org/mdb-1009/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-412,Salvador,BR,3450554,2711840,salvador-br-3450554,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-413,Ahvaz,IR,144448,841145,ahvaz-ir-144448,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-414,Mount Gambier,AU,2156643,25591,mount-gambier-au-2156643,True,1,mdb-660,Adelaide Metro,https://files.mobilitydatabase.org/mdb-660/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-415,A Coruña,ES,3119841,250438,a-coruna-es-3119841,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-416,Suez,EG,359796,699541,suez-eg-359796,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-417,Zaragoza,ES,3104324,686986,zaragoza-es-3104324,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-418,Bremen,DE,2944388,546501,bremen-de-2944388,True,3,mdb-3362;mdb-3107;mdb-1089,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-419,Cairns,AU,2172797,153075,cairns-au-2172797,True,1,mdb-674,TransLink Sunbus Cairns,https://files.mobilitydatabase.org/mdb-674/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-420,Cambridge,GB,2653941,145674,cambridge-gb-2653941,True,3,mdb-2688;mdb-2014;mdb-2900,Essex County Council,https://files.mobilitydatabase.org/mdb-2688/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-421,Karaj,IR,128747,1448075,karaj-ir-128747,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-422,Şanlıurfa,TR,298333,449549,sanlurfa-tr-298333,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-423,Choibalsan,MN,2032054,44835,choibalsan-mn-2032054,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-424,Elazığ,TR,315808,443363,elazg-tr-315808,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-425,Siem Reap,KH,1822214,139458,siem-reap-kh-1822214,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-426,Győr,HU,3052009,129301,gyor-hu-3052009,True,1,tld-5862,"VOLÁNBUSZ - Balatonfűzfő, VOLÁNBUSZ - Balmazújváros, VOLÁNBUSZ - Dunaújváros, VOLÁNBUSZ - Baja, VOLÁNBUSZ - Mezőtúr, VOLÁNBUSZ - Mórahalom, VOLÁNBUSZ - Mosonmagyaróvár, VOLÁNBUSZ - Karcag, VOLÁNBUSZ - Gyula, VOLÁNBUSZ - Csongrád, VOLÁNBUSZ - Hajdúszoboszló, VOLÁNBUSZ - Gyöngyös, VOLÁNBUSZ - Komárom, VOLÁNBUSZ - Siklós, VOLÁNBUSZ - Bonyhád, VOLÁNBUSZ - Ajka, VOLÁNBUSZ - Kazincbarcika, VOLÁNBUSZ - Makó, VOLÁNBUSZ - Sopron, VOLÁNBUSZ - Bátaszék, VOLÁNBUSZ - Békés, VOLÁNBUSZ - Várpalota, VOLÁNBUSZ - Lenti, VOLÁNBUSZ - Körmend, VOLÁNBUSZ - Balassagyarmat, VOLÁNBUSZ - Szentes, VOLÁNBUSZ - Ózd, VOLÁNBUSZ - Fonyód, VOLÁNBUSZ - Székesfehérvár, VOLÁNBUSZ - Békéscsaba, VOLÁNBUSZ - Újszász, VOLÁNBUSZ - Nyíregyháza, VOLÁNBUSZ - Siófok, VOLÁNBUSZ - Nagyatád, VOLÁNBUSZ - Jászberény, VOLÁNBUSZ - Keszthely, VOLÁNBUSZ - Mezőberény, VOLÁNBUSZ - Tata, VOLÁNBUSZ - Eger, VOLÁNBUSZ - Balatonfüred, VOLÁNBUSZ - Csurgó, VOLÁNBUSZ - Szekszárd, VOLÁNBUSZ - Orosháza, VOLÁNBUSZ - Ercsi, VOLÁNBUSZ - Mohács, VOLÁNBUSZ - Vác, VOLÁNBUSZ - Esztergom, VOLÁNBUSZ - Győr, VOLÁNBUSZ - Salgótarján, VOLÁNBUSZ - Komló, VOLÁNBUSZ - Szigetvár, VOLÁNBUSZ - Szolnok, VOLÁNBUSZ - Tiszaújváros, VOLÁNBUSZ - Tiszafüred, VOLÁNBUSZ - Oroszlány, VOLÁNBUSZ - Nagykanizsa, VOLÁNBUSZ - Érd, VOLÁNBUSZ - Pápa, VOLÁNBUSZ - Zalaegerszeg, VOLÁNBUSZ - Gödöllő, VOLÁNBUSZ - Szeged, VOLÁNBUSZ - Bátonyterenye",https://files.mobilitydatabase.org/tld-5862/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-427,Stanley,FK,3426691,2213,stanley-fk-3426691,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-428,Barranquilla,CO,3689147,1206319,barranquilla-co-3689147,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-429,Al Qunayţirah,SY,173334,36143,al-qunaytirah-sy-173334,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-430,Sirte,LY,2210554,106705,sirte-ly-2210554,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-431,West Bromwich,GB,2634491,103112,west-bromwich-gb-2634491,True,2,mdb-2014;mdb-2900,BODS UK aggregate feed,https://files.mobilitydatabase.org/mdb-2014/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-432,Białystok,PL,776069,295683,biaystok-pl-776069,True,1,mdb-1907,Białostocka Komunikacja Miejska,https://files.mobilitydatabase.org/mdb-1907/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-433,Stevenage,GB,2636940,91774,stevenage-gb-2636940,True,4,mdb-2688;mdb-1947;mdb-2014;mdb-2900,Essex County Council,https://files.mobilitydatabase.org/mdb-2688/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-434,São Luís,BR,3388368,917237,sao-luis-br-3388368,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-435,Santiago,CL,3871336,4837295,santiago-cl-3871336,True,1,mdb-3357,"Red Metropolitana de Movilida, EFE Trenes de Chile, Bus de Acercamiento Aeropuerto, Metro de Santiago",https://files.mobilitydatabase.org/mdb-3357/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-436,Chiang Rai,TH,1153669,78756,chiang-rai-th-1153669,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-437,Perth,AU,2063523,2384371,perth-au-2063523,True,1,mdb-1086,Transperth,https://files.mobilitydatabase.org/mdb-1086/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-438,Niamey,NE,2440485,1323691,niamey-ne-2440485,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-439,Telsiai,LT,593926,21294,telsiai-lt-593926,True,3,mdb-2385;tld-4477;mdb-2991,B-Bus,https://files.mobilitydatabase.org/mdb-2385/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-440,Belize City,BZ,3582677,65222,belize-city-bz-3582677,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-441,Trieste,IT,3165185,204338,trieste-it-3165185,True,3,mdb-3566;mdb-3571;mdb-3569,TPL FVG,https://files.mobilitydatabase.org/mdb-3566/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-442,Alba Iulia,RO,686578,64227,alba-iulia-ro-686578,True,1,mdb-3236,Romanian Railway Operators,https://files.mobilitydatabase.org/mdb-3236/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-443,Bandundu Province,CD,2317397,202904,bandundu-province-cd-2317397,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-444,Almaty,KZ,1526384,1977011,almaty-kz-1526384,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-445,Le Havre,FR,3003796,185972,le-havre-fr-3003796,True,5,tdg-84037;tdg-82317;tdg-81474;tdg-83427;tdg-82321,Réseau de transport en commun Le Havre Seine Métropole LiA,https://files.mobilitydatabase.org/tdg-84037/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-446,Quito,EC,3652462,2781641,quito-ec-3652462,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-447,Cagliari,IT,2525473,149257,cagliari-it-2525473,True,5,tld-576;mdb-1052;mdb-1047;mdb-2993;mdb-895,CTM SpA Cagliari,https://files.mobilitydatabase.org/tld-576/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-448,Tromsø,NO,3133895,41915,troms-no-3133895,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-449,Baghdad,IQ,98182,7216000,baghdad-iq-98182,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-450,Lublin,PL,765876,336339,lublin-pl-765876,True,1,mdb-1013,Zarząd Transportu Miejskiego Lublin (ZTM Lublin),https://files.mobilitydatabase.org/mdb-1013/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-451,Córdoba,ES,2519240,325708,cordoba-es-2519240,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-452,Valladolid,ES,3106672,300618,valladolid-es-3106672,True,2,mdb-3508;mdb-2653,La Regional Vallisoletana S.A,https://files.mobilitydatabase.org/mdb-3508/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-453,Eskişehir,TR,315202,921630,eskisehir-tr-315202,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-454,Bethlehem,PS,284315,29019,bethlehem-ps-284315,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-455,Wiesbaden,DE,2809346,288850,wiesbaden-de-2809346,True,4,mdb-778;mdb-1085;mdb-769;mdb-3107,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-456,Toronto,CA,6167865,2794356,toronto-ca-6167865,True,3,mdb-732;mdb-1993;tld-4817,Toronto Transit Commission (TTC),https://files.mobilitydatabase.org/mdb-732/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-457,Uman,UA,690688,81525,uman-ua-690688,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-458,Timişoara,RO,665087,250849,timisoara-ro-665087,True,1,mdb-2868,Societatea Metropolitană de Transport Timișoara,https://files.mobilitydatabase.org/mdb-2868/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-459,Regina,CA,6119109,226404,regina-ca-6119109,True,1,mdb-715,City of Regina,https://files.mobilitydatabase.org/mdb-715/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-460,Puerto Vallarta,MX,3991328,224166,puerto-vallarta-mx-3991328,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-461,Dobrich,BG,726418,69434,dobrich-bg-726418,True,2,mdb-3609;mdb-3614,"Gradski Transport Dobrich, Patnicheski Prevozi",https://files.mobilitydatabase.org/mdb-3609/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-462,Al Khums,LY,2219905,201943,al-khums-ly-2219905,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-463,Medellín,CO,3674962,1999979,medellin-co-3674962,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-464,Al Qāmishlī,SY,173377,184231,al-qamishli-sy-173377,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-465,Guatemala City,GT,3598132,994938,guatemala-city-gt-3598132,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-466,Managua,NI,3617763,973087,managua-ni-3617763,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-467,Melbourne,AU,2158177,5435590,melbourne-au-2158177,True,1,mdb-3146,SkyBus Melbourne,https://files.mobilitydatabase.org/mdb-3146/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-468,Caracas,VE,3646738,3000000,caracas-ve-3646738,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-469,Lyon,FR,2996944,520774,lyon-fr-2996944,True,5,tdg-81943;tdg-82386;tdg-83114;tdg-81969;tdg-81653,SYTRAL Mobilités,https://files.mobilitydatabase.org/tdg-81943/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.1,EUR,,,0.0,TCL,official_tcl,False,True,True,True,True
-470,Fort-de-France,MQ,3570675,89995,fort-de-france-mq-3570675,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-471,Port Moresby,PG,2088122,283733,port-moresby-pg-2088122,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-472,Aktobe,KZ,610611,500757,aktobe-kz-610611,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-473,Ismailia,EG,361055,429465,ismailia-eg-361055,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-474,Nassau,BS,3571824,227940,nassau-bs-3571824,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-475,Tekirdağ,TR,738927,122287,tekirdag-tr-738927,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-476,Karbala,IQ,94824,1218732,karbala-iq-94824,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-477,Birmingham,GB,2655603,1157603,birmingham-gb-2655603,True,2,mdb-2014;mdb-2900,BODS UK aggregate feed,https://files.mobilitydatabase.org/mdb-2014/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-478,Monterrey,MX,3995465,1135512,monterrey-mx-3995465,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-479,Jönköping,SE,2702979,112766,jonkoping-se-2702979,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-480,Ras Al Khaimah,AE,291074,351943,ras-al-khaimah-ae-291074,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-481,Hamilton,NZ,2190324,192100,hamilton-nz-2190324,True,2,tld-6738;mdb-1029,Waikato Regional Council,https://files.mobilitydatabase.org/tld-6738/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-482,Kampala,UG,232422,1680600,kampala-ug-232422,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-483,Qarshi,UZ,1216311,278300,qarshi-uz-1216311,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-484,Homs,SY,169577,775404,homs-sy-169577,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-485,Praia,CV,3374333,137868,praia-cv-3374333,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-486,Benghazi,LY,88319,757490,benghazi-ly-88319,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-487,Belmopan,BZ,3582672,13381,belmopan-bz-3582672,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-488,Mariupol,UA,701822,230000,mariupol-ua-701822,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-489,Korosten,UA,704901,61496,korosten-ua-704901,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-490,Pazardzhik,BG,728378,55220,pazardzhik-bg-728378,True,1,mdb-3614,BDZh Patnicheski Prevozi,https://files.mobilitydatabase.org/mdb-3614/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-491,Linköping,SE,2694762,166673,linkoping-se-2694762,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-492,Kunduz,AF,1135689,161902,kunduz-af-1135689,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-493,Heidelberg,DE,2907911,143345,heidelberg-de-2907911,True,5,mdb-777;mdb-906;mdb-774;mdb-1085;mdb-769,Rhein-Neckar-Verkehr,https://files.mobilitydatabase.org/mdb-777/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-494,Tiberias,IL,293322,44779,tiberias-il-293322,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-495,Mbabane,SZ,934985,76218,mbabane-sz-934985,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-496,Sucre,BO,3903987,224838,sucre-bo-3903987,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-497,Fujairah,AE,292878,118933,fujairah-ae-292878,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-498,Zielona Góra,PL,3080165,118433,zielona-gora-pl-3080165,True,2,mdb-2087;mdb-3191,Polregio,https://files.mobilitydatabase.org/mdb-2087/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-499,Vlorë,AL,3183719,115261,vlore-al-3183719,True,1,mdb-3182,Urban Trans Vlora,https://files.mobilitydatabase.org/mdb-3182/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
-500,Khon Kaen,TH,1609776,114459,khon-kaen-th-1609776,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+4,Dubai,AE,292223,3790000,dubai-ae-292223,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+5,Singapore,SG,1880252,5638700,singapore-sg-1880252,True,1,mdb-1076,"SMRT, SBS Transit (SBST), Land Transport Authority (LTA), Go Ahead Singapore (GAS), Tower Transit (TTS)",https://files.mobilitydatabase.org/mdb-1076/latest.zip,False,T0,OPEN_SCHEDULE,False,True,1.0,SGD,,,0.6,LTA (Land Transport Authority),official_lta_(land_transport_authority),False,True,True,True,True
+6,Kuala Lumpur,MY,1735161,1453975,kuala-lumpur-my-1735161,True,2,tld-6771;tld-6758,Prasarana Malaysia,https://files.mobilitydatabase.org/tld-6771/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+7,New York City,US,5128581,8804190,new-york-city-us-5128581,True,5,mdb-519;mdb-513;ntd-20226;mdb-515;tld-5790,Downtown Alliance,https://files.mobilitydatabase.org/mdb-519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+8,Istanbul,TR,745044,15701602,istanbul-tr-745044,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+9,Tokyo,JP,1850147,9733276,tokyo-jp-1850147,True,3,mdb-3176;mdb-3175;jbda-shinkikanko-limonbus,Tokyo Metropolitan Bureau of Transportation - Toei Train,https://files.mobilitydatabase.org/mdb-3176/latest.zip,True,T0,OPEN_SCHEDULE,True,True,168.0,JPY,,,0.0,toei,official_toei_tariff,False,True,True,True,True
+10,Antalya,TR,323777,1335002,antalya-tr-323777,True,2,mdb-3406;mdb-2922,KentKart Antalya - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3406/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+11,Seoul,KR,1835848,10349312,seoul-kr-1835848,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+12,Phuket,TH,1151254,79308,phuket-th-1151254,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+13,Makkah,SA,104515,1578722,makkah-sa-104515,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+14,Hong Kong,HK,1819729,7396076,hong-kong-hk-1819729,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+15,Barcelona,ES,3128760,1686208,barcelona-es-3128760,True,5,mdb-1856;mdb-892;mdb-2926;tdg-82386;mdb-2653,Railways of the Generalitat of Catalonia (Ferrocarrils de la Generalitat de Catalunya),https://files.mobilitydatabase.org/mdb-1856/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.55,EUR,11.2,TMB 24h Pass,2.95,TMB,official_tmb_tariff,False,True,True,True,True
+16,Rome,IT,3169070,2318895,rome-it-3169070,True,3,mdb-1294;mdb-1319;mdb-3386,Roma Servizi per la Mobilità,https://files.mobilitydatabase.org/mdb-1294/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,7.0,ATAC 24h Pass,12.5,ATAC,official_atac_tariff,False,True,True,True,True
+17,Milan,IT,3173435,1371498,milan-it-3173435,True,3,mdb-2666;mdb-855;mdb-1319,Azienda Trasporti MIlanesi (ATM),https://files.mobilitydatabase.org/mdb-2666/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+18,Amsterdam,NL,2759794,741636,amsterdam-nl-2759794,False,0,,,,False,T5,NO_FEED,False,True,3.4,EUR,10.0,GVB 24h Pass,0.0,GVB,official_gvb,False,True,True,True,True
+19,Madrid,ES,3117735,3255944,madrid-es-3117735,True,5,mdb-793;mdb-2802;mdb-2720;mdb-791;mdb-2820,Empresa Municipal de Transportes de Madrid (EMT Madrid),https://files.mobilitydatabase.org/mdb-793/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,8.4,CRTM 24h Pass,3.0,CRTM,official_crtm_tariff,False,True,True,True,True
+20,Prague,CZ,3067696,1165581,prague-cz-3067696,True,1,mdb-767,Prazska integrovana doprava (PID),https://files.mobilitydatabase.org/mdb-767/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+21,Vienna,AT,2761369,1691468,vienna-at-2761369,True,1,mdb-648,"Wiener Lokalbahnen (WLB), Wiener Linien",https://files.mobilitydatabase.org/mdb-648/latest.zip,True,T0,OPEN_SCHEDULE,False,True,3.0,EUR,9.7,24-hour digital ticket,0.0,Wiener Linien,official_wiener_linien,False,True,True,True,True
+22,Los Angeles,US,5368361,3820914,los-angeles-us-5368361,True,5,mdb-37;mdb-2201;mdb-1198;tld-1256;mdb-1210,Big Blue Bus,https://files.mobilitydatabase.org/mdb-37/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+23,Miami,US,4164138,487014,miami-us-4164138,True,2,mdb-331;mdb-3534,Miami-Dade Transit,https://files.mobilitydatabase.org/mdb-331/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+24,Taipei,TW,1668341,7871900,taipei-tw-1668341,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+25,Osaka,JP,1853909,2753862,osaka-jp-1853909,True,1,jbda-meikobus-meikobus,明光バス株式会社,https://files.mobilitydatabase.org/jbda-meikobus-meikobus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+26,Las Vegas,US,5506956,641903,las-vegas-us-5506956,True,3,mdb-2351;mdb-2321;tld-5741,Regional Transportation Commission of Southern Nevada (RTC),https://files.mobilitydatabase.org/mdb-2351/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+27,Cancún,MX,3531673,888797,cancun-mx-3531673,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+28,Shanghai,CN,1796236,24874500,shanghai-cn-1796236,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+29,Beijing,CN,1816670,18960744,beijing-cn-1816670,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+30,Kyoto,JP,1857910,1463723,kyoto-jp-1857910,True,1,jbda-shinkikanko-limonbus,神姫観光,https://files.mobilitydatabase.org/jbda-shinkikanko-limonbus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+31,Berlin,DE,2950159,3426354,berlin-de-2950159,True,2,mdb-782;mdb-3107,Verkehrsverbund Berlin-Brandenburg (VBB),https://files.mobilitydatabase.org/mdb-782/latest.zip,True,T0,OPEN_SCHEDULE,False,True,4.0,EUR,11.2,24-hour Ticket,0.0,"Official transport authority or operator name (e.g. BVG, TfL, MTA, GVB, Wiener Linien)","official_official_transport_authority_or_operator_name_(e.g._bvg,_tfl,_mta,_gvb,_wiener_linien)",False,True,True,True,True
+32,Venice,IT,3164603,51298,venice-it-3164603,True,5,mdb-891;mdb-1062;mdb-3590;mdb-1319;mdb-3584,Alilaguna,https://files.mobilitydatabase.org/mdb-891/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+33,Florence,IT,3176959,367150,florence-it-3176959,True,5,tld-6956;tld-6959;tld-6953;tld-6988;tld-6952,GEST S.p.A.,https://files.mobilitydatabase.org/tld-6956/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.7,EUR,,,0.0,AutolineeToscane,official_autolineetoscane,False,True,True,True,True
+34,Dublin,IE,2964574,1024027,dublin-ie-2964574,True,5,mdb-2638;tld-617;mdb-2635;mdb-2639;tld-623,LUAS,https://files.mobilitydatabase.org/mdb-2638/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+35,Budapest,HU,3054643,1741041,budapest-hu-3054643,True,2,mdb-990;tld-5862,Budapesti Közlekedési Központ (BKK),https://files.mobilitydatabase.org/mdb-990/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+36,Orlando,US,4167147,334854,orlando-us-4167147,True,2,mdb-626;mdb-347,Florida Department of Transportation (SunRail),https://files.mobilitydatabase.org/mdb-626/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+37,San Francisco,US,5391959,827526,san-francisco-us-5391959,True,1,mdb-53,Bay Area Rapid Transit (BART),https://files.mobilitydatabase.org/mdb-53/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+38,Toronto,CA,6167865,2794356,toronto-ca-6167865,True,2,mdb-1993;tld-4817,Go Transit,https://files.mobilitydatabase.org/mdb-1993/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+39,Sydney,AU,2147714,5638830,sydney-au-2147714,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+40,Melbourne,AU,2158177,5435590,melbourne-au-2158177,True,1,mdb-3146,SkyBus Melbourne,https://files.mobilitydatabase.org/mdb-3146/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+41,Madinah,SA,109223,1300000,madinah-sa-109223,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+42,Pattaya,TH,1614295,116417,pattaya-th-1614295,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+43,Cairo,EG,360630,9606916,cairo-eg-360630,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+44,Riyadh,SA,108410,4205961,riyadh-sa-108410,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+45,Munich,DE,2867714,1505005,munich-de-2867714,True,3,mdb-2333;mdb-1085;mdb-772,Münchner Verkehrsgesellschaft (MVG),https://files.mobilitydatabase.org/mdb-2333/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+46,Edinburgh,GB,2650225,514990,edinburgh-gb-2650225,True,5,mdb-2911;mdb-2900;mdb-2906;mdb-1929;mdb-1957,Midland Bluebird,https://files.mobilitydatabase.org/mdb-2911/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+47,Lisbon,PT,2267057,517802,lisbon-pt-2267057,True,5,tld-716;mdb-2929;mdb-2027;mdb-2057;mdb-3412,Metro de Lisboa (Metro),https://files.mobilitydatabase.org/tld-716/latest.zip,True,T0,OPEN_SCHEDULE,True,True,1.8,EUR,6.8,Carris/Metro 24h Pass,0.0,Carris/Metro,official_carris_metro_tariff,False,True,True,True,True
+48,Brussels,BE,2800866,1019022,brussels-be-2800866,True,3,tdg-82199;mdb-1212;mdb-1868,Eurostar International Ltd.,https://files.mobilitydatabase.org/tdg-82199/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+49,Athens,GR,264371,664046,athens-gr-264371,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+50,Copenhagen,DK,2618425,1153615,copenhagen-dk-2618425,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+51,Warsaw,PL,756135,1702139,warsaw-pl-756135,True,3,mdb-2092;mdb-3191;mdb-2087,Warszawski Transport Publiczny (ZTM Warszawa),https://files.mobilitydatabase.org/mdb-2092/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+52,Kraków,PL,3094802,816614,krakow-pl-3094802,True,3,mdb-1270;mdb-1908;mdb-3122,Zarząd Transportu Publicznego w Krakowie (ZTP Kraków),https://files.mobilitydatabase.org/mdb-1270/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+53,Mexico City,MX,3530597,12294193,mexico-city-mx-3530597,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+54,Buenos Aires,AR,3435910,2891082,buenos-aires-ar-3435910,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+55,Rio de Janeiro,BR,3451190,6747815,rio-de-janeiro-br-3451190,True,1,mdb-1791,City Transport Secretary of Rio de Janeiro,https://files.mobilitydatabase.org/mdb-1791/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+56,São Paulo,BR,3448439,12400232,sao-paulo-br-3448439,True,1,mdb-8,São Paulo Transporte (SPTrans),https://files.mobilitydatabase.org/mdb-8/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+57,Santiago,CL,3871336,4837295,santiago-cl-3871336,True,1,mdb-3357,"Red Metropolitana de Movilida, EFE Trenes de Chile, Bus de Acercamiento Aeropuerto, Metro de Santiago",https://files.mobilitydatabase.org/mdb-3357/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+58,Lima,PE,3936456,7737002,lima-pe-3936456,True,1,mdb-1985,Aeroexpreso,https://files.mobilitydatabase.org/mdb-1985/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+59,Bogotá,CO,3688689,7674366,bogota-co-3688689,True,1,mdb-3358,SIMUR Bogota,https://files.mobilitydatabase.org/mdb-3358/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+60,Vancouver,CA,6173331,662248,vancouver-ca-6173331,True,2,mdb-2389;mdb-696,Hullo Ferries,https://files.mobilitydatabase.org/mdb-2389/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+61,Montréal,CA,6077243,1762949,montreal-ca-6077243,True,5,tld-6691;mdb-2126;mdb-2142;mdb-748;tld-5721,Réseau express métropolitain,https://files.mobilitydatabase.org/tld-6691/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+62,Chicago,US,4887398,2664452,chicago-us-4887398,True,4,mdb-389;mdb-2256;mdb-2321;tld-5741,Chicago Transit Authority (CTA),https://files.mobilitydatabase.org/mdb-389/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+63,Washington,US,4140963,689545,washington-us-4140963,True,5,mdb-483;tld-61;mdb-467;mdb-1156;mdb-2321,Fairfax Connector,https://files.mobilitydatabase.org/mdb-483/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+64,Boston,US,4930956,653833,boston-us-4930956,True,5,mdb-3033;mdb-2299;mdb-441;mdb-437;mdb-2297,Boston Express,https://files.mobilitydatabase.org/mdb-3033/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+65,Honolulu,US,5856195,350964,honolulu-us-5856195,True,1,mdb-2350,TheBus,https://files.mobilitydatabase.org/mdb-2350/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+66,Punta Cana,DO,3494242,100023,punta-cana-do-3494242,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+67,Denpasar,ID,1645528,670210,denpasar-id-1645528,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+68,Jakarta,ID,1642911,8540121,jakarta-id-1642911,True,1,mdb-1909,Transjakarta,https://files.mobilitydatabase.org/mdb-1909/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+69,Hanoi,VN,1581130,8053663,hanoi-vn-1581130,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+70,Ho Chi Minh City,VN,1566083,14002598,ho-chi-minh-city-vn-1566083,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+71,Chiang Mai,TH,1153671,127240,chiang-mai-th-1153671,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+72,Macau,MO,1821274,649335,macau-mo-1821274,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+73,Shenzhen,CN,1795565,17494398,shenzhen-cn-1795565,True,2,mdb-1924;mdb-2933,Hong Kong Government Transport Department,https://files.mobilitydatabase.org/mdb-1924/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+74,Guangzhou,CN,1809858,16096724,guangzhou-cn-1809858,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+75,Chengdu,CN,1815286,13568357,chengdu-cn-1815286,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+76,Xi’an,CN,1790630,9600000,xian-cn-1790630,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+77,Hangzhou,CN,1808926,9236032,hangzhou-cn-1808926,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+78,Mumbai,IN,1275339,12691836,mumbai-in-1275339,True,1,mdb-3138,"Mumbai Bus (BEST, KDMT)",https://files.mobilitydatabase.org/mdb-3138/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+79,Delhi,IN,1273294,11034555,delhi-in-1273294,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+80,Agra,IN,1279259,1430055,agra-in-1279259,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+81,Jaipur,IN,1269515,3046163,jaipur-in-1269515,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+82,Colombo,LK,1248991,648034,colombo-lk-1248991,True,1,mdb-3490,Lanka Metro Transit,https://files.mobilitydatabase.org/mdb-3490/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+83,Kathmandu,NP,1283240,1442271,kathmandu-np-1283240,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+84,Doha,QA,290030,344939,doha-qa-290030,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+85,Abu Dhabi,AE,292968,1807000,abu-dhabi-ae-292968,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+86,Muscat,OM,287286,797000,muscat-om-287286,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+87,Manama,BH,290340,147074,manama-bh-290340,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+88,Cape Town,ZA,3369157,4772846,cape-town-za-3369157,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+89,Johannesburg,ZA,993800,9418183,johannesburg-za-993800,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+90,Marrakesh,MA,2542997,995871,marrakesh-ma-2542997,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+91,Casablanca,MA,2553604,3665954,casablanca-ma-2553604,True,1,mdb-3462,Casatramway,https://files.mobilitydatabase.org/mdb-3462/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+92,Hurghada,EG,361291,207132,hurghada-eg-361291,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+93,Sharm el-Sheikh,EG,349340,38478,sharm-el-sheikh-eg-349340,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+94,Nice,FR,2990440,342669,nice-fr-2990440,True,5,tdg-83178;tdg-82136;tdg-81653;tdg-82321;tdg-83582,Métropole Nice Côte d'Azur,https://files.mobilitydatabase.org/tdg-83178/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+95,Sevilla,ES,2510911,686741,sevilla-es-2510911,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.5,EUR,3.5,Sevilla 24h,0.0,ATAC,official_atac,False,True,True,True,True
+96,Valencia,ES,2509954,824340,valencia-es-2509954,True,3,mdb-795;mdb-1870;mdb-2653,Empresa Municipal de Transportes de Valencia (EMT Valencia),https://files.mobilitydatabase.org/mdb-795/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.5,EUR,,,0.0,ADIF,official_adif,False,True,True,True,True
+97,Porto,PT,2735943,252687,porto-pt-2735943,True,2,mdb-2057;mdb-3412,CP - Comboios de Portugal,https://files.mobilitydatabase.org/mdb-2057/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.75,EUR,,,0.0,STCP,official_stcp,False,True,True,True,True
+98,Zürich,CH,2657896,415367,zurich-ch-2657896,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+99,Geneva,CH,2660646,201741,geneva-ch-2660646,True,3,tdg-76779;tdg-81585;mdb-2053,Communauté d'Agglomération Annemasse - les Voirons Agglomération,https://files.mobilitydatabase.org/tdg-76779/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+100,Stockholm,SE,2673730,1515017,stockholm-se-2673730,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+101,Palma,ES,2512989,438234,palma-es-2512989,True,3,tld-4324;mdb-2141;mdb-2653,Empresa Municipal de Transports Urbans de Palma de Mallorca,https://files.mobilitydatabase.org/tld-4324/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+102,Málaga,ES,2514256,592346,malaga-es-2514256,True,2,mdb-2212;mdb-2653,Empresa Malagueña de Transportes (EMT),https://files.mobilitydatabase.org/mdb-2212/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+103,Granada,ES,2517117,233532,granada-es-2517117,True,2,tld-4890;mdb-2653,TranspRober,https://files.mobilitydatabase.org/tld-4890/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+104,Donostia / San Sebastián,ES,3110044,185357,donostia-san-sebastian-es-3110044,True,2,tdg-82386;mdb-2653,RENFE VIAJEROS SOCIEDAD MERCANTIL ESTATAL SA,https://files.mobilitydatabase.org/tdg-82386/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+105,Bilbao,ES,3128026,347342,bilbao-es-3128026,True,4,mdb-1135;mdb-3052;tdg-82386;mdb-2653,Bizkaibus,https://files.mobilitydatabase.org/mdb-1135/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+106,Alicante,ES,2521978,348901,alicante-es-2521978,True,3,mdb-1039;mdb-1870;mdb-2653,TRAM Alicante,https://files.mobilitydatabase.org/mdb-1039/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+107,Ibiza,ES,2516479,49727,ibiza-es-2516479,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+108,Córdoba,ES,2519240,325708,cordoba-es-2519240,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+109,Toledo,ES,2510409,86526,toledo-es-2510409,True,3,mdb-791;mdb-2820;mdb-2653,Consorcio Regional de Transportes de Madrid CRTM Intercity Buses (Madrid Intercity Buses),https://files.mobilitydatabase.org/mdb-791/latest.zip,True,T0,OPEN_SCHEDULE,False,True,1.6,EUR,,,0.0,Toledo Transit,official_toledo_transit,False,True,True,True,True
+110,Santiago de Compostela,ES,3109642,99536,santiago-de-compostela-es-3109642,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+111,Salamanca,ES,6544491,147707,salamanca-es-6544491,True,5,mdb-793;mdb-2802;mdb-2720;mdb-791;mdb-2820,Empresa Municipal de Transportes de Madrid (EMT Madrid),https://files.mobilitydatabase.org/mdb-793/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+112,Zaragoza,ES,3104324,686986,zaragoza-es-3104324,True,2,tdg-82386;mdb-2653,RENFE VIAJEROS SOCIEDAD MERCANTIL ESTATAL SA,https://files.mobilitydatabase.org/tdg-82386/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+113,Cadiz,ES,2520600,116979,cadiz-es-2520600,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+114,Santander,ES,3109718,173635,santander-es-3109718,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+115,Lyon,FR,2996944,520774,lyon-fr-2996944,True,4,tdg-81943;tdg-83114;tdg-81653;tdg-82321,SYTRAL Mobilités,https://files.mobilitydatabase.org/tdg-81943/latest.zip,True,T0,OPEN_SCHEDULE,True,True,2.1,EUR,,,0.0,TCL,official_tcl,False,True,True,True,True
+116,Marseille,FR,2995469,877215,marseille-fr-2995469,True,5,tdg-39589;tdg-83448;tdg-82136;tdg-82321;tdg-83582,Métropole d'Aix-Marseille-Provence,https://files.mobilitydatabase.org/tdg-39589/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+117,Bordeaux,FR,3031582,265328,bordeaux-fr-3031582,True,4,tdg-82338;tdg-83024;tdg-83427;tdg-81942,Nouvelle-Aquitaine Mobilités,https://files.mobilitydatabase.org/tdg-82338/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+118,Strasbourg,FR,2973783,274845,strasbourg-fr-2973783,True,3,tdg-79220;tdg-80417;tdg-81653,CTS - Compagnie des Transports Strasbourgeois,https://files.mobilitydatabase.org/tdg-79220/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+119,Toulouse,FR,2972315,511684,toulouse-fr-2972315,True,5,tdg-81678;tdg-81026;tdg-82321;tdg-81942;tdg-80961,Toulouse métropole,https://files.mobilitydatabase.org/tdg-81678/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+120,Nantes,FR,2990969,325070,nantes-fr-2990969,True,5,tdg-84101;tdg-84096;tdg-80721;tdg-81474;tdg-82321,Nantes Métropole,https://files.mobilitydatabase.org/tdg-84101/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+121,Lille,FR,2998324,238695,lille-fr-2998324,True,5,tdg-83620;tdg-81474;tdg-82321;tdg-81942;tdg-83582,Région Hauts-de-France,https://files.mobilitydatabase.org/tdg-83620/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+122,Cannes,FR,3028808,74545,cannes-fr-3028808,True,5,tdg-82136;tdg-79420;tdg-83448;tdg-81653;tdg-82321,Région Provence-Alpes-Côte-d'Azur,https://files.mobilitydatabase.org/tdg-82136/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+123,Montpellier,FR,2992166,248252,montpellier-fr-2992166,True,5,tdg-84199;tdg-81026;tdg-81653;tdg-82321;tdg-81942,Montpellier Méditerranée Métropole,https://files.mobilitydatabase.org/tdg-84199/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+124,Avignon,FR,3035681,89769,avignon-fr-3035681,True,5,tdg-84115;tdg-82136;tdg-81026;tdg-81653;tdg-82321,Grand Avignon,https://files.mobilitydatabase.org/tdg-84115/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+125,Aix-en-Provence,FR,3038354,146821,aix-en-provence-fr-3038354,True,5,tdg-39603;tdg-83448;tdg-82136;tdg-81653;tdg-82321,Métropole d'Aix-Marseille-Provence,https://files.mobilitydatabase.org/tdg-39603/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+126,Naples,IT,3172394,909048,naples-it-3172394,True,3,mdb-893;tld-47;tld-4833,Azienda Napoletana Mobilità,https://files.mobilitydatabase.org/mdb-893/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+127,Bologna,IT,3181928,394843,bologna-it-3181928,True,4,mdb-855;mdb-1319;mdb-3571;mdb-3569,Trenord,https://files.mobilitydatabase.org/mdb-855/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+128,Verona,IT,3164527,258031,verona-it-3164527,True,4,mdb-855;mdb-1319;mdb-3571;mdb-3569,Trenord,https://files.mobilitydatabase.org/mdb-855/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+129,Turin,IT,3165524,847287,turin-it-3165524,True,2,mdb-2687;mdb-855,Gruppo Torinese Trasporti (GTT),https://files.mobilitydatabase.org/mdb-2687/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+130,Genoa,IT,3176219,580097,genoa-it-3176219,True,3,tld-958;mdb-1319;mdb-855,Azienda Mobilità e Trasporti,https://files.mobilitydatabase.org/tld-958/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+131,Pisa,IT,3170647,109960,pisa-it-3170647,True,5,tld-6985;tld-6970;tld-6967;tld-6963;tld-6987,Autolinee Toscane - Debole Urbano Pisa,https://files.mobilitydatabase.org/tld-6985/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+132,Palermo,IT,2523920,648260,palermo-it-2523920,True,1,mdb-2373,AMAT Palermo S.P.A.,https://files.mobilitydatabase.org/mdb-2373/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+133,Siena,IT,3166548,53901,siena-it-3166548,True,5,tld-7014;tld-6955;tld-6952;tld-6957;tld-6958,Autolinee Toscane - Urbano Siena,https://files.mobilitydatabase.org/tld-7014/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+134,Catania,IT,2525068,311584,catania-it-2525068,True,1,mdb-3569,TRENITALIA S.p.A.,https://files.mobilitydatabase.org/mdb-3569/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+135,Bari,IT,3182351,316491,bari-it-3182351,True,1,mdb-3579,AMTAB S.p.A.,https://files.mobilitydatabase.org/mdb-3579/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+136,Bergamo,IT,3182164,121200,bergamo-it-3182164,True,3,mdb-855;mdb-3571;mdb-3569,Trenord,https://files.mobilitydatabase.org/mdb-855/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+137,Lecce,IT,3174953,80695,lecce-it-3174953,True,1,mdb-2021,STP Brindisi,https://files.mobilitydatabase.org/mdb-2021/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+138,Cagliari,IT,2525473,149257,cagliari-it-2525473,True,5,tld-576;mdb-1052;mdb-1047;mdb-2993;mdb-895,CTM SpA Cagliari,https://files.mobilitydatabase.org/tld-576/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+139,Hamburg,DE,2911298,1973896,hamburg-de-2911298,True,1,mdb-3362,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+140,Frankfurt am Main,DE,2925533,650000,frankfurt-am-main-de-2925533,True,5,mdb-1172;mdb-1085;mdb-769;mdb-3107;mdb-1089,Verkehrsverbund Mittelthüringen (VMT),https://files.mobilitydatabase.org/mdb-1172/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+141,Köln,DE,2886242,1024621,koln-de-2886242,True,4,mdb-778;mdb-1094;mdb-1085;mdb-769,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+142,Dresden,DE,2935022,564904,dresden-de-2935022,True,5,mdb-782;mdb-1172;mdb-769;mdb-3107;mdb-1089,Verkehrsverbund Berlin-Brandenburg (VBB),https://files.mobilitydatabase.org/mdb-782/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+143,Nuremberg,DE,2861650,515543,nuremberg-de-2861650,True,5,mdb-858;mdb-774;mdb-1172;mdb-1085;mdb-769,Ver­kehrs­ver­bund Groß­raum Nürn­berg (VGN),https://files.mobilitydatabase.org/mdb-858/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+144,Düsseldorf,DE,2934246,618685,dusseldorf-de-2934246,True,5,mdb-778;mdb-1094;mdb-1085;mdb-769;mdb-3107,Verkehrsverbund Rhein-Sieg (VRS),https://files.mobilitydatabase.org/mdb-778/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+145,Stuttgart,DE,2825297,612663,stuttgart-de-2825297,True,5,mdb-906;mdb-2231;mdb-774;mdb-1085;mdb-772,VOLZ,https://files.mobilitydatabase.org/mdb-906/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+146,Leipzig,DE,2879139,504971,leipzig-de-2879139,True,5,mdb-2360;mdb-782;mdb-1172;mdb-1085;mdb-769,Mitteldeutscher Verkehrsverbund GmbH (MDV),https://files.mobilitydatabase.org/mdb-2360/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+147,Hannover,DE,2910831,515140,hannover-de-2910831,True,5,mdb-3362;mdb-1085;mdb-769;mdb-3107;mdb-1089,Hamburger Verkehrsverbund GmbH (HVV),https://files.mobilitydatabase.org/mdb-3362/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+148,Heidelberg,DE,2907911,143345,heidelberg-de-2907911,True,5,mdb-777;mdb-906;mdb-774;mdb-1085;mdb-769,Rhein-Neckar-Verkehr,https://files.mobilitydatabase.org/mdb-777/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+149,Manchester,GB,2643123,568996,manchester-gb-2643123,True,4,mdb-1103;mdb-1936;mdb-1956;mdb-1953,"Transport for Greater Manchester Arriva in the North West, Atlantic Travel, Bestway Travel, Belle Vue Coaches, Blackburn Private Hire, The Burnley Bus Company, Bullocks Coaches, Cumfy Bus, D&G Bus, Don Fraser Coaches Ltd, Finch Coaches, First Halifax, Calder Valley & Huddersfield, First in Greater Manchester, Little Gem, Go North West, Diamond Bus North West, Harris Travel, Hattons Transport, Hiltons Travel, High Peak, Huyton Travel, Holmeswood Coaches, Link Network, The Blackburn Bus Company, Maghull Coaches, Metrolink, Olympia Travel UK Ltd, Preston Bus, Nexus Move, Rosso, Tyrers, Stagecoach Merseyside and South Lancashire, Stagecoach in Greater Manchester, Selwyn's Travel, South Pennine C.T., Stotts, Travel Assist, Team Pennine, Viking Coaches, Vision Bus, Warrington's Own Buses",https://files.mobilitydatabase.org/mdb-1103/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+150,Liverpool,GB,2644210,496770,liverpool-gb-2644210,True,4,mdb-1956;mdb-1103;mdb-2014;mdb-2900,Warrington's Own Buses,https://files.mobilitydatabase.org/mdb-1956/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+151,Birmingham,GB,2655603,1157603,birmingham-gb-2655603,True,2,mdb-2014;mdb-2900,BODS UK aggregate feed,https://files.mobilitydatabase.org/mdb-2014/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+152,Glasgow,GB,2648579,626410,glasgow-gb-2648579,True,5,mdb-1957;mdb-1941;mdb-2911;mdb-2014;mdb-2900,West Coast Motors,https://files.mobilitydatabase.org/mdb-1957/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+153,Bath,GB,2656173,101557,bath-gb-2656173,True,4,mdb-1950;mdb-1952;mdb-2014;mdb-2900,Salisbury Reds,https://files.mobilitydatabase.org/mdb-1950/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+154,Oxford,GB,2640729,162100,oxford-gb-2640729,True,2,mdb-1947;mdb-1932,Oxford Bus,https://files.mobilitydatabase.org/mdb-1947/latest.zip,True,T0,OPEN_SCHEDULE,False,True,2.5,EUR,,,0.0,TfO (Transport for Oxford),official_tfo_(transport_for_oxford),False,True,True,True,True
+155,Cambridge,GB,2653941,145674,cambridge-gb-2653941,True,3,mdb-2688;mdb-2014;mdb-2900,Essex County Council,https://files.mobilitydatabase.org/mdb-2688/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+156,York,GB,2633352,156135,york-gb-2633352,True,3,mdb-1953;mdb-2014;mdb-2900,Transdev Blazefield,https://files.mobilitydatabase.org/mdb-1953/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+157,Belfast,GB,2655984,348005,belfast-gb-2655984,True,1,mdb-2014,BODS UK aggregate feed,https://files.mobilitydatabase.org/mdb-2014/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+158,Cardiff,GB,2653822,372089,cardiff-gb-2653822,True,2,mdb-1931;mdb-1945,Cardiff Bus,https://files.mobilitydatabase.org/mdb-1931/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+159,Brighton,GB,2654710,283870,brighton-gb-2654710,True,2,mdb-1928;mdb-1942,Brighton & Hove Bus,https://files.mobilitydatabase.org/mdb-1928/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+160,Rotterdam,NL,2747891,868135,rotterdam-nl-2747891,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+161,The Hague,NL,2747373,474292,the-hague-nl-2747373,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+162,Utrecht,NL,2745912,376435,utrecht-nl-2745912,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+163,Brugge,BE,2800931,118509,brugge-be-2800931,True,2,tdg-82199;mdb-686,Eurostar International Ltd.,https://files.mobilitydatabase.org/tdg-82199/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+164,Gent,BE,2797656,265086,gent-be-2797656,True,2,tdg-82199;mdb-686,Eurostar International Ltd.,https://files.mobilitydatabase.org/tdg-82199/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+165,Antwerp,BE,2803138,529247,antwerp-be-2803138,True,2,mdb-686;tdg-82199,Société nationale des chemins de fer belges (NMBS-SNCB),https://files.mobilitydatabase.org/mdb-686/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+166,Salzburg,AT,2766824,157245,salzburg-at-2766824,True,2,mdb-3573;mdb-768,STA - Südtiroler Transportstrukturen AG,https://files.mobilitydatabase.org/mdb-3573/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+167,Innsbruck,AT,2775220,132493,innsbruck-at-2775220,True,2,mdb-3573;mdb-768,STA - Südtiroler Transportstrukturen AG,https://files.mobilitydatabase.org/mdb-3573/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+168,Graz,AT,2778067,303270,graz-at-2778067,True,2,mdb-3573;mdb-768,STA - Südtiroler Transportstrukturen AG,https://files.mobilitydatabase.org/mdb-3573/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+169,Basel,CH,2661604,177595,basel-ch-2661604,True,1,tdg-80437,Fluo Grand Est,https://files.mobilitydatabase.org/tdg-80437/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+170,Luzern,CH,2659811,81691,luzern-ch-2659811,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+171,Bern,CH,2661552,121631,bern-ch-2661552,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+172,Lausanne,CH,2659994,139111,lausanne-ch-2659994,True,1,mdb-2053,Systemaufgaben Kundeninformation SKI+,https://files.mobilitydatabase.org/mdb-2053/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+173,Oslo,NO,3143244,1082575,oslo-no-3143244,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+174,Bergen,NO,3161732,294029,bergen-no-3161732,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+175,Gothenburg,SE,2711537,608462,gothenburg-se-2711537,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+176,Malmö,SE,2692969,362133,malmo-se-2692969,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+177,Helsinki,FI,658225,658864,helsinki-fi-658225,True,1,mdb-865,Helsingin seudun liikenne (HSL),https://files.mobilitydatabase.org/mdb-865/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+178,Rovaniemi,FI,638936,65670,rovaniemi-fi-638936,True,1,tld-5528,Koskilinjat Oy,https://files.mobilitydatabase.org/tld-5528/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+179,Reykjavík,IS,3413829,118918,reykjavik-is-3413829,True,1,tld-4056,"Strætó BS, Reykjanesbær, Akureyri",https://files.mobilitydatabase.org/tld-4056/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+180,Dubrovnik,HR,3201047,26922,dubrovnik-hr-3201047,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+181,Split,HR,3190261,149830,split-hr-3190261,True,1,mdb-3043,HŽ Passenger Transport,https://files.mobilitydatabase.org/mdb-3043/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+182,Zagreb,HR,3186886,663592,zagreb-hr-3186886,True,1,mdb-3043,HŽ Passenger Transport,https://files.mobilitydatabase.org/mdb-3043/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+183,Zadar,HR,3186952,67309,zadar-hr-3186952,True,1,mdb-3043,HŽ Passenger Transport,https://files.mobilitydatabase.org/mdb-3043/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+184,Ljubljana,SI,3196359,272220,ljubljana-si-3196359,True,1,mdb-1827,Ljubljanski Potniški Promet,https://files.mobilitydatabase.org/mdb-1827/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+185,Bratislava,SK,3060972,423737,bratislava-sk-3060972,True,1,mdb-2919,IDS BK Regional Buses,https://files.mobilitydatabase.org/mdb-2919/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+186,Gdańsk,PL,3099434,487371,gdansk-pl-3099434,True,1,mdb-2093,Zarząd Transportu Miejskiego Gdańsk (ZTM Gdańsk),https://files.mobilitydatabase.org/mdb-2093/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+187,Wrocław,PL,3081368,672545,wrocaw-pl-3081368,True,2,mdb-2087;mdb-3191,Polregio,https://files.mobilitydatabase.org/mdb-2087/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+188,Poznań,PL,3088171,536151,poznan-pl-3088171,True,2,mdb-982;mdb-2087,Zarząd Transportu Miejskiego Poznań (ZTM Poznań),https://files.mobilitydatabase.org/mdb-982/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+189,Bucharest,RO,683506,1877155,bucharest-ro-683506,True,1,mdb-2098,Asociația de Dezvoltare Intercomunitară pentru Transport Public București – Ilfov (TPBI),https://files.mobilitydatabase.org/mdb-2098/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+190,Braşov,RO,683844,253200,brasov-ro-683844,True,2,mdb-2143;mdb-3236,Regia Autonomă De Transport Brașov,https://files.mobilitydatabase.org/mdb-2143/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+191,Cluj-Napoca,RO,681290,286598,cluj-napoca-ro-681290,True,1,mdb-2121,Compania de Transport Public Cluj-Napoca,https://files.mobilitydatabase.org/mdb-2121/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+192,Sofia,BG,727011,1152556,sofia-bg-727011,True,2,mdb-2848;mdb-3614,Urban Mobility Center - Sofia Traffic,https://files.mobilitydatabase.org/mdb-2848/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+193,Plovdiv,BG,728193,329489,plovdiv-bg-728193,True,2,mdb-3607;mdb-3614,Plovdiv Municipality Transport Organisation and Control,https://files.mobilitydatabase.org/mdb-3607/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+194,Varna,BG,726050,318737,varna-bg-726050,True,2,mdb-3606;mdb-3614,Gradski Transport Varna,https://files.mobilitydatabase.org/mdb-3606/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+195,Belgrade,RS,792680,1273651,belgrade-rs-792680,True,2,mdb-1027;mdb-2925,Republic of Serbia,https://files.mobilitydatabase.org/mdb-1027/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+196,Sarajevo,BA,3191281,696731,sarajevo-ba-3191281,True,1,mdb-3427,Turistička agencija Li-Bus d.o.o. (Livnobus),https://files.mobilitydatabase.org/mdb-3427/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+197,Mostar,BA,3194828,104518,mostar-ba-3194828,True,1,mdb-3427,Turistička agencija Li-Bus d.o.o. (Livnobus),https://files.mobilitydatabase.org/mdb-3427/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+198,kotor,ME,,0,kotor-me-9eaa74a0,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+199,Tirana,AL,3183875,418495,tirana-al-3183875,True,1,mdb-2345,Municipality of Tirana,https://files.mobilitydatabase.org/mdb-2345/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+200,Skopje,MK,785842,474889,skopje-mk-785842,True,2,mdb-3045;mdb-3461,JSP Skopje,https://files.mobilitydatabase.org/mdb-3045/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+201,Fukuoka,JP,1863967,1612392,fukuoka-jp-1863967,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+202,Sapporo,JP,2128295,1973832,sapporo-jp-2128295,True,1,jbda-nemurokotsu-nemurobus,根室交通株式会社,https://files.mobilitydatabase.org/jbda-nemurokotsu-nemurobus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+203,Nagoya,JP,1856057,2332176,nagoya-jp-1856057,True,1,odpt-NipponChuoBus-Maebashi_Area,日本中央バス株式会社,https://files.mobilitydatabase.org/odpt-NipponChuoBus-Maebashi_Area/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+204,Hiroshima,JP,1862415,1200754,hiroshima-jp-1862415,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+205,Nara-shi,JP,1855612,367353,nara-shi-jp-1855612,True,1,jbda-shinkikanko-limonbus,神姫観光,https://files.mobilitydatabase.org/jbda-shinkikanko-limonbus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+206,Kobe,JP,1859171,1525152,kobe-jp-1859171,True,1,jbda-kobecity-kobe-shiokaze,神戸市,https://files.mobilitydatabase.org/jbda-kobecity-kobe-shiokaze/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+207,Yokohama,JP,1848354,3777491,yokohama-jp-1848354,True,1,jbda-shinkikanko-limonbus,神姫観光,https://files.mobilitydatabase.org/jbda-shinkikanko-limonbus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+208,Kanazawa,JP,1860243,466029,kanazawa-jp-1860243,True,1,odpt-NipponChuoBus-Maebashi_Area,日本中央バス株式会社,https://files.mobilitydatabase.org/odpt-NipponChuoBus-Maebashi_Area/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+209,Naha,JP,1856035,317625,naha-jp-1856035,True,1,jbda-yanbaru-expressbus-yanbaru-express-bus,合同会社やんばる急行バス,https://files.mobilitydatabase.org/jbda-yanbaru-expressbus-yanbaru-express-bus/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+210,Takayama,JP,1850892,88473,takayama-jp-1850892,True,1,jbda-nouhibus-nouhibus_kanko,濃飛乗合自動車（濃飛バス）,https://files.mobilitydatabase.org/jbda-nouhibus-nouhibus_kanko/latest.zip,True,T0,OPEN_SCHEDULE,True,True,3.36,JPY,,,0.0,JR Takayama Line,official_jr_takayama_line,False,True,True,True,True
+211,Busan,KR,1838524,3285147,busan-kr-1838524,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+212,Incheon,KR,1843564,3015482,incheon-kr-1843564,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+213,Daegu,KR,1835329,2365523,daegu-kr-1835329,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+214,Gyeongju,KR,1841603,245365,gyeongju-kr-1841603,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+215,Jeju City,KR,1846266,488844,jeju-city-kr-1846266,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+216,Kaohsiung,TW,1673820,2737660,kaohsiung-tw-1673820,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+217,Taichung,TW,1668399,2850285,taichung-tw-1668399,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+218,Tainan,TW,1668355,1856642,tainan-tw-1668355,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+219,Hualien City,TW,1674504,99458,hualien-city-tw-1674504,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+220,Chongqing,CN,1814906,7457599,chongqing-cn-1814906,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+221,Wuhan,CN,1791247,10392693,wuhan-cn-1791247,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+222,Nanjing,CN,1799962,9314685,nanjing-cn-1799962,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+223,Suzhou,CN,1886760,6715559,suzhou-cn-1886760,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+224,Guilin,CN,1809498,1572300,guilin-cn-1809498,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+225,Xiamen,CN,1790645,4617251,xiamen-cn-1790645,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+226,Qingdao,CN,1797929,7172451,qingdao-cn-1797929,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+227,Tianjin,CN,1792947,11090314,tianjin-cn-1792947,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+228,Kunming,CN,1804651,3855346,kunming-cn-1804651,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+229,Sanya,CN,1796556,1031396,sanya-cn-1796556,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+230,Harbin,CN,2037013,5242897,harbin-cn-2037013,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+231,Changsha,CN,1815577,3093980,changsha-cn-1815577,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+232,Zhengzhou,CN,1784658,4253913,zhengzhou-cn-1784658,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+233,Dalian,CN,1814087,4913879,dalian-cn-1814087,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+234,Lhasa,CN,1280737,118721,lhasa-cn-1280737,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+235,Da Nang,VN,1583992,1276000,da-nang-vn-1583992,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+236,Hoi An,VN,1580541,32757,hoi-an-vn-1580541,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+237,Nha Trang,VN,1572151,579000,nha-trang-vn-1572151,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+238,Huế,VN,1580240,1380000,hue-vn-1580240,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+239,Phu Quoc,VN,8531735,294419,phu-quoc-vn-8531735,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+240,Krabi,TH,1152633,31219,krabi-th-1152633,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+241,Ko Samui,TH,1154689,50000,ko-samui-th-1154689,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+242,Hua Hin,TH,1153269,126355,hua-hin-th-1153269,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+243,Phra Nakhon Si Ayutthaya,TH,1607532,50830,phra-nakhon-si-ayutthaya-th-1607532,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+244,Sukhothai,TH,1150533,37000,sukhothai-th-1150533,True,1,mdb-1831,Office of Transport and Traffic Policy and Planning,https://files.mobilitydatabase.org/mdb-1831/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+245,George Town,MY,1735106,158336,george-town-my-1735106,True,2,tld-6770;tld-6758,Prasarana Malaysia,https://files.mobilitydatabase.org/tld-6770/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+246,Malacca,MY,1734759,579000,malacca-my-1734759,True,2,mdb-3164;tld-6758,BAS.MY Melaka,https://files.mobilitydatabase.org/mdb-3164/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+247,Kota Kinabalu,MY,1733432,500421,kota-kinabalu-my-1733432,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+248,Johor Bahru,MY,1732752,858118,johor-bahru-my-1732752,True,4,mdb-3165;mdb-3051;mdb-3409;tld-6758,BAS.MY Johor Bahru,https://files.mobilitydatabase.org/mdb-3165/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+249,Kuah,MY,1222396,30212,kuah-my-1222396,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+250,Kuching,MY,1735634,402738,kuching-my-1735634,True,1,mdb-3166,BAS.MY Kuching,https://files.mobilitydatabase.org/mdb-3166/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+251,Surabaya,ID,1625822,3018022,surabaya-id-1625822,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+252,Bandung,ID,1650357,2528163,bandung-id-1650357,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+253,Yogyakarta,ID,1621177,375699,yogyakarta-id-1621177,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+254,Medan,ID,1214520,2486283,medan-id-1214520,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+255,Semarang,ID,1627896,1694740,semarang-id-1627896,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+256,Siem Reap,KH,1822214,139458,siem-reap-kh-1822214,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+257,Phnom Penh,KH,1821306,1573544,phnom-penh-kh-1821306,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+258,Vientiane,LA,1651944,840940,vientiane-la-1651944,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+259,Luang Prabang,LA,1655559,55027,luang-prabang-la-1655559,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+260,Yangon,MM,1298824,4477638,yangon-mm-1298824,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+261,Mandalay,MM,1311874,1208099,mandalay-mm-1311874,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+262,bagan,MM,,0,bagan-mm-a93be348,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+263,Manila,PH,1701668,1600000,manila-ph-1701668,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+264,Cebu City,PH,1717512,965332,cebu-city-ph-1717512,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+265,boracay,PH,,0,boracay-ph-37f86d52,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+266,El Nido,PH,1713917,51367,el-nido-ph-1713917,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+267,Davao,PH,1715348,1848947,davao-ph-1715348,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+268,Bandar Seri Begawan,BN,1820906,64409,bandar-seri-begawan-bn-1820906,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+269,Mormugao,IN,1263494,102345,mormugao-in-1263494,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+270,Varanasi,IN,1253405,1164404,varanasi-in-1253405,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+271,Chennai,IN,1264527,4681087,chennai-in-1264527,True,1,mdb-3360,Chennai Transport Corporation,https://files.mobilitydatabase.org/mdb-3360/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+272,Bengaluru,IN,1277333,8495492,bengaluru-in-1277333,True,1,mdb-2595,Bangalore Metropolitan Transport Corporation (BMTC),https://files.mobilitydatabase.org/mdb-2595/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+273,Kolkata,IN,1275004,4631392,kolkata-in-1275004,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+274,Hyderabad,IN,1269843,6993262,hyderabad-in-1269843,True,2,mdb-3361;mdb-2457,Hyderabad TGSRTC Bus,https://files.mobilitydatabase.org/mdb-3361/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+275,Kochi,IN,1273874,633553,kochi-in-1273874,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+276,Amritsar,IN,1278710,1159227,amritsar-in-1278710,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+277,Udaipur,IN,1253986,451100,udaipur-in-1253986,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+278,Jodhpur,IN,1268865,1056191,jodhpur-in-1268865,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+279,Rishīkesh,IN,1258128,66390,rishikesh-in-1258128,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+280,Kandy,LK,1241622,111701,kandy-lk-1241622,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+281,Galle,LK,1246294,93118,galle-lk-1246294,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+282,ella,LK,,0,ella-lk-70f99a32,True,2,mdb-2321;tld-5741,Megabus,https://files.mobilitydatabase.org/mdb-2321/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+283,Pokhara,NP,1282898,600051,pokhara-np-1282898,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+284,Dhaka,BD,1185241,10356500,dhaka-bd-1185241,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+285,Chattogram,BD,1205733,3920222,chattogram-bd-1205733,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+286,Thimphu,BT,1252416,98676,thimphu-bt-1252416,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+287,paro,BT,,0,paro-bt-593e4b35,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+288,Male,MV,1282027,103693,male-mv-1282027,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+289,Islamabad,PK,1176615,601600,islamabad-pk-1176615,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+290,Lahore,PK,1172451,13004135,lahore-pk-1172451,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+291,Karachi,PK,1174872,11624219,karachi-pk-1174872,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+292,Brisbane,AU,2174003,2780063,brisbane-au-2174003,True,1,mdb-3048,Translink South East Queensland (Translink SEQ),https://files.mobilitydatabase.org/mdb-3048/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+293,Perth,AU,2063523,2384371,perth-au-2063523,True,1,mdb-1086,Transperth,https://files.mobilitydatabase.org/mdb-1086/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+294,Adelaide,AU,2078025,1469163,adelaide-au-2078025,True,1,mdb-660,Adelaide Metro,https://files.mobilitydatabase.org/mdb-660/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+295,Gold Coast,AU,2165087,640778,gold-coast-au-2165087,True,1,mdb-3048,Translink South East Queensland (Translink SEQ),https://files.mobilitydatabase.org/mdb-3048/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+296,Cairns,AU,2172797,153075,cairns-au-2172797,True,1,mdb-674,TransLink Sunbus Cairns,https://files.mobilitydatabase.org/mdb-674/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+297,Canberra,AU,2172517,367752,canberra-au-2172517,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+298,Hobart,AU,2163355,254930,hobart-au-2163355,True,2,mdb-3147;mdb-682,SkyBus Hobart,https://files.mobilitydatabase.org/mdb-3147/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+299,Auckland,NZ,2193733,1547200,auckland-nz-2193733,True,2,mdb-3425;mdb-1029,Mahu City Express,https://files.mobilitydatabase.org/mdb-3425/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+300,Queenstown,ZA,963516,118599,queenstown-za-963516,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+301,Wellington,NZ,2179537,381900,wellington-nz-2179537,True,1,mdb-1132,Metlink,https://files.mobilitydatabase.org/mdb-1132/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+302,Christchurch,NZ,2192362,419200,christchurch-nz-2192362,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+303,Rotorua,NZ,6241325,65901,rotorua-nz-6241325,True,1,mdb-1071,BayBus,https://files.mobilitydatabase.org/mdb-1071/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+304,San Diego,US,5391811,1404452,san-diego-us-5391811,True,1,mdb-13,"San Diego International Airport, Metropolitan Transit System (MTS)",https://files.mobilitydatabase.org/mdb-13/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+305,Seattle,US,5809844,780995,seattle-us-5809844,True,5,tld-5755;ntd-40-3;mdb-267;mdb-265;mdb-268,Solid Ground,https://files.mobilitydatabase.org/tld-5755/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+306,Houston,US,4699066,2314157,houston-us-4699066,True,3,mdb-2060;mdb-2321;tld-5741,METRO Houston,https://files.mobilitydatabase.org/mdb-2060/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+307,Dallas,US,4684888,1326087,dallas-us-4684888,True,2,mdb-152;tld-5864,Dallas Area Rapid Transit (DART),https://files.mobilitydatabase.org/mdb-152/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+308,Austin,US,4671654,974447,austin-us-4671654,True,1,mdb-150,Capital Metro,https://files.mobilitydatabase.org/mdb-150/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+309,San Antonio,US,4726206,1526656,san-antonio-us-4726206,True,3,tld-217;mdb-2321;tld-5741,VIA Metropolitan Transit,https://files.mobilitydatabase.org/tld-217/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+310,Philadelphia,US,4560349,1573916,philadelphia-us-4560349,True,5,mdb-3035;mdb-2877;mdb-509;tld-5783;mdb-2297,PATCO Speedline,https://files.mobilitydatabase.org/mdb-3035/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+311,Atlanta,US,4180439,510823,atlanta-us-4180439,True,3,tld-5864;mdb-2321;tld-5741,Concho Valley Transit District,https://files.mobilitydatabase.org/tld-5864/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+312,New Orleans,US,4335045,362701,new-orleans-us-4335045,True,1,ntd-60032,New Orleans Regional Transit Authority (NORTA),https://files.mobilitydatabase.org/ntd-60032/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+313,Nashville,US,4644585,689447,nashville-us-4644585,True,3,mdb-360;mdb-2321;tld-5741,Nashville MTA WeGo Public Transit,https://files.mobilitydatabase.org/mdb-360/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+314,Denver,US,5419384,729019,denver-us-5419384,True,5,mdb-2054;mdb-2169;mdb-172;mdb-2280;mdb-2330,Regional Transportation District,https://files.mobilitydatabase.org/mdb-2054/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+315,Phoenix,US,5308655,1650070,phoenix-us-5308655,True,3,mdb-147;mdb-2321;tld-5741,Valley Metro (VM),https://files.mobilitydatabase.org/mdb-147/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+316,Portland,US,5746545,652503,portland-us-5746545,True,5,mdb-247;mdb-258;mdb-127;mdb-139;mdb-133,"TriMet, Portland Streetcar",https://files.mobilitydatabase.org/mdb-247/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+317,San Jose,US,5392171,997368,san-jose-us-5392171,True,5,mdb-57;mdb-54;mdb-2273;mdb-74;mdb-2174,Santa Clara Valley Transportation Authority (VTA),https://files.mobilitydatabase.org/mdb-57/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+318,Salt Lake City,US,5780993,215548,salt-lake-city-us-5780993,True,2,mdb-170;tld-7037,Utah Transit Authority (UTA),https://files.mobilitydatabase.org/mdb-170/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+319,Tampa,US,4174757,414547,tampa-us-4174757,True,3,mdb-325;mdb-2321;tld-5741,Hillsborough Area Regional Transit (HART),https://files.mobilitydatabase.org/mdb-325/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+320,Fort Lauderdale,US,4155966,183146,fort-lauderdale-us-4155966,True,4,tld-492;mdb-1126;mdb-333;mdb-3534,South Florida Regional Transportation Authority,https://files.mobilitydatabase.org/tld-492/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+321,Savannah,US,4221552,147780,savannah-us-4221552,True,2,mdb-2321;tld-5741,Megabus,https://files.mobilitydatabase.org/mdb-2321/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+322,Charleston,US,4574324,132609,charleston-us-4574324,True,2,ntd-40206;mdb-352,TriCounty Link,https://files.mobilitydatabase.org/ntd-40206/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+323,Memphis,US,4641239,633104,memphis-us-4641239,True,2,mdb-2321;tld-5741,Megabus,https://files.mobilitydatabase.org/mdb-2321/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+324,Minneapolis,US,5037649,410939,minneapolis-us-5037649,True,2,mdb-3529;mdb-206,Metro Transit,https://files.mobilitydatabase.org/mdb-3529/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+325,Anchorage,US,5879400,289600,anchorage-us-5879400,True,1,mdb-225,Anchorage People Mover,https://files.mobilitydatabase.org/mdb-225/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+326,Québec,CA,6325494,531902,quebec-ca-6325494,True,3,mdb-757;mdb-763;tld-5721,Réseau de transport de la Capitale,https://files.mobilitydatabase.org/mdb-757/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+327,Calgary,CA,5913490,1306784,calgary-ca-5913490,True,1,mdb-712,Calgary Transit,https://files.mobilitydatabase.org/mdb-712/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+328,Ottawa,CA,6094817,1017449,ottawa-ca-6094817,True,3,mdb-2154;mdb-740;mdb-739,Ottawa-Carleton Regional Transit Commission (OC Transpo),https://files.mobilitydatabase.org/mdb-2154/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+329,Victoria,CA,6174041,289625,victoria-ca-6174041,True,1,mdb-2571,BC Transit (Victoria Regional Transit System),https://files.mobilitydatabase.org/mdb-2571/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+330,Edmonton,CA,5946768,1010899,edmonton-ca-5946768,True,1,mdb-714,Edmonton Transit System,https://files.mobilitydatabase.org/mdb-714/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+331,Halifax,CA,6324729,471559,halifax-ca-6324729,True,2,mdb-2417;mdb-734,Maritime Bus,https://files.mobilitydatabase.org/mdb-2417/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+332,Niagara Falls,CA,6087892,99818,niagara-falls-ca-6087892,True,2,tld-859;mdb-1993,Niagara Region Transit,https://files.mobilitydatabase.org/tld-859/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+333,Guadalajara,MX,4005539,1385629,guadalajara-mx-4005539,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+334,Monterrey,MX,3995465,1135512,monterrey-mx-3995465,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+335,Puebla,MX,3521081,1692181,puebla-mx-3521081,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+336,Oaxaca,MX,3522507,255029,oaxaca-mx-3522507,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+337,Mérida,MX,3523349,1201000,merida-mx-3523349,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+338,San Miguel de Allende,MX,3985344,174615,san-miguel-de-allende-mx-3985344,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+339,Puerto Vallarta,MX,3991328,224166,puerto-vallarta-mx-3991328,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+340,los-cabos,MX,,0,los-cabos-mx-1539f8e1,True,1,mdb-2653,Renfe commuter trains (Cercanias),https://files.mobilitydatabase.org/mdb-2653/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+341,Santiago de Querétaro,MX,3991164,1594212,santiago-de-queretaro-mx-3991164,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+342,Guanajuato,MX,4005270,72237,guanajuato-mx-4005270,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+343,Tulum,MX,3515040,18233,tulum-mx-3515040,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+344,Playa del Carmen,MX,3521342,149923,playa-del-carmen-mx-3521342,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+345,Cozumel,MX,3530103,77236,cozumel-mx-3530103,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+346,San Cristóbal de las Casas,MX,3519537,215874,san-cristobal-de-las-casas-mx-3519537,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+347,San José,CR,3621849,335007,san-jose-cr-3621849,True,1,mdb-3480,INCOFER,https://files.mobilitydatabase.org/mdb-3480/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+348,Liberia,CR,3623076,45380,liberia-cr-3623076,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+349,Panama City,PA,3703443,408168,panama-city-pa-3703443,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+350,Antigua Guatemala,GT,3599699,46054,antigua-guatemala-gt-3599699,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+351,Guatemala City,GT,3598132,994938,guatemala-city-gt-3598132,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+352,San Salvador,SV,3583361,525990,san-salvador-sv-3583361,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+353,Tegucigalpa,HN,3600949,850848,tegucigalpa-hn-3600949,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+354,roatan,HN,,0,roatan-hn-7df1d954,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+355,Managua,NI,3617763,973087,managua-ni-3617763,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+356,Granada,NI,3619136,89409,granada-ni-3619136,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+357,Havana,CU,3553478,2163824,havana-cu-3553478,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+358,Varadero,CU,3534632,20000,varadero-cu-3534632,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+359,Santiago de Cuba,CU,3536729,555865,santiago-de-cuba-cu-3536729,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+360,Kingston,JM,3489854,937700,kingston-jm-3489854,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+361,Montego Bay,JM,3489460,82867,montego-bay-jm-3489460,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+362,Ocho Rios,JM,3489239,26503,ocho-rios-jm-3489239,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+363,San Juan,PR,4568127,418140,san-juan-pr-4568127,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+364,Ponce,PR,4566880,137491,ponce-pr-4566880,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+365,Santo Domingo,DO,3492908,2201941,santo-domingo-do-3492908,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+366,Puerto Plata,DO,3493175,146000,puerto-plata-do-3493175,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+367,La Romana,DO,3500957,208437,la-romana-do-3500957,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+368,Nassau,BS,3571824,227940,nassau-bs-3571824,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+369,Bridgetown,BB,3374036,98511,bridgetown-bb-3374036,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+370,Willemstad,CW,3513090,125000,willemstad-cw-3513090,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+371,Oranjestad,AW,3577154,29998,oranjestad-aw-3577154,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+372,Philipsburg,SX,3513392,1400,philipsburg-sx-3513392,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+373,Castries,LC,3576812,20000,castries-lc-3576812,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+374,Port of Spain,TT,3573890,49031,port-of-spain-tt-3573890,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+375,Medellín,CO,3674962,1999979,medellin-co-3674962,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+376,Cartagena,CO,3687238,914552,cartagena-co-3687238,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+377,Cali,CO,3687925,2392877,cali-co-3687925,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+378,Barranquilla,CO,3689147,1206319,barranquilla-co-3689147,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+379,Santa Marta,CO,3668605,499192,santa-marta-co-3668605,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+380,San Andrés,CO,3670218,58257,san-andres-co-3670218,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+381,Quito,EC,3652462,2781641,quito-ec-3652462,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+382,Guayaquil,EC,3657509,2723665,guayaquil-ec-3657509,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+383,Cuenca,EC,3658666,636996,cuenca-ec-3658666,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+384,puerto-ayora,EC,,0,puerto-ayora-ec-b51e26d6,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+385,Cusco,PE,3941584,428450,cusco-pe-3941584,True,1,mdb-1985,Aeroexpreso,https://files.mobilitydatabase.org/mdb-1985/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+386,Arequipa,PE,3947322,1195700,arequipa-pe-3947322,True,1,mdb-1985,Aeroexpreso,https://files.mobilitydatabase.org/mdb-1985/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+387,Trujillo,PE,3691175,1067700,trujillo-pe-3691175,True,1,mdb-2200,TMT Trujillo - Gerencia de Transporte,https://files.mobilitydatabase.org/mdb-2200/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+388,Iquitos,PE,3696183,377609,iquitos-pe-3696183,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+389,La Paz,BO,3911925,2004652,la-paz-bo-3911925,True,1,mdb-3491,Mi Teleférico,https://files.mobilitydatabase.org/mdb-3491/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+390,Santa Cruz de la Sierra,BO,3904906,1831434,santa-cruz-de-la-sierra-bo-3904906,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+391,Sucre,BO,3903987,224838,sucre-bo-3903987,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+392,Córdoba,AR,3860259,2106734,cordoba-ar-3860259,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+393,Mendoza,AR,3844421,114893,mendoza-ar-3844421,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+394,San Carlos de Bariloche,AR,7647007,95394,san-carlos-de-bariloche-ar-7647007,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+395,Salta,AR,3838233,520683,salta-ar-3838233,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+396,Rosario,AR,3838583,948312,rosario-ar-3838583,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+397,Ushuaia,AR,3833367,56825,ushuaia-ar-3833367,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+398,Puerto Iguazú,AR,3429777,32038,puerto-iguazu-ar-3429777,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+399,Foz do Iguaçu,BR,3463030,297352,foz-do-iguacu-br-3463030,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+400,Florianópolis,BR,3463237,508826,florianopolis-br-3463237,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+401,Salvador,BR,3450554,2711840,salvador-br-3450554,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+402,Fortaleza,BR,3399415,2400000,fortaleza-br-3399415,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+403,Belo Horizonte,BR,3470127,2721564,belo-horizonte-br-3470127,True,1,mdb-687,Empresa de Transportes e Transito de Belo Horizonte (BHTRANS),https://files.mobilitydatabase.org/mdb-687/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+404,Curitiba,BR,3464975,1948626,curitiba-br-3464975,True,1,mdb-3225,URBS Curitiba,https://files.mobilitydatabase.org/mdb-3225/latest.zip,False,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+405,Brasília,BR,3469058,2207718,brasilia-br-3469058,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+406,Manaus,BR,3663517,2219580,manaus-br-3663517,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+407,Recife,BR,3390760,1653461,recife-br-3390760,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+408,Natal,BR,3394023,896708,natal-br-3394023,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+409,Gramado,BR,3462284,40134,gramado-br-3462284,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+410,Montevideo,UY,3441575,1270737,montevideo-uy-3441575,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+411,punta-del-este,UY,,0,punta-del-este-uy-c86549e7,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+412,Colonia del Sacramento,UY,3443013,32164,colonia-del-sacramento-uy-3443013,True,1,mdb-3464,Colonia del Sacramento - Bus,https://files.mobilitydatabase.org/mdb-3464/latest.zip,False,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+413,Asunción,PY,3439389,1482200,asuncion-py-3439389,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+414,Caracas,VE,3646738,3000000,caracas-ve-3646738,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+415,Porlamar,VE,3629965,216234,porlamar-ve-3629965,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+416,Valparaíso,CL,3868626,282448,valparaiso-cl-3868626,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+417,Viña del Mar,CL,3868121,334248,vina-del-mar-cl-3868121,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+418,san-pedro-de-atacama,CL,,0,san-pedro-de-atacama-cl-c03a5b3b,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+419,Puerto Varas,CL,3874930,37561,puerto-varas-cl-3874930,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+420,Punta Arenas,CL,3874787,117430,punta-arenas-cl-3874787,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+421,Alexandria,EG,361058,5263542,alexandria-eg-361058,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+422,Luxor,EG,360502,422407,luxor-eg-360502,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+423,Aswān,EG,359792,379774,aswan-eg-359792,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+424,Giza,EG,360995,4367343,giza-eg-360995,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+425,marsa-alam,EG,,0,marsa-alam-eg-09878c3e,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+426,Tangier,MA,2530335,1035141,tangier-ma-2530335,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+427,Fes,MA,2548885,1191905,fes-ma-2548885,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+428,Rabat,MA,2538475,1655753,rabat-ma-2538475,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+429,Agadir,MA,2561668,698310,agadir-ma-2561668,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+430,Essaouira,MA,2549263,85137,essaouira-ma-2549263,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+431,Chefchaouen,MA,2553455,46721,chefchaouen-ma-2553455,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+432,Tunis,TN,2464470,693210,tunis-tn-2464470,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+433,Hammamet,TN,2473744,106326,hammamet-tn-2473744,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+434,Sousse,TN,2464915,221715,sousse-tn-2464915,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+435,Houmt Souk,TN,2470384,89228,houmt-souk-tn-2470384,True,1,mdb-1158,SRTMedenine,https://files.mobilitydatabase.org/mdb-1158/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+436,Algiers,DZ,2507480,2364230,algiers-dz-2507480,True,1,tdg-81023,Saint-Etienne Métropole,https://files.mobilitydatabase.org/tdg-81023/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+437,Oran,DZ,2485926,803329,oran-dz-2485926,True,1,tdg-81023,Saint-Etienne Métropole,https://files.mobilitydatabase.org/tdg-81023/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+438,Constantine,DZ,2501152,448028,constantine-dz-2501152,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+439,Amman,JO,250441,1275857,amman-jo-250441,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+440,Aqaba,JO,250774,95048,aqaba-jo-250774,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+441,petra,JO,,0,petra-jo-3d77c724,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+442,Jerusalem,IL,281184,971800,jerusalem-il-281184,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+443,Tel Aviv,IL,293397,432892,tel-aviv-il-293397,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+444,Haifa,IL,294801,285316,haifa-il-294801,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+445,Eilat,IL,295277,52299,eilat-il-295277,True,1,mdb-2519,Ministry of Transport and Road Safety,https://files.mobilitydatabase.org/mdb-2519/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+446,Beirut,LB,276781,1916100,beirut-lb-276781,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+447,Byblos,LB,273203,20784,byblos-lb-273203,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+448,Kuwait City,KW,285787,60064,kuwait-city-kw-285787,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+449,Sharjah,AE,292672,1800000,sharjah-ae-292672,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+450,Al Ain City,AE,292913,846747,al-ain-city-ae-292913,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+451,Ras Al Khaimah,AE,291074,351943,ras-al-khaimah-ae-291074,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+452,Şalālah,OM,286621,163140,salalah-om-286621,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+453,Nizwá,OM,286987,72076,nizwa-om-286987,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+454,Dammam,SA,110336,1252523,dammam-sa-110336,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+455,Jeddah,SA,105343,4697000,jeddah-sa-105343,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+456,alula,SA,,0,alula-sa-51465403,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+457,Abha,SA,110690,210886,abha-sa-110690,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+458,Ta’if,SA,107968,688693,taif-sa-107968,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+459,Isfahan,IR,418863,1547164,isfahan-ir-418863,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+460,Shiraz,IR,115019,1249942,shiraz-ir-115019,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+461,Tehran,IR,112931,7153309,tehran-ir-112931,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+462,Yazd,IR,111822,477905,yazd-ir-111822,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+463,İzmir,TR,311046,2938292,izmir-tr-311046,True,3,mdb-1829;mdb-1824;mdb-2922,TRAM İZMİR,https://files.mobilitydatabase.org/mdb-1829/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+464,Bodrum,TR,320995,39317,bodrum-tr-320995,True,2,mdb-3396;mdb-2922,KentKart Muğla - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3396/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+465,Fethiye,TR,314967,60437,fethiye-tr-314967,True,2,mdb-3396;mdb-2922,KentKart Muğla - Third party generated from KentKart,https://files.mobilitydatabase.org/mdb-3396/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+466,cappadocia,TR,,0,cappadocia-tr-be8c0479,True,4,mdb-1319;mdb-3386;mdb-3571;mdb-3569,Trenitalia,https://files.mobilitydatabase.org/mdb-1319/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+467,Trabzon,TR,738648,244083,trabzon-tr-738648,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+468,Bursa,TR,750269,3101833,bursa-tr-750269,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+469,Konya,TR,306571,1433861,konya-tr-306571,True,1,mdb-2922,Flixbus Türkiye,https://files.mobilitydatabase.org/mdb-2922/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+470,Thessaloníki,GR,734077,317778,thessaloniki-gr-734077,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+471,Irákleion,GR,261745,137154,irakleion-gr-261745,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+472,Ródos,GR,400666,56128,rodos-gr-400666,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+473,Chaniá,GR,260114,53910,chania-gr-260114,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+474,Corfu,GR,2463679,40047,corfu-gr-2463679,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+475,santorini,GR,,0,santorini-gr-c687353d,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+476,mykonos,GR,,0,mykonos-gr-16155970,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+477,Nicosia,CY,146268,200452,nicosia-cy-146268,True,3,mdb-2901;mdb-1918;mdb-1917,PAME EXPRESS,https://files.mobilitydatabase.org/mdb-2901/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+478,Limassol,CY,146384,154000,limassol-cy-146384,True,2,tld-5772;mdb-1917,EMEL (Limassol),https://files.mobilitydatabase.org/tld-5772/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+479,Paphos,CY,146214,35961,paphos-cy-146214,True,2,mdb-1915;mdb-1917,OSYPA,https://files.mobilitydatabase.org/mdb-1915/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+480,Larnaca,CY,146400,72000,larnaca-cy-146400,True,3,mdb-1919;mdb-1916;mdb-1917,LPT,https://files.mobilitydatabase.org/mdb-1919/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+481,Valletta,MT,2562305,6794,valletta-mt-2562305,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+482,st-julian-s,MT,,0,st-julian-s-mt-58b51507,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+483,Vilnius,LT,593116,542366,vilnius-lt-593116,True,4,mdb-1044;mdb-2991;tld-4477;mdb-1834,Vilnius Transport,https://files.mobilitydatabase.org/mdb-1044/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+484,Riga,LV,456172,742572,riga-lv-456172,True,4,mdb-3502;mdb-3501;mdb-3500;mdb-992,Rīgas Satiksme,https://files.mobilitydatabase.org/mdb-3502/latest.zip,True,T0,OPEN_SCHEDULE,True,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+485,Tallinn,EE,588409,394024,tallinn-ee-588409,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+486,Nairobi,KE,184745,4397073,nairobi-ke-184745,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+487,Mombasa,KE,186301,1208333,mombasa-ke-186301,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+488,Zanzibar,TZ,148730,709809,zanzibar-tz-148730,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+489,Dar es Salaam,TZ,160263,5383728,dar-es-salaam-tz-160263,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+490,Arusha,TZ,161325,617631,arusha-tz-161325,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+491,Addis Ababa,ET,344979,3860000,addis-ababa-et-344979,True,1,tld-6782,Addis Ababa Transport (all),https://files.mobilitydatabase.org/tld-6782/latest.zip,True,T0,OPEN_SCHEDULE,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+492,Kigali,RW,202061,1132686,kigali-rw-202061,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+493,Kampala,UG,232422,1680600,kampala-ug-232422,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+494,Livingstone,ZM,910111,178361,livingstone-zm-910111,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+495,Victoria Falls,ZW,879431,35215,victoria-falls-zw-879431,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+496,Windhoek,NA,3352136,386219,windhoek-na-3352136,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+497,Gaborone,BW,933773,246325,gaborone-bw-933773,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+498,Durban,ZA,1007311,3338026,durban-za-1007311,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+499,Port Louis,MU,934154,155226,port-louis-mu-934154,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
+500,Victoria,SC,241131,22881,victoria-sc-241131,False,0,,,,False,T5,NO_FEED,False,False,,,,,0.0,,fare_unknown,True,True,True,True,True
