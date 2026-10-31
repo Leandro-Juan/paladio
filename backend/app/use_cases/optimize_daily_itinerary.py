@@ -307,20 +307,28 @@ class OptimizeDailyItineraryUseCase:
                 path_list = itin_dict.setdefault("path", [])
                 path_list.insert(0, airport_node)
                 if len(path_list) > 1:
-                    path_list[1]["transit_from_previous"] = {
-                        "mode": "transit",
-                        "duration_mins": 30,
-                        "cost_eur": 4.0,
-                        "distance_meters": 8500,
-                    }
-                itin_dict["total_time_mins"] = (
-                    itin_dict.get("total_time_mins", 0) + 60 + 30
-                )
-                itin_dict["total_cost_eur"] = (
-                    itin_dict.get("total_cost_eur", 0.0)
-                    + float(selected_airport.get("cost_eur", 0.0) or 0.0)
-                    + 4.0
-                )
+                    from app.services.transit_service import (
+                        synthesize_fallback_transit_leg,
+                    )
+
+                    next_poi = path_list[1].get("poi", {})
+                    leg = synthesize_fallback_transit_leg(
+                        selected_airport,
+                        next_poi,
+                        city=constraints.destination_city or "",
+                        is_airport_leg=True,
+                    )
+                    path_list[1]["transit_from_previous"] = leg.model_dump(mode="json")
+                    itin_dict["total_time_mins"] = (
+                        itin_dict.get("total_time_mins", 0)
+                        + 60
+                        + int(leg.duration_mins)
+                    )
+                    itin_dict["total_cost_eur"] = (
+                        itin_dict.get("total_cost_eur", 0.0)
+                        + float(selected_airport.get("cost_eur", 0.0) or 0.0)
+                        + float(leg.cost_eur)
+                    )
 
             if d_idx == num_days - 1 and selected_airport and ret_flight:
                 dep_t = ret_flight.get("departure_time") or "18:00"
@@ -337,18 +345,37 @@ class OptimizeDailyItineraryUseCase:
 
                 airport_end = dep_mins
                 airport_start = max(0, dep_mins - 120)
+                path_list = itin_dict.setdefault("path", [])
+                prev_poi = (
+                    path_list[-2].get("poi", {})
+                    if (
+                        path_list
+                        and (
+                            str(
+                                path_list[-1].get("poi", {}).get("category", "")
+                            ).upper()
+                            == "HOTEL"
+                            or "hotel"
+                            in str(path_list[-1].get("poi", {}).get("name", "")).lower()
+                        )
+                        and len(path_list) > 1
+                    )
+                    else (path_list[-1].get("poi", {}) if path_list else {})
+                )
+                from app.services.transit_service import synthesize_fallback_transit_leg
+
+                leg = synthesize_fallback_transit_leg(
+                    prev_poi,
+                    selected_airport,
+                    city=constraints.destination_city or "",
+                    is_airport_leg=True,
+                )
                 airport_node = {
                     "poi": selected_airport,
                     "scheduled_start": f"{airport_start // 60:02d}:{airport_start % 60:02d}",
                     "scheduled_end": f"{airport_end // 60:02d}:{airport_end % 60:02d}",
-                    "transit_from_previous": {
-                        "mode": "transit",
-                        "duration_mins": 30,
-                        "cost_eur": 4.0,
-                        "distance_meters": 8500,
-                    },
+                    "transit_from_previous": leg.model_dump(mode="json"),
                 }
-                path_list = itin_dict.setdefault("path", [])
                 if path_list and (
                     str(path_list[-1].get("poi", {}).get("category", "")).upper()
                     == "HOTEL"
@@ -360,18 +387,13 @@ class OptimizeDailyItineraryUseCase:
                     path_list.append(airport_node)
 
                 itin_dict["total_time_mins"] = (
-                    itin_dict.get("total_time_mins", 0) + 120 + 30
+                    itin_dict.get("total_time_mins", 0) + 120 + int(leg.duration_mins)
                 )
                 itin_dict["total_cost_eur"] = (
                     itin_dict.get("total_cost_eur", 0.0)
                     + float(selected_airport.get("cost_eur", 0.0) or 0.0)
-                    + 4.0
+                    + float(leg.cost_eur)
                 )
-
-            if "total_cost" not in itin_dict:
-                itin_dict["total_cost"] = itin_dict.get("total_cost_eur", 0.0)
-            if "total_time" not in itin_dict:
-                itin_dict["total_time"] = itin_dict.get("total_time_mins", 0)
 
             day_dict = {
                 "day": d_data.get("day", d_idx + 1),

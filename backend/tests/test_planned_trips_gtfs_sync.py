@@ -17,7 +17,7 @@ async def test_planned_trips_transit_status_and_sync(
 
     # Register test user
     reg_res = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"sync_test_{uid}@paladio.com",
             "username": f"sync_{uid}",
@@ -30,7 +30,7 @@ async def test_planned_trips_transit_status_and_sync(
 
     # 1. Create a trip with destination city_not_ready
     res1 = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": city_not_ready.title(),
             "start_date": "2026-11-01",
@@ -54,7 +54,7 @@ async def test_planned_trips_transit_status_and_sync(
 
     # Create a trip with destination city_ready
     res2 = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": city_ready.title(),
             "start_date": "2026-12-01",
@@ -66,9 +66,9 @@ async def test_planned_trips_transit_status_and_sync(
     assert res2.status_code == 201
     trip2_id = res2.json()["id"]
 
-    # 3. Call GET /api/v1/trips/transit/planned-status
+    # 3. Call GET /api/trips/transit/planned-status
     status_res = await async_client.get(
-        "/api/v1/trips/transit/planned-status",
+        "/api/trips/transit/planned-status",
         headers=headers,
     )
     assert status_res.status_code == 200, status_res.text
@@ -86,14 +86,14 @@ async def test_planned_trips_transit_status_and_sync(
     assert r_item["is_downloaded"] is True
     assert r_item["gtfs_status"] == "READY"
 
-    # 4. Test POST /api/v1/trips/transit/sync-planned
+    # 4. Test POST /api/trips/transit/sync-planned
     with patch("app.tasks.build_city_gtfs_task.delay") as mock_delay:
         mock_task = MagicMock()
         mock_task.id = "mock-celery-task-id"
         mock_delay.return_value = mock_task
 
         sync_res = await async_client.post(
-            "/api/v1/trips/transit/sync-planned",
+            "/api/trips/transit/sync-planned",
             json={"cities": [city_not_ready, city_ready]},
             headers=headers,
         )

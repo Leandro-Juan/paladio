@@ -79,7 +79,7 @@ async def test_get_poi_details_success(async_client: AsyncClient):
             return_value=(mock_photos, "Authoritative test extract from Wikipedia.")
         ),
     ):
-        res = await async_client.get("/api/v1/pois/OSM-node-madrid-prado-test/details")
+        res = await async_client.get("/api/pois/OSM-node-madrid-prado-test")
         assert res.status_code == 200
         data = res.json()
 
@@ -100,7 +100,7 @@ async def test_get_poi_details_success(async_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_poi_details_not_found(async_client: AsyncClient):
     """Test 404 response for non-existent POI ID."""
-    res = await async_client.get("/api/v1/pois/non-existent-poi-id-999/details")
+    res = await async_client.get("/api/pois/non-existent-poi-id-999")
     assert res.status_code == 404
     data = res.json()
     assert "not found" in data["detail"].lower()

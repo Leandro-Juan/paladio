@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 import geonamescache
 
-from app.services.airport_service import get_airport
+from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,9 @@ class FlightRouteClassifier:
         orig_clean = (origin_iata or "").strip().upper()
         dest_clean = (dest_iata or "").strip().upper()
 
-        orig_ap = get_airport(orig_clean)
-        dest_ap = get_airport(dest_clean)
+        svc = get_airport_service()
+        orig_ap = svc.get_airport(orig_clean)
+        dest_ap = svc.get_airport(dest_clean)
 
         orig_country = orig_ap.country if orig_ap else ""
         dest_country = dest_ap.country if dest_ap else ""

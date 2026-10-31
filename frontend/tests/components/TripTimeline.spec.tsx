@@ -18,8 +18,8 @@ test('renders POI category badges correctly for museum, restaurant, cafe, bus st
         },
         itinerary: {
           day_index: 1,
-          total_cost: 150,
-          total_duration_mins: 600,
+          total_cost_eur: 150,
+          total_time_mins: 600,
           is_valid: true,
           constraint_violations: [],
           path: [
@@ -254,4 +254,217 @@ test('hides upgrade button when itinerary is already marked as upgraded', async 
   // Upgrade toolbar and button should NOT exist
   await expect(component.locator('[data-testid="transit-upgrade-toolbar"]')).toHaveCount(0);
   await expect(component.locator('[data-testid="upgrade-transit-btn"]')).toHaveCount(0);
+});
+
+test('renders transit summary, line chips, fare and expandable turn-by-turn steps in TripTimeline', async ({ mount }) => {
+  const mockTransitItinerary: OptimizationResult = {
+    metadata: { engine: 'BranchAndBound', version: '2.0', nodes_evaluated: 42 },
+    travel_constraints: { destination_city: 'Madrid' },
+    total_trip_cost: 26.5,
+    days: [
+      {
+        day: 1,
+        itinerary: {
+          total_cost_eur: 26.5,
+          total_time_mins: 360,
+          transit_recommendation: {
+            type: '24H_PASS_RECOMMENDED',
+            single_tickets_total_eur: 12.5,
+            pass_name: 'Abono Turístico 1 Día (Zona A)',
+            pass_price_eur: 8.4,
+            savings_eur: 4.1,
+            includes_airport: true,
+            message: 'Buy the Abono Turístico 1 Día (Zona A) for 8.40€ instead of individual fares (12.50€) to save 4.10€!',
+          },
+          path: [
+            {
+              poi: {
+                id: 'p1',
+                name: 'Puerta del Sol',
+                city: 'Madrid',
+                category: 'attraction',
+                duration_mins: 60,
+                cost_eur: 0.0,
+                location: { latitude: 40.4169, longitude: -3.7036 },
+              },
+              scheduled_start: '09:00',
+              scheduled_end: '10:00',
+            },
+            {
+              poi: {
+                id: 'p2',
+                name: 'Santiago Bernabéu Stadium',
+                city: 'Madrid',
+                category: 'attraction',
+                duration_mins: 120,
+                cost_eur: 25.0,
+                location: { latitude: 40.4531, longitude: -3.6883 },
+              },
+              scheduled_start: '10:30',
+              scheduled_end: '12:30',
+              transit_from_previous: {
+                duration_mins: 30,
+                cost_eur: 1.5,
+                cost_is_estimated: false,
+                mode: 'transit',
+                price_source: 'official_crtm_tariff',
+                steps: [
+                  {
+                    type: 'walk',
+                    instruction: 'Walk 40m · Enter the SOL Station',
+                    duration_mins: 2,
+                    distance_km: 0.04,
+                    station_name: 'Sol',
+                  },
+                  {
+                    type: 'transit_board',
+                    instruction: 'Take Line 1 toward PINAR DE CHAMARTIN (2 stops)',
+                    duration_mins: 8,
+                    distance_km: 1.06,
+                    transit_line: '1',
+                    headsign: 'PINAR DE CHAMARTIN',
+                    station_name: 'Sol',
+                  },
+                  {
+                    type: 'transfer',
+                    instruction: 'Transfer at TRIBUNAL Station',
+                    duration_mins: 3,
+                    distance_km: 0.1,
+                    station_name: 'Tribunal',
+                  },
+                  {
+                    type: 'transit_board',
+                    instruction: 'Take Line 10 toward TRES OLIVOS (3 stops)',
+                    duration_mins: 12,
+                    distance_km: 2.66,
+                    transit_line: '10',
+                    headsign: 'TRES OLIVOS',
+                    station_name: 'Tribunal',
+                  },
+                  {
+                    type: 'walk',
+                    instruction: 'Exit at NUEVOS MINISTERIOS Station · Walk 300m to Santiago Bernabéu',
+                    duration_mins: 5,
+                    distance_km: 0.3,
+                    station_name: 'Nuevos Ministerios',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const component = await mount(<TripTimeline itinerary={mockTransitItinerary} />);
+
+  // 1. Verify Day header and Transit Recommendation Card
+  await expect(component.getByRole('heading', { name: 'DAY 1' })).toBeVisible();
+  await expect(component.getByTestId('transit-recommendation-card')).toBeVisible();
+  await expect(component.getByText(/24H PASS RECOMMENDED/i)).toBeVisible();
+  await expect(component.getByText(/save 4.10€/i)).toBeVisible();
+
+  // 2. Verify Waypoints
+  await expect(component.getByText('Puerta del Sol')).toBeVisible();
+  await expect(component.getByText('Santiago Bernabéu Stadium')).toBeVisible();
+
+  // 3. Verify Transit Leg Summary
+  const transitLeg = component.getByTestId('transit-leg-view');
+  await expect(transitLeg).toBeVisible();
+  await expect(transitLeg.getByText('PUBLIC TRANSIT')).toBeVisible();
+  await expect(transitLeg.getByText('30 MINS')).toBeVisible();
+  await expect(transitLeg.getByText('1.50 €')).toBeVisible();
+
+  // Verify Transit Line Chips
+  const lineChips = transitLeg.getByTestId('transit-line-chip');
+  await expect(lineChips).toHaveCount(2);
+  await expect(lineChips.nth(0)).toHaveText('LINE 1');
+  await expect(lineChips.nth(1)).toHaveText('LINE 10');
+
+  // Verify Transit Fare Disclaimer in Transit Recommendation Card
+  const fareDisclaimer = component.getByTestId('transit-fare-disclaimer');
+  await expect(fareDisclaimer).toBeVisible();
+  await expect(fareDisclaimer).toContainText(/fares are fetched automatically and may not be 100% accurate/i);
+
+  // Verify Timeline Bottom Transit Disclaimer
+  const timelineDisclaimer = component.getByTestId('timeline-transit-disclaimer');
+  await expect(timelineDisclaimer).toBeVisible();
+  await expect(timelineDisclaimer).toContainText(/may not be 100% accurate/i);
+
+  // 4. Test Toggle Turn-by-Turn Steps
+  const toggleBtn = transitLeg.getByTestId('toggle-transit-steps-btn');
+  await expect(toggleBtn).toHaveText(/DIRECTIONS \(5 STEPS\) ▼/);
+
+  // Steps container initially not visible
+  await expect(component.getByTestId('transit-steps-container')).not.toBeVisible();
+
+  // Click expand
+  await toggleBtn.click();
+  await expect(component.getByTestId('transit-steps-container')).toBeVisible();
+  await expect(toggleBtn).toHaveText(/HIDE DIRECTIONS ▲/);
+
+  // Verify individual instructions
+  await expect(component.getByText('Walk 40m · Enter the SOL Station')).toBeVisible();
+  await expect(component.getByText('Take Line 1 toward PINAR DE CHAMARTIN (2 stops)')).toBeVisible();
+  await expect(component.getByText('Transfer at TRIBUNAL Station')).toBeVisible();
+  await expect(component.getByText('Take Line 10 toward TRES OLIVOS (3 stops)')).toBeVisible();
+  await expect(component.getByText('Exit at NUEVOS MINISTERIOS Station · Walk 300m to Santiago Bernabéu')).toBeVisible();
+
+  // Click collapse
+  await toggleBtn.click();
+  await expect(component.getByTestId('transit-steps-container')).not.toBeVisible();
+});
+
+test('renders estimated fare badge when transit price is estimated in TripTimeline', async ({ mount }) => {
+  const mockEstimatedItinerary: OptimizationResult = {
+    metadata: { engine: 'BranchAndBound', version: '2.0', nodes_evaluated: 42 },
+    travel_constraints: { destination_city: 'Paris' },
+    total_trip_cost: 100,
+    days: [
+      {
+        day: 1,
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'p1', name: 'Origin Point', city: 'Paris', category: 'hotel', duration_mins: 60, cost_eur: 0, location: { latitude: 48.85, longitude: 2.35 } },
+              scheduled_start: '09:00',
+            },
+            {
+              poi: { id: 'p2', name: 'Destination Point', city: 'Paris', category: 'attraction', duration_mins: 90, cost_eur: 15, location: { latitude: 48.86, longitude: 2.36 } },
+              scheduled_start: '09:45',
+              transit_from_previous: {
+                duration_mins: 20,
+                cost_eur: 2.1,
+                cost_is_estimated: true,
+                mode: 'transit',
+                steps: [
+                  {
+                    type: 'walk',
+                    instruction: 'Walk 350m to bus stop',
+                    duration_mins: 4,
+                    distance_km: 0.35,
+                  },
+                  {
+                    type: 'transit',
+                    instruction: 'Catch the 27 bus towards Plaza de Castilla',
+                    duration_mins: 16,
+                    distance_km: 2.8,
+                    transit_line: '27',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const component = await mount(<TripTimeline itinerary={mockEstimatedItinerary} />);
+
+  const transitLeg = component.getByTestId('transit-leg-view');
+  await expect(transitLeg).toBeVisible();
+  await expect(transitLeg.getByTestId('estimated-fare-badge')).toBeVisible();
+  await expect(transitLeg.getByTestId('estimated-fare-badge')).toHaveText('ESTIMATED FARE');
 });

@@ -159,10 +159,6 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
         )
 
 
-# Backwards compatibility alias
-RyanairFlightFeed = CompositeFlightFeed
-
-
 class OpenLodgingFeed(LodgingFeed):
     """
     Lodging provider backed by multi-provider LodgingAggregator.

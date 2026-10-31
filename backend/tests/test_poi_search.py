@@ -111,7 +111,7 @@ async def seed_poi_test_data(db_session: AsyncSession):
 async def test_poi_search_exact_match(async_client: AsyncClient):
     """Verifies that an exact/fuzzy POI name search returns exact match and similar items."""
     resp = await async_client.get(
-        "/api/v1/pois/search", params={"city": "Madrid", "query": "el prado"}
+        "/api/pois/search", params={"city": "Madrid", "query": "el prado"}
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -141,7 +141,7 @@ async def test_poi_search_natural_language(async_client: AsyncClient):
         new=AsyncMock(return_value=mock_vec),
     ):
         resp = await async_client.get(
-            "/api/v1/pois/search",
+            "/api/pois/search",
             params={"city": "Madrid", "query": "good and cozy cafes with charm"},
         )
         assert resp.status_code == 200
@@ -168,7 +168,7 @@ async def test_poi_search_not_found(async_client: AsyncClient):
         new=AsyncMock(return_value=mock_vec),
     ):
         resp = await async_client.get(
-            "/api/v1/pois/search",
+            "/api/pois/search",
             params={"city": "Madrid", "query": "Statue of Liberty"},
         )
         assert resp.status_code == 200
@@ -212,7 +212,7 @@ async def test_poi_search_hotel_and_airport_anchors(
 
     # Search for hotel with trip_id
     resp_hotel = await async_client.get(
-        "/api/v1/pois/search",
+        "/api/pois/search",
         params={"city": "Madrid", "query": "hotel", "trip_id": trip.id},
     )
     assert resp_hotel.status_code == 200
@@ -223,7 +223,7 @@ async def test_poi_search_hotel_and_airport_anchors(
 
     # Search for airport with trip_id
     resp_airport = await async_client.get(
-        "/api/v1/pois/search",
+        "/api/pois/search",
         params={"city": "Madrid", "query": "airport", "trip_id": trip.id},
     )
     assert resp_airport.status_code == 200
@@ -237,7 +237,7 @@ async def test_poi_search_hotel_and_airport_anchors(
 async def test_category_browse_empty_query(async_client: AsyncClient):
     """Verifies that an empty query with category filter browses POIs of that category."""
     resp = await async_client.get(
-        "/api/v1/pois/search",
+        "/api/pois/search",
         params={"city": "Madrid", "query": "", "category": "museum", "limit": 10},
     )
     assert resp.status_code == 200

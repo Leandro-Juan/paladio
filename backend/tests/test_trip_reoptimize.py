@@ -85,7 +85,7 @@ async def test_trip_update_and_reoptimize_endpoints(
     uid = uuid.uuid4().hex[:8]
     # Register user
     reg_res = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"reopt_{uid}@paladio.com",
             "username": f"reopt_{uid}",
@@ -122,7 +122,7 @@ async def test_trip_update_and_reoptimize_endpoints(
         ],
     }
     create_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Madrid",
             "start_date": "2026-11-01",
@@ -134,7 +134,7 @@ async def test_trip_update_and_reoptimize_endpoints(
     assert create_res.status_code == 201, create_res.text
     trip_id = create_res.json()["id"]
 
-    # 2. Test PUT /api/v1/trips/{trip_id} (e.g. after user dragged another POI into Day 1)
+    # 2. Test PUT /api/trips/{trip_id} (e.g. after user dragged another POI into Day 1)
     updated_itin = {
         "city": "Madrid",
         "days": [
@@ -171,7 +171,7 @@ async def test_trip_update_and_reoptimize_endpoints(
         ],
     }
     put_res = await async_client.put(
-        f"/api/v1/trips/{trip_id}",
+        f"/api/trips/{trip_id}",
         json={"itinerary_data": updated_itin},
         headers=headers,
     )
@@ -179,9 +179,9 @@ async def test_trip_update_and_reoptimize_endpoints(
     put_data = put_res.json()
     assert len(put_data["itinerary_data"]["days"][0]["itinerary"]["path"]) == 2
 
-    # 3. Test POST /api/v1/trips/{trip_id}/reoptimize
+    # 3. Test POST /api/trips/{trip_id}/reoptimize
     reopt_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/reoptimize",
+        f"/api/trips/{trip_id}/reoptimize",
         json={"itinerary_data": updated_itin},
         headers=headers,
     )

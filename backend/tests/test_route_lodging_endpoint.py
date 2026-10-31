@@ -91,7 +91,7 @@ async def test_route_lodging_cached_hit(
 
     # 3. Call endpoint
     res = await async_client.get(
-        f"/api/v1/market/routes/{route_id}/lodging?check_in={check_in.isoformat()}&nights=3"
+        f"/api/market/routes/{route_id}/lodging?check_in={check_in.isoformat()}&nights=3"
     )
     assert res.status_code == 200
     data = res.json()
@@ -140,6 +140,6 @@ async def test_route_lodging_not_found_fails_fast(
     await db_session.commit()
 
     res = await async_client.get(
-        f"/api/v1/market/routes/{route_id}/lodging?check_in=2026-11-25&nights=3"
+        f"/api/market/routes/{route_id}/lodging?check_in=2026-11-25&nights=3"
     )
     assert res.status_code == 404

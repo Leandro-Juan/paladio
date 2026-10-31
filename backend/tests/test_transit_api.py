@@ -126,7 +126,7 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     await db_session.commit()
 
     # TEST 1: Availability
-    res_avail = await async_client.get(f"/api/v1/trips/{trip.id}/transit/availability")
+    res_avail = await async_client.get(f"/api/trips/{trip.id}/transit/availability")
     assert res_avail.status_code == 200
     avail_data = res_avail.json()
     assert avail_data["city"] == city
@@ -136,7 +136,7 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
 
     # TEST 2: Nearby
     res_nearby = await async_client.get(
-        f"/api/v1/trips/{trip.id}/transit/nearby?day=0&radius=1000"
+        f"/api/trips/{trip.id}/transit/nearby?day=0&radius=1000"
     )
     assert res_nearby.status_code == 200
     nearby_data = res_nearby.json()
@@ -152,7 +152,7 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert st_obj["lines"][0]["short_name"] == "G"
 
     # TEST 3: Lines
-    res_lines = await async_client.get(f"/api/v1/trips/{trip.id}/transit/lines")
+    res_lines = await async_client.get(f"/api/trips/{trip.id}/transit/lines")
     assert res_lines.status_code == 200
     lines_data = res_lines.json()
     assert len(lines_data["lines"]) == 1
@@ -160,14 +160,14 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert lines_data["lines"][0]["mode"] == "Metro"
 
     # TEST 4: Line Detail
-    res_ld = await async_client.get(f"/api/v1/trips/{trip.id}/transit/lines/G")
+    res_ld = await async_client.get(f"/api/trips/{trip.id}/transit/lines/G")
     assert res_ld.status_code == 200
     ld_data = res_ld.json()
     assert ld_data["id"] == "G"
     assert ld_data["mode"] == "Metro"
 
     # TEST 5: Station Detail
-    res_sd = await async_client.get(f"/api/v1/trips/{trip.id}/transit/stations/G01")
+    res_sd = await async_client.get(f"/api/trips/{trip.id}/transit/stations/G01")
     assert res_sd.status_code == 200
     sd_data = res_sd.json()
     assert sd_data["id"] == "G01"
@@ -178,7 +178,7 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
 
     # TEST 6: Map Stations Bounding Box
     res_map = await async_client.get(
-        f"/api/v1/transit/{city}/map-stations?bbox=35.65,139.69,35.67,139.71"
+        f"/api/transit/{city}/map-stations?bbox=35.65,139.69,35.67,139.71"
     )
     assert res_map.status_code == 200
     map_data = res_map.json()
@@ -186,20 +186,20 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert map_data[0]["id"] == "G01"
 
     # TEST 7: City-scoped station detail
-    res_city_st = await async_client.get(f"/api/v1/transit/{city}/stations/G01")
+    res_city_st = await async_client.get(f"/api/transit/{city}/stations/G01")
     assert res_city_st.status_code == 200
     city_st_data = res_city_st.json()
     assert city_st_data["id"] == "G01"
     assert city_st_data["name"] == "Shibuya"
 
     # TEST 8: City-scoped line detail (by line_id and flexible long_name)
-    res_city_line = await async_client.get(f"/api/v1/transit/{city}/lines/G")
+    res_city_line = await async_client.get(f"/api/transit/{city}/lines/G")
     assert res_city_line.status_code == 200
     city_line_data = res_city_line.json()
     assert city_line_data["id"] == "G"
 
     res_city_line_long = await async_client.get(
-        f"/api/v1/transit/{city}/lines/Ginza%20Line"
+        f"/api/transit/{city}/lines/Ginza%20Line"
     )
     assert res_city_line_long.status_code == 200
     assert res_city_line_long.json()["id"] == "G"

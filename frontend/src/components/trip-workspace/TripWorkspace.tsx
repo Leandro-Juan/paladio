@@ -13,7 +13,7 @@ import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
 import { TripUnifiedSidebar } from './TripUnifiedSidebar';
 import { TripSpeedDial } from './TripSpeedDial';
 import { PoiDetailView } from './PoiDetailView';
-import { PlaceItem, PoiApiItem } from './TripPlacesSidebar';
+import { PlaceItem, PoiApiItem } from '@/types/workspace';
 import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { ActiveTransitLineData } from '@/utils/transitColors';
@@ -113,9 +113,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   }, [walletTickets, trip.tickets_count]);
 
   const handleTabChange = useCallback((tab: WorkspaceTab) => {
-    // Backward compatibility: map transports to wallet
-    const resolvedTab = tab === 'transports' ? 'wallet' : tab;
-    setActiveTab(resolvedTab);
+    setActiveTab(tab);
   }, []);
 
   // Local reactive itinerary data
@@ -242,45 +240,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           itinerary: day.itinerary as DayOutput['itinerary'],
           flight_info: day.flight_info as DayOutput['flight_info'],
         });
-      });
-    } else if (Array.isArray(itinerary?.pois)) {
-      const fallbackPois: MapPoi[] = [];
-      itinerary.pois.forEach((p) => {
-        const lat = p?.location?.latitude ?? p?.lat;
-        const lng = p?.location?.longitude ?? p?.lng;
-        if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
-          const item: MapPoi = {
-            id: (p as unknown as { id?: string })?.id,
-            name: p?.name || 'Waypoint',
-            lat,
-            lng,
-            category: (p as unknown as { category?: string })?.category,
-          };
-          fallbackPois.push(item);
-          allPlaces.push({
-            name: p?.name || 'Waypoint',
-            lat,
-            lng,
-            category: (p as unknown as { category?: string })?.category,
-            day: 1,
-          });
-        }
-      });
-      mapDaysList.push({ dayNumber: 1, label: 'DAY 1', pois: fallbackPois });
-      daysOutputList.push({
-        day: 1,
-        itinerary: {
-          path: fallbackPois.map((poi) => ({
-            poi: {
-              name: poi.name,
-              city: trip.destination || 'Destination',
-              category: poi.category || 'attraction',
-              cost_eur: poi.costEur || 0,
-              duration_mins: poi.durationMins || 60,
-              location: { latitude: poi.lat, longitude: poi.lng },
-            },
-          })),
-        },
       });
     }
 
@@ -510,7 +469,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         destination={trip.destination}
         startDate={trip.start_date}
         endDate={trip.end_date}
-        activeTab={activeTab === 'transports' ? 'wallet' : activeTab}
+        activeTab={activeTab}
         onTabChange={handleTabChange}
         photosCount={photos.length}
         participantsCount={participantsCount}
@@ -763,8 +722,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           )}
         </div>
 
-        {/* Tab 2: Wallet (replaces transports with backward compatibility) */}
-        {(activeTab === 'wallet' || activeTab === 'transports') && (
+        {/* Tab 2: Wallet */}
+        {activeTab === 'wallet' && (
           <div key="wallet" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
             <TripWalletView tripId={trip.id || ''} itinerary={itinerary} />
           </div>

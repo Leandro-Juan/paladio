@@ -11,19 +11,19 @@ async def test_user_preferences_and_embedding(async_client: AsyncClient):
         "password": "mypassword123",
         "preferences": {"budget": "low", "nature": True},
     }
-    reg_res = await async_client.post("/api/v1/auth/register", json=reg_payload)
+    reg_res = await async_client.post("/api/auth/register", json=reg_payload)
     assert reg_res.status_code == 201, reg_res.text
     token = reg_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # 2. Get me preferences
-    me_res = await async_client.get("/api/v1/users/me", headers=headers)
+    me_res = await async_client.get("/api/users/me", headers=headers)
     assert me_res.status_code == 200
     assert me_res.json()["preferences"] == {"budget": "low", "nature": True}
 
     # 3. Update preferences
     update_pref_res = await async_client.put(
-        "/api/v1/users/me/preferences",
+        "/api/users/me/preferences",
         headers=headers,
         json={"preferences": {"budget": "luxury", "culinary": True, "pace": "relaxed"}},
     )
@@ -35,7 +35,7 @@ async def test_user_preferences_and_embedding(async_client: AsyncClient):
     }
 
     # 4. Check embedding (768D semantic vector)
-    emb_res = await async_client.get("/api/v1/users/me/embedding", headers=headers)
+    emb_res = await async_client.get("/api/users/me/embedding", headers=headers)
     assert emb_res.status_code == 200
     emb_data = emb_res.json()
     assert emb_data["dimension"] == 768
@@ -44,16 +44,14 @@ async def test_user_preferences_and_embedding(async_client: AsyncClient):
     # 5. Update embedding
     new_embedding = [0.75] * 768
     put_emb_res = await async_client.put(
-        "/api/v1/users/me/embedding",
+        "/api/users/me/embedding",
         headers=headers,
         json={"embedding": new_embedding},
     )
     assert put_emb_res.status_code == 200
 
     # 6. Verify updated embedding
-    check_emb_res = await async_client.get(
-        "/api/v1/users/me/embedding", headers=headers
-    )
+    check_emb_res = await async_client.get("/api/users/me/embedding", headers=headers)
     assert check_emb_res.status_code == 200
     assert check_emb_res.json()["dimension"] == 768
     assert check_emb_res.json()["embedding"] == new_embedding

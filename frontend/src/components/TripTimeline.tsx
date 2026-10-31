@@ -28,17 +28,9 @@ export function TripTimeline({
 
   const currentItinerary = upgradedItinerary || itinerary;
 
-  // Support both standard multi-day { days: [...] } and flat single-day fallback { path: [...] }
   const days: DayOutput[] = React.useMemo(() => {
     if (!currentItinerary) return [];
-    if (currentItinerary.days && currentItinerary.days.length > 0) {
-      return currentItinerary.days;
-    }
-    const fallbackPath = (currentItinerary as unknown as { path?: ScheduledPoi[] }).path;
-    if (fallbackPath) {
-      return [{ day: 1, itinerary: { path: fallbackPath } }];
-    }
-    return [];
+    return currentItinerary.days || [];
   }, [currentItinerary]);
 
   // Filter days based on selectedDay: if 'all' or undefined, show all days; otherwise show only the selected day

@@ -1,13 +1,13 @@
-"""Unit tests for osm_city_ingest 6-stream queries and overpass_provider shim."""
+"""Unit tests for osm_city_ingest 6-stream queries and OsmCityPoiProvider."""
 
 import pytest
 from unittest.mock import AsyncMock, patch
 
 from app.infrastructure.providers.osm_city_ingest import (
     CityGeo,
+    OsmCityPoiProvider,
     build_stream_overpass_query,
 )
-from app.infrastructure.providers.overpass_provider import OverpassProviderAdapter
 
 
 def test_build_stream_overpass_queries():
@@ -35,8 +35,8 @@ def test_build_stream_overpass_queries():
 
 
 @pytest.mark.asyncio
-async def test_overpass_provider_adapter_shim():
-    adapter = OverpassProviderAdapter()
+async def test_osm_city_poi_provider():
+    adapter = OsmCityPoiProvider()
 
     fake_records = [
         {
@@ -70,10 +70,10 @@ async def test_overpass_provider_adapter_shim():
     ]
 
     with patch(
-        "app.infrastructure.providers.overpass_provider.geocode_city",
+        "app.infrastructure.providers.osm_city_ingest.geocode_city",
         new_callable=AsyncMock,
     ) as mock_geo, patch(
-        "app.infrastructure.providers.overpass_provider.fetch_city_records",
+        "app.infrastructure.providers.osm_city_ingest.fetch_city_records",
         new_callable=AsyncMock,
     ) as mock_fetch:
         mock_geo.return_value = CityGeo(

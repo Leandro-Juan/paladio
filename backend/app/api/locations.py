@@ -19,7 +19,7 @@ from app.infrastructure.providers.osm_http_client import (
     USER_AGENT,
     acquire_nominatim_slot,
 )
-from app.services.airport_service import search_locations
+from app.services.airport_service import get_airport_service
 
 router = APIRouter()
 
@@ -37,7 +37,7 @@ async def search_city_airports(
     Dynamically resolves search query against 234k+ world cities and 7,880+ commercial airports.
     Returns city name, country name, nearest airport name, IATA code, and geodesic distance.
     """
-    return search_locations(q, limit=limit)
+    return get_airport_service().search_locations(q, limit=limit)
 
 
 @router.get(
@@ -100,7 +100,7 @@ async def search_hotels(
     city_lon: float | None = None
     if clean_city:
         try:
-            city_matches = search_locations(clean_city, limit=1)
+            city_matches = get_airport_service().search_locations(clean_city, limit=1)
             if city_matches:
                 city_lat = float(city_matches[0]["latitude"])
                 city_lon = float(city_matches[0]["longitude"])
@@ -564,7 +564,9 @@ async def search_places(
         city_lon: float | None = None
         if clean_city:
             try:
-                city_matches = search_locations(clean_city, limit=1)
+                city_matches = get_airport_service().search_locations(
+                    clean_city, limit=1
+                )
                 if city_matches:
                     city_lat = float(city_matches[0]["latitude"])
                     city_lon = float(city_matches[0]["longitude"])

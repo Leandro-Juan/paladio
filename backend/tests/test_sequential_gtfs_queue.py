@@ -43,7 +43,7 @@ async def test_gtfs_registry_response_with_queued_city(
     await db_session.commit()
 
     with patch("app.tasks.is_transit_task_alive", return_value=True):
-        res = await async_client.get("/api/v1/trips/transit/registry")
+        res = await async_client.get("/api/trips/transit/registry")
         assert res.status_code == 200
         data = res.json()
 
@@ -66,7 +66,7 @@ async def test_trigger_compile_when_lock_held(async_client: AsyncClient, db_sess
 
     try:
         res = await async_client.post(
-            "/api/v1/trips/transit/compile",
+            "/api/trips/transit/compile",
             json={"city": "oporto"},
         )
         assert res.status_code == 200
@@ -110,7 +110,7 @@ async def test_trigger_compile_when_another_city_is_building(
         "app.tasks.is_transit_task_alive", return_value=True
     ):
         res = await async_client.post(
-            "/api/v1/trips/transit/compile",
+            "/api/trips/transit/compile",
             json={"city": "testcity2"},
         )
         assert res.status_code == 200
@@ -310,7 +310,7 @@ async def test_cancelling_previous_download_advances_queued_city(
     await db_session.commit()
 
     with patch("app.tasks.build_city_gtfs_task.delay") as mock_delay:
-        res = await async_client.delete("/api/v1/trips/transit/city_active")
+        res = await async_client.delete("/api/trips/transit/city_active")
         assert res.status_code == 200
 
         # Verify build_city_gtfs_task was delayed for city_queued

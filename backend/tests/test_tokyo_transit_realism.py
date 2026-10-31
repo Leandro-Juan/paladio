@@ -2,9 +2,10 @@ import pytest
 from app.services.gtfs_route_service import (
     get_gtfs_route_finder,
     calculate_haversine_km,
-    _FINDERS,
 )
 from app.services.transit_service import synthesize_fallback_transit_leg
+
+pytestmark = [pytest.mark.slow, pytest.mark.live_integration]
 
 
 # 22 diverse, realistic POI pairs across Greater Tokyo
@@ -250,11 +251,13 @@ TOKYO_POI_PAIRS = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def clear_finders_cache():
-    _FINDERS.clear()
+tokyo_gtfs_required = pytest.mark.skipif(
+    get_gtfs_route_finder("tokyo") is None,
+    reason="Requires compiled Tokyo GTFS feed on disk at $GTFS_BASE_DIR/tokyo",
+)
 
 
+@tokyo_gtfs_required
 @pytest.mark.parametrize(
     "pair", TOKYO_POI_PAIRS, ids=[p["name"] for p in TOKYO_POI_PAIRS]
 )
@@ -325,6 +328,7 @@ def test_tokyo_poi_pair_gtfs_routing(pair):
         ), f"Transfer walking distance too large ({recorded_walk_km}km) in {pair['name']}"
 
 
+@tokyo_gtfs_required
 @pytest.mark.parametrize(
     "pair", TOKYO_POI_PAIRS[:5], ids=[p["name"] for p in TOKYO_POI_PAIRS[:5]]
 )

@@ -76,13 +76,11 @@ def test_airport_surcharge_detection_madrid():
             headsign="Aeropuerto T4",
         ),
     ]
-    cost, is_est, source, has_airport = TransitFareService.calculate_transit_leg_fare(
-        "madrid", steps
-    )
-    assert has_airport is True
-    assert cost == 4.50  # 1.50 base + 3.00 airport supplement
-    assert is_est is False
-    assert source == "official_crtm_tariff"
+    res = TransitFareService.calculate_transit_leg_fare("madrid", steps)
+    assert res.has_airport is True
+    assert res.total_cost == 4.50  # 1.50 base + 3.00 airport supplement
+    assert res.cost_is_estimated is False
+    assert res.price_source == "official_crtm_tariff"
 
 
 def test_airport_surcharge_detection_paris():
@@ -97,13 +95,11 @@ def test_airport_surcharge_detection_paris():
             transit_line="B",
         ),
     ]
-    cost, is_est, source, has_airport = TransitFareService.calculate_transit_leg_fare(
-        "paris", steps
-    )
-    assert has_airport is True
-    assert cost == 11.80  # 2.15 base + 9.65 airport supplement
-    assert is_est is False
-    assert source == "official_idfm_tariff"
+    res = TransitFareService.calculate_transit_leg_fare("paris", steps)
+    assert res.has_airport is True
+    assert res.total_cost == 11.80  # 2.15 base + 9.65 airport supplement
+    assert res.cost_is_estimated is False
+    assert res.price_source == "official_idfm_tariff"
 
 
 def test_airport_surcharge_detection_lisbon():
@@ -118,13 +114,11 @@ def test_airport_surcharge_detection_lisbon():
             transit_line="Vermelha",
         ),
     ]
-    cost, is_est, source, has_airport = TransitFareService.calculate_transit_leg_fare(
-        "lisbon", steps
-    )
-    assert has_airport is True
-    assert cost == 1.80  # Standard fare, no extra surcharge
-    assert is_est is False
-    assert source == "official_carris_metro_tariff"
+    res = TransitFareService.calculate_transit_leg_fare("lisbon", steps)
+    assert res.has_airport is True
+    assert res.total_cost == 1.80  # Standard fare, no extra surcharge
+    assert res.cost_is_estimated is False
+    assert res.price_source == "official_carris_metro_tariff"
 
 
 # ============================================================================
@@ -303,10 +297,12 @@ async def test_ollama_json_schema_parsing_mocked():
     )
     mock_extracted = TransitFareExtractionSchema(
         agency_name="MVV",
-        single_fare_eur=3.90,
+        single_fare=3.90,
+        currency="EUR",
+        evidence_quote="A single ticket for Zone M costs 3.90 EUR.",
         day_pass_name="Tageskarte",
-        day_pass_fare_eur=9.20,
-        airport_surcharge_eur=13.00,
+        day_pass_fare=9.20,
+        airport_surcharge=13.00,
         airport_station_keywords=["Flughafen München", "Airport"],
         source_url="https://www.mvv-muenchen.de",
     )
@@ -382,13 +378,15 @@ async def test_database_persistence_and_cache_hits_on_repeated_lookups():
         patch.object(TransitFareService, "persist_fare_to_db", new_callable=AsyncMock),
     ):
         mock_lookup_db.return_value = None
-        mock_fetch.return_value = "Transit text for Valencia"
+        mock_fetch.return_value = "Transit text for Valencia: single fare 1.50 EUR."
         mock_extract.return_value = TransitFareExtractionSchema(
             agency_name="EMT Valencia",
-            single_fare_eur=1.50,
+            single_fare=1.50,
+            currency="EUR",
+            evidence_quote="single fare 1.50 EUR",
             day_pass_name="Valencia Card",
-            day_pass_fare_eur=15.00,
-            airport_surcharge_eur=3.00,
+            day_pass_fare=15.00,
+            airport_surcharge=3.00,
             airport_station_keywords=["Aeroport"],
             source_url="https://www.emtvalencia.es",
         )

@@ -15,7 +15,7 @@ async def test_user_admin_bootstrap_and_management(
     await db_session.commit()
 
     # 1. Check initial setup-status
-    status_res = await async_client.get("/api/v1/auth/setup-status")
+    status_res = await async_client.get("/api/auth/setup-status")
     assert status_res.status_code == 200
     assert status_res.json()["setup_required"] is True
 
@@ -25,7 +25,7 @@ async def test_user_admin_bootstrap_and_management(
         "username": "masteradmin",
         "password": "MasterAdminSecret123!",
     }
-    setup_res = await async_client.post("/api/v1/auth/setup", json=setup_payload)
+    setup_res = await async_client.post("/api/auth/setup", json=setup_payload)
     assert setup_res.status_code == 201, setup_res.text
     admin_token = setup_res.json()["access_token"]
     admin_user = setup_res.json()["user"]
@@ -34,12 +34,12 @@ async def test_user_admin_bootstrap_and_management(
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # 3. Subsequent /setup attempt must be rejected
-    second_setup = await async_client.post("/api/v1/auth/setup", json=setup_payload)
+    second_setup = await async_client.post("/api/auth/setup", json=setup_payload)
     assert second_setup.status_code == 400
     assert "already initialized" in second_setup.json()["detail"]
 
     # 4. Status should now report setup_required == False
-    status_res2 = await async_client.get("/api/v1/auth/setup-status")
+    status_res2 = await async_client.get("/api/auth/setup-status")
     assert status_res2.status_code == 200
     assert status_res2.json()["setup_required"] is False
     assert status_res2.json()["user_count"] == 1
@@ -47,7 +47,7 @@ async def test_user_admin_bootstrap_and_management(
     # 5. Public registration lockdown check (when ALLOW_PUBLIC_REGISTRATION=false)
     os.environ["ALLOW_PUBLIC_REGISTRATION"] = "false"
     reg_attempt = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": "random@paladio.internal",
             "username": "randomguy",
@@ -59,7 +59,7 @@ async def test_user_admin_bootstrap_and_management(
     os.environ["ALLOW_PUBLIC_REGISTRATION"] = "true"  # restore
 
     # 6. Admin lists users
-    list_res = await async_client.get("/api/v1/users/", headers=admin_headers)
+    list_res = await async_client.get("/api/users/", headers=admin_headers)
     assert list_res.status_code == 200
     users = list_res.json()
     assert len(users) == 1
@@ -74,7 +74,7 @@ async def test_user_admin_bootstrap_and_management(
         "role": "user",
     }
     create_res = await async_client.post(
-        "/api/v1/users/", json=create_payload, headers=admin_headers
+        "/api/users/", json=create_payload, headers=admin_headers
     )
     assert create_res.status_code == 201, create_res.text
     traveler = create_res.json()
@@ -82,9 +82,9 @@ async def test_user_admin_bootstrap_and_management(
     assert traveler["role"] == "user"
     traveler_id = traveler["id"]
 
-    # 8. Standard user logs in and verifies non-admin cannot access /api/v1/users/
+    # 8. Standard user logs in and verifies non-admin cannot access /api/users/
     login_res = await async_client.post(
-        "/api/v1/auth/login",
+        "/api/auth/login",
         json={
             "username_or_email": "traveler1",
             "password": "TravelerSecret123!",
@@ -94,27 +94,27 @@ async def test_user_admin_bootstrap_and_management(
     traveler_token = login_res.json()["access_token"]
     traveler_headers = {"Authorization": f"Bearer {traveler_token}"}
 
-    forbidden_list = await async_client.get("/api/v1/users/", headers=traveler_headers)
+    forbidden_list = await async_client.get("/api/users/", headers=traveler_headers)
     assert forbidden_list.status_code == 403
     assert "Administrator privileges required" in forbidden_list.json()["detail"]
 
     # 9. Admin self-protection: cannot deactivate or delete self
     self_deactivate = await async_client.patch(
-        f"/api/v1/users/{admin_user['id']}",
+        f"/api/users/{admin_user['id']}",
         json={"is_active": False},
         headers=admin_headers,
     )
     assert self_deactivate.status_code == 400
 
     self_delete = await async_client.delete(
-        f"/api/v1/users/{admin_user['id']}",
+        f"/api/users/{admin_user['id']}",
         headers=admin_headers,
     )
     assert self_delete.status_code == 400
 
     # 10. Admin modifies traveler (e.g. deactivate)
     deactivate_res = await async_client.patch(
-        f"/api/v1/users/{traveler_id}",
+        f"/api/users/{traveler_id}",
         json={"is_active": False},
         headers=admin_headers,
     )
@@ -123,7 +123,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # Deactivated user cannot log in
     deactivated_login = await async_client.post(
-        "/api/v1/auth/login",
+        "/api/auth/login",
         json={
             "username_or_email": "traveler1",
             "password": "TravelerSecret123!",
@@ -133,7 +133,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # 11. Admin provisions a user without email (optional email)
     no_email_user = await async_client.post(
-        "/api/v1/users/",
+        "/api/users/",
         json={
             "username": "noemailguy",
             "password": "Password123!",
@@ -149,7 +149,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # 12. Modify profile with avatar_url, new name, and email
     update_res = await async_client.patch(
-        f"/api/v1/users/{no_email_id}",
+        f"/api/users/{no_email_id}",
         json={
             "username": "updatedguy",
             "email": "updatedguy@paladio.internal",
@@ -165,7 +165,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # 13. Admin updates own profile via /me
     me_update = await async_client.patch(
-        "/api/v1/users/me",
+        "/api/users/me",
         json={
             "avatar_url": "https://example.com/admin.png",
         },
@@ -178,7 +178,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # 13b. Admin removes own avatar (PFP) via /me with None/null
     me_remove_pfp = await async_client.patch(
-        "/api/v1/users/me",
+        "/api/users/me",
         json={
             "avatar_url": None,
         },
@@ -190,7 +190,7 @@ async def test_user_admin_bootstrap_and_management(
 
     # 13c. Admin removes other user's avatar via PATCH /users/{user_id} with empty string
     other_remove_pfp = await async_client.patch(
-        f"/api/v1/users/{no_email_id}",
+        f"/api/users/{no_email_id}",
         json={
             "avatar_url": "",
         },
@@ -201,9 +201,9 @@ async def test_user_admin_bootstrap_and_management(
     assert "pfp" not in other_remove_pfp.json()["preferences"]
 
     # 14. Admin deletes traveler and noemailguy
-    await async_client.delete(f"/api/v1/users/{traveler_id}", headers=admin_headers)
-    await async_client.delete(f"/api/v1/users/{no_email_id}", headers=admin_headers)
+    await async_client.delete(f"/api/users/{traveler_id}", headers=admin_headers)
+    await async_client.delete(f"/api/users/{no_email_id}", headers=admin_headers)
 
     # Verify user list only has admin again
-    final_list = await async_client.get("/api/v1/users/", headers=admin_headers)
+    final_list = await async_client.get("/api/users/", headers=admin_headers)
     assert len(final_list.json()) == 1

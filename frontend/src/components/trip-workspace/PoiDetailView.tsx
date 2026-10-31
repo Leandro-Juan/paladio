@@ -653,7 +653,7 @@ export function PoiDetailView({
         }
         const qs = params.toString() ? `?${params.toString()}` : '';
 
-        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(effectiveId)}/details${qs}`);
+        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(effectiveId)}${qs}`);
         if (!res.ok) {
           if (fallbackPoi) {
             if (isMounted) setLoading(false);

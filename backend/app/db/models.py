@@ -20,7 +20,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import relationship
 
 from app.db.session import Base
 
@@ -81,11 +81,9 @@ class AttractionModel(Base):
     )
     duration_mins = Column(Integer, default=60, nullable=False)
     cost_eur = Column(Float, default=0.0, nullable=False)
-    admission_fee = synonym("cost_eur")
     cost_is_estimated = Column(Boolean, default=True, nullable=False)
     cost_source = Column(String, nullable=True)
     osm_opening_hours = Column(String, nullable=True)
-    opening_hours_raw = synonym("osm_opening_hours")
 
     # Itinerary v2 tiering and taxonomy fields
     tier = Column(Integer, default=3, server_default="3", nullable=False)
@@ -597,101 +595,6 @@ class TransitProviderHealthModel(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
-    )
-
-
-class CityTransitFareModel(Base):
-    __tablename__ = "city_transit_fares"
-
-    city_name = Column("city", String, primary_key=True, index=True)
-    country = Column(String, nullable=True)
-    currency = Column(String, nullable=False)
-    agency_name = Column(String, nullable=True)
-    single_fare_eur = Column("single_fare", Float, nullable=False)
-    day_pass_fare_eur = Column("pass_24h_price", Float, nullable=True)
-    day_pass_name = Column("pass_24h_name", String, nullable=True)
-    pass_24h_includes_airport = Column(Boolean, default=False, nullable=False)
-    airport_surcharge_eur = Column("airport_surcharge", Float, nullable=False)
-    airport_station_keywords = Column(JSONB, default=list, nullable=False)
-    source = Column("source", String, nullable=True)
-    is_estimated = Column(Boolean, default=False, nullable=False)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
-    )
-
-    # Property getters, setters and synonyms for backward compatibility
-    @property
-    def city(self) -> str:
-        return self.city_name
-
-    @city.setter
-    def city(self, val: str):
-        self.city_name = val
-
-    city = synonym("city_name", descriptor=property(city.fget, city.fset))
-
-    @property
-    def single_fare(self) -> float:
-        return self.single_fare_eur
-
-    @single_fare.setter
-    def single_fare(self, val: float):
-        self.single_fare_eur = val
-
-    single_fare = synonym(
-        "single_fare_eur", descriptor=property(single_fare.fget, single_fare.fset)
-    )
-
-    @property
-    def pass_24h_price(self) -> float | None:
-        return self.day_pass_fare_eur
-
-    @pass_24h_price.setter
-    def pass_24h_price(self, val: float | None):
-        self.day_pass_fare_eur = val
-
-    pass_24h_price = synonym(
-        "day_pass_fare_eur",
-        descriptor=property(pass_24h_price.fget, pass_24h_price.fset),
-    )
-
-    @property
-    def pass_24h_name(self) -> str | None:
-        return self.day_pass_name
-
-    @pass_24h_name.setter
-    def pass_24h_name(self, val: str | None):
-        self.day_pass_name = val
-
-    pass_24h_name = synonym(
-        "day_pass_name", descriptor=property(pass_24h_name.fget, pass_24h_name.fset)
-    )
-
-    @property
-    def airport_surcharge(self) -> float:
-        return self.airport_surcharge_eur
-
-    @airport_surcharge.setter
-    def airport_surcharge(self, val: float):
-        self.airport_surcharge_eur = val
-
-    airport_surcharge = synonym(
-        "airport_surcharge_eur",
-        descriptor=property(airport_surcharge.fget, airport_surcharge.fset),
-    )
-
-    @property
-    def source_url(self) -> str | None:
-        return self.source
-
-    @source_url.setter
-    def source_url(self, val: str | None):
-        self.source = val
-
-    source_url = synonym(
-        "source", descriptor=property(source_url.fget, source_url.fset)
     )
 
 

@@ -9,7 +9,7 @@ from app.services.airport_service import (
     get_city_from_iata,
     get_iata_code,
 )
-from app.utils.mock_tickets import generate_mock_tickets
+from tests.fixtures.mock_tickets import generate_mock_tickets
 
 
 def test_get_iata_code_major_global_hubs():

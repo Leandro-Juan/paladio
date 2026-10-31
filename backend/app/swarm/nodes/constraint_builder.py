@@ -8,7 +8,7 @@ from app.schemas.itinerary import (
     NodeConstraint,
     TravelConstraints,
 )
-from app.services.airport_service import get_city_from_iata
+from app.services.airport_service import get_airport_service
 from app.swarm.state import SwarmState
 
 logger = logging.getLogger(__name__)
@@ -71,13 +71,17 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         if booking.hotel and booking.hotel.city:
             destination_city = booking.hotel.city
         elif booking.outbound_flight and booking.outbound_flight.destination_iata:
-            d_city = get_city_from_iata(booking.outbound_flight.destination_iata)
+            d_city = get_airport_service().get_city_from_iata(
+                booking.outbound_flight.destination_iata
+            )
             if d_city and d_city != "Unknown":
                 destination_city = d_city
 
         # Origin city from outbound flight origin IATA
         if booking.outbound_flight and booking.outbound_flight.origin_iata:
-            o_city = get_city_from_iata(booking.outbound_flight.origin_iata)
+            o_city = get_airport_service().get_city_from_iata(
+                booking.outbound_flight.origin_iata
+            )
             if o_city and o_city != "Unknown":
                 origin_city = o_city
 
@@ -170,52 +174,18 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         if parsed_e:
             end_date = parsed_e
 
-    # Re-anchor booking if destination city was changed/overridden and contradicts the hotel anchor,
-    # or if destination city is known but booking anchors are missing/incomplete.
-    if destination_city and destination_city != "Unknown":
-        hotel_city = (
-            booking.hotel.city
-            if (booking and booking.hotel and booking.hotel.city)
-            else ""
-        )
-        needs_anchoring = (
-            booking is None
-            or booking.hotel is None
-            or booking.outbound_flight is None
-            or booking.return_flight is None
-            or (
-                hotel_city
-                and hotel_city.strip().lower() != destination_city.strip().lower()
+    # Log warning if hotel city contradicts destination city
+    if (
+        destination_city
+        and destination_city != "Unknown"
+        and booking
+        and booking.hotel
+        and booking.hotel.city
+    ):
+        if booking.hotel.city.strip().lower() != destination_city.strip().lower():
+            logger.warning(
+                f"Booking anchor hotel city '{booking.hotel.city}' mismatches destination '{destination_city}'."
             )
-        )
-        if needs_anchoring:
-            logger.info(
-                f"Booking anchor hotel city '{hotel_city}' missing or mismatches destination '{destination_city}'. Anchoring to {destination_city}."
-            )
-            from app.utils.mock_tickets import generate_mock_tickets
-
-            diff_days = 5
-            if start_date and end_date:
-                diff = (end_date - start_date).days
-                if diff > 0:
-                    diff_days = diff
-
-            orig = (
-                origin_city if (origin_city and origin_city != "Unknown") else "Madrid"
-            )
-            mock_res = generate_mock_tickets(
-                orig,
-                destination_city,
-                duration_days=diff_days,
-                start_date=start_date,
-            )
-            booking = mock_res["booking_anchors"]
-            if not start_date and mock_res.get("start_date"):
-                start_date = _parse_date(mock_res["start_date"])
-            if not end_date and mock_res.get("end_date"):
-                end_date = _parse_date(mock_res["end_date"])
-            if origin_city == "Unknown" and mock_res.get("origin_city"):
-                origin_city = mock_res["origin_city"]
 
     prompt = manual.get("prompt") or state.get("prompt")
     if not prompt:

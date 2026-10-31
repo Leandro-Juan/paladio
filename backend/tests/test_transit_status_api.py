@@ -21,16 +21,14 @@ async def test_transit_status_by_city(async_client: AsyncClient, db_session):
     db_session.add(valencia_cache)
     await db_session.commit()
 
-    res = await async_client.get("/api/v1/trips/transit-status?city=Valencia")
+    res = await async_client.get("/api/trips/transit-status?city=Valencia")
     assert res.status_code == 200
     data = res.json()
     assert data["city"] == "valencia"
     assert data["gtfs_status"] == "READY"
     assert data["is_ready"] is True
 
-    res_unknown = await async_client.get(
-        "/api/v1/trips/transit-status?city=UnknownCity"
-    )
+    res_unknown = await async_client.get("/api/trips/transit-status?city=UnknownCity")
     assert res_unknown.status_code == 200
     data_unknown = res_unknown.json()
     assert data_unknown["city"] == "unknowncity"
@@ -66,14 +64,14 @@ async def test_transit_status_by_trip_id(async_client: AsyncClient, db_session):
     db_session.add(trip)
     await db_session.commit()
 
-    res = await async_client.get("/api/v1/trips/test-trip-berlin/transit-status")
+    res = await async_client.get("/api/trips/test-trip-berlin/transit-status")
     assert res.status_code == 200
     data = res.json()
     assert data["city"] == "berlin"
     assert data["gtfs_status"] == "BUILDING"
     assert data["is_ready"] is False
 
-    res_404 = await async_client.get("/api/v1/trips/non-existent-id/transit-status")
+    res_404 = await async_client.get("/api/trips/non-existent-id/transit-status")
     assert res_404.status_code == 404
 
 
@@ -92,7 +90,7 @@ async def test_transit_registry(async_client: AsyncClient, db_session):
     db_session.add(madrid_cache)
     await db_session.commit()
 
-    res = await async_client.get("/api/v1/trips/transit/registry")
+    res = await async_client.get("/api/trips/transit/registry")
     assert res.status_code == 200
     data = res.json()
     assert "has_active_process" in data
@@ -116,7 +114,7 @@ async def test_transit_registry(async_client: AsyncClient, db_session):
 @pytest.mark.asyncio
 async def test_trigger_city_gtfs_compile(async_client: AsyncClient, db_session):
     res = await async_client.post(
-        "/api/v1/trips/transit/compile",
+        "/api/trips/transit/compile",
         json={"city": "madrid"},
     )
     assert res.status_code == 200
@@ -148,7 +146,7 @@ async def test_delete_compiled_gtfs(
     db_session.add(cache_record)
     await db_session.commit()
 
-    res = await async_client.delete("/api/v1/trips/transit/sevilla")
+    res = await async_client.delete("/api/trips/transit/sevilla")
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "deleted"
@@ -184,7 +182,7 @@ async def test_stop_active_compilation_and_clean(
     db_session.add(cache_record)
     await db_session.commit()
 
-    res = await async_client.delete("/api/v1/trips/transit/bilbao")
+    res = await async_client.delete("/api/trips/transit/bilbao")
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "deleted"

@@ -85,33 +85,20 @@ class OllamaEmbeddingProvider(IEmbeddingProvider):
     async def _post_embed(
         self, client: httpx.AsyncClient, base: str, texts: list[str]
     ) -> list[list[float]]:
-        """Invokes Ollama POST /api/embed with fallback to /api/embeddings."""
+        """Invokes Ollama POST /api/embed."""
         url_embed = f"{base}/api/embed"
-        try:
-            resp = await client.post(
-                url_embed,
-                json={"model": self.model, "input": texts},
+        resp = await client.post(
+            url_embed,
+            json={"model": self.model, "input": texts},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        embeddings = data.get("embeddings", [])
+        if len(embeddings) != len(texts):
+            raise EmbeddingProviderError(
+                f"Mismatch in returned embeddings count: {len(embeddings)} vs {len(texts)}"
             )
-            if resp.status_code == 200:
-                data = resp.json()
-                embeddings = data.get("embeddings", [])
-                if len(embeddings) == len(texts):
-                    return embeddings
-        except Exception as e:
-            logger.debug(f"/api/embed attempt via {url_embed} failed: {e}")
-
-        # Fallback to legacy /api/embeddings if /api/embed is unavailable
-        legacy_embeddings = []
-        for t in texts:
-            url_legacy = f"{base}/api/embeddings"
-            resp = await client.post(
-                url_legacy,
-                json={"model": self.model, "prompt": t},
-            )
-            resp.raise_for_status()
-            vec = resp.json().get("embedding", [])
-            legacy_embeddings.append(vec)
-        return legacy_embeddings
+        return embeddings
 
     async def embed_text(
         self, text: str, input_type: Literal["document", "query"] = "document"

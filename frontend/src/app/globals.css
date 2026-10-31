@@ -534,10 +534,6 @@ a {
   display: flex;
 }
 
-[data-nav-style="dock"] .sidebar {
-  display: contents;
-}
-
 .logo-container {
   display: flex;
   align-items: center;

@@ -71,11 +71,11 @@ async def fetch_restaurants(
 
     # 2. If DB has few dining venues, supplement with live Overpass query
     if len(result) < 12:
-        from app.infrastructure.providers.overpass_provider import (
-            OverpassProviderAdapter,
+        from app.infrastructure.providers.osm_city_ingest import (
+            OsmCityPoiProvider,
         )
 
-        provider = OverpassProviderAdapter()
+        provider = OsmCityPoiProvider()
         try:
             extra = await provider.fetch_restaurants(city, limit=30)
             for p in extra:

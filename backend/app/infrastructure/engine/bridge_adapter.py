@@ -119,7 +119,16 @@ class CppOptimizationAdapter(IOptimizationEngine):
                         current_time += transit_time
 
                     # Enforce venue opening hours and dwell time
-                    earliest_open = getattr(pois[idx], "open_time_mins", 0) or 0
+                    open_by_day = getattr(pois[idx], "open_time_mins_by_day", None)
+                    earliest_open = (
+                        open_by_day[0]
+                        if (
+                            open_by_day
+                            and len(open_by_day) == 7
+                            and open_by_day[0] >= 0
+                        )
+                        else 0
+                    )
                     current_time = max(current_time, earliest_open)
 
                     start_total = int(round(float(current_time)))

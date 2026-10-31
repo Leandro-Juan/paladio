@@ -32,6 +32,8 @@ from app.services.gtfs_resolver_service import GTFSResolverService
 from app.services.transit_derivation_service import TransitDerivationService
 from app.services.transit_fare_service import TransitFareService
 
+pytestmark = [pytest.mark.slow, pytest.mark.live_integration]
+
 
 def get_dynamic_top_500_cities() -> list[dict[str, Any]]:
     """Dynamically loads and ranks the top 500 cities globally for tourism purposes.

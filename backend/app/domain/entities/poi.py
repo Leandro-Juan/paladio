@@ -96,86 +96,20 @@ class Poi(BaseModel):
     def get(self, item: str, default: Any = None) -> Any:
         return getattr(self, item, default)
 
-    @property
-    def open_time_mins(self) -> int:
-        """
-        Safe legacy property fallback: returns the first day with a valid opening minute
-        (protecting callers if closed on Mondays). Falls back to 480 if closed all week.
-        """
-        for val in self.open_time_mins_by_day:
-            if val != -1:
-                return val
-        return 480
-
-    @property
-    def close_time_mins(self) -> int:
-        """
-        Safe legacy property fallback: returns the first day with a valid closing minute.
-        Falls back to 1320 if closed all week.
-        """
-        for val in self.close_time_mins_by_day:
-            if val != -1:
-                return val
-        return 1320
-
     @model_validator(mode="before")
     @classmethod
-    def normalize_inputs(cls, data: Any) -> Any:
-        """
-        Parses legacy dictionaries containing 'schedule' or 'financials' into canonical
-        scalars and 7-day vectors, and drops the redundant sub-models.
-        """
+    def parse_opening_hours_if_needed(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
 
         d = dict(data)
-        from app.utils.opening_hours_parser import parse_osm_opening_hours
-
         top_osm = d.get("osm_opening_hours")
         if top_osm and not d.get("open_time_mins_by_day"):
+            from app.utils.opening_hours_parser import parse_osm_opening_hours
+
             parsed = parse_osm_opening_hours(top_osm)
             d["open_time_mins_by_day"] = parsed.open_time_mins_by_day
             d["close_time_mins_by_day"] = parsed.close_time_mins_by_day
-
-        if "schedule" in d and isinstance(d["schedule"], dict):
-            sched = d.pop("schedule")
-            osm_h = sched.get("osm_opening_hours")
-            if osm_h and not d.get("open_time_mins_by_day"):
-                parsed = parse_osm_opening_hours(osm_h)
-                d["open_time_mins_by_day"] = parsed.open_time_mins_by_day
-                d["close_time_mins_by_day"] = parsed.close_time_mins_by_day
-                d["osm_opening_hours"] = osm_h
-            if "open_time_mins" in sched and "open_time_mins" not in d:
-                d["open_time_mins"] = sched["open_time_mins"]
-            if "close_time_mins" in sched and "close_time_mins" not in d:
-                d["close_time_mins"] = sched["close_time_mins"]
-            if "recommended_duration_minutes" in sched and "duration_mins" not in d:
-                d["duration_mins"] = sched["recommended_duration_minutes"]
-
-        if "financials" in d and isinstance(d["financials"], dict):
-            fin = d.pop("financials")
-            if (
-                "estimated_cost" in fin
-                and fin["estimated_cost"] is not None
-                and "cost_eur" not in d
-            ):
-                d["cost_eur"] = fin["estimated_cost"]
-            elif "price" in fin and fin["price"] is not None and "cost_eur" not in d:
-                d["cost_eur"] = fin["price"]
-            if "is_estimated" in fin and "cost_is_estimated" not in d:
-                d["cost_is_estimated"] = fin["is_estimated"]
-            if "price_source" in fin and "cost_source" not in d:
-                d["cost_source"] = fin["price_source"]
-
-        if "open_time_mins" in d:
-            val = d.pop("open_time_mins")
-            if "open_time_mins_by_day" not in d:
-                d["open_time_mins_by_day"] = [int(val)] * 7
-
-        if "close_time_mins" in d:
-            val = d.pop("close_time_mins")
-            if "close_time_mins_by_day" not in d:
-                d["close_time_mins_by_day"] = [int(val)] * 7
 
         return d
 

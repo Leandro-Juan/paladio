@@ -418,12 +418,15 @@ async def async_client(
 def pytest_collection_modifyitems(config, items):
     """
     Ensures that tests marked as 'live_integration' or 'slow' are skipped by default
-    when running the full test suite, but run when explicitly requested via -k or
-    an exact test nodeid (::).
+    when running the full test suite, but run when explicitly requested via -k,
+    a specific test file, or an exact test nodeid (::).
     """
     cli_args = getattr(config.invocation_params, "args", sys.argv)
     has_cli_m = any(a == "-m" or a.startswith("-m=") for a in cli_args)
     has_k = bool(config.option.keyword)
     has_specific_node = any("::" in a for a in cli_args)
-    if not has_cli_m and (has_k or has_specific_node):
+    has_specific_file = any(
+        (a.endswith(".py") or ".py::" in a) for a in cli_args if not a.startswith("-")
+    )
+    if not has_cli_m and (has_k or has_specific_node or has_specific_file):
         config.option.markexpr = ""

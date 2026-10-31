@@ -214,7 +214,7 @@ export default function ConfigPage() {
     }
   };
 
-  const fetchGtfsData = useCallback(async () => {
+  const fetchGtfsData = useCallback(async (_silent?: boolean) => {
     try {
       const data = await fetchGtfsRegistryApi();
       setGtfsTelemetry(data);

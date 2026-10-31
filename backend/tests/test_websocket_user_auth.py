@@ -34,7 +34,7 @@ def test_websocket_token_query_param_auth(mock_ws_client):
     client, mock_session = mock_ws_client
     token = create_access_token(subject="user-uuid-999")
 
-    with client.websocket_connect(f"/api/v1/ws/stream?token={token}") as ws:
+    with client.websocket_connect(f"/api/ws/stream?token={token}") as ws:
         ws.send_json({"action": "chat", "message": "Trip to Paris"})
         res = ws.receive_json()
         assert res["event"] == "DONE"
@@ -49,7 +49,7 @@ def test_websocket_token_payload_auth(mock_ws_client):
     client, mock_session = mock_ws_client
     token = create_access_token(subject="user-uuid-888")
 
-    with client.websocket_connect("/api/v1/ws/stream") as ws:
+    with client.websocket_connect("/api/ws/stream") as ws:
         ws.send_json({"action": "chat", "message": "Trip to Tokyo", "token": token})
         res = ws.receive_json()
         assert res["event"] == "DONE"
@@ -62,7 +62,7 @@ def test_websocket_token_payload_auth(mock_ws_client):
 def test_websocket_unauthenticated_fallback(mock_ws_client):
     client, mock_session = mock_ws_client
 
-    with client.websocket_connect("/api/v1/ws/stream") as ws:
+    with client.websocket_connect("/api/ws/stream") as ws:
         ws.send_json({"action": "chat", "message": "Trip to Berlin"})
         res = ws.receive_json()
         assert res["event"] == "DONE"

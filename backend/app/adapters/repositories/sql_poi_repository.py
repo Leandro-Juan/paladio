@@ -143,12 +143,12 @@ def attraction_to_poi(attraction: Attraction, city: str = "") -> Poi:
         else dict(attraction.metadata)
     )
 
-    osm_h = getattr(attraction, "opening_hours_raw", None) or sched.get(
+    osm_h = getattr(attraction, "osm_opening_hours", None) or sched.get(
         "osm_opening_hours"
     )
     parsed_hours = parse_osm_opening_hours(osm_h)
     dur = sched.get("recommended_duration_minutes", 60)
-    raw_cost = getattr(attraction, "admission_fee", None)
+    raw_cost = getattr(attraction, "cost_eur", None)
     if raw_cost is None:
         raw_cost = fin.get("estimated_cost", 0.0) or 0.0
     raw_is_estimated = getattr(attraction, "cost_is_estimated", None)

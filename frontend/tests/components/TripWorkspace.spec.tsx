@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/experimental-ct-react';
 import { TripWorkspaceHeader } from '../../src/components/trip-workspace/TripWorkspaceHeader';
-import { TripPlacesSidebar } from '../../src/components/trip-workspace/TripPlacesSidebar';
-import { TripPlanSidebar } from '../../src/components/trip-workspace/TripPlanSidebar';
 import { TripSpeedDial } from '../../src/components/trip-workspace/TripSpeedDial';
 import { TripUnifiedSidebar } from '../../src/components/trip-workspace/TripUnifiedSidebar';
 import { DayOutput } from '../../src/types/domain';

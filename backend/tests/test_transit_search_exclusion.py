@@ -95,7 +95,7 @@ async def seed_transit_search_data(db_session: AsyncSession):
 async def test_search_all_excludes_transit(async_client: AsyncClient):
     """Ensures general recommendation search excludes all transit POIs."""
     resp = await async_client.get(
-        "/api/v1/pois/search", params={"city": "Tokyo", "category": "all"}
+        "/api/pois/search", params={"city": "Tokyo", "category": "all"}
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -110,7 +110,7 @@ async def test_search_all_excludes_transit(async_client: AsyncClient):
 async def test_search_category_transit_returns_empty(async_client: AsyncClient):
     """Requesting the transit category from POI Search returns empty (transit moved to dedicated tab)."""
     resp = await async_client.get(
-        "/api/v1/pois/search", params={"city": "Tokyo", "category": "transit"}
+        "/api/pois/search", params={"city": "Tokyo", "category": "transit"}
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -126,7 +126,7 @@ async def test_search_free_text_excludes_transit(async_client: AsyncClient):
         new=AsyncMock(return_value=[0.0] * 768),
     ):
         resp = await async_client.get(
-            "/api/v1/pois/search", params={"city": "Tokyo", "query": "Asakusa Station"}
+            "/api/pois/search", params={"city": "Tokyo", "query": "Asakusa Station"}
         )
         assert resp.status_code == 200
         data = resp.json()

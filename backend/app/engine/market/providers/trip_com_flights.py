@@ -19,7 +19,7 @@ from app.engine.market.providers.base import (
     BaseQuoteProvider,
     ProviderBlockedError,
 )
-from app.services.airport_service import get_airport, haversine_distance_km
+from app.services.airport_service import get_airport_service, haversine_distance_km
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +111,8 @@ class TripComFlightProvider(BaseQuoteProvider):
                     else ["Airline"]
                 )
 
-                orig_ap = get_airport(origin_iata)
-                dest_ap = get_airport(dest_iata)
+                orig_ap = get_airport_service().get_airport(origin_iata)
+                dest_ap = get_airport_service().get_airport(dest_iata)
                 if orig_ap and dest_ap:
                     dist_km = haversine_distance_km(
                         orig_ap.latitude,

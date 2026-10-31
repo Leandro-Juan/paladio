@@ -45,8 +45,8 @@ class DefaultTravelDataProvider(TravelDataProvider):
             from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
             from app.db.session import async_session
             from app.engine.city_readiness import ensure_city_ready
-            from app.infrastructure.providers.overpass_provider import (
-                OverpassProviderAdapter,
+            from app.infrastructure.providers.osm_city_ingest import (
+                OsmCityPoiProvider,
             )
             from app.services.poi_service import get_attractions_for_city
 
@@ -59,7 +59,7 @@ class DefaultTravelDataProvider(TravelDataProvider):
                         f"Automatic city readiness check for {city} failed: {e}"
                     )
 
-                provider = OverpassProviderAdapter()
+                provider = OsmCityPoiProvider()
                 return await get_attractions_for_city(
                     city,
                     poi_repo=repo,
@@ -104,7 +104,3 @@ class DefaultTravelDataProvider(TravelDataProvider):
         except Exception as e:
             logger.error(f"Error fetching restaurants for {city}: {e}")
             raise RuntimeError(f"Could not load restaurants for {city}: {e}") from e
-
-
-# Backward-compatible alias
-LiveTravelDataProvider = DefaultTravelDataProvider

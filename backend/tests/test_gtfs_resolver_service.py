@@ -6,6 +6,7 @@ from app.services.gtfs_resolver_service import (
 )
 
 
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 async def test_ensure_catalog_loaded_caches_in_memory():
     """Verify catalog is cached in memory with sub-millisecond repeated lookups."""
@@ -18,6 +19,7 @@ async def test_ensure_catalog_loaded_caches_in_memory():
     assert GTFSResolverService._last_loaded_timestamp == first_loaded_ts
 
 
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 async def test_resolve_gtfs_feed_madrid_and_paris():
     """Verify dynamic discovery for major European transit authorities."""
@@ -120,6 +122,7 @@ async def test_country_isolation():
     assert score < 0.0  # Rejected due to country mismatch
 
 
+@pytest.mark.live_integration
 @pytest.mark.asyncio
 async def test_nonexistent_city_returns_none_without_mocks():
     """Strict test: non-existent city must return None and NEVER mock fake GTFS data."""

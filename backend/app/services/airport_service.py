@@ -458,7 +458,13 @@ class AirportService:
                         k in ap.name.lower()
                         for k in ("international", "intercontinental")
                     )
-                    name_matches_city = _normalize_name(ap.city) == norm
+                    canonical_city_norm = _normalize_name(best_city.get("name", ""))
+                    ap_city_norm = _normalize_name(ap.city)
+                    name_matches_city = (
+                        ap_city_norm in (norm, canonical_city_norm)
+                        if ap_city_norm
+                        else False
+                    )
 
                     # Dynamic scoring (lower score = higher relevance)
                     country_penalty = 0.0 if same_country else 50.0

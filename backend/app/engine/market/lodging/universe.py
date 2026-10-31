@@ -56,9 +56,9 @@ class PropertyUniverseManager:
             return row_city[0], row_city[1], row_city[2]
 
         # Try resolving IATA code to canonical city name via AirportService
-        from app.services.airport_service import get_city_from_iata
+        from app.services.airport_service import get_airport_service
 
-        city_name = get_city_from_iata(code)
+        city_name = get_airport_service().get_city_from_iata(code)
         if city_name and city_name != "Unknown":
             stmt_name = (
                 select(CityModel.id, CityModel.bbox, CityModel.name)

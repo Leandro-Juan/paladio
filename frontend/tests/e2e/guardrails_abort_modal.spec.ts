@@ -33,7 +33,7 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
     await page.goto('/engine');
 
     // Click launch button to initiate
-    const launchBtn = page.getByRole('button', { name: /INITIALIZE SOLVER/i });
+    const launchBtn = page.getByRole('button', { name: /Generate Sovereign Trip Plan/i });
     await expect(launchBtn).toBeVisible();
     await launchBtn.click();
 
@@ -65,7 +65,7 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
     // Verify modal is dismissed
     await expect(modalTitle).not.toBeVisible();
 
-    // Verify active tab is switched back to Mission Preparation
-    await expect(page.getByRole('button', { name: /INITIALIZE SOLVER/i })).toBeVisible();
+    // Verify trip submission button is visible again
+    await expect(page.getByRole('button', { name: /Generate Sovereign Trip Plan/i })).toBeVisible();
   });
 });

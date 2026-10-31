@@ -48,13 +48,14 @@ test.describe('POI Category Classification & Metadata', () => {
     expect(transit.label).toBe('TRANSIT');
 
     const metro = classifyPoiCategory('subway_station');
-    expect(metro.type).toBe('transit');
+    expect(metro.type).toBe('metro');
+    expect(metro.label).toBe('METRO');
 
     const busFromName = classifyPoiCategory('', 'Main Plaza Bus Stop');
     expect(busFromName.type).toBe('bus_stop');
 
     const metroFromName = classifyPoiCategory('', 'Central Metro Station');
-    expect(metroFromName.type).toBe('transit');
+    expect(metroFromName.type).toBe('metro');
   });
 
   test('correctly identifies hotels and lodging', () => {

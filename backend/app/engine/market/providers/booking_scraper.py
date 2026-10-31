@@ -77,9 +77,9 @@ class BookingScraperProvider(BaseQuoteProvider):
         if name_city:
             return name_city
 
-        from app.services.airport_service import get_city_from_iata
+        from app.services.airport_service import get_airport_service
 
-        city = get_city_from_iata(code_clean)
+        city = get_airport_service().get_city_from_iata(code_clean)
         if city and city != "Unknown":
             return city
 

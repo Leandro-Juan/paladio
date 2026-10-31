@@ -42,13 +42,19 @@ export interface TripDraftStore extends TripDraftData {
 
 const STORAGE_KEY = 'paladio-trip-creation-draft';
 
+const formatDateOffset = (offsetDays: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+};
+
 const DEFAULT_DRAFT: TripDraftData = {
   destination: '',
   origin: '',
   originIata: '',
   destIata: '',
-  startDate: '',
-  endDate: '',
+  startDate: formatDateOffset(7),
+  endDate: formatDateOffset(12),
   departureHour: '09:00',
   arrivalHour: '20:00',
   budgetUsd: 1500,

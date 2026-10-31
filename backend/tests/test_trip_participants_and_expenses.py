@@ -9,7 +9,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Register User A (Alice)
     res_a = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"alice_{uid}@paladio.com",
             "username": f"alice_{uid}",
@@ -22,7 +22,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Register User B (Bob)
     res_b = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"bob_{uid}@paladio.com",
             "username": f"bob_{uid}",
@@ -34,7 +34,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Check collaborator options endpoint
     collab_res = await async_client.get(
-        "/api/v1/users/collaborators/options", headers=headers_a
+        "/api/users/collaborators/options", headers=headers_a
     )
     assert collab_res.status_code == 200
     collab_list = collab_res.json()
@@ -42,7 +42,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # User A creates a trip
     create_trip_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Rome",
             "start_date": "2026-10-10",
@@ -60,7 +60,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Add Bob as participant
     add_bob_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/participants",
+        f"/api/trips/{trip_id}/participants",
         json={"name": f"bob_{uid}", "user_id": user_b_id, "role": "traveler"},
         headers=headers_a,
     )
@@ -69,7 +69,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Add a guest participant (Charlie)
     add_charlie_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/participants",
+        f"/api/trips/{trip_id}/participants",
         json={"name": "Charlie", "role": "traveler"},
         headers=headers_a,
     )
@@ -78,7 +78,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Verify listing participants
     list_p_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/participants", headers=headers_a
+        f"/api/trips/{trip_id}/participants", headers=headers_a
     )
     assert list_p_res.status_code == 200
     p_names = [p["name"] for p in list_p_res.json()]
@@ -88,7 +88,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Add an expense paid by Alice: €90 for dinner, split equally among all 3 (€30 each)
     exp_1_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/expenses",
+        f"/api/trips/{trip_id}/expenses",
         json={
             "payer_id": alice_p_id,
             "description": "Dinner at Trastevere",
@@ -108,7 +108,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Add an expense paid by Bob: €30 for taxi, split between Bob and Charlie (€15 each)
     exp_2_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/expenses",
+        f"/api/trips/{trip_id}/expenses",
         json={
             "payer_id": bob_p_id,
             "description": "Airport Taxi",
@@ -126,7 +126,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Verify listing expenses
     expenses_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/expenses", headers=headers_a
+        f"/api/trips/{trip_id}/expenses", headers=headers_a
     )
     assert expenses_res.status_code == 200
     assert len(expenses_res.json()) == 2
@@ -139,7 +139,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
     # Charlie owes Alice €45
     # Bob owes Alice €15
     settlement_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/settlement", headers=headers_a
+        f"/api/trips/{trip_id}/settlement", headers=headers_a
     )
     assert settlement_res.status_code == 200
     s_data = settlement_res.json()
@@ -152,7 +152,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Verify direct (pairwise) settlement without simplification
     direct_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/settlement?simplify=false", headers=headers_a
+        f"/api/trips/{trip_id}/settlement?simplify=false", headers=headers_a
     )
     assert direct_res.status_code == 200
     direct_data = direct_res.json()
@@ -160,7 +160,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Add a multi-currency expense: 15,000 JPY paid by Alice, split equally
     jpy_exp = await async_client.post(
-        f"/api/v1/trips/{trip_id}/expenses",
+        f"/api/trips/{trip_id}/expenses",
         json={
             "payer_id": alice_p_id,
             "description": "Tokyo Izakaya Dinner",
@@ -181,7 +181,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Verify direct settlement with multi-currency: transfers must be normalized in EUR (< €200, not thousands of €!)
     direct_jpy_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/settlement?simplify=false", headers=headers_a
+        f"/api/trips/{trip_id}/settlement?simplify=false", headers=headers_a
     )
     assert direct_jpy_res.status_code == 200
     direct_jpy_data = direct_jpy_res.json()
@@ -191,17 +191,17 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Delete multi-currency expense before continuing
     await async_client.delete(
-        f"/api/v1/trips/{trip_id}/expenses/{jpy_exp_id}", headers=headers_a
+        f"/api/trips/{trip_id}/expenses/{jpy_exp_id}", headers=headers_a
     )
 
     # Delete first expense and verify settlement updates
     del_exp_res = await async_client.delete(
-        f"/api/v1/trips/{trip_id}/expenses/{exp_1_id}", headers=headers_a
+        f"/api/trips/{trip_id}/expenses/{exp_1_id}", headers=headers_a
     )
     assert del_exp_res.status_code == 200
 
     settlement_2 = (
-        await async_client.get(f"/api/v1/trips/{trip_id}/settlement", headers=headers_a)
+        await async_client.get(f"/api/trips/{trip_id}/settlement", headers=headers_a)
     ).json()
     assert settlement_2["total_expenses"] == 30.0
     bal_map_2 = {b["participant_id"]: b for b in settlement_2["balances"]}
@@ -211,7 +211,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Test duplicate participant prevention: user_id duplicate
     dup_user_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/participants",
+        f"/api/trips/{trip_id}/participants",
         json={"name": "Bob Clone", "user_id": user_b_id, "role": "traveler"},
         headers=headers_a,
     )
@@ -220,7 +220,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
 
     # Test duplicate participant prevention: case-insensitive name duplicate
     dup_name_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/participants",
+        f"/api/trips/{trip_id}/participants",
         json={"name": "  cHArLiE  ", "role": "traveler"},
         headers=headers_a,
     )
@@ -230,26 +230,26 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
     # Test minimum 1 participant requirement:
     # Delete Charlie (now 2 remain: Alice, Bob) -> OK
     del_c_res = await async_client.delete(
-        f"/api/v1/trips/{trip_id}/participants/{charlie_p_id}", headers=headers_a
+        f"/api/trips/{trip_id}/participants/{charlie_p_id}", headers=headers_a
     )
     assert del_c_res.status_code == 200
 
     # Delete Bob (now 1 remains: Alice) -> OK
     del_b_res = await async_client.delete(
-        f"/api/v1/trips/{trip_id}/participants/{bob_p_id}", headers=headers_a
+        f"/api/trips/{trip_id}/participants/{bob_p_id}", headers=headers_a
     )
     assert del_b_res.status_code == 200
 
     # Attempt to delete Alice (the only participant left) -> 400 Bad Request
     del_last_res = await async_client.delete(
-        f"/api/v1/trips/{trip_id}/participants/{alice_p_id}", headers=headers_a
+        f"/api/trips/{trip_id}/participants/{alice_p_id}", headers=headers_a
     )
     assert del_last_res.status_code == 400
     assert "at least one participant" in del_last_res.text
 
     # Verify Alice is still in participants
     remaining_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/participants", headers=headers_a
+        f"/api/trips/{trip_id}/participants", headers=headers_a
     )
     assert remaining_res.status_code == 200
     assert len(remaining_res.json()) == 1

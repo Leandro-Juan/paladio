@@ -86,7 +86,7 @@ export const loginApi = (data: { username_or_email: string; password: string }):
 };
 
 export const fetchCurrentUser = (): Promise<User> => {
-  return apiFetch<User>('/auth/me');
+  return apiFetch<User>('/users/me');
 };
 
 export const listUsersApi = (): Promise<User[]> => {

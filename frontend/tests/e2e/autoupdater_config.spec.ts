@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockAuthenticatedUser } from './test-utils';
+import type { SystemUpdateStatus } from '../../src/utils/api';
 
 test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,7 +8,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
   });
 
   test('displays auto-updater disabled by default, enables automatic updates, and prompts with patch notes on release', async ({ page }) => {
-    let mockStatus = {
+    let mockStatus: SystemUpdateStatus = {
       auto_update_enabled: false,
       check_interval_hours: 6,
       github_repo: 'Leandro-Juan/paladio',

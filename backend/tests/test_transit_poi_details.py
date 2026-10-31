@@ -90,9 +90,9 @@ async def test_poi_details_resolves_transit_station_over_substring_attraction(
     db_session.add(attraction)
     await db_session.commit()
 
-    # Case A: Lookup directly by GTFS ID: /pois/gtfs:{city}:{station_id}/details
+    # Case A: Lookup directly by GTFS ID: /pois/gtfs:{city}:{station_id}
     gtfs_id = f"gtfs:{city}:{station_id}"
-    res_gtfs = await async_client.get(f"/api/v1/pois/{gtfs_id}/details")
+    res_gtfs = await async_client.get(f"/api/pois/{gtfs_id}")
     assert res_gtfs.status_code == 200
     data_gtfs = res_gtfs.json()
     assert data_gtfs["category"] == "transit"
@@ -100,10 +100,10 @@ async def test_poi_details_resolves_transit_station_over_substring_attraction(
     assert "transit_info" in data_gtfs
     assert "M1" in data_gtfs["transit_info"]["lines"]
 
-    # Case B: Lookup by station name: /pois/{station_name}/details?name={station_name}&city={city}
+    # Case B: Lookup by station name: /pois/{station_name}?name={station_name}&city={city}
     # It must resolve to the transit station, NEVER the national botanical park!
     res_name = await async_client.get(
-        f"/api/v1/pois/{station_name}/details?name={station_name}&city={city}"
+        f"/api/pois/{station_name}?name={station_name}&city={city}"
     )
     assert res_name.status_code == 200
     data_name = res_name.json()
@@ -114,9 +114,7 @@ async def test_poi_details_resolves_transit_station_over_substring_attraction(
     assert "M1" in data_name["transit_info"]["lines"]
 
     # Case C: Station detail endpoint provides photos field
-    res_station = await async_client.get(
-        f"/api/v1/transit/{city}/stations/{station_id}"
-    )
+    res_station = await async_client.get(f"/api/transit/{city}/stations/{station_id}")
     assert res_station.status_code == 200
     data_st = res_station.json()
     assert "photos" in data_st

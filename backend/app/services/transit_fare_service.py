@@ -1,19 +1,16 @@
 import asyncio
 import concurrent.futures
-import dis
-import inspect
 import logging
 import os
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import httpx
-from app.db.models import CityTransitFareModel, TransitFareModel, TransitFareQuoteModel
+from app.db.models import TransitFareModel, TransitFareQuoteModel
 from app.domain.entities.poi import TransitRecommendation, TransitStep
 from app.domain.reference.iso_currencies import from_minor_units
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -38,101 +35,6 @@ class CityTransitFare:
     agency_name: str | None = None
     source_url: str | None = None
     fare_unknown: bool = False
-
-    def __init__(
-        self,
-        city: str = "",
-        country: str = "Unknown",
-        currency: str = "",
-        single_fare: float | None = None,
-        pass_24h_price: float | None = None,
-        pass_24h_name: str | None = None,
-        pass_24h_includes_airport: bool = False,
-        airport_surcharge: float | None = None,
-        airport_station_keywords: list[str] | None = None,
-        is_estimated: bool = False,
-        source: str = "transit_tariff",
-        agency_name: str | None = None,
-        source_url: str | None = None,
-        city_name: str | None = None,
-        single_fare_eur: float | None = None,
-        day_pass_fare_eur: float | None = None,
-        day_pass_name: str | None = None,
-        airport_surcharge_eur: float | None = None,
-        fare_unknown: bool = False,
-    ):
-        self.city = city or (city_name or "")
-        self.country = country
-        self.currency = currency
-        self.single_fare = (
-            single_fare
-            if single_fare is not None
-            else (
-                single_fare_eur
-                if single_fare_eur is not None
-                else (0.0 if fare_unknown else None)
-            )
-        )
-        self.pass_24h_price = (
-            pass_24h_price if pass_24h_price is not None else day_pass_fare_eur
-        )
-        self.pass_24h_name = (
-            pass_24h_name if pass_24h_name is not None else day_pass_name
-        )
-        self.pass_24h_includes_airport = pass_24h_includes_airport
-        self.airport_surcharge = (
-            airport_surcharge
-            if airport_surcharge is not None
-            else (airport_surcharge_eur if airport_surcharge_eur is not None else 0.0)
-        )
-        self.airport_station_keywords = (
-            airport_station_keywords if airport_station_keywords is not None else []
-        )
-        self.is_estimated = is_estimated
-        self.source = source
-        self.agency_name = agency_name
-        self.source_url = source_url
-        self.fare_unknown = fare_unknown
-
-    @property
-    def city_name(self) -> str:
-        return self.city
-
-    @city_name.setter
-    def city_name(self, value: str) -> None:
-        self.city = value
-
-    @property
-    def single_fare_eur(self) -> float:
-        return self.single_fare if self.single_fare is not None else 0.0
-
-    @single_fare_eur.setter
-    def single_fare_eur(self, value: float) -> None:
-        self.single_fare = value
-
-    @property
-    def day_pass_fare_eur(self) -> float | None:
-        return self.pass_24h_price
-
-    @day_pass_fare_eur.setter
-    def day_pass_fare_eur(self, value: float | None) -> None:
-        self.pass_24h_price = value
-
-    @property
-    def day_pass_name(self) -> str | None:
-        return self.pass_24h_name
-
-    @day_pass_name.setter
-    def day_pass_name(self, value: str | None) -> None:
-        self.pass_24h_name = value
-
-    @property
-    def airport_surcharge_eur(self) -> float:
-        return self.airport_surcharge
-
-    @airport_surcharge_eur.setter
-    def airport_surcharge_eur(self, value: float) -> None:
-        self.airport_surcharge = value
 
 
 # Generic fallback keywords for identifying airport stations across any language
@@ -201,14 +103,7 @@ class CityTransitFareCache:
 
 @dataclass(frozen=True)
 class TransitFareResult:
-    """
-    Result frozen dataclass for transit leg fare calculation.
-    Supports:
-      - 4-item unpacking: (cost, is_est, source, has_airport)
-      - 5-item unpacking: (cost, is_est, source, has_airport, surcharge)
-      - Named attributes: total_cost, cost_is_estimated, price_source, has_airport, airport_surcharge_eur, currency
-      - Property aliases: cost, is_estimated, source
-    """
+    """Result frozen dataclass for transit leg fare calculation."""
 
     total_cost: float
     cost_is_estimated: bool
@@ -216,71 +111,6 @@ class TransitFareResult:
     has_airport: bool
     airport_surcharge_eur: float = 0.0
     currency: str = "EUR"
-
-    def __getitem__(self, idx: int) -> Any:
-        return (
-            self.total_cost,
-            self.cost_is_estimated,
-            self.price_source,
-            self.has_airport,
-            self.airport_surcharge_eur,
-        )[idx]
-
-    def __len__(self) -> int:
-        return 5
-
-    def __iter__(self):
-        try:
-            frame = inspect.currentframe().f_back
-            if frame:
-                instructions = list(dis.get_instructions(frame.f_code))
-                for instr in instructions:
-                    if instr.offset == frame.f_lasti and instr.opname in (
-                        "UNPACK_SEQUENCE",
-                        "UNPACK_EX",
-                    ):
-                        if instr.argval == 4:
-                            return iter(
-                                (
-                                    self.total_cost,
-                                    self.cost_is_estimated,
-                                    self.price_source,
-                                    self.has_airport,
-                                )
-                            )
-                        elif instr.argval == 5:
-                            return iter(
-                                (
-                                    self.total_cost,
-                                    self.cost_is_estimated,
-                                    self.price_source,
-                                    self.has_airport,
-                                    self.airport_surcharge_eur,
-                                )
-                            )
-        except (AttributeError, ValueError, TypeError, IndexError, RuntimeError):
-            pass
-        return iter(
-            (
-                self.total_cost,
-                self.cost_is_estimated,
-                self.price_source,
-                self.has_airport,
-                self.airport_surcharge_eur,
-            )
-        )
-
-    @property
-    def cost(self) -> float:
-        return self.total_cost
-
-    @property
-    def is_estimated(self) -> bool:
-        return self.cost_is_estimated
-
-    @property
-    def source(self) -> str:
-        return self.price_source
 
 
 class TransitFareExtractionSchema(BaseModel):
@@ -291,10 +121,6 @@ class TransitFareExtractionSchema(BaseModel):
     single_fare: float = Field(
         default=0.0,
         description="Standard adult single journey transit ticket price in native currency",
-    )
-    single_fare_eur: float | None = Field(
-        default=None,
-        description="Legacy field name for single journey fare",
     )
     currency: str = Field(
         default="EUR",
@@ -312,17 +138,9 @@ class TransitFareExtractionSchema(BaseModel):
         default=None,
         description="Price of the official 24-hour or tourist day pass in native currency",
     )
-    day_pass_fare_eur: float | None = Field(
-        default=None,
-        description="Legacy field name for day pass price",
-    )
     airport_surcharge: float = Field(
         default=0.0,
         description="Additional airport supplement or differential in native currency",
-    )
-    airport_surcharge_eur: float | None = Field(
-        default=None,
-        description="Legacy field name for airport surcharge",
     )
     airport_station_keywords: list[str] = Field(
         default_factory=list,
@@ -332,24 +150,6 @@ class TransitFareExtractionSchema(BaseModel):
         default=None,
         description="Official transit authority portal URL",
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def populate_field_aliases(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            if "single_fare" not in data and "single_fare_eur" in data:
-                data["single_fare"] = data["single_fare_eur"]
-            elif "single_fare_eur" not in data and "single_fare" in data:
-                data["single_fare_eur"] = data["single_fare"]
-            if "day_pass_fare" not in data and "day_pass_fare_eur" in data:
-                data["day_pass_fare"] = data["day_pass_fare_eur"]
-            elif "day_pass_fare_eur" not in data and "day_pass_fare" in data:
-                data["day_pass_fare_eur"] = data["day_pass_fare"]
-            if "airport_surcharge" not in data and "airport_surcharge_eur" in data:
-                data["airport_surcharge"] = data["airport_surcharge_eur"]
-            elif "airport_surcharge_eur" not in data and "airport_surcharge" in data:
-                data["airport_surcharge_eur"] = data["airport_surcharge"]
-        return data
 
 
 _FARE_CACHE: CityTransitFareCache | None = None
@@ -424,13 +224,7 @@ class TransitFareService:
         cls, city_key: str, db: AsyncSession | None = None
     ) -> CityTransitFare | None:
         async def _query(session: AsyncSession) -> CityTransitFare | None:
-            # Dynamically retrieve any stored station keywords from city_transit_fares
-            cf_stmt = select(CityTransitFareModel.airport_station_keywords).where(
-                CityTransitFareModel.city_name == city_key
-            )
-            cf_res = await session.execute(cf_stmt)
-            saved_keywords = cf_res.scalars().first() or []
-            city_keywords = list(set(GENERIC_AIRPORT_KEYWORDS) | set(saved_keywords))
+            city_keywords = list(GENERIC_AIRPORT_KEYWORDS)
 
             # 1. Query normalized active quotes from transit_fare_quotes
             q_stmt = (
@@ -519,31 +313,6 @@ class TransitFareService:
                     fare_unknown=False,
                 )
 
-            # 3. Query legacy city_transit_fares table
-            stmt = select(CityTransitFareModel).where(
-                CityTransitFareModel.city_name == city_key
-            )
-            result = await session.execute(stmt)
-            model = result.scalar_one_or_none()
-            if model:
-                return CityTransitFare(
-                    city=model.city_name,
-                    country=model.country or "Unknown",
-                    currency=model.currency,
-                    single_fare=model.single_fare_eur,
-                    pass_24h_price=model.day_pass_fare_eur,
-                    pass_24h_name=model.day_pass_name
-                    if model.day_pass_fare_eur is not None
-                    else None,
-                    pass_24h_includes_airport=model.pass_24h_includes_airport,
-                    airport_surcharge=model.airport_surcharge_eur,
-                    airport_station_keywords=model.airport_station_keywords or [],
-                    is_estimated=model.is_estimated,
-                    source=model.source or "database_tariff",
-                    agency_name=model.agency_name,
-                    source_url=getattr(model, "source_url", None),
-                    fare_unknown=False,
-                )
             return None
 
         if db is not None:
@@ -565,35 +334,25 @@ class TransitFareService:
         """
         Persists a resolved city transit fare into PostgreSQL.
         """
-        stmt = pg_insert(CityTransitFareModel).values(
-            city_name=fare.city,
-            country=fare.country,
-            currency=fare.currency,
-            agency_name=fare.agency_name,
-            single_fare_eur=fare.single_fare,
-            day_pass_fare_eur=fare.pass_24h_price,
-            day_pass_name=fare.pass_24h_name,
-            pass_24h_includes_airport=fare.pass_24h_includes_airport,
-            airport_surcharge_eur=fare.airport_surcharge,
-            airport_station_keywords=fare.airport_station_keywords,
-            source=fare.source or "official_tariff",
-            is_estimated=fare.is_estimated,
-        )
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["city"],
-            set_={
-                "country": fare.country,
-                "currency": fare.currency,
-                "agency_name": fare.agency_name,
-                "single_fare": fare.single_fare,
-                "pass_24h_price": fare.pass_24h_price,
-                "pass_24h_name": fare.pass_24h_name,
-                "pass_24h_includes_airport": fare.pass_24h_includes_airport,
-                "airport_surcharge": fare.airport_surcharge,
-                "airport_station_keywords": fare.airport_station_keywords,
-                "source": fare.source or "official_tariff",
-                "is_estimated": fare.is_estimated,
-            },
+        import hashlib
+        from app.utils.currency import to_minor_units
+
+        curr = fare.currency or "EUR"
+        minor = to_minor_units(fare.single_fare or 0.0, curr)
+        ev_hash = hashlib.sha256(
+            f"{fare.city}:single:{minor}:{curr}".encode()
+        ).hexdigest()
+        stmt = pg_insert(TransitFareQuoteModel).values(
+            city=fare.city,
+            operator=fare.agency_name or "Official",
+            product_type="single",
+            amount_minor=minor,
+            currency=curr,
+            tier=2 if not fare.is_estimated else 3,
+            source_url=fare.source_url,
+            evidence_hash=ev_hash,
+            confidence=0.5 if fare.is_estimated else 1.0,
+            status="active",
         )
 
         if db is not None:
@@ -652,8 +411,15 @@ class TransitFareService:
                     },
                 )
                 data = resp.json()
+                if not isinstance(data, dict):
+                    return None
 
-                sections = data.get("parse", {}).get("sections", [])
+                parse_obj = data.get("parse", {})
+                if not isinstance(parse_obj, dict):
+                    return None
+                sections = parse_obj.get("sections", [])
+                if not isinstance(sections, list):
+                    sections = []
 
                 # Priority 1: High priority fare & ticket sections
                 high_priority_keywords = ("fare", "ticket", "pass", "cost")
@@ -808,11 +574,7 @@ class TransitFareService:
                         parsed = TransitFareExtractionSchema.model_validate_json(
                             raw_text
                         )
-                        fare_val = (
-                            parsed.single_fare
-                            if parsed.single_fare
-                            else parsed.single_fare_eur
-                        )
+                        fare_val = parsed.single_fare
                         if fare_val and fare_val > 0:
                             return parsed
                 else:
@@ -870,6 +632,8 @@ class TransitFareService:
                 if extracted and extracted.single_fare:
                     # Strict Grounded Verbatim Verification:
                     clean_quote = (extracted.evidence_quote or "").strip()
+                    quote_valid = False
+                    num_valid = False
                     if clean_quote:
                         # Check direct inclusion or tokenized inclusion
                         raw_c = context.replace("''", "").replace("'''", "")

@@ -20,7 +20,7 @@ from app.db.models import (
     TripModel,
     UserModel,
 )
-from app.engine.market.adapters import OpenLodgingFeed, RyanairFlightFeed
+from app.engine.market.adapters import CompositeFlightFeed, OpenLodgingFeed
 from app.engine.market.baselines import compute_route_baselines
 from app.engine.market.detector import run_deal_detection_scan
 from app.engine.market.ingest import (
@@ -36,8 +36,8 @@ pytestmark = [pytest.mark.live_integration]
 
 @pytest.mark.asyncio
 async def test_ryanair_feed_live_without_api_keys():
-    """Verifies that Ryanair public fare finder returns live, unauthenticated flight quotes."""
-    feed = RyanairFlightFeed(timeout_sec=15.0)
+    """Verifies that flight feed returns live, unauthenticated flight quotes."""
+    feed = CompositeFlightFeed(timeout_sec=15.0)
     today = date.today()
     date_from = today + timedelta(days=7)
     date_to = today + timedelta(days=28)
@@ -78,7 +78,7 @@ async def test_real_flight_and_lodging_ingestion_and_daily_rollup(
     db_session: AsyncSession,
 ):
     """Verifies live ingestion into market_price_ticks and price_daily rollup."""
-    feed = RyanairFlightFeed()
+    feed = CompositeFlightFeed()
     today = date.today()
     date_from = today + timedelta(days=7)
     date_to = today + timedelta(days=21)

@@ -39,35 +39,8 @@ import {
   StarIcon,
 } from '@/components/icons';
 
-export interface PlaceItem {
-  id?: string;
-  name: string;
-  lat: number;
-  lng: number;
-  category?: string;
-  day?: number;
-  durationMins?: number;
-  costEur?: number;
-  similarity?: number;
-  matchType?: string;
-  description?: string;
-}
-
-export interface PoiApiItem {
-  id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lng: number;
-  duration_mins: number;
-  cost_eur: number;
-  similarity: number;
-  iconicity_score?: number;
-  match_type?: string;
-  description?: string;
-  photo_url?: string;
-  thumbnail_url?: string;
-}
+import type { PlaceItem, PoiApiItem } from '@/types/workspace';
+export type { PlaceItem, PoiApiItem };
 
 interface SearchPoiThumbnailProps {
   id?: string;

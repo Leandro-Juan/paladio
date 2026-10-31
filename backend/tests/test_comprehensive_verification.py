@@ -471,6 +471,32 @@ def test_transit_routing_and_airport_surcharge():
         distance_km=8.0,
     )
 
+    from app.services.transit_fare_service import CityTransitFare, get_fare_cache
+
+    cache = get_fare_cache()
+    if "madrid" not in cache or cache.get("madrid").fare_unknown:
+        cache.set(
+            "madrid",
+            CityTransitFare(
+                city="madrid",
+                country="Spain",
+                currency="EUR",
+                single_fare=1.50,
+                pass_24h_price=8.40,
+                pass_24h_name="Abono Turístico 1 Día (Zona A)",
+                pass_24h_includes_airport=True,
+                airport_surcharge=3.00,
+                airport_station_keywords=[
+                    "aeropuerto t1-t2-t3",
+                    "aeropuerto t4",
+                    "aeropuerto",
+                    "barajas",
+                ],
+                is_estimated=False,
+                source="official_crtm_tariff",
+            ),
+        )
+
     # 1. Non-airport leg: Madrid city centre (Sol -> Prado)
     city_leg = TransitFareService.calculate_transit_leg_fare(
         "Madrid",

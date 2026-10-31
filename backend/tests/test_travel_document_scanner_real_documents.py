@@ -250,10 +250,10 @@ async def test_flight_confirmations():
 
 @pytest.mark.asyncio
 async def test_scan_api_endpoint_with_real_documents(async_client: AsyncClient):
-    """Verify POST /api/v1/trips/{trip_id}/tickets/scan endpoint with real documents."""
+    """Verify POST /api/trips/{trip_id}/tickets/scan endpoint with real documents."""
     # Create trip
     trip_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Sevilla",
             "start_date": "2026-10-18T10:00:00",
@@ -268,7 +268,7 @@ async def test_scan_api_endpoint_with_real_documents(async_client: AsyncClient):
     pkpass_path = FIXTURES_DIR / "boarding_passes" / "boarding_pass_iberia.pkpass"
     with open(pkpass_path, "rb") as f:
         scan_res = await async_client.post(
-            f"/api/v1/trips/{trip_id}/tickets/scan",
+            f"/api/trips/{trip_id}/tickets/scan",
             files={
                 "file": (pkpass_path.name, f.read(), "application/vnd.apple.pkpass")
             },
@@ -286,7 +286,7 @@ async def test_scan_api_endpoint_with_real_documents(async_client: AsyncClient):
     eml_path = FIXTURES_DIR / "hotel_confirmations" / "booking_com_confirmation.eml"
     with open(eml_path, "rb") as f:
         scan_res_eml = await async_client.post(
-            f"/api/v1/trips/{trip_id}/tickets/scan",
+            f"/api/trips/{trip_id}/tickets/scan",
             files={"file": (eml_path.name, f.read(), "message/rfc822")},
         )
     assert scan_res_eml.status_code == 200

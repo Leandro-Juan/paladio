@@ -35,7 +35,7 @@ async def test_swarm_session_maps_prompt_analyzer_event():
 
 
 @pytest.mark.asyncio
-async def test_swarm_session_auto_generates_mock_tickets_in_test_mode():
+async def test_swarm_session_unanchored_trip_propagation():
     mock_graph = AsyncMock()
     captured_input = None
 
@@ -56,7 +56,6 @@ async def test_swarm_session_auto_generates_mock_tickets_in_test_mode():
     )
 
     data = {
-        "test_mode": True,
         "origin_city": "Madrid",
         "destination_city": "Paris",
         "budget_usd": 2000.0,
@@ -73,10 +72,10 @@ async def test_swarm_session_auto_generates_mock_tickets_in_test_mode():
         events.append(event)
 
     assert captured_input is not None
-    assert "MAD" in captured_input["booking_text"]
-    assert "CDG" in captured_input["booking_text"]
-    assert "Paris" in captured_input["booking_text"]
+    assert captured_input.get("booking_text") is None
     assert captured_input.get("booking_anchors") is None
+    assert captured_input["manual_constraints"]["origin_city"] == "Madrid"
+    assert captured_input["manual_constraints"]["destination_city"] == "Paris"
     assert captured_input["manual_constraints"]["budget_usd"] == 2000.0
     assert len(captured_input["manual_constraints"]["meals"]) == 2
 
@@ -271,16 +270,10 @@ async def test_swarm_session_custom_dates_mock_tickets():
     )
 
     data = {
-        "test_mode": True,
-        "origin_city": "Rome",
-        "destination_city": "Tokyo",
-        "start_date": "2026-11-10",
-        "end_date": "2026-11-20",
+        "booking_text": "Flight outbound FCO to HND on 2026-11-10 10:00 arriving at 2026-11-10 18:00 (duration 480m). Flight return HND to FCO on 2026-11-20 14:00 arriving at 2026-11-20 22:00 (duration 480m). Hotel Tokyo Center booked in Tokyo from 2026-11-10 to 2026-11-20.",
         "manual_constraints": {
             "origin_city": "Rome",
             "destination_city": "Tokyo",
-            "start_date": "2026-11-10",
-            "end_date": "2026-11-20",
         },
     }
 
@@ -294,8 +287,8 @@ async def test_swarm_session_custom_dates_mock_tickets():
     booking = captured_initial_state["booking_text"]
     assert "2026-11-10" in booking
     assert "2026-11-20" in booking
-    assert "start_date" not in captured_initial_state["manual_constraints"]
-    assert "end_date" not in captured_initial_state["manual_constraints"]
+    assert captured_initial_state["manual_constraints"]["origin_city"] == "Rome"
+    assert captured_initial_state["manual_constraints"]["destination_city"] == "Tokyo"
 
 
 @pytest.mark.asyncio

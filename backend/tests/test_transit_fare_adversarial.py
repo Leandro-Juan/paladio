@@ -15,7 +15,6 @@ import pytest
 from app.domain.entities.poi import TransitStep
 from app.services.transit_fare_service import (
     CityTransitFare,
-    TransitFareResult,
     TransitFareService,
     get_fare_cache,
 )
@@ -499,127 +498,35 @@ def test_airport_surcharges_across_all_cities():
 
 
 # ============================================================================
-# 5. Unpacking Compatibility & Interface Completeness
+# 5. Typed Dataclass Interface
 # ============================================================================
 
 
-def test_4_tuple_unpacking():
-    """Verify legacy 4-tuple unpacking: c, e, s, a = res."""
+def test_transit_fare_result_typed_attributes():
+    """Verify TransitFareResult typed attribute contract."""
     steps = [TransitStep(type="transit", instruction="Metro 8", duration_mins=15)]
     res = TransitFareService.calculate_transit_leg_fare(
         "madrid", steps, is_airport_leg=True
     )
 
-    c, e, s, a = res
-    assert c == 4.50
-    assert e is False
-    assert s == "official_crtm_tariff"
-    assert a is True
-
-
-def test_5_tuple_unpacking():
-    """Verify modern 5-tuple unpacking: c, e, s, a, sur = res."""
-    steps = [TransitStep(type="transit", instruction="Metro 8", duration_mins=15)]
-    res = TransitFareService.calculate_transit_leg_fare(
-        "madrid", steps, is_airport_leg=True
-    )
-
-    c, e, s, a, sur = res
-    assert c == 4.50
-    assert e is False
-    assert s == "official_crtm_tariff"
-    assert a is True
-    assert sur == 3.00
-
-
-def test_property_access_and_aliases():
-    """Verify named properties and backwards-compatible aliases."""
-    steps = [TransitStep(type="transit", instruction="Metro 8", duration_mins=15)]
-    res = TransitFareService.calculate_transit_leg_fare(
-        "madrid", steps, is_airport_leg=True
-    )
-
-    # Primary named properties
     assert res.total_cost == 4.50
     assert res.cost_is_estimated is False
     assert res.price_source == "official_crtm_tariff"
     assert res.has_airport is True
     assert res.airport_surcharge_eur == 3.00
-
-    # Aliases
-    assert res.cost == 4.50
-    assert res.is_estimated is False
-    assert res.source == "official_crtm_tariff"
-
-    # Indexing
-    assert res[0] == 4.50
-    assert res[1] is False
-    assert res[2] == "official_crtm_tariff"
-    assert res[3] is True
-    assert res[4] == 3.00
+    assert res.currency == "EUR"
 
 
-def test_unpacking_in_comprehensions_and_loops():
-    """Verify 4-tuple and 5-tuple unpacking inside list comprehensions, generators, and for-loops."""
-    steps = [TransitStep(type="transit", instruction="Metro 8", duration_mins=15)]
-    res = TransitFareService.calculate_transit_leg_fare(
-        "madrid", steps, is_airport_leg=True
-    )
-
-    # List comprehension 4-tuple
-    res_list_4 = [(c, e, s, a) for c, e, s, a in [res]]
-    assert res_list_4 == [(4.50, False, "official_crtm_tariff", True)]
-
-    # List comprehension 5-tuple
-    res_list_5 = [(c, e, s, a, sur) for c, e, s, a, sur in [res]]
-    assert res_list_5 == [(4.50, False, "official_crtm_tariff", True, 3.00)]
-
-    # List comprehension 4-tuple
-    g4 = [(c, a) for c, e, s, a in (res,)]
-    assert g4 == [(4.50, True)]
-
-    # List comprehension 5-tuple
-    g5 = [(c, sur) for c, e, s, a, sur in (res,)]
-    assert g5 == [(4.50, 3.00)]
-
-    # For-loop 4-tuple
-    for c, e, s, a in [res]:
-        assert (c, e, s, a) == (4.50, False, "official_crtm_tariff", True)
-
-    # For-loop 5-tuple
-    for c, e, s, a, sur in [res]:
-        assert (c, e, s, a, sur) == (4.50, False, "official_crtm_tariff", True, 3.00)
-
-    # Star unpacking
-    c, *mid, sur = res
-    assert c == 4.50
-    assert mid == [False, "official_crtm_tariff", True]
-    assert sur == 3.00
-
-
-def test_pedestrian_result_unpacking():
-    """Verify unpacking compatibility on pedestrian zero-cost results."""
+def test_pedestrian_result_attributes():
+    """Verify pedestrian zero-cost result typed attributes."""
     res = TransitFareService.calculate_transit_leg_fare("madrid", [])
 
-    c4, e4, s4, a4 = res
-    assert (c4, e4, s4, a4) == (0.0, False, "pedestrian_zero_cost", False)
-
-    c5, e5, s5, a5, sur5 = res
-    assert (c5, e5, s5, a5, sur5) == (0.0, False, "pedestrian_zero_cost", False, 0.0)
-
     assert res.total_cost == 0.0
+    assert res.cost_is_estimated is False
+    assert res.price_source == "pedestrian_zero_cost"
+    assert res.has_airport is False
     assert res.airport_surcharge_eur == 0.0
-
-
-def test_invalid_unpacking_raises_value_error():
-    """Unpacking 3 or 6 elements raises standard Python ValueError."""
-    res = TransitFareResult(4.5, False, "official_crtm_tariff", True, 3.0)
-
-    with pytest.raises(ValueError, match="too many values to unpack"):
-        _c, _e, _s = res
-
-    with pytest.raises(ValueError, match="not enough values to unpack"):
-        _c, _e, _s, _a, _sur, _extra = res
+    assert res.currency == "EUR"
 
 
 # ============================================================================

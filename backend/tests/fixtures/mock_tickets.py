@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from app.schemas.itinerary import BookingAnchors, FlightSegment, HotelAnchor
-from app.services.airport_service import get_iata_code
+from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,9 @@ def generate_mock_tickets(
 
     return_date = outbound_date + datetime.timedelta(days=duration_days)
 
-    orig_iata = get_iata_code(origin_city)
-    dest_iata = get_iata_code(destination_city)
+    svc = get_airport_service()
+    orig_iata = svc.get_iata_code(origin_city)
+    dest_iata = svc.get_iata_code(destination_city)
 
     hotel_info = get_real_hotel_for_city(destination_city)
     hotel_name = hotel_info["name"]

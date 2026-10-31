@@ -78,9 +78,7 @@ export interface ScheduledPoi {
 export interface DailyItinerary {
     day_index?: number;
     path: ScheduledPoi[];
-    total_cost?: number;
     total_cost_eur?: number;
-    total_duration_mins?: number;
     total_time_mins?: number;
     is_valid?: boolean;
     constraint_violations?: string[];
@@ -178,7 +176,7 @@ export interface RouteItineraryData {
         departure_time?: string;
         transit_from_previous?: TransitLeg | null;
       }>;
-      total_cost?: number;
+      total_cost_eur?: number;
       transit_recommendation?: TransitRecommendation | null;
     };
   }>;

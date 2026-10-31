@@ -77,17 +77,8 @@ class HybridSovereignScorer(IScoringModel):
                     0.0,
                     1.0,
                 )
-            elif len(arr) >= num_tags:
-                # Handle legacy 64D or extended embeddings: take the first 8 elements
-                # If they are all 0.1 (legacy cold-start default), boost to neutral 0.5
-                extracted = arr[:num_tags]
-                if np.allclose(extracted, 0.1, atol=1e-3):
-                    return default_weights
-                return np.clip(extracted, 0.0, 1.0)
             else:
-                weights = np.full(num_tags, 0.5, dtype=np.float32)
-                weights[: len(arr)] = arr
-                return np.clip(weights, 0.0, 1.0)
+                return default_weights
         except Exception as e:
             logger.warning(f"Failed to parse user embedding, using neutral prior: {e}")
             return default_weights
@@ -292,14 +283,10 @@ class HybridSovereignScorer(IScoringModel):
                 step = lr * (error * tags[i] - l2_reg * (user_weights[i] - 0.5))
                 user_weights[i] = np.clip(user_weights[i] + step, 0.0, 1.0)
 
-        # If caller explicitly provided a 64D array, preserve length for legacy compatibility
+        # Preserve 16D feature vector if passed, or return 8D weights
         if isinstance(user_embedding, (list, np.ndarray)):
             orig_len = len(user_embedding)
-            if orig_len == 64:
-                out_arr = np.full(64, 0.1, dtype=np.float32)
-                out_arr[: len(TAG_KEYS)] = user_weights
-                return out_arr.tolist() if isinstance(user_embedding, list) else out_arr
-            elif orig_len == 16:
+            if orig_len == 16:
                 out_arr = np.zeros(16, dtype=np.float32)
                 out_arr[
                     PoiEncoder.TAG_START_IDX : PoiEncoder.TAG_START_IDX + len(TAG_KEYS)

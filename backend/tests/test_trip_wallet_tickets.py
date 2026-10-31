@@ -17,7 +17,7 @@ async def test_wallet_tickets_crud_and_auth(
 
     # Register User A (Alice)
     res_a = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"alice_{uid}@paladio.com",
             "username": f"alice_{uid}",
@@ -30,7 +30,7 @@ async def test_wallet_tickets_crud_and_auth(
 
     # Register User B (Bob)
     res_b = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={
             "email": f"bob_{uid}@paladio.com",
             "username": f"bob_{uid}",
@@ -43,7 +43,7 @@ async def test_wallet_tickets_crud_and_auth(
 
     # Alice creates Trip 1
     create_trip_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Sevilla",
             "start_date": "2026-10-18T10:00:00",
@@ -99,20 +99,20 @@ async def test_wallet_tickets_crud_and_auth(
     # 1. Verify auto-seeding on creation:
     # Expect 2 flight tickets + 1 hotel ticket = 3 seeded tickets
     tickets_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/tickets", headers=headers_a
+        f"/api/trips/{trip_id}/tickets", headers=headers_a
     )
     assert tickets_res.status_code == 200
     tickets = tickets_res.json()
     assert len(tickets) == 3
 
     # Check TripResponse contains tickets_count
-    trip_get_res = await async_client.get(f"/api/v1/trips/{trip_id}", headers=headers_a)
+    trip_get_res = await async_client.get(f"/api/trips/{trip_id}", headers=headers_a)
     assert trip_get_res.status_code == 200
     assert trip_get_res.json()["tickets_count"] == 3
 
     # 2. Check Idempotent Sync:
     sync_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/tickets/sync", headers=headers_a
+        f"/api/trips/{trip_id}/tickets/sync", headers=headers_a
     )
     assert sync_res.status_code == 200
     sync_data = sync_res.json()
@@ -121,7 +121,7 @@ async def test_wallet_tickets_crud_and_auth(
 
     # 3. Check Suggestions for Attraction:
     sugg_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/tickets/suggestions", headers=headers_a
+        f"/api/trips/{trip_id}/tickets/suggestions", headers=headers_a
     )
     assert sugg_res.status_code == 200
     suggestions = sugg_res.json()
@@ -130,7 +130,7 @@ async def test_wallet_tickets_crud_and_auth(
 
     # 4. Manual Ticket Creation:
     create_manual_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/tickets",
+        f"/api/trips/{trip_id}/tickets",
         json={
             "ticket_type": "hotel",
             "title": "Apartamento Santa Cruz Access",
@@ -163,13 +163,13 @@ async def test_wallet_tickets_crud_and_auth(
     # 5. Authorization and IDOR check:
     # Bob is NOT a participant yet, so Bob cannot access Alice's trip or private ticket
     bob_get_res = await async_client.get(
-        f"/api/v1/trips/{trip_id}/tickets/{ticket_id}", headers=headers_b
+        f"/api/trips/{trip_id}/tickets/{ticket_id}", headers=headers_b
     )
     assert bob_get_res.status_code in (403, 404)
 
     # 6. Ticket Update:
     update_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/tickets",
+        f"/api/trips/{trip_id}/tickets",
         json={
             "ticket_type": "transit",
             "title": "Renfe AVE Sevilla -> Madrid",
@@ -183,7 +183,7 @@ async def test_wallet_tickets_crud_and_auth(
     transit_id = update_res.json()["id"]
 
     edit_res = await async_client.put(
-        f"/api/v1/trips/{trip_id}/tickets/{transit_id}",
+        f"/api/trips/{trip_id}/tickets/{transit_id}",
         json={"seat_or_room": "Coche 5, Plaza 14B"},
         headers=headers_a,
     )
@@ -193,13 +193,13 @@ async def test_wallet_tickets_crud_and_auth(
 
     # 7. Delete Ticket:
     del_res = await async_client.delete(
-        f"/api/v1/trips/{trip_id}/tickets/{transit_id}", headers=headers_a
+        f"/api/trips/{trip_id}/tickets/{transit_id}", headers=headers_a
     )
     assert del_res.status_code == 200
 
     # Verify 404 after deletion
     check_del = await async_client.get(
-        f"/api/v1/trips/{trip_id}/tickets/{transit_id}", headers=headers_a
+        f"/api/trips/{trip_id}/tickets/{transit_id}", headers=headers_a
     )
     assert check_del.status_code == 404
 
@@ -221,7 +221,7 @@ async def test_bcbp_and_scan_pipeline(async_client: AsyncClient):
 
     # Create dummy trip
     create_trip_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Madrid",
             "start_date": "2026-10-18T10:00:00",
@@ -242,7 +242,7 @@ async def test_bcbp_and_scan_pipeline(async_client: AsyncClient):
     Reservation Ref: HTL99421
     """
     scan_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/tickets/scan",
+        f"/api/trips/{trip_id}/tickets/scan",
         data={"raw_text": hotel_text},
     )
     assert scan_res.status_code == 200
@@ -256,7 +256,7 @@ async def test_bcbp_and_scan_pipeline(async_client: AsyncClient):
 
     # Confirm the draft by creating a ticket with upload_id
     confirm_res = await async_client.post(
-        f"/api/v1/trips/{trip_id}/tickets",
+        f"/api/trips/{trip_id}/tickets",
         json={
             "ticket_type": draft["ticket_type"],
             "title": draft["title"],
@@ -292,7 +292,7 @@ async def test_trip_creation_seeds_scanned_documents(async_client: AsyncClient):
     }
 
     create_res = await async_client.post(
-        "/api/v1/trips/",
+        "/api/trips/",
         json={
             "destination": "Madrid",
             "start_date": "2015-09-18T13:05:00",
@@ -308,7 +308,7 @@ async def test_trip_creation_seeds_scanned_documents(async_client: AsyncClient):
     trip_id = create_res.json()["id"]
 
     # Retrieve wallet tickets for this trip
-    tickets_res = await async_client.get(f"/api/v1/trips/{trip_id}/tickets")
+    tickets_res = await async_client.get(f"/api/trips/{trip_id}/tickets")
     assert tickets_res.status_code == 200
     tickets = tickets_res.json()
     assert len(tickets) >= 1

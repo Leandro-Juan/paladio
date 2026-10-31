@@ -104,15 +104,10 @@ def build_cpp_pois(
                 if best_iv:
                     o_min, c_min = best_iv
         else:
-            o_min, c_min = (
-                getattr(poi, "open_time_mins", 540),
-                getattr(poi, "close_time_mins", 1200),
-            )
-            if o_min == -2 or c_min == -2:
-                from app.engine.osm_signals import default_hours
+            from app.engine.osm_signals import default_hours
 
-                d_open, d_close = default_hours(poi.category, {})
-                o_min, c_min = d_open[day_weekday], d_close[day_weekday]
+            d_open, d_close = default_hours(poi.category, {})
+            o_min, c_min = d_open[day_weekday], d_close[day_weekday]
 
         if is_closed or (is_specialized_meal and (o_min == -1 or c_min == -1)):
             earliest = 1440

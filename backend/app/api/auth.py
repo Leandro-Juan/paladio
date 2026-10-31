@@ -4,7 +4,6 @@ import uuid
 from typing import Any
 
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
-from app.api.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.models import UserModel
 from app.db.session import get_db
@@ -202,10 +201,3 @@ async def login(
         token_type="bearer",
         user=_build_user_response(user),
     )
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(
-    current_user: UserModel = Depends(get_current_user),
-) -> Any:
-    return _build_user_response(current_user)

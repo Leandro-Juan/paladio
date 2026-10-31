@@ -27,7 +27,7 @@ from app.db.models import (
     UserModel,
 )
 from app.db.session import get_db
-from app.engine.market.adapters import CompositeFlightFeed, RyanairFlightFeed
+from app.engine.market.adapters import CompositeFlightFeed
 from app.engine.market.baselines import (
     resolve_baseline_median,
     resolve_route_baseline_quantiles,
@@ -80,9 +80,9 @@ async def _resolve_city_name(session: AsyncSession, code: str) -> str:
         return name_city
 
     # Use centralized AirportService
-    from app.services.airport_service import get_city_from_iata
+    from app.services.airport_service import get_airport_service
 
-    city = get_city_from_iata(code_clean)
+    city = get_airport_service().get_city_from_iata(code_clean)
     if city and city != "Unknown":
         return city
 
@@ -1858,7 +1858,7 @@ async def get_route_calendar(
         else (round(inbound_p50 * 1.5, 2) if inbound_p50 else p90)
     )
 
-    feed = RyanairFlightFeed()
+    feed = CompositeFlightFeed()
     date_from = alert.earliest_date
     horizon_days = effective_months * 31
     date_to = max(alert.latest_date, alert.earliest_date + timedelta(days=horizon_days))
@@ -2966,7 +2966,7 @@ async def get_holiday_matched_packages(
     active_alerts = res.scalars().all()
 
     matched_packages: list[HolidayMatchedPackage] = []
-    feed = RyanairFlightFeed()
+    feed = CompositeFlightFeed()
 
     for alert in active_alerts:
         dest_code = alert.destinations[0] if alert.destinations else None

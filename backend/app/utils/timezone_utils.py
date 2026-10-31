@@ -1,35 +1,11 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.services.airport_service import get_airport_service
 
 logger = logging.getLogger(__name__)
 
-
-class _IataTimezonesProxy(dict):
-    """Backward-compatible proxy mapping IATA codes to IANA timezone strings via AirportService."""
-
-    def __contains__(self, key: object) -> bool:
-        if not isinstance(key, str):
-            return False
-        return get_airport_service().is_valid_iata(key)
-
-    def __getitem__(self, key: str) -> str:
-        ap = get_airport_service().get_airport(key)
-        if ap and ap.timezone:
-            return ap.timezone
-        raise KeyError(key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        ap = get_airport_service().get_airport(key)
-        if ap and ap.timezone:
-            return ap.timezone
-        return default
-
-
-IATA_TIMEZONES = _IataTimezonesProxy()
 
 _CITY_TZ_CACHE: dict[str, str] = {}
 

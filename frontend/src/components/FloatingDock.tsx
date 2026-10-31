@@ -122,7 +122,7 @@ export function FloatingDock() {
       </div>
 
       <nav
-        className={`${styles.dockContainer} sidebar ${isVisible ? '' : styles.hidden}`}
+        className={`${styles.dockContainer} ${isVisible ? '' : styles.hidden}`}
         aria-label="Main Navigation"
         onMouseEnter={() => {
           setIsScrolling(false);
@@ -169,6 +169,3 @@ export function FloatingDock() {
     </>
   );
 }
-
-// Re-export as Sidebar for drop-in backward compatibility
-export const Sidebar = FloatingDock;

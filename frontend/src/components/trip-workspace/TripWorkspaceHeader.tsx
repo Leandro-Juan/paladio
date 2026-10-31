@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-export type WorkspaceTab = 'plan' | 'wallet' | 'costs' | 'collab' | 'photos' | 'transports';
+export type WorkspaceTab = 'plan' | 'wallet' | 'costs' | 'collab' | 'photos';
 
 interface TripWorkspaceHeaderProps {
   tripId?: string;

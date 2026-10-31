@@ -39,7 +39,7 @@ def client():
 
 
 def test_websocket_stream_sends_progress_events(client):
-    with client.websocket_connect("/api/v1/ws/stream") as websocket:
+    with client.websocket_connect("/api/ws/stream") as websocket:
         websocket.send_text("I want to go to Rome")
         events = []
         try:
@@ -59,7 +59,7 @@ def test_websocket_stream_sends_progress_events(client):
 
 def test_websocket_stream_handles_malformed_json(client):
     invalid_json = "this is not json"
-    with client.websocket_connect("/api/v1/ws/stream") as websocket:
+    with client.websocket_connect("/api/ws/stream") as websocket:
         websocket.send_text(invalid_json)
         response = websocket.receive_json()
     assert response.get("event") == "STARTING_INFERENCE"
@@ -67,7 +67,7 @@ def test_websocket_stream_handles_malformed_json(client):
 
 def test_websocket_stream_handles_missing_fields(client):
     payload_missing_keys = {"message": "A trip to Rome"}
-    with client.websocket_connect("/api/v1/ws/stream") as websocket:
+    with client.websocket_connect("/api/ws/stream") as websocket:
         websocket.send_json(payload_missing_keys)
         response = websocket.receive_json()
     assert response.get("event") == "STARTING_INFERENCE"
@@ -75,7 +75,7 @@ def test_websocket_stream_handles_missing_fields(client):
 
 def test_websocket_stream_resists_abrupt_disconnect(client):
     try:
-        with client.websocket_connect("/api/v1/ws/stream") as websocket:
+        with client.websocket_connect("/api/ws/stream") as websocket:
             websocket.send_json({"message": "Test prompt"})
     except Exception as e:
         pytest.fail(f"Server crashed upon abrupt client disconnect: {e}")
@@ -92,7 +92,7 @@ def test_websocket_rag_handles_none_context(client):
     )
 
     try:
-        with client.websocket_connect("/api/v1/ws/stream") as websocket:
+        with client.websocket_connect("/api/ws/stream") as websocket:
             websocket.send_text("hello")
 
             response1 = websocket.receive_json()

@@ -173,15 +173,11 @@ async def enrich_city_pois(city: str | None = None, batch_size: int = 100):
                     )
 
             # Resolve Opening Hours
-            raw_hours = (
-                getattr(m, "osm_opening_hours", None)
-                or getattr(m, "opening_hours_raw", None)
-                or tags.get("opening_hours")
+            raw_hours = getattr(m, "osm_opening_hours", None) or tags.get(
+                "opening_hours"
             )
             parsed_hours = parse_osm_opening_hours(raw_hours)
             m.osm_opening_hours = raw_hours
-            if hasattr(m, "opening_hours_raw"):
-                m.opening_hours_raw = raw_hours
             m.daily_windows = parsed_hours.daily_windows
             m.hours_known = parsed_hours.hours_known
             m.has_split_hours = parsed_hours.has_split_hours
@@ -195,11 +191,11 @@ async def enrich_city_pois(city: str | None = None, batch_size: int = 100):
                 osm_charge=tags.get("charge"),
                 wikidata_id=m.wikidata_id,
                 wikivoyage_price=wv_price,
-                existing_cost=m.admission_fee,
+                existing_cost=m.cost_eur,
                 existing_is_estimated=m.cost_is_estimated,
                 existing_source=m.cost_source,
             )
-            m.admission_fee = cost
+            m.cost_eur = cost
             m.cost_is_estimated = is_est
             m.cost_source = cost_src
 
@@ -211,7 +207,7 @@ async def enrich_city_pois(city: str | None = None, batch_size: int = 100):
                 "category": m.category,
                 "description": m.description,
                 "duration_mins": m.duration_mins or 60,
-                "cost_eur": m.admission_fee,
+                "cost_eur": m.cost_eur,
                 "cost_is_estimated": m.cost_is_estimated,
                 "cost_source": m.cost_source,
                 "wikidata_id": m.wikidata_id,

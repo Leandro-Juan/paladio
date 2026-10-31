@@ -14,9 +14,11 @@ class FetchTravelContextUseCase:
 
     def __init__(self, data_provider=None, ml_scorer=None):
         if data_provider is None:
-            from app.infrastructure.providers.travel_data import LiveTravelDataProvider
+            from app.infrastructure.providers.travel_data import (
+                DefaultTravelDataProvider,
+            )
 
-            self.data_provider = LiveTravelDataProvider()
+            self.data_provider = DefaultTravelDataProvider()
         else:
             self.data_provider = data_provider
 

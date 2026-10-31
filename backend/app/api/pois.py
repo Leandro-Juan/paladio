@@ -1380,7 +1380,6 @@ def _generate_poi_overview(
     return " ".join(parts)
 
 
-@router.get("/{poi_id}/details", response_model=PoiDetailResponse)
 @router.get("/{poi_id}", response_model=PoiDetailResponse)
 async def get_poi_details(
     poi_id: str,
