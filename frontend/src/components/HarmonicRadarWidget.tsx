@@ -109,7 +109,7 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
         </div>
 
         <div className={styles.chartWrapper}>
-          <PreferenceRadar data={radarData} height={215} outerRadius="62%" fontSize={10} />
+          <PreferenceRadar data={radarData} height={240} outerRadius="72%" fontSize={10} />
         </div>
 
         <p className={styles.caption}>

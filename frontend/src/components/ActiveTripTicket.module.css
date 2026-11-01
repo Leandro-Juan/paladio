@@ -3,11 +3,11 @@
   border-radius: 12px;
   position: relative;
   overflow: hidden;
-  padding: 32px 36px;
+  padding: 28px 32px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 380px;
+  min-height: 350px;
   height: 100%;
   flex: 1;
   border: 1px solid rgba(227, 217, 192, 0.15);
@@ -86,7 +86,7 @@
   font-family: var(--font-display);
   font-weight: 300;
   font-size: 28px;
-  line-height: 34px;
+  line-height: 32px;
   color: var(--color-cream, #F6F0E1);
   letter-spacing: -0.01em;
   margin: 0;
@@ -94,23 +94,23 @@
 
 .heroDates {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 12px;
   color: rgba(246, 240, 225, 0.75);
-  margin-top: 4px;
+  margin-top: 3px;
   margin-bottom: 0;
 }
 
 .initializeBtn {
-  margin-top: 16px;
+  margin-top: 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 6px 14px;
   background-color: var(--color-ocean, #1B8FA6);
   color: #FFFFFF;
   border-radius: 8px;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   text-decoration: none;
   border: 1px solid transparent;
@@ -125,8 +125,8 @@
 
 /* Sun-red disc countdown disc */
 .sunCountdown {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--color-sun, #D42A2F);
   color: #FFFFFF;
@@ -141,14 +141,14 @@
 
 .countdownNum {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 500;
   line-height: 1;
 }
 
 .countdownUnit {
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -160,8 +160,8 @@
 .heroStatsRow {
   display: flex;
   align-items: center;
-  gap: 32px;
-  padding-top: 16px;
+  gap: 20px;
+  padding-top: 10px;
   border-top: 1px solid rgba(246, 240, 225, 0.12);
   flex-wrap: wrap;
 }

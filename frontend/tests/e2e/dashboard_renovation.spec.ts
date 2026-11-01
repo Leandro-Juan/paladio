@@ -193,8 +193,8 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
       });
     });
 
-    // Set ample viewport size to capture the full 4-quadrant operational cockpit
-    await page.setViewportSize({ width: 1440, height: 1600 });
+    // Set standard desktop viewport size (1440 x 900)
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     // Navigate to dashboard
     await page.goto('/dashboard');
@@ -206,7 +206,22 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     // 2. Verify Top Right: 8-Point Harmonic Radar (Star)
     await expect(page.getByText('// 8-POINT HARMONIC RADAR')).toBeVisible();
 
-    // 3. Verify Bottom Left: Recommended POIs Section (3 Cards with Verified Photos, Type Badges, No Emojis)
+    // 3. Verify Bottom Left: The Square Boarding Pass & Hotel Lodging Voucher (uses project colors)
+    await expect(page.getByText('AIR TRANSIT')).toBeVisible();
+    await expect(page.getByText('LODGING RESERVATION')).toBeVisible();
+    await expect(page.getByText('GATE B16 · T2')).toBeVisible();
+    await expect(page.getByText('Passenger')).toBeVisible();
+    await expect(page.getByText('Seat Number')).toBeVisible();
+    await expect(page.getByText('F16')).toBeVisible();
+    await expect(page.getByText('Flight Number')).toBeVisible();
+
+    // Verify Hotel details included in the pass
+    await expect(page.getByText(/5 Nights Stay/i)).toBeVisible();
+    await expect(page.getByText(/Grand Hotel|Zermatt/i).first()).toBeVisible();
+    await expect(page.getByText(/Guaranteed Check-in/i)).toBeVisible();
+    await expect(page.getByText(/4\.8 Rating/i)).toBeVisible();
+
+    // 4. Verify Bottom Right: Recommended POIs Section (3 Cards with Verified Photos, Type Badges, No Emojis)
     await expect(page.getByText('// TOP SOVEREIGN TASTE MATCHES')).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'Recommended POIs' })).toBeVisible();
 
@@ -229,22 +244,30 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     const reserveButtons = page.getByRole('link', { name: 'Reserve now' });
     await expect(reserveButtons).toHaveCount(3);
 
-    // 4. Verify Bottom Right: The Square Boarding Pass & Hotel Lodging Voucher
-    await expect(page.getByText('AIR TRANSIT')).toBeVisible();
-    await expect(page.getByText('LODGING RESERVATION')).toBeVisible();
-    await expect(page.getByText('GATE B16 · T2')).toBeVisible();
-    await expect(page.getByText('Passenger')).toBeVisible();
-    await expect(page.getByText('Seat Number')).toBeVisible();
-    await expect(page.getByText('F16')).toBeVisible();
-    await expect(page.getByText('Flight Number')).toBeVisible();
+    // 5. Verify Swapped Position: Boarding Pass is on the LEFT of Recommended POIs
+    const ticketBox = await page.getByText('AIR TRANSIT').boundingBox();
+    const poisHeaderBox = await page.getByRole('heading', { level: 3, name: 'Recommended POIs' }).boundingBox();
+    expect(ticketBox).toBeTruthy();
+    expect(poisHeaderBox).toBeTruthy();
+    if (ticketBox && poisHeaderBox) {
+      expect(ticketBox.x).toBeLessThan(poisHeaderBox.x);
+    }
 
-    // Verify Hotel details included in the pass
-    await expect(page.getByText(/5 Nights Stay/i)).toBeVisible();
-    await expect(page.getByText(/Grand Hotel|Zermatt/i).first()).toBeVisible();
-    await expect(page.getByText(/Guaranteed Check-in/i)).toBeVisible();
-    await expect(page.getByText(/4\.8 Rating/i)).toBeVisible();
+    // 6. Verify Cockpit Fits on Screen: bottom cards do not overflow the 900px viewport
+    const reserveBtnBox = await reserveButtons.last().boundingBox();
+    const kpiBox = await page.getByText('TOTAL MISSIONS').boundingBox();
+    expect(reserveBtnBox).toBeTruthy();
+    if (reserveBtnBox) {
+      expect(reserveBtnBox.y + reserveBtnBox.height).toBeLessThanOrEqual(900);
+    }
 
-    // Take screenshot of renovated dashboard cockpit
+    // 7. Verify Statistics Strip (TOTAL MISSIONS, ACTIVE / QUEUED, etc.) is strictly NOT on screen
+    expect(kpiBox).toBeTruthy();
+    if (kpiBox) {
+      expect(kpiBox.y).toBeGreaterThanOrEqual(900);
+    }
+
+    // Take screenshot of renovated dashboard cockpit fitting completely on screen
     await page.locator('main.main-content').screenshot({ path: 'test-results/dashboard_renovated_cockpit.png' });
   });
 });

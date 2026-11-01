@@ -1,5 +1,5 @@
 .wrapper {
-  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(var(--shadow-sm));
   width: 100%;
   height: 100%;
   display: flex;
@@ -7,22 +7,22 @@
 }
 
 .ticket {
-  --split: 61%;
-  --notch-radius: 12px;
-  background-color: #1b1e19;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  --split: 58%;
+  --notch-radius: 10px;
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 18px 20px 16px;
-  min-height: 420px;
+  padding: 12px 18px 10px;
+  min-height: 295px;
   height: 100%;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   overflow: hidden;
-  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.55);
-  transition: transform 180ms ease, border-color 180ms ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 
   /* Circular punch-out notches at split */
   mask: radial-gradient(circle var(--notch-radius) at 0 var(--split), #0000 98%, #000) left / 51% 100% no-repeat,
@@ -33,8 +33,8 @@
 
 .ticket:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65);
+  border-color: var(--color-border-bold, rgba(15, 76, 92, 0.25));
+  box-shadow: var(--shadow-md);
 }
 
 /* Header strip */
@@ -42,60 +42,66 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .badgeGroup {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .typeBadge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--color-sky, #7CC4D1);
+  color: var(--color-accent-primary, #0F4C5C);
   text-transform: uppercase;
-  background-color: rgba(124, 196, 209, 0.1);
-  border: 1px solid rgba(124, 196, 209, 0.25);
-  padding: 3px 8px;
+  background-color: rgba(15, 76, 92, 0.08);
+  border: 1px solid rgba(15, 76, 92, 0.2);
+  padding: 2px 7px;
   border-radius: 9999px;
+}
+
+[data-theme="dark"] .typeBadge {
+  color: var(--color-sky, #7CC4D1);
+  background-color: rgba(124, 196, 209, 0.12);
+  border-color: rgba(124, 196, 209, 0.25);
 }
 
 .statusPill {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 9999px;
-  background-color: rgba(47, 143, 91, 0.18);
-  color: var(--color-success, #2F8F5B);
-  border: 1px solid rgba(47, 143, 91, 0.3);
+  background-color: var(--color-success-soft, rgba(31, 122, 77, 0.12));
+  color: var(--color-success, #1F7A4D);
+  border: 1px solid rgba(31, 122, 77, 0.25);
 }
 
 .terminalGate {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-muted);
   letter-spacing: 0.05em;
 }
 
 /* Top Flight Corridor Section */
 .flightSection {
-  margin-bottom: 18px;
+  margin-bottom: 6px;
 }
 
 .corridorRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .endpoint {
@@ -112,33 +118,37 @@
 
 .cityName {
   font-family: var(--font-body);
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  color: var(--color-text-muted);
   font-weight: 500;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .iataCode {
   font-family: var(--font-display, var(--font-jost));
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1.1;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   letter-spacing: -0.02em;
 }
 
 .timeLabel {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #FFFFFF;
-  margin-top: 3px;
+  color: var(--color-accent-primary, #0F4C5C);
+  margin-top: 1px;
+}
+
+[data-theme="dark"] .timeLabel {
+  color: var(--color-sky, #7CC4D1);
 }
 
 .dateLabel {
   font-family: var(--font-body);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  color: var(--color-text-muted);
 }
 
 .flightPath {
@@ -146,16 +156,16 @@
   flex-direction: column;
   align-items: center;
   flex-grow: 1;
-  max-width: 140px;
+  max-width: 120px;
   position: relative;
 }
 
 .durationBadge {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
 }
 
 .flightLine {
@@ -167,26 +177,31 @@
 
 .dashedLine {
   flex-grow: 1;
-  border-top: 1.5px dashed rgba(255, 255, 255, 0.25);
+  border-top: 1.5px dashed var(--color-border);
 }
 
 .planeIcon {
-  width: 14px;
-  height: 14px;
-  margin: 0 6px;
-  color: var(--color-sky, #7CC4D1);
+  width: 12px;
+  height: 12px;
+  margin: 0 4px;
+  color: var(--color-accent-primary, #0F4C5C);
   transform: rotate(90deg);
 }
 
-/* Flight Meta Grid: 2x2 layout matching reference photo */
+[data-theme="dark"] .planeIcon {
+  color: var(--color-sky, #7CC4D1);
+}
+
+/* Flight Meta Grid: 2x2 layout */
 .metaGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px 16px;
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 8px 12px;
+  gap: 4px 10px;
+  background-color: var(--color-surface-raised, #FFFFFF);
+  border: 1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.08));
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 3px;
 }
 
 .metaItem {
@@ -196,18 +211,18 @@
 
 .metaLabel {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 8px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-text-muted);
   letter-spacing: 0.06em;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .metaValue {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
 }
 
 /* Dashed Perforation Line */
@@ -215,16 +230,16 @@
   width: calc(100% + 40px);
   margin-left: -20px;
   margin-right: -20px;
-  border-top: 1.5px dashed rgba(255, 255, 255, 0.18);
-  margin-top: 10px;
-  margin-bottom: 10px;
+  border-top: 1.5px dashed var(--color-border);
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 /* Hotel & Lodging Section */
 .hotelSection {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   position: relative;
 }
 
@@ -237,23 +252,27 @@
 .hotelBadge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--color-cream, #F6F0E1);
+  color: var(--color-accent-primary, #0F4C5C);
   text-transform: uppercase;
+}
+
+[data-theme="dark"] .hotelBadge {
+  color: var(--color-sky, #7CC4D1);
 }
 
 .hotelRating {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-warning, #D97706);
+  font-size: 10px;
+  color: var(--color-accent-warning, #E2B33C);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .hotelTitleRow {
@@ -261,14 +280,14 @@
   justify-content: space-between;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .hotelName {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--color-text-primary);
   margin: 0;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -278,16 +297,16 @@
 
 .hotelDates {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+  color: var(--color-text-muted);
 }
 
 .hotelDetailsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px 12px;
+  gap: 2px 8px;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .hotelDetailItem {
@@ -297,93 +316,100 @@
 
 .hotelDetailLabel {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-text-muted);
   letter-spacing: 0.05em;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .hotelDetailValue {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 11px;
 }
 
 /* Watermark Stamp */
 .stamp {
   position: absolute;
-  bottom: 12px;
-  right: 18px;
-  border: 1.5px solid var(--color-deep-sea, #0F4C5C);
-  border-radius: 6px;
-  padding: 3px 8px;
+  bottom: 6px;
+  right: 12px;
+  border: 1px solid var(--color-accent-primary, #0F4C5C);
+  border-radius: 4px;
+  padding: 2px 6px;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  color: var(--color-sky, #7CC4D1);
-  opacity: 0.18;
-  transform: rotate(-5deg);
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  color: var(--color-accent-primary, #0F4C5C);
+  opacity: 0.16;
+  transform: rotate(-4deg);
   pointer-events: none;
   text-transform: uppercase;
   font-weight: 700;
 }
 
+[data-theme="dark"] .stamp {
+  border-color: var(--color-sky, #7CC4D1);
+  color: var(--color-sky, #7CC4D1);
+}
+
 /* Standby Empty Ticket */
 .standbyTicket {
-  background-color: var(--color-surface, #161c20);
-  border: 1px dashed var(--color-border, rgba(227, 217, 192, 0.2));
-  border-radius: 20px;
-  padding: 32px 24px;
+  background-color: var(--color-surface-card);
+  border: 1px dashed var(--color-border);
+  border-radius: 16px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  min-height: 380px;
+  min-height: 270px;
   height: 100%;
 }
 
 .standbyTag {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-muted);
   letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .standbyTitle {
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 400;
-  color: var(--color-text-primary, #F6F0E1);
-  margin: 0 0 8px 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin: 0 0 6px 0;
 }
 
 .standbyDesc {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-muted);
-  max-width: 320px;
-  margin: 0 0 18px 0;
-  line-height: 1.45;
+  max-width: 280px;
+  margin: 0 0 14px 0;
+  line-height: 1.4;
 }
 
 .standbyBtn {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--color-sky, #7CC4D1);
+  color: var(--color-accent-primary, #0F4C5C);
   text-decoration: none;
-  padding: 6px 14px;
-  border: 1px solid rgba(124, 196, 209, 0.3);
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   transition: all 150ms ease;
+  background-color: var(--color-surface-raised, #FFFFFF);
 }
 
 .standbyBtn:hover {
-  background-color: rgba(124, 196, 209, 0.1);
-  border-color: var(--color-sky, #7CC4D1);
+  background-color: var(--color-surface-hover, rgba(15, 76, 92, 0.06));
+  border-color: var(--color-accent-primary, #0F4C5C);
 }

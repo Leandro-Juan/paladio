@@ -63,87 +63,89 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.container}>
-      {/* Header Bar */}
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Welcome to Paladio Control Center</h1>
-          <p className={styles.subtitle}>Sovereign mission control and temporal dispatch</p>
-        </div>
-
-        <div className={styles.headerActions}>
-          <div className={styles.telemetryStatus} title="Direct local connection active">
-            <span className={styles.telemetryDot} />
-            <span>Telemetry online</span>
+      <div className={styles.cockpitSection}>
+        {/* Header Bar */}
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Welcome to Paladio Control Center</h1>
+            <p className={styles.subtitle}>Sovereign mission control and temporal dispatch</p>
           </div>
 
-          <Link href="/engine" className={styles.primaryButton}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>New mission</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}
-      <div className={styles.topGrid}>
-        <div className={styles.heroCol}>
-          {loading ? (
-            <div
-              className="bg-surface border-subtle"
-              style={{
-                padding: '2.5rem',
-                borderRadius: 'var(--radius-lg)',
-                minHeight: '190px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <p className="text-muted font-mono" style={{ margin: 0 }}>
-                LOADING UPCOMING ITINERARY...
-              </p>
+          <div className={styles.headerActions}>
+            <div className={styles.telemetryStatus} title="Direct local connection active">
+              <span className={styles.telemetryDot} />
+              <span>Telemetry online</span>
             </div>
-          ) : nextTrip ? (
-            <Link
-              href={`/trips/${nextTrip.id}`}
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-                flex: 1,
-              }}
-            >
-              <ActiveTripTicket
-                destination={nextTrip.destination}
-                startDate={nextTrip.start_date}
-                endDate={nextTrip.end_date}
-                poisCount={countWaypoints(nextTrip.itinerary_data)}
-                photoUrl={nextTripPhoto}
-              />
+
+            <Link href="/engine" className={styles.primaryButton}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>New mission</span>
             </Link>
-          ) : (
-            <ActiveTripTicket empty />
-          )}
+          </div>
         </div>
 
-        <div className={styles.radarCol}>
-          <HarmonicRadarWidget />
-        </div>
-      </div>
+        {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}
+        <div className={styles.topGrid}>
+          <div className={styles.heroCol}>
+            {loading ? (
+              <div
+                className="bg-surface border-subtle"
+                style={{
+                  padding: '2.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  minHeight: '190px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <p className="text-muted font-mono" style={{ margin: 0 }}>
+                  LOADING UPCOMING ITINERARY...
+                </p>
+              </div>
+            ) : nextTrip ? (
+              <Link
+                href={`/trips/${nextTrip.id}`}
+                style={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  flex: 1,
+                }}
+              >
+                <ActiveTripTicket
+                  destination={nextTrip.destination}
+                  startDate={nextTrip.start_date}
+                  endDate={nextTrip.end_date}
+                  poisCount={countWaypoints(nextTrip.itinerary_data)}
+                  photoUrl={nextTripPhoto}
+                />
+              </Link>
+            ) : (
+              <ActiveTripTicket empty />
+            )}
+          </div>
 
-      {/* Bottom 12-Column Grid:
-          Left (8 cols): Recommended POIs (3 Cards with Verified Photos)
-          Right (4 cols): Square Travel Ticket & Hotel Lodging (matching user reference) */}
-      <div className={styles.bottomGrid}>
-        <div className={styles.recommendedPoisCol}>
-          <RecommendedPoisSection trips={trips} upcomingTrips={upcomingTrips} loading={loading} />
+          <div className={styles.radarCol}>
+            <HarmonicRadarWidget />
+          </div>
         </div>
 
-        <div className={styles.squareTicketCol}>
-          <TripBoardingPassCard trip={nextTrip} loading={loading} />
+        {/* Bottom 12-Column Grid:
+            Left (4 cols): Square Travel Ticket & Hotel Lodging (project colors)
+            Right (8 cols): Recommended POIs (3 Cards with Verified Photos) */}
+        <div className={styles.bottomGrid}>
+          <div className={styles.squareTicketCol}>
+            <TripBoardingPassCard trip={nextTrip} loading={loading} />
+          </div>
+
+          <div className={styles.recommendedPoisCol}>
+            <RecommendedPoisSection trips={trips} upcomingTrips={upcomingTrips} loading={loading} />
+          </div>
         </div>
       </div>
 

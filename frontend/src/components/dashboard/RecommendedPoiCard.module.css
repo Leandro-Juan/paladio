@@ -1,28 +1,28 @@
 .card {
   background-color: #1b1e19;
-  border-radius: 24px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
   transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
-  min-height: 420px;
+  min-height: 295px;
   height: 100%;
 }
 
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.55);
   border-color: rgba(255, 255, 255, 0.16);
 }
 
 .imageContainer {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: 125px;
   overflow: hidden;
   background-color: #111410;
   flex-shrink: 0;
@@ -54,7 +54,7 @@
 }
 
 .content {
-  padding: 0 22px 22px;
+  padding: 0 14px 10px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -68,11 +68,11 @@
 
 .title {
   font-family: var(--font-display, Inter, sans-serif);
-  font-size: 20px;
-  line-height: 1.25;
+  font-size: 15px;
+  line-height: 1.2;
   font-weight: 600;
   color: #FFFFFF;
-  margin: 0 0 8px 0;
+  margin: 0 0 2px 0;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -81,43 +81,43 @@
 
 .description {
   font-family: var(--font-body, system-ui, sans-serif);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.35;
   color: rgba(255, 255, 255, 0.72);
-  margin: 0 0 16px 0;
+  margin: 0 0 6px 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 56px;
+  min-height: 26px;
 }
 
 .badgesRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .badgePill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   background-color: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 9999px;
-  padding: 6px 12px;
+  padding: 2px 7px;
   font-family: var(--font-body, system-ui, sans-serif);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
   color: #E5E7EB;
   backdrop-filter: blur(8px);
 }
 
 .badgeIcon {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   flex-shrink: 0;
   opacity: 0.85;
 }
@@ -125,12 +125,12 @@
 .reserveButton {
   display: block;
   width: 100%;
-  padding: 12px 20px;
+  padding: 6px 12px;
   background-color: #FFFFFF;
   color: #111827;
   border-radius: 9999px;
   font-family: var(--font-body, system-ui, sans-serif);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
   text-decoration: none;
