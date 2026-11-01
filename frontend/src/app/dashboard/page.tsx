@@ -1,11 +1,14 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTrips } from '@/hooks/useTrips';
+import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
 import { HarmonicRadarWidget } from '@/components/HarmonicRadarWidget';
+import { TripBoardingPassCard } from '@/components/dashboard/TripBoardingPassCard';
+import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
 import { PreferenceModelSection } from '@/components/PreferenceModelSection';
 import { countWaypoints } from '@/utils/tripParser';
@@ -16,6 +19,47 @@ export default function DashboardPage() {
   const { trips, upcomingTrips, loading } = useTrips();
 
   const nextTrip = upcomingTrips.length > 0 ? upcomingTrips[0] : null;
+
+  // Extract destination photo from itinerary if available
+  const itinPhoto = useMemo(() => {
+    if (!nextTrip?.itinerary_data) return undefined;
+    const itin = nextTrip.itinerary_data as {
+      photos?: string[];
+      days?: Array<{
+        itinerary?: {
+          path?: Array<{
+            poi?: {
+              photo_url?: string;
+            };
+          }>;
+        };
+      }>;
+    };
+    if (Array.isArray(itin.photos) && itin.photos.length > 0) {
+      return itin.photos[0];
+    }
+    if (Array.isArray(itin.days)) {
+      for (const day of itin.days) {
+        if (Array.isArray(day?.itinerary?.path)) {
+          for (const stop of day.itinerary.path) {
+            if (stop?.poi?.photo_url) {
+              return stop.poi.photo_url;
+            }
+          }
+        }
+      }
+    }
+    return undefined;
+  }, [nextTrip]);
+
+  const nextTripDestination = nextTrip?.destination;
+  const poiWatch = useMemo(() => {
+    if (!nextTripDestination) return [];
+    return [{ name: nextTripDestination, city: nextTripDestination }];
+  }, [nextTripDestination]);
+
+  const { getPhoto } = usePoiPhotos(poiWatch);
+  const nextTripPhoto = itinPhoto || (nextTrip ? getPhoto(nextTrip.destination) : undefined);
 
   return (
     <div className={styles.container}>
@@ -42,7 +86,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Top 12-Column Grid: Hero Card (7 cols) + Currency Converter (5 cols) */}
+      {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}
       <div className={styles.topGrid}>
         <div className={styles.heroCol}>
           {loading ? (
@@ -62,12 +106,22 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : nextTrip ? (
-            <Link href={`/trips/${nextTrip.id}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
+            <Link
+              href={`/trips/${nextTrip.id}`}
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                flex: 1,
+              }}
+            >
               <ActiveTripTicket
                 destination={nextTrip.destination}
                 startDate={nextTrip.start_date}
                 endDate={nextTrip.end_date}
                 poisCount={countWaypoints(nextTrip.itinerary_data)}
+                photoUrl={nextTripPhoto}
               />
             </Link>
           ) : (
@@ -77,6 +131,19 @@ export default function DashboardPage() {
 
         <div className={styles.radarCol}>
           <HarmonicRadarWidget />
+        </div>
+      </div>
+
+      {/* Bottom 12-Column Grid:
+          Left (8 cols): Recommended POIs (3 Cards with Verified Photos)
+          Right (4 cols): Square Travel Ticket & Hotel Lodging (matching user reference) */}
+      <div className={styles.bottomGrid}>
+        <div className={styles.recommendedPoisCol}>
+          <RecommendedPoisSection trips={trips} upcomingTrips={upcomingTrips} loading={loading} />
+        </div>
+
+        <div className={styles.squareTicketCol}>
+          <TripBoardingPassCard trip={nextTrip} loading={loading} />
         </div>
       </div>
 

@@ -1,0 +1,389 @@
+.wrapper {
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket {
+  --split: 61%;
+  --notch-radius: 12px;
+  background-color: #1b1e19;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px 16px;
+  min-height: 420px;
+  height: 100%;
+  color: #FFFFFF;
+  overflow: hidden;
+  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.55);
+  transition: transform 180ms ease, border-color 180ms ease;
+
+  /* Circular punch-out notches at split */
+  mask: radial-gradient(circle var(--notch-radius) at 0 var(--split), #0000 98%, #000) left / 51% 100% no-repeat,
+        radial-gradient(circle var(--notch-radius) at 100% var(--split), #0000 98%, #000) right / 51% 100% no-repeat;
+  -webkit-mask: radial-gradient(circle var(--notch-radius) at 0 var(--split), #0000 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle var(--notch-radius) at 100% var(--split), #0000 98%, #000) right / 51% 100% no-repeat;
+}
+
+.ticket:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65);
+}
+
+/* Header strip */
+.ticketHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.badgeGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-sky, #7CC4D1);
+  text-transform: uppercase;
+  background-color: rgba(124, 196, 209, 0.1);
+  border: 1px solid rgba(124, 196, 209, 0.25);
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.statusPill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background-color: rgba(47, 143, 91, 0.18);
+  color: var(--color-success, #2F8F5B);
+  border: 1px solid rgba(47, 143, 91, 0.3);
+}
+
+.terminalGate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* Top Flight Corridor Section */
+.flightSection {
+  margin-bottom: 18px;
+}
+
+.corridorRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.endpoint {
+  display: flex;
+  flex-direction: column;
+}
+
+.endpointRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.cityName {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.iataCode {
+  font-family: var(--font-display, var(--font-jost));
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+}
+
+.timeLabel {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 3px;
+}
+
+.dateLabel {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.flightPath {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  max-width: 140px;
+  position: relative;
+}
+
+.durationBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 4px;
+}
+
+.flightLine {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.dashedLine {
+  flex-grow: 1;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.25);
+}
+
+.planeIcon {
+  width: 14px;
+  height: 14px;
+  margin: 0 6px;
+  color: var(--color-sky, #7CC4D1);
+  transform: rotate(90deg);
+}
+
+/* Flight Meta Grid: 2x2 layout matching reference photo */
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.metaLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.metaValue {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+/* Dashed Perforation Line */
+.perforation {
+  width: calc(100% + 40px);
+  margin-left: -20px;
+  margin-right: -20px;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.18);
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Hotel & Lodging Section */
+.hotelSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.hotelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hotelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-cream, #F6F0E1);
+  text-transform: uppercase;
+}
+
+.hotelRating {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-warning, #D97706);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hotelTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hotelName {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hotelDates {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.hotelDetailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.hotelDetailItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotelDetailLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.hotelDetailValue {
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Watermark Stamp */
+.stamp {
+  position: absolute;
+  bottom: 12px;
+  right: 18px;
+  border: 1.5px solid var(--color-deep-sea, #0F4C5C);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--color-sky, #7CC4D1);
+  opacity: 0.18;
+  transform: rotate(-5deg);
+  pointer-events: none;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Standby Empty Ticket */
+.standbyTicket {
+  background-color: var(--color-surface, #161c20);
+  border: 1px dashed var(--color-border, rgba(227, 217, 192, 0.2));
+  border-radius: 20px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: 380px;
+  height: 100%;
+}
+
+.standbyTag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.standbyTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--color-text-primary, #F6F0E1);
+  margin: 0 0 8px 0;
+}
+
+.standbyDesc {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 320px;
+  margin: 0 0 18px 0;
+  line-height: 1.45;
+}
+
+.standbyBtn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-sky, #7CC4D1);
+  text-decoration: none;
+  padding: 6px 14px;
+  border: 1px solid rgba(124, 196, 209, 0.3);
+  border-radius: 6px;
+  transition: all 150ms ease;
+}
+
+.standbyBtn:hover {
+  background-color: rgba(124, 196, 209, 0.1);
+  border-color: var(--color-sky, #7CC4D1);
+}

@@ -1390,7 +1390,7 @@ export default function ConfigPage() {
                             fontWeight: 600,
                           }}
                         >
-                          {u.role.toUpperCase()}
+                          {(u.role || 'user').toUpperCase()}
                         </span>
                       </td>
                       <td style={{ padding: '12px' }}>
@@ -1530,7 +1530,7 @@ export default function ConfigPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {currentUser?.role.toUpperCase()}
+                      {(currentUser?.role || 'user').toUpperCase()}
                     </span>
                   </div>
                 </div>

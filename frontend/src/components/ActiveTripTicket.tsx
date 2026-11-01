@@ -8,6 +8,7 @@ export interface ActiveTripTicketProps {
   endDate?: string;
   poisCount?: number;
   empty?: boolean;
+  photoUrl?: string;
 }
 
 export function ActiveTripTicket({
@@ -16,6 +17,7 @@ export function ActiveTripTicket({
   endDate,
   poisCount = 0,
   empty = false,
+  photoUrl,
 }: ActiveTripTicketProps) {
   if (empty || !destination || !startDate || !endDate) {
     return (
@@ -67,7 +69,18 @@ export function ActiveTripTicket({
 
   return (
     <div className={styles.heroCard}>
-      <div className={styles.seigaihaOverlay} aria-hidden="true" />
+      {photoUrl ? (
+        <>
+          <div
+            className={styles.photoBackground}
+            style={{ backgroundImage: `url(${photoUrl})` }}
+            aria-hidden="true"
+          />
+          <div className={styles.photoOverlay} aria-hidden="true" />
+        </>
+      ) : (
+        <div className={styles.seigaihaOverlay} aria-hidden="true" />
+      )}
       <div className={styles.heroContent}>
         <div className={styles.heroTopRow}>
           <div>

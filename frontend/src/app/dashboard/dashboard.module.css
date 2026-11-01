@@ -85,23 +85,46 @@
 }
 
 .heroCol {
-  grid-column: span 7;
+  grid-column: span 8;
   display: flex;
   flex-direction: column;
 }
 
 .radarCol {
-  grid-column: span 5;
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.recommendedPoisCol {
+  grid-column: span 8;
+  display: flex;
+  flex-direction: column;
+}
+
+.squareTicketCol {
+  grid-column: span 4;
   display: flex;
   flex-direction: column;
 }
 
 @media (max-width: 1023px) {
-  .topGrid {
+  .topGrid,
+  .bottomGrid {
     grid-template-columns: 1fr;
   }
   .heroCol,
-  .radarCol {
+  .radarCol,
+  .recommendedPoisCol,
+  .squareTicketCol {
     grid-column: span 1;
   }
 }
+
