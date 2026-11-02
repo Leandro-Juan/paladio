@@ -168,7 +168,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
 
   // Take screenshot for visual inspection
   await page.locator('body').screenshot({
-    path: '/home/leandro/.gemini/antigravity/brain/d570318b-29d8-48e7-8815-04dd914af7fd/vault_with_stats_tab.png',
+    path: 'test-results/vault_with_stats_tab.png',
   });
 
   // Verify the toggle collapse arrow button (matches trip details tabs)
@@ -179,7 +179,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
 
   // Take collapsed screenshot
   await page.locator('body').screenshot({
-    path: '/home/leandro/.gemini/antigravity/brain/d570318b-29d8-48e7-8815-04dd914af7fd/vault_stats_collapsed.png',
+    path: 'test-results/vault_stats_collapsed.png',
   });
 
   // Verify the expand arrow button appears on the right edge
@@ -227,7 +227,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
 
   // Take screenshot with the deployed card active on the pictographic map
   await page.locator('body').screenshot({
-    path: '/home/leandro/.gemini/antigravity/brain/d570318b-29d8-48e7-8815-04dd914af7fd/vault_deployed_trip_card.png',
+    path: 'test-results/vault_deployed_trip_card.png',
   });
 
   // Verify close button dismisses the card
@@ -260,7 +260,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
 
   // Take screenshot of fallback card without prompt
   await page.locator('body').screenshot({
-    path: '/home/leandro/.gemini/antigravity/brain/d570318b-29d8-48e7-8815-04dd914af7fd/vault_fallback_deployed_card.png',
+    path: 'test-results/vault_fallback_deployed_card.png',
   });
 
   await closeBtn.click();

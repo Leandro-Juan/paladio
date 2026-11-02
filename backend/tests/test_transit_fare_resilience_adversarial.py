@@ -163,7 +163,6 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
         ]
         leg_res = TransitFareService.calculate_transit_leg_fare(city, steps, fare=fare)
         assert leg_res.cost_is_estimated is True
-        assert leg_res.is_estimated is True
         assert leg_res.total_cost == 0.0
         assert leg_res.airport_surcharge_eur == 0.0
 
@@ -175,7 +174,6 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
             city, airport_steps, fare=fare, is_airport_leg=True
         )
         assert airport_res.cost_is_estimated is True
-        assert airport_res.is_estimated is True
         assert airport_res.total_cost == 0.0
         assert airport_res.airport_surcharge_eur == 0.0
 
@@ -231,10 +229,12 @@ async def test_ollama_structured_json_extraction_success():
     """
     mock_schema = {
         "agency_name": "BVG",
-        "single_fare_eur": 3.50,
+        "single_fare": 3.50,
+        "currency": "EUR",
+        "evidence_quote": "A single ticket for Berlin AB costs 3.50 EUR.",
         "day_pass_name": "24-Stunden-Karte Berlin AB",
-        "day_pass_fare_eur": 9.90,
-        "airport_surcharge_eur": 0.0,
+        "day_pass_fare": 9.90,
+        "airport_surcharge": 0.0,
         "airport_station_keywords": ["flughafen ber", "terminal 1-2"],
         "source_url": "https://www.bvg.de",
     }
@@ -252,10 +252,11 @@ async def test_ollama_structured_json_extraction_success():
         assert extracted is not None
         assert isinstance(extracted, TransitFareExtractionSchema)
         assert extracted.agency_name == "BVG"
-        assert extracted.single_fare_eur == 3.50
-        assert extracted.day_pass_fare_eur == 9.90
+        assert extracted.single_fare == 3.50
+        assert extracted.currency == "EUR"
+        assert extracted.day_pass_fare == 9.90
         assert extracted.day_pass_name == "24-Stunden-Karte Berlin AB"
-        assert extracted.airport_surcharge_eur == 0.0
+        assert extracted.airport_surcharge == 0.0
         assert "flughafen ber" in extracted.airport_station_keywords
         assert extracted.source_url == "https://www.bvg.de"
 
@@ -265,8 +266,8 @@ async def test_ollama_structured_json_extraction_success():
     [
         {"response": "I am an AI and cannot process this context."},  # Non-JSON
         {"response": "{malformed_json: 123"},  # Corrupt JSON
-        {"response": json.dumps({"single_fare_eur": 0.0})},  # Zero fare
-        {"response": json.dumps({"single_fare_eur": -2.5})},  # Negative fare
+        {"response": json.dumps({"single_fare": 0.0})},  # Zero fare
+        {"response": json.dumps({"single_fare": -2.5})},  # Negative fare
         {"response": ""},  # Empty response
     ],
 )
@@ -306,10 +307,12 @@ async def test_dynamic_discovery_hydrates_cache():
 
     mock_schema = {
         "agency_name": "MVV",
-        "single_fare_eur": 3.70,
+        "single_fare": 3.70,
+        "currency": "EUR",
+        "evidence_quote": "Single Tageskarte costs 8.80 EUR.",
         "day_pass_name": "Single Tageskarte",
-        "day_pass_fare_eur": 8.80,
-        "airport_surcharge_eur": 6.80,
+        "day_pass_fare": 8.80,
+        "airport_surcharge": 6.80,
         "airport_station_keywords": ["flughafen münchen", "munich airport"],
         "source_url": "https://www.mvv-muenchen.de",
     }
@@ -327,7 +330,7 @@ async def test_dynamic_discovery_hydrates_cache():
             TransitFareService,
             "fetch_wikivoyage_transit_text",
             new_callable=AsyncMock,
-            return_value="Wikitext about MVV Munich...",
+            return_value="Wikitext about MVV Munich: single fare 3.70 EUR. Single Tageskarte costs 8.80 EUR.",
         ) as mock_fetch,
         patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp),
     ):

@@ -116,7 +116,7 @@ async def test_get_poi_details_with_name_fallback(async_client: AsyncClient):
         return_value=(fake_photos, "Luxury hotel in Madrid"),
     ):
         res = await async_client.get(
-            "/api/pois/custom-hotel-id/details?name=Hotel%20Westin&city=Madrid"
+            "/api/pois/custom-hotel-id?name=Hotel%20Westin&city=Madrid"
         )
         assert res.status_code == 200
         data = res.json()
