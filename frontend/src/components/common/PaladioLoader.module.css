@@ -1,0 +1,159 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+  animation: paladioFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.variantDashboard {
+  min-height: calc(100vh - 14rem);
+  padding: 3rem 1.5rem;
+}
+
+.variantFullscreen {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--color-bg-main, #F5EFEB);
+  z-index: 9999;
+  padding: 2rem;
+}
+
+.variantCard {
+  min-height: 190px;
+  padding: 2rem 1.25rem;
+  gap: 1rem;
+}
+
+/* Logo Presentation */
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.logoImage {
+  height: 48px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 4px 12px rgba(15, 76, 92, 0.08));
+}
+
+.sizeSm .logoImage {
+  height: 28px;
+}
+
+.sizeLg .logoImage {
+  height: 54px;
+}
+
+/* Spinner & Radar Ring */
+.spinnerWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinnerSvg {
+  animation: paladioSpin 1s linear infinite;
+  display: block;
+  transform-origin: center center;
+}
+
+.trackRing {
+  stroke: var(--color-border, rgba(15, 76, 92, 0.15));
+}
+
+.accentArc {
+  stroke: var(--color-accent-secondary, #D42A2F);
+  stroke-linecap: round;
+}
+
+/* Secondary subtle orbital pulse */
+.pulseGlow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px dashed var(--color-border-subtle, rgba(212, 42, 47, 0.25));
+  animation: paladioReverseSpin 14s linear infinite;
+  pointer-events: none;
+}
+
+/* Status Telemetry Text */
+.statusMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted, #566B76);
+  text-transform: uppercase;
+  margin: 0;
+  user-select: none;
+}
+
+.sizeSm .statusMessage {
+  font-size: 10px;
+  gap: 0.45rem;
+}
+
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-accent-secondary, #D42A2F);
+  box-shadow: 0 0 8px rgba(212, 42, 47, 0.65);
+  animation: paladioBlink 1.4s ease-in-out infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes paladioSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes paladioReverseSpin {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes paladioBlink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes paladioFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

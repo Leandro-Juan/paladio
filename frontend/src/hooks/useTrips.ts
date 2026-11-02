@@ -74,6 +74,7 @@ export interface Trip {
   created_at?: string;
   participants?: TripParticipant[];
   tickets_count?: number;
+  destination_timezone?: string;
 }
 
 export function useTrips() {

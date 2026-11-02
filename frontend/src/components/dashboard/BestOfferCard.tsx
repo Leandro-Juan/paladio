@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { apiFetch } from '@/utils/api';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './BestOfferCard.module.css';
 
 export function BestOfferCard() {
@@ -51,7 +52,7 @@ export function BestOfferCard() {
   if (isLoading) {
     return (
       <div className={styles.container} style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <p className="font-mono text-muted text-xs">{'SCANNING CORRIDORS FOR BEST OFFER...'}</p>
+        <PaladioLoader variant="card" showLogo={false} message="SCANNING CORRIDORS FOR BEST OFFER..." />
       </div>
     );
   }

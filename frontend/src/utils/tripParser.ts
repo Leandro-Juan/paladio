@@ -174,3 +174,201 @@ export function isTripCompleted(
   if (!returnDateTime) return false;
   return referenceDate.getTime() > returnDateTime.getTime();
 }
+
+export interface DayMilestone {
+  dayNumber: number;
+  theme?: string;
+  stopsCount: number;
+}
+
+export function extractDayMilestones(itineraryData: unknown): DayMilestone[] {
+  if (!itineraryData || typeof itineraryData !== 'object') return [];
+  const itin = itineraryData as {
+    days?: Array<{
+      day?: number;
+      theme?: string;
+      anchor?: string;
+      itinerary?: {
+        path?: Array<{ poi?: { name?: string } }>;
+      };
+    }>;
+  };
+  if (!Array.isArray(itin.days)) return [];
+  return itin.days.map((day, idx) => {
+    const stopsCount = Array.isArray(day?.itinerary?.path) ? day.itinerary.path.length : 0;
+    const theme =
+      day?.theme ||
+      day?.anchor ||
+      (day?.itinerary?.path?.[0]?.poi?.name ? `${day.itinerary.path[0].poi.name}` : undefined);
+    return {
+      dayNumber: typeof day?.day === 'number' ? day.day : idx + 1,
+      theme,
+      stopsCount,
+    };
+  });
+}
+
+export function extractTripCoordinates(itineraryData: unknown): { lat: number; lng: number } | null {
+  if (!itineraryData || typeof itineraryData !== 'object') return null;
+  const itin = itineraryData as {
+    days?: Array<{
+      itinerary?: {
+        path?: Array<{
+          poi?: {
+            location?: { latitude?: number; longitude?: number };
+          };
+        }>;
+      };
+    }>;
+  };
+  if (!Array.isArray(itin.days)) return null;
+  for (const day of itin.days) {
+    if (Array.isArray(day?.itinerary?.path)) {
+      for (const stop of day.itinerary.path) {
+        if (
+          typeof stop?.poi?.location?.latitude === 'number' &&
+          typeof stop?.poi?.location?.longitude === 'number'
+        ) {
+          return {
+            lat: stop.poi.location.latitude,
+            lng: stop.poi.location.longitude,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export function extractRouteCorridor(itineraryData: unknown): {
+  origin?: string;
+  originIata?: string;
+  destinationIata?: string;
+} | null {
+  if (!itineraryData || typeof itineraryData !== 'object') return null;
+  const itin = itineraryData as {
+    travel_constraints?: {
+      origin_city?: string;
+      origin_iata?: string;
+      destination_iata?: string;
+    };
+    days?: Array<{
+      flight_info?: {
+        origin_iata?: string;
+        destination_iata?: string;
+      };
+    }>;
+  };
+  const constraints = itin.travel_constraints;
+  let origin = constraints?.origin_city;
+  let originIata = constraints?.origin_iata;
+  let destinationIata = constraints?.destination_iata;
+
+  if (Array.isArray(itin.days)) {
+    for (const day of itin.days) {
+      if (day.flight_info) {
+        origin = origin || day.flight_info.origin_iata;
+        originIata = originIata || day.flight_info.origin_iata;
+        destinationIata = destinationIata || day.flight_info.destination_iata;
+        break;
+      }
+    }
+  }
+
+  if (origin || originIata || destinationIata) {
+    return { origin, originIata, destinationIata };
+  }
+  return null;
+}
+
+export function extractTotalCost(itineraryData: unknown): number | null {
+  if (!itineraryData || typeof itineraryData !== 'object') return null;
+  const itin = itineraryData as { total_trip_cost?: unknown };
+  if (typeof itin.total_trip_cost === 'number' && itin.total_trip_cost > 0) {
+    return itin.total_trip_cost;
+  }
+  return null;
+}
+
+export function extractTripTitle(trip?: {
+  destination?: string;
+  itinerary_data?: unknown;
+}): string {
+  if (!trip) return 'Active Expedition';
+  const itin = trip.itinerary_data as {
+    title?: string;
+    manual_constraints?: { title?: string };
+    travel_constraints?: { title?: string };
+  } | null | undefined;
+
+  if (itin?.title && typeof itin.title === 'string' && itin.title.trim()) {
+    return itin.title.trim();
+  }
+  if (
+    itin?.manual_constraints?.title &&
+    typeof itin.manual_constraints.title === 'string' &&
+    itin.manual_constraints.title.trim()
+  ) {
+    return itin.manual_constraints.title.trim();
+  }
+  if (
+    itin?.travel_constraints?.title &&
+    typeof itin.travel_constraints.title === 'string' &&
+    itin.travel_constraints.title.trim()
+  ) {
+    return itin.travel_constraints.title.trim();
+  }
+  return trip.destination || 'Active Expedition';
+}
+
+const COMMON_CITY_TIMEZONES: Record<string, string> = {
+  tokyo: 'Asia/Tokyo',
+  japan: 'Asia/Tokyo',
+  madrid: 'Europe/Madrid',
+  spain: 'Europe/Madrid',
+  porto: 'Europe/Lisbon',
+  lisbon: 'Europe/Lisbon',
+  portugal: 'Europe/Lisbon',
+  sevilla: 'Europe/Madrid',
+  seville: 'Europe/Madrid',
+  paris: 'Europe/Paris',
+  rome: 'Europe/Rome',
+  london: 'Europe/London',
+  berlin: 'Europe/Berlin',
+  vienna: 'Europe/Vienna',
+  amsterdam: 'Europe/Amsterdam',
+  'new york': 'America/New_York',
+};
+
+export function resolveDestinationTimezone(
+  destination?: string,
+  rawTimezone?: string | null
+): string | null {
+  if (rawTimezone && rawTimezone.trim()) return rawTimezone.trim();
+  if (!destination) return null;
+  const clean = destination.toLowerCase().trim();
+  for (const [key, tz] of Object.entries(COMMON_CITY_TIMEZONES)) {
+    if (clean.includes(key)) return tz;
+  }
+  return null;
+}
+
+export function formatTimezone(tz?: string | null): string | null {
+  if (!tz) return null;
+  try {
+    const d = new Date();
+    const offsetPart = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'shortOffset',
+    }).formatToParts(d).find((p) => p.type === 'timeZoneName')?.value;
+
+    const offset = offsetPart ? offsetPart.replace('GMT', 'UTC') : '';
+    const city = tz.includes('/') ? tz.split('/')[1].replace(/_/g, ' ') : tz;
+    return offset ? `${city} (${offset})` : tz;
+  } catch {
+    return tz;
+  }
+}
+
+
+

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import PreferenceRadar from '@/components/PreferenceRadar';
 import { fetchCurrentUser } from '@/utils/api';
 import { User } from '@/types/auth';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './HarmonicRadarWidget.module.css';
 
 interface TagConfig {
@@ -94,8 +95,8 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
 
   if (loading) {
     return (
-      <div className={styles.radarCard} style={{ justifyContent: 'center' }}>
-        <p className="font-mono text-muted text-xs">{'// LOADING 8-POINT HARMONIC RADAR...'}</p>
+      <div className={styles.radarCard} style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <PaladioLoader variant="card" showLogo={false} message="// 8-POINT HARMONIC RADAR TELEMETRY..." />
       </div>
     );
   }

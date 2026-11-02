@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { TripWorkspace } from '@/components/trip-workspace/TripWorkspace';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 
 export default function TripWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
@@ -58,22 +59,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
   }, [id]);
 
   if (loading) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'var(--color-bg-main)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: '12px',
-        }}
-      >
-        <div className="font-mono text-muted text-sm">[ LOADING TRIP WORKSPACE... ]</div>
-      </div>
-    );
+    return <PaladioLoader variant="fullscreen" message="// COMPILING TRIP WORKSPACE..." />;
   }
 
   if (error) {

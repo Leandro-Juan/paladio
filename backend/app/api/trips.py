@@ -246,6 +246,28 @@ class TripResponse(TripCreate):
     created_at: str
     participants: list[TripParticipantResponse] = []
     tickets_count: int = 0
+    destination_timezone: str | None = None
+
+
+def _resolve_trip_timezone(trip: TripModel) -> str | None:
+    try:
+        from app.services.airport_service import get_airport_service
+
+        svc = get_airport_service()
+        itin = trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+        tc = itin.get("travel_constraints") or {}
+        dest_iata = tc.get("destination_iata")
+        if dest_iata:
+            tz = svc.get_timezone_from_iata(dest_iata).key
+            if tz and tz != "UTC":
+                return tz
+        if trip.destination:
+            aps = svc.get_airports_for_city(trip.destination)
+            if aps and aps[0].timezone:
+                return aps[0].timezone
+    except Exception:
+        pass
+    return None
 
 
 async def _get_trip_tickets_count(trip_id: str, session: AsyncSession) -> int:
@@ -751,6 +773,7 @@ async def get_trips(
                 else datetime.now(timezone.utc).isoformat(),
                 participants=parts,
                 tickets_count=t_count,
+                destination_timezone=_resolve_trip_timezone(t),
             )
         )
     return response
@@ -1421,6 +1444,7 @@ async def get_trip(
         else datetime.now(timezone.utc).isoformat(),
         participants=parts,
         tickets_count=t_count,
+        destination_timezone=_resolve_trip_timezone(trip),
     )
 
 

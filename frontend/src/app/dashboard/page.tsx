@@ -12,7 +12,8 @@ import { BestOfferCard } from '@/components/dashboard/BestOfferCard';
 import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
 import { PreferenceModelSection } from '@/components/PreferenceModelSection';
-import { countWaypoints } from '@/utils/tripParser';
+import { countWaypoints, extractTripTitle } from '@/utils/tripParser';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './dashboard.module.css';
 
 export default function DashboardPage() {
@@ -63,6 +64,16 @@ export default function DashboardPage() {
   const { getPhoto } = usePoiPhotos(poiWatch);
   const nextTripPhoto = itinPhoto || (nextTrip ? getPhoto(nextTrip.destination) : undefined);
 
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loadingWrapper}>
+          <PaladioLoader message="// INITIALIZING SOVEREIGN CONTROL CENTER..." />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.cockpitSection}>
@@ -76,23 +87,7 @@ export default function DashboardPage() {
         {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}
         <div className={styles.topGrid}>
           <div className={styles.heroCol}>
-            {loading ? (
-              <div
-                className="bg-surface border-subtle"
-                style={{
-                  padding: '2.5rem',
-                  borderRadius: 'var(--radius-lg)',
-                  minHeight: '190px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <p className="text-muted font-mono" style={{ margin: 0 }}>
-                  LOADING UPCOMING ITINERARY...
-                </p>
-              </div>
-            ) : nextTrip ? (
+            {nextTrip ? (
               <Link
                 href={`/trips/${nextTrip.id}`}
                 style={{
@@ -105,10 +100,14 @@ export default function DashboardPage() {
               >
                 <ActiveTripTicket
                   destination={nextTrip.destination}
+                  title={extractTripTitle(nextTrip)}
                   startDate={nextTrip.start_date}
                   endDate={nextTrip.end_date}
                   poisCount={countWaypoints(nextTrip.itinerary_data)}
                   photoUrl={nextTripPhoto}
+                  itineraryData={nextTrip.itinerary_data}
+                  participantsCount={nextTrip.participants?.length ?? 1}
+                  timezone={nextTrip.destination_timezone}
                 />
               </Link>
             ) : (
@@ -117,7 +116,7 @@ export default function DashboardPage() {
           </div>
 
           <div className={styles.radarCol}>
-            <HarmonicRadarWidget />
+            <HarmonicRadarWidget user={user} />
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { Trip } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { RecommendedPoiCard } from './RecommendedPoiCard';
 import { getApiBaseUrl } from '@/utils/api';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './RecommendedPoisSection.module.css';
 
 interface ExtractedPoi {
@@ -177,8 +178,8 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.standbyContainer} style={{ minHeight: '260px' }}>
-          <p className="font-mono text-muted text-xs">{'// EVALUATING SOVEREIGN TASTE MATCHES...'}</p>
+        <div className={styles.standbyContainer} style={{ minHeight: '260px', justifyContent: 'center', alignItems: 'center' }}>
+          <PaladioLoader variant="card" showLogo={false} message="// EVALUATING SOVEREIGN TASTE MATCHES..." />
         </div>
       </div>
     );

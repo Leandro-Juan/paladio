@@ -9,6 +9,7 @@ import { useNavigationStore } from '@/stores/navigationStore';
 import { AppSidebar } from './AppSidebar';
 import { FloatingDock } from './FloatingDock';
 import { NotificationBell } from './NotificationBell';
+import { PaladioLoader } from './common/PaladioLoader';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setupRequired, isLoading } = useAuth();
@@ -38,35 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, setupRequired, isLoading, pathname, router]);
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'var(--color-bg-main)',
-          gap: '1rem',
-        }}
-      >
-        <img
-          src="/logo-horizontal.png"
-          alt="Paladio Logo"
-          className="brand-logo-light"
-          style={{ height: '44px', width: 'auto', display: 'block' }}
-        />
-        <img
-          src="/logo-horizontal-dark.png"
-          alt="Paladio Logo"
-          className="brand-logo-dark"
-          style={{ height: '44px', width: 'auto', display: 'none' }}
-        />
-        <p className="font-mono text-muted" style={{ fontSize: '12px' }}>
-          {'// VERIFYING SOVEREIGN SECURITY GATE...'}
-        </p>
-      </div>
-    );
+    return <PaladioLoader variant="fullscreen" message="// VERIFYING SOVEREIGN SECURITY GATE..." />;
   }
 
   // Auth pages (login, setup) do not render the main app sidebar
@@ -80,29 +53,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // If not logged in and not yet redirected, render transition state instead of blank void
   if (!user) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'var(--color-bg-main)',
-          gap: '1rem',
-        }}
-      >
-        <img
-          src="/logo-horizontal.png"
-          alt="Paladio Logo"
-          className="brand-logo-light"
-          style={{ height: '44px', width: 'auto', display: 'block' }}
-        />
-        <p className="font-mono text-muted" style={{ fontSize: '12px' }}>
-          {'// REDIRECTING TO AUTHENTICATION...'}
-        </p>
-      </div>
-    );
+    return <PaladioLoader variant="fullscreen" message="// REDIRECTING TO AUTHENTICATION..." />;
   }
 
   // Trip details pages (/trips/[id]) do not render the main app sidebar or global navigation
