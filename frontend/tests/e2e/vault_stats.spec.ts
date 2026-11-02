@@ -127,7 +127,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
     });
   });
 
-  await page.goto('http://localhost:3000/vault');
+  await page.goto('/vault');
   await page.waitForLoadState('networkidle');
 
   // Verify that the statistics panel is present

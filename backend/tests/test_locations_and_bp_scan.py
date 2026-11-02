@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import shutil
 from unittest.mock import patch
 
 import pytest
@@ -184,6 +185,10 @@ async def test_scan_hotel_booking_document(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    shutil.which("tesseract") is None,
+    reason="Tesseract OCR binary not installed in test environment",
+)
 async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
     import io
     import os

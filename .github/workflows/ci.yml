@@ -62,6 +62,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa poppler-utils fonts-liberation
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -84,10 +86,11 @@ jobs:
               await conn.close()
           asyncio.run(init())
           "
-      - name: Run Alembic migrations
+      - name: Run Alembic migrations and seed cited quotes
         run: |
           alembic upgrade head
           DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/paladio_test alembic upgrade head
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/paladio_test python scripts/migrate_verified_fares_to_quotes.py
         working-directory: backend
       - name: Run Pytest
         run: pytest tests --maxfail=5
