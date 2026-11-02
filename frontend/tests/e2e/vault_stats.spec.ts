@@ -34,6 +34,20 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
     });
   });
 
+  await page.route(/.*\/api(\/v1)?\/trips\/trip-sevilla/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'trip-sevilla',
+        destination: 'Sevilla',
+        start_date: '2026-10-18T00:00:00.000Z',
+        end_date: '2026-10-19T00:00:00.000Z',
+        itinerary_data: { days: [] },
+      }),
+    });
+  });
+
   // Provide realistic trips matching the user's database: Sevilla, Porto, Madrid x2 (completed), Tokyo (upcoming)
   await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
     await route.fulfill({
@@ -270,6 +284,5 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await markers.first().click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
   await page.getByTestId('deployed-trip-see-btn').click();
-  await page.waitForURL(/\/trips\/trip-sevilla/, { timeout: 10000 });
-  expect(page.url()).toContain('/trips/trip-sevilla');
+  await expect(page).toHaveURL(/\/trips\/trip-sevilla/, { timeout: 10000 });
 });
