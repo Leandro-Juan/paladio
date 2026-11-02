@@ -7,7 +7,7 @@ import { useTrips } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
 import { HarmonicRadarWidget } from '@/components/HarmonicRadarWidget';
-import { TripBoardingPassCard } from '@/components/dashboard/TripBoardingPassCard';
+import { BestOfferCard } from '@/components/dashboard/BestOfferCard';
 import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
 import { PreferenceModelSection } from '@/components/PreferenceModelSection';
@@ -136,11 +136,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom 12-Column Grid:
-            Left (4 cols): Square Travel Ticket & Hotel Lodging (project colors)
+            Left (4 cols): Best Offer from Monitored Routes
             Right (8 cols): Recommended POIs (3 Cards with Verified Photos) */}
         <div className={styles.bottomGrid}>
           <div className={styles.squareTicketCol}>
-            <TripBoardingPassCard trip={nextTrip} loading={loading} />
+            <BestOfferCard />
           </div>
 
           <div className={styles.recommendedPoisCol}>

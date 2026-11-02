@@ -206,20 +206,14 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     // 2. Verify Top Right: 8-Point Harmonic Radar (Star)
     await expect(page.getByText('// 8-POINT HARMONIC RADAR')).toBeVisible();
 
-    // 3. Verify Bottom Left: The Square Boarding Pass & Hotel Lodging Voucher (uses project colors)
-    await expect(page.getByText('AIR TRANSIT')).toBeVisible();
-    await expect(page.getByText('LODGING RESERVATION')).toBeVisible();
-    await expect(page.getByText('GATE B16 · T2')).toBeVisible();
-    await expect(page.getByText('Passenger')).toBeVisible();
-    await expect(page.getByText('Seat Number')).toBeVisible();
-    await expect(page.getByText('F16')).toBeVisible();
-    await expect(page.getByText('Flight Number')).toBeVisible();
-
-    // Verify Hotel details included in the pass
-    await expect(page.getByText(/5 Nights Stay/i)).toBeVisible();
-    await expect(page.getByText(/Grand Hotel|Zermatt/i).first()).toBeVisible();
-    await expect(page.getByText(/Guaranteed Check-in/i)).toBeVisible();
-    await expect(page.getByText(/4\.8 Rating/i)).toBeVisible();
+    // 3. Verify Bottom Left: The Best Offer Card for Monitored Routes
+    await expect(page.getByText('// BEST SCANNED OFFER')).toBeVisible();
+    await expect(page.getByText('35% OFF')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: /MAD.*Tokyo/ })).toBeVisible();
+    await expect(page.getByText(/420/)).toBeVisible();
+    await expect(page.getByText(/Iberia.*IB6801/)).toBeVisible();
+    await expect(page.getByText(/Shinjuku Granbell/)).toBeVisible();
+    await expect(page.getByRole('link', { name: /Inspect Corridor Offer/i })).toBeVisible();
 
     // 4. Verify Bottom Right: Recommended POIs Section (3 Cards with Verified Photos, Type Badges, No Emojis)
     await expect(page.getByText('// TOP SOVEREIGN TASTE MATCHES')).toBeVisible();
@@ -244,13 +238,13 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     const reserveButtons = page.getByRole('link', { name: 'Reserve now' });
     await expect(reserveButtons).toHaveCount(3);
 
-    // 5. Verify Swapped Position: Boarding Pass is on the LEFT of Recommended POIs
-    const ticketBox = await page.getByText('AIR TRANSIT').boundingBox();
+    // 5. Verify Swapped Position: Best Offer Card is on the LEFT of Recommended POIs
+    const offerBox = await page.getByText('// BEST SCANNED OFFER').boundingBox();
     const poisHeaderBox = await page.getByRole('heading', { level: 3, name: 'Recommended POIs' }).boundingBox();
-    expect(ticketBox).toBeTruthy();
+    expect(offerBox).toBeTruthy();
     expect(poisHeaderBox).toBeTruthy();
-    if (ticketBox && poisHeaderBox) {
-      expect(ticketBox.x).toBeLessThan(poisHeaderBox.x);
+    if (offerBox && poisHeaderBox) {
+      expect(offerBox.x).toBeLessThan(poisHeaderBox.x);
     }
 
     // 6. Verify Cockpit Fits on Screen: bottom cards do not overflow the 900px viewport

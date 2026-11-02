@@ -17,12 +17,18 @@ export function BestOfferCard() {
     return null;
   }, [deals]);
 
-  // Fallback: check if any route has a scanned discount even if no full package deal
+  // Fallback: check if any route has a scanned discount or price even if no full package deal
   const bestDiscountRoute = useMemo(() => {
     if (bestDeal || !routes || routes.length === 0) return null;
     const candidates = routes.filter((r) => typeof r.discount_pct === 'number' && r.discount_pct > 0);
-    if (candidates.length === 0) return null;
-    return [...candidates].sort((a, b) => (b.discount_pct ?? 0) - (a.discount_pct ?? 0))[0];
+    if (candidates.length > 0) {
+      return [...candidates].sort((a, b) => (b.discount_pct ?? 0) - (a.discount_pct ?? 0))[0];
+    }
+    const priced = routes.filter((r) => typeof r.current_price_eur === 'number' && r.current_price_eur > 0);
+    if (priced.length > 0) {
+      return [...priced].sort((a, b) => (a.current_price_eur ?? Infinity) - (b.current_price_eur ?? Infinity))[0];
+    }
+    return routes[0] || null;
   }, [bestDeal, routes]);
 
   if (isLoading) {
@@ -149,6 +155,18 @@ export function BestOfferCard() {
 
   // Fallback discounted route
   const activeCurrency = bestDiscountRoute?.currency || userCurrency || 'EUR';
+  const routeSavings =
+    bestDiscountRoute?.baseline_p50_eur &&
+    bestDiscountRoute?.current_price_eur &&
+    bestDiscountRoute.baseline_p50_eur > bestDiscountRoute.current_price_eur
+      ? bestDiscountRoute.baseline_p50_eur - bestDiscountRoute.current_price_eur
+      : 0;
+
+  const nightsRange =
+    bestDiscountRoute?.min_nights && bestDiscountRoute?.max_nights
+      ? ` · ${bestDiscountRoute.min_nights}-${bestDiscountRoute.max_nights} Nights`
+      : '';
+
   return (
     <div className={styles.container}>
       <div>
@@ -157,11 +175,15 @@ export function BestOfferCard() {
             <span className={styles.pulseDot} aria-hidden="true" />
             <span>{'// BEST SCANNED CORRIDOR'}</span>
           </div>
-          {bestDiscountRoute?.discount_pct && bestDiscountRoute.discount_pct > 0 && (
+          {bestDiscountRoute?.discount_pct && bestDiscountRoute.discount_pct > 0 ? (
             <span className={styles.discountPill}>
               {Math.round(bestDiscountRoute.discount_pct)}% OFF
             </span>
-          )}
+          ) : bestDiscountRoute?.verdict ? (
+            <span className={styles.discountPill}>
+              {bestDiscountRoute.verdict} VALUE
+            </span>
+          ) : null}
         </div>
 
         <h3 className={styles.routeTitle}>
@@ -171,7 +193,7 @@ export function BestOfferCard() {
         </h3>
 
         <span className={styles.datesSubtitle}>
-          {bestDiscountRoute?.earliest_date} → {bestDiscountRoute?.latest_date}
+          {bestDiscountRoute?.earliest_date} → {bestDiscountRoute?.latest_date}{nightsRange}
         </span>
 
         <div className={styles.priceSection}>
@@ -185,6 +207,32 @@ export function BestOfferCard() {
                 {formatCurrencyAmount(bestDiscountRoute.baseline_p50_eur, activeCurrency)}
               </span>
             )}
+          </div>
+          {routeSavings > 0 && (
+            <span className={styles.savingsText}>
+              Save {formatCurrencyAmount(routeSavings, activeCurrency)}
+            </span>
+          )}
+        </div>
+
+        <div className={styles.detailsList}>
+          <div className={styles.detailRow}>
+            <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+            </svg>
+            <span className={styles.detailText}>
+              {bestDiscountRoute?.destination_code ? `${bestDiscountRoute.destination_code} Corridor` : 'Direct Route'} · {bestDiscountRoute?.schedule || 'Active telemetry'}
+            </span>
+          </div>
+          <div className={styles.detailRow}>
+            <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 3"/>
+            </svg>
+            <span className={styles.detailText}>
+              {bestDiscountRoute?.ticks_count ? `${bestDiscountRoute.ticks_count} scans recorded` : 'Monitored corridor'}
+              {bestDiscountRoute?.verdict ? ` · ${bestDiscountRoute.verdict} verdict` : ''}
+            </span>
           </div>
         </div>
       </div>
