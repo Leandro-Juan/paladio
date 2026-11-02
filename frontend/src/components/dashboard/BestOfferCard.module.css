@@ -23,37 +23,11 @@
 
 .topRow {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-}
-
-.radarBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--color-accent-primary, #0F4C5C);
-  text-transform: uppercase;
-}
-
-.pulseDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: var(--color-success, #1F7A4D);
-  box-shadow: 0 0 6px rgba(31, 122, 77, 0.6);
-  animation: pulse 2s infinite ease-in-out;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.7; }
+  min-height: 22px;
 }
 
 .discountPill {

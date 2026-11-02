@@ -78,11 +78,8 @@ export function BestOfferCard() {
     return (
       <div className={styles.container}>
         <div>
-          {/* Top Row: Clean Telemetry Dot + Discount Pill (No verbose header text) */}
+          {/* Top Row: Discount Pill (Clean header without glowing dot) */}
           <div className={styles.topRow}>
-            <div className={styles.radarBadge}>
-              <span className={styles.pulseDot} aria-hidden="true" />
-            </div>
             {activeDeal.discount_pct > 0 && (
               <span className={styles.discountPill}>
                 {Math.round(activeDeal.discount_pct)}% OFF
@@ -214,9 +211,6 @@ export function BestOfferCard() {
     <div className={styles.container}>
       <div>
         <div className={styles.topRow}>
-          <div className={styles.radarBadge}>
-            <span className={styles.pulseDot} aria-hidden="true" />
-          </div>
           {bestDiscountRoute?.discount_pct && bestDiscountRoute.discount_pct > 0 ? (
             <span className={styles.discountPill}>
               {Math.round(bestDiscountRoute.discount_pct)}% OFF
