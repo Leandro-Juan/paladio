@@ -33,58 +33,6 @@
   letter-spacing: -0.01em;
 }
 
-.subtitle {
-  font-family: var(--font-body);
-  color: var(--color-text-muted);
-  font-size: 13px;
-  margin-top: 2px;
-  margin-bottom: 0;
-}
-
-.headerActions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.telemetryStatus {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-muted);
-  font-family: var(--font-body);
-  font-size: 12px;
-}
-
-.telemetryDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--color-success, #2F8F5B);
-  display: inline-block;
-}
-
-.primaryButton {
-  padding: 7px 15px;
-  background-color: var(--color-accent-primary);
-  color: var(--color-btn-primary-text, #FFFFFF);
-  border-radius: 8px;
-  font-weight: 500;
-  font-family: var(--font-body);
-  font-size: 12px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.primaryButton:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
-}
-
 .topGrid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);

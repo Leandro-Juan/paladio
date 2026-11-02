@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTrips } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
@@ -16,6 +17,7 @@ import styles from './dashboard.module.css';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { trips, upcomingTrips, loading } = useTrips();
 
   const nextTrip = upcomingTrips.length > 0 ? upcomingTrips[0] : null;
@@ -66,25 +68,9 @@ export default function DashboardPage() {
       <div className={styles.cockpitSection}>
         {/* Header Bar */}
         <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>Welcome to Paladio Control Center</h1>
-            <p className={styles.subtitle}>Sovereign mission control and temporal dispatch</p>
-          </div>
-
-          <div className={styles.headerActions}>
-            <div className={styles.telemetryStatus} title="Direct local connection active">
-              <span className={styles.telemetryDot} />
-              <span>Telemetry online</span>
-            </div>
-
-            <Link href="/engine" className={styles.primaryButton}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span>New mission</span>
-            </Link>
-          </div>
+          <h1 className={styles.title}>
+            {user?.username ? `Welcome back, ${user.username}` : 'Welcome back'}
+          </h1>
         </div>
 
         {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}

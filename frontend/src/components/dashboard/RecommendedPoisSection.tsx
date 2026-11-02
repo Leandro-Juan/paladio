@@ -201,20 +201,12 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     );
   }
 
-  const primaryTripDestination = poisWithPhotos[0]?.tripDestination;
-
   return (
     <section className={styles.container} aria-label="Top taste-matched destination recommendations">
       <div className={styles.headerRow}>
         <div className={styles.sectionTitleBlock}>
-          <span className={styles.telemetryTag}>{'// TOP SOVEREIGN TASTE MATCHES'}</span>
           <h3 className={styles.sectionTitle}>Recommended POIs</h3>
         </div>
-        {primaryTripDestination && (
-          <span className={styles.tripReference}>
-            Next Mission: <strong>{primaryTripDestination}</strong>
-          </span>
-        )}
       </div>
 
       {/* 3-Column Grid hosting RecommendedPoiCard matching Swiss Chalet reference */}

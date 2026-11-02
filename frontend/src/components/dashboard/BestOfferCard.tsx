@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouteMonitoring } from '@/hooks/useRouteMonitoring';
+import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
+import { apiFetch } from '@/utils/api';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './BestOfferCard.module.css';
 
 export function BestOfferCard() {
   const { deals, routes, isLoading, userCurrency } = useRouteMonitoring();
+  const [routeDeal, setRouteDeal] = useState<DealPackage | null>(null);
 
   // Pick top deal package (highest discount percentage or lowest price)
   const bestDeal = useMemo(() => {
@@ -17,7 +19,7 @@ export function BestOfferCard() {
     return null;
   }, [deals]);
 
-  // Fallback: check if any route has a scanned discount or price even if no full package deal
+  // Fallback candidate route
   const bestDiscountRoute = useMemo(() => {
     if (bestDeal || !routes || routes.length === 0) return null;
     const candidates = routes.filter((r) => typeof r.discount_pct === 'number' && r.discount_pct > 0);
@@ -31,18 +33,33 @@ export function BestOfferCard() {
     return routes[0] || null;
   }, [bestDeal, routes]);
 
+  // When no global deal package is yet alert-cached, query route-specific deals directly
+  useEffect(() => {
+    if (!bestDeal && bestDiscountRoute?.id) {
+      apiFetch<DealPackage[]>(`/market/routes/${bestDiscountRoute.id}/deals`)
+        .then((res) => {
+          if (Array.isArray(res) && res.length > 0) {
+            setRouteDeal(res[0]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [bestDeal, bestDiscountRoute?.id]);
+
+  const activeDeal = bestDeal || routeDeal;
+
   if (isLoading) {
     return (
       <div className={styles.container} style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <p className="font-mono text-muted text-xs">{'// SCANNING CORRIDORS FOR BEST OFFER...'}</p>
+        <p className="font-mono text-muted text-xs">{'SCANNING CORRIDORS FOR BEST OFFER...'}</p>
       </div>
     );
   }
 
-  if (!bestDeal && !bestDiscountRoute) {
+  if (!activeDeal && !bestDiscountRoute) {
     return (
       <div className={styles.standbyContainer}>
-        <span className={styles.standbyTag}>{'// CORRIDOR TELEMETRY'}</span>
+        <span className={styles.standbyTag}>CORRIDOR TELEMETRY</span>
         <h3 className={styles.standbyTitle}>No Active Scan Offers</h3>
         <p className={styles.standbyDesc}>
           Set up corridor alerts in Route Monitoring to track autonomous flight & hotel deal scans.
@@ -54,83 +71,109 @@ export function BestOfferCard() {
     );
   }
 
-  if (bestDeal) {
-    const activeCurrency = bestDeal.currency || userCurrency || 'EUR';
-    const nightsText = `${bestDeal.nights} ${bestDeal.nights === 1 ? 'Night' : 'Nights'}`;
+  if (activeDeal) {
+    const activeCurrency = activeDeal.currency || userCurrency || 'EUR';
+    const nightsText = `${activeDeal.nights} ${activeDeal.nights === 1 ? 'Night' : 'Nights'}`;
 
     return (
       <div className={styles.container}>
         <div>
-          {/* Top Row: Telemetry Badge + Discount Pill */}
+          {/* Top Row: Clean Telemetry Dot + Discount Pill (No verbose header text) */}
           <div className={styles.topRow}>
             <div className={styles.radarBadge}>
               <span className={styles.pulseDot} aria-hidden="true" />
-              <span>{'// BEST SCANNED OFFER'}</span>
             </div>
-            {bestDeal.discount_pct > 0 && (
+            {activeDeal.discount_pct > 0 && (
               <span className={styles.discountPill}>
-                {Math.round(bestDeal.discount_pct)}% OFF
+                {Math.round(activeDeal.discount_pct)}% OFF
               </span>
             )}
           </div>
 
           {/* Route Header */}
           <h3 className={styles.routeTitle}>
-            <span>{bestDeal.origin_iata}</span>
+            <span>{activeDeal.origin_iata}</span>
             <span className={styles.arrow} aria-hidden="true">→</span>
-            <span>{bestDeal.destination_name}</span>
+            <span>{activeDeal.destination_name}</span>
           </h3>
 
           <span className={styles.datesSubtitle}>
-            {bestDeal.depart_date} → {bestDeal.return_date} · {nightsText}
+            {activeDeal.depart_date} → {activeDeal.return_date} · {nightsText}
           </span>
 
           {/* Price Box */}
           <div className={styles.priceSection}>
             <div>
-              <span className={styles.priceLabel}>Verified Package</span>
+              <span className={styles.priceLabel}>Verified Roundtrip Package</span>
               <span className={styles.currentPrice}>
-                {formatCurrencyAmount(bestDeal.total_price_eur, activeCurrency)}
+                {formatCurrencyAmount(activeDeal.total_price_eur, activeCurrency)}
               </span>
-              {bestDeal.baseline_median_eur > bestDeal.total_price_eur && (
+              {activeDeal.baseline_median_eur > activeDeal.total_price_eur && (
                 <span className={styles.benchmarkPrice}>
-                  {formatCurrencyAmount(bestDeal.baseline_median_eur, activeCurrency)}
+                  {formatCurrencyAmount(activeDeal.baseline_median_eur, activeCurrency)}
                 </span>
               )}
             </div>
-            {bestDeal.savings_eur > 0 && (
+            {activeDeal.savings_eur > 0 && (
               <span className={styles.savingsText}>
-                Save {formatCurrencyAmount(bestDeal.savings_eur, activeCurrency)}
+                Save {formatCurrencyAmount(activeDeal.savings_eur, activeCurrency)}
               </span>
             )}
           </div>
 
-          {/* Key Details Summary */}
+          {/* Key Details Summary: Outbound Flight + Return Flight + Best Found Hotel */}
           <div className={styles.detailsList}>
-            {bestDeal.flight && (
+            {/* Outbound Flight */}
+            {activeDeal.flight && (
               <div className={styles.detailRow}>
-                <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
                 </svg>
                 <span className={styles.detailText}>
-                  {bestDeal.flight.airline || 'Flight Corridor'} · {bestDeal.flight.flight_number || 'Direct'}
+                  <span className={styles.detailLabel}>Outbound:</span>
+                  <strong>{formatCurrencyAmount(activeDeal.flight.landed_price_eur || activeDeal.flight.base_price_eur, activeCurrency)}</strong>
+                  {' · '}{activeDeal.flight.airline || 'Flight'}{activeDeal.flight.flight_number ? ` · ${activeDeal.flight.flight_number}` : ''}
                 </span>
               </div>
             )}
-            {bestDeal.lodging && (
+
+            {/* Return Flight */}
+            {activeDeal.return_flight && (
               <div className={styles.detailRow}>
-                <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ transform: 'rotate(180deg)' }}>
+                  <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+                </svg>
+                <span className={styles.detailText}>
+                  <span className={styles.detailLabel}>Return:</span>
+                  <strong>{formatCurrencyAmount(activeDeal.return_flight.landed_price_eur || activeDeal.return_flight.base_price_eur, activeCurrency)}</strong>
+                  {' · '}{activeDeal.return_flight.airline || 'Flight'}{activeDeal.return_flight.flight_number ? ` · ${activeDeal.return_flight.flight_number}` : ''}
+                </span>
+              </div>
+            )}
+
+            {/* Best Found Hotel */}
+            {activeDeal.lodging && (
+              <div className={styles.detailRow}>
+                <svg className={styles.detailIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                   <polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>
-                <span className={styles.detailText} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>{bestDeal.lodging.property_name || 'Verified Lodging'}</span>
-                  {Boolean(bestDeal.lodging.stars) && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', opacity: 0.85 }}>
-                      ({bestDeal.lodging.stars}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>)
+                <span className={styles.detailText}>
+                  <span className={styles.detailLabel}>Best Hotel:</span>
+                  <strong>{activeDeal.lodging.property_name || 'Verified Hotel'}</strong>
+                  {Boolean(activeDeal.lodging.stars) && (
+                    <span style={{ opacity: 0.85, marginLeft: '3px' }}>
+                      ({activeDeal.lodging.stars}★)
+                    </span>
+                  )}
+                  {Boolean(activeDeal.lodging.review_score && !activeDeal.lodging.stars) && (
+                    <span style={{ opacity: 0.85, marginLeft: '3px' }}>
+                      (★ {activeDeal.lodging.review_score})
+                    </span>
+                  )}
+                  {activeDeal.lodging.nightly_base_eur > 0 && (
+                    <span style={{ opacity: 0.85, marginLeft: '4px' }}>
+                      · {formatCurrencyAmount(activeDeal.lodging.nightly_base_eur, activeCurrency)}/nt
                     </span>
                   )}
                 </span>
@@ -141,7 +184,7 @@ export function BestOfferCard() {
 
         {/* CTA Action Button */}
         <Link
-          href={`/monitoring?route=${bestDeal.alert_id || bestDeal.id}`}
+          href={`/monitoring?route=${activeDeal.alert_id || activeDeal.id}`}
           className={styles.actionButton}
         >
           <span>Inspect Corridor Offer</span>
@@ -173,7 +216,6 @@ export function BestOfferCard() {
         <div className={styles.topRow}>
           <div className={styles.radarBadge}>
             <span className={styles.pulseDot} aria-hidden="true" />
-            <span>{'// BEST SCANNED CORRIDOR'}</span>
           </div>
           {bestDiscountRoute?.discount_pct && bestDiscountRoute.discount_pct > 0 ? (
             <span className={styles.discountPill}>
@@ -198,7 +240,7 @@ export function BestOfferCard() {
 
         <div className={styles.priceSection}>
           <div>
-            <span className={styles.priceLabel}>Current Corridor Price</span>
+            <span className={styles.priceLabel}>Outbound Flight From</span>
             <span className={styles.currentPrice}>
               {formatCurrencyAmount(bestDiscountRoute?.current_price_eur ?? 0, activeCurrency)}
             </span>
@@ -221,7 +263,9 @@ export function BestOfferCard() {
               <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
             </svg>
             <span className={styles.detailText}>
-              {bestDiscountRoute?.destination_code ? `${bestDiscountRoute.destination_code} Corridor` : 'Direct Route'} · {bestDiscountRoute?.schedule || 'Active telemetry'}
+              <span className={styles.detailLabel}>Outbound:</span>
+              <strong>{formatCurrencyAmount(bestDiscountRoute?.current_price_eur ?? 0, activeCurrency)}</strong>
+              {' · '}{bestDiscountRoute?.destination_code ? `${bestDiscountRoute.destination_code} Corridor` : 'Direct Route'}
             </span>
           </div>
           <div className={styles.detailRow}>
@@ -230,6 +274,7 @@ export function BestOfferCard() {
               <path d="M12 7v5l3 3"/>
             </svg>
             <span className={styles.detailText}>
+              <span className={styles.detailLabel}>Telemetry:</span>
               {bestDiscountRoute?.ticks_count ? `${bestDiscountRoute.ticks_count} scans recorded` : 'Monitored corridor'}
               {bestDiscountRoute?.verdict ? ` · ${bestDiscountRoute.verdict} verdict` : ''}
             </span>

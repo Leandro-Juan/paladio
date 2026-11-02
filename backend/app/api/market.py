@@ -2587,6 +2587,10 @@ async def list_active_deals(
             .scalars()
             .all()
         )
+        if not alerts:
+            alerts = (
+                (await session.execute(select(DealWatchAlertModel))).scalars().all()
+            )
         for a in alerts:
             route_pkgs = await list_route_deals(
                 a.id, session=session, limit=3, currency_param="EUR"

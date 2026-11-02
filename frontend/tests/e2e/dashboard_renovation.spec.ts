@@ -177,9 +177,16 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
             flight: {
               airline: 'Iberia',
               flight_number: 'IB6801',
-              landed_price_eur: 280,
+              landed_price_eur: 160,
               depart_time: '2026-11-15T10:00:00',
               arrival_time: '2026-11-16T08:00:00',
+            },
+            return_flight: {
+              airline: 'Iberia',
+              flight_number: 'IB6802',
+              landed_price_eur: 120,
+              depart_time: '2026-11-20T14:00:00',
+              arrival_time: '2026-11-21T10:00:00',
             },
             lodging: {
               property_name: 'Shinjuku Granbell',
@@ -206,17 +213,19 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     // 2. Verify Top Right: 8-Point Harmonic Radar (Star)
     await expect(page.getByText('// 8-POINT HARMONIC RADAR')).toBeVisible();
 
-    // 3. Verify Bottom Left: The Best Offer Card for Monitored Routes
-    await expect(page.getByText('// BEST SCANNED OFFER')).toBeVisible();
+    // 3. Verify Bottom Left: The Best Offer Card for Monitored Routes (Outbound + Return + Best Hotel)
     await expect(page.getByText('35% OFF')).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: /MAD.*Tokyo/ })).toBeVisible();
     await expect(page.getByText(/420/)).toBeVisible();
+    await expect(page.getByText(/Outbound:/i)).toBeVisible();
     await expect(page.getByText(/Iberia.*IB6801/)).toBeVisible();
+    await expect(page.getByText(/Return:/i)).toBeVisible();
+    await expect(page.getByText(/Iberia.*IB6802/)).toBeVisible();
+    await expect(page.getByText(/Best Hotel:/i)).toBeVisible();
     await expect(page.getByText(/Shinjuku Granbell/)).toBeVisible();
     await expect(page.getByRole('link', { name: /Inspect Corridor Offer/i })).toBeVisible();
 
     // 4. Verify Bottom Right: Recommended POIs Section (3 Cards with Verified Photos, Type Badges, No Emojis)
-    await expect(page.getByText('// TOP SOVEREIGN TASTE MATCHES')).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'Recommended POIs' })).toBeVisible();
 
     // Verify POI without photo is STRICTLY NOT DISPLAYED despite 99% match score
@@ -239,7 +248,7 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(reserveButtons).toHaveCount(3);
 
     // 5. Verify Swapped Position: Best Offer Card is on the LEFT of Recommended POIs
-    const offerBox = await page.getByText('// BEST SCANNED OFFER').boundingBox();
+    const offerBox = await page.getByText('35% OFF').boundingBox();
     const poisHeaderBox = await page.getByRole('heading', { level: 3, name: 'Recommended POIs' }).boundingBox();
     expect(offerBox).toBeTruthy();
     expect(poisHeaderBox).toBeTruthy();
