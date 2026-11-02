@@ -1,7 +1,9 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useTrips } from '@/hooks/useTrips';
 import dynamic from 'next/dynamic';
+import VaultStatsTab from '@/components/VaultStatsTab';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const VaultMap = dynamic(() => import('@/components/VaultMap'), { ssr: false, loading: () => <div className="font-mono text-muted flex items-center justify-center h-full w-full bg-surface">LOADING MAP DATA...</div> });
@@ -59,7 +61,8 @@ function getTripCoordinates(t: { destination?: string; lat?: number; lng?: numbe
 }
 
 export default function VaultPage() {
-  const { completedTrips, loading } = useTrips();
+  const { trips, completedTrips, loading } = useTrips();
+  const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   
   // Extract lat/lng from itinerary_data or fallback to city mapping for ALREADY completed trips only
   const mappedTrips = completedTrips.map((t) => {
@@ -69,52 +72,27 @@ export default function VaultPage() {
       destination: t.destination,
       date: t.start_date,
       lat: coords.lat,
-      lng: coords.lng
+      lng: coords.lng,
+      trip: t,
     };
   });
 
-  if (loading) return <div className="font-mono text-muted p-8">LOADING VAULT DATA...</div>;
+  if (loading) {
+    return <PaladioLoader message="// RETRIEVING SOVEREIGN VAULT..." />;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div
-        style={{
-          position: 'absolute',
-          top: '1rem',
-          left: '1rem',
-          zIndex: 1000,
-          background: 'var(--color-surface-card)',
-          border: '1px solid var(--color-border-subtle)',
-          borderRadius: '12px',
-          padding: '1rem 1.25rem',
-          boxShadow: 'var(--shadow-card)',
-          maxWidth: 'min(360px, calc(100% - 2rem))',
-        }}
-      >
-        <h2 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>ITINERARY VAULT</h2>
-        <p className="font-mono text-muted text-xs mt-1">{'// GLOBAL MISSIONS DASHBOARD'}</p>
-        {completedTrips.length === 0 && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <span
-              className="font-mono"
-              style={{
-                fontSize: '11px',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                background: 'var(--color-surface-page)',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border-subtle)',
-                display: 'inline-block',
-              }}
-            >
-              [ NO COMPLETED MISSIONS ARCHIVED ]
-            </span>
-          </div>
-        )}
-      </div>
+      {/* Travel Statistics Tab on the Left */}
+      <VaultStatsTab
+        trips={trips}
+        completedTrips={completedTrips}
+        getTripCoordinates={getTripCoordinates}
+        onSelectDestination={(coords) => setFocusCoords(coords)}
+      />
 
       <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border-subtle)', boxShadow: 'var(--shadow-card)' }}>
-        <VaultMap trips={mappedTrips} />
+        <VaultMap trips={mappedTrips} focusCoords={focusCoords} />
       </div>
     </div>
   );
