@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { MapContainer, GeoJSON, Marker, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { GeoJsonObject, Feature } from 'geojson';
 import { useThemeStore } from '@/stores/themeStore';
@@ -1182,12 +1183,12 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                 <span>{deployedCardData.totalPois}</span>
               </div>
 
-              <button
-                type="button"
+              <Link
+                href={deployedCardData.tripId ? `/trips/${deployedCardData.tripId}` : '#'}
                 data-testid="deployed-trip-see-btn"
-                onClick={() => {
+                onClick={(e) => {
                   if (deployedCardData.tripId) {
-                    router.push(`/trips/${deployedCardData.tripId}`);
+                    window.location.href = `/trips/${deployedCardData.tripId}`;
                   }
                 }}
                 className="font-mono"
@@ -1199,6 +1200,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                   fontSize: '0.78rem',
                   fontWeight: 700,
                   border: 'none',
+                  textDecoration: 'none',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1217,7 +1219,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               >
                 <span>SEE TRIP</span>
                 <span style={{ fontSize: '0.85rem' }}>↗</span>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
