@@ -5,13 +5,13 @@ export default defineConfig({
   timeout: 10000,
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  workers: 1,
+  reporter: [['html', { open: 'never' }], ['list']],
   use: {
     trace: 'on-first-retry',
     ctPort: 3100,
     launchOptions: {
-      args: ['--disable-gpu', '--disable-dev-shm-usage'],
+      args: ['--disable-gpu', '--disable-dev-shm-usage', '--no-sandbox'],
     },
   },
   projects: [
