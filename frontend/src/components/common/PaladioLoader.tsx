@@ -16,10 +16,6 @@ export interface PaladioLoaderProps {
    */
   size?: 'sm' | 'md' | 'lg';
   /**
-   * Telemetry status message displayed underneath.
-   */
-  message?: string;
-  /**
    * Whether to display the Paladio logo. Defaults to true.
    */
   showLogo?: boolean;
@@ -32,7 +28,6 @@ export interface PaladioLoaderProps {
 export function PaladioLoader({
   variant = 'dashboard',
   size,
-  message = '// INITIALIZING SOVEREIGN CONTROL CENTER...',
   showLogo = true,
   className = '',
 }: PaladioLoaderProps) {
@@ -109,14 +104,6 @@ export function PaladioLoader({
           />
         </svg>
       </div>
-
-      {/* Telemetry Status Caption */}
-      {message && (
-        <p className={styles.statusMessage}>
-          <span className={styles.pulseDot} aria-hidden="true" />
-          <span>{message}</span>
-        </p>
-      )}
     </div>
   );
 }

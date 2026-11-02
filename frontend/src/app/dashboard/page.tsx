@@ -68,7 +68,7 @@ export default function DashboardPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loadingWrapper}>
-          <PaladioLoader message="// INITIALIZING SOVEREIGN CONTROL CENTER..." />
+          <PaladioLoader />
         </div>
       </div>
     );

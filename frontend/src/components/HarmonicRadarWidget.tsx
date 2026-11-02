@@ -31,10 +31,8 @@ export interface HarmonicRadarWidgetProps {
 }
 
 export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
-  const [fetchedAffinities, setFetchedAffinities] = useState<Record<string, number>>({});
-  const [fetchedPace, setFetchedPace] = useState<string>('balanced');
-  const [fetchedBudgetTier, setFetchedBudgetTier] = useState<string>('balanced');
-  const [loading, setLoading] = useState<boolean>(!props.user && !props.tagAffinities);
+  const [fetchedUser, setFetchedUser] = useState<User | null>(null);
+  const [fetchLoading, setFetchLoading] = useState<boolean>(!props.user && !props.tagAffinities);
 
   useEffect(() => {
     if (props.user || props.tagAffinities) return;
@@ -44,22 +42,11 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
       try {
         const currentUser = await fetchCurrentUser();
         if (ignore) return;
-
-        const prefs = (currentUser.preferences || {}) as Record<string, unknown>;
-        const rawAffinities = (prefs.tag_affinities || {}) as Record<string, number>;
-
-        const affinities: Record<string, number> = {};
-        CATEGORY_MAP.forEach(({ key }) => {
-          affinities[key] = typeof rawAffinities[key] === 'number' ? rawAffinities[key] : 0.5;
-        });
-        setFetchedAffinities(affinities);
-
-        if (typeof prefs.pace === 'string') setFetchedPace(prefs.pace.toLowerCase());
-        if (typeof prefs.budget_tier === 'string') setFetchedBudgetTier(prefs.budget_tier.toLowerCase());
+        setFetchedUser(currentUser);
       } catch (err) {
         console.warn('Failed to load user preferences for HarmonicRadarWidget', err);
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setFetchLoading(false);
       }
     }
 
@@ -69,13 +56,21 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
     };
   }, [props.user, props.tagAffinities]);
 
-  const affinities = props.tagAffinities || fetchedAffinities;
-  const currentPace = (props.pace || fetchedPace || 'balanced').toLowerCase();
-  const currentBudget = (props.budgetTier || fetchedBudgetTier || 'balanced').toLowerCase();
+  const loading = !props.user && !props.tagAffinities && fetchLoading;
+
+  const effectiveUser = props.user ?? fetchedUser;
+  const userPrefs = (effectiveUser?.preferences || {}) as Record<string, unknown>;
+  const userAffinities = (userPrefs.tag_affinities || {}) as Record<string, number>;
+  const userPace = typeof userPrefs.pace === 'string' ? userPrefs.pace : undefined;
+  const userBudget = typeof userPrefs.budget_tier === 'string' ? userPrefs.budget_tier : undefined;
+
+  const affinities = props.tagAffinities ?? userAffinities;
+  const currentPace = (props.pace ?? userPace ?? 'balanced').toLowerCase();
+  const currentBudget = (props.budgetTier ?? userBudget ?? 'balanced').toLowerCase();
 
   const radarData = CATEGORY_MAP.map(({ key, label }) => ({
     subject: label,
-    A: Math.round((affinities[key] ?? 0.5) * 100),
+    A: Math.round(((affinities && typeof affinities[key] === 'number') ? affinities[key] : 0.5) * 100),
     fullMark: 100,
   }));
 
@@ -96,7 +91,7 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
   if (loading) {
     return (
       <div className={styles.radarCard} style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <PaladioLoader variant="card" showLogo={false} message="// 8-POINT HARMONIC RADAR TELEMETRY..." />
+        <PaladioLoader variant="card" showLogo={false} />
       </div>
     );
   }

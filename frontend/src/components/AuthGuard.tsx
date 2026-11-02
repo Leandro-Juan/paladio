@@ -39,7 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, setupRequired, isLoading, pathname, router]);
 
   if (isLoading) {
-    return <PaladioLoader variant="fullscreen" message="// VERIFYING SOVEREIGN SECURITY GATE..." />;
+    return <PaladioLoader variant="fullscreen" />;
   }
 
   // Auth pages (login, setup) do not render the main app sidebar
@@ -53,7 +53,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // If not logged in and not yet redirected, render transition state instead of blank void
   if (!user) {
-    return <PaladioLoader variant="fullscreen" message="// REDIRECTING TO AUTHENTICATION..." />;
+    return <PaladioLoader variant="fullscreen" />;
   }
 
   // Trip details pages (/trips/[id]) do not render the main app sidebar or global navigation

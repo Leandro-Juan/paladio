@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { chartTheme } from '@/utils/chartTheme';
 
 interface PreferenceRadarProps {
@@ -30,6 +30,34 @@ export default function PreferenceRadar({
     ? { ...chartTheme.axisLabel, fontSize }
     : chartTheme.axisLabel;
 
+  const renderTooltip = ({
+    active,
+    payload,
+  }: any) => {
+    if (active && payload && payload.length) {
+      const val = payload[0].value;
+      return (
+        <div
+          style={{
+            backgroundColor: 'var(--color-surface-card, #FFFFFF)',
+            borderColor: 'var(--color-border, #E2E8F0)',
+            borderRadius: 'var(--radius-md, 8px)',
+            color: 'var(--color-text-primary, #0F172A)',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontSize: '11px',
+            fontWeight: 600,
+            boxShadow: 'var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1))',
+            border: '1px solid var(--color-border, #E2E8F0)',
+            padding: '4px 8px',
+          }}
+        >
+          <span style={{ color: 'var(--color-accent-teal-mid, #14788D)' }}>Affinity:</span> {String(val)}%
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div style={{ width: '100%', height: containerHeight }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -40,12 +68,14 @@ export default function PreferenceRadar({
             tick={tickStyle}
           />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+          <Tooltip content={renderTooltip} />
           <Radar
             name="Preference"
             dataKey="A"
             stroke={chartTheme.series[1]}
             fill={chartTheme.series[1]}
             fillOpacity={0.2}
+            dot={{ r: 3, fill: chartTheme.series[1], stroke: 'var(--color-surface-card, #FFFFFF)', strokeWidth: 1.5 }}
             style={{ stroke: chartTheme.series[1], fill: chartTheme.series[1] }}
           />
         </RadarChart>

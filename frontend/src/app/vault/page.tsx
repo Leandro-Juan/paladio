@@ -78,7 +78,7 @@ export default function VaultPage() {
   });
 
   if (loading) {
-    return <PaladioLoader message="// RETRIEVING SOVEREIGN VAULT..." />;
+    return <PaladioLoader />;
   }
 
   return (

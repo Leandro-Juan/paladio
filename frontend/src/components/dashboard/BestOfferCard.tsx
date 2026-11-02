@@ -52,7 +52,7 @@ export function BestOfferCard() {
   if (isLoading) {
     return (
       <div className={styles.container} style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <PaladioLoader variant="card" showLogo={false} message="SCANNING CORRIDORS FOR BEST OFFER..." />
+        <PaladioLoader variant="card" showLogo={false} />
       </div>
     );
   }

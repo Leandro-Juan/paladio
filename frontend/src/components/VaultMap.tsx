@@ -49,7 +49,7 @@ function WalletIcon({ size = 14 }: { size?: number }) {
 
 function StarIcon({ size = 13 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#E76F51" stroke="#E76F51" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#E2B33C" stroke="#E2B33C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   );
@@ -662,6 +662,11 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               description?: string;
               photo_url?: string;
               cost_eur?: number;
+              scoring?: {
+                google_rating?: number;
+                rating?: number;
+              };
+              rating?: number;
             };
           }>;
         };
@@ -699,8 +704,10 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
         : null) ||
       null;
 
-    // 4. Primary Highlight Landmark & POI count
+    // 4. Primary Highlight Landmark, POI count & Real Average Rating from visited attractions
     let totalPois = 0;
+    let sumRating = 0;
+    let countRating = 0;
     let highlightPoi: {
       name: string;
       category?: string;
@@ -712,31 +719,36 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       for (const day of itin.days) {
         if (day.itinerary?.path && Array.isArray(day.itinerary.path)) {
           totalPois += day.itinerary.path.length;
-          if (!highlightPoi) {
-            for (const stop of day.itinerary.path) {
-              const p = stop.poi;
-              if (!p || !p.name) continue;
+          for (const stop of day.itinerary.path) {
+            const p = stop.poi;
+            if (!p) continue;
+            const r = p.scoring?.google_rating ?? p.scoring?.rating ?? p.rating;
+            if (typeof r === 'number' && !isNaN(r) && r > 0) {
+              sumRating += r;
+              countRating += 1;
+            }
+            if (!highlightPoi && p.name) {
               const cat = (p.category || '').toUpperCase();
               if (
-                cat.includes('AIRPORT') ||
-                cat.includes('TRANSIT') ||
-                cat.includes('HOTEL') ||
-                cat.includes('STATION')
+                !cat.includes('AIRPORT') &&
+                !cat.includes('TRANSIT') &&
+                !cat.includes('HOTEL') &&
+                !cat.includes('STATION')
               ) {
-                continue;
+                highlightPoi = {
+                  name: p.name,
+                  category: p.category || 'Cultural Highlight',
+                  description: p.description || `Historic landmark in ${deployedTrip.destination}`,
+                  photo_url: p.photo_url,
+                };
               }
-              highlightPoi = {
-                name: p.name,
-                category: p.category || 'Cultural Highlight',
-                description: p.description || `Historic landmark in ${deployedTrip.destination}`,
-                photo_url: p.photo_url,
-              };
-              break;
             }
           }
         }
       }
     }
+
+    const avgRating = countRating > 0 ? (sumRating / countRating).toFixed(1) : null;
 
     // Fallback highlight name if none found in days
     if (!highlightPoi) {
@@ -796,6 +808,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       promptText,
       totalPois: totalPois > 0 ? totalPois : 5,
       highlightPoi,
+      avgRating,
       travelerName,
       travelerRole,
       dateRangeStr,
@@ -1145,6 +1158,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               }}
             >
               <div
+                data-testid="deployed-trip-metric-pill"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1157,9 +1171,13 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                   color: mapThemeStyles.cardText,
                 }}
               >
-                <StarIcon size={13} />
-                <span>4.9</span>
-                <span style={{ opacity: 0.4 }}>•</span>
+                {deployedCardData.avgRating && (
+                  <>
+                    <StarIcon size={13} />
+                    <span data-testid="deployed-trip-rating">{deployedCardData.avgRating}</span>
+                    <span style={{ opacity: 0.4 }}>•</span>
+                  </>
+                )}
                 <PinIcon size={12} />
                 <span>{deployedCardData.totalPois}</span>
               </div>

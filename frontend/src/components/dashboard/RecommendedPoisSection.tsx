@@ -179,7 +179,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     return (
       <div className={styles.container}>
         <div className={styles.standbyContainer} style={{ minHeight: '260px', justifyContent: 'center', alignItems: 'center' }}>
-          <PaladioLoader variant="card" showLogo={false} message="// EVALUATING SOVEREIGN TASTE MATCHES..." />
+          <PaladioLoader variant="card" showLogo={false} />
         </div>
       </div>
     );

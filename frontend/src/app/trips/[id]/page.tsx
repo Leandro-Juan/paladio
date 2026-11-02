@@ -59,7 +59,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
   }, [id]);
 
   if (loading) {
-    return <PaladioLoader variant="fullscreen" message="// COMPILING TRIP WORKSPACE..." />;
+    return <PaladioLoader variant="fullscreen" />;
   }
 
   if (error) {

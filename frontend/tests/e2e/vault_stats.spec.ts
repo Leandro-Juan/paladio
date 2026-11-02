@@ -55,7 +55,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
               booking_anchors: { hotel: { name: 'Sevilla Center' } },
             },
             days: [
-              { itinerary: { path: [{ poi: { location: { latitude: 37.3891, longitude: -5.9845 } } }] } }
+              { itinerary: { path: [{ poi: { location: { latitude: 37.3891, longitude: -5.9845 }, scoring: { google_rating: 4.8 } } }] } }
             ]
           }
         },
@@ -73,7 +73,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
               booking_anchors: { hotel: { name: 'Grand Central Hotel Porto' } },
             },
             days: [
-              { itinerary: { path: [{ poi: { location: { latitude: 41.1579, longitude: -8.6291 } } }] } }
+              { itinerary: { path: [{ poi: { location: { latitude: 41.1579, longitude: -8.6291 }, scoring: { google_rating: 4.6 } } }] } }
             ]
           }
         },
@@ -214,6 +214,12 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await expect(telemetryBox).toBeVisible();
   await expect(telemetryBox.locator('text=Base Camp').first()).toBeVisible();
 
+  // Assert dynamic POI rating is calculated from real POIs and hardcoded 4.9 is absent
+  const ratingEl = page.getByTestId('deployed-trip-rating');
+  await expect(ratingEl).toBeVisible();
+  await expect(ratingEl).toHaveText('4.8');
+  await expect(deployedCard.locator('text=4.9')).toHaveCount(0);
+
   // Assert the prominent SEE TRIP button is visible
   const seeTripBtn = page.getByTestId('deployed-trip-see-btn');
   await expect(seeTripBtn).toBeVisible();
@@ -231,7 +237,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await page.waitForTimeout(300);
   await expect(deployedCard).not.toBeVisible();
 
-  // Test Porto trip card with user's specific prompt and Portugal flag
+  // Test Porto trip card with user's specific prompt, Portugal flag, and dynamic rating (4.6)
   const portoMarker = markers.nth(1);
   await portoMarker.click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
@@ -239,16 +245,18 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   const portoPrompt = page.getByTestId('deployed-trip-prompt');
   await expect(portoPrompt).toContainText('Exploring historic wine cellars');
   await expect(deployedCard.locator('text=Portugal')).toBeVisible();
+  await expect(page.getByTestId('deployed-trip-rating')).toHaveText('4.6');
 
   await closeBtn.click();
   await page.waitForTimeout(300);
 
-  // Test trip without prompt (trip-madrid-2 at Sep 24): prompt element should be omitted
+  // Test trip without prompt & unrated (trip-madrid-2 at Sep 24): prompt and rating elements should be omitted
   const fallbackMarker = markers.nth(2);
   await fallbackMarker.click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
   await expect(page.locator('text=Madrid Travel Guide')).toBeVisible();
   await expect(page.getByTestId('deployed-trip-prompt')).toHaveCount(0);
+  await expect(page.getByTestId('deployed-trip-rating')).toHaveCount(0);
 
   // Take screenshot of fallback card without prompt
   await page.locator('body').screenshot({
