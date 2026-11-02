@@ -233,12 +233,12 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(page.getByText('Gornergrat Observatory')).toBeVisible();
     await expect(page.getByText('Zermatlantis Matterhorn Museum')).toBeVisible();
 
-    // Verify badges row: City, Taste Match, and Type Badge on the right
+    // Verify badges row: City, Taste Match, and Type Badge on the right (icon-only with accessible label)
     const categoryBadges = page.locator('[data-testid="poi-category-pill"]');
     await expect(categoryBadges).toHaveCount(3);
-    await expect(categoryBadges.nth(0)).toContainText(/ATTRACTION|VIEWPOINT|SCENIC/i);
-    await expect(categoryBadges.nth(1)).toContainText(/PARK|NATURE/i);
-    await expect(categoryBadges.nth(2)).toContainText(/MUSEUM|ART/i);
+    await expect(categoryBadges.nth(0)).toHaveAttribute('aria-label', /ATTRACTION|VIEWPOINT|SCENIC/i);
+    await expect(categoryBadges.nth(1)).toHaveAttribute('aria-label', /PARK|NATURE/i);
+    await expect(categoryBadges.nth(2)).toHaveAttribute('aria-label', /MUSEUM|ART/i);
 
     // Verify Reserve now buttons
     const reserveButtons = page.getByRole('link', { name: 'Reserve now' });

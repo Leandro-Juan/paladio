@@ -22,10 +22,10 @@
 .imageContainer {
   position: relative;
   width: 100%;
-  height: 125px;
+  flex: 1 1 0%;
+  min-height: 140px;
   overflow: hidden;
   background-color: #111410;
-  flex-shrink: 0;
 }
 
 .image {
@@ -54,11 +54,11 @@
 }
 
 .content {
-  padding: 0 14px 10px;
+  padding: 0 14px 12px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex-grow: 1;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .infoBlock {
@@ -96,8 +96,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
+  flex-wrap: nowrap;
+  margin-bottom: 10px;
 }
 
 .badgePill {
@@ -113,6 +113,23 @@
   font-weight: 500;
   color: #E5E7EB;
   backdrop-filter: blur(8px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cityPill {
+  max-width: 90px;
+}
+
+.cityPill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryIconPill {
+  padding: 2px 6px;
+  justify-content: center;
 }
 
 .badgeIcon {

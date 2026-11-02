@@ -76,7 +76,7 @@ export function RecommendedPoiCard({
           {/* Badges: City, Taste Match, & POI Type / Category (to the right) */}
           <div className={styles.badgesRow}>
             {/* City Badge */}
-            <span className={styles.badgePill}>
+            <span className={`${styles.badgePill} ${styles.cityPill}`}>
               <svg className={styles.badgeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 21s-8-6.5-8-12a8 8 0 1 1 16 0c0 5.5-8 12-8 12z"/>
                 <circle cx="12" cy="9" r="3"/>
@@ -92,11 +92,15 @@ export function RecommendedPoiCard({
               <span>{tasteMatchPct}% Taste Match</span>
             </span>
 
-            {/* POI Type / Category Badge with Icon (to the right of the badges) */}
+            {/* POI Type / Category Badge: Icon only so all 3 badges fit in a row */}
             {categoryMeta && (
-              <span className={styles.badgePill} data-testid="poi-category-pill">
+              <span
+                className={`${styles.badgePill} ${styles.categoryIconPill}`}
+                data-testid="poi-category-pill"
+                title={categoryMeta.label}
+                aria-label={categoryMeta.label}
+              >
                 <CategoryIcon type={categoryMeta.type} size={12} className={styles.badgeIcon} />
-                <span>{categoryMeta.label}</span>
               </span>
             )}
           </div>
