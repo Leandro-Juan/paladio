@@ -8,10 +8,26 @@
   flex-direction: column;
   justify-content: space-between;
   box-shadow: var(--shadow-sm);
-  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms ease,
+              border-color 200ms ease,
+              opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
   min-height: 0;
   height: 100%;
+  animation: cardEntrance 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 
 .card:hover {
   transform: translateY(-2px);
@@ -159,38 +175,119 @@
   opacity: 0.9;
 }
 
-.reserveButton {
-  display: block;
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  padding: 6px 12px;
-  background-color: var(--color-accent-primary, #0F4C5C);
-  color: var(--color-btn-primary-text, #FFFFFF);
+}
+
+.actionButton {
+  flex: 1;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9999px;
-  font-family: var(--font-body, system-ui, sans-serif);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  text-decoration: none;
-  border: 1px solid transparent;
+  background: rgba(15, 76, 92, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--color-btn-primary-text, #FFFFFF);
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform 120ms ease, opacity 120ms ease, background-color 120ms ease;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(15, 76, 92, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 140ms ease,
+              border-color 140ms ease,
+              box-shadow 140ms ease;
 }
 
-.reserveButton:hover {
+.actionButton:hover {
   background-color: var(--color-accent-teal-deep, #0A3642);
-  transform: translateY(-1px);
-  opacity: 0.96;
+  transform: translateY(-1px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 4px 12px rgba(15, 76, 92, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
-.reserveButton:active {
-  transform: translateY(0);
+.actionButton:active {
+  transform: translateY(0) scale(0.97);
 }
 
-[data-theme="dark"] .reserveButton {
-  background-color: var(--color-accent-teal, #14788D);
+[data-theme="dark"] .actionButton {
+  background: rgba(20, 120, 141, 0.8);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
-[data-theme="dark"] .reserveButton:hover {
+[data-theme="dark"] .actionButton:hover {
   background-color: var(--color-accent-teal-deep, #0F3A47);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.actionIcon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.tooltipTrigger {
+  position: relative;
+}
+
+.heartButtonWrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.customTooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  background-color: var(--color-surface-card, #0F3A47);
+  color: var(--color-text-on-accent, #FFFFFF);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 50;
+}
+
+.customTooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--color-surface-card, #0F3A47) transparent transparent transparent;
+}
+
+[data-theme="dark"] .customTooltip {
+  background-color: #122129;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .customTooltip::after {
+  border-color: #122129 transparent transparent transparent;
+}
+
+.tooltipTrigger:hover .customTooltip,
+.heartButtonWrapper:hover .customTooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }

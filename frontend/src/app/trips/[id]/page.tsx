@@ -179,5 +179,9 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
     );
   }
 
-  return <TripWorkspace trip={trip} onTripUpdated={loadTrip} />;
+  return (
+    <React.Suspense fallback={<PaladioLoader variant="fullscreen" />}>
+      <TripWorkspace trip={trip} onTripUpdated={loadTrip} />
+    </React.Suspense>
+  );
 }

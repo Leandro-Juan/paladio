@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { Trip, useTrips } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
@@ -272,7 +273,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       airport: airportAnchor,
       daysOutput: daysOutputList,
     };
-  }, [itinerary, trip.destination]);
+  }, [itinerary]);
 
   const handlePlaceClick = useCallback((place: PlaceItem) => {
     setFocusedPlace({
@@ -343,6 +344,47 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       });
     }
   }, []);
+
+  // Check for deep-linked POI inspection via query parameters
+  const searchParams = useSearchParams();
+  const deepLinkPoi = searchParams?.get('poi');
+  const deepLinkName = searchParams?.get('name');
+  const deepLinkHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const targetKey = deepLinkPoi || deepLinkName;
+    if (!targetKey || deepLinkHandledRef.current === targetKey) return;
+
+    const targetLower = targetKey.trim().toLowerCase();
+    const nameLower = (deepLinkName || '').trim().toLowerCase();
+
+    // Try finding in parsed places
+    const matchedPlace = places.find((p) => {
+      const pId = (p.id || '').toLowerCase();
+      const pName = (p.name || '').trim().toLowerCase();
+      return (
+        (deepLinkPoi && pId === deepLinkPoi.toLowerCase()) ||
+        pName === targetLower ||
+        (nameLower && pName === nameLower)
+      );
+    });
+
+    if (matchedPlace) {
+      deepLinkHandledRef.current = targetKey;
+      queueMicrotask(() => {
+        handlePlaceClick(matchedPlace);
+      });
+    } else if (trip) {
+      // If not in standard places array or trip has no waypoints yet, inspect directly
+      deepLinkHandledRef.current = targetKey;
+      queueMicrotask(() => {
+        handleInspectPoi(deepLinkPoi || deepLinkName || 'waypoint', {
+          id: deepLinkPoi || undefined,
+          name: deepLinkName || deepLinkPoi || 'Waypoint',
+        });
+      });
+    }
+  }, [deepLinkPoi, deepLinkName, places, trip, handlePlaceClick, handleInspectPoi]);
 
   const scheduledPoiDay = useMemo(() => {
     if (!inspectedPoiId && !inspectedPoiFallback?.name) return null;
