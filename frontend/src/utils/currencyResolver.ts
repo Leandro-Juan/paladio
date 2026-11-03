@@ -1,3 +1,6 @@
+import { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '@/utils/api';
+
 export interface CurrencyInfo {
   code: string;
   name: string;
@@ -209,6 +212,28 @@ export function resolveDestinationCurrency(destination?: string): {
     };
   }
 
+  // 1b. Check local storage cache
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(`paladio_dest_curr_${clean}`);
+      if (stored) {
+        const item = JSON.parse(stored) as CurrencyInfo;
+        if (item && item.code) {
+          _DYNAMIC_DEST_CACHE.set(clean, item);
+          return {
+            country: item.country,
+            countryCode: item.countryCode,
+            currency: item.code,
+            symbol: item.symbol,
+            flag: item.flag,
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // 2. Exact currency code match
   const byCode = SUPPORTED_CURRENCY_LIST.find((c) => c.code.toLowerCase() === clean);
   if (byCode) {
@@ -278,8 +303,24 @@ export async function resolveDestinationCurrencyAsync(destination?: string): Pro
     return _DYNAMIC_DEST_CACHE.get(clean)!;
   }
 
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(`paladio_dest_curr_${clean}`);
+      if (stored) {
+        const item = JSON.parse(stored) as CurrencyInfo;
+        if (item && item.code) {
+          _DYNAMIC_DEST_CACHE.set(clean, item);
+          return item;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   try {
-    const res = await fetch(`/api/currency/destination-currency?destination=${encodeURIComponent(destination.trim())}`);
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/currency/destination-currency?destination=${encodeURIComponent(destination.trim())}`);
     if (res.ok) {
       const data = await res.json();
       if (data?.currency) {
@@ -290,6 +331,13 @@ export async function resolveDestinationCurrencyAsync(destination?: string): Pro
           countryCode: data.country_code || info.countryCode,
         };
         _DYNAMIC_DEST_CACHE.set(clean, resolved);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`paladio_dest_curr_${clean}`, JSON.stringify(resolved));
+          } catch {
+            // ignore
+          }
+        }
         return resolved;
       }
     }
@@ -299,6 +347,46 @@ export async function resolveDestinationCurrencyAsync(destination?: string): Pro
 
   const syncFallback = resolveDestinationCurrency(destination);
   return getCurrencyInfo(syncFallback.currency);
+}
+
+export type ResolvedDestinationCurrency = CurrencyInfo & { currency: string };
+
+/**
+ * Reactive hook to resolve a destination city to its currency metadata dynamically.
+ */
+export function useDestinationCurrency(destination?: string): ResolvedDestinationCurrency {
+  const [currencyInfo, setCurrencyInfo] = useState<ResolvedDestinationCurrency>(() => {
+    const sync = resolveDestinationCurrency(destination);
+    return {
+      code: sync.currency,
+      name: sync.currency,
+      country: sync.country,
+      countryCode: sync.countryCode,
+      symbol: sync.symbol,
+      flag: sync.flag,
+      currency: sync.currency,
+    };
+  });
+
+  useEffect(() => {
+    let active = true;
+    if (!destination) return;
+
+    resolveDestinationCurrencyAsync(destination).then((resolved) => {
+      if (active) {
+        setCurrencyInfo({
+          ...resolved,
+          currency: resolved.code,
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [destination]);
+
+  return currencyInfo;
 }
 
 const FX_CACHE_PREFIX = 'paladio_fx_rate_';
@@ -332,7 +420,8 @@ export async function fetchLiveExchangeRate(
 
   // 2. Fetch live via local backend API first (100% self-hosted & resilient)
   try {
-    const res = await fetch(`/api/currency/rates?base=${from}`, { cache: 'no-store' });
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/currency/rates?base=${from}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data?.rates && typeof data.rates[to] === 'number') {
@@ -442,7 +531,8 @@ export async function fetchEurRates(): Promise<Record<string, number>> {
 
   // 2. Try backend API
   try {
-    const res = await fetch('/api/currency/rates?base=EUR', { cache: 'no-store' });
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/currency/rates?base=EUR`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data?.rates) {

@@ -13,7 +13,7 @@ import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { useOptionalAuth } from '@/contexts/AuthContext';
-import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
+import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
 import { getDayColor } from './TripMapView';
 import {
@@ -1187,7 +1187,7 @@ export function TripUnifiedSidebar({
 }: TripUnifiedSidebarProps) {
   const auth = useOptionalAuth();
   const user = auth?.user ?? null;
-  const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(destinationCity), [destinationCity]);
+  const destCurrencyMeta = useDestinationCurrency(destinationCity);
   const activeCurrencyCode = (user?.preferences?.default_currency as string) || destCurrencyMeta.currency || 'EUR';
   const currencySymbol = useMemo(() => {
     const info = getCurrencyInfo(activeCurrencyCode);
@@ -1912,16 +1912,19 @@ export function TripUnifiedSidebar({
           >
                 {/* Pill Tabs */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Route Tab (Replaces Chat) */}
+                  {/* Route Tab */}
                   <button
                     type="button"
                     data-testid="tab-route"
+                    title="Route"
+                    aria-label="Route"
                     onClick={() => setActiveTab('route')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '7px',
-                      padding: '7px 16px',
+                      padding: activeTab === 'route' ? '7px 16px' : '7px 10px',
                       borderRadius: '9999px',
                       border: 'none',
                       background: activeTab === 'route' ? 'var(--color-accent-primary)' : 'transparent',
@@ -1936,19 +1939,22 @@ export function TripUnifiedSidebar({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="3 11 22 2 13 21 11 13 3 11" />
                     </svg>
-                    <span>Route</span>
+                    {activeTab === 'route' && <span>Route</span>}
                   </button>
 
                   {/* Search Tab */}
                   <button
                     type="button"
                     data-testid="tab-search"
+                    title="Search"
+                    aria-label="Search"
                     onClick={() => setActiveTab('search')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '7px',
-                      padding: '7px 16px',
+                      padding: activeTab === 'search' ? '7px 16px' : '7px 10px',
                       borderRadius: '9999px',
                       border: 'none',
                       background: activeTab === 'search' ? 'var(--color-accent-primary)' : 'transparent',
@@ -1961,19 +1967,22 @@ export function TripUnifiedSidebar({
                     }}
                   >
                     <SearchIcon size={13} color="currentColor" />
-                    <span>Search</span>
+                    {activeTab === 'search' && <span>Search</span>}
                   </button>
 
                   {/* Transit Tab */}
                   <button
                     type="button"
                     data-testid="tab-transit"
+                    title="Transit"
+                    aria-label="Transit"
                     onClick={() => setActiveTab('transit')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '7px',
-                      padding: '7px 16px',
+                      padding: activeTab === 'transit' ? '7px 16px' : '7px 10px',
                       borderRadius: '9999px',
                       border: 'none',
                       background: activeTab === 'transit' ? 'var(--color-accent-primary)' : 'transparent',
@@ -1993,19 +2002,22 @@ export function TripUnifiedSidebar({
                       <path d="M5 21l2-3" />
                       <path d="M19 21l-2-3" />
                     </svg>
-                    <span>Transit</span>
+                    {activeTab === 'transit' && <span>Transit</span>}
                   </button>
 
                   {/* Saved Tab */}
                   <button
                     type="button"
                     data-testid="tab-saved"
+                    title="Saved"
+                    aria-label="Saved"
                     onClick={() => setActiveTab('saved')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '7px',
-                      padding: '7px 16px',
+                      padding: activeTab === 'saved' ? '7px 16px' : '7px 10px',
                       borderRadius: '9999px',
                       border: 'none',
                       background: activeTab === 'saved' ? 'var(--color-accent-primary)' : 'transparent',
@@ -2020,7 +2032,7 @@ export function TripUnifiedSidebar({
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>
-                    <span>Saved</span>
+                    {activeTab === 'saved' && <span>Saved</span>}
                     {savedPoiIds.size > 0 && (
                       <span
                         style={{

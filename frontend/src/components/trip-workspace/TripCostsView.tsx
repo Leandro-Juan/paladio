@@ -13,6 +13,7 @@ import { SettlementModal } from './costs/SettlementModal';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   resolveDestinationCurrency,
+  useDestinationCurrency,
   fetchLiveExchangeRate,
   getCurrencyInfo,
   convertCurrency,
@@ -89,8 +90,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
   const currentUserId = currentParticipant?.id || '';
 
-  // Destination country currency
-  const destCurrencyMeta = useMemo(() => resolveDestinationCurrency(trip.destination), [trip.destination]);
+  // Destination country currency (dynamically and reactively resolved)
+  const destCurrencyMeta = useDestinationCurrency(trip.destination);
   const destinationCurrency = destCurrencyMeta.currency;
 
   // Active viewing currency state (defaults to user preference, overridable via wheel picker)

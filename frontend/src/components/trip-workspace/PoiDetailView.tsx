@@ -6,7 +6,7 @@ import { getApiBaseUrl, apiFetch } from '@/utils/api';
 import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
 import { useOptionalAuth } from '@/contexts/AuthContext';
-import { resolveDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
+import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import {
   IzakayaLanternIllustration,
   TeaCeremonyIllustration,
@@ -306,7 +306,7 @@ export function PoiDetailView({
 }: PoiDetailViewProps) {
   const auth = useOptionalAuth();
   const user = auth?.user;
-  const destMeta = useMemo(() => resolveDestinationCurrency(city || fallbackPoi?.city), [city, fallbackPoi?.city]);
+  const destMeta = useDestinationCurrency(city || fallbackPoi?.city);
   const activeCurrencyCode = (user?.preferences?.default_currency as string) || destMeta.currency || 'EUR';
   const currencySymbol = useMemo(() => {
     const info = getCurrencyInfo(activeCurrencyCode);
