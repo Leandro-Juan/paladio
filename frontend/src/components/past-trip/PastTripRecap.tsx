@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import type { Trip, TripExpense, TripSettlement } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTripTickets } from '@/hooks/useTripTickets';
@@ -9,7 +10,9 @@ import { getCountryForDestination } from '@/components/VaultMap';
 import { PastTripUserProfile } from './PastTripUserProfile';
 import { PastTripFlightTicket } from './PastTripFlightTicket';
 import { PastTripParticipants } from './PastTripParticipants';
-import { PastTripRouteMap } from './PastTripRouteMap';
+import TripMapLoader from '@/components/trip-workspace/TripMapLoader';
+import type { MapDayGroup, MapPoi } from '@/components/trip-workspace/TripMapView';
+import { getScheduledPoiTimes } from '@/utils/date';
 import { PastTripDayDots } from './PastTripDayDots';
 import { PastTripTabs, PastTripTabId } from './PastTripTabs';
 import { PastTripSummaryPanel } from './PastTripSummaryPanel';
@@ -19,6 +22,23 @@ interface PastTripRecapProps {
   trip: Trip;
   onTripUpdated?: () => void;
 }
+
+const formatDateRange = (start?: string, end?: string): string => {
+  if (!start) return '';
+  try {
+    const dStart = new Date(start);
+    if (isNaN(dStart.getTime())) return start;
+    const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+    const startStr = dStart.toLocaleDateString(undefined, opt);
+    if (!end) return startStr;
+    const dEnd = new Date(end);
+    if (isNaN(dEnd.getTime())) return startStr;
+    const endStr = dEnd.toLocaleDateString(undefined, opt);
+    return `${startStr} — ${endStr}`;
+  } catch {
+    return start;
+  }
+};
 
 export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
   const { user } = useAuth();
@@ -113,6 +133,121 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
     }
   }, [itin, trip.start_date, trip.end_date]);
 
+  // Extract map days, hotel, and airport for TripMapLoader
+  const { mapDays, hotel, airport } = useMemo(() => {
+    const mapDaysList: MapDayGroup[] = [];
+    let hotelAnchor: { name: string; lat: number; lng: number } | undefined;
+    let airportAnchor: { name: string; lat: number; lng: number } | undefined;
+
+    const itinObj = trip.itinerary_data as {
+      days?: Array<{
+        day?: number;
+        theme?: string;
+        itinerary?: {
+          path?: Array<{
+            poi?: {
+              id?: string;
+              name?: string;
+              category?: string;
+              location?: { latitude?: number; longitude?: number };
+              lat?: number;
+              lng?: number;
+              duration_mins?: number;
+              cost_eur?: number;
+            };
+            arrival_time?: string;
+            departure_time?: string;
+            transit_from_previous?: unknown;
+          }>;
+        };
+      }>;
+      hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number };
+      travel_constraints?: {
+        hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number };
+      };
+      airport?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number };
+    } | null | undefined;
+
+    if (Array.isArray(itinObj?.days)) {
+      itinObj.days.forEach((day, dayIdx) => {
+        const dayNumber = day.day ?? (dayIdx + 1);
+        const dayPois: MapPoi[] = [];
+
+        if (Array.isArray(day?.itinerary?.path)) {
+          day.itinerary.path.forEach((scheduledPoi) => {
+            const p = scheduledPoi?.poi;
+            const lat =
+              p?.location?.latitude ??
+              p?.lat;
+            const lng =
+              p?.location?.longitude ??
+              p?.lng;
+
+            if (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) {
+              const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi as any);
+              const poiItem: MapPoi = {
+                id: p?.id,
+                name: p?.name || 'Waypoint',
+                lat,
+                lng,
+                category: p?.category,
+                arrivalTime: aTime !== '--:--' ? aTime : undefined,
+                departureTime: dTime !== '--:--' ? dTime : undefined,
+                durationMins: p?.duration_mins,
+                costEur: p?.cost_eur,
+                transitFromPrevious: scheduledPoi.transit_from_previous as any,
+              };
+              dayPois.push(poiItem);
+
+              const catUpper = (p?.category || '').toUpperCase();
+              const nameLower = (p?.name || '').toLowerCase();
+              if ((catUpper === 'HOTEL' || nameLower.includes('hotel')) && !hotelAnchor) {
+                hotelAnchor = { name: p?.name || 'Hotel Base Camp', lat, lng };
+              }
+              if ((catUpper === 'AIRPORT' || catUpper === 'FLIGHT' || nameLower.includes('airport')) && !airportAnchor) {
+                airportAnchor = { name: p?.name || 'Transit Airport', lat, lng };
+              }
+            }
+          });
+        }
+
+        mapDaysList.push({
+          dayNumber,
+          label: `DAY ${dayNumber}`,
+          theme: day.theme,
+          pois: dayPois,
+        });
+      });
+    }
+
+    if (!hotelAnchor) {
+      const hInfo = itinObj?.hotel || itinObj?.travel_constraints?.hotel;
+      if (hInfo) {
+        const lat = hInfo.lat ?? hInfo.location?.latitude;
+        const lng = hInfo.lng ?? hInfo.location?.longitude;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          hotelAnchor = { name: hInfo.name || 'Hotel Base Camp', lat, lng };
+        }
+      }
+    }
+    if (!airportAnchor) {
+      const aInfo = itinObj?.airport;
+      if (aInfo) {
+        const lat = aInfo.lat ?? aInfo.location?.latitude;
+        const lng = aInfo.lng ?? aInfo.location?.longitude;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          airportAnchor = { name: aInfo.name || 'Transit Airport', lat, lng };
+        }
+      }
+    }
+
+    return {
+      mapDays: mapDaysList,
+      hotel: hotelAnchor,
+      airport: airportAnchor,
+    };
+  }, [trip.itinerary_data]);
+
   // Find primary flight ticket
   const flightTicket = useMemo(() => {
     const flightTickets = tickets.filter((t) => t.ticket_type === 'flight');
@@ -178,28 +313,115 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
   return (
     <div
       style={{
-        minHeight: '100%',
-        width: '100%',
+        height: '100vh',
+        width: '100vw',
         background: 'var(--color-bg-main, #F5EFEB)',
-        padding: '1.5rem',
-        boxSizing: 'border-box',
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
-      {/* Centered Mockup Card Shell */}
+      {/* Top Header matching Trip Workspace Header */}
+      <header
+        style={{
+          height: '56px',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1.25rem',
+          background: 'var(--color-surface-card)',
+          borderBottom: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-sm)',
+          zIndex: 100,
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+          <Link
+            href="/vault"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              color: 'var(--color-text-muted)',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
+              fontFamily: 'var(--font-mono)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-bg-main)',
+              border: '1px solid var(--color-border)',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ fontSize: '12px' }}>&larr;</span> VAULT
+          </Link>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
+            <h1
+              className="font-display"
+              style={{
+                fontSize: '1.45rem',
+                fontWeight: 300,
+                color: 'var(--color-text-primary)',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {trip.destination}
+            </h1>
+            {trip.start_date && (
+              <span
+                className="font-mono text-muted"
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--color-text-muted)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatDateRange(trip.start_date, trip.end_date)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Link
+            href={`/trips/${tripId}?workspace=1`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--color-text-primary)',
+              textDecoration: 'none',
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.05))',
+              border: '1px solid var(--color-border)',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            OPEN WORKSPACE &rarr;
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Full-Screen Layout Grid */}
       <div
         style={{
-          width: '100%',
-          maxWidth: '1280px',
-          background: 'var(--color-surface-card, #FAF6F0)',
-          borderRadius: '24px',
-          boxShadow: 'var(--shadow-card, 0 10px 40px rgba(0, 0, 0, 0.07))',
-          border: '1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.08))',
+          flex: 1,
           display: 'grid',
-          gridTemplateColumns: 'minmax(270px, 320px) 1fr',
+          gridTemplateColumns: 'minmax(300px, 340px) 1fr',
           overflow: 'hidden',
-          minHeight: '800px',
         }}
         className="vault-recap-grid"
       >
@@ -212,6 +434,8 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             display: 'flex',
             flexDirection: 'column',
             gap: '1.25rem',
+            overflowY: 'auto',
+            height: '100%',
           }}
         >
           {/* User profile & telemetry badges */}
@@ -245,21 +469,38 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
         <main
           style={{
             background: '#FFFFFF',
-            padding: '1.75rem',
+            padding: '1.5rem 2rem',
             display: 'flex',
             flexDirection: 'column',
             gap: '0.75rem',
             overflowY: 'auto',
+            height: '100%',
           }}
         >
-          {/* 1. Hero Map Banner (substituting the photo in the mockup) */}
-          <PastTripRouteMap
-            destination={trip.destination}
-            country={countryName}
-            itineraryData={trip.itinerary_data}
-            selectedDay={selectedDay}
-            height="290px"
-          />
+          {/* 1. Sovereign Keyless Vector Map (identical to Trip Workspace) */}
+          <div
+            style={{
+              height: '380px',
+              minHeight: '340px',
+              width: '100%',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              position: 'relative',
+              border: '1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.12))',
+              boxShadow: 'var(--shadow-card, 0 4px 16px rgba(0, 0, 0, 0.06))',
+              flexShrink: 0,
+            }}
+          >
+            <TripMapLoader
+              days={mapDays}
+              hotel={hotel}
+              airport={airport}
+              activeDay={selectedDay === null ? 'all' : selectedDay}
+              onDayChange={(d) => setSelectedDay(d === 'all' ? null : d)}
+              isSidebarOpen={false}
+              destinationCity={trip.destination}
+            />
+          </div>
 
           {/* 2. Carousel Day Dots (matching mockup pagination dots) */}
           <PastTripDayDots
@@ -293,6 +534,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
                 expenseItems={expenseItems}
                 currency={tripCurrency}
                 photos={photos}
+                destination={trip.destination}
               />
             </section>
 

@@ -8,6 +8,10 @@ import { TripPhotosView } from '@/components/trip-workspace/TripPhotosView';
 import type { TripParticipant, TripSettlement } from '@/hooks/useTrips';
 import type { DisplayExpenseItem } from '@/components/trip-workspace/costs/ExpenseRow';
 
+import { MinimalistPoiCard } from '@/components/trip-workspace/MinimalistPoiCard';
+import { getScheduledPoiTimes } from '@/utils/date';
+import type { ScheduledPoi } from '@/types/domain';
+
 export type PastTripTabId = 'about' | 'itinerary' | 'costs' | 'photos';
 
 interface PastTripTabsProps {
@@ -23,6 +27,7 @@ interface PastTripTabsProps {
   expenseItems: DisplayExpenseItem[];
   currency: string;
   photos: string[];
+  destination?: string;
 }
 
 export function PastTripTabs({
@@ -38,6 +43,7 @@ export function PastTripTabs({
   expenseItems,
   currency,
   photos,
+  destination = '',
 }: PastTripTabsProps) {
   const { addNotification } = useNotificationStore();
 
@@ -101,9 +107,12 @@ export function PastTripTabs({
         itinerary?: {
           path?: Array<{
             poi?: {
+              id?: string;
               name?: string;
               category?: string;
               address?: string;
+              duration_mins?: number;
+              cost_eur?: number;
             };
             arrival_time?: string;
             departure_time?: string;
@@ -150,6 +159,8 @@ export function PastTripTabs({
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => onTabChange(tab.id)}
                 style={{
                   background: 'none',
@@ -476,60 +487,50 @@ export function PastTripTabs({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                    {path.map((step, sIdx) => (
-                      <div
-                        key={sIdx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.03))',
-                        }}
-                      >
-                        <span
-                          className="font-mono"
-                          style={{
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '50%',
-                            background: 'var(--color-accent-primary, #0F4C5C)',
-                            color: '#FFFFFF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {sIdx + 1}
-                        </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                          <span
-                            className="font-display"
-                            style={{
-                              fontSize: '0.85rem',
-                              fontWeight: 600,
-                              color: 'var(--color-text-primary, #1A2B32)',
-                            }}
-                          >
-                            {step.poi?.name || 'Waypoint'}
-                          </span>
-                          {step.poi?.category && (
-                            <span className="font-mono text-muted" style={{ fontSize: '0.68rem' }}>
-                              {step.poi.category}
-                            </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {path.map((step, sIdx) => {
+                      const p = step.poi;
+                      const { start: startTime, end: endTime } = getScheduledPoiTimes(step as unknown as ScheduledPoi);
+                      const stopNum = String(sIdx + 1).padStart(2, '0');
+                      const effectiveStartTime = startTime !== '--:--' ? startTime : step.arrival_time;
+                      const effectiveEndTime = endTime !== '--:--' ? endTime : step.departure_time;
+
+                      return (
+                        <React.Fragment key={p?.name ? `${p.name}-${sIdx}` : `step-${sIdx}`}>
+                          {sIdx > 0 && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                paddingLeft: '32px',
+                                height: '14px',
+                                position: 'relative',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: '0px',
+                                  height: '100%',
+                                  borderLeft: '2px dashed var(--color-accent-teal-deep, #0F4C5C)',
+                                  opacity: 0.8,
+                                }}
+                              />
+                            </div>
                           )}
-                        </div>
-                        {step.arrival_time && (
-                          <span className="font-mono text-muted" style={{ fontSize: '0.72rem' }}>
-                            {step.arrival_time}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                          <MinimalistPoiCard
+                            id={p?.id}
+                            name={p?.name || 'Waypoint'}
+                            category={p?.category}
+                            startTime={effectiveStartTime}
+                            endTime={effectiveEndTime}
+                            durationMins={p?.duration_mins}
+                            costEur={p?.cost_eur}
+                            city={destination}
+                            stopNum={stopNum}
+                          />
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
               );

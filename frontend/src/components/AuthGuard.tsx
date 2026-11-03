@@ -56,8 +56,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return <PaladioLoader variant="fullscreen" />;
   }
 
-  // Trip details pages (/trips/[id]) do not render the main app sidebar or global navigation
-  const isTripDetailsPage = Boolean(pathname && /^\/trips\/[^\/]+/.test(pathname));
+  // Trip details & vault recap pages (/trips/[id], /vault/[id]) do not render the main app sidebar or global navigation
+  const isTripDetailsPage = Boolean(pathname && /^\/(trips|vault)\/[^\/]+/.test(pathname));
   if (isTripDetailsPage) {
     return (
       <main className="trip-details-layout" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
