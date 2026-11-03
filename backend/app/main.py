@@ -14,6 +14,7 @@ from app.api.system import router as system_router
 from app.api.transit import router as transit_router
 from app.api.trips import router as trips_router
 from app.api.users import router as users_router
+from app.api.weather import router as weather_router
 from app.api.websockets import router as websockets_router
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.swarm.graph import create_swarm
@@ -103,4 +104,5 @@ app.include_router(pois_router, prefix="/api/pois", tags=["pois"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
 app.include_router(locations_router, prefix="/api/locations", tags=["locations"])
 app.include_router(transit_router, prefix="/api", tags=["transit"])
+app.include_router(weather_router, prefix="/api/weather", tags=["weather"])
 app.include_router(system_router, prefix="/api/system", tags=["system"])
