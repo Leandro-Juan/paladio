@@ -1184,11 +1184,11 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               </div>
 
               <Link
-                href={deployedCardData.tripId ? `/trips/${deployedCardData.tripId}` : '#'}
+                href={deployedCardData.tripId ? `/vault/${deployedCardData.tripId}` : '#'}
                 data-testid="deployed-trip-see-btn"
                 onClick={(e) => {
                   if (deployedCardData.tripId) {
-                    window.location.href = `/trips/${deployedCardData.tripId}`;
+                    window.location.href = `/vault/${deployedCardData.tripId}`;
                   }
                 }}
                 className="font-mono"

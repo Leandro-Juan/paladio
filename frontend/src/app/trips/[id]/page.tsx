@@ -2,16 +2,21 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
+import { isTripCompleted } from '@/utils/tripParser';
 import { TripWorkspace } from '@/components/trip-workspace/TripWorkspace';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 
 export default function TripWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const forceWorkspace = searchParams?.get('workspace') === '1' || searchParams?.get('force') === '1';
 
   useEffect(() => {
     let isMounted = true;
@@ -28,6 +33,11 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
           }
         } else {
           const data: Trip = await res.json();
+          // If the trip has already ended, redirect directly to its Vault recap page
+          if (isTripCompleted(data) && !forceWorkspace) {
+            router.replace(`/vault/${data.id}`);
+            return;
+          }
           setTrip(data);
         }
       } catch (err: unknown) {

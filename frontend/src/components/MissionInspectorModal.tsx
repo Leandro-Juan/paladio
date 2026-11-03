@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Trip } from '@/hooks/useTrips';
-import { countWaypoints } from '@/utils/tripParser';
+import { countWaypoints, isTripCompleted } from '@/utils/tripParser';
 import { TripStatus, calculateTripDurationDays, downloadTripIcs } from '@/utils/calendarUtils';
 import { CloseIcon } from '@/components/icons';
 
@@ -150,7 +150,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {trip.id && (
             <Link
-              href={`/trips/${trip.id}`}
+              href={isTripCompleted(trip) ? `/vault/${trip.id}` : `/trips/${trip.id}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
