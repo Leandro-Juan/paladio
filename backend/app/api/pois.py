@@ -1663,6 +1663,11 @@ async def get_poi_details(
         except Exception as r_err:
             logger.debug(f"Live rating resolution failed for {poi.id}: {r_err}")
 
+    if not poi.wikidata_id and tags.get("wikidata"):
+        poi.wikidata_id = str(tags["wikidata"]).strip().upper()
+    if not poi.wikipedia_title and tags.get("wikipedia"):
+        poi.wikipedia_title = tags["wikipedia"]
+
     photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
         poi_id=poi.id,
         name=poi.name,
@@ -1694,10 +1699,15 @@ async def get_poi_details(
     )
 
     # Persist resolved description to PostgreSQL if it was missing
-    if description and not poi.description:
+    if (
+        (description and not poi.description)
+        or tags.get("wikidata")
+        or tags.get("wikipedia")
+    ):
         try:
-            poi.description = description
-            poi.description_source = description_source
+            if description and not poi.description:
+                poi.description = description
+                poi.description_source = description_source
             await session.commit()
         except Exception as e:
             logger.debug(f"Failed to persist description for poi {poi.id}: {e}")

@@ -541,8 +541,10 @@ class SqlPoiRepository(IPoiRepository):
                     "embedding": r.get("embedding"),
                     "aliases": list(r.get("aliases", []) or []),
                     "neighborhood": r.get("neighborhood"),
-                    "wikidata_id": r.get("wikidata_id"),
-                    "wikipedia_title": r.get("wikipedia_title"),
+                    "wikidata_id": r.get("wikidata_id")
+                    or (r.get("metadata", {}).get("tags", {}) or {}).get("wikidata"),
+                    "wikipedia_title": r.get("wikipedia_title")
+                    or (r.get("metadata", {}).get("tags", {}) or {}).get("wikipedia"),
                     "website": r.get("website"),
                     "description": r.get("description"),
                     "description_source": r.get("description_source"),

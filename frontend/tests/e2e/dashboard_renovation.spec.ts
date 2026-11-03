@@ -310,12 +310,18 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     const firstHeartTooltip = page.locator('[data-testid="poi-heart-btn"] + [role="tooltip"]').first();
     await expect(firstHeartTooltip).toHaveText('View waypoint in trip details');
 
-    // Verify Cross button has NO native title tooltip (browser black box removed)
+    // Verify Cross button has NO native title tooltip (browser black box removed) but has custom aesthetic tooltip
     expect(await dismissButtons.first().getAttribute('title')).toBeNull();
+    const firstDismissTooltip = page.locator('[data-testid="poi-dismiss-btn"] + [role="tooltip"]').first();
+    await expect(firstDismissTooltip).toHaveText('Dismiss waypoint');
 
     // Verify heart button deep links to trip workspace with POI parameter
     const firstHeartHref = await heartButtons.first().getAttribute('href');
     expect(firstHeartHref).toMatch(/\/trips\/.*poi=/);
+
+    // Hover to capture screenshot of clean white box tooltip
+    await heartButtons.first().hover();
+    await page.locator('main.main-content').screenshot({ path: 'test-results/dashboard_tooltip_hover.png' });
 
     // 5. Verify Swapped Position: Best Offer Card is on the LEFT of Recommended POIs
     const offerBox = await page.getByText('35% OFF').boundingBox();
@@ -348,6 +354,12 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await dismissButtons.first().click();
 
     // The dismissed POI disappears and the next best match (Schwarzsee Alpine Lake) is surfaced
+    await expect(page.getByText('Matterhorn Viewpoint')).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByText('Schwarzsee Alpine Lake')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('[data-testid="poi-heart-btn"]')).toHaveCount(3);
+
+    // Verify dismissed POI persistence across page reload
+    await page.reload();
     await expect(page.getByText('Matterhorn Viewpoint')).not.toBeVisible({ timeout: 3000 });
     await expect(page.getByText('Schwarzsee Alpine Lake')).toBeVisible({ timeout: 3000 });
     await expect(page.locator('[data-testid="poi-heart-btn"]')).toHaveCount(3);

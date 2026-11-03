@@ -46,17 +46,54 @@ function calculateTasteMatch(poi: Record<string, unknown>, userSeed: string): nu
   return 82 + (seed % 17); // 82% to 98%
 }
 
+const DISMISSED_POIS_STORAGE_KEY = 'paladio_dismissed_poi_keys';
+
 export function RecommendedPoisSection({ trips, upcomingTrips, loading }: RecommendedPoisSectionProps) {
   const [enrichedDescriptions, setEnrichedDescriptions] = useState<Record<string, string>>({});
-  const [dismissedPoiKeys, setDismissedPoiKeys] = useState<Set<string>>(new Set());
+  const [dismissedPoiKeys, setDismissedPoiKeys] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(DISMISSED_POIS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return new Set(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load dismissed POIs from localStorage:', e);
+      }
+    }
+    return new Set();
+  });
   const [dynamicCityPois, setDynamicCityPois] = useState<ExtractedPoi[]>([]);
 
-  const handleDismissPoi = useCallback((idOrName: string) => {
+  const handleDismissPoi = useCallback((idOrName: string, poiName?: string) => {
     setDismissedPoiKeys((prev) => {
       const next = new Set(prev);
       next.add(idOrName);
+      next.add(idOrName.toLowerCase());
+      if (poiName) {
+        next.add(poiName);
+        next.add(poiName.toLowerCase());
+        next.add(poiName.trim().toLowerCase());
+      }
+      try {
+        localStorage.setItem(DISMISSED_POIS_STORAGE_KEY, JSON.stringify(Array.from(next)));
+      } catch (err) {
+        console.warn('Failed to save dismissed POIs to localStorage:', err);
+      }
       return next;
     });
+  }, []);
+
+  const handleResetDismissed = useCallback(() => {
+    setDismissedPoiKeys(new Set());
+    try {
+      localStorage.removeItem(DISMISSED_POIS_STORAGE_KEY);
+    } catch (err) {
+      console.warn('Failed to clear dismissed POIs from localStorage:', err);
+    }
   }, []);
 
   // Collect all POI IDs and names that are ALREADY in any itinerary or visited
@@ -265,12 +302,14 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
   const activeCandidates = useMemo(() => {
     if (dismissedPoiKeys.size === 0) return candidatePois;
     return candidatePois.filter((poi) => {
-      const key = poi.id || poi.name;
-      return (
-        !dismissedPoiKeys.has(key) &&
-        !dismissedPoiKeys.has(poi.name) &&
-        !(poi.id && dismissedPoiKeys.has(poi.id))
-      );
+      const id = poi.id;
+      const name = poi.name;
+      const idLower = id ? id.toLowerCase() : '';
+      const nameLower = name ? name.trim().toLowerCase() : '';
+
+      if (id && (dismissedPoiKeys.has(id) || dismissedPoiKeys.has(idLower))) return false;
+      if (name && (dismissedPoiKeys.has(name) || dismissedPoiKeys.has(nameLower))) return false;
+      return true;
     });
   }, [candidatePois, dismissedPoiKeys]);
 
@@ -400,7 +439,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
               {hasDismissals && (
                 <button
                   type="button"
-                  onClick={() => setDismissedPoiKeys(new Set())}
+                  onClick={handleResetDismissed}
                   className={styles.standbySecondaryBtn}
                 >
                   Reset Recommendations

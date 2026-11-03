@@ -15,7 +15,7 @@ export interface RecommendedPoiCardProps {
   photoUrl?: string | null;
   tasteMatchPct: number;
   tripId?: string;
-  onDismiss?: (idOrName: string) => void;
+  onDismiss?: (idOrName: string, name?: string) => void;
 }
 
 function formatCategoryLabel(label?: string): string {
@@ -38,6 +38,7 @@ export function RecommendedPoiCard({
   tripId,
   onDismiss,
 }: RecommendedPoiCardProps) {
+  const [imgFailed, setImgFailed] = React.useState(false);
   const categoryMeta = useMemo(() => {
     return classifyPoiCategory(category, name);
   }, [category, name]);
@@ -53,7 +54,7 @@ export function RecommendedPoiCard({
   const handleDismiss = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onDismiss?.(id || name);
+    onDismiss?.(id || name, name);
   };
 
   const searchParams = new URLSearchParams();
@@ -67,22 +68,52 @@ export function RecommendedPoiCard({
     <div className={styles.card}>
       {/* Top Photo Section with Smooth Gradient Fade */}
       <div className={styles.imageContainer}>
-        <img
-          src={photoUrl}
-          alt={name}
-          className={styles.image}
-          loading="lazy"
-        />
+        {!imgFailed ? (
+          <img
+            src={photoUrl}
+            alt={name}
+            className={styles.image}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, var(--color-surface-card) 0%, var(--color-surface-sunken) 100%)',
+              color: 'var(--color-text-muted)',
+              gap: '6px',
+            }}
+          >
+            <CategoryIcon type={categoryMeta.type} size={32} />
+            <span
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-code, monospace)',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                opacity: 0.8,
+              }}
+            >
+              {categoryMeta.label}
+            </span>
+          </div>
+        )}
         <div className={styles.gradientOverlay} aria-hidden="true" />
       </div>
 
       {/* Content Area */}
       <div className={styles.content}>
         <div className={styles.infoBlock}>
-          <h4 className={styles.title}>
+          <h4 className={styles.title} title={name}>
             {name}
           </h4>
-          <p className={styles.description}>
+          <p className={styles.description} title={displayDesc}>
             {displayDesc}
           </p>
 
@@ -123,26 +154,31 @@ export function RecommendedPoiCard({
 
         {/* Action Controls: Cross (Dismiss without delay) and Heart (Inspect in trip workspace with custom tooltip) */}
         <div className={styles.actionsRow}>
-          <button
-            type="button"
-            className={`${styles.actionButton} ${styles.dismissButton}`}
-            onClick={handleDismiss}
-            aria-label="Dismiss waypoint and find next best match"
-            data-testid="poi-dismiss-btn"
-          >
-            <svg
-              className={styles.actionIcon}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div className={styles.dismissButtonWrapper}>
+            <button
+              type="button"
+              className={`${styles.actionButton} ${styles.dismissButton}`}
+              onClick={handleDismiss}
+              aria-label="Dismiss waypoint and find next best match"
+              data-testid="poi-dismiss-btn"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+              <svg
+                className={styles.actionIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <span className={styles.customTooltip} role="tooltip">
+              Dismiss waypoint
+            </span>
+          </div>
 
           <div className={styles.heartButtonWrapper}>
             <Link

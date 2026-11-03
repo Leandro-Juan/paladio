@@ -89,7 +89,7 @@ export function BestOfferCard() {
           </div>
 
           {/* Route Header */}
-          <h3 className={styles.routeTitle}>
+          <h3 className={styles.routeTitle} title={`${activeDeal.origin_iata} to ${activeDeal.destination_name}`}>
             <span>{activeDeal.origin_iata}</span>
             <span className={styles.arrow} aria-hidden="true">→</span>
             <span>{activeDeal.destination_name}</span>
@@ -158,7 +158,7 @@ export function BestOfferCard() {
                 </svg>
                 <span className={styles.detailText}>
                   <span className={styles.detailLabel}>Best Hotel:</span>
-                  <strong>{activeDeal.lodging.property_name || 'Verified Hotel'}</strong>
+                  <strong title={activeDeal.lodging.property_name || 'Verified Hotel'}>{activeDeal.lodging.property_name || 'Verified Hotel'}</strong>
                   {Boolean(activeDeal.lodging.stars) && (
                     <span style={{ opacity: 0.85, marginLeft: '3px' }}>
                       ({activeDeal.lodging.stars}★)
