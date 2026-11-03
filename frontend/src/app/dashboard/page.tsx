@@ -11,7 +11,7 @@ import { HarmonicRadarWidget } from '@/components/HarmonicRadarWidget';
 import { BestOfferCard } from '@/components/dashboard/BestOfferCard';
 import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
-import { PreferenceModelSection } from '@/components/PreferenceModelSection';
+import { UpcomingTripsSection } from '@/components/dashboard/UpcomingTripsSection';
 import { countWaypoints, extractTripTitle } from '@/utils/tripParser';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './dashboard.module.css';
@@ -19,7 +19,7 @@ import styles from './dashboard.module.css';
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { trips, upcomingTrips, loading } = useTrips();
+  const { trips, upcomingTrips, loading, deleteTrip } = useTrips();
 
   const nextTrip = upcomingTrips.length > 0 ? upcomingTrips[0] : null;
 
@@ -141,8 +141,8 @@ export default function DashboardPage() {
         onSelectPackage={(pkg) => router.push(`/monitoring?route=${pkg.route_id}`)}
       />
 
-      {/* Preference Model Section */}
-      <PreferenceModelSection />
+      {/* All Upcoming Trips Section */}
+      <UpcomingTripsSection upcomingTrips={upcomingTrips} loading={loading} onDeleteTrip={deleteTrip} />
     </div>
   );
 }

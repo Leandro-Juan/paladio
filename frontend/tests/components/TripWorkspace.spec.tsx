@@ -169,13 +169,21 @@ test.describe('Trip Workspace Renovated Components', () => {
     const connector = component.getByTestId('route-poi-connector');
     await expect(connector.first()).toBeVisible();
 
-    // Verify top navigation tabs: Route, Search, Saved
+    // Verify top navigation tabs: Route, Search, Transit, Saved
     const routeTab = component.getByTestId('tab-route');
     const searchTab = component.getByTestId('tab-search');
+    const transitTab = component.getByTestId('tab-transit');
     const savedTab = component.getByTestId('tab-saved');
     await expect(routeTab).toBeVisible();
     await expect(searchTab).toBeVisible();
+    await expect(transitTab).toBeVisible();
     await expect(savedTab).toBeVisible();
+
+    // Verify only the active tab displays its name, others display only icons
+    await expect(routeTab).toHaveText('Route');
+    await expect(searchTab).not.toHaveText('Search');
+    await expect(transitTab).not.toHaveText('Transit');
+    await expect(savedTab).not.toHaveText('Saved');
 
     // Route tab is active by default -> Days bar should be visible
     const daysBar = component.getByTestId('day-selector-tabs');
@@ -187,6 +195,12 @@ test.describe('Trip Workspace Renovated Components', () => {
 
     // Switch to Search tab
     await searchTab.click();
+
+    // Verify Search tab now displays its name while Route tab only displays its icon
+    await expect(searchTab).toHaveText('Search');
+    await expect(routeTab).not.toHaveText('Route');
+    await expect(transitTab).not.toHaveText('Transit');
+    await expect(savedTab).not.toHaveText('Saved');
 
     // Verify width animates/resizes to wider format (520px) in Search tab
     await expect(unifiedCard).toHaveCSS('width', '520px');

@@ -1,0 +1,285 @@
+.card {
+  background-color: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 26px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Header Top Row: Title + Route Corridor */
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.title {
+  font-family: var(--font-display, "Playfair Display", Georgia, serif);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-text-primary, #1A1A1A);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.corridorBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-bg-secondary, #EDE6DC);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  padding: 4px 10px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #4A4A4A);
+  margin-top: 2px;
+}
+
+.corridorText {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-text-primary, #1A1A1A);
+  white-space: nowrap;
+}
+
+/* Subtitle: Destination & Country */
+.subtitle {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text-secondary, #3D3D3D);
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Meta Strip: Duration + Date Range Pill */
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text-primary, #1A1A1A);
+}
+
+.datePill {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-bg-secondary, #EDE6DC);
+  color: var(--color-text-secondary, #5C554E);
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* Banner Image & Countdown Badge */
+.imageContainer {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: var(--color-bg-main, #F3EDE6);
+  flex-shrink: 0;
+}
+
+.bannerImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.card:hover .bannerImage {
+  transform: scale(1.03);
+}
+
+.bannerPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #DFD7CC 0%, #C8BFB4 100%);
+  color: #7A7268;
+}
+
+.countdownBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #FFFFFF;
+  border-radius: 9999px;
+  padding: 4px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  color: #1A1A1A;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  z-index: 2;
+}
+
+/* Important Trip Information Badges (replacing notes) */
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.infoPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.pillMint {
+  background-color: #D6EFE5;
+  color: #1A543A;
+}
+
+.pillSky {
+  background-color: #E0F2FE;
+  color: #0369A1;
+}
+
+.pillAmber {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.pillLavender {
+  background-color: #ECE7FB;
+  color: #4A3496;
+}
+
+.pillBlush {
+  background-color: #FCE6EA;
+  color: #9E344A;
+}
+
+.label {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary, #1A1A1A);
+  margin-right: 2px;
+}
+
+/* Going Section */
+.goingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.avatarsList {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid #7EA8D6;
+  background-color: #E8F0FE;
+  color: #1A4D80;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Footer Action */
+.footerAction {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.abortBtn {
+  background: transparent;
+  border: 1px solid rgba(179, 38, 30, 0.3);
+  color: #B3261E;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm, 6px);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+}
+
+.abortBtn:hover {
+  background: rgba(179, 38, 30, 0.08);
+  border-color: #B3261E;
+}
+
+.detailsLink {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0284C7;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+.detailsLink:hover {
+  color: #0369A1;
+  text-decoration: underline;
+}

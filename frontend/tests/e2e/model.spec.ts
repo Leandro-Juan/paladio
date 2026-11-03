@@ -82,48 +82,17 @@ test.describe('Preference Model & Taste Vector Telemetry', () => {
       }
     });
 
-    // Navigate to /dashboard (where preference model telemetry now lives)
+    // Navigate to /dashboard
     await page.goto('/dashboard');
 
-    // Verify Header and Subtitle
-    await expect(page.getByRole('heading', { name: /PREFERENCE MODEL/i })).toBeVisible();
-    await expect(page.getByText(/SOVEREIGN TASTE VECTOR/i)).toBeVisible();
-    await expect(page.getByText(/VECTOR DIM: 768D/i)).toBeVisible();
+    // Verify Preference Model Telemetry section is removed from /dashboard
+    await expect(page.getByRole('heading', { name: /PREFERENCE MODEL/i })).not.toBeVisible();
+    await expect(page.locator('[data-testid="preference-model-section"]')).not.toBeVisible();
 
-    // Verify all 8 categories exist in telemetry
-    const categories = [
-      'Art & Culture',
-      'Historical Sites',
-      'Nature & Outdoors',
-      'Architecture',
-      'Culinary & Food',
-      'Nightlife',
-      'Shopping & Bazaars',
-      'Scenic Views',
-    ];
-    for (const cat of categories) {
-      await expect(page.getByText(cat).first()).toBeVisible();
-    }
-
-    // Verify Macro Engine Status and Autonomous Indicator
-    await expect(page.getByText(/\[ AUTONOMOUS \]/i)).toBeVisible();
-    await expect(page.getByText('TRAVEL PACE')).toBeVisible();
-    await expect(page.getByText('BUDGET STRATEGY')).toBeVisible();
-    await expect(page.getByText(/balanced/i).first()).toBeVisible();
-
-    // Verify Autonomous Notice
-    await expect(page.getByText(/AUTONOMOUS ML TELEMETRY/i)).toBeVisible();
-
-    // Verify strict restriction: No manual sliders, selects, or save buttons exist in telemetry section
-    const telemetrySection = page.locator('[data-testid="preference-model-section"]');
-    await expect(telemetrySection.locator('input[type="range"]')).toHaveCount(0);
-    await expect(telemetrySection.locator('select')).toHaveCount(0);
-    await expect(telemetrySection.getByRole('button', { name: /SAVE PREFERENCE/i })).toHaveCount(0);
-
-    // Take screenshot of autonomous read-only telemetry dashboard
-    await page.screenshot({
-      path: 'test-results/preference_model_saved.png',
-    });
+    // Verify Upcoming Trips section is rendered at the bottom of the dashboard
+    const upcomingTripsSection = page.locator('[data-testid="upcoming-trips-section"]');
+    await expect(upcomingTripsSection).toBeVisible();
+    await expect(upcomingTripsSection.getByRole('heading', { name: /UPCOMING TRIPS/i })).toBeVisible();
   });
 });
 

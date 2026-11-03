@@ -116,7 +116,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               RETRY
             </button>
             <Link
-              href="/trips"
+              href="/dashboard"
               style={{
                 padding: '8px 16px',
                 background: 'var(--color-surface-card)',
@@ -129,7 +129,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
                 alignItems: 'center',
               }}
             >
-              &larr; RETURN TO TRIPS
+              &larr; RETURN TO DASHBOARD
             </Link>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
             [ MISSION DATA NOT FOUND FOR ID: {id} ]
           </p>
           <Link
-            href="/trips"
+            href="/dashboard"
             style={{
               marginTop: '1.5rem',
               display: 'inline-block',
@@ -182,7 +182,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               fontWeight: 600,
             }}
           >
-            &larr; RETURN TO TRIPS
+            &larr; RETURN TO DASHBOARD
           </Link>
         </div>
       </div>

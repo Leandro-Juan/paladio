@@ -30,10 +30,27 @@ test.describe('Trips Page - Abort Mission Modal', () => {
       }
     });
 
-    await page.goto('/trips');
-    await expect(page.getByText('Madrid')).toBeVisible();
+    await page.route(/.*\/api(\/v1)?\/market\/summary.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ monitored_routes: 0, deals_detected: 0, ticks_scanned_today: 0, avg_savings_pct: 0 }),
+      });
+    });
 
-    const abortBtn = page.getByRole('button', { name: 'ABORT' });
+    await page.route(/.*\/api(\/v1)?\/market\/routes.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/market\/deals.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.goto('/dashboard');
+    const card = page.getByTestId('upcoming-trip-card').first();
+    await expect(card).toBeVisible();
+
+    const abortBtn = card.getByRole('button', { name: 'ABORT' });
     await expect(abortBtn).toBeVisible();
     await abortBtn.click();
 

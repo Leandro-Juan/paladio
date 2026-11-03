@@ -13,7 +13,7 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
     const sidebar = page.locator('nav.sidebar');
     await expect(sidebar).toBeVisible();
 
-    // Verify all 4 primary workspace tabs are present
+    // Verify primary workspace tabs are present and Upcoming Trips is removed from sidebar
     const controlCenterLink = sidebar.getByRole('link', { name: /Control Center/i });
     const engineLink = sidebar.getByRole('link', { name: /Active Engine|New Trip/i });
     const tripsLink = sidebar.getByRole('link', { name: /Upcoming Trips/i });
@@ -21,7 +21,7 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
 
     await expect(controlCenterLink).toBeVisible();
     await expect(engineLink).toBeVisible();
-    await expect(tripsLink).toBeVisible();
+    await expect(tripsLink).not.toBeVisible();
     await expect(vaultLink).toBeVisible();
 
     // Verify System Config is NOT in the sidebar links
@@ -119,8 +119,8 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
     await expect(sidebar).not.toBeVisible({ timeout: 15000 });
     await expect(page.locator('header.mobile-app-header')).not.toBeVisible();
 
-    // 3. Trip workspace header should be visible with its back button to trips
-    const backBtn = page.getByRole('link', { name: /TRIPS/i });
+    // 3. Trip workspace header should be visible with its back button to dashboard
+    const backBtn = page.getByRole('link', { name: /DASHBOARD/i });
     await expect(backBtn).toBeVisible({ timeout: 15000 });
   });
 });

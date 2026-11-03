@@ -160,7 +160,7 @@ export function TripWorkspaceHeader({
       {/* Left: Back Link & Title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
         <Link
-          href="/trips"
+          href="/dashboard"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -178,7 +178,7 @@ export function TripWorkspaceHeader({
             fontWeight: 600,
           }}
         >
-          <span style={{ fontSize: '12px' }}>&larr;</span> TRIPS
+          <span style={{ fontSize: '12px' }}>&larr;</span> DASHBOARD
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
