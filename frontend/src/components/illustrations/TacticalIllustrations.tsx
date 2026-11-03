@@ -211,3 +211,123 @@ export function BentoBoxLayoutIllustration({
     </svg>
   );
 }
+
+export function CameraTacticalIllustration({
+  size,
+  width = 140,
+  height = 90,
+  className = '',
+  style,
+  ...props
+}: IllustrationProps) {
+  const w = size ?? width;
+  const h = size ?? height;
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox="0 0 120 80"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}
+      style={{ display: 'block', margin: '0 auto', ...style }}
+      {...props}
+    >
+      {/* Celestial Sun Seal */}
+      <circle cx="94" cy="18" r="6" fill="var(--color-accent-coral, #D42A2F)" opacity="0.85" />
+      <circle cx="94" cy="18" r="2.2" fill="var(--color-accent-gold, #E2B33C)" />
+
+      {/* Grounding Telemetry Baseline */}
+      <line
+        x1="16"
+        y1="73"
+        x2="104"
+        y2="73"
+        stroke="var(--color-border, #E2D9CC)"
+        strokeWidth="1.2"
+        strokeDasharray="4 3"
+      />
+
+      {/* Shutter Button & Dial */}
+      <rect x="28" y="20" width="8" height="5" rx="1.5" fill="var(--color-accent-coral, #D42A2F)" />
+      <rect x="78" y="21" width="10" height="4" rx="1" fill="var(--color-border-input, #7D9099)" />
+
+      {/* Prism Housing Top Turret */}
+      <path
+        d="M44 24 L48 16 H64 L68 24 Z"
+        fill="var(--color-accent-teal-deep, #0F4C5C)"
+        stroke="var(--color-border, #E2D9CC)"
+        strokeWidth="1.2"
+      />
+
+      {/* Main Camera Body */}
+      <rect
+        x="20"
+        y="24"
+        width="80"
+        height="45"
+        rx="8"
+        fill="var(--color-surface-card, #FAF6F0)"
+        stroke="var(--color-border, #E2D9CC)"
+        strokeWidth="1.6"
+      />
+
+      {/* Grip Texture Inset */}
+      <path
+        d="M20 32 H30 V61 H20"
+        stroke="var(--color-border, #E2D9CC)"
+        strokeWidth="1"
+        fill="none"
+        strokeDasharray="2 2"
+      />
+
+      {/* Rangefinder Optical Window */}
+      <rect
+        x="76"
+        y="29"
+        width="14"
+        height="8"
+        rx="2"
+        fill="var(--color-accent-teal-soft, #7CC4D1)"
+        stroke="var(--color-accent-teal-mid, #1B8FA6)"
+        strokeWidth="1"
+        opacity="0.85"
+      />
+      <circle cx="83" cy="33" r="1.5" fill="#FFFFFF" opacity="0.8" />
+
+      {/* Concentric Lens Reflex Assembly */}
+      <circle
+        cx="56"
+        cy="47"
+        r="17"
+        fill="var(--color-surface-raised, #FFFFFF)"
+        stroke="var(--color-accent-teal-deep, #0F4C5C)"
+        strokeWidth="2"
+      />
+      <circle
+        cx="56"
+        cy="47"
+        r="13"
+        fill="var(--color-accent-teal-deep, #0F4C5C)"
+      />
+      <circle
+        cx="56"
+        cy="47"
+        r="8.5"
+        fill="var(--color-accent-teal-mid, #1B8FA6)"
+      />
+      {/* Optical Reflection Flare */}
+      <path
+        d="M51 43 A 6.5 6.5 0 0 1 61 43"
+        stroke="var(--color-accent-teal-soft, #7CC4D1)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <circle cx="59" cy="45" r="1.5" fill="var(--color-accent-gold, #E2B33C)" />
+    </svg>
+  );
+}
+

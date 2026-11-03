@@ -100,8 +100,7 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
     <div className={styles.container}>
       <div className={styles.radarCard}>
         <div className={styles.header}>
-          <span className={styles.headerTag}>{'// 8-POINT HARMONIC RADAR'}</span>
-          <span className={styles.utilityTag}>C++20 UTILITY</span>
+          <span className={styles.headerTag}>Taste Star</span>
         </div>
 
         <div className={styles.chartWrapper}>

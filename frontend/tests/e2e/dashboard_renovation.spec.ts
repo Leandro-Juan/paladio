@@ -257,8 +257,8 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(page.getByText('OPEN COCKPIT')).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Zermatt' })).toBeVisible();
 
-    // 2. Verify Top Right: 8-Point Harmonic Radar (Star)
-    await expect(page.getByText('// 8-POINT HARMONIC RADAR')).toBeVisible();
+    // 2. Verify Top Right: Taste Star
+    await expect(page.getByText('Taste Star')).toBeVisible();
 
     // 3. Verify Bottom Left: The Best Offer Card for Monitored Routes (Outbound + Return + Best Hotel)
     await expect(page.getByText('35% OFF')).toBeVisible();
@@ -457,5 +457,220 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
 
     // Screenshot of the no-trips dashboard empty state
     await page.locator('main.main-content').screenshot({ path: 'test-results/dashboard_no_trips_standby.png' });
+  });
+
+  test('renders saved collections section below upcoming trips and supports deep linking', async ({ page }) => {
+    await mockPaladioWebSocket(page);
+
+    await page.addInitScript(() => {
+      localStorage.setItem('paladio_token', 'mock-valid-token');
+    });
+
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ setup_required: false, user_count: 1 }),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/(auth|users)\/me/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'admin-id',
+          email: 'admin@paladio.internal',
+          username: 'admin',
+          role: 'admin',
+          is_active: true,
+          preferences: {},
+          has_embedding: true,
+        }),
+      });
+    });
+
+    const mockTripSwissAlps = {
+      id: 'trip-swiss-alps',
+      destination: 'Zermatt',
+      start_date: '2026-12-10',
+      end_date: '2026-12-15',
+      itinerary_data: { days: [] },
+    };
+
+    const mockCollections = [
+      {
+        id: 'col-matterhorn-vault',
+        trip_id: 'trip-swiss-alps',
+        trip_destination: 'Zermatt',
+        name: 'Matterhorn Alpine Spots',
+        description: 'High-altitude panoramic views and mountain refuges',
+        color: '#0F4C5C',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        items_count: 2,
+        items: [
+          {
+            id: 'item-1',
+            collection_id: 'col-matterhorn-vault',
+            poi_id: 'poi-matterhorn',
+            notes: 'Bring warm coat',
+            order_index: 0,
+            created_at: new Date().toISOString(),
+            poi: {
+              id: 'poi-matterhorn',
+              name: 'Matterhorn Viewpoint',
+              category: 'scenic_views',
+              photo_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800',
+            },
+          },
+          {
+            id: 'item-2',
+            collection_id: 'col-matterhorn-vault',
+            poi_id: 'poi-gornergrat',
+            order_index: 1,
+            created_at: new Date().toISOString(),
+            poi: {
+              id: 'poi-gornergrat',
+              name: 'Gornergrat Observatory',
+              category: 'nature_outdoors',
+            },
+          },
+        ],
+      },
+    ];
+
+    await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([mockTripSwissAlps]),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/saved-collections/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockCollections),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/trip-swiss-alps(\?.*)?$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTripSwissAlps),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/trip-swiss-alps\/collections/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockCollections),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/market\/.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/dashboard');
+
+    // 1. Verify section visibility
+    const upcomingSection = page.locator('[data-testid="upcoming-trips-section"]');
+    const savedCollectionsSection = page.locator('[data-testid="saved-collections-section"]');
+
+    await expect(upcomingSection).toBeVisible();
+    await expect(savedCollectionsSection).toBeVisible();
+
+    // 2. Verify Saved Collections is positioned strictly BELOW Upcoming Trips
+    const upcomingBox = await upcomingSection.boundingBox();
+    const collectionsBox = await savedCollectionsSection.boundingBox();
+    expect(upcomingBox).toBeTruthy();
+    expect(collectionsBox).toBeTruthy();
+    if (upcomingBox && collectionsBox) {
+      expect(collectionsBox.y).toBeGreaterThan(upcomingBox.y);
+    }
+
+    // 3. Verify Saved Collections Header & Badge
+    await expect(page.getByRole('heading', { level: 2, name: 'SAVED COLLECTIONS' })).toBeVisible();
+    await expect(page.locator('[data-testid="saved-collections-count"]')).toHaveText('1 CURATED');
+
+    // 4. Verify Collection Card details
+    const card = page.locator('[data-testid="saved-collection-card-col-matterhorn-vault"]');
+    await expect(card).toBeVisible();
+    await expect(card.getByText('Matterhorn Alpine Spots')).toBeVisible();
+    await expect(card.getByText('Zermatt')).toBeVisible();
+    await expect(card.getByText('High-altitude panoramic views and mountain refuges')).toBeVisible();
+    await expect(card.getByText('Matterhorn Viewpoint')).toBeVisible();
+    await expect(card.getByText('Gornergrat Observatory')).toBeVisible();
+    await expect(card.getByText('2 places')).toBeVisible();
+    await expect(card.getByText('OPEN VAULT')).toBeVisible();
+
+    // 5. Verify Click navigates to trip workspace with ?tab=saved
+    await card.click();
+    await page.waitForURL(/\/trips\/trip-swiss-alps\?tab=saved/);
+    expect(page.url()).toContain('/trips/trip-swiss-alps?tab=saved');
+  });
+
+  test('renders empty state for saved collections when user has no collections yet', async ({ page }) => {
+    await mockPaladioWebSocket(page);
+
+    await page.addInitScript(() => {
+      localStorage.setItem('paladio_token', 'mock-valid-token');
+    });
+
+    await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ setup_required: false, user_count: 1 }),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/(auth|users)\/me/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'admin-id',
+          email: 'admin@paladio.internal',
+          username: 'admin',
+          role: 'admin',
+          is_active: true,
+          preferences: {},
+          has_embedding: true,
+        }),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/saved-collections/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/market\/.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/dashboard');
+
+    // Verify empty state
+    const emptyState = page.locator('[data-testid="saved-collections-empty"]');
+    await expect(emptyState).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: 'No Saved Collections' })).toBeVisible();
+    await expect(page.locator('[data-testid="saved-collections-count"]')).toHaveText('0 CURATED');
+    await expect(emptyState.getByRole('link', { name: '+ Plan New Expedition' })).toBeVisible();
   });
 });

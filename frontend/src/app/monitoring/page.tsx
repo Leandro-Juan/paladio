@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { RouteFullScreenView } from '@/components/monitoring/RouteFullScreenView';
 import { NewRouteModal } from '@/components/monitoring/NewRouteModal';
@@ -16,6 +16,8 @@ import styles from './Monitoring.module.css';
 
 export default function MonitoringPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const routeParam = searchParams?.get('route') || searchParams?.get('route_id');
   const {
     routes,
     deals,
@@ -50,6 +52,13 @@ export default function MonitoringPage() {
   const [isNewModalOpen, setIsNewModalOpen] = useState<boolean>(false);
   const [activeHistoryRange, setActiveHistoryRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
   const [activeMonthsCount, setActiveMonthsCount] = useState<number>(4);
+
+  // Auto-select corridor if passed via query parameter (e.g., from Dashboard Calendar)
+  useEffect(() => {
+    if (routeParam && routes.length > 0) {
+      selectRoute(routeParam);
+    }
+  }, [routeParam, routes, selectRoute]);
 
   // Filtered routes
   const filteredRoutes = useMemo(() => {

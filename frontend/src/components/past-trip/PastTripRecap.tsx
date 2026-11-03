@@ -535,6 +535,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
                 currency={tripCurrency}
                 photos={photos}
                 destination={trip.destination}
+                tripId={trip.id}
               />
             </section>
 

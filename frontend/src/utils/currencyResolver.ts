@@ -611,10 +611,10 @@ export function formatCurrencyAmount(
 ): string {
   const cur = (currency || 'EUR').toUpperCase().trim();
   const info = getCurrencyInfo(cur);
-  const minDigits = options?.minimumFractionDigits !== undefined ? options.minimumFractionDigits : 2;
   const maxDigits = options?.maximumFractionDigits !== undefined ? options.maximumFractionDigits : 2;
+  const minDigits = options?.minimumFractionDigits !== undefined ? options.minimumFractionDigits : Math.min(2, maxDigits);
   const formattedNumber = Math.abs(amount).toLocaleString(undefined, {
-    minimumFractionDigits: minDigits,
+    minimumFractionDigits: Math.min(minDigits, maxDigits),
     maximumFractionDigits: maxDigits,
   });
   const prefix = amount < 0 ? '-' : '';

@@ -61,6 +61,22 @@
   width: 100%;
 }
 
+.holidayPaintingActive,
+.holidayPaintingActive .miniDayCell,
+.holidayPaintingActive .dayCell {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' fill='%23FFFFFF' stroke='%23111827' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M15 5l4 4' stroke='%23111827' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2 22l3.5-.8-2.7-2.7L2 22z' fill='%23111827'/%3E%3C/svg%3E") 2 22, crosshair !important;
+}
+
+.holidayPaintingActive .miniDayCellOutside,
+.holidayPaintingActive .dayCellOutside {
+  cursor: default !important;
+}
+
+.holidayChipActive {
+  outline: 2px solid var(--color-gold, #E2B33C);
+  background: rgba(226, 179, 60, 0.2) !important;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
@@ -339,6 +355,16 @@
   opacity: 0.38;
 }
 
+.dayCellPast {
+  background: rgba(0, 0, 0, 0.035);
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+.dayCellPast .dateNum {
+  color: var(--color-text-muted);
+  opacity: 0.55;
+}
+
 .dayCellToday {
   background: rgba(226, 179, 60, 0.04);
 }
@@ -568,6 +594,22 @@
   transform: none;
 }
 
+.miniDayCellPast {
+  background: rgba(0, 0, 0, 0.045);
+  border-color: rgba(0, 0, 0, 0.03);
+  opacity: 0.72;
+}
+
+.miniDayCellPast .miniDayNum {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.miniDayCellPast:hover {
+  transform: scale(1.02);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
 .miniDayCellToday {
   border: 1px solid var(--color-sun, #D42A2F);
 }
@@ -601,6 +643,91 @@
   height: 4px;
   border-radius: 2px;
   margin-top: 1px;
+}
+
+.miniMonitoredDealBadge {
+  width: 100%;
+  padding: 1px 2px;
+  margin-top: 1px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px dashed #D97706;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: #92400E;
+  cursor: pointer;
+  line-height: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 120ms ease;
+  z-index: 3;
+}
+
+.miniMonitoredDealBadge:hover {
+  background: #FDE68A;
+  border-color: #B45309;
+  transform: scale(1.04);
+  box-shadow: 0 2px 5px rgba(217, 119, 6, 0.25);
+}
+
+.monitoredDealBar {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 6px;
+  min-height: 22px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  background: rgba(254, 243, 199, 0.88);
+  border: 1.5px dashed #D97706;
+  color: #92400E;
+  position: relative;
+  transition: all 120ms ease;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.08);
+  z-index: 2;
+}
+
+.monitoredDealBar:hover {
+  background: #FEF3C7;
+  border-color: #B45309;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(217, 119, 6, 0.22);
+}
+
+.monitoredDealTag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  background: #D97706;
+  color: #FFFFFF;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.monitoredDealRoute {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitoredDealPrice {
+  font-weight: 700;
+  color: #78350F;
+  flex-shrink: 0;
 }
 
 /* Day Planning Anchored Popover */

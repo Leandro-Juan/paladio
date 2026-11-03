@@ -6,7 +6,7 @@ import { Trip } from '@/hooks/useTrips';
 import { apiFetch } from '@/utils/api';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
-import type { HolidayMatchedPackage } from '@/hooks/useRouteMonitoring';
+import type { HolidayMatchedPackage, DealPackage } from '@/hooks/useRouteMonitoring';
 import {
   generateMonthGrid,
   generateYearGrid,
@@ -106,6 +106,46 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     });
     return map;
   }, [holidayPackages]);
+
+  // 3 best deals of each monitored route
+  const [monitoredDeals, setMonitoredDeals] = useState<DealPackage[]>([]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadMonitoredDeals() {
+      try {
+        const deals = await apiFetch<DealPackage[]>(
+          `/market/routes-best-deals?limit_per_route=3&currency=${userCurrency}`
+        );
+        if (!isCancelled && Array.isArray(deals)) {
+          setMonitoredDeals(deals);
+        }
+      } catch {
+        if (!isCancelled) setMonitoredDeals([]);
+      }
+    }
+    loadMonitoredDeals();
+    return () => {
+      isCancelled = true;
+    };
+  }, [userCurrency]);
+
+  // Index monitored deals by depart date for fast calendar cell lookup
+  const monitoredDealsByDepartDate = useMemo(() => {
+    const map: Record<string, DealPackage[]> = {};
+    monitoredDeals.forEach((deal) => {
+      if (!map[deal.depart_date]) {
+        map[deal.depart_date] = [];
+      }
+      map[deal.depart_date].push(deal);
+    });
+    return map;
+  }, [monitoredDeals]);
+
+  const handleDealClick = (e: React.MouseEvent, deal: DealPackage) => {
+    e.stopPropagation();
+    router.push(`/monitoring?route=${deal.alert_id}`);
+  };
 
   const saveHolidays = (nextHolidays: Set<string>) => {
     setHolidays(nextHolidays);
@@ -249,7 +289,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
   };
 
   return (
-    <div className={styles.wrapper}>
+    <div className={`${styles.wrapper} ${interactionMode === 'HOLIDAY' ? styles.holidayPaintingActive : ''}`}>
       {/* KPI Row */}
       <div className={styles.kpiRow}>
         <div className={styles.kpiCell}>
@@ -359,7 +399,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               <button
                 type="button"
                 onClick={() => {
-                  setInteractionMode('HOLIDAY');
+                  setInteractionMode((prev) => (prev === 'HOLIDAY' ? 'PLAN' : 'HOLIDAY'));
                   setActivePopover(null);
                 }}
                 className={`${styles.segmentedBtn} ${interactionMode === 'HOLIDAY' ? styles.holidayBtnActive : ''}`}
@@ -410,18 +450,37 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <span>{trip.destination}</span>
               </div>
             ))}
-            <div className={styles.tripLegendChip} title="Personal Holiday / PTO days (amber hatch)">
+            <div
+              className={`${styles.tripLegendChip} ${interactionMode === 'HOLIDAY' ? styles.holidayChipActive : ''}`}
+              onClick={() => {
+                setInteractionMode((prev) => (prev === 'HOLIDAY' ? 'PLAN' : 'HOLIDAY'));
+                setActivePopover(null);
+              }}
+              title="Click to toggle Holiday / PTO painting mode"
+              style={{ cursor: 'pointer' }}
+            >
               <span className={styles.holidaySwatch} />
               <span>Holiday / PTO ({telemetry.holidayDays}d)</span>
             </div>
-            {holidayPackages.length > 0 && (
+            {monitoredDeals.length > 0 && (
               <div
                 className={styles.tripLegendChip}
-                style={{ borderColor: '#F59E0B', background: '#FEF3C7', color: '#92400E' }}
-                title={`${holidayPackages.length} monitored deal package(s) fit completely within your marked holidays`}
+                onClick={() => router.push('/monitoring')}
+                style={{
+                  borderColor: '#D97706',
+                  borderStyle: 'dashed',
+                  borderWidth: '1.5px',
+                  background: '#FEF3C7',
+                  color: '#92400E',
+                  cursor: 'pointer',
+                }}
+                title={`${monitoredDeals.length} best deal(s) across monitored routes — Click to view Route Monitoring`}
               >
-                <span className={styles.legendColorSwatch} style={{ background: '#F59E0B' }} />
-                <span>Monitored Deals ({holidayPackages.length})</span>
+                <span
+                  className={styles.legendColorSwatch}
+                  style={{ background: '#F59E0B', border: '1px dashed #D97706' }}
+                />
+                <span>Monitored Deals ({monitoredDeals.length})</span>
               </div>
             )}
             {/* Status Legend indicators for backward compatibility */}
@@ -476,15 +535,19 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <div className={styles.miniDaysGrid}>
                   {m.days.map((day) => {
                     const hasTrips = day.trips.length > 0;
+                    const dayMonitoredDeals = monitoredDealsByDepartDate[day.dateString] || [];
                     const cellClasses = [
                       styles.miniDayCell,
                       !day.isCurrentMonth ? styles.miniDayCellOutside : '',
+                      day.isPast ? styles.miniDayCellPast : '',
                       day.isToday ? styles.miniDayCellToday : '',
                       day.isHoliday ? styles.miniDayCellHoliday : '',
                     ].filter(Boolean).join(' ');
 
                     const title = hasTrips
                       ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
+                      : dayMonitoredDeals.length > 0
+                      ? `Monitored Deal: ${dayMonitoredDeals[0].origin_name || dayMonitoredDeals[0].origin_iata} → ${dayMonitoredDeals[0].destination_name || dayMonitoredDeals[0].destination_code} ${formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 })}${dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : ''}`
                       : day.isHoliday
                       ? `Holiday / PTO on ${day.dateString}`
                       : interactionMode === 'HOLIDAY'
@@ -499,13 +562,23 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                         title={title}
                       >
                         <span className={styles.miniDayNum}>{day.dayNumber}</span>
-                        {hasTrips ? (
+                        {hasTrips && (
                           <div
                             className={styles.miniTripIndicator}
                             style={{
                               background: day.trips[0].color?.bg || 'var(--color-ocean)',
                             }}
                           />
+                        )}
+                        {dayMonitoredDeals.length > 0 ? (
+                          <div
+                            className={styles.miniMonitoredDealBadge}
+                            onClick={(e) => handleDealClick(e, dayMonitoredDeals[0])}
+                            title={`Monitored Deal: ${dayMonitoredDeals[0].origin_iata} → ${dayMonitoredDeals[0].destination_code} ${formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 })}${dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : ''} — Click to view monitored corridor`}
+                          >
+                            <span>✈</span>
+                            <span>{dayMonitoredDeals[0].destination_code}</span>
+                          </div>
                         ) : holidayPackagesByDepartDate[day.dateString]?.length > 0 ? (
                           <div
                             className={styles.miniDealIndicator}
@@ -541,6 +614,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 const cellClasses = [
                   styles.dayCell,
                   !day.isCurrentMonth ? styles.dayCellOutside : '',
+                  day.isPast ? styles.dayCellPast : '',
                   day.isToday ? styles.dayCellToday : '',
                   day.isHoliday ? styles.dayCellHoliday : '',
                 ].filter(Boolean).join(' ');
@@ -601,6 +675,24 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                           </div>
                         );
                       })}
+
+                      {/* Top 3 Best Deals of Each Monitored Route */}
+                      {monitoredDealsByDepartDate[day.dateString]?.map((deal) => (
+                        <div
+                          key={deal.id || `${deal.alert_id}-${deal.depart_date}`}
+                          className={styles.monitoredDealBar}
+                          title={`Monitored Deal: ${deal.origin_name || deal.origin_iata} → ${deal.destination_name || deal.destination_code} (${deal.nights}N)\nTotal: ${formatCurrencyAmount(deal.total_price_eur, deal.currency || userCurrency, { maximumFractionDigits: 0 })}${deal.discount_pct > 0 ? ` (-${Math.round(deal.discount_pct)}%)` : ''}\nDeparts: ${deal.depart_date}, Returns: ${deal.return_date}\nClick to view monitored route`}
+                          onClick={(e) => handleDealClick(e, deal)}
+                        >
+                          <div className={styles.monitoredDealRoute}>
+                            <span className={styles.monitoredDealTag}>DEAL</span>
+                            <span>✈ {deal.destination_code || deal.destination_name}</span>
+                          </div>
+                          <span className={styles.monitoredDealPrice}>
+                            {formatCurrencyAmount(deal.total_price_eur, deal.currency || userCurrency, { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      ))}
 
                       {/* Monitored Route Deals matching this holiday window */}
                       {holidayPackagesByDepartDate[day.dateString]?.map((pkg) => (

@@ -31,6 +31,8 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@/components/icons';
+import { useTripCollections } from '@/hooks/useTripCollections';
+import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 
 function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: string; size?: number }) {
   const cat = (category || '').toLowerCase();
@@ -226,6 +228,7 @@ interface PoiDetailViewProps {
   scheduledDay?: number | null;
   activeTransitLine?: ActiveTransitLineData | null;
   onSelectTransitLine?: (lineData: ActiveTransitLineData | null) => void;
+  tripId?: string;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -303,7 +306,11 @@ export function PoiDetailView({
   scheduledDay,
   activeTransitLine,
   onSelectTransitLine,
+  tripId,
 }: PoiDetailViewProps) {
+  const { isPoiSaved } = useTripCollections(tripId);
+  const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
   const auth = useOptionalAuth();
   const user = auth?.user;
   const destMeta = useDestinationCurrency(city || fallbackPoi?.city);
@@ -337,7 +344,8 @@ export function PoiDetailView({
   const [activePhotoIdx, setActivePhotoIdx] = useState<number>(0);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
   const [showHoursGrid, setShowHoursGrid] = useState<boolean>(false);
-  const [isSaved, setIsSaved] = useState<boolean>(false);
+  const effectivePoiId = poiId || poi?.id || fallbackPoi?.id || '';
+  const isSaved = effectivePoiId ? isPoiSaved(effectivePoiId) : false;
 
   const isTransit = useMemo(() => isTransitPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
@@ -1096,7 +1104,9 @@ export function PoiDetailView({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsSaved((prev) => !prev);
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenuAnchorRect(rect);
+                          setShowSaveModal((prev) => !prev);
                         }}
                         style={{
                           width: '32px',
@@ -1114,8 +1124,8 @@ export function PoiDetailView({
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                         }}
-                        title={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
-                        aria-label={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                        title={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
+                        aria-label={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
                       >
                         <BookmarkIcon
                           size={15}
@@ -1232,7 +1242,9 @@ export function PoiDetailView({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIsSaved((prev) => !prev);
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMenuAnchorRect(rect);
+                        setShowSaveModal((prev) => !prev);
                       }}
                       style={{
                         width: '32px',
@@ -1249,8 +1261,8 @@ export function PoiDetailView({
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
-                      title={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
-                      aria-label={isSaved ? 'Remove Bookmark' : 'Save Bookmark'}
+                      title={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
+                      aria-label={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
                     >
                       <BookmarkIcon
                         size={15}
@@ -2287,6 +2299,30 @@ export function PoiDetailView({
             </div>
           </div>
         </div>
+      )}
+
+      {showSaveModal && (
+        <SaveToCollectionMenu
+          isOpen={showSaveModal}
+          onClose={() => {
+            setShowSaveModal(false);
+            setMenuAnchorRect(null);
+          }}
+          tripId={tripId}
+          anchorRect={menuAnchorRect}
+          align="right"
+          poi={{
+            id: effectivePoiId,
+            name: poi?.name || fallbackPoi?.name || 'Place',
+            category: poi?.category || fallbackPoi?.category,
+            cost_eur: poi?.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
+            duration_mins: poi?.duration_mins || fallbackPoi?.duration_mins || 60,
+            photo_url: poi?.photos?.[0]?.url || fallbackPoi?.photo_url || null,
+            thumbnail_url: poi?.photos?.[0]?.thumbnail_url || fallbackPoi?.photo_url || null,
+            formatted_address: poi?.neighborhood || ((poi as unknown) as Record<string, unknown> | null)?.formatted_address as string || null,
+            rating: poi?.scoring?.rating ?? fallbackPoi?.scoring?.rating ?? null,
+          }}
+        />
       )}
     </div>
   );

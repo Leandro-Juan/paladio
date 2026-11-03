@@ -186,9 +186,22 @@ export interface RouteItineraryData {
     lng?: number;
     location?: { latitude?: number; longitude?: number };
   }>;
-  photos?: string[];
+  photos?: Array<string | TripPhotoItem>;
   tickets?: Array<{ title: string; subtitle: string }>;
   total_trip_cost?: number;
+}
+
+export interface TripPhotoItem {
+  id: string;
+  url: string;
+  filename?: string;
+  width?: number;
+  height?: number;
+  aspect_ratio?: number;
+  size_bytes?: number;
+  mime_type?: string;
+  media_type?: 'image' | 'video' | string;
+  created_at?: string;
 }
 
 export interface PoiPhotoItem {

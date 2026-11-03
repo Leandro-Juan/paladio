@@ -42,6 +42,7 @@ export interface CalendarDay {
   dayNumber: number;
   isCurrentMonth: boolean;
   isToday: boolean;
+  isPast: boolean;
   isHoliday?: boolean;
   trips: Array<{
     trip: Trip;
@@ -186,6 +187,7 @@ function createCalendarDay(
   });
 
   const isHoliday = Boolean(holidays?.has(dateString)) && matchingTrips.length === 0;
+  const isPast = dateString < todayStr;
 
   return {
     date,
@@ -193,6 +195,7 @@ function createCalendarDay(
     dayNumber: date.getDate(),
     isCurrentMonth,
     isToday,
+    isPast,
     isHoliday,
     trips: matchingTrips,
   };

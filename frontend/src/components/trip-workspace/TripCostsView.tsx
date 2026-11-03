@@ -638,6 +638,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         endDate={trip.end_date}
         todaySpend={todaySpend}
         totalBudget={totalBudget}
+        expenses={loggedItems}
       />
 
       {/* 3D Cylinder Currency Wheel Picker Modal */}

@@ -104,9 +104,6 @@ export default function EnginePage() {
         <h2 className="font-display" style={{ margin: 0, fontSize: '2.25rem', fontWeight: 600, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
           NEW TRIP
         </h2>
-        <span className="font-mono text-xs text-muted" style={{ display: 'block', marginTop: '6px', letterSpacing: '0.04em' }}>
-          {'// SOVEREIGN ITINERARY GENERATION & BLANK CANVAS'}
-        </span>
         {status === 'inferencing' && (
           <div style={{ marginTop: '0.75rem' }}>
             <span className="font-mono text-xs text-accent" style={{ fontWeight: 600 }}>

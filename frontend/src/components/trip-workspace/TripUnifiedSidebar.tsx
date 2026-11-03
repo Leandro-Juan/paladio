@@ -8,6 +8,10 @@ import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { TransitRecommendationCard, TransitLegView } from '@/components/TransitLegView';
 import { EmptyState } from '@/components/EmptyState';
 import { TripTransitTab } from './TripTransitTab';
+import { TripWeatherTab } from './TripWeatherTab';
+import { CollectionsTab } from './CollectionsTab';
+import { SaveToCollectionMenu } from './SaveToCollectionMenu';
+import { useTripCollections } from '@/hooks/useTripCollections';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
@@ -22,6 +26,7 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   InfoIcon,
+  BookmarkIcon,
   CloseIcon,
   Spinner,
   LockIcon,
@@ -117,6 +122,7 @@ export interface TripUnifiedSidebarProps {
   onToggle: () => void;
   tripId?: string;
   tripStartDate?: string;
+  tripEndDate?: string;
   destinationCity?: string;
   days: DayOutput[];
   selectedDay: number | 'all';
@@ -159,7 +165,7 @@ export interface TripUnifiedSidebarProps {
   onTabChange?: (tab: MainTabType) => void;
 }
 
-export type MainTabType = 'route' | 'search' | 'transit' | 'saved';
+export type MainTabType = 'route' | 'search' | 'transit' | 'weather' | 'saved';
 
 const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType }[] = [
   { id: 'all', label: 'All', iconType: 'general' },
@@ -265,6 +271,132 @@ function HoverScrollRow({ children, testId, style }: HoverScrollRowProps) {
       {children}
     </div>
   );
+}
+
+/**
+ * Starts a 100% solid, fully opaque ("full macizo") floating drag preview tracking cursor movement,
+ * completely suppressing the browser's hardcoded translucent ghost.
+ */
+export function startCustomDragPreview(
+  e: DragEvent | React.DragEvent,
+  poi: {
+    name: string;
+    category?: string;
+    duration_mins?: number;
+    cost_eur?: number;
+  }
+): HTMLElement {
+  // 1. Suppress native browser drag ghost & file icons using a loaded 1x1 transparent image in DOM
+  if (e.dataTransfer && typeof document !== 'undefined') {
+    try {
+      let blankImg = document.getElementById('paladio-blank-drag-pixel') as HTMLImageElement | null;
+      if (!blankImg) {
+        blankImg = document.createElement('img');
+        blankImg.id = 'paladio-blank-drag-pixel';
+        blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        blankImg.alt = '';
+        blankImg.width = 1;
+        blankImg.height = 1;
+        blankImg.style.position = 'fixed';
+        blankImg.style.left = '-9999px';
+        blankImg.style.top = '-9999px';
+        blankImg.style.opacity = '0.01';
+        blankImg.style.pointerEvents = 'none';
+        document.body.appendChild(blankImg);
+      }
+      e.dataTransfer.setDragImage(blankImg, 0, 0);
+    } catch {
+      // fallback
+    }
+  }
+
+  // Remove any stale custom drag clones
+  if (typeof document !== 'undefined') {
+    const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
+    existing.forEach((node) => node.remove());
+  }
+
+  // 2. Create the floating solid opaque card clone
+  const el = document.createElement('div');
+  el.setAttribute('data-paladio-custom-drag-preview', 'true');
+  el.style.position = 'fixed';
+  const startX = (e.clientX || 0) - 24;
+  const startY = (e.clientY || 0) - 20;
+  el.style.top = `${startY}px`;
+  el.style.left = `${startX}px`;
+  el.style.width = '320px';
+  el.style.padding = '10px 14px';
+  el.style.background = '#FFFFFF';
+  el.style.borderRadius = '14px';
+  el.style.border = '2px solid #0F4C5C';
+  el.style.boxShadow = '0 18px 40px rgba(15, 76, 92, 0.32), 0 4px 14px rgba(0, 0, 0, 0.16)';
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'space-between';
+  el.style.gap = '10px';
+  el.style.fontFamily = 'var(--font-sans, system-ui, sans-serif)';
+  el.style.zIndex = '999999';
+  el.style.pointerEvents = 'none';
+  el.style.opacity = '1';
+  el.style.userSelect = 'none';
+  el.style.transition = 'none';
+
+  const name = poi.name || 'Scheduled Place';
+  const cat = poi.category || 'Waypoint';
+  const dur = poi.duration_mins ? `${poi.duration_mins}m` : '60m';
+
+  el.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+      <div style="width: 24px; height: 24px; border-radius: 6px; background: rgba(15, 76, 92, 0.14); color: #0F4C5C; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: monospace;">
+        +
+      </div>
+      <div style="min-width: 0;">
+        <div style="font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 175px;">
+          ${name}
+        </div>
+        <div style="font-size: 11px; color: #64748b; text-transform: capitalize;">
+          ${cat} · ${dur}
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 10px; font-weight: 700; font-family: monospace; color: #0F4C5C; background: rgba(15, 76, 92, 0.1); padding: 3px 8px; border-radius: 9999px; white-space: nowrap;">
+      ROUTE STOP
+    </div>
+  `;
+
+  document.body.appendChild(el);
+
+  // 3. Track cursor coordinates smoothly on drag / dragover
+  const handleDragUpdate = (ev: DragEvent | MouseEvent) => {
+    if (ev.clientX !== 0 || ev.clientY !== 0) {
+      el.style.top = `${ev.clientY - 20}px`;
+      el.style.left = `${ev.clientX - 24}px`;
+    }
+  };
+
+  const cleanup = () => {
+    document.removeEventListener('drag', handleDragUpdate, true);
+    document.removeEventListener('dragover', handleDragUpdate, true);
+    document.removeEventListener('dragend', cleanup, true);
+    document.removeEventListener('drop', cleanup, true);
+    document.removeEventListener('mouseup', cleanup, true);
+    if (el.parentElement) {
+      el.remove();
+    }
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+      (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+      window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+    }
+  };
+
+  document.addEventListener('drag', handleDragUpdate, true);
+  document.addEventListener('dragover', handleDragUpdate, true);
+  document.addEventListener('dragend', cleanup, true);
+  document.addEventListener('drop', cleanup, true);
+  document.addEventListener('mouseup', cleanup, true);
+
+  return el;
 }
 
 /**
@@ -1152,6 +1284,7 @@ export function TripUnifiedSidebar({
   onToggle,
   tripId,
   tripStartDate,
+  tripEndDate,
   destinationCity = '',
   days,
   selectedDay,
@@ -1227,39 +1360,37 @@ export function TripUnifiedSidebar({
   const [minRating, setMinRating] = useState<number>(0);
   const [sortOption, setSortOption] = useState<'best' | 'rating' | 'cost' | 'name'>('best');
 
-  // Saved / Bookmarked state
-  const [savedPoiIds, setSavedPoiIds] = useState<Set<string>>(() => {
-    if (typeof window !== 'undefined' && tripId) {
-      try {
-        const stored = localStorage.getItem(`paladio_saved_pois_${tripId}`);
-        if (stored) return new Set(JSON.parse(stored));
-      } catch {
-        // ignore
-      }
-    }
-    return new Set<string>();
-  });
+  // Collections & Saved state
+  const {
+    collections,
+    isPoiSaved,
+    poiCollectionMap,
+  } = useTripCollections(tripId);
+
+  const [modalPoi, setModalPoi] = useState<{
+    id: string;
+    name: string;
+    category?: string;
+    cost_eur?: number;
+    duration_mins?: number;
+    photo_url?: string | null;
+    thumbnail_url?: string | null;
+    formatted_address?: string | null;
+    rating?: number | null;
+  } | null>(null);
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
+
+  const savedPoiIds = useMemo(() => {
+    return new Set<string>(poiCollectionMap.keys());
+  }, [poiCollectionMap]);
 
   const toggleSavePoi = useCallback((poiId: string) => {
-    setSavedPoiIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(poiId)) {
-        next.delete(poiId);
-        notify.info('Removed from Saved', 'Place removed from your saved list.');
-      } else {
-        next.add(poiId);
-        notify.success('Saved Place', 'Place bookmarked for this trip.');
-      }
-      if (typeof window !== 'undefined' && tripId) {
-        try {
-          localStorage.setItem(`paladio_saved_pois_${tripId}`, JSON.stringify(Array.from(next)));
-        } catch {
-          // ignore
-        }
-      }
-      return next;
+    setModalPoi({
+      id: poiId,
+      name: poiId.startsWith('gtfs:') ? `Station ${poiId.split(':').slice(2).join(':')}` : `Place #${poiId}`,
+      category: poiId.startsWith('gtfs:') ? 'transit' : 'attraction',
     });
-  }, [tripId]);
+  }, []);
 
   // Route Drag-and-drop state
   const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
@@ -1279,6 +1410,31 @@ export function TripUnifiedSidebar({
     };
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
     return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
+  }, []);
+
+  // Reset active drop target and clean up drag state if dragging ends anywhere without inserting
+  useEffect(() => {
+    const handleDragEnded = () => {
+      setActiveDropTarget(null);
+      setDraggedPoi(null);
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+      }
+      const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
+      existing.forEach((node) => node.remove());
+    };
+
+    window.addEventListener('dragend', handleDragEnded, true);
+    window.addEventListener('drop', handleDragEnded, true);
+    window.addEventListener('mouseup', handleDragEnded, true);
+    window.addEventListener('paladio:drag-ended', handleDragEnded, true);
+    return () => {
+      window.removeEventListener('dragend', handleDragEnded, true);
+      window.removeEventListener('drop', handleDragEnded, true);
+      window.removeEventListener('mouseup', handleDragEnded, true);
+      window.removeEventListener('paladio:drag-ended', handleDragEnded, true);
+    };
   }, []);
 
 
@@ -1760,55 +1916,91 @@ export function TripUnifiedSidebar({
     e.preventDefault();
     setActiveDropTarget(null);
 
-    const rawData = e.dataTransfer.getData('application/paladio-poi');
-    if (!rawData || !itinerary || !onItineraryUpdate) return;
+    let payload: { source?: string; day?: number; index?: number; poi?: Record<string, unknown> } | null = null;
+    try {
+      const rawData = e.dataTransfer.getData('application/paladio-poi') || e.dataTransfer.getData('text/plain');
+      if (rawData) {
+        payload = JSON.parse(rawData);
+      }
+    } catch {
+      payload = null;
+    }
+
+    if (!payload && typeof window !== 'undefined') {
+      const win = window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown };
+      payload = (win.__paladioActivePoi || win.__paladioActiveSearchPoi || draggedPoi) as typeof payload;
+    }
+
+    if (!payload || !itinerary || !onItineraryUpdate) return;
 
     try {
-      const payload = JSON.parse(rawData);
       const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
-      const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === targetDayNum);
-      if (!targetDayObj) return;
+      if (!Array.isArray(clonedItin.days)) {
+        clonedItin.days = [];
+      }
+      let targetDayObj = clonedItin.days.find((d) => (d.day ?? 1) === targetDayNum);
+      if (!targetDayObj) {
+        targetDayObj = { day: targetDayNum, itinerary: { path: [] } };
+        clonedItin.days.push(targetDayObj);
+      }
 
       if (!targetDayObj.itinerary) {
         targetDayObj.itinerary = { path: [] };
+      }
+      if (!Array.isArray(targetDayObj.itinerary.path)) {
+        targetDayObj.itinerary.path = [];
       }
 
       if (payload.source === 'route') {
         const srcDayNum = payload.day;
         const srcIdx = payload.index;
-        const srcDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === srcDayNum);
+        if (typeof srcDayNum !== 'number' || typeof srcIdx !== 'number') return;
+        const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
         if (!srcDayObj?.itinerary?.path) return;
 
         const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
         if (movedItem) {
-          targetDayObj.itinerary.path.splice(targetIdx, 0, movedItem);
+          let adjustedTargetIdx = targetIdx;
+          if (srcDayNum === targetDayNum && srcIdx < targetIdx) {
+            adjustedTargetIdx = targetIdx - 1;
+          }
+          const safeIdx = Math.max(0, Math.min(adjustedTargetIdx, targetDayObj.itinerary.path.length));
+          targetDayObj.itinerary.path.splice(safeIdx, 0, movedItem);
           onItineraryUpdate(clonedItin);
           notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
         }
       } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map') {
         const poi = payload.poi;
-        const lat = poi.location?.latitude ?? poi.lat ?? 0;
-        const lng = poi.location?.longitude ?? poi.lng ?? 0;
+        if (!poi) return;
+        const lat = ((poi.location as { latitude?: number } | undefined)?.latitude ?? poi.lat ?? 0) as number;
+        const lng = ((poi.location as { longitude?: number } | undefined)?.longitude ?? poi.lng ?? 0) as number;
+        const poiName = (poi.name as string) || 'Waypoint';
         const newScheduled: ScheduledPoi = {
           poi: {
-            id: poi.id,
-            name: poi.name,
+            id: (poi.id as string) || poiName,
+            name: poiName,
             city: destinationCity,
-            category: poi.category,
-            duration_mins: poi.duration_mins || 60,
-            cost_eur: poi.cost_eur || 0,
+            category: (poi.category as string) || 'attraction',
+            duration_mins: (poi.duration_mins as number) || (poi.durationMins as number) || 60,
+            cost_eur: (poi.cost_eur as number) || (poi.costEur as number) || 0,
             location: {
               latitude: lat,
               longitude: lng,
             },
           },
         };
-        targetDayObj.itinerary.path.splice(targetIdx, 0, newScheduled);
+        const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
+        targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
         onItineraryUpdate(clonedItin);
-        notify.success('Place Added', `Added ${poi.name} to Day ${targetDayNum}`);
+        notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
       }
     } catch (err) {
       console.error('Failed to handle drop:', err);
+    } finally {
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+      }
     }
   };
 
@@ -2005,13 +2197,47 @@ export function TripUnifiedSidebar({
                     {activeTab === 'transit' && <span>Transit</span>}
                   </button>
 
-                  {/* Saved Tab */}
+                  {/* Weather Tab */}
+                  <button
+                    type="button"
+                    data-testid="tab-weather"
+                    title="Weather"
+                    aria-label="Weather"
+                    onClick={() => setActiveTab('weather')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '7px',
+                      padding: activeTab === 'weather' ? '7px 16px' : '7px 10px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      background: activeTab === 'weather' ? 'var(--color-accent-primary)' : 'transparent',
+                      color: activeTab === 'weather' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontSize: '13px',
+                      fontWeight: activeTab === 'weather' ? 600 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: activeTab === 'weather' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+                    </svg>
+                    {activeTab === 'weather' && <span>Weather</span>}
+                  </button>
+
+                  {/* Collections Tab */}
                   <button
                     type="button"
                     data-testid="tab-saved"
-                    title="Saved"
-                    aria-label="Saved"
+                    title="Collections"
+                    aria-label="Collections"
                     onClick={() => setActiveTab('saved')}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setActiveTab('saved');
+                    }}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -2032,20 +2258,7 @@ export function TripUnifiedSidebar({
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>
-                    {activeTab === 'saved' && <span>Saved</span>}
-                    {savedPoiIds.size > 0 && (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          padding: '1px 5px',
-                          borderRadius: '9999px',
-                          background: activeTab === 'saved' ? 'rgba(255,255,255,0.25)' : 'rgba(15,76,92,0.12)',
-                          color: activeTab === 'saved' ? '#FFFFFF' : 'var(--color-accent-primary)',
-                        }}
-                      >
-                        {savedPoiIds.size}
-                      </span>
-                    )}
+                    {activeTab === 'saved' && <span>Collections</span>}
                   </button>
                 </div>
 
@@ -2242,13 +2455,36 @@ export function TripUnifiedSidebar({
               >
                 {/* VIEW A: ROUTE TAB CONTENT */}
                 {activeTab === 'route' && (
-                  <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setActiveDropTarget(null);
+                      }
+                    }}
+                    style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+                  >
                     {/* Scheduled Days and Stops Timeline */}
                     {displayedDays.map((dayObj) => {
                       const path = dayObj.itinerary?.path || [];
 
                       return (
-                        <div key={dayObj.day} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div
+                          key={dayObj.day}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                          }}
+                          onDragLeave={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                              setActiveDropTarget(null);
+                            }
+                          }}
+                          style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                        >
                           <div
                             style={{
                               display: 'flex',
@@ -2271,6 +2507,7 @@ export function TripUnifiedSidebar({
                             <div
                               onDragOver={(e) => {
                                 e.preventDefault();
+                                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                                 setActiveDropTarget({ day: dayObj.day, index: 0 });
                               }}
                               onDragLeave={() => setActiveDropTarget(null)}
@@ -2298,21 +2535,77 @@ export function TripUnifiedSidebar({
 
                             return (
                               <React.Fragment key={p?.id || `poi-${poiIdx}`}>
-                                {/* Transit Leg between stops */}
+                                {/* Insertion indicator before stop if targeted */}
+                                {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx && (
+                                  <div
+                                    data-testid="route-drop-insert-indicator"
+                                    style={{
+                                      height: '32px',
+                                      borderRadius: '10px',
+                                      border: '2px dashed var(--color-accent-teal-deep, #0F4C5C)',
+                                      background: 'rgba(15, 76, 92, 0.08)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      margin: '2px 0',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        fontFamily: 'var(--font-mono)',
+                                        color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                                        letterSpacing: '0.04em',
+                                      }}
+                                    >
+                                      + INSERT AT STOP {stopNum}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Transit Leg / Connector between stops (Droppable) */}
                                 {poiIdx > 0 && (
                                   transitMode === 'detailed' && transitFromPrev ? (
-                                    <div style={{ margin: '2px 0 2px 24px' }}>
+                                    <div
+                                      style={{ margin: '2px 0 2px 24px' }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                                        setActiveDropTarget({ day: dayObj.day, index: poiIdx });
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDrop(e, dayObj.day, poiIdx);
+                                      }}
+                                    >
                                       <TransitLegView transitLeg={transitFromPrev} />
                                     </div>
                                   ) : (
                                     <div
                                       data-testid="route-poi-connector"
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                                        setActiveDropTarget({ day: dayObj.day, index: poiIdx });
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDrop(e, dayObj.day, poiIdx);
+                                      }}
                                       style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         paddingLeft: '32px',
-                                        height: '18px',
+                                        height: activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx ? '28px' : '18px',
                                         position: 'relative',
+                                        cursor: 'pointer',
+                                        transition: 'height 0.15s ease',
                                       }}
                                     >
                                       <div
@@ -2330,10 +2623,21 @@ export function TripUnifiedSidebar({
                                 <div
                                   onDragOver={(e) => {
                                     e.preventDefault();
-                                    setActiveDropTarget({ day: dayObj.day, index: poiIdx });
+                                    e.stopPropagation();
+                                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+                                    const targetIdx = isUpperHalf ? poiIdx : poiIdx + 1;
+                                    setActiveDropTarget({ day: dayObj.day, index: targetIdx });
                                   }}
-                                  onDragLeave={() => setActiveDropTarget(null)}
-                                  onDrop={(e) => handleDrop(e, dayObj.day, poiIdx)}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+                                    const targetIdx = isUpperHalf ? poiIdx : poiIdx + 1;
+                                    handleDrop(e, dayObj.day, targetIdx);
+                                  }}
                                 >
                                   <MinimalistPoiCard
                                     id={p?.id}
@@ -2353,14 +2657,34 @@ export function TripUnifiedSidebar({
                                         e.preventDefault();
                                         return;
                                       }
-                                      const poiInfo = { source: 'route', day: dayObj.day, index: poiIdx };
+                                      startCustomDragPreview(e, {
+                                        name: p?.name || 'Scheduled Place',
+                                        category: p?.category,
+                                        duration_mins: p?.duration_mins,
+                                        cost_eur: p?.cost_eur,
+                                      });
+                                      const poiInfo = {
+                                        source: 'route',
+                                        day: dayObj.day,
+                                        index: poiIdx,
+                                        id: p?.id,
+                                        poi: p,
+                                      };
                                       setDraggedPoi(poiInfo);
-                                      e.dataTransfer.setData('application/paladio-poi', JSON.stringify(poiInfo));
+                                      const serialized = JSON.stringify(poiInfo);
+                                      if (typeof window !== 'undefined') {
+                                        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = poiInfo;
+                                      }
+                                      e.dataTransfer.setData('application/paladio-poi', serialized);
+                                      e.dataTransfer.setData('text/plain', serialized);
                                       e.dataTransfer.effectAllowed = 'copyMove';
                                     }}
                                     onDragEnd={() => {
                                       setDraggedPoi(null);
                                       setActiveDropTarget(null);
+                                      if (typeof window !== 'undefined') {
+                                        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+                                      }
                                     }}
                                     canMoveUp={poiIdx > 0}
                                     canMoveDown={poiIdx < path.length - 1}
@@ -2411,15 +2735,19 @@ export function TripUnifiedSidebar({
                           <div
                             onDragOver={(e) => {
                               e.preventDefault();
+                              if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                               setActiveDropTarget({ day: dayObj.day, index: path.length });
                             }}
                             onDragLeave={() => setActiveDropTarget(null)}
-                            onDrop={(e) => handleDrop(e, dayObj.day, path.length)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              handleDrop(e, dayObj.day, path.length);
+                            }}
                             style={{
                               height:
                                 activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length
                                   ? '38px'
-                                  : '12px',
+                                  : '14px',
                               borderRadius: '12px',
                               border:
                                 activeDropTarget?.day === dayObj.day && activeDropTarget?.index === path.length
@@ -2637,26 +2965,27 @@ export function TripUnifiedSidebar({
                           data-testid={`poi-card-${poi.id}`}
                           draggable={true}
                           onDragStart={(e) => {
-                            const ghost = createRouteCardDragImage(poi);
-                            e.dataTransfer.setDragImage(ghost, 20, 20);
-                            setTimeout(() => ghost.remove(), 0);
-
-                            e.dataTransfer.setData(
-                              'application/paladio-poi',
-                              JSON.stringify({
-                                source: 'search',
-                                poi: {
-                                  id: poi.id,
-                                  name: poi.name,
-                                  category: poi.category,
-                                  lat: poi.lat,
-                                  lng: poi.lng,
-                                  duration_mins: poi.duration_mins,
-                                  cost_eur: poi.cost_eur,
-                                  location: { latitude: poi.lat, longitude: poi.lng },
-                                },
-                              })
-                            );
+                            startCustomDragPreview(e, poi);
+                            const payload = {
+                              source: 'search',
+                              poi: {
+                                id: poi.id,
+                                name: poi.name,
+                                category: poi.category,
+                                lat: poi.lat,
+                                lng: poi.lng,
+                                duration_mins: poi.duration_mins,
+                                cost_eur: poi.cost_eur,
+                                location: { latitude: poi.lat, longitude: poi.lng },
+                              },
+                            };
+                            const serialized = JSON.stringify(payload);
+                            if (typeof window !== 'undefined') {
+                              (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = payload;
+                              (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = payload;
+                            }
+                            e.dataTransfer.setData('application/paladio-poi', serialized);
+                            e.dataTransfer.setData('text/plain', serialized);
                             e.dataTransfer.effectAllowed = 'copyMove';
 
                             // Switch to Route tab automatically so user can drop into any day!
@@ -2726,12 +3055,52 @@ export function TripUnifiedSidebar({
                               </div>
                             </div>
 
-                            {/* Price Tag */}
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
+                            {/* Price Tag & Bookmark */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                  {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
+                                </div>
+                                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
                               </div>
-                              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
+                              <button
+                                type="button"
+                                data-testid={`search-poi-bookmark-${poi.id}`}
+                                title={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                aria-label={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMenuAnchorRect(rect);
+                                  setModalPoi((prev) =>
+                                    prev?.id === poi.id
+                                      ? null
+                                      : {
+                                          id: poi.id,
+                                          name: poi.name,
+                                          category: poi.category,
+                                          cost_eur: poi.cost_eur,
+                                          duration_mins: poi.duration_mins,
+                                          photo_url: poi.photo_url || poi.thumbnail_url,
+                                          thumbnail_url: poi.thumbnail_url || poi.photo_url,
+                                        }
+                                  );
+                                }}
+                                style={{
+                                  background: isPoiSaved(poi.id) ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                                  border: isPoiSaved(poi.id) ? '1px solid #F59E0B' : '1px solid var(--color-border)',
+                                  borderRadius: '8px',
+                                  padding: '5px 7px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  color: isPoiSaved(poi.id) ? '#F59E0B' : 'var(--color-text-muted)',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <BookmarkIcon size={13} fill={isPoiSaved(poi.id) ? '#F59E0B' : 'none'} />
+                              </button>
                             </div>
                           </div>
 
@@ -2853,99 +3222,39 @@ export function TripUnifiedSidebar({
                   />
                 )}
 
-                {/* VIEW D: SAVED TAB CONTENT */}
-                {activeTab === 'saved' && (
-                  <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Saved Places ({savedPoiIds.size})
-                    </div>
-                    {savedPoiIds.size === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-                        No places saved yet. Click &quot;+ Bookmark&quot; on any place in the Search tab to save it here for quick access.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {Array.from(savedPoiIds).map((id) => {
-                          const isStation = id.startsWith('gtfs:') || id.toLowerCase().startsWith('osm-transit-');
-                          const displayName = isStation
-                            ? (id.startsWith('gtfs:') ? id.split(':').slice(2).join(':') : id)
-                            : id;
+                {/* VIEW WEATHER: WEATHER TAB CONTENT */}
+                {activeTab === 'weather' && (
+                  <TripWeatherTab
+                    destinationCity={destinationCity || ''}
+                    tripStartDate={tripStartDate}
+                    tripEndDate={tripEndDate}
+                    selectedDay={selectedDay}
+                    onSelectDay={onSelectDay}
+                    coordinates={
+                      hotelAnchor
+                        ? { lat: hotelAnchor.lat, lng: hotelAnchor.lng }
+                        : airportAnchor
+                        ? { lat: airportAnchor.lat, lng: airportAnchor.lng }
+                        : days?.[0]?.itinerary?.path?.[0]?.poi?.location
+                        ? {
+                            lat: days[0].itinerary.path[0].poi.location.latitude,
+                            lng: days[0].itinerary.path[0].poi.location.longitude,
+                          }
+                        : undefined
+                    }
+                    tripDaysCount={days.length || 7}
+                  />
+                )}
 
-                          return (
-                            <div
-                              key={id}
-                              onClick={() => {
-                                onInspectPoi?.(id, {
-                                  id,
-                                  name: isStation ? `Station ${displayName}` : `Saved Place #${id}`,
-                                  category: isStation ? 'transit' : 'attraction',
-                                });
-                              }}
-                              style={{
-                                padding: '10px 14px',
-                                borderRadius: '12px',
-                                border: '1px solid var(--color-border)',
-                                background: 'var(--color-surface-card)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                cursor: 'pointer',
-                                transition: 'transform 0.1s ease',
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                                <span
-                                  style={{
-                                    fontSize: '10px',
-                                    fontFamily: 'var(--font-code, monospace)',
-                                    fontWeight: 700,
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    background: isStation ? 'rgba(8, 145, 178, 0.12)' : 'rgba(15, 76, 92, 0.08)',
-                                    color: isStation ? 'var(--color-accent-teal-mid, #0891B2)' : 'var(--color-accent-primary)',
-                                    textTransform: 'uppercase',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {isStation ? 'Transit' : 'Place'}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: 'var(--color-text-primary)',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {isStation ? `Station (${displayName})` : `Place #${id}`}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleSavePoi(id);
-                                }}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: 'var(--color-danger, #EF4444)',
-                                  fontSize: '11px',
-                                  cursor: 'pointer',
-                                  padding: '4px 6px',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                {/* VIEW D: COLLECTIONS TAB CONTENT */}
+                {activeTab === 'saved' && (
+                  <CollectionsTab
+                    tripId={tripId || ''}
+                    onInspectPoi={onInspectPoi}
+                    onAddToDay={onAddToDay}
+                    tripDaysCount={days.length || 7}
+                    currencySymbol={currencySymbol}
+                  />
                 )}
               </div>
         </aside>
@@ -2989,6 +3298,20 @@ export function TripUnifiedSidebar({
           <ChevronLeftIcon size={16} />
         </button>
       </div>
+
+      {modalPoi && (
+        <SaveToCollectionMenu
+          isOpen={Boolean(modalPoi)}
+          onClose={() => {
+            setModalPoi(null);
+            setMenuAnchorRect(null);
+          }}
+          tripId={tripId}
+          poi={modalPoi}
+          anchorRect={menuAnchorRect}
+          align="right"
+        />
+      )}
     </div>
   );
 }

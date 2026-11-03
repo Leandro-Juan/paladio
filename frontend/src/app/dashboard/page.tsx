@@ -12,6 +12,7 @@ import { BestOfferCard } from '@/components/dashboard/BestOfferCard';
 import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
 import { UpcomingTripsSection } from '@/components/dashboard/UpcomingTripsSection';
+import { SavedCollectionsSection } from '@/components/dashboard/SavedCollectionsSection';
 import { countWaypoints, extractTripTitle } from '@/utils/tripParser';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './dashboard.module.css';
@@ -27,7 +28,7 @@ export default function DashboardPage() {
   const itinPhoto = useMemo(() => {
     if (!nextTrip?.itinerary_data) return undefined;
     const itin = nextTrip.itinerary_data as {
-      photos?: string[];
+      photos?: Array<string | { url?: string }>;
       days?: Array<{
         itinerary?: {
           path?: Array<{
@@ -38,8 +39,9 @@ export default function DashboardPage() {
         };
       }>;
     };
-    if (Array.isArray(itin.photos) && itin.photos.length > 0) {
-      return itin.photos[0];
+    if (Array.isArray(itin.photos) && itin.photos.length > 0 && itin.photos[0]) {
+      const p = itin.photos[0];
+      return typeof p === 'string' ? p : p.url;
     }
     if (Array.isArray(itin.days)) {
       for (const day of itin.days) {
@@ -143,6 +145,9 @@ export default function DashboardPage() {
 
       {/* All Upcoming Trips Section */}
       <UpcomingTripsSection upcomingTrips={upcomingTrips} loading={loading} onDeleteTrip={deleteTrip} />
+
+      {/* Curated Saved Collections Section */}
+      <SavedCollectionsSection />
     </div>
   );
 }

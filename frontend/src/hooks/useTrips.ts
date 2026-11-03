@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
 import { isTripCompleted } from '@/utils/tripParser';
+import { TripPhotoItem } from '@/types/domain';
 
 export { getApiBaseUrl };
 
@@ -288,6 +289,32 @@ export function useTrips() {
     }
   };
 
+  const uploadTripPhotos = async (tripId: string, files: File[]): Promise<TripPhotoItem[]> => {
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file));
+      return await apiFetch<TripPhotoItem[]>(`/trips/${tripId}/photos`, {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (e) {
+      console.error("Failed to upload trip photos", e);
+      throw e;
+    }
+  };
+
+  const deleteTripPhoto = async (tripId: string, photoId: string): Promise<boolean> => {
+    try {
+      await apiFetch(`/trips/${tripId}/photos/${photoId}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (e) {
+      console.error("Failed to delete trip photo", e);
+      return false;
+    }
+  };
+
   const completedTrips = useMemo(() => trips.filter(t => isTripCompleted(t)), [trips]);
   const upcomingTrips = useMemo(() => trips.filter(t => !isTripCompleted(t)), [trips]);
 
@@ -309,5 +336,7 @@ export function useTrips() {
     deleteTripExpense,
     getTripSettlement,
     getCollaboratorOptions,
+    uploadTripPhotos,
+    deleteTripPhoto,
   };
 }

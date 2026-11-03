@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import NextImage from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Trip, useTrips } from '@/hooks/useTrips';
-import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail } from '@/types/domain';
+import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail, TripPhotoItem } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
 import { notify } from '@/utils/notify';
@@ -19,7 +18,7 @@ import TripMapLoader from './TripMapLoader';
 import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { TripCostsView } from './TripCostsView';
-import { TripCollabView } from './TripCollabView';
+import { TripConfigView } from './TripConfigView';
 import { TripPhotosView } from './TripPhotosView';
 import { TripWalletView } from './wallet/TripWalletView';
 import { useTripTickets } from '@/hooks/useTripTickets';
@@ -31,6 +30,13 @@ interface TripWorkspaceProps {
 
 export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const { updateTrip, reoptimizeTrip } = useTrips();
+  const searchParams = useSearchParams();
+  const initialSidebarTab = useMemo<'route' | 'search' | 'transit' | 'weather' | 'saved'>(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'saved' || tab === 'collections') return 'saved';
+    return 'route';
+  }, [searchParams]);
+
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('plan');
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -40,7 +46,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
   const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'transit' | 'saved'>('route');
+  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'transit' | 'weather' | 'saved'>(initialSidebarTab);
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
@@ -86,9 +92,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setCategoryPois([]);
   }, []);
 
-  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'transit' | 'saved') => {
+  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'transit' | 'weather' | 'saved') => {
     setSidebarTab(tab);
-    if (tab === 'route' || tab === 'transit') {
+    if (tab === 'route' || tab === 'transit' || tab === 'weather') {
       // Clear category search and unselect focused search POI
       setCategoryFilter(null);
       setCategoryPois([]);
@@ -130,9 +136,15 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const itinerary = currentItinerary;
 
-  const handleItineraryUpdate = useCallback((updated: OptimizationResult) => {
-    setCurrentItinerary(updated as unknown as RouteItineraryData);
-  }, []);
+  const handleItineraryUpdate = useCallback(
+    (updated: OptimizationResult) => {
+      setCurrentItinerary(updated as unknown as RouteItineraryData);
+      if (trip.id) {
+        updateTrip(trip.id, { itinerary_data: updated as unknown as Record<string, unknown> });
+      }
+    },
+    [trip.id, updateTrip]
+  );
 
   const handleReoptimizeDay = useCallback(async () => {
     if (isReoptimizing) return;
@@ -346,7 +358,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   }, []);
 
   // Check for deep-linked POI inspection via query parameters
-  const searchParams = useSearchParams();
   const deepLinkPoi = searchParams?.get('poi');
   const deepLinkName = searchParams?.get('name');
   const deepLinkHandledRef = useRef<string | null>(null);
@@ -491,6 +502,19 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   );
 
   const photos = itinerary?.photos || [];
+
+  const handlePhotosChange = useCallback(
+    (updatedPhotos: Array<string | TripPhotoItem>) => {
+      const cloned = currentItinerary
+        ? { ...currentItinerary, photos: updatedPhotos }
+        : { photos: updatedPhotos };
+      setCurrentItinerary(cloned as RouteItineraryData);
+      if (onTripUpdated) {
+        onTripUpdated();
+      }
+    },
+    [currentItinerary, onTripUpdated]
+  );
   const participantsCount = trip.participants?.length || 1;
 
   return (
@@ -579,6 +603,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onToggle={handleToggleSidebar}
             tripId={trip.id}
             tripStartDate={trip.start_date}
+            tripEndDate={trip.end_date}
             destinationCity={trip.destination}
             days={daysOutput}
             selectedDay={selectedDay}
@@ -705,6 +730,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   key={`poi-detail-${renderedPoi.id || renderedPoi.fallback?.id || renderedPoi.fallback?.name || 'none'}`}
                   poiId={renderedPoi.id}
                   fallbackPoi={renderedPoi.fallback}
+                  tripId={trip.id}
                   city={trip.destination}
                   onClose={handleCloseInspect}
                   onAddToDay={handleAddPoiToDay}
@@ -778,36 +804,40 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           </div>
         )}
 
-        {/* Tab 4: Collab */}
-        {activeTab === 'collab' && (
-          <div key="collab" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
-            <TripCollabView trip={trip} onTripUpdated={onTripUpdated} />
+        {/* Tab 4: Photos */}
+        {activeTab === 'photos' && (
+          <div key="photos" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
+            <TripPhotosView
+              tripId={trip.id}
+              photos={photos}
+              onPhotosChange={handlePhotosChange}
+            />
           </div>
         )}
 
-        {/* Tab 5: Photos */}
-        {activeTab === 'photos' && (
-          <div key="photos" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
-            <TripPhotosView photos={photos} />
+        {/* Tab 5: Configuration */}
+        {activeTab === 'config' && (
+          <div key="config" className="animate-tab-pane" style={{ height: '100%', overflowY: 'auto' }}>
+            <TripConfigView trip={trip} itinerary={itinerary} onTripUpdated={onTripUpdated} />
           </div>
         )}
       </div>
 
       {/* Pre-rendered 1x1 transparent image for suppressing native browser drag ghost/file icons */}
-      <NextImage
-        id="paladio-drag-blank-img"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        id="paladio-blank-drag-pixel"
         src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
         alt=""
         width={1}
         height={1}
-        unoptimized
         style={{
           position: 'fixed',
           left: -9999,
           top: -9999,
           width: 1,
           height: 1,
-          opacity: 0,
+          opacity: 0.01,
           pointerEvents: 'none',
         }}
       />

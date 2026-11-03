@@ -27,9 +27,8 @@ test('renders HarmonicRadarWidget with user preferences correctly', async ({ mou
 
   const component = await mount(<HarmonicRadarWidget user={mockUser} />);
 
-  // Verify header tags
-  await expect(component.getByText('// 8-POINT HARMONIC RADAR')).toBeVisible();
-  await expect(component.getByText('C++20 UTILITY')).toBeVisible();
+  // Verify header tag
+  await expect(component.getByText('Taste Star')).toBeVisible();
 
   // Verify pace readout reflects user preference
   await expect(component.getByText('TRAVEL PACE')).toBeVisible();

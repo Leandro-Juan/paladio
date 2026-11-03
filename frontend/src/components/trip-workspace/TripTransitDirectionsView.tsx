@@ -18,7 +18,9 @@ import {
   HotelIcon,
   PlaneIcon,
   InfoIcon,
+  ChevronDownIcon,
 } from '@/components/icons';
+import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 
 export interface DirectionSite {
   name: string;
@@ -73,8 +75,37 @@ interface PlaceSearchResult {
   category: string;
 }
 
-// Regex to detect direct coordinate input: "40.4168, -3.7038" or "40.4168 -3.7038"
-const COORD_REGEX = /^\s*(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)\s*$/;
+// Robust coordinate parser supporting standard pairs: "35.6895, 139.6917", "35.6895 139.6917", "35.6895N, 139.6917E"
+export function parseCoordinates(input: string): { lat: number; lng: number } | null {
+  if (!input) return null;
+  const clean = input.trim();
+  const latLngMatch = clean.match(
+    /^(?:lat(?:itude)?:\s*)?(-?\d+(?:\.\d+)?)\s*(?:°)?\s*([NSns])?[,\s]+(?:lon(?:gitude)?|lng:\s*)?(-?\d+(?:\.\d+)?)\s*(?:°)?\s*([EWew])?$/i
+  );
+  if (latLngMatch) {
+    let lat = parseFloat(latLngMatch[1]);
+    const latDir = latLngMatch[2]?.toUpperCase();
+    let lng = parseFloat(latLngMatch[3]);
+    const lngDir = latLngMatch[4]?.toUpperCase();
+
+    if (latDir === 'S') lat = -Math.abs(lat);
+    if (latDir === 'N') lat = Math.abs(lat);
+    if (lngDir === 'W') lng = -Math.abs(lng);
+    if (lngDir === 'E') lng = Math.abs(lng);
+
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    ) {
+      return { lat, lng };
+    }
+  }
+  return null;
+}
 
 export function TripTransitDirectionsView({
   tripId,
@@ -119,6 +150,8 @@ export function TripTransitDirectionsView({
   }
 
   const [timeValue, setTimeValue] = useState<string>('09:00');
+  const [isHourPickerOpen, setIsHourPickerOpen] = useState<boolean>(false);
+  const [isDayMenuOpen, setIsDayMenuOpen] = useState<boolean>(false);
 
   // Route Calculation State
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
@@ -128,9 +161,14 @@ export function TripTransitDirectionsView({
 
   const originContainerRef = useRef<HTMLDivElement>(null);
   const destContainerRef = useRef<HTMLDivElement>(null);
-  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const originInputRef = useRef<HTMLInputElement>(null);
+  const destInputRef = useRef<HTMLInputElement>(null);
+  const dayMenuRef = useRef<HTMLDivElement>(null);
 
-  // Click outside to dismiss autocomplete dropdowns
+  const originSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const destSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Click outside to dismiss autocomplete dropdowns and menus
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -139,14 +177,24 @@ export function TripTransitDirectionsView({
       ) {
         setIsOriginMenuOpen(false);
       }
-      if (destContainerRef.current && !destContainerRef.current.contains(e.target as Node)) {
+      if (
+        destContainerRef.current &&
+        !destContainerRef.current.contains(e.target as Node)
+      ) {
         setIsDestMenuOpen(false);
+      }
+      if (
+        dayMenuRef.current &&
+        !dayMenuRef.current.contains(e.target as Node)
+      ) {
+        setIsDayMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Listen for map click-to-pick events emitted by TripMapView
   // Listen for map click-to-pick events emitted by TripMapView
   useEffect(() => {
     const handleMapPickedLocation = (e: Event) => {
@@ -171,67 +219,269 @@ export function TripTransitDirectionsView({
         setOriginSite(site);
         setOriginQuery(site.name);
         setIsOriginMenuOpen(false);
+
+        // Auto-advance to destination map pick & focus input B
+        if (onStartMapPick) {
+          onStartMapPick('destination');
+        }
+        setTimeout(() => {
+          destInputRef.current?.focus();
+          setIsDestMenuOpen(true);
+        }, 60);
       } else {
         setDestSite(site);
         setDestQuery(site.name);
         setIsDestMenuOpen(false);
+        if (onCancelMapPick) onCancelMapPick();
       }
-
-      if (onCancelMapPick) onCancelMapPick();
     };
 
     window.addEventListener('paladio:map-picked-location', handleMapPickedLocation);
     return () => {
       window.removeEventListener('paladio:map-picked-location', handleMapPickedLocation);
     };
-  }, [onCancelMapPick]);
+  }, [onStartMapPick, onCancelMapPick]);
 
-  // Dynamic place fetcher
+  // Dynamic place & airport fetcher
   const fetchPlaces = useCallback(
     async (q: string): Promise<PlaceSearchResult[]> => {
       if (!q || q.trim().length < 1) return [];
+      const cleanQ = q.trim();
+      const baseUrl = getApiBaseUrl();
+      const places: PlaceSearchResult[] = [];
+
       try {
-        const baseUrl = getApiBaseUrl();
         const url = `${baseUrl}/locations/places?city=${encodeURIComponent(
           destinationCity || ''
-        )}&q=${encodeURIComponent(q.trim())}&limit=8`;
+        )}&q=${encodeURIComponent(cleanQ)}&limit=8`;
         const res = await fetch(url);
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            places.push(...data);
+          }
+        }
       } catch {
-        return [];
+        // Continue to airport check
       }
+
+      // Check if query could be an airport/IATA or commercial terminal
+      const isPotentialAirport =
+        cleanQ.length === 3 ||
+        /\b(airport|aeroport|aeropuerto|terminal|intl|hnd|nrt|cdg|fco|jfk|mad|bcn)\b/i.test(cleanQ);
+
+      if (isPotentialAirport) {
+        try {
+          const airportRes = await fetch(
+            `${baseUrl}/locations/search?q=${encodeURIComponent(cleanQ)}&limit=4`
+          );
+          if (airportRes.ok) {
+            const airportData = await airportRes.json();
+            if (Array.isArray(airportData)) {
+              for (const item of airportData) {
+                if (item.airport_name && item.latitude && item.longitude) {
+                  const exists = places.some(
+                    (p) =>
+                      p.name.toLowerCase() === item.airport_name.toLowerCase() ||
+                      p.name.toLowerCase().includes(item.airport_iata?.toLowerCase())
+                  );
+                  if (!exists) {
+                    places.push({
+                      name: item.display_airport || `${item.airport_name} (${item.airport_iata})`,
+                      display_name: `${item.airport_name} (${item.airport_iata}), ${item.city}`,
+                      address: `${item.city}, ${item.country_name || item.country}`,
+                      city: item.city,
+                      lat: item.latitude,
+                      lng: item.longitude,
+                      category: 'airport',
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // Ignore airport search failure
+        }
+      }
+
+      return places;
     },
     [destinationCity]
   );
+
+  // Memoized deduplicated trip anchors and places (Hotel 1st, Airport 2nd, deduplicated Day POIs)
+  const allTripPlaces = React.useMemo(() => {
+    const list: Array<DirectionSite & { isAnchor?: boolean; badgeLabel?: string }> = [];
+    const seenNames = new Set<string>();
+    const seenCoords = new Set<string>();
+
+    const getCoordKey = (lat: number, lng: number) =>
+      `${lat.toFixed(3)},${lng.toFixed(3)}`;
+
+    const normalize = (str: string) =>
+      str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+    // 1. Hotel first (if configured)
+    if (hotel && typeof hotel.lat === 'number' && typeof hotel.lng === 'number') {
+      const hotelNorm = normalize(hotel.name);
+      seenNames.add(hotelNorm);
+      seenCoords.add(getCoordKey(hotel.lat, hotel.lng));
+      list.push({
+        name: `Hotel: ${hotel.name}`,
+        address: hotel.address || hotel.name,
+        lat: hotel.lat,
+        lng: hotel.lng,
+        category: 'hotel',
+        isAnchor: true,
+        badgeLabel: 'HOTEL',
+      });
+    }
+
+    // 2. Airport second (if configured)
+    if (airport && typeof airport.lat === 'number' && typeof airport.lng === 'number') {
+      const airportNorm = normalize(airport.name);
+      seenNames.add(airportNorm);
+      if (airport.iata) seenNames.add(normalize(airport.iata));
+      seenCoords.add(getCoordKey(airport.lat, airport.lng));
+      list.push({
+        name: `Airport: ${airport.name}`,
+        address: airport.name,
+        lat: airport.lat,
+        lng: airport.lng,
+        category: 'transit',
+        isAnchor: true,
+        badgeLabel: 'AIRPORT',
+      });
+    }
+
+    // 3. Day POIs
+    const rawPois =
+      typeof selectedDayOption === 'number'
+        ? tripDays.find((d) => d.day_number === selectedDayOption)?.pois || []
+        : tripDays.flatMap((d) => d.pois || []);
+
+    rawPois.forEach((p) => {
+      if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+      const norm = normalize(p.name);
+      const coordKey = getCoordKey(p.lat, p.lng);
+
+      // Deduplicate against Hotel
+      if (hotel) {
+        const hotelNorm = normalize(hotel.name);
+        if (norm === hotelNorm || norm.includes(hotelNorm) || hotelNorm.includes(norm)) {
+          return;
+        }
+      }
+      // Deduplicate against Airport
+      if (airport) {
+        const airportNorm = normalize(airport.name);
+        if (norm === airportNorm || norm.includes(airportNorm) || airportNorm.includes(norm)) {
+          return;
+        }
+      }
+
+      // Deduplicate across POIs
+      if (seenNames.has(norm) || seenCoords.has(coordKey)) {
+        return;
+      }
+
+      seenNames.add(norm);
+      seenCoords.add(coordKey);
+      list.push({
+        name: p.name,
+        address: p.name,
+        lat: p.lat,
+        lng: p.lng,
+        category: p.category || 'attraction',
+        badgeLabel: 'TRIP STOP',
+      });
+    });
+
+    return list;
+  }, [hotel, airport, tripDays, selectedDayOption]);
+
+  // Select place from dropdown
+  const handleSelectOrigin = (site: DirectionSite) => {
+    setOriginSite(site);
+    setOriginQuery(site.name);
+    setIsOriginMenuOpen(false);
+
+    // Auto-advance to destination
+    if (activeMapPickField === 'origin') {
+      onStartMapPick?.('destination');
+    }
+    setTimeout(() => {
+      destInputRef.current?.focus();
+      setIsDestMenuOpen(true);
+    }, 60);
+  };
+
+  const handleSelectDest = (site: DirectionSite) => {
+    setDestSite(site);
+    setDestQuery(site.name);
+    setIsDestMenuOpen(false);
+    if (onCancelMapPick) onCancelMapPick();
+  };
+
+  // Direct coordinate selection
+  const handleSelectCoordinate = async (
+    field: 'origin' | 'destination',
+    coord: { lat: number; lng: number }
+  ) => {
+    const fallbackName = `Coordinates (${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`;
+    const initialSite: DirectionSite = {
+      name: fallbackName,
+      address: `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`,
+      lat: coord.lat,
+      lng: coord.lng,
+    };
+
+    if (field === 'origin') {
+      handleSelectOrigin(initialSite);
+    } else {
+      handleSelectDest(initialSite);
+    }
+
+    // Reverse geocode in background to obtain pretty location address
+    try {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(
+        `${baseUrl}/locations/reverse?lat=${coord.lat}&lon=${coord.lng}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.name) {
+          const enrichedSite: DirectionSite = {
+            name: data.name,
+            address: data.address || `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`,
+            lat: coord.lat,
+            lng: coord.lng,
+          };
+          if (field === 'origin') {
+            setOriginSite(enrichedSite);
+            setOriginQuery(enrichedSite.name);
+          } else {
+            setDestSite(enrichedSite);
+            setDestQuery(enrichedSite.name);
+          }
+        }
+      }
+    } catch {
+      // Keep coordinates fallback
+    }
+  };
 
   // Handle typing in Origin input
   const handleOriginChange = (val: string) => {
     setOriginQuery(val);
     setIsOriginMenuOpen(true);
 
-    // Direct coordinate check
-    const match = val.match(COORD_REGEX);
-    if (match) {
-      const lat = parseFloat(match[1]);
-      const lng = parseFloat(match[2]);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        setOriginSite({
-          name: `Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-          lat,
-          lng,
-        });
-        setOriginResults([]);
-        return;
-      }
-    }
-
     if (originSite && originSite.name !== val) {
       setOriginSite(null);
     }
 
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (originSearchTimerRef.current) clearTimeout(originSearchTimerRef.current);
     if (!val.trim()) {
       setOriginResults([]);
       setIsOriginSearching(false);
@@ -239,11 +489,11 @@ export function TripTransitDirectionsView({
     }
 
     setIsOriginSearching(true);
-    searchTimerRef.current = setTimeout(async () => {
+    originSearchTimerRef.current = setTimeout(async () => {
       const results = await fetchPlaces(val);
       setOriginResults(results);
       setIsOriginSearching(false);
-    }, 280);
+    }, 200);
   };
 
   // Handle typing in Destination input
@@ -251,27 +501,11 @@ export function TripTransitDirectionsView({
     setDestQuery(val);
     setIsDestMenuOpen(true);
 
-    // Direct coordinate check
-    const match = val.match(COORD_REGEX);
-    if (match) {
-      const lat = parseFloat(match[1]);
-      const lng = parseFloat(match[2]);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        setDestSite({
-          name: `Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-          lat,
-          lng,
-        });
-        setDestResults([]);
-        return;
-      }
-    }
-
     if (destSite && destSite.name !== val) {
       setDestSite(null);
     }
 
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (destSearchTimerRef.current) clearTimeout(destSearchTimerRef.current);
     if (!val.trim()) {
       setDestResults([]);
       setIsDestSearching(false);
@@ -279,25 +513,33 @@ export function TripTransitDirectionsView({
     }
 
     setIsDestSearching(true);
-    searchTimerRef.current = setTimeout(async () => {
+    destSearchTimerRef.current = setTimeout(async () => {
       const results = await fetchPlaces(val);
       setDestResults(results);
       setIsDestSearching(false);
-    }, 280);
+    }, 200);
   };
 
-  // Select place from dropdown
-  const handleSelectOrigin = (site: DirectionSite) => {
-    setOriginSite(site);
-    setOriginQuery(site.name);
-    setIsOriginMenuOpen(false);
-  };
+  // Filter trip places matching current queries
+  const matchingTripPlacesOrigin = React.useMemo(() => {
+    if (!originQuery.trim()) return [];
+    const qLower = originQuery.toLowerCase().trim();
+    return allTripPlaces.filter(
+      (item) =>
+        item.name.toLowerCase().includes(qLower) ||
+        (item.address && item.address.toLowerCase().includes(qLower))
+    );
+  }, [allTripPlaces, originQuery]);
 
-  const handleSelectDest = (site: DirectionSite) => {
-    setDestSite(site);
-    setDestQuery(site.name);
-    setIsDestMenuOpen(false);
-  };
+  const matchingTripPlacesDest = React.useMemo(() => {
+    if (!destQuery.trim()) return [];
+    const qLower = destQuery.toLowerCase().trim();
+    return allTripPlaces.filter(
+      (item) =>
+        item.name.toLowerCase().includes(qLower) ||
+        (item.address && item.address.toLowerCase().includes(qLower))
+    );
+  }, [allTripPlaces, destQuery]);
 
   // Swap Origin and Destination
   const handleSwapSites = () => {
@@ -433,78 +675,109 @@ export function TripTransitDirectionsView({
     window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
   };
 
-  // Quick anchors generator (Hotel, Airport, Day POIs)
-  const renderQuickAnchors = (field: 'origin' | 'destination') => {
-    const anchors: Array<{
-      name: string;
-      address?: string;
-      lat: number;
-      lng: number;
-      category: string;
-    }> = [];
-
-    if (hotel && typeof hotel.lat === 'number' && typeof hotel.lng === 'number') {
-      anchors.push({
-        name: `Hotel: ${hotel.name}`,
-        address: hotel.address || hotel.name,
-        lat: hotel.lat,
-        lng: hotel.lng,
-        category: 'hotel',
-      });
-    }
-
-    if (airport && typeof airport.lat === 'number' && typeof airport.lng === 'number') {
-      anchors.push({
-        name: `Airport: ${airport.name}`,
-        lat: airport.lat,
-        lng: airport.lng,
-        category: 'transit',
-      });
-    }
-
-    // Include day POIs (or all trip POIs if 'general' any-day mode is selected)
-    const rawPois =
-      typeof selectedDayOption === 'number'
-        ? tripDays.find((d) => d.day_number === selectedDayOption)?.pois || []
-        : tripDays.flatMap((d) => d.pois || []);
-
-    const seenNames = new Set<string>();
-    rawPois.forEach((p) => {
-      if (
-        typeof p.lat === 'number' &&
-        typeof p.lng === 'number' &&
-        !seenNames.has(p.name)
-      ) {
-        seenNames.add(p.name);
-        anchors.push({
-          name: p.name,
-          lat: p.lat,
-          lng: p.lng,
-          category: p.category || 'attraction',
-        });
+  // Keyboard navigation for Origin
+  const handleOriginKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const coord = parseCoordinates(originQuery);
+      if (coord) {
+        void handleSelectCoordinate('origin', coord);
+        return;
       }
-    });
+      if (matchingTripPlacesOrigin.length > 0) {
+        handleSelectOrigin(matchingTripPlacesOrigin[0]);
+      } else if (originResults.length > 0) {
+        handleSelectOrigin(originResults[0]);
+      }
+    }
+  };
 
-    if (anchors.length === 0) return null;
+  // Keyboard navigation for Destination
+  const handleDestKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const coord = parseCoordinates(destQuery);
+      if (coord) {
+        void handleSelectCoordinate('destination', coord);
+        return;
+      }
+      if (matchingTripPlacesDest.length > 0) {
+        handleSelectDest(matchingTripPlacesDest[0]);
+      } else if (destResults.length > 0) {
+        handleSelectDest(destResults[0]);
+      }
+    }
+  };
 
-    return (
-      <div style={{ marginBottom: '8px' }}>
-        <div
-          style={{
-            fontSize: '10px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--color-text-muted)',
-            padding: '4px 6px',
-          }}
-        >
-          Trip Anchors & Places
-        </div>
+  const getCategoryIcon = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes('hotel') || cat.includes('lodging') || cat.includes('accommodation')) {
+      return <HotelIcon size={13} color="var(--color-accent-teal, #0F4C5C)" />;
+    }
+    if (cat.includes('airport') || cat.includes('flight') || cat.includes('plane')) {
+      return <PlaneIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />;
+    }
+    if (
+      cat.includes('transit') ||
+      cat.includes('station') ||
+      cat.includes('subway') ||
+      cat.includes('rail') ||
+      cat.includes('bus')
+    ) {
+      return <TransitIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />;
+    }
+    return <PinIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />;
+  };
+
+  // Unified progressive dropdown menu renderer
+  const renderDropdownMenu = (field: 'origin' | 'destination') => {
+    const query = field === 'origin' ? originQuery : destQuery;
+    const isSearching = field === 'origin' ? isOriginSearching : isDestSearching;
+    const liveResults = field === 'origin' ? originResults : destResults;
+    const matchingTripPlaces =
+      field === 'origin' ? matchingTripPlacesOrigin : matchingTripPlacesDest;
+    const cleanQ = query.trim();
+    const parsedCoord = parseCoordinates(cleanQ);
+
+    // Case 1: When nothing is written, show pinned Hotel, Airport, and deduplicated trip POIs
+    if (!cleanQ) {
+      if (allTripPlaces.length === 0) {
+        return (
+          <div
+            style={{
+              padding: '12px',
+              textAlign: 'center',
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            No trip places or anchors found. Type a place name or coordinates above.
+          </div>
+        );
+      }
+
+      return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {anchors.map((item, idx) => (
+          <div
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--color-text-muted)',
+              padding: '4px 6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>Trip Anchors & Places</span>
+            <span style={{ fontSize: '9.5px', opacity: 0.7 }}>{allTripPlaces.length} places</span>
+          </div>
+
+          {allTripPlaces.map((item, idx) => (
             <div
-              key={`quick-${item.name}-${idx}`}
+              key={`anchor-${item.name}-${idx}`}
               onClick={() => {
                 if (field === 'origin') handleSelectOrigin(item);
                 else handleSelectDest(item);
@@ -512,12 +785,11 @@ export function TripTransitDirectionsView({
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
                 gap: '8px',
-                padding: '6px 8px',
-                borderRadius: '6px',
+                padding: '7px 8px',
+                borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '12px',
-                color: 'var(--color-text-primary)',
                 transition: 'background 0.15s ease',
               }}
               onMouseEnter={(e) => {
@@ -527,26 +799,310 @@ export function TripTransitDirectionsView({
                 e.currentTarget.style.background = 'transparent';
               }}
             >
-              {item.category === 'hotel' ? (
-                <HotelIcon size={12} color="var(--color-accent-teal, #0F4C5C)" />
-              ) : item.category === 'transit' ? (
-                <PlaneIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
-              ) : (
-                <PinIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                {getCategoryIcon(item.category || '')}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      color: 'var(--color-text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  {item.address && item.address !== item.name && (
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--color-text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.address}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {item.badgeLabel && (
+                <span
+                  style={{
+                    fontSize: '9.5px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    padding: '2px 5px',
+                    borderRadius: '4px',
+                    background: item.isAnchor
+                      ? 'rgba(15, 76, 92, 0.1)'
+                      : 'rgba(15, 76, 92, 0.05)',
+                    color: 'var(--color-accent-primary, #0F4C5C)',
+                    flexShrink: 0,
+                    fontFamily: 'var(--font-code, monospace)',
+                  }}
+                >
+                  {item.badgeLabel}
+                </span>
               )}
-              <span
-                style={{
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {item.name}
-              </span>
             </div>
           ))}
         </div>
+      );
+    }
+
+    // Case 2: When user is typing, progressively show best matching places (Trip POIs + live search)
+    const filteredLive = liveResults.filter((res) => {
+      const resNorm = res.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return !matchingTripPlaces.some((tp) => {
+        const tpNorm = tp.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return (
+          tpNorm === resNorm ||
+          (Math.abs(tp.lat - res.lat) < 0.001 && Math.abs(tp.lng - res.lng) < 0.001)
+        );
+      });
+    });
+
+    const hasAnyResults =
+      Boolean(parsedCoord) || matchingTripPlaces.length > 0 || filteredLive.length > 0;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {/* Coordinate Action if input matches coordinates */}
+        {parsedCoord && (
+          <div
+            onClick={() => void handleSelectCoordinate(field, parsedCoord)}
+            style={{
+              padding: '8px 10px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(15, 76, 92, 0.06)',
+              border: '1px dashed var(--color-accent-primary, #0F4C5C)',
+              marginBottom: '6px',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(15, 76, 92, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(15, 76, 92, 0.06)';
+            }}
+          >
+            <CrosshairIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: 'var(--color-accent-primary, #0F4C5C)',
+                }}
+              >
+                Use Coordinates: {parsedCoord.lat.toFixed(5)}, {parsedCoord.lng.toFixed(5)}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                Direct GPS Geographic Coordinate
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: 'rgba(15, 76, 92, 0.12)',
+                color: 'var(--color-accent-primary)',
+                fontFamily: 'var(--font-code, monospace)',
+              }}
+            >
+              GPS PIN
+            </span>
+          </div>
+        )}
+
+        {/* Searching Indicator */}
+        {isSearching && (
+          <div
+            style={{
+              padding: '8px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '11.5px',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            <Spinner size={12} color="var(--color-accent-primary)" />
+            <span>Searching places matching &quot;{cleanQ}&quot;...</span>
+          </div>
+        )}
+
+        {/* Matching Trip POIs & Anchors */}
+        {matchingTripPlaces.map((item, idx) => (
+          <div
+            key={`match-tp-${item.name}-${idx}`}
+            onClick={() => {
+              if (field === 'origin') handleSelectOrigin(item);
+              else handleSelectDest(item);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              padding: '7px 8px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+              {getCategoryIcon(item.category || '')}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.name}
+                </div>
+                {item.address && (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--color-text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.address}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                background: 'rgba(15, 76, 92, 0.08)',
+                color: 'var(--color-accent-primary)',
+                flexShrink: 0,
+                fontFamily: 'var(--font-code, monospace)',
+              }}
+            >
+              {item.badgeLabel || 'TRIP PLACE'}
+            </span>
+          </div>
+        ))}
+
+        {/* Live Search Results */}
+        {filteredLive.map((item, idx) => (
+          <div
+            key={`live-${item.name}-${idx}`}
+            onClick={() => {
+              if (field === 'origin') handleSelectOrigin(item);
+              else handleSelectDest(item);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              padding: '7px 8px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+              {getCategoryIcon(item.category || '')}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.address || item.display_name}
+                </div>
+              </div>
+            </div>
+
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                background: 'rgba(15, 76, 92, 0.08)',
+                color: 'var(--color-accent-primary)',
+                flexShrink: 0,
+                fontFamily: 'var(--font-code, monospace)',
+              }}
+            >
+              {item.category || 'PLACE'}
+            </span>
+          </div>
+        ))}
+
+        {/* Empty State */}
+        {!hasAnyResults && !isSearching && (
+          <div
+            style={{
+              padding: '16px 12px',
+              textAlign: 'center',
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            No matching places found for &quot;{cleanQ}&quot;
+          </div>
+        )}
       </div>
     );
   };
@@ -610,11 +1166,13 @@ export function TripTransitDirectionsView({
               A
             </span>
             <input
+              ref={originInputRef}
               type="text"
               placeholder="Origin (place name, address, or lat,lng)"
               value={originQuery}
               onChange={(e) => handleOriginChange(e.target.value)}
               onFocus={() => setIsOriginMenuOpen(true)}
+              onKeyDown={handleOriginKeyDown}
               style={{
                 flex: 1,
                 border: 'none',
@@ -697,55 +1255,7 @@ export function TripTransitDirectionsView({
                 overflowY: 'auto',
               }}
             >
-              {renderQuickAnchors('origin')}
-              {isOriginSearching && (
-                <div style={{ padding: '8px', textAlign: 'center', fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-                  Searching places...
-                </div>
-              )}
-              {originResults.map((item, idx) => (
-                <div
-                  key={`orig-res-${item.name}-${idx}`}
-                  onClick={() => handleSelectOrigin(item)}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '6px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.address}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      padding: '2px 5px',
-                      borderRadius: '4px',
-                      background: 'rgba(15, 76, 92, 0.08)',
-                      color: 'var(--color-accent-primary)',
-                    }}
-                  >
-                    {item.category}
-                  </span>
-                </div>
-              ))}
+              {renderDropdownMenu('origin')}
             </div>
           )}
         </div>
@@ -816,11 +1326,13 @@ export function TripTransitDirectionsView({
               B
             </span>
             <input
+              ref={destInputRef}
               type="text"
               placeholder="Destination (place name, address, or lat,lng)"
               value={destQuery}
               onChange={(e) => handleDestChange(e.target.value)}
               onFocus={() => setIsDestMenuOpen(true)}
+              onKeyDown={handleDestKeyDown}
               style={{
                 flex: 1,
                 border: 'none',
@@ -903,55 +1415,7 @@ export function TripTransitDirectionsView({
                 overflowY: 'auto',
               }}
             >
-              {renderQuickAnchors('destination')}
-              {isDestSearching && (
-                <div style={{ padding: '8px', textAlign: 'center', fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-                  Searching places...
-                </div>
-              )}
-              {destResults.map((item, idx) => (
-                <div
-                  key={`dest-res-${item.name}-${idx}`}
-                  onClick={() => handleSelectDest(item)}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '6px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.address}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      padding: '2px 5px',
-                      borderRadius: '4px',
-                      background: 'rgba(15, 76, 92, 0.08)',
-                      color: 'var(--color-accent-primary)',
-                    }}
-                  >
-                    {item.category}
-                  </span>
-                </div>
-              ))}
+              {renderDropdownMenu('destination')}
             </div>
           )}
         </div>
@@ -1006,50 +1470,187 @@ export function TripTransitDirectionsView({
           </button>
         </div>
 
-        {/* Day Selector */}
-        <select
-          value={selectedDayOption}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSelectedDayOption(val === 'general' ? 'general' : parseInt(val, 10));
-          }}
-          style={{
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-bg-main)',
-            borderRadius: '6px',
-            padding: '3px 6px',
-            fontSize: '11.5px',
-            color: 'var(--color-text-primary)',
-            outline: 'none',
-          }}
-        >
-          {tripDays.map((d) => (
-            <option key={d.day_number} value={d.day_number}>
-              Day {d.day_number}
-            </option>
-          ))}
-          {tripDays.length === 0 && <option value={1}>Day 1</option>}
-          <option value="general">General</option>
-        </select>
-
-        {/* Time input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <ClockIcon size={12} color="var(--color-text-muted)" />
-          <input
-            type="time"
-            value={timeValue}
-            onChange={(e) => setTimeValue(e.target.value)}
+        {/* Custom Day Selector Popover */}
+        <div ref={dayMenuRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setIsDayMenuOpen((prev) => !prev)}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '8px',
               border: '1px solid var(--color-border)',
-              background: 'var(--color-bg-main)',
-              borderRadius: '6px',
-              padding: '3px 6px',
+              background: 'var(--color-surface-raised, #FFFFFF)',
+              color: 'var(--color-text-primary)',
               fontSize: '11.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>{selectedDayOption === 'general' ? 'General' : `Day ${selectedDayOption}`}</span>
+            <ChevronDownIcon
+              size={12}
+              color="var(--color-text-muted)"
+              style={{
+                transform: isDayMenuOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.15s ease',
+              }}
+            />
+          </button>
+
+          {isDayMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                zIndex: 70,
+                minWidth: '110px',
+                background: 'var(--color-surface-raised, #FFFFFF)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '10px',
+                padding: '4px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}
+            >
+              {tripDays.map((d) => {
+                const isSelected = selectedDayOption === d.day_number;
+                return (
+                  <button
+                    key={d.day_number}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDayOption(d.day_number);
+                      setIsDayMenuOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: isSelected ? 'var(--color-bg-main, #F7F9FA)' : 'transparent',
+                      color: isSelected ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-text-primary)',
+                      fontWeight: isSelected ? 700 : 500,
+                      fontSize: '11.5px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%',
+                      transition: 'background 0.12s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span>Day {d.day_number}</span>
+                    {isSelected && <CheckIcon size={11} color="var(--color-accent-primary)" />}
+                  </button>
+                );
+              })}
+              {tripDays.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDayOption(1);
+                    setIsDayMenuOpen(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'var(--color-bg-main)',
+                    color: 'var(--color-accent-primary)',
+                    fontWeight: 700,
+                    fontSize: '11.5px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  Day 1
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDayOption('general');
+                  setIsDayMenuOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: selectedDayOption === 'general' ? 'var(--color-bg-main, #F7F9FA)' : 'transparent',
+                  color: selectedDayOption === 'general' ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-text-primary)',
+                  fontWeight: selectedDayOption === 'general' ? 700 : 500,
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                  transition: 'background 0.12s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedDayOption !== 'general') e.currentTarget.style.background = 'var(--color-bg-main, #F7F9FA)';
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedDayOption !== 'general') e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <span>General</span>
+                {selectedDayOption === 'general' && <CheckIcon size={11} color="var(--color-accent-primary)" />}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Hour Picker Trigger (no duplicate leftmost clock icon) */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsHourPickerOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface-raised, #FFFFFF)',
               color: 'var(--color-text-primary)',
               fontFamily: 'var(--font-code, monospace)',
-              fontWeight: 600,
-              outline: 'none',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease',
             }}
+            title="Click to select scheduled time"
+          >
+            <ClockIcon size={12} color="var(--color-text-muted)" />
+            <span>{timeValue}</span>
+          </button>
+
+          <CustomHourPickerModal
+            isOpen={isHourPickerOpen}
+            onClose={() => setIsHourPickerOpen(false)}
+            value={timeValue}
+            onChange={(newVal) => setTimeValue(newVal)}
+            anchorLabel={scheduleMode === 'depart_at' ? 'Departure Time' : 'Arrival Time'}
           />
         </div>
       </div>

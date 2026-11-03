@@ -30,23 +30,10 @@
 
 .headerTag {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  font-weight: 500;
-}
-
-.utilityTag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-ocean, #1B8FA6);
+  font-size: 11px;
   letter-spacing: 0.04em;
-}
-
-[data-theme="dark"] .utilityTag {
-  color: var(--color-sky, #7CC4D1);
+  color: var(--color-text-muted);
+  font-weight: 600;
 }
 
 .chartWrapper {

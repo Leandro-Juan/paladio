@@ -11,7 +11,7 @@ import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
 import { InfoIcon, CrosshairIcon, CloseIcon } from '@/components/icons';
-import { createRouteCardDragImage } from './TripUnifiedSidebar';
+import { createRouteCardDragImage, startCustomDragPreview } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
@@ -100,7 +100,7 @@ interface TripMapViewProps {
   onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isSidebarOpen?: boolean;
-  sidebarTab?: 'route' | 'search' | 'transit' | 'saved';
+  sidebarTab?: 'route' | 'search' | 'transit' | 'weather' | 'saved';
   destinationCity?: string;
   activeTransitLine?: ActiveTransitLineData | null;
   onClearTransitLine?: () => void;
@@ -773,20 +773,21 @@ function MapViewportController({
         } catch {
           poiData = JSON.parse(decodeURIComponent(raw));
         }
-        const ghost = createRouteCardDragImage({
+        startCustomDragPreview(e, {
           name: poiData.name,
           category: poiData.category,
           duration_mins: poiData.duration_mins,
           cost_eur: poiData.cost_eur,
         });
         if (e.dataTransfer) {
-          e.dataTransfer.setDragImage(ghost, 20, 20);
-          setTimeout(() => ghost.remove(), 0);
           const payload = { source: 'map', poi: poiData };
+          const serialized = JSON.stringify(payload);
           if (typeof window !== 'undefined') {
+            (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = payload;
             (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = payload;
           }
-          e.dataTransfer.setData('application/paladio-poi', JSON.stringify(payload));
+          e.dataTransfer.setData('application/paladio-poi', serialized);
+          e.dataTransfer.setData('text/plain', serialized);
           e.dataTransfer.effectAllowed = 'copyMove';
         }
         window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
@@ -806,15 +807,26 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+        window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+      }
+      if (typeof document !== 'undefined') {
+        const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
+        existing.forEach((node) => node.remove());
+      }
     };
 
     document.addEventListener('dragstart', handleDragStart);
-    document.addEventListener('dragend', handleMouseUp);
+    document.addEventListener('dragend', handleMouseUp, true);
+    document.addEventListener('drop', handleMouseUp, true);
     document.addEventListener('mousedown', handleMouseDown, true);
     document.addEventListener('mouseup', handleMouseUp, true);
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
-      document.removeEventListener('dragend', handleMouseUp);
+      document.removeEventListener('dragend', handleMouseUp, true);
+      document.removeEventListener('drop', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
     };
@@ -1811,6 +1823,20 @@ export default function TripMapView({
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e);
+                  if (activeMapPickField) {
+                    window.dispatchEvent(
+                      new CustomEvent('paladio:map-picked-location', {
+                        detail: {
+                          field: activeMapPickField,
+                          name: hotel.name,
+                          lat: hotel.lat,
+                          lng: hotel.lng,
+                          address: (hotel as { address?: string }).address || hotel.name,
+                        },
+                      })
+                    );
+                    return;
+                  }
                   onInspectPoi?.(hotelId, {
                     id: (hotel as { id?: string }).id,
                     name: hotel.name,
@@ -1839,6 +1865,20 @@ export default function TripMapView({
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e);
+                  if (activeMapPickField) {
+                    window.dispatchEvent(
+                      new CustomEvent('paladio:map-picked-location', {
+                        detail: {
+                          field: activeMapPickField,
+                          name: airport.name,
+                          lat: airport.lat,
+                          lng: airport.lng,
+                          address: airport.name,
+                        },
+                      })
+                    );
+                    return;
+                  }
                   onInspectPoi?.(airportId, {
                     id: (airport as { id?: string }).id,
                     name: airport.name,
@@ -1940,6 +1980,20 @@ export default function TripMapView({
                     },
                     click: (e) => {
                       L.DomEvent.stopPropagation(e);
+                      if (activeMapPickField) {
+                        window.dispatchEvent(
+                          new CustomEvent('paladio:map-picked-location', {
+                            detail: {
+                              field: activeMapPickField,
+                              name: poi.name,
+                              lat: poi.lat,
+                              lng: poi.lng,
+                              address: (poi as { address?: string }).address || poi.name,
+                            },
+                          })
+                        );
+                        return;
+                      }
                       onInspectPoi?.(poiId, {
                         id: poi.id,
                         name: poi.name,
@@ -1975,7 +2029,24 @@ export default function TripMapView({
                   icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused, Math.min(idx * 16, 180))}
                   zIndexOffset={isCatPoiFocused ? 2500 : 400}
                   eventHandlers={{
-                    click: () => {
+                    click: (e) => {
+                      if (e && (e as { originalEvent?: Event }).originalEvent) {
+                        L.DomEvent.stopPropagation(e);
+                      }
+                      if (activeMapPickField) {
+                        window.dispatchEvent(
+                          new CustomEvent('paladio:map-picked-location', {
+                            detail: {
+                              field: activeMapPickField,
+                              name: poi.name,
+                              lat: poi.lat,
+                              lng: poi.lng,
+                              address: (poi as { address?: string }).address || poi.name,
+                            },
+                          })
+                        );
+                        return;
+                      }
                       onInspectPoi?.(poi.id || poi.name, {
                         id: poi.id,
                         name: poi.name,

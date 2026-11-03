@@ -173,7 +173,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     if (externalPhotoUrl) return externalPhotoUrl;
 
     const itin = trip.itinerary_data as {
-      photos?: string[];
+      photos?: Array<string | { url?: string }>;
       days?: Array<{
         itinerary?: {
           path?: Array<{
@@ -187,7 +187,8 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
 
     // 1. Check itinerary root photos
     if (Array.isArray(itin?.photos) && itin.photos.length > 0 && itin.photos[0]) {
-      return itin.photos[0];
+      const p = itin.photos[0];
+      return typeof p === 'string' ? p : p.url;
     }
 
     // 2. Check first POI stop in itinerary days

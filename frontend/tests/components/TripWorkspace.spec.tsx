@@ -25,10 +25,9 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(component.getByText('Plan')).toBeVisible();
     await expect(component.getByText('Wallet')).toBeVisible();
     await expect(component.getByText('Costs')).toBeVisible();
-    await expect(component.getByText('Collab')).toBeVisible();
     await expect(component.getByText('Photos')).toBeVisible();
+    await expect(component.getByText('Configuration')).toBeVisible();
     await expect(component.getByRole('button', { name: /Photos/i }).getByText('12')).toBeVisible(); // Photos count badge
-    await expect(component.getByText('3')).toBeVisible();  // Collab count badge
   });
 
 
@@ -55,6 +54,11 @@ test.describe('Trip Workspace Renovated Components', () => {
     const costsBtn = component.getByRole('button', { name: /Costs/i });
     await costsBtn.click();
     expect(currentTab).toBe('costs');
+
+    // Click Configuration tab
+    const configBtn = component.getByRole('button', { name: /Configuration/i });
+    await configBtn.click();
+    expect(currentTab).toBe('config');
   });
 
   test('TripSpeedDial renders circular FAB and pops up Edit Mode, Day Resolver, and View switch', async ({ mount }) => {
@@ -169,20 +173,23 @@ test.describe('Trip Workspace Renovated Components', () => {
     const connector = component.getByTestId('route-poi-connector');
     await expect(connector.first()).toBeVisible();
 
-    // Verify top navigation tabs: Route, Search, Transit, Saved
+    // Verify top navigation tabs: Route, Search, Transit, Weather, Saved
     const routeTab = component.getByTestId('tab-route');
     const searchTab = component.getByTestId('tab-search');
     const transitTab = component.getByTestId('tab-transit');
+    const weatherTab = component.getByTestId('tab-weather');
     const savedTab = component.getByTestId('tab-saved');
     await expect(routeTab).toBeVisible();
     await expect(searchTab).toBeVisible();
     await expect(transitTab).toBeVisible();
+    await expect(weatherTab).toBeVisible();
     await expect(savedTab).toBeVisible();
 
     // Verify only the active tab displays its name, others display only icons
     await expect(routeTab).toHaveText('Route');
     await expect(searchTab).not.toHaveText('Search');
     await expect(transitTab).not.toHaveText('Transit');
+    await expect(weatherTab).not.toHaveText('Weather');
     await expect(savedTab).not.toHaveText('Saved');
 
     // Route tab is active by default -> Days bar should be visible
@@ -200,6 +207,7 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(searchTab).toHaveText('Search');
     await expect(routeTab).not.toHaveText('Route');
     await expect(transitTab).not.toHaveText('Transit');
+    await expect(weatherTab).not.toHaveText('Weather');
     await expect(savedTab).not.toHaveText('Saved');
 
     // Verify width animates/resizes to wider format (520px) in Search tab
@@ -231,9 +239,9 @@ test.describe('Trip Workspace Renovated Components', () => {
     await routeTab.click();
     await expect(unifiedCard).toHaveCSS('width', '380px');
 
-    // Switch to Saved tab
+    // Switch to Saved/Collections tab
     await savedTab.click();
-    await expect(component.getByText(/Saved Places/i)).toBeVisible();
+    await expect(component.getByText(/Collections|Saved/i).first()).toBeVisible();
   });
 });
 

@@ -4,11 +4,13 @@ import React, { useState, useMemo } from 'react';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
 import { ArrowRightIcon } from '@/components/icons';
+import { DisplayExpenseItem } from './ExpenseRow';
 
 interface SummaryCardProps {
   label: string;
   sub: string;
   amount: number;
+  targetAmount?: number;
   currency?: string;
   icon: React.ReactNode;
   tone: 'owe' | 'owed' | 'neutral' | 'total';
@@ -40,7 +42,7 @@ function formatMoneyParts(amount: number, currency: string = 'EUR') {
   }
 }
 
-function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }: SummaryCardProps) {
+function SummaryCard({ label, sub, amount, targetAmount, currency = 'EUR', icon, tone, foot }: SummaryCardProps) {
   const isTotal = tone === 'total';
   const accentColor =
     tone === 'owe'
@@ -128,6 +130,7 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
             marginTop: '16px',
             display: 'flex',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
             color: isTotal ? 'var(--color-text-on-accent, #FFFFFF)' : accentColor,
           }}
         >
@@ -139,11 +142,25 @@ function SummaryCard({ label, sub, amount, currency = 'EUR', icon, tone, foot }:
               fontSize: '1.25rem',
               fontWeight: 500,
               marginLeft: '4px',
-              color: isTotal ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-muted)',
+              color: isTotal ? 'rgba(255, 255, 255, 0.85)' : 'var(--color-text-muted)',
             }}
           >
             {otherPart}
           </span>
+          {targetAmount !== undefined && targetAmount > 0 && (
+            <span
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontFeatureSettings: '"tnum"',
+                fontSize: '1.15rem',
+                fontWeight: 500,
+                color: isTotal ? '#94A3B8' : 'var(--color-text-muted, #8E9A9F)',
+                marginLeft: '6px',
+              }}
+            >
+              / {formatMoneyParts(targetAmount, currency).integerPart}{formatMoneyParts(targetAmount, currency).otherPart}
+            </span>
+          )}
         </div>
       </div>
 
@@ -399,6 +416,339 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
   );
 }
 
+export interface DailySpendingPoint {
+  dateKey: string;
+  dayIndex: number;
+  dayLabel: string;
+  dateLabel: string;
+  amount: number;
+  expenseCount: number;
+  isToday: boolean;
+  isOverTarget: boolean;
+}
+
+function DailyExpensesGraph({
+  points,
+  dailyAllowance,
+  activeCurrency,
+  tripTotalDays,
+  totalSpend,
+}: {
+  points: DailySpendingPoint[];
+  dailyAllowance: number;
+  activeCurrency: string;
+  tripTotalDays?: number;
+  totalSpend?: number;
+}) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const maxAmount = useMemo(() => Math.max(0, ...points.map((p) => p.amount)), [points]);
+  // Generous ceiling so bars are prominent, bold and not compressed
+  const targetCeiling = useMemo(() => {
+    if (maxAmount === 0) return Math.max(dailyAllowance, 50);
+    return Math.max(maxAmount * 1.15, dailyAllowance * 1.05, 10);
+  }, [dailyAllowance, maxAmount]);
+
+  const targetPercent = Math.min(90, Math.max(15, Math.round((dailyAllowance / targetCeiling) * 100)));
+
+  const hoveredPoint = hoveredIdx !== null ? points[hoveredIdx] : null;
+
+  const totalSpentAcrossPoints = useMemo(() => points.reduce((acc, p) => acc + p.amount, 0), [points]);
+  const avgSpent = points.length > 0 ? totalSpentAcrossPoints / points.length : 0;
+  const avgParts = formatMoneyParts(avgSpent, activeCurrency);
+  const targetParts = formatMoneyParts(dailyAllowance, activeCurrency);
+  const totalSpendParts = formatMoneyParts(totalSpend ?? totalSpentAcrossPoints, activeCurrency);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        width: '100%',
+        minHeight: '175px',
+      }}
+    >
+      {/* Telemetry row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontSize: '0.68rem',
+          flexWrap: 'wrap',
+          marginBottom: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-muted)' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          <span style={{ fontWeight: 700, letterSpacing: '0.04em', color: 'var(--color-text-main)' }}>EXPENSES BY DAY</span>
+          {tripTotalDays !== undefined && (
+            <>
+              <span>·</span>
+              <span>Horizon: {tripTotalDays}d</span>
+            </>
+          )}
+          {totalSpend !== undefined && (
+            <>
+              <span>·</span>
+              <span>Total: <b style={{ color: 'var(--color-text-main)' }}>{totalSpendParts.integerPart}{totalSpendParts.otherPart}</b></span>
+            </>
+          )}
+        </div>
+
+        {hoveredPoint ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: 'var(--color-text-muted)' }}>
+              {hoveredPoint.dayLabel}{hoveredPoint.dateLabel ? ` (${hoveredPoint.dateLabel})` : ''}:
+            </span>
+            <span
+              style={{
+                fontWeight: 700,
+                color: hoveredPoint.isOverTarget ? 'var(--color-danger, #E63946)' : 'var(--color-text-main)',
+              }}
+            >
+              {formatMoneyParts(hoveredPoint.amount, activeCurrency).integerPart}
+              {formatMoneyParts(hoveredPoint.amount, activeCurrency).otherPart}
+            </span>
+            <span style={{ color: 'var(--color-text-muted)' }}>
+              ({hoveredPoint.expenseCount} {hoveredPoint.expenseCount === 1 ? 'item' : 'items'})
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-muted)' }}>
+            <span>Avg: {avgParts.integerPart}{avgParts.otherPart}/d</span>
+            <span>·</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '2px', background: 'var(--color-accent-warning, #E2B33C)', display: 'inline-block' }} />
+              Target: {targetParts.integerPart}{targetParts.otherPart}/d
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Main Chart Section: Tall Bars + Target Guideline */}
+      <div
+        style={{
+          position: 'relative',
+          height: '115px',
+          width: '100%',
+        }}
+      >
+        {/* Target Allowance Dashed Guideline */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: `${targetPercent}%`,
+            left: 0,
+            right: 0,
+            borderBottom: '1px dashed var(--color-accent-warning, #E2B33C)',
+            opacity: 0.7,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              right: 0,
+              bottom: '2px',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontSize: '0.58rem',
+              fontWeight: 600,
+              color: 'var(--color-accent-warning, #E2B33C)',
+              background: 'var(--color-surface-card)',
+              padding: '0 4px',
+              borderRadius: '3px',
+            }}
+          >
+            Target ({targetParts.integerPart}{targetParts.otherPart})
+          </span>
+        </div>
+
+        {/* Bars Container */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: '10px',
+            width: '100%',
+            height: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          {points.map((p, idx) => {
+            const isHovered = hoveredIdx === idx;
+            const barHeightPct = targetCeiling > 0 ? Math.min(100, Math.round((p.amount / targetCeiling) * 100)) : 0;
+            const money = formatMoneyParts(p.amount, activeCurrency);
+
+            return (
+              <div
+                key={p.dateKey || `day-slot-${idx}`}
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                style={{
+                  flex: 1,
+                  minWidth: '28px',
+                  maxWidth: '64px',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  position: 'relative',
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Floating tooltip on active bar */}
+                {isHovered && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 4px)',
+                      background: 'var(--color-surface-card, #FFFFFF)',
+                      border: '1px solid var(--color-border-subtle)',
+                      boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.12))',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: '0.62rem',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      zIndex: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>
+                      {money.integerPart}{money.otherPart}
+                    </span>
+                    <span style={{ color: p.isOverTarget ? 'var(--color-danger, #E63946)' : 'var(--color-text-muted)', fontSize: '0.58rem' }}>
+                      {p.isOverTarget ? 'Over daily target' : p.amount > 0 ? `${p.expenseCount} logged` : '0 spent'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Column Track */}
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '6px 6px 2px 2px',
+                    background: isHovered
+                      ? 'var(--color-surface-subtle, rgba(0, 0, 0, 0.08))'
+                      : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    overflow: 'hidden',
+                    transition: 'background 0.15s ease',
+                  }}
+                >
+                  {p.amount > 0 ? (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: `${Math.max(12, barHeightPct)}%`,
+                        background: p.isOverTarget
+                          ? 'var(--color-danger, #E63946)'
+                          : isHovered
+                          ? 'var(--color-accent-teal-mid, #14788D)'
+                          : 'var(--color-accent-primary, #0F4C5C)',
+                        borderRadius: '5px 5px 0 0',
+                        transition: 'height 0.3s ease, background 0.15s ease',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '60%',
+                        height: '3px',
+                        alignSelf: 'center',
+                        background: 'var(--color-border-subtle, rgba(0, 0, 0, 0.12))',
+                        borderRadius: '2px',
+                        marginBottom: '1px',
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dedicated X-Axis Labels Row - Cleanly separated below bars! */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          width: '100%',
+          height: '22px',
+          marginTop: '6px',
+        }}
+      >
+        {points.map((p, idx) => {
+          const isHovered = hoveredIdx === idx;
+          return (
+            <div
+              key={p.dateKey || `day-label-${idx}`}
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{
+                flex: 1,
+                minWidth: '28px',
+                maxWidth: '64px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '0.64rem',
+                  color: p.isToday
+                    ? 'var(--color-accent-primary, #0F4C5C)'
+                    : isHovered
+                    ? 'var(--color-text-main)'
+                    : 'var(--color-text-muted)',
+                  fontWeight: p.isToday || isHovered ? 700 : 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {points.length > 7 ? `D${p.dayIndex}` : p.dayLabel}
+              </span>
+              {p.isToday && (
+                <span
+                  style={{
+                    width: '4px',
+                    height: '4px',
+                    borderRadius: '50%',
+                    background: 'var(--color-accent-primary, #0F4C5C)',
+                    display: 'inline-block',
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface DailyPaceDoubleCardProps {
   activeCurrency: string;
   destinationCity?: string;
@@ -407,6 +757,7 @@ interface DailyPaceDoubleCardProps {
   todaySpend: number;
   totalBudget: number;
   totalSpend: number;
+  expenses?: DisplayExpenseItem[];
   onToggleMode?: (mode: 'pace' | 'fx') => void;
 }
 
@@ -418,6 +769,7 @@ function DailyPaceDoubleCard({
   todaySpend,
   totalBudget,
   totalSpend,
+  expenses,
   onToggleMode,
 }: DailyPaceDoubleCardProps) {
   const tripDuration = useMemo(() => {
@@ -472,12 +824,9 @@ function DailyPaceDoubleCard({
 
   const dailyAllowance = Math.max(1, totalBudget / tripDuration.totalDays);
   const remainingCushion = Math.max(0, totalBudget - totalSpend);
-  const remainingDailyRate = tripDuration.remainingDays > 0 ? (remainingCushion / tripDuration.remainingDays) : 0;
 
   const todayRatio = todaySpend / dailyAllowance;
   const isOverPacingToday = todayRatio > 1.05;
-  const cushionToday = Math.max(0, dailyAllowance - todaySpend);
-  const progressPct = Math.min(100, Math.round(todayRatio * 100));
 
   const paceHealth = useMemo(() => {
     if (tripDuration.isCompleted) {
@@ -494,14 +843,163 @@ function DailyPaceDoubleCard({
     return { text: 'ON TRACK', color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' };
   }, [tripDuration.isCompleted, isOverPacingToday, remainingCushion, totalBudget, totalSpend]);
 
-  const todayParts = formatMoneyParts(todaySpend, activeCurrency);
-  const allowanceParts = formatMoneyParts(dailyAllowance, activeCurrency);
-  const remainingCushionParts = formatMoneyParts(remainingCushion, activeCurrency);
-  const remainingDailyRateParts = formatMoneyParts(remainingDailyRate, activeCurrency);
-  const totalBudgetParts = formatMoneyParts(totalBudget, activeCurrency);
-  const totalSpendParts = formatMoneyParts(totalSpend, activeCurrency);
-  const cushionTodayParts = formatMoneyParts(cushionToday, activeCurrency);
-  const overAmountParts = formatMoneyParts(Math.max(0, todaySpend - dailyAllowance), activeCurrency);
+  const dailySpendingData = useMemo<DailySpendingPoint[]>(() => {
+    const points: DailySpendingPoint[] = [];
+    const dateToExpenses: Record<string, { amount: number; count: number }> = {};
+
+    if (Array.isArray(expenses) && expenses.length > 0) {
+      expenses.forEach((item) => {
+        const rawDate = item.date;
+        const dateKey = rawDate ? rawDate.split('T')[0] : 'unassigned';
+        const amt = typeof item.convertedAmount === 'number' ? item.convertedAmount : (Number(item.amount) || 0);
+        if (!dateToExpenses[dateKey]) {
+          dateToExpenses[dateKey] = { amount: 0, count: 0 };
+        }
+        dateToExpenses[dateKey].amount += amt;
+        dateToExpenses[dateKey].count += 1;
+      });
+    }
+
+    const todayIso = new Date().toISOString().split('T')[0];
+
+    if (startDate) {
+      try {
+        const [sYear, sMonth, sDay] = startDate.split('T')[0].split('-').map(Number);
+        const start = new Date(sYear, sMonth - 1, sDay);
+        let end = start;
+        if (endDate) {
+          const [eYear, eMonth, eDay] = endDate.split('T')[0].split('-').map(Number);
+          end = new Date(eYear, eMonth - 1, eDay);
+        }
+        const numDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1);
+
+        const tripDatesSet = new Set<string>();
+        for (let i = 0; i < numDays; i++) {
+          const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          tripDatesSet.add(iso);
+
+          const exp = dateToExpenses[iso];
+          const amount = exp ? exp.amount : 0;
+          const count = exp ? exp.count : 0;
+          const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+          points.push({
+            dateKey: iso,
+            dayIndex: i + 1,
+            dayLabel: `Day ${i + 1}`,
+            dateLabel,
+            amount,
+            expenseCount: count,
+            isToday: iso === todayIso,
+            isOverTarget: amount > dailyAllowance,
+          });
+        }
+
+        // Add any expense dates outside the trip horizon (e.g. pre-trip bookings)
+        const outsideDates = Object.keys(dateToExpenses)
+          .filter((k) => k !== 'unassigned' && !tripDatesSet.has(k))
+          .sort();
+
+        // Consolidate pre-trip & post-trip expenses cleanly
+        let preTripAmount = 0;
+        let preTripCount = 0;
+        let postTripAmount = 0;
+        let postTripCount = 0;
+
+        outsideDates.forEach((iso) => {
+          const parts = iso.split('-').map(Number);
+          const d = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : null;
+          const exp = dateToExpenses[iso];
+          if (d && d < start) {
+            preTripAmount += exp.amount;
+            preTripCount += exp.count;
+          } else {
+            postTripAmount += exp.amount;
+            postTripCount += exp.count;
+          }
+        });
+
+        if (preTripCount > 0) {
+          points.unshift({
+            dateKey: 'pre-trip',
+            dayIndex: 0,
+            dayLabel: 'Pre-trip',
+            dateLabel: 'Bookings',
+            amount: preTripAmount,
+            expenseCount: preTripCount,
+            isToday: false,
+            isOverTarget: preTripAmount > dailyAllowance,
+          });
+        }
+
+        if (postTripCount > 0) {
+          points.push({
+            dateKey: 'post-trip',
+            dayIndex: numDays + 1,
+            dayLabel: 'Post-trip',
+            dateLabel: 'After trip',
+            amount: postTripAmount,
+            expenseCount: postTripCount,
+            isToday: false,
+            isOverTarget: postTripAmount > dailyAllowance,
+          });
+        }
+
+        if (dateToExpenses['unassigned']) {
+          const exp = dateToExpenses['unassigned'];
+          points.push({
+            dateKey: 'unassigned',
+            dayIndex: points.length + 1,
+            dayLabel: 'Other',
+            dateLabel: 'No date',
+            amount: exp.amount,
+            expenseCount: exp.count,
+            isToday: false,
+            isOverTarget: exp.amount > dailyAllowance,
+          });
+        }
+
+        return points;
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    // Fallback: If no valid startDate
+    const sortedDates = Object.keys(dateToExpenses).sort();
+    if (sortedDates.length > 0) {
+      return sortedDates.map((k, idx) => {
+        const exp = dateToExpenses[k];
+        return {
+          dateKey: k,
+          dayIndex: idx + 1,
+          dayLabel: k === 'unassigned' ? 'Other' : `Day ${idx + 1}`,
+          dateLabel: k === 'unassigned' ? 'No date' : k,
+          amount: exp.amount,
+          expenseCount: exp.count,
+          isToday: k === todayIso,
+          isOverTarget: exp.amount > dailyAllowance,
+        };
+      });
+    }
+
+    // Default 5 empty day slots if completely empty
+    const daysCount = tripDuration.totalDays || 5;
+    for (let i = 0; i < daysCount; i++) {
+      points.push({
+        dateKey: `day-slot-${i + 1}`,
+        dayIndex: i + 1,
+        dayLabel: `Day ${i + 1}`,
+        dateLabel: '',
+        amount: 0,
+        expenseCount: 0,
+        isToday: false,
+        isOverTarget: false,
+      });
+    }
+    return points;
+  }, [expenses, startDate, endDate, dailyAllowance, tripDuration.totalDays]);
 
   return (
     <div
@@ -517,7 +1015,7 @@ function DailyPaceDoubleCard({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        minHeight: '170px',
+        minHeight: '220px',
       }}
     >
       <div>
@@ -578,113 +1076,17 @@ function DailyPaceDoubleCard({
             </span>
           </div>
         </div>
-
-        {/* 2-Column Responsive Body */}
-        <div
-          style={{
-            marginTop: '16px',
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)',
-            gap: '18px',
-            alignItems: 'start',
-          }}
-        >
-          {/* Left Sub-Column: Today's Burn Rate vs. Allowance */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-              {"TODAY'S SPENDING PACE"}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-main)' }}>
-                {todayParts.integerPart}{todayParts.otherPart}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                / {allowanceParts.integerPart}{allowanceParts.otherPart} target
-              </span>
-            </div>
-            {/* Progress bar */}
-            <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.06))', overflow: 'hidden', margin: '4px 0 2px 0' }}>
-              <div
-                style={{
-                  width: `${progressPct}%`,
-                  height: '100%',
-                  background: isOverPacingToday ? 'var(--color-danger, #E63946)' : progressPct > 80 ? 'var(--color-accent-warning, #E2B33C)' : 'var(--color-success, #1F7A4D)',
-                  borderRadius: '3px',
-                  transition: 'width 0.3s ease',
-                }}
-              />
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: isOverPacingToday ? 'var(--color-danger, #E63946)' : 'var(--color-text-muted)' }}>
-              {isOverPacingToday
-                ? `${overAmountParts.integerPart}${overAmountParts.otherPart} over daily target`
-                : `${progressPct}% spent · ${cushionTodayParts.integerPart}${cushionTodayParts.otherPart} cushion left`}
-            </div>
-          </div>
-
-          {/* Right Sub-Column: Remaining Trip Runway */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-              REMAINING TRIP RUNWAY
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-main)' }}>
-                {remainingCushionParts.integerPart}{remainingCushionParts.otherPart}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                remaining
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '3px 8px',
-                borderRadius: '8px',
-                background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.04))',
-                border: '1px solid var(--color-border-subtle)',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: 'var(--color-text-main)',
-                alignSelf: 'flex-start',
-                marginTop: '2px',
-              }}
-            >
-              <span>{remainingDailyRateParts.integerPart}{remainingDailyRateParts.otherPart} / day</span>
-              <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>
-                ({tripDuration.remainingDays} {tripDuration.remainingDays === 1 ? 'day' : 'days'} left)
-              </span>
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.66rem', color: 'var(--color-text-muted)' }}>
-              From {totalBudgetParts.integerPart}{totalBudgetParts.otherPart} planned budget
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Footer */}
-      <div
-        style={{
-          borderTop: '1px solid var(--color-border-subtle)',
-          paddingTop: '12px',
-          marginTop: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontSize: '0.72rem',
-          color: 'var(--color-text-muted)',
-          fontFamily: 'var(--font-mono, monospace)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span>
-          Trip horizon: {tripDuration.totalDays} {tripDuration.totalDays === 1 ? 'day' : 'days'}
-        </span>
-        <span>·</span>
-        <span>
-          Total spent: {totalSpendParts.integerPart}{totalSpendParts.otherPart} ({Math.min(999, Math.round((totalSpend / Math.max(1, totalBudget)) * 100))}% of budget)
-        </span>
+      {/* Main Body: ONLY the Daily Expenses Graph! */}
+      <div style={{ marginTop: '16px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+        <DailyExpensesGraph
+          points={dailySpendingData}
+          dailyAllowance={dailyAllowance}
+          activeCurrency={activeCurrency}
+          tripTotalDays={tripDuration.totalDays}
+          totalSpend={totalSpend}
+        />
       </div>
     </div>
   );
@@ -972,6 +1374,7 @@ interface CostsSummaryCardsProps {
   endDate?: string;
   todaySpend?: number;
   totalBudget?: number;
+  expenses?: DisplayExpenseItem[];
 }
 
 export function CostsSummaryCards({
@@ -988,6 +1391,7 @@ export function CostsSummaryCards({
   endDate,
   todaySpend,
   totalBudget,
+  expenses,
 }: CostsSummaryCardsProps) {
   const currency = totals.currency || activeCurrency || 'EUR';
 
@@ -1037,6 +1441,7 @@ export function CostsSummaryCards({
           todaySpend={todaySpend ?? 0}
           totalBudget={totalBudget ?? (totals.totalSpend > 0 ? totals.totalSpend * 1.25 : 600)}
           totalSpend={totals.totalSpend}
+          expenses={expenses}
           onToggleMode={isSameCurrency ? undefined : (m) => setUserSelectedMode(m)}
         />
       ) : (
@@ -1123,6 +1528,7 @@ export function CostsSummaryCards({
         label="Total trip spend"
         sub="Across all travelers"
         amount={totals.totalSpend}
+        targetAmount={totalBudget}
         currency={currency}
         tone="total"
         icon={

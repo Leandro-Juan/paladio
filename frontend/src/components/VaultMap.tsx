@@ -785,9 +785,9 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       currencyInfo.countryCode ||
       'EU';
 
-    // 8. Cover Photo resolution (prioritizing photo entered on trip creation)
+    const firstPhoto = Array.isArray(itin?.photos) && itin.photos.length > 0 ? itin.photos[0] : undefined;
     const coverPhoto =
-      (Array.isArray(itin?.photos) && itin.photos.length > 0 ? itin.photos[0] : undefined) ||
+      (typeof firstPhoto === 'string' ? firstPhoto : (firstPhoto as { url?: string } | undefined)?.url) ||
       (itin as { photo_url?: string })?.photo_url ||
       (tripObj as { photo_url?: string })?.photo_url ||
       (constraints as { photo_url?: string })?.photo_url ||

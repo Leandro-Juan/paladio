@@ -12,6 +12,16 @@ export const getApiBaseUrl = (): string => {
   return 'http://localhost:8000/api';
 };
 
+export const resolveApiMediaUrl = (url: string): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const base = getApiBaseUrl().replace(/\/api\/?$/, '');
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${base}${cleanPath}`;
+};
+
 const TOKEN_KEY = 'paladio_token';
 
 export const getAuthToken = (): string | null => {

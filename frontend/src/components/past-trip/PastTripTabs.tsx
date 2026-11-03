@@ -10,7 +10,7 @@ import type { DisplayExpenseItem } from '@/components/trip-workspace/costs/Expen
 
 import { MinimalistPoiCard } from '@/components/trip-workspace/MinimalistPoiCard';
 import { getScheduledPoiTimes } from '@/utils/date';
-import type { ScheduledPoi } from '@/types/domain';
+import type { ScheduledPoi, TripPhotoItem } from '@/types/domain';
 
 export type PastTripTabId = 'about' | 'itinerary' | 'costs' | 'photos';
 
@@ -26,8 +26,10 @@ interface PastTripTabsProps {
   settlement: TripSettlement | null;
   expenseItems: DisplayExpenseItem[];
   currency: string;
-  photos: string[];
+  photos: Array<string | TripPhotoItem>;
   destination?: string;
+  tripId?: string;
+  onPhotosChange?: (updated: Array<string | TripPhotoItem>) => void;
 }
 
 export function PastTripTabs({
@@ -44,6 +46,8 @@ export function PastTripTabs({
   currency,
   photos,
   destination = '',
+  tripId,
+  onPhotosChange,
 }: PastTripTabsProps) {
   const { addNotification } = useNotificationStore();
 
@@ -554,7 +558,7 @@ export function PastTripTabs({
 
       {activeTab === 'photos' && (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <TripPhotosView photos={photos} />
+          <TripPhotosView tripId={tripId} photos={photos} onPhotosChange={onPhotosChange} />
         </div>
       )}
     </div>
