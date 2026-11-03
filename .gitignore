@@ -133,9 +133,7 @@ docs/NOMENCLATURE.md
 # Skills backup
 .skills_backup/
 
-data/wallet_attachments/
-data/wallet_temp_uploads/
-data/custom_files/
+data/
 backend/data/
 
 

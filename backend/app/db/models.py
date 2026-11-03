@@ -17,6 +17,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -228,6 +229,12 @@ class TripModel(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    collections = relationship(
+        "TripCollectionModel",
+        back_populates="trip",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class TripParticipantModel(Base):
@@ -277,6 +284,60 @@ class TripExpenseModel(Base):
 
     trip = relationship("TripModel", back_populates="expenses")
     payer = relationship("TripParticipantModel")
+
+
+class TripCollectionModel(Base):
+    __tablename__ = "trip_collections"
+
+    id = Column(String, primary_key=True, index=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    color = Column(String, nullable=True, default="#0F4C5C")
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    trip = relationship("TripModel", back_populates="collections")
+    items = relationship(
+        "TripCollectionItemModel",
+        back_populates="collection",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="TripCollectionItemModel.order_index",
+    )
+
+
+class TripCollectionItemModel(Base):
+    __tablename__ = "trip_collection_items"
+
+    id = Column(String, primary_key=True, index=True)
+    collection_id = Column(
+        String,
+        ForeignKey("trip_collections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    poi_id = Column(String, nullable=False, index=True)
+    notes = Column(Text, nullable=True)
+    order_index = Column(Integer, default=0, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    collection = relationship("TripCollectionModel", back_populates="items")
+
+    __table_args__ = (
+        UniqueConstraint("collection_id", "poi_id", name="uq_trip_collection_poi"),
+    )
 
 
 class TransitCacheStatus(str, enum.Enum):

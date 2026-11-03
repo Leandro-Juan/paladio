@@ -89,40 +89,40 @@ def degrees_to_cardinal(deg: float | int) -> str:
 
 def evaluate_uv(uv: float) -> str:
     if uv < 3:
-        return "Low 👍"
+        return "Low"
     if uv < 6:
         return "Moderate"
     if uv < 8:
-        return "High ⚠️"
+        return "High"
     if uv < 11:
-        return "Very High ⚠️"
-    return "Extreme 🚨"
+        return "Very High"
+    return "Extreme"
 
 
 def evaluate_humidity(hum: int | float) -> str:
     if hum < 30:
-        return "Dry 🏜️"
+        return "Dry"
     if hum <= 65:
-        return "Normal 👍"
-    return "Humid 💧"
+        return "Normal"
+    return "Humid"
 
 
 def evaluate_visibility(vis_km: float) -> str:
     if vis_km >= 9.0:
-        return "Clear 👍"
+        return "Clear"
     if vis_km >= 4.0:
-        return "Average 😐"
-    return "Haze / Fog 🌫️"
+        return "Average"
+    return "Haze / Fog"
 
 
 def evaluate_aqi(aqi: int) -> str:
     if aqi <= 50:
-        return "Good 👍"
+        return "Good"
     if aqi <= 100:
-        return "Moderate 😐"
+        return "Moderate"
     if aqi <= 150:
-        return "Unhealthy for Sensitive Groups 😷"
-    return "Unhealthy 👎"
+        return "Unhealthy for Sensitive Groups"
+    return "Unhealthy"
 
 
 def wmo_to_condition(code: int) -> tuple[str, str]:
@@ -205,12 +205,27 @@ async def get_weather_forecast(
     lon: float | None = Query(
         None, description="Longitude (optional if city provided)"
     ),
+    start_date: str | None = Query(None, description="Trip start date (YYYY-MM-DD)"),
+    end_date: str | None = Query(None, description="Trip end date (YYYY-MM-DD)"),
 ) -> Any:
     resolved_lat, resolved_lon, resolved_city = await resolve_coordinates(
         city, lat, lon
     )
 
-    forecast_params = {
+    clean_start_date: str | None = None
+    clean_end_date: str | None = None
+    if isinstance(start_date, str) and start_date.strip():
+        clean_start_date = start_date.split("T")[0].strip()
+    if isinstance(end_date, str) and end_date.strip():
+        clean_end_date = end_date.split("T")[0].strip()
+    if clean_start_date and not clean_end_date:
+        clean_end_date = clean_start_date
+    elif clean_end_date and not clean_start_date:
+        clean_start_date = clean_end_date
+    elif clean_start_date and clean_end_date and clean_end_date < clean_start_date:
+        clean_end_date = clean_start_date
+
+    forecast_params: dict[str, Any] = {
         "latitude": resolved_lat,
         "longitude": resolved_lon,
         "daily": (
@@ -223,16 +238,23 @@ async def get_weather_forecast(
         ),
         "hourly": "relative_humidity_2m,visibility,uv_index",
         "timezone": "auto",
-        "forecast_days": 7,
     }
+    if clean_start_date and clean_end_date:
+        forecast_params["start_date"] = clean_start_date
+        forecast_params["end_date"] = clean_end_date
+    else:
+        forecast_params["forecast_days"] = 7
 
-    air_quality_params = {
+    air_quality_params: dict[str, Any] = {
         "latitude": resolved_lat,
         "longitude": resolved_lon,
         "current": "us_aqi,pm2_5,pm10",
         "hourly": "us_aqi",
         "timezone": "auto",
     }
+    if clean_start_date and clean_end_date:
+        air_quality_params["start_date"] = clean_start_date
+        air_quality_params["end_date"] = clean_end_date
 
     forecast_data: dict[str, Any] = {}
     air_quality_data: dict[str, Any] = {}
@@ -242,6 +264,66 @@ async def get_weather_forecast(
             f_resp = await client.get(OPEN_METEO_FORECAST_URL, params=forecast_params)
             if f_resp.status_code == 200:
                 forecast_data = f_resp.json()
+            elif f_resp.status_code == 400 and clean_start_date and clean_end_date:
+                logger.info(
+                    "Forecast out of range, attempting archive or seasonal fallback"
+                )
+                import datetime
+
+                try:
+                    s_date = datetime.date.fromisoformat(clean_start_date)
+                    today = datetime.date.today()
+                    if s_date < today:
+                        archive_params = {
+                            "latitude": resolved_lat,
+                            "longitude": resolved_lon,
+                            "daily": (
+                                "weather_code,temperature_2m_max,temperature_2m_min,"
+                                "uv_index_max,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant"
+                            ),
+                            "hourly": "relative_humidity_2m,visibility",
+                            "timezone": "auto",
+                            "start_date": clean_start_date,
+                            "end_date": clean_end_date,
+                        }
+                        arch_resp = await client.get(
+                            "https://archive-api.open-meteo.com/v1/archive",
+                            params=archive_params,
+                        )
+                        if arch_resp.status_code == 200:
+                            forecast_data = arch_resp.json()
+                        else:
+                            raise HTTPException(
+                                status_code=502,
+                                detail="Weather telemetry provider unavailable",
+                            )
+                    else:
+                        seasonal_params = {
+                            "latitude": resolved_lat,
+                            "longitude": resolved_lon,
+                            "daily": "weather_code,temperature_2m_max,temperature_2m_min",
+                            "start_date": clean_start_date,
+                            "end_date": clean_end_date,
+                        }
+                        season_resp = await client.get(
+                            "https://seasonal-api.open-meteo.com/v1/seasonal",
+                            params=seasonal_params,
+                        )
+                        if season_resp.status_code == 200:
+                            forecast_data = season_resp.json()
+                        else:
+                            raise HTTPException(
+                                status_code=502,
+                                detail="Weather telemetry provider unavailable",
+                            )
+                except HTTPException:
+                    raise
+                except Exception as exc:
+                    logger.error(f"Fallback weather query failed: {exc}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail="Weather telemetry provider unavailable",
+                    )
             else:
                 logger.error(
                     f"Open-Meteo forecast failed with status {f_resp.status_code}"
@@ -269,17 +351,32 @@ async def get_weather_forecast(
     hourly_block = forecast_data.get("hourly", {})
     tz = forecast_data.get("timezone", "UTC")
 
-    curr_temp = float(current_block.get("temperature_2m", 20.0))
-    curr_w_code = int(current_block.get("weather_code", 0))
+    times = daily_block.get("time", [])
+    w_codes = daily_block.get("weather_code", [])
+    max_temps = daily_block.get("temperature_2m_max", [])
+    min_temps = daily_block.get("temperature_2m_min", [])
+
+    curr_temp_raw = current_block.get("temperature_2m")
+    if curr_temp_raw is not None:
+        curr_temp = float(curr_temp_raw)
+    elif max_temps and max_temps[0] is not None:
+        curr_temp = float(max_temps[0])
+    else:
+        curr_temp = 20.0
+
+    curr_w_code_raw = current_block.get("weather_code")
+    if curr_w_code_raw is not None:
+        curr_w_code = int(curr_w_code_raw)
+    elif w_codes and w_codes[0] is not None:
+        curr_w_code = int(w_codes[0])
+    else:
+        curr_w_code = 0
+
     curr_condition, curr_icon = wmo_to_condition(curr_w_code)
 
     curr_aqi_raw = air_quality_data.get("current", {}).get("us_aqi")
     default_aqi = int(curr_aqi_raw) if curr_aqi_raw is not None else 45
 
-    times = daily_block.get("time", [])
-    w_codes = daily_block.get("weather_code", [])
-    max_temps = daily_block.get("temperature_2m_max", [])
-    min_temps = daily_block.get("temperature_2m_min", [])
     uv_indices = daily_block.get("uv_index_max", [])
     sunrises = daily_block.get("sunrise", [])
     sunsets = daily_block.get("sunset", [])
@@ -307,10 +404,22 @@ async def get_weather_forecast(
             return iso_t
 
     for i, date_str in enumerate(times):
-        code = int(w_codes[i]) if i < len(w_codes) else curr_w_code
+        code = (
+            int(w_codes[i])
+            if i < len(w_codes) and w_codes[i] is not None
+            else curr_w_code
+        )
         cond, icon_type = wmo_to_condition(code)
-        t_max = float(max_temps[i]) if i < len(max_temps) else curr_temp
-        t_min = float(min_temps[i]) if i < len(min_temps) else curr_temp - 5.0
+        t_max = (
+            float(max_temps[i])
+            if i < len(max_temps) and max_temps[i] is not None
+            else curr_temp
+        )
+        t_min = (
+            float(min_temps[i])
+            if i < len(min_temps) and min_temps[i] is not None
+            else curr_temp - 5.0
+        )
         uv = (
             float(uv_indices[i])
             if i < len(uv_indices) and uv_indices[i] is not None

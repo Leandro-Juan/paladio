@@ -2601,6 +2601,28 @@ async def list_active_deals(
     return [_convert_deal_package_item(item, target_curr) for item in items[:limit]]
 
 
+@router.get("/routes-best-deals", response_model=list[DealPackageItem])
+async def list_routes_best_deals(
+    session: AsyncSession = Depends(get_db),
+    limit_per_route: int = Query(3, ge=1, le=10),
+    currency_param: str | None = Query(None, alias="currency"),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
+    alerts = (await session.execute(select(DealWatchAlertModel))).scalars().all()
+    all_deals: list[DealPackageItem] = []
+    for alert in alerts:
+        route_deals = await list_route_deals(
+            route_id=alert.id,
+            session=session,
+            limit=limit_per_route,
+            currency_param=target_curr,
+            current_user=current_user,
+        )
+        all_deals.extend(route_deals)
+    return all_deals
+
+
 @router.get("/routes/{route_id}/deals", response_model=list[DealPackageItem])
 async def list_route_deals(
     route_id: str,

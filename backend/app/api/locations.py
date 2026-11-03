@@ -580,7 +580,9 @@ async def search_places(
                 params["lon"] = city_lon
 
             async with httpx.AsyncClient(timeout=8.0) as client:
-                resp = await client.get(PHOTON_URL, params=params)
+                resp = await client.get(
+                    PHOTON_URL, params=params, headers={"User-Agent": USER_AGENT}
+                )
                 if resp.status_code == 200:
                     data = resp.json()
                     features = data.get("features", [])
@@ -621,18 +623,117 @@ async def search_places(
                         results.append(
                             {
                                 "name": name,
-                                "display_name": f"{name}, {formatted_address}"
-                                if road_part
-                                else formatted_address,
+                                "display_name": (
+                                    f"{name}, {formatted_address}"
+                                    if road_part
+                                    else formatted_address
+                                ),
                                 "address": formatted_address,
                                 "city": item_city,
                                 "country": country,
                                 "lat": float(coords[1]),
                                 "lng": float(coords[0]),
-                                "category": osm_val
-                                if osm_val
-                                in ("hotel", "station", "museum", "restaurant", "park")
-                                else "place",
+                                "category": (
+                                    osm_val
+                                    if osm_val
+                                    in (
+                                        "hotel",
+                                        "station",
+                                        "museum",
+                                        "restaurant",
+                                        "park",
+                                    )
+                                    else "place"
+                                ),
+                            }
+                        )
+        except Exception:
+            pass
+
+    # 4. Fallback to Nominatim if results still insufficient
+    if len(results) < limit and clean_q:
+        try:
+            await acquire_nominatim_slot()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    NOMINATIM_URL,
+                    params={
+                        "q": search_target,
+                        "format": "jsonv2",
+                        "limit": limit * 2,
+                        "addressdetails": 1,
+                        "accept-language": "en",
+                    },
+                    headers={"User-Agent": USER_AGENT},
+                )
+                if resp.status_code == 200:
+                    nom_data = resp.json()
+                    for item in nom_data:
+                        if len(results) >= limit:
+                            break
+                        name = (
+                            item.get("name")
+                            or item.get("display_name", "").split(",")[0].strip()
+                        )
+                        if not name:
+                            continue
+                        norm = name.lower().strip()
+                        if norm in seen_names:
+                            continue
+                        seen_names.add(norm)
+
+                        addr = item.get("address", {})
+                        road = addr.get("road", "")
+                        suburb = (
+                            addr.get("suburb")
+                            or addr.get("neighbourhood")
+                            or addr.get("city_district", "")
+                        )
+                        item_city = (
+                            addr.get("city")
+                            or addr.get("town")
+                            or addr.get("village", clean_city)
+                        )
+                        country = addr.get("country", "")
+
+                        road_part = (
+                            f"{road} {addr.get('house_number', '')}".strip()
+                            if road
+                            else ""
+                        )
+                        addr_parts = [p for p in [road_part, suburb, item_city] if p]
+                        formatted_address = (
+                            ", ".join(addr_parts)
+                            if addr_parts
+                            else item.get("display_name", name)
+                        )
+
+                        raw_type = item.get("type", "place")
+                        results.append(
+                            {
+                                "name": name,
+                                "display_name": (
+                                    f"{name}, {formatted_address}"
+                                    if road_part
+                                    else formatted_address
+                                ),
+                                "address": formatted_address,
+                                "city": item_city,
+                                "country": country,
+                                "lat": float(item["lat"]),
+                                "lng": float(item["lon"]),
+                                "category": (
+                                    raw_type
+                                    if raw_type
+                                    in (
+                                        "hotel",
+                                        "station",
+                                        "museum",
+                                        "restaurant",
+                                        "park",
+                                    )
+                                    else "place"
+                                ),
                             }
                         )
         except Exception:

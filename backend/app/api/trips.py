@@ -6,6 +6,7 @@ from typing import Any
 
 from app.api.deps import get_optional_user
 from app.api.tickets import router as tickets_router
+from app.api.collections import router as collections_router
 from app.db.models import (
     TransitCacheModel,
     TransitCacheStatus,
@@ -26,6 +27,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +35,11 @@ from sqlalchemy.future import select
 
 from app.services.travel_document_scanner import scan_travel_document
 from app.services.airport_service import get_airport_service
+from app.services.photo_storage import (
+    save_trip_photo,
+    find_photo_file,
+    delete_photo_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +245,7 @@ class TripUpdate(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     itinerary_data: dict[str, Any] | None = None
+    status: str | None = None
 
 
 class TripResponse(TripCreate):
@@ -247,6 +255,20 @@ class TripResponse(TripCreate):
     participants: list[TripParticipantResponse] = []
     tickets_count: int = 0
     destination_timezone: str | None = None
+    status: str = "active"
+
+
+class TripPhotoResponse(BaseModel):
+    id: str
+    url: str
+    filename: str | None = None
+    width: int | None = None
+    height: int | None = None
+    aspect_ratio: float | None = None
+    size_bytes: int | None = None
+    mime_type: str | None = None
+    media_type: str | None = None
+    created_at: str | None = None
 
 
 def _resolve_trip_timezone(trip: TripModel) -> str | None:
@@ -742,7 +764,11 @@ async def create_trip(
         else datetime.now(timezone.utc).isoformat(),
         participants=[_participant_to_response(p) for p in all_p],
         tickets_count=t_count,
+        status=getattr(db_trip, "status", "active") or "active",
     )
+
+
+router.include_router(collections_router)
 
 
 @router.get("/", response_model=list[TripResponse])
@@ -774,6 +800,7 @@ async def get_trips(
                 participants=parts,
                 tickets_count=t_count,
                 destination_timezone=_resolve_trip_timezone(t),
+                status=getattr(t, "status", "active") or "active",
             )
         )
     return response
@@ -1445,6 +1472,7 @@ async def get_trip(
         participants=parts,
         tickets_count=t_count,
         destination_timezone=_resolve_trip_timezone(trip),
+        status=getattr(trip, "status", "active") or "active",
     )
 
 
@@ -1466,6 +1494,8 @@ async def update_trip(
         trip.start_date = update_data.start_date
     if update_data.end_date is not None:
         trip.end_date = update_data.end_date
+    if update_data.status is not None:
+        trip.status = update_data.status
     if update_data.itinerary_data is not None:
         itin_data = update_data.itinerary_data
         try:
@@ -1498,6 +1528,7 @@ async def update_trip(
         else datetime.now(timezone.utc).isoformat(),
         participants=parts,
         tickets_count=t_count,
+        status=getattr(trip, "status", "active") or "active",
     )
 
 
@@ -2043,6 +2074,123 @@ async def upgrade_trip_transit(
         else datetime.now(timezone.utc).isoformat(),
         tickets_count=await _get_trip_tickets_count(trip.id, session),
     )
+
+
+@router.post("/{trip_id}/photos", response_model=list[TripPhotoResponse])
+async def upload_trip_photos(
+    trip_id: str,
+    files: list[UploadFile] = File(...),
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    itin_data = (
+        dict(trip.itinerary_data) if isinstance(trip.itinerary_data, dict) else {}
+    )
+    existing_photos = itin_data.get("photos")
+    if not isinstance(existing_photos, list):
+        existing_photos = []
+
+    uploaded_photos = []
+    for file in files:
+        if not file.filename:
+            continue
+        content = await file.read()
+        if not content:
+            continue
+        mime_type = file.content_type or "image/jpeg"
+        photo_meta = await save_trip_photo(
+            trip_id=trip_id,
+            content=content,
+            original_filename=file.filename,
+            mime_type=mime_type,
+        )
+        photo_item = {
+            "id": photo_meta["id"],
+            "url": photo_meta["url"],
+            "filename": photo_meta["filename"],
+            "width": photo_meta["width"],
+            "height": photo_meta["height"],
+            "aspect_ratio": photo_meta["aspect_ratio"],
+            "size_bytes": photo_meta["size_bytes"],
+            "mime_type": photo_meta["mime_type"],
+            "media_type": photo_meta.get("media_type", "image"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        uploaded_photos.append(photo_item)
+        existing_photos.append(photo_item)
+
+    itin_data["photos"] = existing_photos
+    trip.itinerary_data = itin_data
+    session.add(trip)
+    await session.commit()
+    await session.refresh(trip)
+
+    return [TripPhotoResponse(**p) for p in uploaded_photos]
+
+
+@router.get("/{trip_id}/photos/{photo_id}")
+async def get_trip_photo(
+    trip_id: str,
+    photo_id: str,
+):
+    found = find_photo_file(trip_id, photo_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    file_path, mime_type = found
+
+    response = FileResponse(
+        path=str(file_path),
+        media_type=mime_type,
+        filename=file_path.name,
+    )
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Accept-Ranges"] = "bytes"
+    return response
+
+
+@router.delete("/{trip_id}/photos/{photo_id}")
+async def delete_trip_photo(
+    trip_id: str,
+    photo_id: str,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    itin_data = (
+        dict(trip.itinerary_data) if isinstance(trip.itinerary_data, dict) else {}
+    )
+    existing_photos = itin_data.get("photos")
+    if isinstance(existing_photos, list):
+        updated_photos = [
+            p
+            for p in existing_photos
+            if (
+                isinstance(p, dict)
+                and p.get("id") != photo_id
+                and photo_id not in str(p.get("url", ""))
+            )
+            or (isinstance(p, str) and photo_id not in p)
+        ]
+        itin_data["photos"] = updated_photos
+        trip.itinerary_data = itin_data
+        session.add(trip)
+        await session.commit()
+
+    delete_photo_file(trip_id, photo_id)
+    return {"status": "ok", "deleted": photo_id}
 
 
 router.include_router(tickets_router)
