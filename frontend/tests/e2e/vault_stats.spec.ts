@@ -284,5 +284,6 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await markers.first().click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
   await page.getByTestId('deployed-trip-see-btn').click();
-  await expect(page).toHaveURL(/\/trips\/trip-sevilla/, { timeout: 10000 });
+  await expect(page).toHaveURL(/\/vault\/trip-sevilla/, { timeout: 10000 });
 });
+
