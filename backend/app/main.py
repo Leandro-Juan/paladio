@@ -18,6 +18,12 @@ from app.api.weather import router as weather_router
 from app.api.websockets import router as websockets_router
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.swarm.graph import create_swarm
+from app.agent import trip_agent_router
+
+try:
+    from app.mcp import mount_mcp_app
+except (ImportError, Exception):
+    mount_mcp_app = None
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +112,11 @@ app.include_router(locations_router, prefix="/api/locations", tags=["locations"]
 app.include_router(transit_router, prefix="/api", tags=["transit"])
 app.include_router(weather_router, prefix="/api/weather", tags=["weather"])
 app.include_router(system_router, prefix="/api/system", tags=["system"])
+app.include_router(trip_agent_router)
+
+# Mount FastMCP server at /mcp
+if mount_mcp_app:
+    try:
+        mount_mcp_app(app, "/mcp")
+    except Exception as e:
+        logger.warning(f"Could not mount MCP app: {e}")
