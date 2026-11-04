@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_optional_user
+from app.core.access import TripAccessLevel, assert_trip_access
 from app.db.models import (
     AttractionModel,
     TripCollectionItemModel,
@@ -33,16 +34,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _get_trip_or_404(trip_id: str, session: AsyncSession) -> TripModel:
-    stmt = select(TripModel).where(TripModel.id == trip_id)
-    res = await session.execute(stmt)
-    trip = res.scalar_one_or_none()
-    if not trip:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trip '{trip_id}' not found",
-        )
-    return trip
+async def _get_trip_or_404(
+    trip_id: str,
+    session: AsyncSession,
+    user: UserModel | None = None,
+    level: TripAccessLevel = TripAccessLevel.VIEWER,
+) -> TripModel:
+    return await assert_trip_access(user, trip_id, level, session)
 
 
 async def _hydrate_poi_summaries(
@@ -174,17 +172,13 @@ async def list_all_saved_collections(
 ):
     stmt = (
         select(TripCollectionModel)
-        .join(TripModel, TripModel.id == TripCollectionModel.trip_id)
+        .outerjoin(TripModel, TripModel.id == TripCollectionModel.trip_id)
         .options(
             selectinload(TripCollectionModel.items),
             selectinload(TripCollectionModel.trip),
         )
         .order_by(TripCollectionModel.updated_at.desc())
     )
-    if current_user:
-        stmt = stmt.where(
-            (TripModel.user_id == current_user.id) | (TripModel.user_id.is_(None))
-        )
     res = await session.execute(stmt)
     collections = res.scalars().all()
 
@@ -213,12 +207,15 @@ async def list_trip_collections(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    trip = await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     stmt = (
         select(TripCollectionModel)
-        .where(TripCollectionModel.trip_id == trip_id)
-        .options(selectinload(TripCollectionModel.items))
+        .outerjoin(TripModel, TripModel.id == TripCollectionModel.trip_id)
+        .options(
+            selectinload(TripCollectionModel.items),
+            selectinload(TripCollectionModel.trip),
+        )
         .order_by(TripCollectionModel.created_at.asc())
     )
     res = await session.execute(stmt)
@@ -236,8 +233,8 @@ async def list_trip_collections(
         _collection_to_response(
             c,
             poi_map,
-            trip_destination=trip.destination,
-            trip_title=trip.destination,
+            trip_destination=c.trip.destination if getattr(c, "trip", None) else None,
+            trip_title=c.trip.destination if getattr(c, "trip", None) else None,
         )
         for c in collections
     ]
@@ -254,7 +251,9 @@ async def create_trip_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    trip = await _get_trip_or_404(trip_id, session)
+    trip = await _get_trip_or_404(
+        trip_id, session, current_user, TripAccessLevel.EDITOR
+    )
 
     collection_id = str(uuid.uuid4())
     col = TripCollectionModel(
@@ -285,15 +284,15 @@ async def update_trip_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    trip = await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     stmt = (
         select(TripCollectionModel)
-        .where(
-            TripCollectionModel.id == collection_id,
-            TripCollectionModel.trip_id == trip_id,
+        .where(TripCollectionModel.id == collection_id)
+        .options(
+            selectinload(TripCollectionModel.items),
+            selectinload(TripCollectionModel.trip),
         )
-        .options(selectinload(TripCollectionModel.items))
     )
     res = await session.execute(stmt)
     col = res.scalar_one_or_none()
@@ -316,9 +315,8 @@ async def update_trip_collection(
     all_poi_ids = {it.poi_id for it in col.items}
     poi_map = await _hydrate_poi_summaries(all_poi_ids, session)
 
-    return _collection_to_response(
-        col, poi_map, trip_destination=trip.destination, trip_title=trip.destination
-    )
+    dest = col.trip.destination if getattr(col, "trip", None) else None
+    return _collection_to_response(col, poi_map, trip_destination=dest, trip_title=dest)
 
 
 @router.delete(
@@ -331,11 +329,10 @@ async def delete_trip_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     stmt = select(TripCollectionModel).where(
         TripCollectionModel.id == collection_id,
-        TripCollectionModel.trip_id == trip_id,
     )
     res = await session.execute(stmt)
     col = res.scalar_one_or_none()
@@ -362,11 +359,10 @@ async def add_item_to_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     col_stmt = select(TripCollectionModel).where(
         TripCollectionModel.id == collection_id,
-        TripCollectionModel.trip_id == trip_id,
     )
     col = (await session.execute(col_stmt)).scalar_one_or_none()
     if not col:
@@ -448,11 +444,10 @@ async def remove_item_from_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     col_stmt = select(TripCollectionModel).where(
         TripCollectionModel.id == collection_id,
-        TripCollectionModel.trip_id == trip_id,
     )
     col = (await session.execute(col_stmt)).scalar_one_or_none()
     if not col:
@@ -480,18 +475,10 @@ async def get_poi_collections(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
-    stmt = (
-        select(TripCollectionItemModel.collection_id)
-        .join(
-            TripCollectionModel,
-            TripCollectionModel.id == TripCollectionItemModel.collection_id,
-        )
-        .where(
-            TripCollectionModel.trip_id == trip_id,
-            TripCollectionItemModel.poi_id == poi_id,
-        )
+    stmt = select(TripCollectionItemModel.collection_id).where(
+        TripCollectionItemModel.poi_id == poi_id
     )
     res = await session.execute(stmt)
     c_ids = [str(row[0]) for row in res.fetchall()]
@@ -510,11 +497,10 @@ async def toggle_poi_in_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    await _get_trip_or_404(trip_id, session)
+    await _get_trip_or_404(trip_id, session, current_user)
 
     col_stmt = select(TripCollectionModel).where(
         TripCollectionModel.id == payload.collection_id,
-        TripCollectionModel.trip_id == trip_id,
     )
     col = (await session.execute(col_stmt)).scalar_one_or_none()
     if not col:
@@ -545,17 +531,9 @@ async def toggle_poi_in_collection(
         await session.commit()
         is_saved = True
 
-    # Get all active collection IDs for this POI in this trip
-    active_stmt = (
-        select(TripCollectionItemModel.collection_id)
-        .join(
-            TripCollectionModel,
-            TripCollectionModel.id == TripCollectionItemModel.collection_id,
-        )
-        .where(
-            TripCollectionModel.trip_id == trip_id,
-            TripCollectionItemModel.poi_id == poi_id,
-        )
+    # Get all active collection IDs for this POI across all shared collections
+    active_stmt = select(TripCollectionItemModel.collection_id).where(
+        TripCollectionItemModel.poi_id == poi_id
     )
     active_res = await session.execute(active_stmt)
     active_ids = [str(row[0]) for row in active_res.fetchall()]

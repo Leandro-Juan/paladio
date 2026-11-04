@@ -49,52 +49,37 @@ interface ToggleResponse {
 
 const EMPTY_COLLECTIONS: TripCollection[] = [];
 
-// Global cache and listener registry to synchronize multiple components for the same trip
-const collectionsCache = new Map<string, TripCollection[]>();
-const listeners = new Map<string, Set<() => void>>();
+// Global shared cache and listener registry across all trips and dashboard
+let sharedCollectionsCache: TripCollection[] | null = null;
+const sharedListeners = new Set<() => void>();
 
-function notifyListeners(tripId: string) {
-  const set = listeners.get(tripId);
-  if (set) {
-    set.forEach((fn) => fn());
-  }
+function notifyAllListeners() {
+  sharedListeners.forEach((fn) => fn());
 }
 
-function subscribeToTrip(tripId: string, callback: () => void) {
-  if (!listeners.has(tripId)) {
-    listeners.set(tripId, new Set());
-  }
-  listeners.get(tripId)!.add(callback);
+function subscribeToSharedCollections(callback: () => void) {
+  sharedListeners.add(callback);
   return () => {
-    listeners.get(tripId)?.delete(callback);
+    sharedListeners.delete(callback);
   };
 }
 
 export function useTripCollections(tripId?: string) {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      if (!tripId) return () => {};
-      return subscribeToTrip(tripId, onStoreChange);
-    },
-    [tripId]
-  );
-
   const getSnapshot = useCallback(() => {
-    if (!tripId) return EMPTY_COLLECTIONS;
-    return collectionsCache.get(tripId) || EMPTY_COLLECTIONS;
-  }, [tripId]);
+    return sharedCollectionsCache || EMPTY_COLLECTIONS;
+  }, []);
 
-  const collections = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_COLLECTIONS);
+  const collections = useSyncExternalStore(subscribeToSharedCollections, getSnapshot, () => EMPTY_COLLECTIONS);
 
-  const [loading, setLoading] = useState<boolean>(!tripId || !collectionsCache.has(tripId));
+  const [loading, setLoading] = useState<boolean>(sharedCollectionsCache === null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCollections = useCallback(async () => {
-    if (!tripId) return;
+    const url = tripId ? `/trips/${tripId}/collections` : '/trips/saved-collections';
     try {
-      const data = await apiFetch<TripCollection[]>(`/trips/${tripId}/collections`);
-      collectionsCache.set(tripId, data);
-      notifyListeners(tripId);
+      const data = await apiFetch<TripCollection[]>(url);
+      sharedCollectionsCache = Array.isArray(data) ? data : [];
+      notifyAllListeners();
       setError(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch collections';
@@ -105,14 +90,14 @@ export function useTripCollections(tripId?: string) {
   }, [tripId]);
 
   useEffect(() => {
-    if (!tripId) return;
     let isMounted = true;
     (async () => {
+      const url = tripId ? `/trips/${tripId}/collections` : '/trips/saved-collections';
       try {
-        const data = await apiFetch<TripCollection[]>(`/trips/${tripId}/collections`);
+        const data = await apiFetch<TripCollection[]>(url);
         if (!isMounted) return;
-        collectionsCache.set(tripId, data);
-        notifyListeners(tripId);
+        sharedCollectionsCache = Array.isArray(data) ? data : [];
+        notifyAllListeners();
         setError(null);
         setLoading(false);
       } catch (err: unknown) {
@@ -136,10 +121,9 @@ export function useTripCollections(tripId?: string) {
           method: 'POST',
           body: JSON.stringify({ name, description, color }),
         });
-        const current = collectionsCache.get(tripId) || [];
-        const next = [...current, created];
-        collectionsCache.set(tripId, next);
-        notifyListeners(tripId);
+        const current = sharedCollectionsCache || [];
+        sharedCollectionsCache = [...current, created];
+        notifyAllListeners();
         return created;
       } catch (err: unknown) {
         console.error('Failed to create collection:', err);
@@ -161,10 +145,9 @@ export function useTripCollections(tripId?: string) {
           method: 'PUT',
           body: JSON.stringify(updates),
         });
-        const current = collectionsCache.get(tripId) || [];
-        const next = current.map((c) => (c.id === collectionId ? updated : c));
-        collectionsCache.set(tripId, next);
-        notifyListeners(tripId);
+        const current = sharedCollectionsCache || [];
+        sharedCollectionsCache = current.map((c) => (c.id === collectionId ? updated : c));
+        notifyAllListeners();
         return updated;
       } catch (err: unknown) {
         console.error('Failed to update collection:', err);
@@ -182,10 +165,9 @@ export function useTripCollections(tripId?: string) {
         await apiFetch(`/trips/${tripId}/collections/${collectionId}`, {
           method: 'DELETE',
         });
-        const current = collectionsCache.get(tripId) || [];
-        const next = current.filter((c) => c.id !== collectionId);
-        collectionsCache.set(tripId, next);
-        notifyListeners(tripId);
+        const current = sharedCollectionsCache || [];
+        sharedCollectionsCache = current.filter((c) => c.id !== collectionId);
+        notifyAllListeners();
         return true;
       } catch (err: unknown) {
         console.error('Failed to delete collection:', err);
@@ -206,8 +188,8 @@ export function useTripCollections(tripId?: string) {
         });
 
         // Synchronously update collection items
-        const current = collectionsCache.get(tripId) || [];
-        const next = current.map((col) => {
+        const current = sharedCollectionsCache || [];
+        sharedCollectionsCache = current.map((col) => {
           if (col.id !== collectionId) return col;
 
           if (res.saved) {
@@ -236,8 +218,7 @@ export function useTripCollections(tripId?: string) {
           }
         });
 
-        collectionsCache.set(tripId, next);
-        notifyListeners(tripId);
+        notifyAllListeners();
 
         // Background re-fetch to ensure fresh server hydration
         fetchCollections();
@@ -259,8 +240,8 @@ export function useTripCollections(tripId?: string) {
         await apiFetch(`/trips/${tripId}/collections/${collectionId}/items/${poiId}`, {
           method: 'DELETE',
         });
-        const current = collectionsCache.get(tripId) || [];
-        const next = current.map((col) => {
+        const current = sharedCollectionsCache || [];
+        sharedCollectionsCache = current.map((col) => {
           if (col.id !== collectionId) return col;
           return {
             ...col,
@@ -268,8 +249,7 @@ export function useTripCollections(tripId?: string) {
             items: col.items.filter((it) => it.poi_id !== poiId),
           };
         });
-        collectionsCache.set(tripId, next);
-        notifyListeners(tripId);
+        notifyAllListeners();
         return true;
       } catch (err: unknown) {
         console.error('Failed to remove item from collection:', err);
@@ -328,8 +308,12 @@ export function useTripCollections(tripId?: string) {
 }
 
 export function useSavedCollections() {
-  const [collections, setCollections] = useState<TripCollection[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const getSnapshot = useCallback(() => {
+    return sharedCollectionsCache || EMPTY_COLLECTIONS;
+  }, []);
+
+  const collections = useSyncExternalStore(subscribeToSharedCollections, getSnapshot, () => EMPTY_COLLECTIONS);
+  const [loading, setLoading] = useState<boolean>(sharedCollectionsCache === null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -337,11 +321,11 @@ export function useSavedCollections() {
     setError(null);
     try {
       const data = await apiFetch<TripCollection[]>('/trips/saved-collections');
-      setCollections(Array.isArray(data) ? data : []);
+      sharedCollectionsCache = Array.isArray(data) ? data : [];
+      notifyAllListeners();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch saved collections';
       setError(msg);
-      setCollections([]);
     } finally {
       setLoading(false);
     }
@@ -353,14 +337,14 @@ export function useSavedCollections() {
       try {
         const data = await apiFetch<TripCollection[]>('/trips/saved-collections');
         if (!isMounted) return;
-        setCollections(Array.isArray(data) ? data : []);
+        sharedCollectionsCache = Array.isArray(data) ? data : [];
+        notifyAllListeners();
         setError(null);
         setLoading(false);
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Failed to fetch saved collections';
         setError(msg);
-        setCollections([]);
         setLoading(false);
       }
     })();

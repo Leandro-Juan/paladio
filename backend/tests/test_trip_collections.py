@@ -34,12 +34,12 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
     assert create_trip_res.status_code == 201
     trip_id = create_trip_res.json()["id"]
 
-    # 3. Initially, trip should have 0 collections
+    # 3. Check existing shared collections
     list_res = await async_client.get(
         f"/api/trips/{trip_id}/collections", headers=headers
     )
     assert list_res.status_code == 200
-    assert list_res.json() == []
+    assert isinstance(list_res.json(), list)
 
     # 4. Create collection 1: "Must-See Museums"
     col1_res = await async_client.post(
@@ -114,7 +114,8 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
     )
     assert cols_res.status_code == 200
     cols = cols_res.json()
-    assert len(cols) == 2
+    assert any(c["id"] == col1_id for c in cols)
+    assert any(c["id"] == col2_id for c in cols)
 
     c1 = next(c for c in cols if c["id"] == col1_id)
     assert c1["items_count"] == 2
@@ -180,8 +181,8 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
         f"/api/trips/{trip_id}/collections", headers=headers
     )
     final_cols = final_cols_res.json()
-    assert len(final_cols) == 1
-    assert final_cols[0]["id"] == col2_id
+    assert all(c["id"] != col1_id for c in final_cols)
+    assert any(c["id"] == col2_id for c in final_cols)
 
     # 14. 404 handling
     bad_trip_res = await async_client.get(
@@ -200,3 +201,54 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
     assert len(matching) == 1
     assert matching[0]["trip_destination"] == "Rome"
     assert matching[0]["trip_id"] == trip_id
+
+    # 16. Shared collections: Different user and different trip can view and modify collection
+    user2_uid = f"user2_{uuid.uuid4().hex[:6]}"
+    res_reg2 = await async_client.post(
+        "/api/auth/register",
+        json={
+            "email": f"{user2_uid}@example.com",
+            "username": f"{user2_uid}",
+            "password": "Password123!",
+        },
+    )
+    assert res_reg2.status_code == 201
+    headers2 = {"Authorization": f"Bearer {res_reg2.json()['access_token']}"}
+
+    create_trip2_res = await async_client.post(
+        "/api/trips/",
+        json={
+            "destination": "Tokyo",
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-07",
+            "itinerary_data": {"days": []},
+        },
+        headers=headers2,
+    )
+    assert create_trip2_res.status_code == 201
+    trip2_id = create_trip2_res.json()["id"]
+
+    # Trip 2 lists all shared collections, so col2_id is visible
+    trip2_cols_res = await async_client.get(
+        f"/api/trips/{trip2_id}/collections", headers=headers2
+    )
+    assert trip2_cols_res.status_code == 200
+    shared_matching = [c for c in trip2_cols_res.json() if c["id"] == col2_id]
+    assert len(shared_matching) == 1
+
+    # User 2 in Trip 2 can toggle a Tokyo POI into col2_id (created in Rome by User 1)
+    toggle_trip2_res = await async_client.post(
+        f"/api/trips/{trip2_id}/pois/tokyo-shinjuku-01/toggle",
+        json={"collection_id": col2_id},
+        headers=headers2,
+    )
+    assert toggle_trip2_res.status_code == 200
+    assert toggle_trip2_res.json()["saved"] is True
+
+    # User 2 saved-collections endpoint displays col2_id with the new POI
+    saved_cols_user2 = await async_client.get(
+        "/api/trips/saved-collections", headers=headers2
+    )
+    assert saved_cols_user2.status_code == 200
+    col2_for_user2 = next(c for c in saved_cols_user2.json() if c["id"] == col2_id)
+    assert any(it["poi_id"] == "tokyo-shinjuku-01" for it in col2_for_user2["items"])
