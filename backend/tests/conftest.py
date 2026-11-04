@@ -333,6 +333,11 @@ async def db_engine():
                     "ALTER TABLE trips ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'saved';"
                 )
             )
+            await conn.execute(
+                text(
+                    "ALTER TABLE trips ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0 NOT NULL;"
+                )
+            )
             for col_stmt in [
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS city_key VARCHAR(128);",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS derived_status VARCHAR(32) DEFAULT 'PENDING';",

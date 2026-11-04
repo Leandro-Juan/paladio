@@ -205,6 +205,7 @@ class TripModel(Base):
     end_date = Column(String, nullable=False)
     itinerary_data = Column(JSONB, nullable=False)
     status = Column(String, default="active", nullable=False)
+    revision = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -234,6 +235,54 @@ class TripModel(Base):
         back_populates="trip",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    revisions = relationship(
+        "TripRevisionModel",
+        back_populates="trip",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+
+class TripRevisionModel(Base):
+    __tablename__ = "trip_revisions"
+
+    id = Column(String(36), primary_key=True, index=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    revision = Column(Integer, nullable=False)
+    actor = Column(String(32), nullable=False)  # 'user', 'agent', 'system'
+    actor_detail = Column(JSONB, nullable=True)
+    before = Column(JSONB, nullable=False)
+    after = Column(JSONB, nullable=False)
+    summary = Column(Text, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    trip = relationship("TripModel", back_populates="revisions")
+
+
+class AgentActionModel(Base):
+    __tablename__ = "agent_actions"
+
+    id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    tool = Column(String(64), nullable=False, index=True)
+    args_hash = Column(String(64), nullable=True)
+    outcome = Column(
+        String(32), nullable=False
+    )  # 'success', 'error', 'requires_confirmation'
+    revision = Column(Integer, nullable=True)
+    detail = Column(JSONB, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
