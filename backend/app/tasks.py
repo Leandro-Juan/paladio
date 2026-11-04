@@ -1663,22 +1663,7 @@ def cleanup_city_gtfs_resources(city_clean: str) -> None:
             except OSError:
                 pass
 
-    # Valhalla container cleanup
-    try:
-        import docker
-
-        client = docker.from_env()
-        container = client.containers.get("paladio-valhalla-1")
-        container.exec_run("pkill -9 -f valhalla_ || true")
-        container.exec_run(
-            "rm -rf /custom_files/transit_tiles/* /custom_files/valhalla_tiles/* /custom_files/valhalla_tiles.tar"
-        )
-        container.restart()
-        logger.info(f"Reset and restarted Valhalla container for {city_clean}.")
-    except Exception as valhalla_err:
-        logger.debug(
-            f"Docker Valhalla container cleanup note for {city_clean}: {valhalla_err}"
-        )
+    # Valhalla container restart no longer needed (transit compilation decommissioned)
 
     # Redis cleanup
     try:
@@ -1723,7 +1708,6 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
     compiles Valhalla transit tiles sequentially using a distributed Redis lock,
     and publishes telemetry notifications to Redis.
     """
-    import docker
     import redis
 
     logger.info(
@@ -2015,152 +1999,14 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 f"Could not dispatch derive_city_transit_task for {city_lower}: {derive_dispatch_err}"
             )
 
-        # 4b. Valhalla container setup & timezone check
-        client = docker.from_env()
-        container = client.containers.get("paladio-valhalla-1")
-
-        tz_sqlite_path = "/custom_files/timezone_data/timezones.sqlite"
-        tz_missing = True
-        try:
-            tz_missing = (
-                not os.path.exists(tz_sqlite_path)
-                or os.path.getsize(tz_sqlite_path) == 0
-            )
-        except OSError:
-            tz_missing = True
-
-        if tz_missing:
-            logger.info("Timezone database missing. Building timezones.sqlite...")
-            tz_build_res = container.exec_run(
-                'sh -c "mkdir -p /custom_files/timezone_data && valhalla_build_timezones > /custom_files/timezone_data/timezones.sqlite"'
-            )
-            if tz_build_res.exit_code != 0:
-                logger.warning(
-                    f"valhalla_build_timezones exit code {tz_build_res.exit_code}: {tz_build_res.output.decode('utf-8', errors='replace')}"
-                )
-
-        # 5. Resolve OSM PBF file for city
-        from app.services.osm_map_service import OSMMapService
-
-        _, city_osm_pbf = _run_async(OSMMapService.resolve_osm_pbf_url(city_lower))
-        dest_pbf = f"/custom_files/{city_osm_pbf}"
-        pbf_missing = True
-        try:
-            pbf_missing = not os.path.exists(dest_pbf) or os.path.getsize(dest_pbf) == 0
-        except OSError:
-            pbf_missing = True
-
-        if pbf_missing:
-            url, _ = _run_async(OSMMapService.resolve_osm_pbf_url(city_lower))
-            logger.info(f"Downloading required OSM extract {url} to {dest_pbf}...")
-            urllib.request.urlretrieve(url, dest_pbf)
-
-        # Check cancellation before executing tile compilation commands
-        try:
-            if r.get(f"paladio:transit_cancelled:{city_lower}") or not _run_async(
-                _city_exists_in_transit_cache(city_lower)
-            ):
-                logger.info(
-                    f"Transit build for {city_lower} was cancelled/deleted before tile build."
-                )
-                cleanup_city_gtfs_resources(city_lower)
-                return {"status": "cancelled", "city": city_lower}
-        except Exception:
-            pass
-
-        # Concurrency: enforce single-threaded tile compilation to guarantee memory stays within host RAM (<2.5GB peak) and prevent OOM-killer (exit code 137) on massive metro graphs like Tokyo/Kanto
-        concurrency = 1
-
-        # 6. Sequential Valhalla Compilation Commands via docker library
-        # Clean intermediate build directories to avoid stale states, preserving valhalla_tiles.tar until new build completes cleanly
-        container.exec_run(
-            "rm -rf /custom_files/valhalla_tiles/* /custom_files/transit_tiles/* /custom_files/active_transit_feeds"
-        )
-        # Stage only this city's feed into an isolated directory so Valhalla does not re-ingest other cities
-        container.exec_run(
-            f"sh -c 'mkdir -p /custom_files/active_transit_feeds && ln -sf /gtfs_feeds/{city_lower} /custom_files/active_transit_feeds/{city_lower}'"
-        )
-        # Update valhalla.json to enforce low-memory settings (concurrency 1, max_cache_size 256MB, id_table_size 350MB)
-        container.exec_run(
-            "python3 -c \"import json; p = '/custom_files/valhalla.json'; f = open(p, 'r'); c = json.load(f); f.close(); m = c.setdefault('mjolnir', {}); m['transit_feeds_dir'] = '/custom_files/active_transit_feeds'; m['concurrency'] = '1'; m['max_cache_size'] = 268435456; m['id_table_size'] = 350000000; f = open(p, 'w'); json.dump(c, f, indent=2); f.close()\""
-        )
-
-        logger.info(f"Executing Valhalla transit ingest for {city_lower}...")
-        res_ingest = container.exec_run(
-            f"nice -n 19 valhalla_ingest_transit -c /custom_files/valhalla.json -j {concurrency}"
-        )
-        if res_ingest.exit_code != 0:
-            err_msg = (
-                res_ingest.output.decode("utf-8", errors="replace")
-                if hasattr(res_ingest.output, "decode")
-                else str(res_ingest.output)
-            )
-            raise RuntimeError(
-                f"valhalla_ingest_transit failed with code {res_ingest.exit_code}: {err_msg}"
-            )
-
-        logger.info(f"Executing Valhalla transit convert for {city_lower}...")
-        res_convert = container.exec_run(
-            f"nice -n 19 valhalla_convert_transit -c /custom_files/valhalla.json -j {concurrency}"
-        )
-        if res_convert.exit_code != 0:
-            err_msg = (
-                res_convert.output.decode("utf-8", errors="replace")
-                if hasattr(res_convert.output, "decode")
-                else str(res_convert.output)
-            )
-            raise RuntimeError(
-                f"valhalla_convert_transit failed with code {res_convert.exit_code}: {err_msg}"
-            )
-
+        # 4b. Valhalla transit compilation decommissioned:
+        # Paladio uses Transitous (MOTIS v2) for live multimodal routing with full
+        # intermediate stops, and derive_city_transit_task for local PostgreSQL tables.
+        # Valhalla container compilation, tile tarring, and restarts are completely bypassed.
         logger.info(
-            f"Executing Valhalla road tile build pipeline for {city_osm_pbf}..."
+            f"GTFS download and sanitization complete for {city_lower}. Updating cache to READY."
         )
-        res_build = container.exec_run(
-            f"nice -n 19 valhalla_build_tiles -c /custom_files/valhalla.json -j {concurrency} /custom_files/{city_osm_pbf}"
-        )
-        if res_build.exit_code != 0:
-            err_msg = (
-                res_build.output.decode("utf-8", errors="replace")
-                if hasattr(res_build.output, "decode")
-                else str(res_build.output)
-            )
-            raise RuntimeError(
-                f"valhalla_build_tiles failed with code {res_build.exit_code}: {err_msg}"
-            )
 
-        logger.info(f"Executing Valhalla extract tiles for {city_lower}...")
-        container.exec_run(
-            "sh -c 'cp -r /custom_files/transit_tiles/* /custom_files/valhalla_tiles/ 2>/dev/null || true'",
-            user="root",
-        )
-        container.exec_run("chown -R valhalla:valhalla /custom_files", user="root")
-        container.exec_run("rm -f /custom_files/valhalla_tiles.tar")
-        res_extract = container.exec_run(
-            "nice -n 19 valhalla_build_extract -c /custom_files/valhalla.json -v --overwrite"
-        )
-        if res_extract.exit_code != 0:
-            err_msg = (
-                res_extract.output.decode("utf-8", errors="replace")
-                if hasattr(res_extract.output, "decode")
-                else str(res_extract.output)
-            )
-            raise RuntimeError(
-                f"valhalla_build_extract failed with code {res_extract.exit_code}: {err_msg}"
-            )
-
-        # Clean intermediate transit tiles directory to reclaim disk and memory cache
-        container.exec_run(
-            "rm -rf /custom_files/transit_tiles /custom_files/active_transit_feeds"
-        )
-        import gc
-
-        gc.collect()
-
-        logger.info("Reloading Valhalla container...")
-        container.restart()
-
-        # 7. Update cache as READY on success
         _run_async(
             _async_update_transit_cache(
                 city_name=city_lower,
@@ -2168,7 +2014,6 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 osm_status="READY",
                 gtfs_status="READY",
                 valid_until=valid_until,
-                feed_name=city_osm_pbf,
                 create_if_missing=False,
             )
         )
@@ -2178,7 +2023,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             "status": "success",
             "city": city_lower,
             "gtfs_status": "READY",
-            "valid_until": valid_until.isoformat(),
+            "valid_until": valid_until.isoformat() if valid_until else None,
         }
 
     except Exception as exc:
@@ -2207,13 +2052,6 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
             ):
                 r.delete("paladio:transit_compiler_current_city")
             r.delete(f"paladio:transit_task_id:{city_lower}")
-        except Exception:
-            pass
-        try:
-            client = docker.from_env()
-            client.containers.get("paladio-valhalla-1").exec_run(
-                "rm -rf /custom_files/active_transit_feeds"
-            )
         except Exception:
             pass
         try:

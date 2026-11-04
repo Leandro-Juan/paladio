@@ -131,6 +131,40 @@ async def get_detailed_transit_leg(
     if not departure_iso:
         departure_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
+    city_clean = str(origin.get("city") or destination.get("city") or "").strip()
+    try:
+        from app.services.transitous_service import TransitousService
+
+        transitous_leg = await TransitousService.plan_transit_route(
+            origin=origin,
+            destination=destination,
+            departure_iso=departure_iso,
+            date_time_type=date_time_type,
+            city=city_clean,
+            is_airport_leg=is_airport_leg,
+        )
+        if transitous_leg is not None and transitous_leg.steps:
+            finder = get_gtfs_route_finder(city_clean)
+            if finder and finder.translations:
+                for s in transitous_leg.steps:
+                    if s.station_name:
+                        en_sta = finder.translations.get(("stops", s.station_name), "")
+                        if en_sta and en_sta != s.station_name:
+                            s.station_name = f"{en_sta} ({s.station_name})"
+                    if s.transit_line:
+                        en_line = finder.translations.get(
+                            ("routes", s.transit_line), ""
+                        )
+                        if en_line and en_line != s.transit_line:
+                            s.transit_line = f"{en_line} ({s.transit_line})"
+                    if s.headsign:
+                        en_head = finder.translations.get(("stops", s.headsign), "")
+                        if en_head and en_head != s.headsign:
+                            s.headsign = f"{en_head} ({s.headsign})"
+            return transitous_leg
+    except Exception as transitous_err:
+        logger.debug(f"Transitous routing skipped/fallback: {transitous_err}")
+
     req_payload = {
         "locations": [
             {"lat": orig_lat, "lon": orig_lon},

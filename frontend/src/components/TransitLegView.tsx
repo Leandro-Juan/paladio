@@ -289,8 +289,19 @@ export function TransitLegView({
                       </span>
                     )}
                     {step.transit_line && (
-                      <span style={{ color: 'var(--color-accent-primary)', fontWeight: 600 }}>
-                        Line: {step.transit_line}
+                      <span
+                        style={{
+                          background: step.route_color || 'rgba(15, 76, 92, 0.12)',
+                          color: step.route_text_color || (step.route_color ? '#FFFFFF' : 'var(--color-accent-primary)'),
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {step.transit_line}
                       </span>
                     )}
                     {step.headsign && <span>Towards: {step.headsign}</span>}
@@ -303,7 +314,7 @@ export function TransitLegView({
                         padding: '4px 8px',
                         borderRadius: '4px',
                         background: 'rgba(15, 76, 92, 0.05)',
-                        borderLeft: '2px solid var(--color-accent-primary)',
+                        borderLeft: `2px solid ${step.route_color || 'var(--color-accent-primary)'}`,
                         fontSize: '0.68rem',
                         color: 'var(--color-text-secondary)',
                       }}

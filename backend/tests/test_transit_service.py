@@ -190,7 +190,11 @@ async def test_get_detailed_transit_leg_http_500_raises():
         request=httpx.Request("POST", "http://localhost:8002/route"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, patch(
+        "app.services.transitous_service.TransitousService.plan_transit_route",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
         mock_post.return_value = mock_resp
 
         with pytest.raises(TransitRoutingError):
@@ -208,7 +212,11 @@ async def test_get_detailed_transit_leg_malformed_response_raises():
         request=httpx.Request("POST", "http://localhost:8002/route"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, patch(
+        "app.services.transitous_service.TransitousService.plan_transit_route",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
         # If trip is missing or structure is not matching expected schema
         mock_post.return_value = mock_resp
 

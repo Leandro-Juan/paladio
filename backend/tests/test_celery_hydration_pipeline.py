@@ -289,7 +289,7 @@ def test_hydrate_city_pipeline_task_orchestration():
         mock_r.lock.return_value = mock_lock
         mock_redis_from_url.return_value = mock_r
 
-        mock_run_async.side_effect = [
+        pipeline_results = [
             {"city_name": "Madrid", "city_id": "madrid_es", "raw_count": 10500},
             {"city_name": "Madrid", "city_id": "madrid_es", "tier12_count": 450},
             {
@@ -299,6 +299,15 @@ def test_hydrate_city_pipeline_task_orchestration():
                 "status": "completed",
             },
         ]
+
+        def fake_run_async(coro):
+            try:
+                coro.close()
+            except Exception:
+                pass
+            return pipeline_results.pop(0)
+
+        mock_run_async.side_effect = fake_run_async
 
         result = hydrate_city_pipeline_task("Madrid", force=True)
 

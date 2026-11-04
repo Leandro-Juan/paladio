@@ -215,6 +215,9 @@ class TransitStep(BaseModel):
     station_name: str | None = None
     geometry: list[list[float]] = Field(default_factory=list)
     intermediate_stops: list[str] = Field(default_factory=list)
+    route_color: str | None = None
+    route_text_color: str | None = None
+    intermediate_stop_details: list[dict[str, Any]] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="allow")
 

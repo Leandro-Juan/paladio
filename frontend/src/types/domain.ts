@@ -39,6 +39,15 @@ export interface TransitStep {
     station_name?: string | null;
     geometry?: [number, number][];
     intermediate_stops?: string[];
+    route_color?: string | null;
+    route_text_color?: string | null;
+    intermediate_stop_details?: Array<{
+        name: string;
+        lat: number;
+        lon: number;
+        arrival?: string;
+        departure?: string;
+    }>;
 }
 
 export interface TransitLeg {
