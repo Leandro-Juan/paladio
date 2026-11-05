@@ -15,6 +15,33 @@ from app.engine.currency import (
 )
 
 
+def _serialize_expense(e: Any) -> dict[str, Any]:
+    if hasattr(e, "model_dump"):
+        return e.model_dump()
+    return {
+        "id": str(getattr(e, "id", "")),
+        "trip_id": str(getattr(e, "trip_id", "")),
+        "payer_id": str(getattr(e, "payer_id", "")),
+        "description": getattr(e, "description", ""),
+        "amount": float(getattr(e, "amount", 0.0)),
+        "currency": getattr(e, "currency", "EUR"),
+        "category": getattr(e, "category", "other"),
+        "split_type": getattr(e, "split_type", "equal"),
+        "splits": getattr(e, "splits", []) or [],
+        "expense_date": getattr(e, "expense_date", None),
+        "created_at": (
+            e.created_at.isoformat()
+            if hasattr(e, "created_at") and getattr(e, "created_at", None)
+            else None
+        ),
+        "updated_at": (
+            e.updated_at.isoformat()
+            if hasattr(e, "updated_at") and getattr(e, "updated_at", None)
+            else None
+        ),
+    }
+
+
 async def list_expenses(
     trip_id: str,
     ctx: Context | None = None,
@@ -41,7 +68,7 @@ async def list_expenses(
         data={
             "total_expenses": len(expenses),
             "total_amount": round(total_amount, 2),
-            "expenses": [e.model_dump() for e in expenses],
+            "expenses": [_serialize_expense(e) for e in expenses],
         },
     )
 
@@ -90,7 +117,7 @@ async def add_expense(
     return ToolResult(
         ok=True,
         summary=f"Added expense '{description}' ({amount:.2f} {currency}) split across {len(expense.splits)} traveler(s).",
-        data=expense.model_dump(),
+        data=_serialize_expense(expense),
     )
 
 
@@ -130,7 +157,7 @@ async def update_expense(
     return ToolResult(
         ok=True,
         summary=f"Updated expense '{expense_id}' successfully.",
-        data=updated.model_dump(),
+        data=_serialize_expense(updated),
     )
 
 

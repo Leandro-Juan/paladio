@@ -16,6 +16,7 @@ export interface PaladioEvent {
 
 import { OptimizationResult, Poi } from '../types/domain';
 import { notify } from '@/utils/notify';
+import { getAuthToken, getWsBaseUrl } from '@/utils/api';
 
 import { create } from 'zustand';
 
@@ -467,12 +468,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const port = process.env.NEXT_PUBLIC_WS_PORT || '8000';
-    const token = typeof window !== 'undefined' ? localStorage.getItem('paladio_token') : null;
+    const wsBase = getWsBaseUrl();
+    const token = getAuthToken();
     const authQuery = token ? `?token=${encodeURIComponent(token)}` : '';
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${host}:${port}/api/ws/stream${authQuery}`;
+    const wsUrl = `${wsBase}/api/ws/stream${authQuery}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Trip Agent"])
 
 
-@router.websocket("/api/v1/ws/trip-agent/{trip_id}")
+@router.websocket("/api/ws/trip-agent/{trip_id}")
 async def trip_agent_websocket(
     websocket: WebSocket,
     trip_id: str,
@@ -39,6 +39,7 @@ async def trip_agent_websocket(
     token = (
         websocket.query_params.get("token")
         or websocket.headers.get("authorization", "").replace("Bearer ", "")
+        or websocket.cookies.get("paladio_token", "")
         or websocket.cookies.get("access_token", "")
     )
     if not token:
@@ -83,7 +84,7 @@ async def trip_agent_websocket(
                 if raw_msg.get("type") == "message":
                     try:
                         data = json.loads(raw_msg["data"])
-                        payload = data.get("payload", {})
+                        payload = data.get("data") or data.get("payload") or {}
                         ev = AgentServerEvent(
                             event="trip_updated",
                             revision=payload.get("revision"),
@@ -204,32 +205,19 @@ async def trip_agent_websocket(
                     try:
                         res = await mcp.call_tool(tool_name, tool_args)
                         await consume_proposal(prop_id)
-                        res_dict = (
-                            res.model_dump()
-                            if hasattr(res, "model_dump")
-                            else (
-                                res if isinstance(res, dict) else {"summary": str(res)}
-                            )
-                        )
-                        change_set = res_dict.get("change_set")
-                        if change_set:
-                            upd_ev = AgentServerEvent(
-                                event="trip_updated",
-                                revision=change_set.get("revision"),
-                                summary=res_dict.get(
-                                    "summary", f"Confirmed {tool_name}"
-                                ),
-                                undo_token=change_set.get("undo_token"),
-                                affected_days=list(
-                                    {
-                                        c.get("day", 0)
-                                        for c in change_set.get("changes", [])
-                                        if c.get("day", 0) > 0
-                                    }
-                                ),
-                            )
-                            await websocket.send_text(upd_ev.model_dump_json())
-
+                        res_dict = {}
+                        if (
+                            isinstance(res, tuple)
+                            and len(res) > 1
+                            and isinstance(res[1], dict)
+                        ):
+                            res_dict = res[1]
+                        elif isinstance(res, dict):
+                            res_dict = res
+                        elif hasattr(res, "model_dump"):
+                            res_dict = res.model_dump()
+                        else:
+                            res_dict = {"summary": str(res)}
                         ok_ev = AgentServerEvent(
                             event="tool_result",
                             tool=tool_name,
@@ -263,19 +251,11 @@ async def trip_agent_websocket(
                 target_rev = client_msg.revision
                 try:
                     if target_rev is not None:
-                        res = await TripService.undo_to_revision(
+                        await TripService.undo_to_revision(
                             trip_id, target_rev, user, db
                         )
                     else:
-                        res = await TripService.undo_last_change(trip_id, user, db)
-
-                    upd_ev = AgentServerEvent(
-                        event="trip_updated",
-                        revision=res.revision,
-                        summary=res.summary,
-                        undo_token=res.undo_token,
-                    )
-                    await websocket.send_text(upd_ev.model_dump_json())
+                        await TripService.undo_last_change(trip_id, user, db)
                 except Exception as undo_err:
                     err_ev = AgentServerEvent(
                         event="error",

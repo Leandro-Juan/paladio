@@ -3,21 +3,10 @@
 import json
 import uuid
 from typing import Any
-import redis.asyncio as aioredis
+from app.core.redis import get_redis
 from app.mcp.schemas import ProposalData
 
-_redis_client: aioredis.Redis | None = None
 _local_proposals: dict[str, dict[str, Any]] = {}
-
-
-def _get_redis() -> aioredis.Redis:
-    global _redis_client
-    if _redis_client is None:
-        import os
-
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        _redis_client = aioredis.from_url(redis_url, decode_responses=True)
-    return _redis_client
 
 
 async def create_proposal(
@@ -40,13 +29,13 @@ async def create_proposal(
         expires_in_seconds=ttl_seconds,
     )
     payload = proposal.model_dump_json()
+    _local_proposals[proposal_id] = proposal.model_dump()
 
     try:
-        r = _get_redis()
-        await r.setex(f"paladio:proposal:{proposal_id}", ttl_seconds, payload)
+        r = await get_redis()
+        await r.set(f"paladio:proposal:{proposal_id}", payload, ex=ttl_seconds)
     except Exception:
-        # Fallback to local dict in case of isolated test or transient Redis error
-        _local_proposals[proposal_id] = proposal.model_dump()
+        pass
 
     return proposal
 
@@ -54,7 +43,7 @@ async def create_proposal(
 async def get_proposal(proposal_id: str) -> dict[str, Any] | None:
     """Retrieves proposal details without consuming it."""
     try:
-        r = _get_redis()
+        r = await get_redis()
         raw = await r.get(f"paladio:proposal:{proposal_id}")
         if raw:
             return json.loads(raw)
@@ -66,10 +55,11 @@ async def get_proposal(proposal_id: str) -> dict[str, Any] | None:
 async def consume_proposal(proposal_id: str) -> dict[str, Any] | None:
     """Consumes and invalidates a proposal upon execution/approval."""
     try:
-        r = _get_redis()
+        r = await get_redis()
         raw = await r.get(f"paladio:proposal:{proposal_id}")
         if raw:
             await r.delete(f"paladio:proposal:{proposal_id}")
+            _local_proposals.pop(proposal_id, None)
             return json.loads(raw)
     except Exception:
         pass

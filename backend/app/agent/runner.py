@@ -3,14 +3,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import uuid
 from typing import Any, AsyncGenerator, Optional, Set
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.mcp import MCPToolset
-from pydantic_ai.models.ollama import OllamaModel
-from pydantic_ai.providers.ollama import OllamaProvider
+from app.services.llm_service import LLMService
 
 from app.agent.events import AgentServerEvent
 from app.agent.prompts import build_system_prompt, build_trip_digest
@@ -44,14 +42,17 @@ class InstrumentedMCPToolset(MCPToolset):
         turn_id: str,
         tools_called: list[str],
         allowed_tool_names: Set[str],
+        trip_id: str,
         cancel_event: Optional[asyncio.Event] = None,
         **kwargs: Any,
     ):
+        kwargs.setdefault("tool_error_behavior", "error")
         super().__init__(**kwargs)
         self.event_queue = event_queue
         self.turn_id = turn_id
         self.tools_called = tools_called
         self.allowed_tool_names = allowed_tool_names
+        self.trip_id = trip_id
         self.cancel_event = cancel_event
 
     async def call_tool(
@@ -63,6 +64,30 @@ class InstrumentedMCPToolset(MCPToolset):
     ) -> Any:
         if self.cancel_event and self.cancel_event.is_set():
             raise asyncio.CancelledError("Turn was cancelled by user.")
+
+        # Normalize or auto-inject active trip_id for tools operating within trip scope
+        non_trip_tools = {
+            "convert_currency",
+            "load_toolset",
+            "get_job_status",
+            "cancel_job",
+        }
+        if name not in non_trip_tools and self.trip_id:
+            val = tool_args.get("trip_id")
+            if (
+                val is None
+                or not str(val).strip()
+                or str(val).lower()
+                in (
+                    "your_trip_id",
+                    "<trip_id>",
+                    "current",
+                    "current_trip",
+                    "trip_id",
+                    "string",
+                )
+            ):
+                tool_args["trip_id"] = self.trip_id
 
         call_id = f"call_{uuid.uuid4().hex[:6]}"
         self.tools_called.append(name)
@@ -96,7 +121,13 @@ class InstrumentedMCPToolset(MCPToolset):
 
         # Extract structured details from ToolResult or JSON representation
         res_data: dict[str, Any] = {}
-        if isinstance(raw_res, dict):
+        if (
+            isinstance(raw_res, tuple)
+            and len(raw_res) > 1
+            and isinstance(raw_res[1], dict)
+        ):
+            res_data = raw_res[1]
+        elif isinstance(raw_res, dict):
             res_data = raw_res
         elif hasattr(raw_res, "model_dump"):
             res_data = raw_res.model_dump()
@@ -182,15 +213,7 @@ class TripAgentRunner:
         if model is not None:
             self.model = model
         else:
-            base_url = ollama_base_url or os.getenv(
-                "OLLAMA_BASE_URL", "http://127.0.0.1:11435"
-            )
-            if not base_url.endswith("/v1"):
-                base_url = f"{base_url.rstrip('/')}/v1"
-            raw_model = model_name or os.getenv("TRIP_AGENT_MODEL", "qwen2.5:latest")
-            clean_model = raw_model.replace("ollama:", "")
-            provider = OllamaProvider(base_url=base_url)
-            self.model = OllamaModel(clean_model, provider=provider)
+            self.model = LLMService.get_model(model_name=model_name)
 
     async def run_turn(
         self,
@@ -231,7 +254,7 @@ class TripAgentRunner:
             total_spent = sum(float(e.amount) for e in expenses)
 
             # 2. Build system prompt and trip digest
-            system_prompt = build_system_prompt()
+            system_prompt = build_system_prompt(trip_id=trip_id)
             digest = build_trip_digest(
                 doc=doc,
                 trip=trip,
@@ -250,6 +273,7 @@ class TripAgentRunner:
                 turn_id=turn_id,
                 tools_called=tools_called,
                 allowed_tool_names=allowed_tool_names,
+                trip_id=trip_id,
                 cancel_event=cancel_event,
                 client=mcp,
             )
@@ -278,6 +302,7 @@ class TripAgentRunner:
                 model=self.model,
                 system_prompt=system_prompt,
                 toolsets=[filtered_toolset],
+                retries=2,
             )
 
             async def _agent_worker() -> str:

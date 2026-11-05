@@ -1,0 +1,228 @@
+/* Japanese Minimalist Tactical Design System - Paladio Agent Sidebar Tab */
+
+.agentTabContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-primary, #FAF6F0);
+}
+
+:global([data-theme="dark"]) .agentTabContainer {
+  background: var(--color-bg-primary, #121C21);
+}
+
+/* Top Status Bar */
+.agentTabBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--color-surface-card, #FFFFFF);
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+:global([data-theme="dark"]) .agentTabBar {
+  background: #182228;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.agentTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agentIconBadge {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(15, 76, 92, 0.1);
+  color: #0F4C5C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+:global([data-theme="dark"]) .agentIconBadge {
+  background: rgba(124, 196, 209, 0.15);
+  color: #7CC4D1;
+}
+
+.pulseDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  background: #0D9488;
+  border-radius: 50%;
+  animation: pulseDotAnim 2s infinite ease-in-out;
+}
+
+@keyframes pulseDotAnim {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 5px rgba(13, 148, 136, 0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
+}
+
+.agentHeading {
+  display: flex;
+  flex-direction: column;
+}
+
+.agentName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  letter-spacing: -0.01em;
+}
+
+:global([data-theme="dark"]) .agentName {
+  color: #F8FAFC;
+}
+
+.connectionStatus {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+}
+
+.statusOnline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #10B981;
+  font-weight: 500;
+}
+
+.statusConnecting {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #F59E0B;
+  font-weight: 500;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.statusDotOrange {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #F59E0B;
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Action Controls */
+.agentActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.enginePillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(15, 76, 92, 0.08);
+  border: 1px solid rgba(15, 76, 92, 0.16);
+  border-radius: 9999px;
+  color: #0F4C5C;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+:global([data-theme="dark"]) .enginePillBtn {
+  background: rgba(124, 196, 209, 0.12);
+  border-color: rgba(124, 196, 209, 0.25);
+  color: #7CC4D1;
+}
+
+.enginePillBtn:hover {
+  background: rgba(15, 76, 92, 0.15);
+  border-color: #0F4C5C;
+}
+
+:global([data-theme="dark"]) .enginePillBtn:hover {
+  background: rgba(124, 196, 209, 0.22);
+  border-color: #7CC4D1;
+}
+
+.engineDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.engineModelText {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconActionBtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-text-muted, #64748B);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iconActionBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary, #0F172A);
+}
+
+:global([data-theme="dark"]) .iconActionBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #F8FAFC;
+}
+
+/* Message List Container */
+.messageListWrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Composer Container */
+.composerWrap {
+  flex-shrink: 0;
+  background: var(--color-surface-card, #FFFFFF);
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+:global([data-theme="dark"]) .composerWrap {
+  background: #182228;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}

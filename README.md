@@ -27,10 +27,10 @@
 Modern AI applications suffer from an architectural tension: **Large Language Models (LLMs) are expressive and conversational, but notoriously unreliable at arithmetic, constraint satisfaction, and combinatorial optimization.** When applied to complex scheduling (e.g., flight connections, opening hours, walking fatigue, and strict financial budgets), purely probabilistic agents hallucinate infeasible paths.
 
 **Paladio solves this through a hybrid, multi-paradigm architecture:**
-1. **Stochastic Reasoning & NLP Extraction:** Quantized local models (`Llama 3.1 8B`, `Qwen 2.5 7B` via Ollama) parse unstructured tickets and user prompts into structured models under strict **Pydantic AI guardrails**.
+1. **Stochastic Reasoning & NLP Extraction:** Configurable LLM models (OpenAI, Claude, Gemini, DeepSeek, Groq, Mistral, OpenRouter, or local Ollama/vLLM) parse unstructured tickets and user prompts into structured models under strict **Pydantic AI guardrails**.
 2. **Deterministic Combinatorial Optimization:** An ultra-fast, compiled **C++20 branch-and-bound engine** (`paladio-core`) solves the NP-hard Time-Constrained Orienteering Problem with Time Windows (**TCOPTW**) in micro-to-milliseconds with zero dynamic heap allocations in hot loops.
 3. **Continuous Taste Learning:** A **768-D semantic hypersphere** backed by `pgvector` that updates permanent user preferences via Exponential Moving Average (EMA) and projects them into **8-D harmonic affinity radars**.
-4. **Absolute Data Sovereignty:** **Zero external cloud API calls** (no OpenAI, no Google Maps, no cloud subscriptions). The entire system runs locally inside Docker containers on standard hardware (x86_64, ARM64, Apple Silicon).
+4. **Absolute Data Sovereignty & Portability:** Self-hosted by default with zero mandatory cloud dependencies. Users can run completely local inference or connect any cloud LLM API via user-managed keys.
 
 ---
 
@@ -43,10 +43,10 @@ graph TD
     Session <--> Graph["LangGraph StateGraph Engine"]
     
     subgraph Swarm["LangGraph Multi-Agent Swarm"]
-        TP["Ticket Parser Agent<br/>Pydantic AI + Ollama"] --> AC["Constraint Builder Node<br/>Deterministic Assembly"]
+        TP["Ticket Parser Agent<br/>Pydantic AI + Multi-Provider LLM"] --> AC["Constraint Builder Node<br/>Deterministic Assembly"]
         AC --> VC["Verify Constraints Node<br/>Stage 1 HITL interrupt()"]
         VC --> GR{"Guardrails Node<br/>Deterministic & DB Clash Check"}
-        GR -->|"Proceed"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Ollama"]
+        GR -->|"Proceed"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Multi-Provider LLM"]
         PA --> PS["Planner Scrape Node<br/>Context Ingestion & MLScorer"]
         PS --> PO["Planner Optimize Node<br/>Bridge to C++ Solver"]
     end

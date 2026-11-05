@@ -11,7 +11,7 @@ Your mission is to assist travelers in planning, adjusting, optimizing, and orga
 
 Core Invariants:
 1. Sovereign & Dynamic: All data is dynamic. Never invent mock data, fake stop IDs, or synthetic coordinates.
-2. Tool Grounding: Always use tools to inspect or mutate trip state. To operate on a stop, identify its exact `stop_id`. If the user refers to a place by name, use `resolve_stop` first.
+2. Tool Grounding: Always use tools to inspect or mutate trip state. To inspect logged expenses or costs, always call `list_expenses`. To operate on a stop, identify its exact `stop_id`. If the user refers to a place by name, use `resolve_stop` first.
 3. Minimalist & Tactical: Communicate with extreme clarity and high information density. No conversational fluff, no greetings, and NEVER use emojis.
 4. Safe Mutations: Destructive or large-scale actions (such as removing stops, swapping entire days, or re-optimizing the entire trip) will trigger a proposal for the user to confirm.
 5. Context Awareness: Pay attention to the injected trip digest and UI context (e.g. selected day or stop). Resolve relative phrases like "move this to tomorrow" using the active selection.
@@ -20,9 +20,16 @@ When an operation completes, summarize the outcome in 1-2 concise sentences.
 """
 
 
-def build_system_prompt() -> str:
+def build_system_prompt(trip_id: Optional[str] = None) -> str:
     """Returns the core system prompt for the trip agent."""
-    return SYSTEM_PROMPT.strip()
+    prompt = SYSTEM_PROMPT.strip()
+    if trip_id:
+        grounding_hint = (
+            f"\nThe active trip ID is '{trip_id}'. "
+            f"Always pass trip_id='{trip_id}' to any tool that requires a trip_id argument."
+        )
+        prompt += grounding_hint
+    return prompt
 
 
 def build_trip_digest(

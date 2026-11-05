@@ -51,7 +51,7 @@ This documentation is organized according to the **Diátaxis framework**, dividi
 
     ---
 
-    Task-oriented practical recipes for adding LangGraph agents, tuning EMA learning rates, adjusting scoring weights, and hydrating vector embeddings.
+    Task-oriented practical recipes for adding LangGraph agents, authoring [MCP tools](how-to/add-an-mcp-tool.md), connecting [Claude Desktop/Cursor](how-to/connect-claude-desktop-to-paladio.md), tuning EMA learning rates, and hydrating vector embeddings.
 
     [:octicons-arrow-right-24: View Guides](how-to/add-custom-langgraph-agent.md)
 
@@ -59,17 +59,17 @@ This documentation is organized according to the **Diátaxis framework**, dividi
 
     ---
 
-    Rigorous technical specifications covering state schemas, the 16-D `PoiEncoder` feature tensor, PostgreSQL tables, WebSocket events, and C++ interfaces.
+    Rigorous technical specifications covering the [77-Tool MCP Server](reference/mcp-server.md), the [Trip Agent WebSocket Protocol](reference/trip-agent-websocket.md), state schemas, PostgreSQL tables, and C++ interfaces.
 
-    [:octicons-arrow-right-24: Inspect Reference](reference/langgraph-swarm-architecture.md)
+    [:octicons-arrow-right-24: Inspect Reference](reference/mcp-server.md)
 
 -   :material-lightbulb:{ .lg .middle } **[Architectural Explanation](explanation/system-architecture.md)**
 
     ---
 
-    Deep-dive essays explaining *why* Paladio is designed this way: LangGraph vs. linear chains, sovereign RAG, continuous-to-discrete harmonics, and future roadmaps.
+    Deep-dive essays explaining *why* Paladio is designed this way: the [Agent Safety Model](explanation/agent-safety-model.md), LangGraph vs. linear chains, sovereign RAG, continuous-to-discrete harmonics, and future roadmaps.
 
-    [:octicons-arrow-right-24: Understand Architecture](explanation/system-architecture.md)
+    [:octicons-arrow-right-24: Understand Architecture](explanation/agent-safety-model.md)
 
 </div>
 
