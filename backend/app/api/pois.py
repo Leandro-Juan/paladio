@@ -12,12 +12,13 @@ import json
 import logging
 import re
 import unicodedata
+import uuid
 from typing import Any
 
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.api.deps import get_optional_user
-from app.db.models import AttractionModel, TripModel, UserModel
+from app.db.models import AttractionModel, CityModel, TripModel, UserModel
 from app.db.session import get_db
 from app.engine.retrieval.hybrid_retriever import HybridRetriever
 from app.engine.retrieval.query_rewriter import QueryRewriter
@@ -26,7 +27,7 @@ from app.infrastructure.providers.ollama_embedding_provider import (
 )
 from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
 from app.utils.opening_hours_parser import parse_osm_opening_hours
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Float, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,6 +118,29 @@ class PoiDetailResponse(BaseModel):
     daily_windows: list[Any] = Field(default_factory=list)
     photos: list[PoiPhotoItem] = Field(default_factory=list)
     transit_info: dict[str, Any] | None = None
+
+
+class PoiCreateRequest(BaseModel):
+    name: str
+    city: str
+    category: str = "attraction"
+    lat: float
+    lng: float
+    duration_mins: int = 60
+    cost_eur: float = 0.0
+    description: str | None = None
+    website: str | None = None
+
+
+class PoiUpdateRequest(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    duration_mins: int | None = None
+    cost_eur: float | None = None
+    description: str | None = None
+    website: str | None = None
+    lat: float | None = None
+    lng: float | None = None
 
 
 def _normalize_text(s: str) -> str:
@@ -1297,13 +1321,149 @@ def _generate_poi_overview(
     tags: dict[str, Any] | None = None,
     cost_eur: float | None = None,
     duration_mins: int | None = None,
+    target_lang: str = "en",
 ) -> str:
     tags = tags or {}
     cat_lower = (category or "destination").lower()
+    t_lang = (target_lang or "en").lower().split("-")[0]
 
     cuisine = tags.get("cuisine")
     historic_type = tags.get("historic")
     tourism_type = tags.get("tourism")
+
+    if t_lang == "es":
+        loc_str = f" en {city}" if city else ""
+        if (
+            neighborhood
+            and neighborhood.strip()
+            and city
+            and neighborhood.lower() != city.lower()
+        ):
+            loc_str = f" en el distrito de {neighborhood} en {city}"
+        parts = []
+        if cat_lower in ("museum", "gallery"):
+            parts.append(
+                f"{name} es un museo destacado{loc_str}, célebre por sus exposiciones y patrimonio cultural."
+            )
+        elif cat_lower in ("restaurant", "food"):
+            parts.append(
+                f"{name} es un restaurante destacado{loc_str}, conocido por su auténtica experiencia culinaria."
+            )
+        elif cat_lower in ("cafe", "coffee"):
+            parts.append(
+                f"{name} es una cafetería popular{loc_str}, ideal para degustar café artesanal y refrigerios."
+            )
+        elif cat_lower in ("park", "nature", "garden"):
+            parts.append(
+                f"{name} es un parque y espacio verde{loc_str}, ideal para paseos relajantes y actividades al aire libre."
+            )
+        elif cat_lower in ("landmark", "monument"):
+            parts.append(
+                f"{name} es un monumento emblemático{loc_str}, representativo del patrimonio histórico de la región."
+            )
+        elif cat_lower in ("transit", "station", "bus_stop"):
+            parts.append(
+                f"{name} es un punto de conexión de transporte clave{loc_str}."
+            )
+        else:
+            parts.append(
+                f"{name} es un atractivo destacado ({cat_lower}){loc_str}, muy visitado por viajeros."
+            )
+
+        extras = []
+        if duration_mins and duration_mins > 0:
+            extras.append(
+                f"La duración recomendada de la visita es de ~{duration_mins} minutos"
+            )
+        if cost_eur is not None and cost_eur > 0:
+            extras.append(f"la entrada cuesta alrededor de €{cost_eur:.2f}")
+        elif cost_eur == 0:
+            extras.append("la entrada es gratuita")
+        if extras:
+            parts.append(f"{'. '.join(extras).capitalize()}.")
+        return " ".join(parts)
+
+    elif t_lang == "fr":
+        loc_str = f" à {city}" if city else ""
+        if (
+            neighborhood
+            and neighborhood.strip()
+            and city
+            and neighborhood.lower() != city.lower()
+        ):
+            loc_str = f" dans le quartier {neighborhood} à {city}"
+        parts = []
+        if cat_lower in ("museum", "gallery"):
+            parts.append(
+                f"{name} est un musée renommé{loc_str}, apprécié pour ses collections et son patrimoine culturel."
+            )
+        elif cat_lower in ("restaurant", "food"):
+            parts.append(
+                f"{name} est une adresse gastronomique prisée{loc_str}, proposant des spécialités locales."
+            )
+        elif cat_lower in ("cafe", "coffee"):
+            parts.append(
+                f"{name} est un café accueillant{loc_str}, parfait pour une pause gourmande."
+            )
+        elif cat_lower in ("park", "nature", "garden"):
+            parts.append(
+                f"{name} est un espace vert paisible{loc_str}, propice aux promenades et à la détente."
+            )
+        else:
+            parts.append(
+                f"{name} est un site remarquable ({cat_lower}){loc_str}, apprécié des visiteurs."
+            )
+        extras = []
+        if duration_mins and duration_mins > 0:
+            extras.append(f"Durée de visite recommandée : ~{duration_mins} minutes")
+        if cost_eur is not None and cost_eur > 0:
+            extras.append(f"tarif indicatif : ~{cost_eur:.2f} €")
+        elif cost_eur == 0:
+            extras.append("l'accès est gratuit")
+        if extras:
+            parts.append(f"{'. '.join(extras).capitalize()}.")
+        return " ".join(parts)
+
+    elif t_lang == "de":
+        loc_str = f" in {city}" if city else ""
+        parts = []
+        if cat_lower in ("museum", "gallery"):
+            parts.append(
+                f"{name} ist ein renommiertes Museum{loc_str}, bekannt für seine kulturellen Ausstellungen."
+            )
+        elif cat_lower in ("restaurant", "food"):
+            parts.append(
+                f"{name} ist eine beliebte kulinarische Adresse{loc_str} mit regionalen Spezialitäten."
+            )
+        elif cat_lower in ("park", "nature", "garden"):
+            parts.append(
+                f"{name} ist eine malerische Grünanlage{loc_str}, ideal für Spaziergänge im Freien."
+            )
+        else:
+            parts.append(
+                f"{name} ist ein bemerkenswertes Ausflugsziel ({cat_lower}){loc_str}."
+            )
+        extras = []
+        if duration_mins and duration_mins > 0:
+            extras.append(f"Empfohlene Besuchsdauer: ca. {duration_mins} Minuten")
+        if cost_eur == 0:
+            extras.append("der Eintritt ist kostenlos")
+        elif cost_eur is not None and cost_eur > 0:
+            extras.append(f"Eintritt ca. €{cost_eur:.2f}")
+        if extras:
+            parts.append(f"{'. '.join(extras).capitalize()}.")
+        return " ".join(parts)
+
+    elif t_lang == "ja":
+        loc_str = f"（{city}）" if city else ""
+        parts = [f"{name}は{city or ''}にある注目の{cat_lower}スポットです。{loc_str}"]
+        if duration_mins and duration_mins > 0:
+            parts.append(f"推奨滞在時間は約{duration_mins}分です。")
+        if cost_eur == 0:
+            parts.append("入場料は無料です。")
+        elif cost_eur and cost_eur > 0:
+            parts.append(f"想定料金は約€{cost_eur:.2f}です。")
+        return "".join(parts)
 
     location_str = f" in {city}" if city else ""
     if (
@@ -1398,9 +1558,33 @@ async def get_poi_details(
     lng: float | None = Query(
         None, description="Optional POI longitude for client coordinate preservation"
     ),
+    lang: str | None = Query(
+        None, description="Preferred language ISO code, e.g. 'en', 'es', 'ja', 'fr'"
+    ),
+    request: Request = None,
+    current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> PoiDetailResponse:
-    """Retrieves full POI details and dynamically resolves real photos from Wikimedia/Wikipedia."""
+    """Retrieves full POI details and dynamically resolves real photos and localized descriptions from Wikimedia/Wikipedia."""
+    effective_lang = "en"
+    if lang and lang.strip():
+        effective_lang = lang.strip().lower().split("-")[0]
+    elif (
+        current_user
+        and isinstance(getattr(current_user, "preferences", None), dict)
+        and current_user.preferences.get("preferred_language")
+    ):
+        effective_lang = (
+            str(current_user.preferences["preferred_language"])
+            .strip()
+            .lower()
+            .split("-")[0]
+        )
+    elif request and request.headers.get("accept-language"):
+        raw_al = request.headers.get("accept-language", "")
+        cand = raw_al.split(",")[0].split(";")[0].strip().lower().split("-")[0]
+        if cand and len(cand) >= 2:
+            effective_lang = cand
     # 0. Check if this is an explicit GTFS or transit station lookup
     is_explicit_transit = poi_id.startswith("gtfs:") or (
         category
@@ -1615,6 +1799,7 @@ async def get_poi_details(
                 poi_id=poi_id,
                 name=resolved_name,
                 city=city or "",
+                target_lang=effective_lang,
             )
             return PoiDetailResponse(
                 id=poi_id,
@@ -1635,6 +1820,7 @@ async def get_poi_details(
                     city=city or "",
                     cost_eur=0.0,
                     duration_mins=60,
+                    target_lang=effective_lang,
                 ),
                 photos=[PoiPhotoItem(**p) for p in photos_data],
             )
@@ -1675,23 +1861,44 @@ async def get_poi_details(
         wikipedia_title=poi.wikipedia_title,
         wikidata_id=poi.wikidata_id,
         osm_tags=tags,
+        target_lang=effective_lang,
     )
 
+    localized_osm_name = (
+        tags.get(f"name:{effective_lang}") if effective_lang != "en" else None
+    )
+    poi_display_name = (
+        str(localized_osm_name).strip()
+        if localized_osm_name
+        and isinstance(localized_osm_name, str)
+        and localized_osm_name.strip()
+        else poi.name
+    )
+
+    localized_osm_desc = tags.get(f"description:{effective_lang}")
     osm_desc = (
-        tags.get("description")
+        localized_osm_desc
+        or tags.get("description")
         or tags.get("description:en")
         or tags.get("description:es")
     )
-    description = poi.description or lead_extract or osm_desc or meta.get("description")
+    description = (
+        lead_extract
+        or localized_osm_desc
+        or poi.description
+        or osm_desc
+        or meta.get("description")
+    )
     if not description:
         description = _generate_poi_overview(
-            name=poi.name,
+            name=poi_display_name,
             category=poi.category,
             city=poi.city,
             neighborhood=poi.neighborhood,
             tags=tags,
             cost_eur=float(poi.cost_eur or 0.0),
             duration_mins=int(poi.duration_mins or 60),
+            target_lang=effective_lang,
         )
 
     description_source = poi.description_source or (
@@ -1714,7 +1921,7 @@ async def get_poi_details(
 
     res = PoiDetailResponse(
         id=poi.id,
-        name=poi.name,
+        name=poi_display_name,
         category=poi.category,
         city=poi.city,
         lat=lat,
@@ -1753,3 +1960,159 @@ async def get_poi_details(
             res.osm_opening_hours = raw_hours_str
 
     return res
+
+
+@router.post("", response_model=PoiDetailResponse)
+async def create_poi(
+    poi_in: PoiCreateRequest,
+    session: AsyncSession = Depends(get_db),
+) -> PoiDetailResponse:
+    """Creates a custom POI and persists it in PostgreSQL."""
+    clean_city = poi_in.city.strip()
+    city_id: str | None = None
+    if clean_city:
+        city_res = await session.execute(
+            select(CityModel.id).where(func.lower(CityModel.name) == clean_city.lower())
+        )
+        city_id = city_res.scalar_one_or_none()
+
+    new_id = f"custom-{uuid.uuid4().hex[:12]}"
+
+    meta: dict[str, Any] = {
+        "source": "user_created",
+        "description": poi_in.description or "",
+    }
+    if poi_in.website:
+        meta["tags"] = {"website": poi_in.website}
+
+    attraction = AttractionModel(
+        id=new_id,
+        city=clean_city,
+        city_id=city_id,
+        name=poi_in.name.strip(),
+        category=poi_in.category.strip().lower(),
+        cost_eur=float(poi_in.cost_eur),
+        cost_is_estimated=False,
+        cost_source="user",
+        duration_mins=int(poi_in.duration_mins),
+        location={"latitude": float(poi_in.lat), "longitude": float(poi_in.lng)},
+        scoring={"rating": 5.0, "reviews": 1},
+        metadata_field=meta,
+        description=poi_in.description,
+        website=poi_in.website,
+        doc_quality="A",
+        hours_known=False,
+        open_time_mins_by_day=[480] * 7,
+        close_time_mins_by_day=[1320] * 7,
+    )
+    session.add(attraction)
+    await session.commit()
+    await session.refresh(attraction)
+
+    return PoiDetailResponse(
+        id=attraction.id,
+        name=attraction.name,
+        category=attraction.category,
+        city=attraction.city,
+        lat=float(poi_in.lat),
+        lng=float(poi_in.lng),
+        duration_mins=attraction.duration_mins,
+        cost_eur=float(attraction.cost_eur),
+        cost_is_estimated=False,
+        cost_source=attraction.cost_source,
+        scoring={"rating": 5.0, "reviews": 1},
+        description=attraction.description,
+        website=attraction.website,
+        doc_quality="A",
+        hours_known=False,
+        daily_windows=[],
+        photos=[],
+    )
+
+
+@router.put("/{poi_id}", response_model=PoiDetailResponse)
+async def update_poi(
+    poi_id: str,
+    update_in: PoiUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+) -> PoiDetailResponse:
+    """Updates an existing POI attributes in PostgreSQL."""
+    attraction = await session.get(AttractionModel, poi_id)
+    if not attraction:
+        if update_in.name and update_in.lat is not None and update_in.lng is not None:
+            attraction = AttractionModel(
+                id=poi_id,
+                city="",
+                name=update_in.name.strip(),
+                category=(update_in.category or "attraction").strip().lower(),
+                cost_eur=float(update_in.cost_eur or 0.0),
+                cost_is_estimated=False,
+                cost_source="user",
+                duration_mins=int(update_in.duration_mins or 60),
+                location={
+                    "latitude": float(update_in.lat),
+                    "longitude": float(update_in.lng),
+                },
+                scoring={},
+                metadata_field={"source": "user_edited"},
+                description=update_in.description,
+                website=update_in.website,
+                doc_quality="A",
+                hours_known=False,
+                open_time_mins_by_day=[480] * 7,
+                close_time_mins_by_day=[1320] * 7,
+            )
+            session.add(attraction)
+        else:
+            raise HTTPException(status_code=404, detail="POI not found")
+
+    if update_in.name is not None:
+        attraction.name = update_in.name.strip()
+    if update_in.category is not None:
+        attraction.category = update_in.category.strip().lower()
+    if update_in.duration_mins is not None:
+        attraction.duration_mins = int(update_in.duration_mins)
+    if update_in.cost_eur is not None:
+        attraction.cost_eur = float(update_in.cost_eur)
+        attraction.cost_is_estimated = False
+    if update_in.description is not None:
+        attraction.description = update_in.description
+    if update_in.website is not None:
+        attraction.website = update_in.website
+        meta = dict(attraction.metadata_field or {})
+        tags = dict(meta.get("tags") or {})
+        tags["website"] = update_in.website
+        meta["tags"] = tags
+        attraction.metadata_field = meta
+    if update_in.lat is not None and update_in.lng is not None:
+        attraction.location = {
+            "latitude": float(update_in.lat),
+            "longitude": float(update_in.lng),
+        }
+
+    await session.commit()
+    await session.refresh(attraction)
+
+    loc = attraction.location or {}
+    lat = float(loc.get("latitude") or loc.get("lat") or (update_in.lat or 0.0))
+    lng = float(loc.get("longitude") or loc.get("lng") or (update_in.lng or 0.0))
+
+    return PoiDetailResponse(
+        id=attraction.id,
+        name=attraction.name,
+        category=attraction.category,
+        city=attraction.city or "",
+        lat=lat,
+        lng=lng,
+        duration_mins=attraction.duration_mins or 60,
+        cost_eur=float(attraction.cost_eur or 0.0),
+        cost_is_estimated=bool(attraction.cost_is_estimated),
+        cost_source=attraction.cost_source,
+        scoring=dict(attraction.scoring or {}),
+        description=attraction.description,
+        website=attraction.website,
+        doc_quality=getattr(attraction, "doc_quality", "C") or "C",
+        hours_known=bool(getattr(attraction, "hours_known", False)),
+        daily_windows=list(getattr(attraction, "daily_windows", []) or []),
+        photos=[],
+    )

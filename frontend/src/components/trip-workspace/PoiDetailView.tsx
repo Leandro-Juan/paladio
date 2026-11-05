@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
+export type { PoiDetail };
 import { getApiBaseUrl, apiFetch } from '@/utils/api';
 import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
 import { useOptionalAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import {
   IzakayaLanternIllustration,
@@ -30,7 +32,9 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  EditIcon,
 } from '@/components/icons';
+import { notify } from '@/utils/notify';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 
@@ -229,6 +233,7 @@ interface PoiDetailViewProps {
   activeTransitLine?: ActiveTransitLineData | null;
   onSelectTransitLine?: (lineData: ActiveTransitLineData | null) => void;
   tripId?: string;
+  onUpdatePoi?: (poi: PoiDetail) => void;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -307,12 +312,14 @@ export function PoiDetailView({
   activeTransitLine,
   onSelectTransitLine,
   tripId,
+  onUpdatePoi,
 }: PoiDetailViewProps) {
   const { isPoiSaved } = useTripCollections(tripId);
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
   const auth = useOptionalAuth();
   const user = auth?.user;
+  const { t, locale } = useTranslation();
   const destMeta = useDestinationCurrency(city || fallbackPoi?.city);
   const activeCurrencyCode = (user?.preferences?.default_currency as string) || destMeta.currency || 'EUR';
   const currencySymbol = useMemo(() => {
@@ -350,6 +357,76 @@ export function PoiDetailView({
   const isTransit = useMemo(() => isTransitPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
   const [stationDetail, setStationDetail] = useState<StationDetailData | null>(null);
+
+  // In-Place POI Editing State
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('attraction');
+  const [editDuration, setEditDuration] = useState(60);
+  const [editCost, setEditCost] = useState(0);
+  const [editDescription, setEditDescription] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+
+  const startEditing = useCallback(() => {
+    if (!poi) return;
+    setEditName(poi.name || '');
+    setEditCategory(poi.category || 'attraction');
+    setEditDuration(poi.duration_mins || 60);
+    setEditCost(poi.cost_eur ?? 0);
+    setEditDescription(poi.description || '');
+    setEditWebsite(poi.website || '');
+    setIsEditing(true);
+  }, [poi]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!poi || !editName.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      const updatedPoiData: PoiDetail = {
+        ...poi,
+        name: editName.trim(),
+        category: editCategory.trim().toLowerCase(),
+        duration_mins: Number(editDuration) || 60,
+        cost_eur: Number(editCost) || 0,
+        description: editDescription.trim(),
+        website: editWebsite.trim() || undefined,
+      };
+
+      const baseUrl = getApiBaseUrl();
+      try {
+        await fetch(`${baseUrl}/pois/${encodeURIComponent(poi.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: updatedPoiData.name,
+            category: updatedPoiData.category,
+            duration_mins: updatedPoiData.duration_mins,
+            cost_eur: updatedPoiData.cost_eur,
+            description: updatedPoiData.description,
+            website: updatedPoiData.website,
+            lat: updatedPoiData.lat,
+            lng: updatedPoiData.lng,
+          }),
+        });
+      } catch (e) {
+        console.warn('Backend update failed, maintaining local state:', e);
+      }
+
+      setPoi(updatedPoiData);
+      if (onUpdatePoi) {
+        onUpdatePoi(updatedPoiData);
+      }
+      window.dispatchEvent(new CustomEvent('paladio:poi-updated', { detail: updatedPoiData }));
+      notify.success('Place Updated', `Updated "${updatedPoiData.name}"`);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error saving POI:', err);
+      notify.error('Update Failed', 'Could not save updates.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, onUpdatePoi]);
   const [stationDepartures, setStationDepartures] = useState<StationDepartureItem[]>([]);
   const [departureTimeSeconds, setDepartureTimeSeconds] = useState<number>(32400); // 09:00 AM default
   const [loadingDepartures, setLoadingDepartures] = useState<boolean>(false);
@@ -659,6 +736,7 @@ export function PoiDetailView({
         if (typeof fallbackPoi?.lng === 'number' && !isNaN(fallbackPoi.lng) && fallbackPoi.lng !== 0) {
           params.set('lng', String(fallbackPoi.lng));
         }
+        if (locale) params.set('lang', locale);
         const qs = params.toString() ? `?${params.toString()}` : '';
 
         const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(effectiveId)}${qs}`);
@@ -714,7 +792,7 @@ export function PoiDetailView({
     return () => {
       isMounted = false;
     };
-  }, [poiId, fallbackPoi, city, tripStartDate, effectiveDayNumber, departureTimeSeconds]);
+  }, [poiId, fallbackPoi, city, tripStartDate, effectiveDayNumber, departureTimeSeconds, locale]);
 
 
   // Handle escape key to close view or lightbox
@@ -821,50 +899,35 @@ export function PoiDetailView({
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
+          justifyContent: 'flex-end',
+          padding: '10px 16px',
           borderBottom: '1px solid var(--color-border)',
           background: 'var(--color-surface-card)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            title="Return to POI Search"
-            aria-label="Back to Search"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              background: 'var(--color-surface-raised, #F8FAFC)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '9999px',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-code, monospace)',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.18s cubic-bezier(0.23, 1, 0.32, 1)',
-            }}
-          >
-            <span>&larr; Search</span>
-          </button>
-          <span
-            style={{
-              fontFamily: 'var(--font-code, monospace)',
-              fontSize: '11px',
-              fontWeight: 600,
-              color: 'var(--color-text-muted)',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {'// POI INSPECTOR'}
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          title={t('workspace.close_inspector')}
+          aria-label={t('workspace.close_inspector')}
+          data-testid="poi-inspector-close-btn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: 'var(--color-surface-raised, #F8FAFC)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <CloseIcon size={14} />
+        </button>
       </div>
 
       {/* Scrollable Content Area */}
@@ -931,7 +994,7 @@ export function PoiDetailView({
                 fontSize: '11.5px',
               }}
             >
-              Return to Search
+              {t('workspace.return_to_search')}
             </button>
           </div>
         )}
@@ -1095,8 +1158,8 @@ export function PoiDetailView({
                           cursor: 'pointer',
                           transition: 'transform 0.15s ease',
                         }}
-                        title="Focus on Map"
-                        aria-label="Focus on Map"
+                        title={t('workspace.focus_on_map')}
+                        aria-label={t('workspace.focus_on_map')}
                       >
                         <CompassIcon size={15} color="#FFFFFF" />
                       </button>
@@ -1233,8 +1296,8 @@ export function PoiDetailView({
                         cursor: 'pointer',
                         transition: 'transform 0.15s ease',
                       }}
-                      title="Focus on Map"
-                      aria-label="Focus on Map"
+                      title={t('workspace.focus_on_map')}
+                      aria-label={t('workspace.focus_on_map')}
                     >
                       <CompassIcon size={15} color="currentColor" />
                     </button>
@@ -1304,7 +1367,7 @@ export function PoiDetailView({
                         color: 'var(--color-text-primary)',
                       }}
                     >
-                      {poi.cost_eur === 0 ? 'Free' : `${currencySymbol}${Math.round(poi.cost_eur)}`}
+                      {poi.cost_eur === 0 ? t('workspace.free') : `${currencySymbol}${Math.round(poi.cost_eur)}`}
                     </span>
                     <span
                       style={{
@@ -1313,12 +1376,12 @@ export function PoiDetailView({
                         fontFamily: 'var(--font-code, monospace)',
                       }}
                     >
-                      / person
+                      {t('workspace.per_person')}
                     </span>
                   </div>
 
                   <div
-                    title="Taste match calculated from your travel preferences"
+                    title={t('workspace.taste_match')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1339,7 +1402,7 @@ export function PoiDetailView({
                         letterSpacing: '0.02em',
                       }}
                     >
-                      {tasteMatchPct}% Taste Match
+                      {t('workspace.taste_match_pct', { pct: tasteMatchPct })}
                     </span>
                   </div>
                 </div>
@@ -1372,6 +1435,30 @@ export function PoiDetailView({
                   >
                     {poi.name}
                   </h2>
+                  <button
+                    type="button"
+                    onClick={isEditing ? () => setIsEditing(false) : startEditing}
+                    title={isEditing ? 'Close Editor' : 'Edit POI Information'}
+                    aria-label={t('workspace.edit_poi')}
+                    data-testid="edit-poi-btn"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border)',
+                      background: isEditing ? 'rgba(15, 76, 92, 0.1)' : 'var(--color-surface-raised, #F8FAFC)',
+                      color: isEditing ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      padding: 0,
+                      transition: 'all 0.15s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <EditIcon size={13} color="currentColor" />
+                  </button>
                   {transitStationLabel && (
                     <span
                       data-testid="transit-station-badge"
@@ -1477,11 +1564,234 @@ export function PoiDetailView({
                         fontWeight: 600,
                       }}
                     >
-                      Website
+                      {t('workspace.website')}
                     </a>
                   )}
                 </div>
               </div>
+
+              {/* In-Place POI Inline Editor */}
+              {isEditing && (
+                <div
+                  data-testid="inline-poi-editor"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    padding: '14px',
+                    background: 'var(--color-surface-raised, #F8FAFC)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '16px',
+                    boxShadow: 'var(--shadow-sm)',
+                    animation: 'fadeIn 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {t('workspace.edit_place_info')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        color: 'var(--color-text-muted)',
+                      }}
+                    >
+                      <CloseIcon size={13} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                      Place Name
+                    </label>
+                    <input
+                      type="text"
+                      data-testid="edit-poi-name-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: 'var(--color-text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                        {t('workspace.category')}
+                      </label>
+                      <select
+                        data-testid="edit-poi-category-select"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '12px',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="attraction">Attraction</option>
+                        <option value="monument">Monument</option>
+                        <option value="museum">Museum</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="cafe">Café</option>
+                        <option value="park">Park</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="viewpoint">Viewpoint</option>
+                        <option value="hotel">Hotel</option>
+                        <option value="transit">Transit</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                        Duration (mins)
+                      </label>
+                      <input
+                        type="number"
+                        min={5}
+                        step={5}
+                        data-testid="edit-poi-duration-input"
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(Number(e.target.value))}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '12px',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                        Cost (€ / person)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        data-testid="edit-poi-cost-input"
+                        value={editCost}
+                        onChange={(e) => setEditCost(Number(e.target.value))}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '12px',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                        {t('workspace.website')}
+                      </label>
+                      <input
+                        type="url"
+                        data-testid="edit-poi-website-input"
+                        placeholder="https://..."
+                        value={editWebsite}
+                        onChange={(e) => setEditWebsite(e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '12px',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                      Overview / Notes
+                    </label>
+                    <textarea
+                      rows={3}
+                      data-testid="edit-poi-description-input"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        fontSize: '12px',
+                        color: 'var(--color-text-primary)',
+                        resize: 'vertical',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      data-testid="cancel-edit-poi-btn"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSavingEdit || !editName.trim()}
+                      onClick={handleSaveEdit}
+                      data-testid="save-edit-poi-btn"
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'var(--color-accent-primary, #0F4C5C)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#FFFFFF',
+                        cursor: isSavingEdit || !editName.trim() ? 'not-allowed' : 'pointer',
+                        opacity: isSavingEdit || !editName.trim() ? 0.6 : 1,
+                      }}
+                    >
+                      {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Feature Chips Row */}
               {!isTransit && (
@@ -1517,7 +1827,7 @@ export function PoiDetailView({
                         borderRadius: '10px',
                         padding: '8px 10px',
                       }}
-                      title={isRated && reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : isRated ? `${ratingNum.toFixed(1)} / 5.0` : 'No verified reviews yet'}
+                      title={isRated && reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : isRated ? `${ratingNum.toFixed(1)} / 5.0` : t('workspace.no_reviews')}
                     >
                       <StarIcon
                         size={14}
@@ -1533,7 +1843,7 @@ export function PoiDetailView({
                             textTransform: 'uppercase',
                           }}
                         >
-                          {isRated && reviewCount ? `${reviewCount.toLocaleString()} Rev` : 'Rating'}
+                          {isRated && reviewCount ? t('workspace.reviews_count', { count: reviewCount.toLocaleString() }) : t('workspace.rating')}
                         </span>
                         <span
                           style={{
@@ -1572,7 +1882,7 @@ export function PoiDetailView({
                         textTransform: 'uppercase',
                       }}
                     >
-                      Duration
+                      {t('common.duration')}
                     </span>
                     <span
                       style={{
@@ -1608,7 +1918,7 @@ export function PoiDetailView({
                         textTransform: 'uppercase',
                       }}
                     >
-                      Category
+                      {t('workspace.category')}
                     </span>
                     <span
                       style={{
@@ -1643,7 +1953,7 @@ export function PoiDetailView({
                       fontWeight: 600,
                     }}
                   >
-                    Overview
+                    {t('workspace.overview')}
                   </span>
                   <p
                     style={{

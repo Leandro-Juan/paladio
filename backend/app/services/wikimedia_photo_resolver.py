@@ -271,43 +271,59 @@ class WikimediaPhotoResolver:
             logger.debug(f"Redis set cache failed for poi {poi_id}: {err}")
 
     @classmethod
-    async def get_cached_extract(cls, poi_id: str) -> str | None:
+    async def get_cached_extract(
+        cls, poi_id: str, target_lang: str = "en"
+    ) -> str | None:
         """Retrieves cached Wikipedia extract from Redis if available."""
         if not poi_id:
             return None
+        t_lang = (target_lang or "en").lower().split("-")[0]
         try:
             import redis.asyncio as aioredis
 
             r = aioredis.from_url(REDIS_URL, decode_responses=True)
             try:
-                cached = await r.get(f"poi:extract:{poi_id}")
+                cached = await r.get(f"poi:extract:{poi_id}:{t_lang}")
                 if cached:
                     return cached
+                if t_lang == "en":
+                    cached = await r.get(f"poi:extract:{poi_id}")
+                    if cached:
+                        return cached
             finally:
                 await r.aclose()
         except Exception as err:
-            logger.debug(f"Redis get extract error for poi {poi_id}: {err}")
+            logger.debug(f"Redis get extract error for poi {poi_id} ({t_lang}): {err}")
         return None
 
     @classmethod
-    async def set_cached_extract(cls, poi_id: str, extract: str) -> None:
+    async def set_cached_extract(
+        cls, poi_id: str, extract: str, target_lang: str = "en"
+    ) -> None:
         """Stores resolved Wikipedia extract into Redis with TTL."""
         if not poi_id or not extract:
             return
+        t_lang = (target_lang or "en").lower().split("-")[0]
         try:
             import redis.asyncio as aioredis
 
             r = aioredis.from_url(REDIS_URL, decode_responses=True)
             try:
                 await r.set(
-                    f"poi:extract:{poi_id}",
+                    f"poi:extract:{poi_id}:{t_lang}",
                     extract,
                     ex=CACHE_TTL_SECONDS,
                 )
+                if t_lang == "en":
+                    await r.set(
+                        f"poi:extract:{poi_id}",
+                        extract,
+                        ex=CACHE_TTL_SECONDS,
+                    )
             finally:
                 await r.aclose()
         except Exception as err:
-            logger.debug(f"Redis set extract error for poi {poi_id}: {err}")
+            logger.debug(f"Redis set extract error for poi {poi_id} ({t_lang}): {err}")
 
     @classmethod
     async def resolve_photos(
@@ -318,15 +334,20 @@ class WikimediaPhotoResolver:
         wikipedia_title: str | None = None,
         wikidata_id: str | None = None,
         osm_tags: dict[str, Any] | None = None,
+        target_lang: str = "en",
     ) -> tuple[list[dict[str, Any]], str | None]:
         """Resolves photos and an optional lead summary for a POI.
 
         Returns:
             tuple[list[dict], str | None]: (photos_list, lead_extract)
         """
+        target_lang_clean = (target_lang or "en").lower().split("-")[0]
+
         # 1. Check Redis Cache
         cached_photos = await cls.get_cached_photos(poi_id)
-        cached_extract = await cls.get_cached_extract(poi_id)
+        cached_extract = await cls.get_cached_extract(
+            poi_id, target_lang=target_lang_clean
+        )
         if cached_photos is not None and cached_extract is not None:
             return cached_photos, cached_extract
 
@@ -428,6 +449,7 @@ class WikimediaPhotoResolver:
                         # Extract sitelinks
                         slinks = ent.get("sitelinks", {})
                         for s_key in (
+                            f"{target_lang_clean}wiki",
                             f"{primary_lang}wiki",
                             "enwiki",
                             "eswiki",
@@ -441,7 +463,15 @@ class WikimediaPhotoResolver:
 
                         # Extract description fallback
                         desc_dict = ent.get("descriptions", {})
-                        for l_code in ("en", primary_lang, "es", "fr", "de", "ja"):
+                        for l_code in (
+                            target_lang_clean,
+                            "en",
+                            primary_lang,
+                            "es",
+                            "fr",
+                            "de",
+                            "ja",
+                        ):
                             if l_code in desc_dict and desc_dict[l_code].get("value"):
                                 wikidata_desc = (
                                     f"{name} is a {desc_dict[l_code]['value']}."
@@ -518,13 +548,37 @@ class WikimediaPhotoResolver:
 
             # 5. Query Wikipedia REST API for lead image & summary
             titles_to_try: list[tuple[str, str]] = []
+
+            # 5a. Prioritize user's target language from Wikidata sitelinks
+            if target_lang_clean in wikidata_sitelinks:
+                titles_to_try.append(
+                    (
+                        target_lang_clean,
+                        wikidata_sitelinks[target_lang_clean].replace(" ", "_"),
+                    )
+                )
+
+            # 5b. Prioritize localized OSM wikipedia tag or name
+            osm_target_wiki = osm_tags.get(f"wikipedia:{target_lang_clean}")
+            if osm_target_wiki:
+                tgt_lang, tgt_title = _clean_title(osm_target_wiki)
+                if (tgt_lang, tgt_title) not in titles_to_try:
+                    titles_to_try.append((tgt_lang, tgt_title))
+
+            osm_target_name = osm_tags.get(f"name:{target_lang_clean}")
+            if osm_target_name and isinstance(osm_target_name, str):
+                t_clean = osm_target_name.strip().replace(" ", "_")
+                if (target_lang_clean, t_clean) not in titles_to_try:
+                    titles_to_try.append((target_lang_clean, t_clean))
+
             if effective_wiki:
                 lang, title = _clean_title(effective_wiki)
-                titles_to_try.append((lang, title))
-                if lang != "en":
+                if (lang, title) not in titles_to_try:
+                    titles_to_try.append((lang, title))
+                if lang != "en" and ("en", title) not in titles_to_try:
                     titles_to_try.append(("en", title))
 
-            # Add titles resolved from Wikidata sitelinks
+            # Add titles resolved from other Wikidata sitelinks
             for s_lang, s_title in wikidata_sitelinks.items():
                 entry = (s_lang, s_title.replace(" ", "_"))
                 if entry not in titles_to_try:
@@ -532,6 +586,8 @@ class WikimediaPhotoResolver:
 
             # Add cleaned POI name as trial
             clean_name = name.replace(" ", "_")
+            if (target_lang_clean, clean_name) not in titles_to_try:
+                titles_to_try.append((target_lang_clean, clean_name))
             if (primary_lang, clean_name) not in titles_to_try:
                 titles_to_try.append((primary_lang, clean_name))
             if primary_lang != "en" and ("en", clean_name) not in titles_to_try:
@@ -733,6 +789,8 @@ class WikimediaPhotoResolver:
         if serialized:
             await cls.set_cached_photos(poi_id, serialized)
         if lead_extract:
-            await cls.set_cached_extract(poi_id, lead_extract)
+            await cls.set_cached_extract(
+                poi_id, lead_extract, target_lang=target_lang_clean
+            )
 
         return serialized, lead_extract

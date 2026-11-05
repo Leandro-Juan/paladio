@@ -104,3 +104,127 @@ async def test_get_poi_details_not_found(async_client: AsyncClient):
     assert res.status_code == 404
     data = res.json()
     assert "not found" in data["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_and_update_poi(async_client: AsyncClient):
+    """Test creating a custom POI and editing it in place."""
+    create_payload = {
+        "name": "Custom Ramen Spot",
+        "city": "Tokyo",
+        "category": "restaurant",
+        "lat": 35.6812,
+        "lng": 139.7671,
+        "duration_mins": 45,
+        "cost_eur": 12.5,
+        "description": "Authentic handmade ramen in Tokyo.",
+        "website": "https://ramen-spot.example.com",
+    }
+    create_res = await async_client.post("/api/pois", json=create_payload)
+    assert create_res.status_code == 200
+    created = create_res.json()
+    assert created["name"] == "Custom Ramen Spot"
+    assert created["category"] == "restaurant"
+    assert created["duration_mins"] == 45
+    assert created["cost_eur"] == 12.5
+    assert created["website"] == "https://ramen-spot.example.com"
+    poi_id = created["id"]
+    assert poi_id.startswith("custom-")
+
+    # Update in place
+    update_payload = {
+        "name": "Custom Ramen Spot Deluxe",
+        "category": "cafe",
+        "duration_mins": 60,
+        "cost_eur": 18.0,
+        "description": "Upgraded ramen bar & tea lounge.",
+        "website": "https://deluxe-ramen.example.com",
+    }
+    update_res = await async_client.put(f"/api/pois/{poi_id}", json=update_payload)
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert updated["id"] == poi_id
+    assert updated["name"] == "Custom Ramen Spot Deluxe"
+    assert updated["category"] == "cafe"
+    assert updated["duration_mins"] == 60
+    assert updated["cost_eur"] == 18.0
+    assert updated["website"] == "https://deluxe-ramen.example.com"
+
+
+@pytest.mark.asyncio
+async def test_get_poi_details_multilingual_resolution(async_client: AsyncClient):
+    """Test retrieving POI details with lang=es receives native Spanish extract and localized name."""
+    mock_photos = [
+        {
+            "url": "https://example.com/prado.jpg",
+            "thumbnail_url": "https://example.com/prado_thumb.jpg",
+            "caption": "Museo del Prado",
+        }
+    ]
+    spanish_extract = "El Museo del Prado es uno de los más importantes del mundo."
+
+    with patch(
+        "app.services.wikimedia_photo_resolver.WikimediaPhotoResolver.resolve_photos",
+        new=AsyncMock(return_value=(mock_photos, spanish_extract)),
+    ) as mock_resolve:
+        res = await async_client.get("/api/pois/OSM-node-madrid-prado-test?lang=es")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["description"] == spanish_extract
+        # Verify target_lang was passed as 'es'
+        mock_resolve.assert_called_once()
+        assert mock_resolve.call_args.kwargs.get("target_lang") == "es"
+
+
+@pytest.mark.asyncio
+async def test_get_poi_details_fallback_other_language_when_user_lang_missing(
+    async_client: AsyncClient,
+):
+    """Test that when description in user language (ja) is missing, it falls back to English/other without translation."""
+    mock_photos = [
+        {
+            "url": "https://example.com/prado.jpg",
+            "thumbnail_url": "https://example.com/prado_thumb.jpg",
+            "caption": "Museo del Prado",
+        }
+    ]
+    english_extract = "The Prado Museum is the main Spanish national art museum."
+
+    # Mock resolver returning English extract even though target_lang was 'ja' (native Wikipedia in ja did not exist)
+    with patch(
+        "app.services.wikimedia_photo_resolver.WikimediaPhotoResolver.resolve_photos",
+        new=AsyncMock(return_value=(mock_photos, english_extract)),
+    ) as mock_resolve:
+        res = await async_client.get("/api/pois/OSM-node-madrid-prado-test?lang=ja")
+        assert res.status_code == 200
+        data = res.json()
+        # Cleanly falls back to the available English description directly
+        assert data["description"] == english_extract
+        assert mock_resolve.call_args.kwargs.get("target_lang") == "ja"
+
+
+def test_generate_poi_overview_localized():
+    """Test localized structural overview generation for different languages."""
+    from app.api.pois import _generate_poi_overview
+
+    es_overview = _generate_poi_overview(
+        name="Museo Reina Sofía",
+        category="museum",
+        city="Madrid",
+        cost_eur=12.0,
+        duration_mins=90,
+        target_lang="es",
+    )
+    assert "es un museo destacado en Madrid" in es_overview
+    assert "€12.00" in es_overview
+
+    ja_overview = _generate_poi_overview(
+        name="東京タワー",
+        category="landmark",
+        city="東京",
+        cost_eur=0.0,
+        duration_mins=45,
+        target_lang="ja",
+    )
+    assert "東京タワーは東京にある注目のlandmarkスポットです" in ja_overview
+    assert "入場料は無料です" in ja_overview
