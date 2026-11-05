@@ -76,6 +76,9 @@ export interface Trip {
   participants?: TripParticipant[];
   tickets_count?: number;
   destination_timezone?: string;
+  origin_iata?: string | null;
+  destination_iata?: string | null;
+  corridor?: string | null;
   status?: string;
 }
 

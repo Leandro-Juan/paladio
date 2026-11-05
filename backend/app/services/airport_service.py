@@ -761,7 +761,34 @@ class AirportService:
             ):
                 seen_keys.add(sec_key)
                 seen_iatas.add(sec_item.get("airport_iata"))
-                results.append(sec_item)
+        if not results and "," in raw_query:
+            ap_fallback = self.resolve_airport_for_city(raw_query)
+            if ap_fallback:
+                city_name = (
+                    ap_fallback.city.title()
+                    if ap_fallback.city
+                    else raw_query.split(",")[0].strip().title()
+                )
+                c_name = country_names.get(ap_fallback.country, ap_fallback.country)
+                results.append(
+                    {
+                        "city": city_name,
+                        "country": ap_fallback.country,
+                        "country_name": c_name,
+                        "airport_name": ap_fallback.name,
+                        "airport_iata": ap_fallback.iata,
+                        "airport_icao": ap_fallback.icao,
+                        "distance_km": (
+                            round(ap_fallback.distance_km, 1)
+                            if ap_fallback.distance_km is not None
+                            else 0.0
+                        ),
+                        "display_name": f"{city_name}, {c_name}",
+                        "display_airport": f"{ap_fallback.name} ({ap_fallback.iata})",
+                        "latitude": getattr(ap_fallback, "latitude", None),
+                        "longitude": getattr(ap_fallback, "longitude", None),
+                    }
+                )
 
         return results[:limit]
 

@@ -1,5 +1,5 @@
-from datetime import datetime, timezone, timedelta
 import shutil
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -34,6 +34,27 @@ async def test_locations_search_dynamic(async_client: AsyncClient):
     data_iata = res_iata.json()
     assert len(data_iata) > 0
     assert data_iata[0]["airport_iata"] == "JFK"
+
+
+@pytest.mark.asyncio
+async def test_resolve_airport_dynamic(async_client: AsyncClient):
+    # Test resolving airport for Tokyo
+    res_tokyo = await async_client.get("/api/locations/resolve-airport?city=Tokyo")
+    assert res_tokyo.status_code == 200
+    data_tokyo = res_tokyo.json()
+    assert data_tokyo["iata"] in ["HND", "NRT"]
+
+    # Test resolving airport for Madrid
+    res_madrid = await async_client.get("/api/locations/resolve-airport?city=Madrid")
+    assert res_madrid.status_code == 200
+    assert res_madrid.json()["iata"] == "MAD"
+
+    # Test resolving airport for Cabo San Lucas
+    res_cabo = await async_client.get(
+        "/api/locations/resolve-airport?city=Cabo%20San%20Lucas"
+    )
+    assert res_cabo.status_code == 200
+    assert res_cabo.json()["iata"] in ["CSW", "SJD"]
 
 
 @pytest.mark.asyncio
@@ -192,6 +213,7 @@ async def test_scan_hotel_booking_document(async_client: AsyncClient):
 async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
     import io
     import os
+
     from PIL import Image, ImageDraw, ImageFont
 
     font = None

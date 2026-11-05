@@ -274,6 +274,9 @@ class TripResponse(TripCreate):
     participants: list[TripParticipantResponse] = []
     tickets_count: int = 0
     destination_timezone: str | None = None
+    origin_iata: str | None = None
+    destination_iata: str | None = None
+    corridor: str | None = None
     status: str = "active"
     revision: int = 0
 
@@ -310,6 +313,147 @@ def _resolve_trip_timezone(trip: TripModel) -> str | None:
     except Exception:
         pass
     return None
+
+
+def _populate_corridor_constraints(
+    itin_data: dict[str, Any] | None, destination: str | None
+) -> dict[str, Any]:
+    """
+    Ensures origin_iata, destination_iata, and corridor are resolved and stored in
+    itin_data['travel_constraints'] at write-time (create/update trip).
+    Zero synthetic placeholders and zero hardcoded dictionaries.
+    """
+    if not isinstance(itin_data, dict):
+        itin_data = {}
+
+    tc = itin_data.get("travel_constraints")
+    if not isinstance(tc, dict):
+        tc = {}
+        itin_data["travel_constraints"] = tc
+
+    orig_iata = tc.get("origin_iata")
+    dest_iata = tc.get("destination_iata")
+    orig_city = tc.get("origin_city")
+
+    # Check days for flight_info if IATAs are missing
+    days = itin_data.get("days")
+    if isinstance(days, list):
+        for d in days:
+            if isinstance(d, dict) and d.get("flight_info"):
+                fi = d["flight_info"]
+                if isinstance(fi, dict):
+                    orig_iata = orig_iata or fi.get("origin_iata")
+                    dest_iata = dest_iata or fi.get("destination_iata")
+                    orig_city = orig_city or fi.get("origin_iata")
+                    if orig_iata and dest_iata:
+                        break
+
+    try:
+        from app.services.airport_service import get_airport_service
+
+        svc = get_airport_service()
+
+        if not dest_iata and destination:
+            dest_iata = svc.get_iata_from_city(destination)
+            if not dest_iata:
+                clean_dest = destination.split(",")[0].strip()
+                dest_iata = svc.get_iata_from_city(clean_dest)
+            if not dest_iata:
+                matches = svc.search_locations(destination, limit=1)
+                if matches and matches[0].get("airport_iata"):
+                    dest_iata = matches[0]["airport_iata"]
+
+        if not orig_iata and orig_city:
+            orig_iata = svc.get_iata_from_city(orig_city)
+            if not orig_iata:
+                matches = svc.search_locations(orig_city, limit=1)
+                if matches and matches[0].get("airport_iata"):
+                    orig_iata = matches[0]["airport_iata"]
+    except Exception as e:
+        logger.warning(
+            f"Could not resolve airports in _populate_corridor_constraints: {e}"
+        )
+
+    if dest_iata:
+        tc["destination_iata"] = dest_iata
+    if orig_iata:
+        tc["origin_iata"] = orig_iata
+
+    if orig_iata and dest_iata:
+        tc["corridor"] = f"{orig_iata} → {dest_iata}"
+    elif dest_iata:
+        tc["corridor"] = f"→ {dest_iata}"
+
+    return itin_data
+
+
+def _resolve_trip_corridor(
+    trip: TripModel,
+) -> tuple[str | None, str | None, str | None]:
+    """
+    Dynamically resolves origin IATA, destination IATA, and route corridor badge
+    using trip constraints and sovereign AirportService.
+    Zero hardcoded dictionaries and zero synthetic placeholders.
+    """
+    try:
+        itin = trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+        tc = itin.get("travel_constraints") or {}
+
+        orig_iata = tc.get("origin_iata")
+        dest_iata = tc.get("destination_iata")
+        corridor = tc.get("corridor")
+
+        # Fast O(1) path if already resolved and persisted
+        if corridor and (dest_iata or orig_iata):
+            return orig_iata, dest_iata, corridor
+
+        orig_city = tc.get("origin_city")
+
+        # Inspect flight info inside itinerary days
+        days = itin.get("days")
+        if isinstance(days, list):
+            for d in days:
+                if isinstance(d, dict) and d.get("flight_info"):
+                    fi = d["flight_info"]
+                    if isinstance(fi, dict):
+                        orig_iata = orig_iata or fi.get("origin_iata")
+                        dest_iata = dest_iata or fi.get("destination_iata")
+                        orig_city = orig_city or fi.get("origin_iata")
+                        if orig_iata and dest_iata:
+                            break
+
+        from app.services.airport_service import get_airport_service
+
+        svc = get_airport_service()
+
+        # Resolve destination IATA dynamically if missing
+        if not dest_iata and trip.destination:
+            dest_iata = svc.get_iata_from_city(trip.destination)
+            if not dest_iata:
+                clean_dest = trip.destination.split(",")[0].strip()
+                dest_iata = svc.get_iata_from_city(clean_dest)
+            if not dest_iata:
+                matches = svc.search_locations(trip.destination, limit=1)
+                if matches and matches[0].get("airport_iata"):
+                    dest_iata = matches[0]["airport_iata"]
+
+        # Resolve origin IATA dynamically if missing
+        if not orig_iata and orig_city:
+            orig_iata = svc.get_iata_from_city(orig_city)
+            if not orig_iata:
+                matches = svc.search_locations(orig_city, limit=1)
+                if matches and matches[0].get("airport_iata"):
+                    orig_iata = matches[0]["airport_iata"]
+
+        if not corridor:
+            if orig_iata and dest_iata:
+                corridor = f"{orig_iata} → {dest_iata}"
+            elif dest_iata:
+                corridor = f"→ {dest_iata}"
+
+        return orig_iata, dest_iata, corridor
+    except Exception:
+        return None, None, None
 
 
 async def _get_trip_tickets_count(trip_id: str, session: AsyncSession) -> int:
@@ -716,6 +860,11 @@ async def create_trip(
         except Exception as e:
             logger.warning(f"Could not ensure walking legs in create_trip: {e}")
 
+    try:
+        itin_data = _populate_corridor_constraints(itin_data, trip.destination)
+    except Exception as e:
+        logger.warning(f"Could not populate corridor constraints in create_trip: {e}")
+
     new_id = str(uuid.uuid4())
     db_trip = TripModel(
         id=new_id,
@@ -826,6 +975,7 @@ async def create_trip(
     )
     all_p = all_p_res.scalars().all()
 
+    orig_iata, dest_iata, corridor = _resolve_trip_corridor(db_trip)
     return TripResponse(
         id=db_trip.id,
         user_id=db_trip.user_id,
@@ -838,6 +988,10 @@ async def create_trip(
         else datetime.now(timezone.utc).isoformat(),
         participants=[_participant_to_response(p) for p in all_p],
         tickets_count=t_count,
+        destination_timezone=_resolve_trip_timezone(db_trip),
+        origin_iata=orig_iata,
+        destination_iata=dest_iata,
+        corridor=corridor,
         status=getattr(db_trip, "status", "active") or "active",
     )
 
@@ -860,6 +1014,7 @@ async def get_trips(
         part_models = await _ensure_trip_participants(t, session)
         parts = [_participant_to_response(p) for p in part_models]
         t_count = await _get_trip_tickets_count(t.id, session)
+        orig_iata, dest_iata, corridor = _resolve_trip_corridor(t)
         response.append(
             TripResponse(
                 id=t.id,
@@ -874,6 +1029,9 @@ async def get_trips(
                 participants=parts,
                 tickets_count=t_count,
                 destination_timezone=_resolve_trip_timezone(t),
+                origin_iata=orig_iata,
+                destination_iata=dest_iata,
+                corridor=corridor,
                 status=getattr(t, "status", "active") or "active",
             )
         )
@@ -1533,6 +1691,7 @@ async def get_trip(
                     f"Could not lazily enrich walking geometries for trip {trip.id}: {e}"
                 )
 
+    orig_iata, dest_iata, corridor = _resolve_trip_corridor(trip)
     return TripResponse(
         id=trip.id,
         user_id=trip.user_id,
@@ -1546,6 +1705,9 @@ async def get_trip(
         participants=parts,
         tickets_count=t_count,
         destination_timezone=_resolve_trip_timezone(trip),
+        origin_iata=orig_iata,
+        destination_iata=dest_iata,
+        corridor=corridor,
         status=getattr(trip, "status", "active") or "active",
     )
 
@@ -1590,6 +1752,16 @@ async def update_trip(
             logger.warning(f"Could not ensure walking legs in update_trip: {e}")
         trip.itinerary_data = itin_data
 
+    if update_data.destination is not None or update_data.itinerary_data is not None:
+        try:
+            trip.itinerary_data = _populate_corridor_constraints(
+                trip.itinerary_data, trip.destination
+            )
+        except Exception as e:
+            logger.warning(
+                f"Could not populate corridor constraints in update_trip: {e}"
+            )
+
     new_rev = current_rev + 1
     trip.revision = new_rev
 
@@ -1614,6 +1786,7 @@ async def update_trip(
     parts = [_participant_to_response(p) for p in parts_models]
     t_count = await _get_trip_tickets_count(trip.id, session)
 
+    orig_iata, dest_iata, corridor = _resolve_trip_corridor(trip)
     return TripResponse(
         id=trip.id,
         user_id=trip.user_id,
@@ -1626,6 +1799,10 @@ async def update_trip(
         else datetime.now(timezone.utc).isoformat(),
         participants=parts,
         tickets_count=t_count,
+        destination_timezone=_resolve_trip_timezone(trip),
+        origin_iata=orig_iata,
+        destination_iata=dest_iata,
+        corridor=corridor,
         status=getattr(trip, "status", "active") or "active",
         revision=trip.revision,
     )
@@ -1679,6 +1856,7 @@ async def reoptimize_trip_route(
     parts = [_participant_to_response(p) for p in parts_models]
     t_count = await _get_trip_tickets_count(trip.id, session)
 
+    orig_iata, dest_iata, corridor = _resolve_trip_corridor(trip)
     return TripResponse(
         id=trip.id,
         user_id=trip.user_id,
@@ -1691,6 +1869,12 @@ async def reoptimize_trip_route(
         else datetime.now(timezone.utc).isoformat(),
         participants=parts,
         tickets_count=t_count,
+        destination_timezone=_resolve_trip_timezone(trip),
+        origin_iata=orig_iata,
+        destination_iata=dest_iata,
+        corridor=corridor,
+        status=getattr(trip, "status", "active") or "active",
+        revision=getattr(trip, "revision", 0) or 0,
     )
 
 

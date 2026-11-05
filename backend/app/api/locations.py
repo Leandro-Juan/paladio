@@ -41,6 +41,53 @@ async def search_city_airports(
 
 
 @router.get(
+    "/resolve-airport",
+    summary="Dynamically resolve primary airport and IATA code for a city",
+)
+async def resolve_city_airport(
+    city: str = Query(
+        ...,
+        min_length=1,
+        description="City or place name (e.g. 'Tokyo', 'Cabo San Lucas', 'Paris, France')",
+    ),
+    country_code: str | None = Query(
+        None, description="Optional 2-letter ISO country code hint"
+    ),
+) -> dict[str, Any]:
+    """
+    Dynamically resolves the primary commercial airport and 3-letter IATA code
+    for any city using AirportService backed by geonamescache and airportsdata KDTree.
+    """
+    svc = get_airport_service()
+    ap = svc.resolve_airport_for_city(city, country_code=country_code)
+    if not ap:
+        matches = svc.search_locations(city, limit=1)
+        if matches:
+            first = matches[0]
+            return {
+                "iata": first["airport_iata"],
+                "icao": first.get("airport_icao"),
+                "name": first["airport_name"],
+                "city": first["city"],
+                "country": first["country"],
+                "distance_km": first.get("distance_km"),
+            }
+        return {"iata": None, "name": None, "city": city}
+
+    return {
+        "iata": ap.iata,
+        "icao": ap.icao,
+        "name": ap.name,
+        "city": ap.city,
+        "country": ap.country,
+        "latitude": ap.latitude,
+        "longitude": ap.longitude,
+        "timezone": ap.timezone,
+        "distance_km": ap.distance_km,
+    }
+
+
+@router.get(
     "/hotels", summary="Search hotels and accommodations by name and destination"
 )
 async def search_hotels(

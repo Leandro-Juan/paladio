@@ -20,38 +20,6 @@ interface UpcomingTripCardProps {
   onAbort?: (tripId: string) => void;
 }
 
-// IATA airport resolution for route corridor badges
-const KNOWN_DESTINATION_IATAS: Record<string, string> = {
-  tokyo: 'NRT',
-  japan: 'NRT',
-  madrid: 'MAD',
-  spain: 'MAD',
-  porto: 'OPO',
-  lisbon: 'LIS',
-  portugal: 'LIS',
-  seville: 'SVQ',
-  sevilla: 'SVQ',
-  paris: 'CDG',
-  france: 'CDG',
-  rome: 'FCO',
-  italy: 'FCO',
-  london: 'LHR',
-  berlin: 'BER',
-  barcelona: 'BCN',
-  cabo: 'SJD',
-  'cabo san lucas': 'SJD',
-  mexico: 'MEX',
-  kyoto: 'KIX',
-  osaka: 'KIX',
-  amsterdam: 'AMS',
-  vienna: 'VIE',
-  prague: 'PRG',
-  zurich: 'ZRH',
-  dublin: 'DUB',
-  milan: 'MXP',
-  newyork: 'JFK',
-};
-
 function resolveTripPhoto(
   externalPhotoUrl?: string,
   itineraryData?: unknown,
@@ -111,45 +79,31 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
   const destination = trip.destination;
   const rawCity = useMemo(() => (destination ? destination.split(',')[0].trim() : ''), [destination]);
 
-  // Route corridor resolution for the top-right header badge
+  // Route corridor display resolved dynamically on backend with zero-roundtrip render
   const corridorDisplay = useMemo(() => {
-    const corridor = extractRouteCorridor(trip.itinerary_data);
-    let orig = corridor?.originIata;
-    let dest = corridor?.destinationIata;
-
-    if (!orig && corridor?.origin) {
-      const origKey = corridor.origin.toLowerCase();
-      orig = KNOWN_DESTINATION_IATAS[origKey] || (corridor.origin.length <= 4 ? corridor.origin.toUpperCase() : corridor.origin.slice(0, 3).toUpperCase());
+    if (trip.corridor) {
+      return trip.corridor;
     }
-
-    if (!dest && destination) {
-      const destLower = destination.toLowerCase();
-      for (const [key, code] of Object.entries(KNOWN_DESTINATION_IATAS)) {
-        if (destLower.includes(key)) {
-          dest = code;
-          break;
-        }
-      }
-      if (!dest && rawCity) {
-        dest = rawCity.length <= 4 ? rawCity.toUpperCase() : rawCity.slice(0, 3).toUpperCase();
-      }
-    }
-
-    // Default origin to MAD (Paladio's tactical home base) if missing and destination is distinct
-    if (!orig && dest) {
-      orig = dest === 'MAD' ? 'BCN' : 'MAD';
-    }
-
+    const orig = trip.origin_iata;
+    const dest = trip.destination_iata;
     if (orig && dest) {
       return `${orig} → ${dest}`;
     }
-
     if (dest) {
       return `→ ${dest}`;
     }
 
+    const corridor = extractRouteCorridor(trip.itinerary_data);
+    const cOrig = corridor?.originIata;
+    const cDest = corridor?.destinationIata;
+    if (cOrig && cDest) {
+      return `${cOrig} → ${cDest}`;
+    }
+    if (cDest) {
+      return `→ ${cDest}`;
+    }
     return null;
-  }, [trip.itinerary_data, destination, rawCity]);
+  }, [trip.corridor, trip.origin_iata, trip.destination_iata, trip.itinerary_data]);
 
   // Subscribe to photo requests for this trip destination (fallback if not prefetched by section)
   const poiWatch = useMemo(() => {

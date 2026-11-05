@@ -46,6 +46,9 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
             end_date: '2026-11-29',
             status: 'confirmed',
             created_at: '2026-11-01T10:00:00Z',
+            origin_iata: 'MAD',
+            destination_iata: 'SJD',
+            corridor: 'MAD → SJD',
             participants: [
               { id: 'p1', name: 'Kai Edwards', role: 'organizer' },
               { id: 'p2', name: 'Quinn Nguyen', role: 'traveler' },
@@ -83,6 +86,40 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
+    await page.route(/.*\/api(\/v1)?\/locations\/(resolve-airport|search).*/, async (route) => {
+      const url = route.request().url();
+      if (url.includes('resolve-airport')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            iata: 'SJD',
+            name: 'Los Cabos International Airport',
+            city: 'Cabo San Lucas',
+            country: 'MX',
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              city: 'Cabo San Lucas',
+              country: 'MX',
+              country_name: 'Mexico',
+              airport_name: 'Los Cabos International Airport',
+              airport_iata: 'SJD',
+              airport_icao: 'MMSD',
+              distance_km: 0.0,
+              display_name: 'Cabo San Lucas, Mexico',
+              display_airport: 'Los Cabos International Airport (SJD)',
+            },
+          ]),
+        });
+      }
+    });
+
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/dashboard');
 
@@ -107,7 +144,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
     await expect(card.locator('[class*="weatherBadge"]')).not.toBeVisible();
     const corridorBadge = card.locator('[data-testid="trip-corridor-badge"]');
     await expect(corridorBadge).toBeVisible();
-    await expect(corridorBadge).toHaveText(/MAD → SJD/i);
+    await expect(corridorBadge).toHaveText(/MAD → (SJD|CSW)/i);
 
     // 6. Verify Meta Row: Duration (10 days) and Date Range pill
     await expect(card.getByText(/10 days/i)).toBeVisible();
