@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   BoardingPassTacticalIllustration,
   HotelBookingTacticalIllustration,
+  VaultSecurityIllustration,
 } from '@/components/illustrations';
-import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon } from '@/components/icons';
+import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon, ChevronRightIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 
@@ -53,9 +55,12 @@ export function DocumentUploadModal({
   onExtracted,
   disabled = false,
 }: DocumentUploadModalProps) {
+  const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [extractedResult, setExtractedResult] = useState<ExtractedTravelDocData | null>(null);
+  const [importedTrip, setImportedTrip] = useState<{ id: string; destination: string; start_date: string; end_date: string } | null>(null);
 
   // Flight states
   const [flightDragOver, setFlightDragOver] = useState(false);
@@ -68,6 +73,10 @@ export function DocumentUploadModal({
   const [showHotelPaste, setShowHotelPaste] = useState(false);
   const [hotelPastedText, setHotelPastedText] = useState('');
   const hotelInputRef = useRef<HTMLInputElement>(null);
+
+  // Trip package (.trip) states
+  const [tripDragOver, setTripDragOver] = useState(false);
+  const tripPkgInputRef = useRef<HTMLInputElement>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -97,10 +106,61 @@ export function DocumentUploadModal({
 
   if (!isOpen) return null;
 
-  const processScan = async (file?: File, rawText?: string, targetType: 'flight' | 'hotel' = 'flight') => {
+  const processTripPackage = async (file: File) => {
     setIsScanning(true);
+    setScanMessage('Unpacking and restoring Paladio .trip archive...');
     setScanError(null);
     setExtractedResult(null);
+    setImportedTrip(null);
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${baseUrl}/trips/import`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let errMessage = 'Failed to import .trip package.';
+        try {
+          const errData = await res.json();
+          if (errData.detail) errMessage = errData.detail;
+        } catch {
+          // ignore
+        }
+        throw new Error(errMessage);
+      }
+
+      const tripData = await res.json();
+      setImportedTrip(tripData);
+      setExtractedResult({
+        document_type: 'other',
+        destination_city: tripData.destination,
+        departure_date: tripData.start_date,
+        return_date: tripData.end_date,
+        excerpt: `Imported complete Paladio trip archive for ${tripData.destination}`,
+      });
+    } catch (err: unknown) {
+      setScanError(err instanceof Error ? err.message : 'Error importing .trip package.');
+    } finally {
+      setIsScanning(false);
+      setScanMessage(null);
+    }
+  };
+
+  const processScan = async (file?: File, rawText?: string, targetType: 'flight' | 'hotel' = 'flight') => {
+    if (file && file.name.toLowerCase().endsWith('.trip')) {
+      return processTripPackage(file);
+    }
+
+    setIsScanning(true);
+    setScanMessage('Decoding telemetry & extracting document...');
+    setScanError(null);
+    setExtractedResult(null);
+    setImportedTrip(null);
 
     try {
       const baseUrl = getApiBaseUrl();
@@ -112,6 +172,7 @@ export function DocumentUploadModal({
       } else {
         throw new Error('Please select a document file or paste confirmation text.');
       }
+      formData.append('document_hint', targetType);
 
       const res = await fetch(`${baseUrl}/trips/scan-boarding-pass`, {
         method: 'POST',
@@ -175,6 +236,7 @@ export function DocumentUploadModal({
       setScanError(err instanceof Error ? err.message : 'Error scanning document.');
     } finally {
       setIsScanning(false);
+      setScanMessage(null);
     }
   };
 
@@ -184,7 +246,12 @@ export function DocumentUploadModal({
     setFlightDragOver(false);
     if (disabled || isScanning) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      void processScan(e.dataTransfer.files[0], undefined, 'flight');
+      const f = e.dataTransfer.files[0];
+      if (f.name.toLowerCase().endsWith('.trip')) {
+        void processTripPackage(f);
+      } else {
+        void processScan(f, undefined, 'flight');
+      }
     }
   };
 
@@ -194,7 +261,22 @@ export function DocumentUploadModal({
     setHotelDragOver(false);
     if (disabled || isScanning) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      void processScan(e.dataTransfer.files[0], undefined, 'hotel');
+      const f = e.dataTransfer.files[0];
+      if (f.name.toLowerCase().endsWith('.trip')) {
+        void processTripPackage(f);
+      } else {
+        void processScan(f, undefined, 'hotel');
+      }
+    }
+  };
+
+  const handleTripDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTripDragOver(false);
+    if (disabled || isScanning) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void processTripPackage(e.dataTransfer.files[0]);
     }
   };
 
@@ -233,7 +315,7 @@ export function DocumentUploadModal({
       <input
         ref={flightInputRef}
         type="file"
-        accept="application/pdf,application/vnd.apple.pkpass,image/png,image/jpeg,image/webp,image/*,.pdf,.pkpass,.png,.jpg,.jpeg,.webp"
+        accept="application/pdf,application/vnd.apple.pkpass,image/png,image/jpeg,image/webp,image/*,.pdf,.pkpass,.png,.jpg,.jpeg,.webp,.trip"
         style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
@@ -245,13 +327,25 @@ export function DocumentUploadModal({
       <input
         ref={hotelInputRef}
         type="file"
-        accept="application/pdf,image/png,image/jpeg,image/webp,image/*,.pdf,.png,.jpg,.jpeg,.webp"
+        accept="application/pdf,image/png,image/jpeg,image/webp,image/*,.pdf,.png,.jpg,.jpeg,.webp,.trip"
         style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
             void processScan(e.target.files[0], undefined, 'hotel');
           }
           if (hotelInputRef.current) hotelInputRef.current.value = '';
+        }}
+      />
+      <input
+        ref={tripPkgInputRef}
+        type="file"
+        accept=".trip,application/vnd.paladio.trip+zip,application/zip"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            void processTripPackage(e.target.files[0]);
+          }
+          if (tripPkgInputRef.current) tripPkgInputRef.current.value = '';
         }}
       />
 
@@ -261,7 +355,7 @@ export function DocumentUploadModal({
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',
           borderRadius: '24px',
-          maxWidth: '920px',
+          maxWidth: '1080px',
           width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
@@ -277,18 +371,18 @@ export function DocumentUploadModal({
             padding: '1.5rem 1.75rem',
             borderBottom: '1px solid var(--color-border, #E2D9CC)',
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'space-between',
             gap: '1rem',
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div
                 style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '6px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
                   background: 'var(--color-accent-teal-deep, #0F4C5C)',
                   color: '#FFFFFF',
                   display: 'flex',
@@ -310,31 +404,7 @@ export function DocumentUploadModal({
               >
                 Upload Travel Documents
               </h2>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  background: 'rgba(15, 76, 92, 0.08)',
-                  color: 'var(--color-accent-teal-deep, #0F4C5C)',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                LOCAL OCR & BCBP TELEMETRY
-              </span>
             </div>
-            <p
-              style={{
-                margin: 0,
-                fontSize: '13px',
-                color: 'var(--color-text-secondary, #6B7280)',
-                lineHeight: 1.4,
-              }}
-            >
-              Automatically extract cities, IATAs, departure/return dates, flight arrival start hour, and outbound takeoff time.
-            </p>
           </div>
 
           <button
@@ -387,10 +457,10 @@ export function DocumentUploadModal({
                     letterSpacing: '0.05em',
                   }}
                 >
-                  DECODING TELEMETRY // LOCAL OCR & BARCODE EXTRACTION ACTIVE
+                  {scanMessage || 'PROCESSING TRAVEL DOCUMENT // IN PROGRESS'}
                 </p>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  Parsing route coordinates, flight times, and hotel booking windows...
+                  Extracting schedule, coordinates, and trip telemetry...
                 </p>
               </div>
             </div>
@@ -462,12 +532,17 @@ export function DocumentUploadModal({
                     <CheckIcon size={12} />
                   </div>
                   <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                    Extracted Travel Telemetry ({extractedResult.document_type === 'hotel' ? 'Hotel Booking' : 'Flight Itinerary'})
+                    {importedTrip
+                      ? 'Paladio .trip Package Restored'
+                      : `Extracted Travel Telemetry (${extractedResult.document_type === 'hotel' ? 'Hotel Booking' : 'Flight Itinerary'})`}
                   </h4>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setExtractedResult(null)}
+                  onClick={() => {
+                    setExtractedResult(null);
+                    setImportedTrip(null);
+                  }}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -559,30 +634,55 @@ export function DocumentUploadModal({
                 )}
               </div>
 
-              {/* Action Apply Button */}
-              <button
-                type="button"
-                onClick={handleApplyExtracted}
-                style={{
-                  background: 'var(--color-accent-teal-deep, #0F4C5C)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '10px 24px',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'opacity 0.15s ease',
-                  alignSelf: 'flex-end',
-                }}
-              >
-                <CheckIcon size={16} />
-                <span>Apply Extracted Details to Route</span>
-              </button>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', alignSelf: 'flex-end', flexWrap: 'wrap' }}>
+                {importedTrip && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/trips/${importedTrip.id}`)}
+                    style={{
+                      background: 'var(--color-accent-coral, #D42A2F)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '10px 20px',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    <span>Open Restored Trip Workspace</span>
+                    <ChevronRightIcon size={14} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleApplyExtracted}
+                  style={{
+                    background: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '10px 24px',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'opacity 0.15s ease',
+                  }}
+                >
+                  <CheckIcon size={16} />
+                  <span>{importedTrip ? 'Apply Dates & Destination to Form' : 'Apply Extracted Details to Route'}</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -590,7 +690,7 @@ export function DocumentUploadModal({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
               gap: '1.25rem',
               alignItems: 'stretch',
             }}
@@ -702,7 +802,7 @@ export function DocumentUploadModal({
                     textDecoration: 'underline',
                   }}
                 >
-                  {showFlightPaste ? 'Hide text intake' : 'Or paste barcode text / airline email →'}
+                  {showFlightPaste ? 'Hide text intake' : <>Or paste barcode text / airline email <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
                 </button>
 
                 {showFlightPaste && (
@@ -867,7 +967,7 @@ export function DocumentUploadModal({
                     textDecoration: 'underline',
                   }}
                 >
-                  {showHotelPaste ? 'Hide email intake' : 'Or paste hotel confirmation email text →'}
+                  {showHotelPaste ? 'Hide email intake' : <>Or paste hotel confirmation email text <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
                 </button>
 
                 {showHotelPaste && (
@@ -907,6 +1007,121 @@ export function DocumentUploadModal({
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* ---------------- SECTION 3: PALADIO TRIP PACKAGE (.TRIP) ---------------- */}
+            <div
+              style={{
+                background: 'var(--color-surface-card, #FAF6F0)',
+                border: '1px solid var(--color-border, #E2D9CC)',
+                borderRadius: '20px',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <VaultSecurityIllustration width={130} height={75} />
+                <h3
+                  style={{
+                    margin: '10px 0 4px 0',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  Trip Package (.trip)
+                </h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Restore full trip itinerary, route polylines, tickets, and expenses from a .trip file
+                </p>
+              </div>
+
+              {/* Dropzone */}
+              <div
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setTripDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setTripDragOver(false);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleTripDrop}
+                onClick={() => {
+                  if (!isScanning && !disabled) tripPkgInputRef.current?.click();
+                }}
+                role="button"
+                tabIndex={0}
+                style={{
+                  border: `2px dashed ${
+                    tripDragOver ? 'var(--color-accent-teal-deep, #0F4C5C)' : 'var(--color-border, #E2D9CC)'
+                  }`,
+                  background: tripDragOver ? 'rgba(15, 76, 92, 0.04)' : 'var(--color-surface-raised, #FFFFFF)',
+                  borderRadius: '16px',
+                  padding: '1.25rem 1rem',
+                  textAlign: 'center',
+                  cursor: isScanning || disabled ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    border: '1.5px solid var(--color-accent-teal-deep, #0F4C5C)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  .TRIP
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Drag & Drop .trip Archive
+                </span>
+                <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
+                  Supports self-contained Paladio .trip packages
+                </span>
+                <button
+                  type="button"
+                  disabled={disabled || isScanning}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    tripPkgInputRef.current?.click();
+                  }}
+                  style={{
+                    marginTop: '4px',
+                    background: 'var(--color-surface-card, #FAF6F0)',
+                    border: '1px solid var(--color-border, #E2D9CC)',
+                    borderRadius: '9999px',
+                    padding: '6px 16px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--color-accent-teal-deep, #0F4C5C)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Browse .trip Files
+                </button>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: 'auto' }}>
+                <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  Air-gapped, offline-ready package
+                </span>
               </div>
             </div>
           </div>
