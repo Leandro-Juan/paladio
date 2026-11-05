@@ -409,7 +409,7 @@ async def test_ollama_json_schema_parsing_mocked():
             TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
         ) as mock_fetch,
         patch.object(
-            TransitFareService, "extract_fare_with_ollama", new_callable=AsyncMock
+            TransitFareService, "extract_fare_with_llm", new_callable=AsyncMock
         ) as mock_extract,
         patch.object(
             TransitFareService, "_lookup_db", new_callable=AsyncMock
@@ -467,7 +467,7 @@ async def test_database_persistence_and_cache_hits_on_repeated_lookups():
             TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
         ) as mock_fetch,
         patch.object(
-            TransitFareService, "extract_fare_with_ollama", new_callable=AsyncMock
+            TransitFareService, "extract_fare_with_llm", new_callable=AsyncMock
         ) as mock_extract,
         patch.object(
             TransitFareService, "_lookup_db", new_callable=AsyncMock

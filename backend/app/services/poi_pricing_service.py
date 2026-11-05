@@ -10,7 +10,6 @@ Fallback: Category benchmark estimation with cost_is_estimated=True.
 """
 
 import asyncio
-import json
 import logging
 import re
 import unicodedata
@@ -21,11 +20,18 @@ import httpx
 from app.db.models import CityModel, PoiPriceCatalogModel
 from app.db.seeds.poi_prices import INITIAL_VERIFIED_PRICES
 from app.engine.currency import convert_currency
+from app.services.llm_service import LLMService
 from app.utils.opening_hours_parser import parse_osm_opening_hours
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+
+class POIPriceExtraction(BaseModel):
+    price_eur: float | None = None
+    is_free: bool = False
 
 
 @dataclass
@@ -445,67 +451,61 @@ class PoiPricingService:
         if not extracted_text:
             return None, True, "no_price_text_found"
 
-        # Ask Ollama for structured extraction
+        # Run structured extraction via configured LLM
         prompt = (
             f"Extract the adult admission price in EUR from the following text for {poi_name} in {city}.\n"
             "If admission is completely free of charge, set price_eur to 0.0 and is_free to true.\n"
             "If no price is mentioned, set price_eur to null.\n\n"
-            f"Text:\n{extracted_text[:1200]}\n\n"
-            'Respond ONLY in valid JSON matching schema: {"price_eur": <float or null>, "is_free": <bool>}'
+            f"Text:\n{extracted_text[:1200]}\n"
         )
+        instructions = "You extract adult admission prices from website text. Ensure output matches the schema strictly."
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                ollama_resp = await client.post(
-                    f"{ollama_url}/api/generate",
-                    json={
-                        "model": model,
-                        "prompt": prompt,
-                        "format": "json",
-                        "stream": False,
-                    },
-                )
-                if ollama_resp.status_code != 200:
-                    return None, True, "ollama_error"
+            res_data = await LLMService.run_structured_extraction(
+                output_type=POIPriceExtraction,
+                prompt=prompt,
+                instructions=instructions,
+            )
+            if not res_data:
+                return None, True, "llm_extraction_failed"
 
-                res_data = json.loads(ollama_resp.json().get("response", "{}"))
-                extracted_price = res_data.get("price_eur")
-                is_free = bool(res_data.get("is_free"))
+            extracted_price = res_data.price_eur
+            is_free = bool(res_data.is_free)
 
-                if is_free and (extracted_price == 0.0 or extracted_price is None):
-                    # Literal check for free terms
-                    if any(
-                        term in extracted_text.lower()
-                        for term in ("free", "gratis", "gratuit", "libre")
-                    ):
-                        return 0.0, False, "official_website_literal_verified"
+            if is_free and (extracted_price == 0.0 or extracted_price is None):
+                # Literal check for free terms
+                if any(
+                    term in extracted_text.lower()
+                    for term in ("free", "gratis", "gratuit", "libre")
+                ):
+                    return 0.0, False, "official_website_literal_verified"
 
-                if extracted_price is not None:
-                    price_val = float(extracted_price)
-                    if price_val < 0.0:
-                        return None, True, "negative_price_rejected"
+            if extracted_price is not None:
+                price_val = float(extracted_price)
+                if price_val < 0.0:
+                    return None, True, "negative_price_rejected"
 
-                    # STRICT LITERAL VERIFICATION GATE:
-                    # The numeric representation must literally appear in extracted_text!
-                    int_str = str(int(price_val))
-                    float_str_dot = f"{price_val:.2f}"
-                    float_str_comma = f"{price_val:.2f}".replace(".", ",")
-                    simple_float = str(price_val)
+                # STRICT LITERAL VERIFICATION GATE:
+                # The numeric representation must literally appear in extracted_text!
+                int_str = str(int(price_val))
+                float_str_dot = f"{price_val:.2f}"
+                float_str_comma = f"{price_val:.2f}".replace(".", ",")
+                simple_float = str(price_val)
 
-                    candidates = [int_str, float_str_dot, float_str_comma, simple_float]
-                    matched_literal = any(c in extracted_text for c in candidates if c)
+                candidates = [int_str, float_str_dot, float_str_comma, simple_float]
+                matched_literal = any(c in extracted_text for c in candidates if c)
 
-                    if matched_literal:
-                        return price_val, False, "official_website_literal_verified"
-                    else:
-                        logger.warning(
-                            "Ollama extracted price %s for %s, but literal verification failed in source text.",
-                            price_val,
-                            poi_name,
-                        )
-                        return None, True, "literal_verification_failed"
+                if matched_literal:
+                    return price_val, False, "official_website_literal_verified"
+                else:
+                    logger.warning(
+                        "LLM extracted price %s for %s, but literal verification failed in source text.",
+                        price_val,
+                        poi_name,
+                    )
+                    return None, True, "literal_verification_failed"
         except Exception as e:
-            logger.debug("Ollama pricing extraction failed: %s", e)
+            logger.debug("LLM pricing extraction failed: %s", e)
 
         return None, True, "extraction_unsuccessful"
 

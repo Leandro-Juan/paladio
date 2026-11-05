@@ -1,7 +1,6 @@
 import asyncio
 import concurrent.futures
 import logging
-import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -10,6 +9,7 @@ import httpx
 from app.db.models import TransitFareModel, TransitFareQuoteModel
 from app.domain.entities.poi import TransitRecommendation, TransitStep
 from app.domain.reference.iso_currencies import from_minor_units
+from app.services.llm_service import LLMService
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -522,22 +522,12 @@ class TransitFareService:
                 return None
 
     @classmethod
-    async def extract_fare_with_ollama(
-        cls, city: str, context: str
+    async def extract_fare_with_llm(
+        cls, city: str, context: str, db: AsyncSession | None = None
     ) -> TransitFareExtractionSchema | None:
         """
-        Extracts structured transit tariff details using Ollama (qwen2.5) with JSON schema mode.
+        Extracts structured transit tariff details using configured LLM with Pydantic AI.
         """
-        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435")
-        if ollama_base_url.endswith("/v1"):
-            ollama_base_url = ollama_base_url[:-3].rstrip("/")
-
-        raw_model = os.getenv(
-            "TRANSIT_PARSER_MODEL", os.getenv("VALIDATOR_MODEL", "qwen2.5:latest")
-        )
-        model = raw_model.removeprefix("ollama:")
-
-        schema = TransitFareExtractionSchema.model_json_schema()
         prompt = (
             f"You are a public transit pricing extraction specialist. Analyze the travel context for '{city}' below.\n"
             f"Extract the exact pricing details from the context:\n"
@@ -552,44 +542,22 @@ class TransitFareService:
             f"- source_url: Official website URL if mentioned in text, or null\n\n"
             f"Context:\n{context}\n"
         )
-
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "format": schema,
-            "stream": False,
-            "options": {
-                "temperature": 0.0,
-            },
-        }
+        instructions = (
+            "You extract structured public transit pricing information strictly matching the schema. "
+            "You must ensure evidence_quote is verbatim from the provided context."
+        )
 
         try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                resp = await client.post(
-                    f"{ollama_base_url}/api/generate", json=payload
-                )
-                if resp.status_code == 200:
-                    raw_text = resp.json().get("response", "")
-                    if raw_text:
-                        parsed = TransitFareExtractionSchema.model_validate_json(
-                            raw_text
-                        )
-                        fare_val = parsed.single_fare
-                        if fare_val and fare_val > 0:
-                            return parsed
-                else:
-                    logger.warning(
-                        f"Ollama extraction returned HTTP {resp.status_code} for {city}"
-                    )
-        except (
-            httpx.HTTPError,
-            TimeoutError,
-            ValueError,
-            KeyError,
-            RuntimeError,
-            ValidationError,
-        ) as e:
-            logger.warning(f"Ollama fare extraction failed for {city}: {e}")
+            parsed = await LLMService.run_structured_extraction(
+                output_type=TransitFareExtractionSchema,
+                prompt=prompt,
+                instructions=instructions,
+                session=db,
+            )
+            if parsed and parsed.single_fare and parsed.single_fare > 0:
+                return parsed
+        except Exception as e:
+            logger.warning(f"LLM fare extraction failed for {city}: {e}")
 
         return None
 
@@ -601,7 +569,7 @@ class TransitFareService:
         Multi-tier sovereign tariff resolver:
         Tier 1: Process In-Memory Cache (O(1))
         Tier 2: PostgreSQL Database Persistence
-        Tier 3: Sovereign Live Web Discovery (Wikivoyage API) + Ollama Structured Extraction (qwen2.5)
+        Tier 3: Sovereign Live Web Discovery (Wikivoyage API) + Dynamic LLM Structured Extraction
         Tier 4: Anti-Crash Resilient Baseline Fallback
         """
         city_key = CityTransitFareCache.normalize_city(city)
@@ -624,11 +592,11 @@ class TransitFareService:
         except (SQLAlchemyError, RuntimeError, OSError, ValueError, KeyError) as e:
             logger.debug(f"Database lookup skipped or failed for '{city_key}': {e}")
 
-        # Tier 3: Live Web Discovery + Ollama Grounded Extraction
+        # Tier 3: Live Web Discovery + Dynamic LLM Grounded Extraction
         try:
             context = await cls.fetch_wikivoyage_transit_text(city_key)
             if context:
-                extracted = await cls.extract_fare_with_ollama(city_key, context)
+                extracted = await cls.extract_fare_with_llm(city_key, context, db=db)
                 if extracted and extracted.single_fare:
                     # Strict Grounded Verbatim Verification:
                     clean_quote = (extracted.evidence_quote or "").strip()

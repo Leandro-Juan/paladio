@@ -85,8 +85,8 @@ async def test_preseeded_cities_o1_cache_hits():
         ),
         patch.object(
             TransitFareService,
-            "extract_fare_with_ollama",
-            side_effect=AssertionError("Ollama called on cached city!"),
+            "extract_fare_with_llm",
+            side_effect=AssertionError("LLM called on cached city!"),
         ),
     ):
         start_time = time.perf_counter()
@@ -205,7 +205,7 @@ async def test_fallback_on_ollama_extraction_failures(ollama_outcome):
             "fetch_wikivoyage_transit_text",
             return_value="Valid wikitext about city transit...",
         ),
-        patch.object(TransitFareService, "extract_fare_with_ollama", **kwargs),
+        patch.object(TransitFareService, "extract_fare_with_llm", **kwargs),
     ):
         fare = await TransitFareService.resolve_city_transit_fare(city)
 
@@ -218,34 +218,33 @@ async def test_fallback_on_ollama_extraction_failures(ollama_outcome):
 
 
 # ============================================================================
-# 3. Ollama Structured JSON Extraction with Mocked Payloads
+# 3. LLM Structured Extraction with Mocked Payloads
 # ============================================================================
 
 
 @pytest.mark.asyncio
-async def test_ollama_structured_json_extraction_success():
+async def test_llm_structured_extraction_success():
     """
-    Test extract_fare_with_ollama correctly parses structured response into schema.
+    Test extract_fare_with_llm correctly parses structured response into schema.
     """
-    mock_schema = {
-        "agency_name": "BVG",
-        "single_fare": 3.50,
-        "currency": "EUR",
-        "evidence_quote": "A single ticket for Berlin AB costs 3.50 EUR.",
-        "day_pass_name": "24-Stunden-Karte Berlin AB",
-        "day_pass_fare": 9.90,
-        "airport_surcharge": 0.0,
-        "airport_station_keywords": ["flughafen ber", "terminal 1-2"],
-        "source_url": "https://www.bvg.de",
-    }
+    mock_extracted = TransitFareExtractionSchema(
+        agency_name="BVG",
+        single_fare=3.50,
+        currency="EUR",
+        evidence_quote="A single ticket for Berlin AB costs 3.50 EUR.",
+        day_pass_name="24-Stunden-Karte Berlin AB",
+        day_pass_fare=9.90,
+        airport_surcharge=0.0,
+        airport_station_keywords=["flughafen ber", "terminal 1-2"],
+        source_url="https://www.bvg.de",
+    )
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"response": json.dumps(mock_schema)}
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        extracted = await TransitFareService.extract_fare_with_ollama(
+    with patch(
+        "app.services.transit_fare_service.LLMService.run_structured_extraction",
+        new_callable=AsyncMock,
+    ) as mock_run:
+        mock_run.return_value = mock_extracted
+        extracted = await TransitFareService.extract_fare_with_llm(
             "Berlin", "Public transport context"
         )
 
@@ -262,32 +261,31 @@ async def test_ollama_structured_json_extraction_success():
 
 
 @pytest.mark.parametrize(
-    "bad_response",
+    "bad_result",
     [
-        {"response": "I am an AI and cannot process this context."},  # Non-JSON
-        {"response": "{malformed_json: 123"},  # Corrupt JSON
-        {"response": json.dumps({"single_fare": 0.0})},  # Zero fare
-        {"response": json.dumps({"single_fare": -2.5})},  # Negative fare
-        {"response": ""},  # Empty response
+        None,
+        TransitFareExtractionSchema(
+            agency_name="X", single_fare=0.0, currency="EUR", evidence_quote="free"
+        ),
+        TransitFareExtractionSchema(
+            agency_name="X", single_fare=-2.5, currency="EUR", evidence_quote="bad"
+        ),
     ],
 )
 @pytest.mark.asyncio
-async def test_ollama_structured_json_extraction_invalid_payloads(bad_response):
+async def test_llm_structured_extraction_invalid_payloads(bad_result):
     """
-    Test extract_fare_with_ollama handles non-conforming, negative, or corrupt payloads safely.
+    Test extract_fare_with_llm handles non-conforming, negative, or corrupt payloads safely.
     """
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = bad_response
-
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_resp
-        extracted = await TransitFareService.extract_fare_with_ollama(
-            "CityX", "Context"
-        )
+    with patch(
+        "app.services.transit_fare_service.LLMService.run_structured_extraction",
+        new_callable=AsyncMock,
+    ) as mock_run:
+        mock_run.return_value = bad_result
+        extracted = await TransitFareService.extract_fare_with_llm("CityX", "Context")
         assert (
             extracted is None
-        ), "Should gracefully return None on invalid Ollama payloads"
+        ), "Should gracefully return None on invalid LLM payloads"
 
 
 # ============================================================================
@@ -332,7 +330,12 @@ async def test_dynamic_discovery_hydrates_cache():
             new_callable=AsyncMock,
             return_value="Wikitext about MVV Munich: single fare 3.70 EUR. Single Tageskarte costs 8.80 EUR.",
         ) as mock_fetch,
-        patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp),
+        patch.object(
+            TransitFareService,
+            "extract_fare_with_llm",
+            new_callable=AsyncMock,
+            return_value=TransitFareExtractionSchema(**mock_schema),
+        ),
     ):
         # 1st call: Hits Tier 3
         fare = await TransitFareService.resolve_city_transit_fare(city)

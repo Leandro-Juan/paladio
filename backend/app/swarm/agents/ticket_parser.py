@@ -3,28 +3,15 @@ import os
 import re
 
 from app.schemas.itinerary import BookingAnchors
+from app.services.llm_service import LLMService
 from pydantic_ai import Agent
-from pydantic_ai.models.ollama import OllamaModel
-from pydantic_ai.providers.ollama import OllamaProvider
 
 logger = logging.getLogger(__name__)
 
 
 def get_parser_model():
-    ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435/v1")
-    if not ollama_env_url.endswith("/v1"):
-        ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
-
-    MODEL_NAME = os.getenv(
-        "TICKET_PARSER_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5:3b")
-    )
-    actual_model = (
-        MODEL_NAME.replace("ollama:", "")
-        if MODEL_NAME.startswith("ollama:")
-        else MODEL_NAME
-    )
-    provider = OllamaProvider(base_url=ollama_env_url)
-    return OllamaModel(actual_model, provider=provider)
+    model_override = os.getenv("TICKET_PARSER_MODEL")
+    return LLMService.get_model(model_name=model_override)
 
 
 ticket_parser_agent = Agent(
