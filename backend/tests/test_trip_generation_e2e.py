@@ -44,17 +44,17 @@ if pytest:
         not is_live_stack_online(),
         reason=f"Live backend stack is not reachable at {DEFAULT_API_URL}. Start stack with docker-compose.",
     )
-    test_async = pytest.mark.asyncio
-    test_param = pytest.mark.parametrize
+    mark_async = pytest.mark.asyncio
+    mark_param = pytest.mark.parametrize
 else:
 
     def live_stack_required(f):
         return f
 
-    def test_async(f):
+    def mark_async(f):
         return f
 
-    def test_param(*args, **kwargs):
+    def mark_param(*args, **kwargs):
         def deco(f):
             return f
 
@@ -67,7 +67,7 @@ else:
 
 
 @live_stack_required
-@test_async
+@mark_async
 async def test_e2e_trip_generation_custom_env():
     """
     Ad-hoc E2E trip generation using optional environment variable overrides.
@@ -97,8 +97,8 @@ async def test_e2e_trip_generation_custom_env():
 
 
 @live_stack_required
-@test_async
-@test_param("scenario", TRIP_SCENARIOS, ids=lambda s: s["name"])
+@mark_async
+@mark_param("scenario", TRIP_SCENARIOS, ids=lambda s: s["name"])
 async def test_e2e_trip_generation_matrix(scenario: dict):
     """
     Parameterized matrix of diverse trips verifying different cities, durations,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
-import { BookmarkIcon, CompassIcon } from '@/components/icons';
+import { BookmarkIcon, CompassIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import { getTripDayDate } from '@/utils/date';
 import { registerTransitLineColor } from '@/utils/transitColors';
 import {
@@ -400,119 +400,7 @@ export function TripTransitTab({
     }
   };
 
-  // 1. Loading / Checking state
-  if (transitStatus === 'CHECKING') {
-    return (
-      <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-        <div style={{ fontSize: '13px', fontWeight: 500 }}>Checking transit network availability...</div>
-      </div>
-    );
-  }
-
-  // 2. Not Requested / Initial Empty state
-  if (transitStatus === 'NOT_READY' || transitStatus === 'NOT_REQUESTED' || transitStatus === 'PENDING') {
-    return (
-      <div style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div
-          style={{
-            padding: '24px 16px',
-            borderRadius: '12px',
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-surface-card)',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              background: 'rgba(15, 76, 92, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--color-accent-primary)',
-            }}
-          >
-            <CompassIcon size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Transit Offline
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
-              Derive authentic public transit schedules, lines, and nearby stops for {destinationCity}.
-            </div>
-          </div>
-          <button
-            type="button"
-            data-testid="transit-build-button"
-            onClick={handleTriggerCompile}
-            disabled={isCompiling}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'var(--color-accent-primary)',
-              color: '#FFFFFF',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: isCompiling ? 'not-allowed' : 'pointer',
-              opacity: isCompiling ? 0.7 : 1,
-            }}
-          >
-            {isCompiling ? 'Queueing Build...' : `Compile ${destinationCity} GTFS`}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Building / Queued state
-  if (transitStatus === 'BUILDING' || transitStatus === 'QUEUED') {
-    return (
-      <div style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div
-          style={{
-            padding: '24px 16px',
-            borderRadius: '12px',
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-surface-card)',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '3px solid var(--color-border)',
-              borderTopColor: 'var(--color-accent-primary)',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-            }}
-          />
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              {transitStatus === 'QUEUED' ? 'Transit Build Queued' : 'Building Transit Data'}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Deriving network graph and stop sequences for {destinationCity}...
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 4. Drill-in Station Subview (Within tab)
+  // Drill-in Station Subview (Within tab)
   if (drillStationId && stationDetail) {
     const sName = (stationDetail.name as string) || 'Station';
     const sOrigName = stationDetail.original_name as string | null;
@@ -531,6 +419,9 @@ export function TripTransitTab({
             alignSelf: 'flex-start',
             padding: '4px 8px',
             borderRadius: '6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
             border: '1px solid var(--color-border)',
             background: 'transparent',
             color: 'var(--color-text-muted)',
@@ -539,7 +430,7 @@ export function TripTransitTab({
             cursor: 'pointer',
           }}
         >
-          ← Back to {subView === 'nearby' ? 'Nearby' : 'Lines'}
+          <ChevronLeftIcon size={12} /> Back to {subView === 'nearby' ? 'Nearby' : 'Lines'}
         </button>
 
         {/* Station Header */}
@@ -851,6 +742,55 @@ export function TripTransitTab({
           onCancelMapPick={onCancelMapPick}
           onRouteCalculated={onRouteCalculated}
         />
+      ) : transitStatus === 'CHECKING' ? (
+        <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 500 }}>Checking transit network availability...</div>
+        </div>
+      ) : transitStatus === 'BUILDING' || transitStatus === 'QUEUED' ? (
+        <div style={{ padding: '24px 16px', borderRadius: '12px', border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTopColor: 'var(--color-accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              {transitStatus === 'QUEUED' ? 'Transit Feed Queued' : 'Downloading Transit Data'}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+              Deriving network graph and stop sequences for {destinationCity}...
+            </div>
+          </div>
+        </div>
+      ) : !['READY', 'EXPIRED'].includes(transitStatus) ? (
+        <div style={{ padding: '24px 16px', borderRadius: '12px', border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(15, 76, 92, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent-primary)' }}>
+            <CompassIcon size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              GTFS Feed Not Downloaded
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+              Point-to-point transit directions are fully active via Transitous. Download the GTFS feed to browse lines and nearby station clusters.
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="transit-build-button"
+            onClick={handleTriggerCompile}
+            disabled={isCompiling}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--color-accent-primary)',
+              color: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: isCompiling ? 'not-allowed' : 'pointer',
+              opacity: isCompiling ? 0.7 : 1,
+            }}
+          >
+            {isCompiling ? 'Queueing Download...' : `Download ${destinationCity} GTFS`}
+          </button>
+        </div>
       ) : isLoadingData ? (
         <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
           Loading {subView === 'nearby' ? 'nearby stations...' : 'network lines...'}
@@ -999,8 +939,8 @@ export function TripTransitTab({
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  →
+                <div style={{ color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>
+                  <ChevronRightIcon size={12} />
                 </div>
               </div>
             ))

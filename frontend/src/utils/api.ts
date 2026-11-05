@@ -12,6 +12,23 @@ export const getApiBaseUrl = (): string => {
   return 'http://localhost:8000/api';
 };
 
+export const getWsBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL.replace(/\/api\/ws\/.*$/, '');
+  }
+  if (process.env.NEXT_PUBLIC_WS_HOST) {
+    const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${process.env.NEXT_PUBLIC_WS_HOST}`;
+  }
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const port = process.env.NEXT_PUBLIC_WS_PORT || '8000';
+    return `${protocol}//${host}:${port}`;
+  }
+  return 'ws://localhost:8000';
+};
+
 export const resolveApiMediaUrl = (url: string): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
@@ -277,6 +294,79 @@ export const triggerUpdateDownloadApi = (
   return apiFetch<{ status: string; download: SystemUpdateStatus }>('/system/update/download', {
     method: 'POST',
     body: JSON.stringify({ version, download_url: downloadUrl }),
+  });
+};
+
+export interface SupportedProviderMeta {
+  name: string;
+  default_base_url: string | null;
+  requires_key: boolean;
+  recommended_models: string[];
+  default_model: string;
+}
+
+export interface ConfiguredProviderInfo {
+  provider: string;
+  name: string;
+  is_active: boolean;
+  active_model: string;
+  available_models: string[];
+  masked_key: string | null;
+  requires_key: boolean;
+}
+
+export interface LLMConfigResponse {
+  provider: string;
+  model: string;
+  base_url: string | null;
+  has_api_key: boolean;
+  masked_api_key: string | null;
+  supported_providers: Record<string, SupportedProviderMeta>;
+  configured_providers?: Record<string, ConfiguredProviderInfo>;
+}
+
+export interface UpdateLLMConfigPayload {
+  provider: string;
+  model: string;
+  api_key?: string | null;
+  base_url?: string | null;
+}
+
+export interface TestLLMConnectionPayload {
+  provider: string;
+  model: string;
+  api_key?: string | null;
+  base_url?: string | null;
+}
+
+export interface TestLLMConnectionResponse {
+  success: boolean;
+  latency_ms?: number;
+  response?: string;
+  error?: string;
+  provider: string;
+  model: string;
+}
+
+export const fetchLlmConfigApi = (): Promise<LLMConfigResponse> => {
+  return apiFetch<LLMConfigResponse>('/system/llm/config');
+};
+
+export const updateLlmConfigApi = (
+  data: UpdateLLMConfigPayload
+): Promise<{ status: string; config: LLMConfigResponse }> => {
+  return apiFetch<{ status: string; config: LLMConfigResponse }>('/system/llm/config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const testLlmConfigApi = (
+  data: TestLLMConnectionPayload
+): Promise<TestLLMConnectionResponse> => {
+  return apiFetch<TestLLMConnectionResponse>('/system/llm/test', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 };
 

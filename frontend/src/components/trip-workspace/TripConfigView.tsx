@@ -2,9 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trip, CollaboratorOption, useTrips } from '@/hooks/useTrips';
+import { Trip, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
+import { useAuth } from '@/contexts/AuthContext';
+import { PaladioDateRangePicker } from '@/components/trip-creation/PaladioDateRangePicker';
+import { ParticipantsManager, SelectedParticipant } from '@/components/trip-creation/ParticipantsManager';
+import { PhotoUploadModal } from '@/components/trip-creation/PhotoUploadModal';
+import { RouteIntakeBar } from '@/components/trip-creation/RouteIntakeBar';
+import { HotelStayAnchorBar } from '@/components/trip-creation/HotelStayAnchorBar';
+import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
+import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { PaperclipIcon, SettingsIcon } from '@/components/icons';
 
 interface TripConfigViewProps {
   trip: Trip;
@@ -12,25 +22,28 @@ interface TripConfigViewProps {
   onTripUpdated?: () => void;
 }
 
-const CURRENCIES = [
-  { code: 'EUR', label: 'EUR (€) - Euro' },
-  { code: 'USD', label: 'USD ($) - US Dollar' },
-  { code: 'GBP', label: 'GBP (£) - British Pound' },
-  { code: 'JPY', label: 'JPY (¥) - Japanese Yen' },
-  { code: 'CHF', label: 'CHF (Fr) - Swiss Franc' },
-  { code: 'CAD', label: 'CAD ($) - Canadian Dollar' },
-  { code: 'AUD', label: 'AUD ($) - Australian Dollar' },
-];
-
 const PACES = [
   { id: 'relaxed', label: 'Relaxed', desc: 'Leisurely pace with ample downtime' },
   { id: 'balanced', label: 'Balanced', desc: 'Even spread of highlights & rest' },
   { id: 'packed', label: 'Packed / High Tempo', desc: 'Maximum sights & active exploration' },
 ];
 
+function extractPhotoUrl(val: unknown): string {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    if (typeof obj.url === 'string') return obj.url;
+    if (typeof obj.src === 'string') return obj.src;
+    if (typeof obj.path === 'string') return obj.path;
+  }
+  return '';
+}
+
 export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const router = useRouter();
-  const { updateTrip, deleteTrip, addParticipant, removeParticipant, getCollaboratorOptions } = useTrips();
+  const { updateTrip, deleteTrip, addParticipant, removeParticipant } = useTrips();
+  const { user: currentUser } = useAuth();
 
   // Extract initial values from trip and itinerary_data
   const itin = useMemo(() => {
@@ -44,6 +57,39 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   // Form states
   const [title, setTitle] = useState(extractTripTitle(trip));
   const [destination, setDestination] = useState(trip.destination || '');
+  const [origin, setOrigin] = useState(
+    travelConstraints.origin_city || itin.origin || ''
+  );
+  const [originIata, setOriginIata] = useState(
+    travelConstraints.origin_iata || itin.origin_iata || ''
+  );
+  const [destIata, setDestIata] = useState(
+    travelConstraints.destination_iata || itin.destination_iata || ''
+  );
+  const [departureHour, setDepartureHour] = useState(
+    travelConstraints.departure_hour || itin.departure_hour || '10:00'
+  );
+  const [arrivalHour, setArrivalHour] = useState(
+    travelConstraints.arrival_hour || itin.arrival_hour || '18:00'
+  );
+
+  // Hotel Stay
+  const [hotelArea, setHotelArea] = useState(
+    travelConstraints.accommodation || itin.accommodation || itin.hotel?.name || ''
+  );
+  const [hotelAddress, setHotelAddress] = useState(itin.hotel?.address || '');
+  const [hotelLat, setHotelLat] = useState<number | undefined>(itin.hotel?.lat);
+  const [hotelLng, setHotelLng] = useState<number | undefined>(itin.hotel?.lng);
+  const setHotelInfo = (
+    name: string,
+    extra?: { address?: string; lat?: number; lng?: number }
+  ) => {
+    setHotelArea(name);
+    if (extra?.address !== undefined) setHotelAddress(extra.address);
+    if (extra?.lat !== undefined) setHotelLat(extra.lat);
+    if (extra?.lng !== undefined) setHotelLng(extra.lng);
+  };
+
   const [startDate, setStartDate] = useState(trip.start_date || '');
   const [endDate, setEndDate] = useState(trip.end_date || '');
   const [description, setDescription] = useState(itin.description || '');
@@ -56,34 +102,38 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       : ''
   );
   const [currency, setCurrency] = useState(travelConstraints.currency || itin.currency || 'EUR');
+  const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
   const [pace, setPace] = useState(travelConstraints.pace || 'balanced');
   const [status, setStatus] = useState(trip.status || 'active');
 
   // Photo state
   const initialPhoto = useMemo(() => {
-    if (Array.isArray(itin.photos) && itin.photos.length > 0 && itin.photos[0]) {
-      return itin.photos[0];
+    if (Array.isArray(itin.photos) && itin.photos.length > 0) {
+      const first = extractPhotoUrl(itin.photos[0]);
+      if (first) return first;
     }
-    return itin.cover_photo || itin.photo_url || '';
+    return extractPhotoUrl(itin.cover_photo) || extractPhotoUrl(itin.photo_url) || '';
   }, [itin]);
 
   const [photoUrl, setPhotoUrl] = useState(initialPhoto);
   const [photoPreviewError, setPhotoPreviewError] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   // Available photos from itinerary / POIs for quick picker
   const availablePhotos = useMemo(() => {
     const list: string[] = [];
     if (Array.isArray(itin.photos)) {
       itin.photos.forEach((p: unknown) => {
-        if (typeof p === 'string' && p.trim() && !list.includes(p)) list.push(p);
+        const u = extractPhotoUrl(p);
+        if (u && !list.includes(u)) list.push(u);
       });
     }
     if (Array.isArray(itin.days)) {
       itin.days.forEach((d: any) => {
         if (Array.isArray(d?.itinerary?.path)) {
           d.itinerary.path.forEach((stop: any) => {
-            const url = stop?.poi?.photo_url;
-            if (typeof url === 'string' && url.trim() && !list.includes(url)) {
+            const url = extractPhotoUrl(stop?.poi?.photo_url);
+            if (url && !list.includes(url)) {
               list.push(url);
             }
           });
@@ -111,25 +161,61 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Integrants / Collaborators state
-  const [collaborators, setCollaborators] = useState<CollaboratorOption[]>([]);
-  const [newTravelerName, setNewTravelerName] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState('traveler');
-  const [isAddingTraveler, setIsAddingTraveler] = useState(false);
-  const [travelerError, setTravelerError] = useState<string | null>(null);
+  // Integrants / Participants state from trip
+  const [participantsList, setParticipantsList] = useState<SelectedParticipant[]>(() => {
+    return (trip.participants || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email || undefined,
+      user_id: p.user_id || undefined,
+      is_guest: !p.user_id,
+      is_organizer: p.role === 'organizer',
+    }));
+  });
+
+  const [prevTripParticipants, setPrevTripParticipants] = useState(trip.participants);
+  if (trip.participants !== prevTripParticipants) {
+    setPrevTripParticipants(trip.participants);
+    setParticipantsList(
+      (trip.participants || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        email: p.email || undefined,
+        user_id: p.user_id || undefined,
+        is_guest: !p.user_id,
+        is_organizer: p.role === 'organizer',
+      }))
+    );
+  }
+
+  const handleParticipantsChange = async (newParticipants: SelectedParticipant[]) => {
+    if (!trip.id) return;
+    const removed = participantsList.filter(
+      (oldP) => !newParticipants.some((newP) => newP.id === oldP.id)
+    );
+    const added = newParticipants.filter(
+      (newP) => !participantsList.some((oldP) => oldP.id === newP.id)
+    );
+
+    setParticipantsList(newParticipants);
+
+    for (const r of removed) {
+      await removeParticipant(trip.id, r.id);
+    }
+    for (const a of added) {
+      await addParticipant(trip.id, {
+        name: a.name,
+        user_id: a.user_id,
+        email: a.email,
+        role: a.is_organizer ? 'organizer' : 'traveler',
+      });
+    }
+    onTripUpdated?.();
+  };
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    async function loadOptions() {
-      const opts = await getCollaboratorOptions();
-      setCollaborators(opts);
-    }
-    loadOptions();
-  }, [getCollaboratorOptions]);
 
   // Save General Configuration
   const handleSave = async (e: React.FormEvent) => {
@@ -144,18 +230,34 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       let updatedPhotos = existingPhotos;
       if (photoUrl && photoUrl.trim()) {
         const cleanUrl = photoUrl.trim();
-        updatedPhotos = [cleanUrl, ...existingPhotos.filter((p) => p !== cleanUrl)];
+        updatedPhotos = [cleanUrl, ...existingPhotos.filter((p) => extractPhotoUrl(p) !== cleanUrl)];
       }
 
       const updatedTravelConstraints = {
         ...travelConstraints,
         title: title.trim(),
         destination_city: destination.trim(),
+        destination_iata: destIata.trim().toUpperCase() || undefined,
+        origin_city: origin.trim() || undefined,
+        origin_iata: originIata.trim().toUpperCase() || undefined,
+        departure_hour: departureHour,
+        arrival_hour: arrivalHour,
         start_date: startDate,
         end_date: endDate,
         budget_usd: budget ? Number(budget) : undefined,
         currency: currency,
         pace: pace,
+        accommodation: hotelArea.trim() || undefined,
+        hotel: hotelArea.trim()
+          ? {
+              name: hotelArea.trim(),
+              address: hotelAddress || undefined,
+              lat: hotelLat,
+              lng: hotelLng,
+              check_in_time: '15:00',
+              check_out_time: '11:00',
+            }
+          : undefined,
       };
 
       const updatedItinData = {
@@ -169,6 +271,14 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         budget: budget ? Number(budget) : undefined,
         currency: currency,
         travel_constraints: updatedTravelConstraints,
+        hotel: hotelArea.trim()
+          ? {
+              name: hotelArea.trim(),
+              address: hotelAddress || undefined,
+              lat: hotelLat,
+              lng: hotelLng,
+            }
+          : undefined,
       };
 
       const res = await updateTrip(trip.id, {
@@ -193,82 +303,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
     }
   };
 
-  // Add Participant
-  const handleAddTraveler = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTravelerError(null);
-    setIsAddingTraveler(true);
-
-    let name = newTravelerName.trim();
-    let userId: string | undefined = undefined;
-    let email: string | undefined = undefined;
-
-    if (selectedUserId) {
-      const u = collaborators.find((c) => c.id === selectedUserId);
-      if (u) {
-        userId = u.id;
-        name = name || u.username;
-        email = u.email;
-      }
-    }
-
-    if (!name) {
-      setTravelerError('Please enter a traveler name or select a registered user.');
-      setIsAddingTraveler(false);
-      return;
-    }
-
-    const participants = trip.participants || [];
-
-    if (userId && participants.some((p) => p.user_id === userId)) {
-      setTravelerError('This user is already part of the trip crew.');
-      setIsAddingTraveler(false);
-      return;
-    }
-
-    if (participants.some((p) => p.name.trim().toLowerCase() === name.toLowerCase())) {
-      setTravelerError(`A crew member with the name "${name}" is already registered.`);
-      setIsAddingTraveler(false);
-      return;
-    }
-
-    if (!trip.id) {
-      setTravelerError('Trip ID missing.');
-      setIsAddingTraveler(false);
-      return;
-    }
-
-    const res = await addParticipant(trip.id, {
-      name,
-      user_id: userId,
-      email,
-      role: selectedRole,
-    });
-
-    if (res) {
-      setNewTravelerName('');
-      setSelectedUserId('');
-      setSelectedRole('traveler');
-      onTripUpdated?.();
-    } else {
-      setTravelerError('Failed to add participant to the crew.');
-    }
-    setIsAddingTraveler(false);
-  };
-
-  // Remove Participant
-  const handleRemoveTraveler = async (participantId: string) => {
-    setTravelerError(null);
-    if (!trip.id) return;
-    const participants = trip.participants || [];
-    if (participants.length <= 1) {
-      setTravelerError('A trip expedition must retain at least one participant.');
-      return;
-    }
-    await removeParticipant(trip.id, participantId);
-    onTripUpdated?.();
-  };
-
   // Delete Trip
   const handleDeleteTrip = async () => {
     if (!trip.id) return;
@@ -281,8 +315,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       setShowDeleteModal(false);
     }
   };
-
-  const participants = trip.participants || [];
 
   return (
     <div
@@ -301,9 +333,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           <h2 className="font-display" style={{ margin: 0, fontSize: '1.6rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
             TRIP CONFIGURATION
           </h2>
-          <p className="font-mono text-muted text-sm mt-1">
-            {'// EXPEDITION PARAMETERS, MEDIA, BUDGET & CREW ROSTER'}
-          </p>
         </div>
 
         <button
@@ -382,7 +411,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         </div>
       )}
 
-      {/* Section 1: Trip Identity & Destination */}
+      {/* Section 1: Trip Identity, Route & Lodging Anchor */}
       <section
         style={{
           background: 'var(--color-surface-card)',
@@ -395,45 +424,70 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <span className="font-mono text-muted text-xs">{'// 01. EXPEDITION IDENTITY'}</span>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">TRIP NAME / TITLE</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Tokyo Sakura Season Expedition"
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: '0.95rem',
-              }}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label className="font-mono text-muted text-xs">TRIP NAME / TITLE</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Tokyo Sakura Season Expedition"
+            style={{
+              padding: '10px 14px',
+              background: 'var(--color-bg-main)',
+              border: '1px solid var(--color-border-input)',
+              borderRadius: '8px',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '0.95rem',
+            }}
+          />
+        </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">DESTINATION CITY</label>
-            <input
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="e.g. Tokyo"
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: '0.95rem',
-              }}
-            />
-          </div>
+        {/* Flight Route & Time Windows */}
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--color-text-muted)',
+              marginBottom: '6px',
+            }}
+          >
+            Flight Route & Time Windows
+          </label>
+          <RouteIntakeBar
+            origin={origin}
+            destination={destination}
+            originIata={originIata}
+            destIata={destIata}
+            onOriginIataChange={setOriginIata}
+            onDestIataChange={setDestIata}
+            departureHour={departureHour}
+            arrivalHour={arrivalHour}
+            startDate={startDate}
+            endDate={endDate}
+            onOriginChange={setOrigin}
+            onDestinationChange={setDestination}
+            onDepartureHourChange={setDepartureHour}
+            onArrivalHourChange={setArrivalHour}
+            disabled={isSaving}
+          />
+        </div>
+
+        {/* Hotel Stay Anchor */}
+        <div>
+          <HotelStayAnchorBar
+            hotelArea={hotelArea}
+            hotelAddress={hotelAddress}
+            hotelLat={hotelLat}
+            hotelLng={hotelLng}
+            destination={destination}
+            onChange={setHotelInfo}
+            disabled={isSaving}
+          />
         </div>
       </section>
 
@@ -450,8 +504,29 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="font-mono text-muted text-xs">{'// 02. COVER PHOTOGRAPHY & MEDIA'}</span>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setIsPhotoModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-main)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <PaperclipIcon size={13} color="var(--color-accent-primary)" />
+            <span>Upload Photo</span>
+          </button>
           {photoUrl && (
             <button
               type="button"
@@ -577,6 +652,16 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             )}
           </div>
         </div>
+
+        <PhotoUploadModal
+          isOpen={isPhotoModalOpen}
+          onClose={() => setIsPhotoModalOpen(false)}
+          onPhotoSelect={(dataUrl) => {
+            setPhotoUrl(dataUrl);
+            setPhotoPreviewError(false);
+            setIsPhotoModalOpen(false);
+          }}
+        />
       </section>
 
       {/* Section 3: Narrative & Field Briefing */}
@@ -592,7 +677,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <span className="font-mono text-muted text-xs">{'// 03. NARRATIVE & BRIEFING NOTES'}</span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label className="font-mono text-muted text-xs">TRIP DESCRIPTION</label>
@@ -649,7 +733,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <span className="font-mono text-muted text-xs">{'// 04. FINANCIAL PARAMETERS'}</span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label className="font-mono text-muted text-xs">TARGET BUDGET</label>
@@ -678,28 +761,64 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label className="font-mono text-muted text-xs">BASE CURRENCY</label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+            <div
               style={{
-                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 14px',
                 background: 'var(--color-bg-main)',
                 border: '1px solid var(--color-border-input)',
                 borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: '0.9rem',
+                minHeight: '44px',
               }}
             >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FlagIcon countryCode={getCurrencyInfo(currency).flag} size={18} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                  {currency}
+                </span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                  ({getCurrencyInfo(currency).symbol}) {getCurrencyInfo(currency).name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCurrencyWheelOpen(true)}
+                title="Change currency with dynamic spin dial"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '9999px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <span>Change</span>
+                <SettingsIcon size={12} color="var(--color-text-muted)" />
+              </button>
+            </div>
             <span className="font-mono text-muted text-xs">Default currency for split ledgers and tickets</span>
           </div>
         </div>
+
+        <CurrencyWheelPicker
+          isOpen={isCurrencyWheelOpen}
+          onClose={() => setIsCurrencyWheelOpen(false)}
+          selectedCurrency={currency}
+          onSelectCurrency={(c) => {
+            setCurrency(c);
+            setIsCurrencyWheelOpen(false);
+          }}
+        />
       </section>
 
       {/* Section 5: Timeline & Travel Tempo */}
@@ -715,8 +834,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="font-mono text-muted text-xs">{'// 05. EXPEDITION DATES & TEMPO'}</span>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           {durationText && (
             <span
               className="font-mono"
@@ -735,42 +853,30 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">START DATE</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.9rem',
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">END DATE</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.9rem',
-              }}
-            />
-          </div>
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--color-text-muted)',
+              marginBottom: '6px',
+            }}
+          >
+            Travel Window & Calendar
+          </label>
+          <PaladioDateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            inline={true}
+            disabled={isSaving}
+          />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -806,7 +912,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         </div>
       </section>
 
-      {/* Section 6: Integrants & Crew Roster (Subsumes Collab tab) */}
+      {/* Section 6: Integrants & Crew Roster */}
       <section
         style={{
           background: 'var(--color-surface-card)',
@@ -819,192 +925,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="font-mono text-muted text-xs">
-            {'// 06. INTEGRANTS & CREW ROSTER'} ({participants.length} {participants.length === 1 ? 'MEMBER' : 'MEMBERS'})
-          </span>
-        </div>
-
-        {travelerError && (
-          <div
-            style={{
-              padding: '0.75rem 1rem',
-              background: 'var(--color-danger-soft)',
-              border: '1px solid var(--color-danger)',
-              borderRadius: '8px',
-              color: 'var(--color-danger)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.85rem',
-            }}
-          >
-            [ERROR] {travelerError}
-          </div>
-        )}
-
-        {/* Enrollment Form */}
-        <form
-          onSubmit={handleAddTraveler}
-          style={{
-            background: 'var(--color-bg-main)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '10px',
-            padding: '1rem',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            alignItems: 'flex-end',
-          }}
-        >
-          <div style={{ flex: '1 1 180px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label className="font-mono text-muted text-xs">GUEST NAME</label>
-            <input
-              type="text"
-              placeholder="e.g. Alex Chen"
-              value={newTravelerName}
-              onChange={(e) => setNewTravelerName(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                background: 'var(--color-surface-card)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '6px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: '0.85rem',
-              }}
-            />
-          </div>
-
-          {collaborators.length > 0 && (
-            <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label className="font-mono text-muted text-xs">OR LINK SYSTEM USER</label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  background: 'var(--color-surface-card)',
-                  border: '1px solid var(--color-border-input)',
-                  borderRadius: '6px',
-                  color: 'var(--color-text-primary)',
-                  fontFamily: 'inherit',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <option value="">-- Choose registered account --</option>
-                {collaborators.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.username} ({c.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ flex: '0 1 130px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label className="font-mono text-muted text-xs">ROLE</label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                background: 'var(--color-surface-card)',
-                border: '1px solid var(--color-border-input)',
-                borderRadius: '6px',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-                fontSize: '0.85rem',
-              }}
-            >
-              <option value="traveler">Traveler</option>
-              <option value="organizer">Organizer</option>
-              <option value="co-pilot">Co-Pilot</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isAddingTraveler}
-            style={{
-              padding: '8px 18px',
-              background: 'var(--color-accent-primary)',
-              color: 'var(--color-btn-primary-text, #fff)',
-              border: 'none',
-              borderRadius: '6px',
-              fontFamily: 'var(--font-display, inherit)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: isAddingTraveler ? 'wait' : 'pointer',
-              height: '38px',
-            }}
-          >
-            {isAddingTraveler ? 'ENROLLING...' : '+ ENROLL MEMBER'}
-          </button>
-        </form>
-
-        {/* Current Roster Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-          {participants.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                background: 'var(--color-bg-main)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '10px',
-                padding: '0.9rem 1.1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    background: 'var(--color-accent-teal-soft, rgba(46, 125, 50, 0.12))',
-                    color: 'var(--color-accent-teal, #2e7d32)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  {p.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.92rem' }}>
-                    {p.name}
-                  </div>
-                  <div className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                    {p.role || 'traveler'} {p.email ? `• ${p.email}` : ''}
-                  </div>
-                </div>
-              </div>
-
-              {participants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTraveler(p.id)}
-                  title="Remove from crew"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--color-danger)',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    padding: '4px 8px',
-                    lineHeight: 1,
-                  }}
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+        <ParticipantsManager
+          participants={participantsList}
+          onChange={handleParticipantsChange}
+          disabled={isSaving}
+          currentUserId={currentUser?.id}
+        />
       </section>
 
       {/* Section 7: Status & Lifecycle */}
@@ -1020,7 +946,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <span className="font-mono text-muted text-xs">{'// 07. MISSION LIFECYCLE & STATUS'}</span>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {[
             { id: 'active', label: 'Active Expedition', desc: 'In planning or currently traveling' },
@@ -1072,7 +997,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         }}
       >
         <div>
-          <span className="font-mono text-xs" style={{ color: 'var(--color-danger)' }}>{'// DANGER ZONE'}</span>
           <h4 style={{ margin: '4px 0 0', fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
             Delete Expedition & Purge All Records
           </h4>
@@ -1132,9 +1056,6 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             }}
           >
             <div>
-              <span className="font-mono text-xs" style={{ color: 'var(--color-danger)' }}>
-                {'// PERMANENT EXPEDITION PURGE'}
-              </span>
               <h3 className="font-display" style={{ margin: '6px 0 0', fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
                 Confirm Deletion of &ldquo;{title || destination}&rdquo;?
               </h3>

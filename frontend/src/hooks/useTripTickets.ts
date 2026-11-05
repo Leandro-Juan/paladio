@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, getApiBaseUrl } from '@/utils/api';
+import { apiFetch, getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { TicketType, TicketStatus } from '@/lib/wallet/ticketTypeConfig';
 export type { TicketType, TicketStatus };
@@ -309,7 +309,7 @@ export function useTripTickets(tripId: string) {
   const scanDocument = useCallback(
     async (file?: File, rawText?: string): Promise<ScanResponse | null> => {
       const baseUrl = getApiBaseUrl();
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const token = getAuthToken();
 
       const formData = new FormData();
       if (file) {

@@ -65,3 +65,11 @@ frontend/src/
 - **Lines Directory**: Comprehensive catalog of subway, rail, tram, and bus lines with GTFS route colors.
 - **Map Synchronization**: Viewport bounding-box station fetching via `MapBboxSync` in `TripMapView.tsx`.
 - **Station Detail Inspector**: `PoiDetailView` dedicated transit profile with zero fake per-person fees, wheelchair accessibility tags, serving lines, and scheduled timetable departures.
+
+### 2.6. `AgentDock.tsx` & Sovereign Conversational Copilot
+- **Floating Tactical Pill & Panel**: Fixed dock adhering to the Japanese Minimalist Tactical design system (`#0F4C5C` Petrol, frosted glassmorphism backdrop, zero emojis).
+- **`useTripAgent` WebSocket Hook**: Bidirectional streaming connected to `/api/ws/trip-agent/{trip_id}` with exponential reconnect backoff and message reduction.
+- **Context Injection**: Automatically synchronizes active workspace state (selected day, inspected POI, current tab, trip destination) as prompt context.
+- **Interactive Tier C Proposal Cards**: Renders diff preview, TTL countdown, and Approve/Reject buttons for destructive changes.
+- **Instant Rollback Toasts**: Notification banner displaying applied change summary with single-click Undo button.
+- **Quick Prompts & Slash Commands**: Fast chips for Day Optimization, Budget Review, Conflict Detection, plus `/optimize`, `/budget`, `/issues`, `/undo`.

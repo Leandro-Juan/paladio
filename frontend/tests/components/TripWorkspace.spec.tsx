@@ -16,8 +16,6 @@ test.describe('Trip Workspace Renovated Components', () => {
         onTabChange={(tab) => {
           currentTab = tab;
         }}
-        photosCount={12}
-        participantsCount={3}
       />
     );
 
@@ -26,8 +24,15 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(component.getByText('Wallet')).toBeVisible();
     await expect(component.getByText('Costs')).toBeVisible();
     await expect(component.getByText('Photos')).toBeVisible();
-    await expect(component.getByText('Configuration')).toBeVisible();
-    await expect(component.getByRole('button', { name: /Photos/i }).getByText('12')).toBeVisible(); // Photos count badge
+    await expect(component.getByRole('button', { name: 'Plan' })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Wallet' })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Costs' })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Photos' })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Configuration' })).toBeVisible();
+
+    // Ensure tabs contain no number badges
+    const allTabSpans = await component.getByRole('tablist').locator('span').allInnerTexts();
+    expect(allTabSpans.some((text) => /^\d+$/.test(text.trim()))).toBe(false);
   });
 
 
@@ -173,17 +178,19 @@ test.describe('Trip Workspace Renovated Components', () => {
     const connector = component.getByTestId('route-poi-connector');
     await expect(connector.first()).toBeVisible();
 
-    // Verify top navigation tabs: Route, Search, Transit, Weather, Saved
+    // Verify top navigation tabs: Route, Search, Transit, Weather, Saved, Agent
     const routeTab = component.getByTestId('tab-route');
     const searchTab = component.getByTestId('tab-search');
     const transitTab = component.getByTestId('tab-transit');
     const weatherTab = component.getByTestId('tab-weather');
     const savedTab = component.getByTestId('tab-saved');
+    const agentTab = component.getByTestId('tab-agent');
     await expect(routeTab).toBeVisible();
     await expect(searchTab).toBeVisible();
     await expect(transitTab).toBeVisible();
     await expect(weatherTab).toBeVisible();
     await expect(savedTab).toBeVisible();
+    await expect(agentTab).toBeVisible();
 
     // Verify only the active tab displays its name, others display only icons
     await expect(routeTab).toHaveText('Route');
@@ -191,6 +198,7 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(transitTab).not.toHaveText('Transit');
     await expect(weatherTab).not.toHaveText('Weather');
     await expect(savedTab).not.toHaveText('Saved');
+    await expect(agentTab).not.toHaveText('Agent');
 
     // Route tab is active by default -> Days bar should be visible
     const daysBar = component.getByTestId('day-selector-tabs');
@@ -242,6 +250,11 @@ test.describe('Trip Workspace Renovated Components', () => {
     // Switch to Saved/Collections tab
     await savedTab.click();
     await expect(component.getByText(/Collections|Saved/i).first()).toBeVisible();
+
+    // Switch to Agent tab
+    await agentTab.click();
+    await expect(agentTab).toHaveText('Agent');
+    await expect(unifiedCard).toHaveCSS('width', '520px');
   });
 });
 

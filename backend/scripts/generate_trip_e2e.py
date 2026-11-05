@@ -31,8 +31,8 @@ if backend_dir not in sys.path:
 
 logger = logging.getLogger("paladio.e2e")
 
-DEFAULT_WS_URL = os.getenv("PALADIO_WS_URL", "ws://127.0.0.1:8000/api/v1/ws/stream")
-DEFAULT_API_URL = os.getenv("PALADIO_API_URL", "http://127.0.0.1:8000/api/v1")
+DEFAULT_WS_URL = os.getenv("PALADIO_WS_URL", "ws://127.0.0.1:8000/api/ws/stream")
+DEFAULT_API_URL = os.getenv("PALADIO_API_URL", "http://127.0.0.1:8000/api")
 DEFAULT_USER_ID = "e2e_tester_admin"
 
 # Default meal windows matching TripPreparationForm.tsx

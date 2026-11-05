@@ -3,7 +3,6 @@
 import React, { useMemo } from 'react';
 import type { TripTicket } from '@/hooks/useTripTickets';
 import { BarcodeStripe } from './BarcodeStripe';
-import { getCurrencyInfo } from '@/utils/currencyResolver';
 
 interface PastTripFlightTicketProps {
   ticket?: TripTicket | null;
@@ -11,8 +10,6 @@ interface PastTripFlightTicketProps {
   startDate: string;
   endDate: string;
   travelersCount: number;
-  totalCost?: number;
-  currency?: string;
   origin?: string;
 }
 
@@ -22,8 +19,6 @@ export function PastTripFlightTicket({
   startDate,
   endDate,
   travelersCount,
-  totalCost,
-  currency = 'EUR',
   origin,
 }: PastTripFlightTicketProps) {
   // Format departure date e.g. "December 25"
@@ -83,12 +78,6 @@ export function PastTripFlightTicket({
     ticket?.reference_code ||
     ticket?.access_code ||
     (ticket?.id ? `PLD-${ticket.id.slice(0, 8)}` : `PLD-VAULT-${destination.slice(0, 3).toUpperCase()}`);
-
-  const currencySymbol = getCurrencyInfo(currency).symbol;
-  const formattedCost =
-    typeof totalCost === 'number' && totalCost > 0
-      ? `${currencySymbol} ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : null;
 
   return (
     <div
@@ -156,7 +145,6 @@ export function PastTripFlightTicket({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             marginTop: '2px',
           }}
         >
@@ -166,18 +154,6 @@ export function PastTripFlightTicket({
           >
             {days} Days / {nights} Nights · {travelersCount} {travelersCount === 1 ? 'Traveler' : 'Travelers'}
           </span>
-          {formattedCost && (
-            <span
-              className="font-display"
-              style={{
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                color: 'var(--color-text-primary, #1A2B32)',
-              }}
-            >
-              {formattedCost}
-            </span>
-          )}
         </div>
       </div>
 
