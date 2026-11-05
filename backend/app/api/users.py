@@ -107,6 +107,14 @@ async def create_user_by_admin(
 
     user_id = str(uuid.uuid4())
     hashed_pwd = hash_password(user_in.password)
+    user_prefs = (
+        dict(user_in.preferences)
+        if user_in.preferences
+        else get_default_user_preferences()
+    )
+    if user_in.preferred_language:
+        user_prefs["preferred_language"] = user_in.preferred_language
+
     user = await repo.create_user(
         user_id=user_id,
         username=user_in.username,
@@ -114,9 +122,7 @@ async def create_user_by_admin(
         email=user_in.email,
         role=user_in.role or "user",
         embedding=DEFAULT_INITIAL_EMBEDDING,
-        preferences=user_in.preferences
-        if user_in.preferences
-        else get_default_user_preferences(),
+        preferences=user_prefs,
     )
     return _user_to_response(user)
 

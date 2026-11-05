@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { BoardingPassTacticalIllustration } from '@/components/illustrations';
-import { Spinner, CheckIcon } from '@/components/icons';
+import { Spinner, CheckIcon, ChevronRightIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 
 export interface BoardingPassExtractedData {
@@ -253,7 +253,7 @@ export function BoardingPassUploadIntake({
             padding: '4px 8px',
           }}
         >
-          {showPasteBox ? 'Hide raw barcode / confirmation text intake' : 'Or paste IATA barcode string / confirmation text →'}
+          {showPasteBox ? 'Hide raw barcode / confirmation text intake' : <>Or paste IATA barcode string / confirmation text <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
         </button>
 
         {showPasteBox && (

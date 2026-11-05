@@ -24,3 +24,4 @@ class SwarmState(TypedDict):
     refinement_iteration: int | None
     critic_issues: list[dict] | None
     current_objective_j: float | None
+    user_language: str | None

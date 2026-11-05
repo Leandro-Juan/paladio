@@ -4,7 +4,7 @@ import React from 'react';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TicketShell } from './TicketShell';
 import { CodeRenderer } from '../codes/CodeRenderer';
-import { TransitIcon, PaperclipIcon } from '@/components/icons';
+import { TransitIcon, PaperclipIcon, ChevronRightIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
 
 interface TransitTicketCardProps {
@@ -160,7 +160,7 @@ export function TransitTicketCard({
           }}
         >
           <span>{originStation || 'Origin'}</span>
-          <span style={{ color: '#7C3AED' }}>&rarr;</span>
+          <ChevronRightIcon size={13} color="#7C3AED" />
           <span>{destStation || 'Destination'}</span>
         </div>
       )}

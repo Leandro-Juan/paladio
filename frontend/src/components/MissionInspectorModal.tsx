@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Trip } from '@/hooks/useTrips';
 import { countWaypoints, isTripCompleted } from '@/utils/tripParser';
 import { TripStatus, calculateTripDurationDays, downloadTripIcs } from '@/utils/calendarUtils';
-import { CloseIcon } from '@/components/icons';
+import { CloseIcon, ChevronRightIcon } from '@/components/icons';
 
 interface MissionInspectorModalProps {
   isOpen: boolean;
@@ -155,6 +155,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: '6px',
                 padding: '0.65rem 1rem',
                 backgroundColor: 'var(--color-accent-primary)',
                 color: '#FFFFFF',
@@ -166,7 +167,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 transition: 'opacity 0.2s',
               }}
             >
-              VIEW FULL MISSION DOSSIER →
+              VIEW FULL MISSION DOSSIER <ChevronRightIcon size={14} />
             </Link>
           )}
 

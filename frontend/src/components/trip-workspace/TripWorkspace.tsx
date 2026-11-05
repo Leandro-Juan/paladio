@@ -10,7 +10,7 @@ import { notify } from '@/utils/notify';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 
 import { TripWorkspaceHeader, WorkspaceTab } from './TripWorkspaceHeader';
-import { TripUnifiedSidebar } from './TripUnifiedSidebar';
+import { TripUnifiedSidebar, MainTabType } from './TripUnifiedSidebar';
 import { TripSpeedDial } from './TripSpeedDial';
 import { PoiDetailView } from './PoiDetailView';
 import { PlaceItem, PoiApiItem } from '@/types/workspace';
@@ -21,7 +21,7 @@ import { TripCostsView } from './TripCostsView';
 import { TripConfigView } from './TripConfigView';
 import { TripPhotosView } from './TripPhotosView';
 import { TripWalletView } from './wallet/TripWalletView';
-import { useTripTickets } from '@/hooks/useTripTickets';
+import { WorkspaceContextData } from '@/components/trip-agent';
 
 interface TripWorkspaceProps {
   trip: Trip;
@@ -31,9 +31,10 @@ interface TripWorkspaceProps {
 export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const { updateTrip, reoptimizeTrip } = useTrips();
   const searchParams = useSearchParams();
-  const initialSidebarTab = useMemo<'route' | 'search' | 'transit' | 'weather' | 'saved'>(() => {
+  const initialSidebarTab = useMemo<MainTabType>(() => {
     const tab = searchParams?.get('tab');
     if (tab === 'saved' || tab === 'collections') return 'saved';
+    if (tab === 'agent') return 'agent';
     return 'route';
   }, [searchParams]);
 
@@ -46,13 +47,20 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [focusedPlace, setFocusedPlace] = useState<(PlaceItem & { timestamp?: number }) | null>(null);
   const [transitMode, setTransitMode] = useState<'simple' | 'detailed'>('simple');
   const [categoryPois, setCategoryPois] = useState<CategoryPoiItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'route' | 'search' | 'transit' | 'weather' | 'saved'>(initialSidebarTab);
+  const [sidebarTab, setSidebarTab] = useState<MainTabType>(initialSidebarTab);
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
   const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
   const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
+
+  const agentUiContext: WorkspaceContextData = useMemo(() => ({
+    active_tab: activeTab,
+    selected_day: selectedDay,
+    selected_stop_id: inspectedPoiId || undefined,
+    destination: trip.destination,
+  }), [activeTab, selectedDay, inspectedPoiId, trip.destination]);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -92,9 +100,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setCategoryPois([]);
   }, []);
 
-  const handleSidebarTabChange = useCallback((tab: 'route' | 'search' | 'transit' | 'weather' | 'saved') => {
+  const handleSidebarTabChange = useCallback((tab: MainTabType) => {
     setSidebarTab(tab);
-    if (tab === 'route' || tab === 'transit' || tab === 'weather') {
+    if (tab === 'route' || tab === 'transit' || tab === 'weather' || tab === 'agent') {
       // Clear category search and unselect focused search POI
       setCategoryFilter(null);
       setCategoryPois([]);
@@ -109,15 +117,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const handleToggleSidebar = useCallback(() => {
     setIsSidebarOpen((prev) => !prev);
   }, []);
-
-  // Query tickets for live count and auto-sync status
-  const { tickets: walletTickets } = useTripTickets(trip.id || '');
-  const activeTicketsCount = useMemo(() => {
-    if (walletTickets.length > 0) {
-      return walletTickets.filter((t) => t.status !== 'cancelled').length;
-    }
-    return trip.tickets_count || 0;
-  }, [walletTickets, trip.tickets_count]);
 
   const handleTabChange = useCallback((tab: WorkspaceTab) => {
     setActiveTab(tab);
@@ -515,7 +514,38 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     },
     [currentItinerary, onTripUpdated]
   );
-  const participantsCount = trip.participants?.length || 1;
+
+  const handleUpdatePoi = useCallback(
+    (updatedPoi: PoiDetail) => {
+      if (!currentItinerary || !updatedPoi?.id) return;
+      const cloned: RouteItineraryData = JSON.parse(JSON.stringify(currentItinerary));
+      let changed = false;
+
+      if (Array.isArray(cloned.days)) {
+        for (const day of cloned.days) {
+          if (Array.isArray(day.itinerary?.path)) {
+            for (const stop of day.itinerary.path) {
+              if (stop.poi && (stop.poi.id === updatedPoi.id || stop.poi.name === updatedPoi.name)) {
+                stop.poi.name = updatedPoi.name;
+                stop.poi.category = updatedPoi.category;
+                if (updatedPoi.duration_mins) stop.poi.duration_mins = updatedPoi.duration_mins;
+                if (typeof updatedPoi.cost_eur === 'number') stop.poi.cost_eur = updatedPoi.cost_eur;
+                changed = true;
+              }
+            }
+          }
+        }
+      }
+
+      if (changed) {
+        setCurrentItinerary(cloned);
+        if (trip.id) {
+          updateTrip(trip.id, { itinerary_data: cloned as unknown as Record<string, unknown> });
+        }
+      }
+    },
+    [currentItinerary, trip.id, updateTrip]
+  );
 
   return (
     <div
@@ -535,11 +565,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         destination={trip.destination}
         startDate={trip.start_date}
         endDate={trip.end_date}
+        itineraryData={trip.itinerary_data}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        photosCount={photos.length}
-        participantsCount={participantsCount}
-        ticketsCount={activeTicketsCount}
       />
 
       {/* Main Workspace Body */}
@@ -636,6 +664,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             activeMapPickField={activeMapPickField}
             onStartMapPick={(field) => setActiveMapPickField(field)}
             onCancelMapPick={() => setActiveMapPickField(null)}
+            uiContext={agentUiContext}
+            onTripUpdated={onTripUpdated}
           />
 
           {/* Radiating Speed Dial Actions Button docked next to left panel bottom */}
@@ -742,6 +772,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   scheduledDay={scheduledPoiDay}
                   activeTransitLine={activeTransitLine}
                   onSelectTransitLine={setActiveTransitLine}
+                  onUpdatePoi={handleUpdatePoi}
                   onDragStartPoi={() => {
                     if (!isSidebarOpen) setIsSidebarOpen(true);
                     window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));

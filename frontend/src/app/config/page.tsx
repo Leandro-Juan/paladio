@@ -27,7 +27,11 @@ import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyW
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
 import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
+import { useTranslation } from '@/hooks/useTranslation';
+import { LanguagePickerModal } from '@/components/common/LanguagePickerModal';
+import { getLocaleInfo, ALL_LOCALES } from '@/utils/locales';
 import { notify } from '@/utils/notify';
+import { LlmConfigCard } from '@/components/config/LlmConfigCard';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -53,10 +57,13 @@ function getSafeAvatarUrl(url: unknown): string | null {
 
 export default function ConfigPage() {
   const { user: currentUser, refreshUser } = useAuth();
+  const { t, locale, setLocale } = useTranslation();
   const { theme, setTheme } = useThemeStore();
   const { typography, setTypography, toggleTypography } = useTypographyStore();
   const { navStyle, setNavStyle } = useNavigationStore();
   const isAdmin = currentUser?.role === 'admin';
+  const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
+  const activeLocaleInfo = useMemo(() => getLocaleInfo(locale), [locale]);
 
   const [users, setUsers] = useState<User[]>([]);
   const [isFetching, setIsFetching] = useState<boolean>(false);
@@ -75,6 +82,7 @@ export default function ConfigPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('user');
+  const [newPreferredLanguage, setNewPreferredLanguage] = useState('en');
   const [creating, setCreating] = useState(false);
 
   // Edit User / Profile Modal State
@@ -85,6 +93,7 @@ export default function ConfigPage() {
   const [editRole, setEditRole] = useState<UserRole>('user');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [editDefaultCurrency, setEditDefaultCurrency] = useState('EUR');
+  const [editPreferredLanguage, setEditPreferredLanguage] = useState('en');
   const safePreviewAvatarUrl = useMemo(() => getSafeAvatarUrl(editAvatarUrl), [editAvatarUrl]);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -368,6 +377,7 @@ export default function ConfigPage() {
         email: newEmail.trim() || undefined,
         password: newPassword,
         role: newRole,
+        preferred_language: newPreferredLanguage,
       });
       setActionSuccess(`User ${newUsername.trim()} provisioned successfully.`);
       setIsModalOpen(false);
@@ -375,6 +385,7 @@ export default function ConfigPage() {
       setNewEmail('');
       setNewPassword('');
       setNewRole('user');
+      setNewPreferredLanguage('en');
       await fetchUsers();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to provision user';
@@ -393,6 +404,7 @@ export default function ConfigPage() {
     setEditPassword('');
     setEditRole(target.role || 'user');
     setEditDefaultCurrency((target.preferences?.default_currency as string) || 'EUR');
+    setEditPreferredLanguage((target.preferences?.preferred_language as string) || 'en');
     const existingAvatar = (target.preferences?.avatar_url || target.preferences?.pfp) as string | undefined;
     setEditAvatarUrl(existingAvatar || '');
   };
@@ -505,6 +517,7 @@ export default function ConfigPage() {
     const updatedPreferences = {
       ...currentCandidatePrefs,
       default_currency: editDefaultCurrency,
+      preferred_language: editPreferredLanguage,
     };
 
     const targetAvatar = editAvatarUrl ? validatedAvatar : null;
@@ -518,6 +531,7 @@ export default function ConfigPage() {
           avatar_url: targetAvatar,
           preferences: updatedPreferences,
         });
+        await setLocale(editPreferredLanguage);
         await refreshUser();
       } else {
         await updateUserApi(editCandidate.id, {
@@ -1152,6 +1166,95 @@ export default function ConfigPage() {
               <span>Bottom Floating • Auto-Hide • Spring Expansion</span>
             </div>
           </button>
+        </div>
+      </div>
+
+      {/* Language & Localization Preferences */}
+      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              {t('config.language')}
+            </h3>
+            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+              {'// SYSTEM DISPLAY LANGUAGE & LOCALIZATION ENGINE'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsLanguagePickerOpen(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
+              border: '1px solid var(--color-accent-teal, #0D9488)',
+              color: 'var(--color-accent-teal, #0D9488)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            className="hover:opacity-90 active:scale-98"
+          >
+            <span>{t('nav.change_language')}</span>
+            <SettingsIcon size={14} />
+          </button>
+        </div>
+
+        {/* Current Active Language Highlight */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderRadius: '8px',
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-border-subtle)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <span
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                fontWeight: 700,
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'var(--color-surface-muted, rgba(148, 163, 184, 0.15))',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              {activeLocaleInfo.code.toUpperCase()}
+            </span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontWeight: 600, fontSize: '15px' }}>
+                {activeLocaleInfo.nativeName} ({activeLocaleInfo.name})
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                Script: {activeLocaleInfo.scriptFamily} • Text direction: {activeLocaleInfo.direction.toUpperCase()}
+              </div>
+            </div>
+          </div>
+
+          <span
+            className="font-mono"
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              background: 'var(--color-success-soft, rgba(16, 185, 129, 0.12))',
+              color: 'var(--color-success)',
+              letterSpacing: '0.5px',
+            }}
+          >
+            ACTIVE LOCALE
+          </span>
         </div>
       </div>
 
@@ -1922,6 +2025,9 @@ export default function ConfigPage() {
         </div>
       </div>
 
+      {/* AI & LLM Engine Configuration */}
+      <LlmConfigCard />
+
       {/* System Updates & Auto-Updater Section */}
       <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
@@ -2566,6 +2672,36 @@ export default function ConfigPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  PREFERRED LANGUAGE
+                </label>
+                <select
+                  value={newPreferredLanguage}
+                  onChange={(e) => setNewPreferredLanguage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-input)',
+                    fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <option value="en">English (English)</option>
+                  <option value="es">Español (Spanish)</option>
+                  <option value="fr">Français (French)</option>
+                  <option value="de">Deutsch (German)</option>
+                  <option value="it">Italiano (Italian)</option>
+                  <option value="pt">Português (Portuguese)</option>
+                  <option value="ja">日本語 (Japanese)</option>
+                  <option value="zh-CN">简体中文 (Chinese)</option>
+                  <option value="ko">한국어 (Korean)</option>
+                  <option value="ar">العربية (Arabic)</option>
+                </select>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button
                   type="button"
@@ -2849,6 +2985,31 @@ export default function ConfigPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
+                  PREFERRED LANGUAGE
+                </label>
+                <select
+                  value={editPreferredLanguage}
+                  onChange={(e) => setEditPreferredLanguage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-input)',
+                    fontSize: '13px',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {ALL_LOCALES.map((loc) => (
+                    <option key={loc.code} value={loc.code}>
+                      {loc.code.toUpperCase()} — {loc.nativeName} ({loc.name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button
                   type="button"
@@ -3064,6 +3225,12 @@ export default function ConfigPage() {
           setGtfsMessage({ type: 'success', text: msg });
           fetchGtfsData(false);
         }}
+      />
+
+      {/* Language Picker Modal */}
+      <LanguagePickerModal
+        isOpen={isLanguagePickerOpen}
+        onClose={() => setIsLanguagePickerOpen(false)}
       />
     </div>
   );

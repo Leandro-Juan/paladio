@@ -3,13 +3,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { isTripCompleted } from '@/utils/tripParser';
 import { TripWorkspace } from '@/components/trip-workspace/TripWorkspace';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { ChevronLeftIcon } from '@/components/icons';
 
 export default function TripWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -96,7 +99,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
           }}
         >
           <h3 className="font-display" style={{ color: 'var(--color-danger)', margin: 0 }}>
-            MISSION TELEMETRY ERROR
+            {t('workspace.mission_telemetry_error')}
           </h3>
           <p className="font-mono text-muted text-sm mt-2">{error}</p>
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -113,7 +116,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
                 fontWeight: 600,
               }}
             >
-              RETRY
+              {t('common.retry')}
             </button>
             <Link
               href="/dashboard"
@@ -129,7 +132,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
                 alignItems: 'center',
               }}
             >
-              &larr; RETURN TO DASHBOARD
+              <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> {t('workspace.return_to_dashboard')}
             </Link>
           </div>
         </div>
@@ -170,7 +173,8 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
             href="/dashboard"
             style={{
               marginTop: '1.5rem',
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
               padding: '8px 16px',
               background: 'var(--color-accent-primary)',
               color: 'var(--color-text-on-accent, #FFFFFF)',
@@ -182,7 +186,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               fontWeight: 600,
             }}
           >
-            &larr; RETURN TO DASHBOARD
+            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO DASHBOARD
           </Link>
         </div>
       </div>

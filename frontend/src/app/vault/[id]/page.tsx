@@ -7,6 +7,7 @@ import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { isTripCompleted } from '@/utils/tripParser';
 import { PastTripRecap } from '@/components/past-trip/PastTripRecap';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { ChevronLeftIcon } from '@/components/icons';
 
 export default function VaultTripRecapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
@@ -127,7 +128,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
                 alignItems: 'center',
               }}
             >
-              &larr; RETURN TO VAULT
+              <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO VAULT
             </Link>
           </div>
         </div>
@@ -168,7 +169,8 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
             href="/vault"
             style={{
               marginTop: '1.5rem',
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
               padding: '8px 16px',
               background: 'var(--color-accent-primary)',
               color: 'var(--color-text-on-accent, #FFFFFF)',
@@ -180,7 +182,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
               fontWeight: 600,
             }}
           >
-            &larr; RETURN TO VAULT
+            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO VAULT
           </Link>
         </div>
       </div>

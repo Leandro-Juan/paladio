@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Trip } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { Modal } from '@/components/Modal';
@@ -15,6 +16,7 @@ interface UpcomingTripsSectionProps {
 }
 
 export function UpcomingTripsSection({ upcomingTrips, loading, onDeleteTrip }: UpcomingTripsSectionProps) {
+  const { t } = useTranslation();
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
 
   // Watch destination photos for all upcoming trips
@@ -35,19 +37,19 @@ export function UpcomingTripsSection({ upcomingTrips, loading, onDeleteTrip }: U
   const { getPhoto } = usePoiPhotos(poiWatch);
 
   return (
-    <section className={styles.section} data-testid="upcoming-trips-section" aria-label="Upcoming Trips">
+    <section className={styles.section} data-testid="upcoming-trips-section" aria-label={t('dashboard.upcoming_trips_title')}>
       <div className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>UPCOMING TRIPS</h2>
+          <h2 className={styles.title}>{t('dashboard.upcoming_trips')}</h2>
           <span className={styles.countBadge}>
-            {loading ? 'SYNCING...' : `${upcomingTrips.length} SCHEDULED`}
+            {loading ? t('common.loading') : `${upcomingTrips.length} SCHEDULED`}
           </span>
         </div>
       </div>
 
       {loading ? (
         <div className={styles.emptyState}>
-          <p className={styles.emptyDesc}>Synchronizing flight, hotel, and transit schedules...</p>
+          <p className={styles.emptyDesc}>{t('dashboard.syncing_schedules')}</p>
         </div>
       ) : upcomingTrips.length === 0 ? (
         <div className={styles.emptyState}>
@@ -55,12 +57,12 @@ export function UpcomingTripsSection({ upcomingTrips, loading, onDeleteTrip }: U
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <h3 className={styles.emptyTitle}>No Upcoming Expeditions</h3>
+          <h3 className={styles.emptyTitle}>{t('dashboard.no_upcoming_trips')}</h3>
           <p className={styles.emptyDesc}>
-            All planned missions have concluded. Initialize a new itinerary protocol to generate optimized schedules.
+            {t('dashboard.no_upcoming_desc')}
           </p>
           <Link href="/engine" className={styles.emptyAction}>
-            + Initialize Protocol
+            {t('dashboard.initialize_protocol')}
           </Link>
         </div>
       ) : (

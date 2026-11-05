@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   extractTotalCost,
   resolveDestinationTimezone,
   formatTimezone,
 } from '@/utils/tripParser';
+import { resolveApiMediaUrl } from '@/utils/api';
 import styles from './ActiveTripTicket.module.css';
 
 export interface ActiveTripTicketProps {
@@ -32,6 +34,7 @@ export function ActiveTripTicket({
   participantsCount = 1,
   timezone,
 }: ActiveTripTicketProps) {
+  const { t, formatDate, formatCurrency } = useTranslation();
   // Dynamic telemetry parsed from itinerary data (called unconditionally at top level)
   const estimatedCost = useMemo(() => extractTotalCost(itineraryData), [itineraryData]);
 
@@ -42,13 +45,13 @@ export function ActiveTripTicket({
         <div className={styles.heroContent}>
           <div className={styles.standbyLeft}>
             <h2 className={styles.heroDestination} style={{ fontSize: '26px' }}>
-              No active missions queued
+              {t('dashboard.no_active_missions')}
             </h2>
             <p className={styles.heroDates} style={{ marginBottom: '16px' }}>
-              All temporal parameters evaluated. Ready for initialization.
+              {t('dashboard.standby_description')}
             </p>
             <Link href="/engine" className={styles.initializeBtn}>
-              + Initialize Protocol
+              {t('dashboard.initialize_protocol')}
             </Link>
           </div>
         </div>
@@ -70,13 +73,15 @@ export function ActiveTripTicket({
     : 0;
 
   const dayProgressText = isOngoing
-    ? `Day ${elapsedDays} of ${totalDays}`
-    : `${totalDays} ${totalDays === 1 ? 'Day' : 'Days'}`;
+    ? t('dashboard.day_progress', { current: elapsedDays, total: totalDays })
+    : totalDays === 1
+    ? t('dashboard.days_singular')
+    : t('dashboard.days_plural', { count: totalDays });
 
-  const formattedDateRange = `${start.toLocaleDateString(undefined, {
+  const formattedDateRange = `${formatDate(start, {
     month: 'short',
     day: 'numeric',
-  })} – ${end.toLocaleDateString(undefined, {
+  })} – ${formatDate(end, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -86,13 +91,15 @@ export function ActiveTripTicket({
   const resolvedTz = resolveDestinationTimezone(destination, timezone);
   const formattedTz = formatTimezone(resolvedTz);
 
+  const resolvedPhoto = photoUrl ? resolveApiMediaUrl(photoUrl) : undefined;
+
   return (
     <div className={styles.heroCard}>
-      {photoUrl ? (
+      {resolvedPhoto ? (
         <>
           <div
             className={styles.photoBackground}
-            style={{ backgroundImage: `url(${photoUrl})` }}
+            style={{ backgroundImage: `url(${resolvedPhoto})` }}
             aria-hidden="true"
           />
           <div className={styles.photoOverlay} aria-hidden="true" />
@@ -121,10 +128,10 @@ export function ActiveTripTicket({
             className={isOngoing ? styles.sunCountdownOngoing : styles.sunCountdown}
             title={
               diffDays > 0
-                ? `${diffDays} days until departure`
+                ? t('dashboard.days_countdown', { count: diffDays })
                 : isOngoing
-                ? `Day ${elapsedDays} active`
-                : 'Departing today'
+                ? t('dashboard.day_active', { day: elapsedDays })
+                : t('dashboard.departing_today')
             }
           >
             <span className={styles.countdownNum}>
@@ -140,12 +147,12 @@ export function ActiveTripTicket({
         <div className={styles.heroStatsRow}>
           <div className={styles.telemetryGroup}>
             <div className={styles.heroStatPair}>
-              <span className={styles.heroStatLabel}>Waypoints</span>
+              <span className={styles.heroStatLabel}>{t('dashboard.waypoints')}</span>
               <span className={styles.heroStatValue}>{poisCount} STOPS</span>
             </div>
 
             <div className={styles.heroStatPair}>
-              <span className={styles.heroStatLabel}>Crew</span>
+              <span className={styles.heroStatLabel}>{t('dashboard.crew')}</span>
               <span className={styles.heroStatValue}>
                 {participantsCount > 1 ? `${participantsCount} TRAVELERS` : 'SOLO'}
               </span>
@@ -153,16 +160,16 @@ export function ActiveTripTicket({
 
             {estimatedCost !== null && (
               <div className={styles.heroStatPair}>
-                <span className={styles.heroStatLabel}>Est. Budget</span>
+                <span className={styles.heroStatLabel}>{t('dashboard.est_budget')}</span>
                 <span className={styles.heroStatValue}>
-                  €{Math.round(estimatedCost).toLocaleString()}
+                  {formatCurrency(Math.round(estimatedCost))}
                 </span>
               </div>
             )}
 
             {formattedTz && (
               <div className={styles.heroStatPair}>
-                <span className={styles.heroStatLabel}>Timezone</span>
+                <span className={styles.heroStatLabel}>{t('dashboard.timezone')}</span>
                 <span className={styles.heroStatValue}>{formattedTz}</span>
               </div>
             )}
@@ -170,7 +177,7 @@ export function ActiveTripTicket({
 
           {/* Tactical Action Button */}
           <div className={styles.openCockpitBtn}>
-            <span>OPEN COCKPIT</span>
+            <span>{t('dashboard.open_cockpit')}</span>
             <svg
               width="13"
               height="13"

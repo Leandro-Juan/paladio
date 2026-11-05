@@ -2,6 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
+import { ChevronLeftIcon } from '@/components/icons';
+import { TripShareModal } from './TripShareModal';
 
 export type WorkspaceTab = 'plan' | 'wallet' | 'costs' | 'photos' | 'config';
 
@@ -10,11 +13,9 @@ interface TripWorkspaceHeaderProps {
   destination: string;
   startDate?: string;
   endDate?: string;
+  itineraryData?: unknown;
   activeTab: WorkspaceTab;
   onTabChange: (tab: WorkspaceTab) => void;
-  photosCount?: number;
-  participantsCount?: number;
-  ticketsCount?: number;
 }
 
 const formatDateRange = (start?: string, end?: string): string => {
@@ -35,16 +36,16 @@ const formatDateRange = (start?: string, end?: string): string => {
 };
 
 export function TripWorkspaceHeader({
+  tripId,
   destination,
   startDate,
   endDate,
+  itineraryData,
   activeTab,
   onTabChange,
-  photosCount = 0,
-  participantsCount = 1,
-  ticketsCount = 0,
 }: TripWorkspaceHeaderProps) {
-  const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Partial<Record<WorkspaceTab, HTMLButtonElement | null>>>({});
   const [pillStyle, setPillStyle] = useState<{
@@ -97,44 +98,30 @@ export function TripWorkspaceHeader({
     };
   }, [updatePill]);
 
-  const handleShare = async () => {
-    try {
-      if (typeof window !== 'undefined') {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch {
-      // Fallback
-    }
-  };
-
-  const tabs: { id: WorkspaceTab; label: string; count?: number; iconSvg: string }[] = [
+  const tabs: { id: WorkspaceTab; label: string; iconSvg: string }[] = [
     {
       id: 'plan',
-      label: 'Plan',
+      label: t('workspace.tabs.plan'),
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>`,
     },
     {
       id: 'wallet',
-      label: 'Wallet',
-      count: ticketsCount,
+      label: t('workspace.tabs.wallet'),
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1.5"/></svg>`,
     },
     {
       id: 'costs',
-      label: 'Costs',
+      label: t('workspace.tabs.costs'),
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
     },
     {
       id: 'photos',
-      label: 'Photos',
-      count: photosCount,
+      label: t('workspace.tabs.photos'),
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
     },
     {
       id: 'config',
-      label: 'Configuration',
+      label: t('workspace.tabs.config'),
       iconSvg: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
     },
   ];
@@ -177,7 +164,7 @@ export function TripWorkspaceHeader({
             fontWeight: 600,
           }}
         >
-          <span style={{ fontSize: '12px' }}>&larr;</span> DASHBOARD
+          <ChevronLeftIcon size={14} style={{ marginRight: '2px' }} /> {t('nav.dashboard')}
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
@@ -217,7 +204,7 @@ export function TripWorkspaceHeader({
       <nav
         ref={navRef}
         role="tablist"
-        aria-label="Trip views"
+        aria-label={t('workspace.trip_views')}
         style={{
           position: 'relative',
           display: 'flex',
@@ -264,7 +251,7 @@ export function TripWorkspaceHeader({
               }}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              aria-label={tab.count ? `${tab.label} (${tab.count})` : tab.label}
+              aria-label={tab.label}
               style={{
                 position: 'relative',
                 zIndex: 2,
@@ -305,23 +292,6 @@ export function TripWorkspaceHeader({
                 }}
               />
               <span className="hidden sm:inline">{tab.label}</span>
-              {typeof tab.count === 'number' && tab.count > 0 && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    padding: '1px 5px',
-                    borderRadius: 'var(--radius-full)',
-                    background: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--color-surface-card)',
-                    color: isActive ? '#FFFFFF' : 'var(--color-text-muted)',
-                    border: isActive ? 'none' : '1px solid var(--color-border)',
-                    transition: 'background 0.18s ease, color 0.18s ease, border 0.18s ease',
-                  }}
-                >
-                  {tab.count}
-                </span>
-              )}
             </button>
           );
         })}
@@ -329,36 +299,16 @@ export function TripWorkspaceHeader({
 
       {/* Right: Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {participantsCount > 1 && (
-          <div
-            title={`${participantsCount} travelers`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--color-bg-main)',
-              border: '1px solid var(--color-border)',
-              fontSize: '0.75rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <span style={{ fontSize: '11px' }}>👥</span>
-            <span>{participantsCount}</span>
-          </div>
-        )}
         <button
           type="button"
-          onClick={handleShare}
+          onClick={() => setIsShareModalOpen(true)}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '5px 12px',
-            background: copied ? 'var(--color-success)' : 'var(--color-bg-main)',
-            color: copied ? '#FFFFFF' : 'var(--color-text-primary)',
+            background: 'var(--color-bg-main)',
+            color: 'var(--color-text-primary)',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.75rem',
@@ -368,6 +318,12 @@ export function TripWorkspaceHeader({
             boxShadow: 'var(--shadow-sm)',
             transition: 'all 0.2s ease',
           }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-accent-teal-deep, #0F4C5C)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--color-border)';
+          }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="18" cy="5" r="3" />
@@ -376,9 +332,21 @@ export function TripWorkspaceHeader({
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
-          <span>{copied ? 'COPIED!' : 'SHARE'}</span>
+          <span>{t('workspace.share_expedition')}</span>
         </button>
       </div>
+
+      {tripId && (
+        <TripShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          tripId={tripId}
+          destination={destination}
+          startDate={startDate}
+          endDate={endDate}
+          itineraryData={itineraryData}
+        />
+      )}
     </header>
   );
 }

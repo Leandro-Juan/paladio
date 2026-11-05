@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { RouteCalendar, CalendarDay, LodgingSummary } from '@/hooks/useRouteMonitoring';
-import { PlaneIcon, CloseIcon } from '@/components/icons';
+import { PlaneIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './MonitoringCalendar.module.css';
 
@@ -559,7 +559,7 @@ export function MonitoringCalendar({
                 className={styles.bookingLink}
               >
                 <span>Book Live Fare on Carrier</span>
-                <span aria-hidden="true">→</span>
+                <ChevronRightIcon size={14} aria-hidden="true" />
               </a>
             )}
 
@@ -582,7 +582,7 @@ export function MonitoringCalendar({
               }}
             >
               <span>PLAN ITINERARY WITH THESE DATES</span>
-              <span aria-hidden="true">→</span>
+              <ChevronRightIcon size={14} aria-hidden="true" />
             </button>
           </div>
         </div>

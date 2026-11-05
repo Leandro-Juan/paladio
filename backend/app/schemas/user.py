@@ -43,6 +43,7 @@ class UserPreferences(BaseModel):
     )
     disliked_tags: list[str] = Field(default_factory=list)
     default_currency: str = "EUR"
+    preferred_language: str = "en"
 
 
 def get_default_user_preferences() -> dict[str, Any]:
@@ -115,6 +116,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6, max_length=128)
     role: str | None = "user"
+    preferred_language: str | None = None
     preferences: dict[str, Any] | None = None
 
 

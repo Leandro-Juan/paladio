@@ -18,7 +18,7 @@ import {
   getTripPaletteColor,
 } from '@/utils/calendarUtils';
 import { MissionInspectorModal } from './MissionInspectorModal';
-import { PlaneIcon, UmbrellaIcon, CloseIcon } from '@/components/icons';
+import { PlaneIcon, UmbrellaIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 import styles from './Calendar.module.css';
 
 interface CalendarProps {
@@ -520,7 +520,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                     title={`Focus on ${m.monthName}`}
                     aria-label={`Focus on ${m.monthName}`}
                   >
-                    Focus →
+                    Focus <ChevronRightIcon size={10} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} />
                   </button>
                 </div>
 

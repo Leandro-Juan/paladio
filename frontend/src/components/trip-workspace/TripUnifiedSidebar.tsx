@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { TripTransitTab } from './TripTransitTab';
 import { TripWeatherTab } from './TripWeatherTab';
 import { CollectionsTab } from './CollectionsTab';
+import { AgentTab, WorkspaceContextData } from '@/components/trip-agent';
 import { SaveToCollectionMenu } from './SaveToCollectionMenu';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
@@ -20,6 +21,7 @@ import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
 import { getDayColor } from './TripMapView';
+import { AddPoiModal } from './AddPoiModal';
 import {
   SearchIcon,
   CheckIcon,
@@ -163,9 +165,11 @@ export interface TripUnifiedSidebarProps {
   onRouteCalculated?: (routeResult: any, activeMode: 'primary' | 'alternative') => void;
   sidebarTab?: MainTabType;
   onTabChange?: (tab: MainTabType) => void;
+  uiContext?: WorkspaceContextData;
+  onTripUpdated?: () => void;
 }
 
-export type MainTabType = 'route' | 'search' | 'transit' | 'weather' | 'saved';
+export type MainTabType = 'route' | 'search' | 'transit' | 'weather' | 'saved' | 'agent';
 
 const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType }[] = [
   { id: 'all', label: 'All', iconType: 'general' },
@@ -1317,6 +1321,8 @@ export function TripUnifiedSidebar({
   onRouteCalculated,
   sidebarTab,
   onTabChange,
+  uiContext,
+  onTripUpdated,
 }: TripUnifiedSidebarProps) {
   const auth = useOptionalAuth();
   const user = auth?.user ?? null;
@@ -1337,10 +1343,69 @@ export function TripUnifiedSidebar({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isAddPoiModalOpen, setIsAddPoiModalOpen] = useState(false);
+
+  const handlePoiCreated = useCallback(
+    (newPoi: PoiApiItem) => {
+      setSearchData((prev) => {
+        if (!prev) {
+          return {
+            city: destinationCity,
+            query: '',
+            search_type: 'custom',
+            exact_match_found: true,
+            exact_match: newPoi,
+            results: [newPoi],
+            total: 1,
+          };
+        }
+        return {
+          ...prev,
+          results: [newPoi, ...prev.results.filter((p) => p.id !== newPoi.id)],
+        };
+      });
+      if (onInspectPoi && newPoi.id) {
+        onInspectPoi(newPoi.id, newPoi as unknown as Record<string, unknown>);
+      }
+    },
+    [destinationCity, onInspectPoi]
+  );
+
+  useEffect(() => {
+    const handlePoiUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<PoiDetail>;
+      if (!customEvent.detail) return;
+      const updated = customEvent.detail;
+      setSearchData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          results: prev.results.map((p) =>
+            p.id === updated.id
+              ? {
+                  ...p,
+                  name: updated.name,
+                  category: updated.category,
+                  duration_mins: updated.duration_mins,
+                  cost_eur: updated.cost_eur,
+                }
+              : p
+          ),
+        };
+      });
+    };
+    window.addEventListener('paladio:poi-updated', handlePoiUpdated);
+    return () => window.removeEventListener('paladio:poi-updated', handlePoiUpdated);
+  }, []);
 
   // Primary Tabs State
   const [internalActiveTab, setInternalActiveTab] = useState<MainTabType>('route');
+  const [agentTabVisited, setAgentTabVisited] = useState(false);
   const activeTab = sidebarTab !== undefined ? sidebarTab : internalActiveTab;
+
+  if (activeTab === 'agent' && !agentTabVisited) {
+    setAgentTabVisited(true);
+  }
   const setActiveTab = useCallback(
     (tab: MainTabType) => {
       setInternalActiveTab(tab);
@@ -2260,6 +2325,37 @@ export function TripUnifiedSidebar({
                     </svg>
                     {activeTab === 'saved' && <span>Collections</span>}
                   </button>
+
+                  {/* Agent Tab */}
+                  <button
+                    type="button"
+                    data-testid="tab-agent"
+                    title="Paladio Agent"
+                    aria-label="Paladio Agent"
+                    onClick={() => setActiveTab('agent')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '7px',
+                      padding: activeTab === 'agent' ? '7px 16px' : '7px 10px',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      background: activeTab === 'agent' ? 'var(--color-accent-primary)' : 'transparent',
+                      color: activeTab === 'agent' ? '#FFFFFF' : 'var(--color-text-muted)',
+                      fontSize: '13px',
+                      fontWeight: activeTab === 'agent' ? 600 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: activeTab === 'agent' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polygon points="12 8 8 16 12 14 16 16 12 8" />
+                    </svg>
+                    {activeTab === 'agent' && <span>Agent</span>}
+                  </button>
                 </div>
 
                 {/* Right Area: Day View Indicator (Search & Saved tabs) or Edit/Solve Actions (Route tab) */}
@@ -2446,7 +2542,7 @@ export function TripUnifiedSidebar({
                 className="no-scrollbar"
                 style={{
                   flex: 1,
-                  overflowY: 'auto',
+                  overflowY: activeTab === 'agent' ? 'hidden' : 'auto',
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
                   display: 'flex',
@@ -2787,9 +2883,8 @@ export function TripUnifiedSidebar({
                 {/* VIEW B: SEARCH TAB CONTENT (Exact Match to User Reference Layout) */}
                 {activeTab === 'search' && (
                   <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {/* 1. Top Options Pill Dropdowns (Matching Reference) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', overflow: 'visible' }}>
-
+                    {/* 1. Top Options Pill Dropdowns & Add POI button */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%', overflow: 'visible' }}>
                       <CustomDropdown
                         ariaLabel="Sort Order"
                         value={sortOption}
@@ -2802,6 +2897,33 @@ export function TripUnifiedSidebar({
                         ]}
                         testId="sort-order-dropdown"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAddPoiModalOpen(true)}
+                        title="Add New POI"
+                        aria-label="Add New POI"
+                        data-testid="add-new-poi-btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          background: 'var(--color-surface-card, #FFFFFF)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '9999px',
+                          color: 'var(--color-accent-primary, #0F4C5C)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
+                          transition: 'all 0.15s ease',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+                        <span>Add POI</span>
+                      </button>
                     </div>
 
                     {/* 2. Elevated Search Box Card (Matching Flight Search Form Card) */}
@@ -3256,6 +3378,25 @@ export function TripUnifiedSidebar({
                     currencySymbol={currencySymbol}
                   />
                 )}
+
+                {/* VIEW E: AGENT TAB CONTENT */}
+                {(activeTab === 'agent' || agentTabVisited) && (
+                  <div
+                    style={{
+                      display: activeTab === 'agent' ? 'flex' : 'none',
+                      flexDirection: 'column',
+                      flex: 1,
+                      height: '100%',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <AgentTab
+                      tripId={tripId || ''}
+                      uiContext={uiContext}
+                      onTripUpdated={onTripUpdated}
+                    />
+                  </div>
+                )}
               </div>
         </aside>
 
@@ -3312,6 +3453,17 @@ export function TripUnifiedSidebar({
           align="right"
         />
       )}
+
+      <AddPoiModal
+        isOpen={isAddPoiModalOpen}
+        onClose={() => setIsAddPoiModalOpen(false)}
+        city={destinationCity}
+        defaultLat={hotelAnchor?.lat || airportAnchor?.lat || (searchData?.results?.[0]?.lat ?? 35.6812)}
+        defaultLng={hotelAnchor?.lng || airportAnchor?.lng || (searchData?.results?.[0]?.lng ?? 139.7671)}
+        availableDays={availableDays}
+        onPoiCreated={handlePoiCreated}
+        onAddToDay={onAddToDay}
+      />
     </div>
   );
 }

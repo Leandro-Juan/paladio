@@ -11,7 +11,7 @@ import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
 import { InfoIcon, CrosshairIcon, CloseIcon } from '@/components/icons';
-import { createRouteCardDragImage, startCustomDragPreview } from './TripUnifiedSidebar';
+import { createRouteCardDragImage, startCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
@@ -100,7 +100,7 @@ interface TripMapViewProps {
   onSelectCategoryPoi?: (poi: CategoryPoiItem) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
   isSidebarOpen?: boolean;
-  sidebarTab?: 'route' | 'search' | 'transit' | 'weather' | 'saved';
+  sidebarTab?: MainTabType;
   destinationCity?: string;
   activeTransitLine?: ActiveTransitLineData | null;
   onClearTransitLine?: () => void;
@@ -168,6 +168,25 @@ function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.D
     `,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
+  });
+}
+
+function createIntermediateStopIcon(color: string): L.DivIcon {
+  return L.divIcon({
+    className: 'paladio-intermediate-stop-node',
+    html: `
+      <div style="
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        border: 2px solid ${color};
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        cursor: pointer;
+      "></div>
+    `,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
   });
 }
 
@@ -2270,6 +2289,47 @@ export default function TripMapView({
                   );
                 })}
 
+            {/* Intermediate Stop Markers along Directions Route */}
+            {activeDirectionsRoute.activeLeg &&
+              activeDirectionsRoute.activeLeg.steps &&
+              activeDirectionsRoute.activeLeg.steps.map((s: any, stepIdx: number) => {
+                if (!s.intermediate_stop_details || !Array.isArray(s.intermediate_stop_details)) {
+                  return null;
+                }
+                const lineColor = s.route_color || '#0F4C5C';
+                const totalStops = s.intermediate_stop_details.length;
+                return s.intermediate_stop_details.map((stop: any, stopIdx: number) => {
+                  if (typeof stop.lat !== 'number' || typeof stop.lon !== 'number') return null;
+                  return (
+                    <Marker
+                      key={`dir-inter-stop-${stepIdx}-${stopIdx}-${stop.name}`}
+                      position={[stop.lat, stop.lon]}
+                      icon={createIntermediateStopIcon(lineColor)}
+                    >
+                      <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
+                        <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
+                          <span
+                            style={{
+                              textTransform: 'uppercase',
+                              fontSize: '9px',
+                              opacity: 0.85,
+                              display: 'block',
+                              letterSpacing: '0.04em',
+                              color: lineColor,
+                            }}
+                          >
+                            {s.transit_line
+                              ? `${s.transit_line} • Stop ${stopIdx + 1} of ${totalStops}`
+                              : `Stop ${stopIdx + 1} of ${totalStops}`}
+                          </span>
+                          {stop.name}
+                        </div>
+                      </Tooltip>
+                    </Marker>
+                  );
+                });
+              })}
+
             {/* Route Polyline */}
             {activeDirectionsRoute.activeLeg && (
               <>
@@ -2285,6 +2345,7 @@ export default function TripMapView({
                       s.type === 'pedestrian' ||
                       (typeof s.instruction === 'string' &&
                         s.instruction.toLowerCase().startsWith('walk'));
+                    const transitColor = s.route_color || '#0F4C5C';
                     return isWalk ? (
                       <Polyline
                         key={`step-polyline-${idx}`}
@@ -2303,7 +2364,7 @@ export default function TripMapView({
                         <Polyline
                           positions={s.geometry}
                           pathOptions={{
-                            color: '#0F4C5C',
+                            color: transitColor,
                             weight: 8,
                             opacity: 0.3,
                             lineCap: 'round',
@@ -2313,7 +2374,7 @@ export default function TripMapView({
                         <Polyline
                           positions={s.geometry}
                           pathOptions={{
-                            color: '#0F4C5C',
+                            color: transitColor,
                             weight: 5,
                             opacity: 0.95,
                             lineCap: 'round',
@@ -2341,30 +2402,38 @@ export default function TripMapView({
                           }}
                         />
                       ) : (
-                        <>
-                          <Polyline
-                            key="directions-transit-glow"
-                            positions={activeDirectionsRoute.activeLeg.geometry}
-                            pathOptions={{
-                              color: '#0F4C5C',
-                              weight: 8,
-                              opacity: 0.25,
-                              lineCap: 'round',
-                              lineJoin: 'round',
-                            }}
-                          />
-                          <Polyline
-                            key="directions-transit-core"
-                            positions={activeDirectionsRoute.activeLeg.geometry}
-                            pathOptions={{
-                              color: '#0F4C5C',
-                              weight: 4.5,
-                              opacity: 0.95,
-                              lineCap: 'round',
-                              lineJoin: 'round',
-                            }}
-                          />
-                        </>
+                        (() => {
+                          const fallbackColor =
+                            activeDirectionsRoute.activeLeg.steps?.find(
+                              (s: any) => s.route_color
+                            )?.route_color || '#0F4C5C';
+                          return (
+                            <>
+                              <Polyline
+                                key="directions-transit-glow"
+                                positions={activeDirectionsRoute.activeLeg.geometry}
+                                pathOptions={{
+                                  color: fallbackColor,
+                                  weight: 8,
+                                  opacity: 0.25,
+                                  lineCap: 'round',
+                                  lineJoin: 'round',
+                                }}
+                              />
+                              <Polyline
+                                key="directions-transit-core"
+                                positions={activeDirectionsRoute.activeLeg.geometry}
+                                pathOptions={{
+                                  color: fallbackColor,
+                                  weight: 4.5,
+                                  opacity: 0.95,
+                                  lineCap: 'round',
+                                  lineJoin: 'round',
+                                }}
+                              />
+                            </>
+                          );
+                        })()
                       )}
                     </>
                   )

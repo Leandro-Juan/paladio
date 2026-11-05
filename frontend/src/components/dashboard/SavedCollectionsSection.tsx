@@ -3,7 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSavedCollections, TripCollection } from '@/hooks/useTripCollections';
+import { ChevronRightIcon } from '@/components/icons';
 import styles from './SavedCollectionsSection.module.css';
 
 interface SavedCollectionsSectionProps {
@@ -15,6 +17,7 @@ export function SavedCollectionsSection({
   initialCollections,
   loading: externalLoading,
 }: SavedCollectionsSectionProps) {
+  const { t } = useTranslation();
   const { collections: fetchedCollections, loading: hookLoading } = useSavedCollections();
 
   const collections = initialCollections ?? fetchedCollections;
@@ -24,20 +27,20 @@ export function SavedCollectionsSection({
     <section
       className={styles.section}
       data-testid="saved-collections-section"
-      aria-label="Saved Collections"
+      aria-label={t('dashboard.saved_collections_title')}
     >
       <div className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>SAVED COLLECTIONS</h2>
+          <h2 className={styles.title}>{t('dashboard.saved_collections')}</h2>
           <span className={styles.countBadge} data-testid="saved-collections-count">
-            {loading ? 'SYNCING...' : `${collections.length} CURATED`}
+            {loading ? t('common.loading') : `${collections.length} CURATED`}
           </span>
         </div>
       </div>
 
       {loading ? (
         <div className={styles.emptyState}>
-          <p className={styles.emptyDesc}>Synchronizing curated POI vaults and collections...</p>
+          <p className={styles.emptyDesc}>{t('dashboard.syncing_collections')}</p>
         </div>
       ) : collections.length === 0 ? (
         <div className={styles.emptyState} data-testid="saved-collections-empty">
@@ -55,12 +58,12 @@ export function SavedCollectionsSection({
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
-          <h3 className={styles.emptyTitle}>No Saved Collections</h3>
+          <h3 className={styles.emptyTitle}>{t('dashboard.no_saved_collections')}</h3>
           <p className={styles.emptyDesc}>
-            Curate custom POI vaults, bookmark backup plans, and organize places across your itineraries.
+            {t('dashboard.no_collections_desc')}
           </p>
           <Link href="/engine" className={styles.emptyAction}>
-            + Plan New Expedition
+            {t('dashboard.initialize_protocol')}
           </Link>
         </div>
       ) : (
@@ -151,7 +154,7 @@ export function SavedCollectionsSection({
                     {col.items_count} {col.items_count === 1 ? 'place' : 'places'}
                   </span>
                   <span className={styles.footerAction}>
-                    OPEN VAULT <span>→</span>
+                    OPEN VAULT <ChevronRightIcon size={12} />
                   </span>
                 </div>
               </Link>

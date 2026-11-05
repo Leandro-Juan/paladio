@@ -50,7 +50,12 @@ export function AgentTab({ tripId, uiContext, onTripUpdated }: AgentTabProps) {
     try {
       const res = await updateLlmConfigApi({ provider, model });
       if (res.status === 'success') {
-        setLlmConfig(res.config);
+        setLlmConfig((prev) => ({
+          ...prev,
+          ...res.config,
+          supported_providers: res.config.supported_providers || prev?.supported_providers || {},
+          configured_providers: res.config.configured_providers || prev?.configured_providers || {},
+        }));
         const provName = res.config.supported_providers?.[res.config.provider]?.name || res.config.provider;
         setLlmInfo({ provider: provName, model: res.config.model });
         setIsSwitcherOpen(false);

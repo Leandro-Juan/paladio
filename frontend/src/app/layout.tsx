@@ -3,6 +3,7 @@ import { Jost, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { I18nProvider } from '@/contexts/I18nContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { ToastContainer } from '@/components/ToastContainer';
@@ -42,22 +43,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning data-typography="inter" className={`${jost.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" dir="ltr" suppressHydrationWarning data-typography="inter" className={`${jost.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var validThemes=['light','dark','silent-waters'];var storedTheme=localStorage.getItem('paladio-theme');var theme=(storedTheme&&validThemes.indexOf(storedTheme)!==-1)?storedTheme:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',theme);var storedTypo=localStorage.getItem('paladio-typography');var typo=(storedTypo==='classic')?'classic':'inter';document.documentElement.setAttribute('data-typography',typo);var storedNav=localStorage.getItem('paladio-nav-style');var navStyle=(storedNav==='dock')?'dock':'sidebar';document.documentElement.setAttribute('data-nav-style',navStyle);}catch(e){document.documentElement.setAttribute('data-theme','light');document.documentElement.setAttribute('data-typography','inter');document.documentElement.setAttribute('data-nav-style','sidebar');}})();`,
+            __html: `(function(){try{var validThemes=['light','dark','silent-waters'];var storedTheme=localStorage.getItem('paladio-theme');var theme=(storedTheme&&validThemes.indexOf(storedTheme)!==-1)?storedTheme:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',theme);var storedTypo=localStorage.getItem('paladio-typography');var typo=(storedTypo==='classic')?'classic':'inter';document.documentElement.setAttribute('data-typography',typo);var storedNav=localStorage.getItem('paladio-nav-style');var navStyle=(storedNav==='dock')?'dock':'sidebar';document.documentElement.setAttribute('data-nav-style',navStyle);var storedLocale=localStorage.getItem('paladio-locale')||'en';var rtlLangs=['ar','he','fa','ur','yi','ps','ug','sd'];var isRtl=rtlLangs.indexOf(storedLocale.split('-')[0].toLowerCase())!==-1;document.documentElement.setAttribute('lang',storedLocale);document.documentElement.setAttribute('dir',isRtl?'rtl':'ltr');}catch(e){document.documentElement.setAttribute('data-theme','light');document.documentElement.setAttribute('data-typography','inter');document.documentElement.setAttribute('data-nav-style','sidebar');document.documentElement.setAttribute('lang','en');document.documentElement.setAttribute('dir','ltr');}})();`,
           }}
         />
       </head>
       <body>
         <AuthProvider>
-          <SocketProvider>
-            <AuthGuard>
-              {children}
-            </AuthGuard>
-            <ToastContainer />
-          </SocketProvider>
+          <I18nProvider>
+            <SocketProvider>
+              <AuthGuard>
+                {children}
+              </AuthGuard>
+              <ToastContainer />
+            </SocketProvider>
+          </I18nProvider>
         </AuthProvider>
       </body>
     </html>

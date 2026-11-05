@@ -11,6 +11,7 @@ import type { Trip } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { resolveDestinationCurrency } from '@/utils/currencyResolver';
+import { resolveApiMediaUrl } from '@/utils/api';
 
 function HotelIcon({ size = 14 }: { size?: number }) {
   return (
@@ -786,13 +787,14 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       'EU';
 
     const firstPhoto = Array.isArray(itin?.photos) && itin.photos.length > 0 ? itin.photos[0] : undefined;
-    const coverPhoto =
+    const rawCover =
       (typeof firstPhoto === 'string' ? firstPhoto : (firstPhoto as { url?: string } | undefined)?.url) ||
       (itin as { photo_url?: string })?.photo_url ||
       (tripObj as { photo_url?: string })?.photo_url ||
       (constraints as { photo_url?: string })?.photo_url ||
       highlightPoi?.photo_url ||
       getPhoto(deployedTrip.destination);
+    const coverPhoto = rawCover ? resolveApiMediaUrl(rawCover) : undefined;
 
     // 9. Mission Profile & Expedition Attributes (replaces static single POI)
     const baseCamp =

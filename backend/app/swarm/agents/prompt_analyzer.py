@@ -4,29 +4,15 @@ import os
 from app.schemas.itinerary import NodeConstraint, TravelConstraints
 from app.schemas.rag_schema import RAGPromptAnalysis
 from app.swarm.state import SwarmState
+from app.services.llm_service import LLMService
 from pydantic_ai import Agent
-from pydantic_ai.models.ollama import OllamaModel
-from pydantic_ai.providers.ollama import OllamaProvider
 
 logger = logging.getLogger(__name__)
 
 
 def get_prompt_model():
-    ollama_env_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11435/v1")
-    if not ollama_env_url.endswith("/v1"):
-        ollama_env_url = f"{ollama_env_url.rstrip('/')}/v1"
-
-    MODEL_NAME = os.getenv(
-        "PROMPT_ANALYSIS_MODEL",
-        os.getenv("RAG_MODEL", os.getenv("VALIDATOR_MODEL", "ollama:qwen2.5:3b")),
-    )
-    actual_model = (
-        MODEL_NAME.replace("ollama:", "")
-        if MODEL_NAME.startswith("ollama:")
-        else MODEL_NAME
-    )
-    provider = OllamaProvider(base_url=ollama_env_url)
-    return OllamaModel(actual_model, provider=provider)
+    model_override = os.getenv("PROMPT_ANALYSIS_MODEL")
+    return LLMService.get_model(model_name=model_override)
 
 
 prompt_analysis_agent = Agent(
@@ -88,6 +74,9 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
         if dest_city != "Unknown"
         else full_prompt
     )
+    user_lang = state.get("user_language")
+    if user_lang and user_lang != "en":
+        agent_input += f"\nUser Preferred Language: {user_lang}. Ensure output travel tastes and subqueries accommodate this language."
 
     # 2. Run LLM Analysis on the prompt
     analysis = RAGPromptAnalysis()

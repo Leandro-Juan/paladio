@@ -17,6 +17,7 @@ import { MonitoringCalendar } from './MonitoringCalendar';
 import { DealPackageNavigator } from './DealPackageNavigator';
 import { VerdictBadge } from './VerdictBadge';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import styles from './RouteFullScreenView.module.css';
 
 interface RouteFullScreenViewProps {
@@ -78,17 +79,14 @@ export function RouteFullScreenView({
             onClick={onBack}
             aria-label="Back to monitored routes list"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
+            <ChevronLeftIcon size={14} aria-hidden="true" />
             <span>Fleet Overview</span>
           </button>
 
           <div className={styles.routeTitleBlock}>
             <div className={styles.routeHeadingRow}>
               <h2 className={styles.routeIata}>
-                {route.origin_iata} <span aria-hidden="true" style={{ opacity: 0.5 }}>→</span> {route.destination_code}
+                {route.origin_iata} <ChevronRightIcon size={14} style={{ opacity: 0.5 }} aria-hidden="true" /> {route.destination_code}
               </h2>
 
               <span

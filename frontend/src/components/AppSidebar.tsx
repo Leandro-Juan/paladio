@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
@@ -18,6 +19,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { isCollapsed, toggleSidebar, isMobileOpen, setMobileOpen } = useSidebarStore();
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function AppSidebar() {
   const navItems: NavItem[] = [
     {
       href: '/dashboard',
-      label: 'Control Center',
+      label: t('nav.dashboard'),
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -51,7 +53,7 @@ export function AppSidebar() {
     },
     {
       href: '/engine',
-      label: 'New Trip',
+      label: t('nav.new_trip'),
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
@@ -62,7 +64,7 @@ export function AppSidebar() {
     },
     {
       href: '/monitoring',
-      label: 'Route Monitor',
+      label: t('nav.monitoring'),
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z" />
@@ -76,7 +78,7 @@ export function AppSidebar() {
     },
     {
       href: '/vault',
-      label: 'Itinerary Vault',
+      label: t('nav.vault'),
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />

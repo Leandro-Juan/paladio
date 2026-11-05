@@ -8,7 +8,7 @@ import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
 import { EmptyState } from './EmptyState';
 
-import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from '@/components/icons';
+import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 
 const emptySubscribe = () => () => {};
 
@@ -380,7 +380,9 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                         }}
                         className="font-mono"
                         style={{
-                          display: 'inline-block',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                           fontSize: '10px',
                           padding: '3px 8px',
                           borderRadius: '4px',
@@ -391,7 +393,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                           textDecoration: 'none',
                         }}
                       >
-                        {item.actionLabel || 'View Details'} →
+                        {item.actionLabel || 'View Details'} <ChevronRightIcon size={10} />
                       </Link>
                     </div>
                   )}

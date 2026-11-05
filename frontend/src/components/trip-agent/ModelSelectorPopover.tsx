@@ -96,6 +96,65 @@ function ProviderBrandIcon({ provider, size = 18 }: { provider: string; size?: n
   );
 }
 
+const DEFAULT_FAMILIES = [
+  {
+    provKey: 'google',
+    name: 'Google Gemini',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['gemini-3.8-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+  },
+  {
+    provKey: 'anthropic',
+    name: 'Anthropic Claude',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'],
+  },
+  {
+    provKey: 'openai',
+    name: 'OpenAI',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1'],
+  },
+  {
+    provKey: 'ollama',
+    name: 'Ollama (Local)',
+    requiresKey: false,
+    maskedKey: null,
+    models: ['qwen2.5:latest', 'qwen2.5:3b', 'llama3.1:8b', 'mistral:latest'],
+  },
+  {
+    provKey: 'groq',
+    name: 'Groq',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  },
+  {
+    provKey: 'deepseek',
+    name: 'DeepSeek',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+  },
+  {
+    provKey: 'xai',
+    name: 'xAI (Grok)',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['grok-2-latest', 'grok-beta'],
+  },
+  {
+    provKey: 'mistral',
+    name: 'Mistral AI',
+    requiresKey: true,
+    maskedKey: null,
+    models: ['mistral-large-latest', 'codestral-latest', 'open-mistral-nemo'],
+  },
+];
+
 export function ModelSelectorPopover({
   isOpen,
   onClose,
@@ -135,42 +194,67 @@ export function ModelSelectorPopover({
     };
   }, [isOpen, onClose]);
 
-  // Extract families from configured_providers or fallback to supported_providers
+  // Extract families by combining supported_providers and configured_providers, or fallback catalog
   const families = useMemo(() => {
-    const list: Array<{
-      provKey: string;
-      name: string;
-      requiresKey: boolean;
-      maskedKey: string | null;
-      models: string[];
-    }> = [];
-
+    const supported = llmConfig?.supported_providers;
     const configured = llmConfig?.configured_providers || {};
-    const configuredKeys = Object.keys(configured);
 
-    if (configuredKeys.length > 0) {
-      for (const [provKey, info] of Object.entries(configured)) {
+    if (supported && Object.keys(supported).length > 0) {
+      const list: Array<{
+        provKey: string;
+        name: string;
+        requiresKey: boolean;
+        maskedKey: string | null;
+        models: string[];
+      }> = [];
+
+      for (const [provKey, meta] of Object.entries(supported)) {
+        const confInfo = configured[provKey];
+        const models = Array.from(
+          new Set([
+            ...(confInfo?.available_models || []),
+            ...(meta.recommended_models || []),
+            ...(meta.default_model ? [meta.default_model] : []),
+          ])
+        );
+
         list.push({
           provKey,
-          name: info.name,
-          requiresKey: info.requires_key,
-          maskedKey: info.masked_key,
-          models: info.available_models || [],
+          name: meta.name || provKey,
+          requiresKey: meta.requires_key ?? true,
+          maskedKey: confInfo?.masked_key || null,
+          models,
         });
       }
-    } else if (llmConfig?.supported_providers) {
-      for (const [provKey, meta] of Object.entries(llmConfig.supported_providers)) {
-        list.push({
-          provKey,
-          name: meta.name,
-          requiresKey: meta.requires_key,
-          maskedKey: null,
-          models: meta.recommended_models || [meta.default_model],
-        });
+
+      // Also include custom providers configured by user (e.g., custom_openai)
+      for (const [provKey, confInfo] of Object.entries(configured)) {
+        if (!supported[provKey]) {
+          list.push({
+            provKey,
+            name: confInfo.name || provKey,
+            requiresKey: confInfo.requires_key ?? true,
+            maskedKey: confInfo.masked_key || null,
+            models: confInfo.available_models || [],
+          });
+        }
       }
+
+      return list;
     }
 
-    return list;
+    const configuredKeys = Object.keys(configured);
+    if (configuredKeys.length > 0) {
+      return Object.entries(configured).map(([provKey, confInfo]) => ({
+        provKey,
+        name: confInfo.name || provKey,
+        requiresKey: confInfo.requires_key ?? true,
+        maskedKey: confInfo.masked_key || null,
+        models: confInfo.available_models || [],
+      }));
+    }
+
+    return DEFAULT_FAMILIES;
   }, [llmConfig]);
 
   // Filtered families based on search query
@@ -251,8 +335,14 @@ export function ModelSelectorPopover({
 
                 <div className={styles.modelRows}>
                   {fam.models.map((modelName) => {
+                    const isProviderMatch =
+                      llmConfig?.provider === fam.provKey ||
+                      currentProvider === fam.provKey ||
+                      ((fam.provKey === 'google' || fam.provKey === 'google_genai') &&
+                        (currentProvider === 'google' || currentProvider === 'google_genai' || llmConfig?.provider === 'google' || llmConfig?.provider === 'google_genai'));
+
                     const isSelected =
-                      (llmConfig?.provider === fam.provKey || currentProvider === fam.provKey) &&
+                      isProviderMatch &&
                       (llmConfig?.model === modelName || currentModel === modelName);
 
                     return (

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { Spinner, DocumentIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
+import { Spinner, PlusIcon } from '@/components/icons';
+import { BoardingPassTacticalIllustration } from '@/components/illustrations';
 
 interface WalletDropzoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -14,6 +16,7 @@ export function WalletDropzone({
   onRawTextPasted,
   isScanning,
 }: WalletDropzoneProps) {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,28 +82,37 @@ export function WalletDropzone({
       onClick={() => {
         if (!isScanning) fileInputRef.current?.click();
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!isScanning) fileInputRef.current?.click();
+        }
+      }}
       role="button"
       aria-label="Upload ticket documents or boarding passes"
       style={{
         border: `2px dashed ${
-          isDragOver ? 'var(--color-accent-primary)' : isScanning ? 'var(--color-accent-primary)' : 'var(--color-border-subtle)'
+          isDragOver
+            ? 'var(--color-accent-teal, #0F4C5C)'
+            : isScanning
+            ? 'var(--color-accent-primary, #0F4C5C)'
+            : 'var(--color-border, #E2D9CC)'
         }`,
         background: isDragOver
-          ? 'rgba(15, 76, 92, 0.08)'
+          ? 'rgba(15, 76, 92, 0.05)'
           : isScanning
           ? 'rgba(15, 76, 92, 0.04)'
-          : 'var(--color-surface-card)',
-        borderRadius: '12px',
-        padding: '1.75rem 1.5rem',
+          : 'var(--color-surface-card, #FAF6F0)',
+        borderRadius: '20px',
+        padding: '2rem 1.5rem',
         textAlign: 'center',
         cursor: isScanning ? 'wait' : 'pointer',
-        transition: 'all 0.2s ease',
+        transition: 'all 0.18s ease',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '0.65rem',
-        fontFamily: 'var(--font-mono, monospace)',
+        gap: '10px',
         outline: 'none',
       }}
     >
@@ -115,71 +127,89 @@ export function WalletDropzone({
 
       {isScanning ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-          <Spinner size={26} color="var(--color-accent-primary)" />
+          <Spinner size={26} color="var(--color-accent-primary, #0F4C5C)" />
           <span
             style={{
               fontSize: '12px',
               fontWeight: 700,
-              color: 'var(--color-accent-primary)',
+              color: 'var(--color-accent-primary, #0F4C5C)',
               letterSpacing: '1px',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           >
             PARSING CREDENTIALS… DECODING BARCODES
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+          <span
+            className="font-mono text-xs text-muted"
+            style={{ fontSize: '11px', color: 'var(--color-text-muted, #566B76)' }}
+          >
             Extracting BCBP payloads & booking records deterministically
           </span>
         </div>
       ) : (
         <>
-          <div
+          <div style={{ pointerEvents: 'none' }}>
+            <BoardingPassTacticalIllustration width={130} height={85} />
+          </div>
+
+          <span
             style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '50%',
-              width: '44px',
-              height: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: 'var(--shadow-sm)',
+              fontSize: '15px',
+              fontWeight: 700,
+              color: 'var(--color-text-primary, #1A2B32)',
+              marginTop: '4px',
             }}
           >
-            <DocumentIcon size={22} color="var(--color-accent-primary)" />
-          </div>
-          <div>
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: 700,
-                color: isDragOver ? 'var(--color-accent-primary)' : 'var(--color-text-main)',
-                letterSpacing: '0.5px',
-              }}
-            >
-              DROP TICKETS, BOARDING PASSES OR HOTEL CONFIRMATIONS HERE
-            </span>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Supports PDF, Apple Wallet (.pkpass), PNG/JPEG barcodes, or paste text clipboard
-            </div>
-          </div>
-          <div
+            {t('wallet.dropzone_desc')}
+          </span>
+
+          <span
+            className="font-mono text-xs text-muted"
+            style={{ fontSize: '11px', color: 'var(--color-text-muted, #566B76)' }}
+          >
+            {t('wallet.supported_formats')}
+          </span>
+
+          <button
+            type="button"
+            disabled={isScanning}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
             style={{
+              marginTop: '8px',
+              background: 'var(--color-surface-raised, #FFFFFF)',
+              border: '1px solid var(--color-border, #E2D9CC)',
+              borderRadius: '9999px',
+              padding: '8px 22px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--color-text-primary, #1A2B32)',
+              cursor: isScanning ? 'wait' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              color: 'var(--color-text-main)',
-              padding: '4px 12px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: 600,
-              marginTop: '4px',
-              boxShadow: 'var(--shadow-sm)',
+              gap: '8px',
+              boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(15, 76, 92, 0.05))',
+              transition: 'all 0.15s ease',
             }}
           >
-            <span>or click to browse files</span>
-          </div>
+            <div
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: 'var(--color-hero-bg, #0F4C5C)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <PlusIcon size={12} color="#FFFFFF" />
+            </div>
+            <span>{t('wallet.browse_files')}</span>
+          </button>
         </>
       )}
     </div>

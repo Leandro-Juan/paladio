@@ -12,6 +12,7 @@ import {
   setupMasterAdmin,
 } from '@/utils/api';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useLocaleStore } from '@/stores/localeStore';
 
 interface AuthContextType {
   user: User | null;
@@ -110,7 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     useNotificationStore.getState().initUser(user?.id || null);
-  }, [user?.id]);
+    const userLang = user?.preferences?.preferred_language as string | undefined;
+    if (userLang) {
+      useLocaleStore.getState().setLocale(userLang);
+    }
+  }, [user?.id, user?.preferences?.preferred_language]);
 
   return (
     <AuthContext.Provider

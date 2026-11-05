@@ -56,11 +56,12 @@
   --shadow-md: 0 4px 12px rgba(15, 76, 92, 0.08);
   --shadow-lg: 0 8px 24px rgba(15, 76, 92, 0.12);
 
-  /* Typography System Defaults (Inter Universal) */
-  --font-display: var(--font-inter, 'Inter', sans-serif);
-  --font-body: var(--font-inter, 'Inter', sans-serif);
-  --font-mono: var(--font-inter, 'Inter', sans-serif);
-  --font-code: var(--font-inter, 'Inter', monospace);
+  /* Typography System Defaults (Inter Universal Multi-Script Stack) */
+  --font-universal-fallbacks: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", "Noto Sans SC", "Noto Sans KR", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Hebrew", sans-serif;
+  --font-display: var(--font-inter, 'Inter', var(--font-universal-fallbacks));
+  --font-body: var(--font-inter, 'Inter', var(--font-universal-fallbacks));
+  --font-mono: var(--font-mono, 'JetBrains Mono', monospace);
+  --font-code: var(--font-mono, 'JetBrains Mono', monospace);
 
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -1025,4 +1026,47 @@ a {
     transform: translateY(0) scale(1);
   }
 }
+
+/* ==========================================================================
+   Internationalization & RTL (Right-to-Left) Layout Rules
+   ========================================================================== */
+[dir="rtl"] {
+  text-align: start;
+}
+
+[dir="rtl"] .flip-in-rtl {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .icon-chevron-right,
+[dir="rtl"] .icon-arrow-right {
+  transform: scaleX(-1);
+}
+
+@keyframes paladioFadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media print {
+  header,
+  nav,
+  button,
+  [role="dialog"],
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+}
+
 

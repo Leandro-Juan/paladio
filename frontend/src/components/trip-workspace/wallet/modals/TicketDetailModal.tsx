@@ -9,7 +9,7 @@ import { CodeRenderer } from '../codes/CodeRenderer';
 import { SecretField } from '../parts/SecretField';
 import { CopyButton } from '../parts/CopyButton';
 import { formatTicketDateTime } from '@/lib/wallet/format';
-import { TicketIcon, SunIcon, CloseIcon, PinIcon } from '@/components/icons';
+import { TicketIcon, SunIcon, CloseIcon, PinIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -412,6 +412,9 @@ export function TicketDetailModal({
                 background: currentIndex <= 0 ? 'transparent' : '#FFFFFF',
                 border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
                 color: currentIndex <= 0 ? '#CBD5E1' : 'var(--color-text-primary, #0F172A)',
                 padding: '6px 14px',
                 fontSize: '11px',
@@ -419,7 +422,7 @@ export function TicketDetailModal({
                 fontWeight: 600,
               }}
             >
-              &larr; PREVIOUS
+              <ChevronLeftIcon size={12} /> PREVIOUS
             </button>
 
             <span style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
@@ -431,6 +434,9 @@ export function TicketDetailModal({
               disabled={currentIndex >= tickets.length - 1}
               onClick={() => onSelectTicket(tickets[currentIndex + 1])}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
                 background: currentIndex >= tickets.length - 1 ? 'transparent' : '#FFFFFF',
                 border: '1px solid var(--color-border, #CBD5E1)',
                 borderRadius: '6px',
@@ -441,7 +447,7 @@ export function TicketDetailModal({
                 fontWeight: 600,
               }}
             >
-              NEXT &rarr;
+              NEXT <ChevronRightIcon size={12} />
             </button>
           </div>
         )}

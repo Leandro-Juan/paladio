@@ -183,6 +183,7 @@ async def update_llm_configuration(
             api_key=payload.api_key,
             base_url=payload.base_url,
         )
+        configured_providers = await LLMService.get_configured_providers(session)
         return {
             "status": "success",
             "config": {
@@ -191,6 +192,8 @@ async def update_llm_configuration(
                 "base_url": saved.base_url,
                 "has_api_key": bool(saved.api_key),
                 "masked_api_key": mask_api_key(saved.api_key),
+                "supported_providers": SUPPORTED_PROVIDERS,
+                "configured_providers": configured_providers,
             },
         }
     except Exception as e:

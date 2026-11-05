@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Modal } from './Modal';
+import { useTranslation } from '@/hooks/useTranslation';
+import { LanguagePickerModal } from '@/components/common/LanguagePickerModal';
 
 interface UserMenuProps {
   isCollapsed?: boolean;
@@ -12,9 +13,10 @@ interface UserMenuProps {
 
 export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProps) {
   const { user, logout } = useAuth();
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -60,7 +62,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
 
   const handleHelpClick = () => {
     setIsOpen(false);
-    setShowHelpModal(true);
+    router.push('/help');
   };
 
   const handleLogoutClick = () => {
@@ -356,9 +358,62 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
-              <span>Settings</span>
+              <span>{t('nav.config')}</span>
             </button>
 
+            {/* Language Selector */}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setIsLanguageModalOpen(true);
+              }}
+              role="menuitem"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: '7px 8px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: 'var(--color-text-primary)',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(15, 76, 92, 0.08)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <span>{t('nav.change_language')}</span>
+              </div>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  background: 'var(--color-surface-raised, rgba(0, 0, 0, 0.05))',
+                  color: 'var(--color-text-muted)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                {locale ? locale.toUpperCase() : 'EN'}
+              </span>
+            </button>
 
             {/* Help */}
             <button
@@ -424,9 +479,9 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
+                <line x1="2" y1="12" x2="9" y2="12" />
               </svg>
-              <span>Log out</span>
+              <span>{t('nav.logout')}</span>
             </button>
           </div>
 
@@ -460,30 +515,11 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
         </div>
       )}
 
-      {/* Help Modal */}
-      <Modal
-        isOpen={showHelpModal}
-        title="Paladio Sovereign Engine Help"
-        message="Paladio is an air-gappable, sovereign travel itinerary optimization engine."
-        confirmText="CLOSE"
-        onConfirm={() => setShowHelpModal(false)}
-        onCancel={() => setShowHelpModal(false)}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', color: 'var(--color-text-main)' }}>
-          <div>
-            <strong>Keyboard Shortcuts:</strong>
-            <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-              <li><code>Ctrl + B</code> / <code>Cmd + B</code>: Toggle sidebar collapse</li>
-            </ul>
-          </div>
-          <div>
-            <strong>Instance Management:</strong>
-            <p style={{ margin: '4px 0 0 0' }}>
-              Access administrative settings, GTFS feeds, and telemetry via the <strong>Settings</strong> menu option.
-            </p>
-          </div>
-        </div>
-      </Modal>
+      {/* Language Picker Modal */}
+      <LanguagePickerModal
+        isOpen={isLanguageModalOpen}
+        onClose={() => setIsLanguageModalOpen(false)}
+      />
     </div>
   );
 }

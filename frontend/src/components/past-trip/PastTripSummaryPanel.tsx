@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import Link from 'next/link';
 import type { TripParticipant, TripSettlement } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 
 interface PastTripSummaryPanelProps {
-  tripId: string;
   destination: string;
   startDate: string;
   endDate: string;
@@ -20,7 +18,6 @@ interface PastTripSummaryPanelProps {
 }
 
 export function PastTripSummaryPanel({
-  tripId,
   destination,
   startDate,
   endDate,
@@ -87,75 +84,6 @@ export function PastTripSummaryPanel({
         gap: '1.25rem',
       }}
     >
-      {/* Travelers / friends strip (matching mockup) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          padding: '0.85rem 1rem',
-          background: 'var(--color-surface-card, #FAF6F0)',
-          borderRadius: '14px',
-          border: '1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.08))',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {participants.slice(0, 4).map((p, idx) => (
-            <div
-              key={p.id || idx}
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: idx === 0 ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-accent-teal-mid, #1B8FA6)',
-                color: '#FFFFFF',
-                border: '2px solid #FFFFFF',
-                marginLeft: idx > 0 ? '-8px' : 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-display, "Jost", sans-serif)',
-                fontWeight: 700,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-              }}
-            >
-              {(p.name || 'T').charAt(0).toUpperCase()}
-            </div>
-          ))}
-          {participants.length === 0 && (
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: 'var(--color-accent-primary, #0F4C5C)',
-                color: '#FFFFFF',
-                border: '2px solid #FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-display, "Jost", sans-serif)',
-                fontWeight: 700,
-              }}
-            >
-              1
-            </div>
-          )}
-        </div>
-        <span
-          className="font-mono"
-          style={{
-            fontSize: '0.76rem',
-            color: 'var(--color-text-primary, #1A2B32)',
-            fontWeight: 500,
-          }}
-        >
-          {travelersCount} {travelersCount === 1 ? 'traveler explored this route' : 'travelers completed this mission'}
-        </span>
-      </div>
-
       {/* Dates and Travelers Key-Value Table (matching mockup) */}
       <div
         style={{
@@ -212,59 +140,35 @@ export function PastTripSummaryPanel({
         </div>
       </div>
 
-      {/* Spend Box & Action (matching mockup "Book now" area) */}
+      {/* Spend Box */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
+          gap: '2px',
           paddingTop: '0.5rem',
           borderTop: '1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.08))',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span className="font-mono text-muted" style={{ fontSize: '0.7rem' }}>
-            {days} Days / {nights} Nights
-          </span>
-          <span
-            className="font-display"
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: 'var(--color-accent-teal, #0F4C5C)',
-              lineHeight: 1.2,
-            }}
-          >
-            {currencySymbol} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          {travelersCount > 1 && (
-            <span className="font-mono text-muted" style={{ fontSize: '0.65rem' }}>
-              ~{currencySymbol} {perPersonCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / person
-            </span>
-          )}
-        </div>
-
-        <Link
-          href={`/trips/${tripId}?workspace=1`}
+        <span className="font-mono text-muted" style={{ fontSize: '0.7rem' }}>
+          {days} Days / {nights} Nights
+        </span>
+        <span
+          className="font-display"
           style={{
-            padding: '10px 20px',
-            background: 'var(--color-accent-primary, #0F4C5C)',
-            color: '#FFFFFF',
-            borderRadius: '999px',
-            fontFamily: 'var(--font-display, "Jost", sans-serif)',
-            fontSize: '0.85rem',
+            fontSize: '1.25rem',
             fontWeight: 700,
-            letterSpacing: '0.02em',
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(15, 76, 92, 0.25)',
-            transition: 'all 0.15s ease',
+            color: 'var(--color-accent-teal, #0F4C5C)',
+            lineHeight: 1.2,
           }}
         >
-          Open Workspace
-        </Link>
+          {currencySymbol} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+        {travelersCount > 1 && (
+          <span className="font-mono text-muted" style={{ fontSize: '0.65rem' }}>
+            ~{currencySymbol} {perPersonCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / person
+          </span>
+        )}
       </div>
 
       {/* Destination Photo Card (on the bottom right as requested) */}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { ChevronLeftIcon } from '@/components/icons';
 import type { Trip, TripExpense, TripSettlement } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTripTickets } from '@/hooks/useTripTickets';
@@ -22,23 +23,6 @@ interface PastTripRecapProps {
   trip: Trip;
   onTripUpdated?: () => void;
 }
-
-const formatDateRange = (start?: string, end?: string): string => {
-  if (!start) return '';
-  try {
-    const dStart = new Date(start);
-    if (isNaN(dStart.getTime())) return start;
-    const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-    const startStr = dStart.toLocaleDateString(undefined, opt);
-    if (!end) return startStr;
-    const dEnd = new Date(end);
-    if (isNaN(dEnd.getTime())) return startStr;
-    const endStr = dEnd.toLocaleDateString(undefined, opt);
-    return `${startStr} — ${endStr}`;
-  } catch {
-    return start;
-  }
-};
 
 export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
   const { user } = useAuth();
@@ -357,7 +341,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               fontWeight: 600,
             }}
           >
-            <span style={{ fontSize: '12px' }}>&larr;</span> VAULT
+            <ChevronLeftIcon size={12} /> VAULT
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
@@ -376,42 +360,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             >
               {trip.destination}
             </h1>
-            {trip.start_date && (
-              <span
-                className="font-mono text-muted"
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--color-text-muted)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {formatDateRange(trip.start_date, trip.end_date)}
-              </span>
-            )}
           </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link
-            href={`/trips/${tripId}?workspace=1`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: 'var(--color-text-primary)',
-              textDecoration: 'none',
-              fontSize: '0.75rem',
-              fontFamily: 'var(--font-mono)',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.05))',
-              border: '1px solid var(--color-border)',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            OPEN WORKSPACE &rarr;
-          </Link>
         </div>
       </header>
 
@@ -453,8 +402,6 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             startDate={trip.start_date}
             endDate={trip.end_date}
             travelersCount={Math.max(1, trip.participants?.length || 1)}
-            totalCost={totalCost}
-            currency={tripCurrency}
             origin={itin.travel_constraints?.departure_city}
           />
 
@@ -542,7 +489,6 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             {/* Right Panel: Travelers, Dates, Spend, Action, Photo */}
             <aside>
               <PastTripSummaryPanel
-                tripId={tripId}
                 destination={trip.destination}
                 startDate={trip.start_date}
                 endDate={trip.end_date}

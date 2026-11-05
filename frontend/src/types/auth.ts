@@ -27,6 +27,8 @@ export interface CreateUserData {
   username: string;
   password: string;
   role?: UserRole;
+  preferred_language?: string;
+  preferences?: Record<string, unknown>;
 }
 
 export interface UpdateUserData {

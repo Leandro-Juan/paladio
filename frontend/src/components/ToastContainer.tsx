@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { ToastItem, NotificationType } from '@/types/notification';
 import { formatRelativeTime } from '@/utils/date';
-import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon } from '@/components/icons';
+import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 
 const TOAST_THEMES: Record<NotificationType, { border: string; bg: string; icon: React.ReactNode; text: string }> = {
   info: { border: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', icon: <InfoIcon size={12} />, text: 'var(--color-link)' },
@@ -111,13 +111,16 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
               onClick={onDismiss}
               className="font-mono"
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
                 fontSize: '10px',
                 color: theme.border,
                 fontWeight: 600,
                 textDecoration: 'none',
               }}
             >
-              {notification.actionLabel || 'View'} →
+              {notification.actionLabel || 'View'} <ChevronRightIcon size={10} />
             </Link>
           </div>
         )}

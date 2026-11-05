@@ -10,6 +10,7 @@ import {
   RadarIcon,
   Spinner,
   TrendingDownIcon,
+  ChevronRightIcon,
 } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './Monitoring.module.css';
@@ -146,17 +147,7 @@ export default function MonitoringPage() {
           {/* Top Telemetry Header */}
           <header className={styles.pageHeader}>
         <div className={styles.headerTitleGroup}>
-          <div className={styles.titleWithBadge}>
-            <span className={styles.telemetryTag} aria-hidden="true">{"// AIRFARE_DEAL_RADAR"}</span>
-            <div className={styles.liveIndicator}>
-              <span className={styles.livePulseDot} />
-              <span className={styles.liveText}>LIVE MONITORING</span>
-            </div>
-          </div>
           <h1 className={styles.pageTitle}>Route Price & Tariff Telemetry</h1>
-          <p className={styles.pageSubtitle}>
-            Continuous air-gapped price tracking across European transit corridors with empirical quantile baselines.
-          </p>
         </div>
 
         <div className={styles.headerActions}>
@@ -232,7 +223,7 @@ export default function MonitoringPage() {
                   <h2 className={styles.dealRouteTitle}>
                     <span>{deal.origin_name}</span>
                     <span className={styles.dealRouteIata}>({deal.origin_iata})</span>
-                    <span>→</span>
+                    <ChevronRightIcon size={14} style={{ opacity: 0.6 }} />
                     <span>{deal.destination_name}</span>
                     <span className={styles.dealRouteIata}>({deal.destination_code})</span>
                   </h2>
@@ -384,7 +375,7 @@ export default function MonitoringPage() {
                       )
                     }
                   >
-                    Make it a Trip ➔
+                    Make it a Trip <ChevronRightIcon size={14} />
                   </button>
                 </div>
               </div>
@@ -505,7 +496,7 @@ export default function MonitoringPage() {
                       <td className={styles.corridorCell}>
                         <div className={styles.routeCodes}>
                           <span className={styles.iataCode}>{r.origin_iata}</span>
-                          <span className={styles.arrow} aria-hidden="true">→</span>
+                          <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
                           <span className={styles.iataCode}>{r.destination_code}</span>
                         </div>
                         <span className={styles.citySub}>{r.destination_name}</span>
@@ -574,7 +565,7 @@ export default function MonitoringPage() {
                             selectRoute(r.id);
                           }}
                         >
-                          Inspect →
+                          Inspect <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} />
                         </button>
                       </td>
                     </tr>

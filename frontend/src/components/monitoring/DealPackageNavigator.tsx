@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
-import { TrendingDownIcon } from '@/components/icons';
+import { TrendingDownIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import styles from './DealPackageNavigator.module.css';
 
@@ -100,7 +100,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             <h3 className={styles.dealRouteTitle}>
               <span>{deal.origin_name}</span>
               <span className={styles.routeIata}>({deal.origin_iata})</span>
-              <span className={styles.arrowSep} aria-hidden="true">→</span>
+              <ChevronRightIcon size={14} className={styles.arrowSep} aria-hidden="true" />
               <span>{deal.destination_name}</span>
               <span className={styles.routeIata}>({deal.destination_code})</span>
             </h3>
@@ -250,7 +250,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
               className={styles.makeTripBtn}
               onClick={handleMakeTrip}
             >
-              Make it a Trip ➔
+              Make it a Trip <ChevronRightIcon size={14} />
             </button>
           </div>
         </div>

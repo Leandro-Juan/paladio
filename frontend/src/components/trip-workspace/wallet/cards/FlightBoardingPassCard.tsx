@@ -1,11 +1,12 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TicketShell } from './TicketShell';
 import { CodeRenderer } from '../codes/CodeRenderer';
 import { CopyButton } from '../parts/CopyButton';
-import { PlaneIcon } from '@/components/icons';
+import { PlaneIcon, ChevronRightIcon } from '@/components/icons';
 import { formatTicketDateTime, calculateDuration } from '@/lib/wallet/format';
 
 interface FlightBoardingPassCardProps {
@@ -23,6 +24,7 @@ export function FlightBoardingPassCard({
   onViewDetail,
   onAttachFile,
 }: FlightBoardingPassCardProps) {
+  const { t } = useTranslation();
   const meta = ticket.metadata || {};
   const originIata = (meta.origin_iata as string) || 'DEP';
   const destIata = (meta.destination_iata as string) || 'ARR';
@@ -156,7 +158,9 @@ export function FlightBoardingPassCard({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-          <div style={{ color: '#0284C7', fontSize: '1.4rem', fontWeight: 800 }}>&rarr;</div>
+          <div style={{ color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRightIcon size={20} color="#0284C7" />
+          </div>
           {duration && (
             <span
               className="font-mono"
@@ -203,13 +207,13 @@ export function FlightBoardingPassCard({
         }}
       >
         <div>
-          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>DEP: </span>
+          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.departure')}: </span>
           <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
             {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
           </span>
         </div>
         <div>
-          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>ARR: </span>
+          <span style={{ color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.arrival')}: </span>
           <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
             {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
           </span>
@@ -231,7 +235,7 @@ export function FlightBoardingPassCard({
       >
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            SEAT
+            {t('wallet.seat')}
           </div>
           <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {seat}
@@ -239,7 +243,7 @@ export function FlightBoardingPassCard({
         </div>
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            GATE
+            {t('wallet.gate')}
           </div>
           <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {gate || '--'}
@@ -255,7 +259,7 @@ export function FlightBoardingPassCard({
         </div>
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            CLASS
+            {t('wallet.class')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: '#0284C7', fontWeight: 600 }}>
             {cabinClass}

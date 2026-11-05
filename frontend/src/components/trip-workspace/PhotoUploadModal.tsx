@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useIsMounted } from '@/hooks/useIsMounted';
 import { CameraTacticalIllustration } from '@/components/illustrations';
 import { CloseIcon, PlusIcon, Spinner, UploadIcon, VideoIcon } from '@/components/icons';
 
@@ -17,6 +19,7 @@ export function PhotoUploadModal({
   onUpload,
   isUploading = false,
 }: PhotoUploadModalProps) {
+  const isMounted = useIsMounted();
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,12 +32,20 @@ export function PhotoUploadModal({
     onClose();
   }, [isUploading, onClose]);
 
-  // Close on Escape key & lock body scroll
+  // Close on Escape key & lock scroll on body and active tab panes
   useEffect(() => {
     if (!isOpen) return;
 
-    const prevOverflow = document.body.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    // Lock any active scrollable tab pane in the workspace
+    const tabPanes = document.querySelectorAll<HTMLElement>('.animate-tab-pane');
+    const prevTabPanesOverflow: { el: HTMLElement; overflow: string }[] = [];
+    tabPanes.forEach((el) => {
+      prevTabPanesOverflow.push({ el, overflow: el.style.overflowY });
+      el.style.overflowY = 'hidden';
+    });
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -45,7 +56,10 @@ export function PhotoUploadModal({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      prevTabPanesOverflow.forEach(({ el, overflow }) => {
+        el.style.overflowY = overflow;
+      });
     };
   }, [isOpen, handleClose]);
 
@@ -61,7 +75,7 @@ export function PhotoUploadModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted || typeof document === 'undefined') return null;
 
   const handleFilesAdded = (files: FileList | File[]) => {
     const valid = Array.from(files).filter(
@@ -85,21 +99,27 @@ export function PhotoUploadModal({
     handleClose();
   };
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         background: 'var(--color-scrim, rgba(15, 76, 92, 0.45))',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
+        overscrollBehavior: 'contain',
       }}
       role="dialog"
       aria-modal="true"
+      onWheel={(e) => {
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+        }
+      }}
     >
       {/* Hidden File Input */}
       <input
@@ -124,99 +144,42 @@ export function PhotoUploadModal({
           width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
+          overscrollBehavior: 'contain',
           boxShadow: '0 24px 60px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
         }}
       >
-        {/* ================= HEADER ================= */}
-        <div
-          style={{
-            padding: '1.5rem 1.75rem',
-            borderBottom: '1px solid var(--color-border, #E2D9CC)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '1rem',
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClose();
           }}
+          disabled={isUploading}
+          style={{
+            position: 'absolute',
+            top: '1rem',
+            right: '1rem',
+            zIndex: 10,
+            background: 'transparent',
+            border: 'none',
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            padding: '6px',
+            borderRadius: '8px',
+            color: 'var(--color-text-muted, #566B76)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.15s ease',
+          }}
+          title="Close"
+          aria-label="Close"
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '6px',
-                  background: 'var(--color-hero-bg, #0F4C5C)',
-                  color: '#FFFFFF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <PlusIcon size={14} color="#FFFFFF" />
-              </div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: 'var(--color-text-primary, #1A2B32)',
-                  fontFamily: 'var(--font-sans)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                Upload Destination Media
-              </h2>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  background: 'rgba(15, 76, 92, 0.08)',
-                  color: 'var(--color-hero-bg, #0F4C5C)',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                MEDIA VAULT // DYNAMIC MOSAIC
-              </span>
-            </div>
-            <p
-              style={{
-                margin: 0,
-                fontSize: '13px',
-                color: 'var(--color-text-muted, #566B76)',
-                lineHeight: 1.4,
-              }}
-            >
-              Upload authentic photos and videos of sights, waypoints, and memories. They will automatically pack into a harmonious mosaic based on their size.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isUploading}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: isUploading ? 'not-allowed' : 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              color: 'var(--color-text-muted, #566B76)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s ease',
-            }}
-            title="Close"
-          >
-            <CloseIcon size={18} />
-          </button>
-        </div>
+          <CloseIcon size={18} />
+        </button>
 
         {/* ================= BODY ================= */}
         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -498,6 +461,7 @@ export function PhotoUploadModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

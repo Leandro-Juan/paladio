@@ -1,0 +1,3718 @@
+{
+  "app/config/page.tsx": [
+    {
+      "line": 602,
+      "type": "jsx_text",
+      "text": "Instance Configuration",
+      "already_in_en": false
+    },
+    {
+      "line": 680,
+      "type": "attr:aria-label",
+      "text": "Switch to light mode",
+      "already_in_en": false
+    },
+    {
+      "line": 711,
+      "type": "jsx_text",
+      "text": "Pacific Jazz Light",
+      "already_in_en": false
+    },
+    {
+      "line": 734,
+      "type": "attr:title",
+      "text": "Cream #F6F0E1",
+      "already_in_en": false
+    },
+    {
+      "line": 735,
+      "type": "attr:title",
+      "text": "Paper #FFFBF0",
+      "already_in_en": false
+    },
+    {
+      "line": 736,
+      "type": "attr:title",
+      "text": "Deep Sea #0F4C5C",
+      "already_in_en": false
+    },
+    {
+      "line": 737,
+      "type": "attr:title",
+      "text": "Sun Red #D42A2F",
+      "already_in_en": false
+    },
+    {
+      "line": 738,
+      "type": "attr:title",
+      "text": "Gold #E2B33C",
+      "already_in_en": false
+    },
+    {
+      "line": 746,
+      "type": "attr:aria-label",
+      "text": "Switch to dark mode",
+      "already_in_en": false
+    },
+    {
+      "line": 769,
+      "type": "jsx_text",
+      "text": "Pacific Jazz Dark",
+      "already_in_en": false
+    },
+    {
+      "line": 792,
+      "type": "attr:title",
+      "text": "Abyss #08222B",
+      "already_in_en": false
+    },
+    {
+      "line": 793,
+      "type": "attr:title",
+      "text": "Card #0F333F",
+      "already_in_en": false
+    },
+    {
+      "line": 794,
+      "type": "attr:title",
+      "text": "Sidebar #061B22",
+      "already_in_en": false
+    },
+    {
+      "line": 795,
+      "type": "attr:title",
+      "text": "Sky Teal #7CC4D1",
+      "already_in_en": false
+    },
+    {
+      "line": 796,
+      "type": "attr:title",
+      "text": "Gold #E2B33C",
+      "already_in_en": false
+    },
+    {
+      "line": 804,
+      "type": "attr:aria-label",
+      "text": "Switch to Silent Waters palette",
+      "already_in_en": false
+    },
+    {
+      "line": 827,
+      "type": "jsx_text",
+      "text": "Silent Waters",
+      "already_in_en": false
+    },
+    {
+      "line": 850,
+      "type": "attr:title",
+      "text": "Light Cyan #E0FBFC",
+      "already_in_en": false
+    },
+    {
+      "line": 851,
+      "type": "attr:title",
+      "text": "Powder Blue #C2DFE3",
+      "already_in_en": false
+    },
+    {
+      "line": 852,
+      "type": "attr:title",
+      "text": "Pewter Mist #9DB4C0",
+      "already_in_en": false
+    },
+    {
+      "line": 853,
+      "type": "attr:title",
+      "text": "Slate Gray #5C6B73",
+      "already_in_en": false
+    },
+    {
+      "line": 854,
+      "type": "attr:title",
+      "text": "Gunmetal #253237",
+      "already_in_en": false
+    },
+    {
+      "line": 904,
+      "type": "attr:aria-label",
+      "text": "Set typography to Inter (Universal)",
+      "already_in_en": false
+    },
+    {
+      "line": 925,
+      "type": "jsx_text",
+      "text": "Inter (Universal)",
+      "already_in_en": false
+    },
+    {
+      "line": 956,
+      "type": "jsx_text",
+      "text": "The quick brown fox jumps over the lazy dog",
+      "already_in_en": false
+    },
+    {
+      "line": 965,
+      "type": "attr:aria-label",
+      "text": "Set typography to Classic Editorial",
+      "already_in_en": false
+    },
+    {
+      "line": 986,
+      "type": "jsx_text",
+      "text": "Classic Editorial",
+      "already_in_en": false
+    },
+    {
+      "line": 1015,
+      "type": "jsx_text",
+      "text": "The quick brown fox jumps over the lazy dog",
+      "already_in_en": false
+    },
+    {
+      "line": 1040,
+      "type": "attr:aria-label",
+      "text": "Set navigation to Sidebar",
+      "already_in_en": false
+    },
+    {
+      "line": 1064,
+      "type": "jsx_text",
+      "text": "Sidebar Navigation",
+      "already_in_en": false
+    },
+    {
+      "line": 1105,
+      "type": "attr:aria-label",
+      "text": "Set navigation to Floating Bottom Dock",
+      "already_in_en": false
+    },
+    {
+      "line": 1129,
+      "type": "jsx_text",
+      "text": "Floating Bottom Dock",
+      "already_in_en": false
+    },
+    {
+      "line": 1288,
+      "type": "jsx_text",
+      "text": "Spin Cylinder Dial",
+      "already_in_en": false
+    },
+    {
+      "line": 1374,
+      "type": "attr:title",
+      "text": "Choose Default Currency",
+      "already_in_en": false
+    },
+    {
+      "line": 1399,
+      "type": "jsx_text",
+      "text": "LOADING USER DIRECTORY...",
+      "already_in_en": false
+    },
+    {
+      "line": 1477,
+      "type": "jsx_text",
+      "text": "None",
+      "already_in_en": false
+    },
+    {
+      "line": 1816,
+      "type": "jsx_text",
+      "text": "ACTIVE BACKGROUND TASKS",
+      "already_in_en": false
+    },
+    {
+      "line": 1837,
+      "type": "jsx_text",
+      "text": "GTFS STATUS",
+      "already_in_en": false
+    },
+    {
+      "line": 1838,
+      "type": "jsx_text",
+      "text": "COMPILED IN VALHALLA",
+      "already_in_en": false
+    },
+    {
+      "line": 1839,
+      "type": "jsx_text",
+      "text": "OSM NETWORK",
+      "already_in_en": false
+    },
+    {
+      "line": 1840,
+      "type": "jsx_text",
+      "text": "SCHEDULE VALIDITY",
+      "already_in_en": false
+    },
+    {
+      "line": 2083,
+      "type": "jsx_text",
+      "text": "DOWNLOADING...",
+      "already_in_en": false
+    },
+    {
+      "line": 2267,
+      "type": "jsx_text",
+      "text": "INSTALLED VERSION",
+      "already_in_en": false
+    },
+    {
+      "line": 2282,
+      "type": "jsx_text",
+      "text": "REMOTE RELEASE",
+      "already_in_en": false
+    },
+    {
+      "line": 2316,
+      "type": "jsx_text",
+      "text": "AUTOMATIC UPDATES",
+      "already_in_en": false
+    },
+    {
+      "line": 2385,
+      "type": "jsx_text",
+      "text": "DOWNLOAD STATUS",
+      "already_in_en": false
+    },
+    {
+      "line": 2589,
+      "type": "attr:placeholder",
+      "text": "e.g. navigator",
+      "already_in_en": false
+    },
+    {
+      "line": 2611,
+      "type": "attr:placeholder",
+      "text": "e.g. navigator@paladio.internal (optional)",
+      "already_in_en": false
+    },
+    {
+      "line": 2632,
+      "type": "attr:placeholder",
+      "text": "Minimum 6 characters",
+      "already_in_en": false
+    },
+    {
+      "line": 2663,
+      "type": "jsx_text",
+      "text": "Standard User",
+      "already_in_en": false
+    },
+    {
+      "line": 2664,
+      "type": "jsx_text",
+      "text": "Administrator",
+      "already_in_en": false
+    },
+    {
+      "line": 2846,
+      "type": "attr:placeholder",
+      "text": "e.g. navigator",
+      "already_in_en": false
+    },
+    {
+      "line": 2868,
+      "type": "attr:placeholder",
+      "text": "navigator@paladio.internal (optional)",
+      "already_in_en": false
+    },
+    {
+      "line": 2889,
+      "type": "attr:placeholder",
+      "text": "Leave blank to keep unchanged",
+      "already_in_en": false
+    },
+    {
+      "line": 2920,
+      "type": "jsx_text",
+      "text": "Standard User",
+      "already_in_en": false
+    },
+    {
+      "line": 2921,
+      "type": "jsx_text",
+      "text": "Administrator",
+      "already_in_en": false
+    }
+  ],
+  "app/help/page.tsx": [
+    {
+      "line": 60,
+      "type": "attr:aria-label",
+      "text": "Toggle navigation drawer",
+      "already_in_en": false
+    },
+    {
+      "line": 69,
+      "type": "attr:title",
+      "text": "Paladio Dashboard",
+      "already_in_en": false
+    },
+    {
+      "line": 76,
+      "type": "jsx_text",
+      "text": "HELP CENTER",
+      "already_in_en": false
+    },
+    {
+      "line": 81,
+      "type": "attr:aria-label",
+      "text": "Back to App",
+      "already_in_en": false
+    },
+    {
+      "line": 86,
+      "type": "jsx_text",
+      "text": "Back to App",
+      "already_in_en": false
+    },
+    {
+      "line": 124,
+      "type": "jsx_text",
+      "text": "Help center",
+      "already_in_en": false
+    },
+    {
+      "line": 153,
+      "type": "jsx_text",
+      "text": "Explore Other Sections",
+      "already_in_en": false
+    }
+  ],
+  "app/login/page.tsx": [
+    {
+      "line": 84,
+      "type": "attr:alt",
+      "text": "Paladio Logo",
+      "already_in_en": false
+    },
+    {
+      "line": 110,
+      "type": "jsx_text",
+      "text": "First Run Detected:",
+      "already_in_en": false
+    },
+    {
+      "line": 161,
+      "type": "attr:placeholder",
+      "text": "admin or user@paladio.internal",
+      "already_in_en": false
+    }
+  ],
+  "app/monitoring/page.tsx": [
+    {
+      "line": 165,
+      "type": "attr:aria-label",
+      "text": "Monitoring summary metrics",
+      "already_in_en": false
+    },
+    {
+      "line": 167,
+      "type": "jsx_text",
+      "text": "Monitored Routes",
+      "already_in_en": false
+    },
+    {
+      "line": 170,
+      "type": "jsx_text",
+      "text": "Active Targets",
+      "already_in_en": false
+    },
+    {
+      "line": 175,
+      "type": "jsx_text",
+      "text": "Open Deal Alerts",
+      "already_in_en": false
+    },
+    {
+      "line": 180,
+      "type": "jsx_text",
+      "text": "Below P10 Target",
+      "already_in_en": false
+    },
+    {
+      "line": 185,
+      "type": "jsx_text",
+      "text": "Ticks Scanned Today",
+      "already_in_en": false
+    },
+    {
+      "line": 190,
+      "type": "jsx_text",
+      "text": "Live Observations",
+      "already_in_en": false
+    },
+    {
+      "line": 195,
+      "type": "jsx_text",
+      "text": "Average Savings",
+      "already_in_en": false
+    },
+    {
+      "line": 200,
+      "type": "jsx_text",
+      "text": "vs 30D Median",
+      "already_in_en": false
+    },
+    {
+      "line": 207,
+      "type": "attr:aria-label",
+      "text": "Active verified deal packages",
+      "already_in_en": false
+    },
+    {
+      "line": 237,
+      "type": "jsx_text",
+      "text": "Landed Package",
+      "already_in_en": false
+    },
+    {
+      "line": 426,
+      "type": "attr:placeholder",
+      "text": "Search by city, airport IATA, route...",
+      "already_in_en": false
+    },
+    {
+      "line": 437,
+      "type": "jsx_text",
+      "text": "Synchronizing route observations from TimescaleDB...",
+      "already_in_en": false
+    },
+    {
+      "line": 441,
+      "type": "jsx_text",
+      "text": "Telemetry Uplink Error",
+      "already_in_en": false
+    },
+    {
+      "line": 473,
+      "type": "jsx_text",
+      "text": "Corridor / Route",
+      "already_in_en": false
+    },
+    {
+      "line": 474,
+      "type": "jsx_text",
+      "text": "Status",
+      "already_in_en": true
+    },
+    {
+      "line": 475,
+      "type": "jsx_text",
+      "text": "Cadence",
+      "already_in_en": false
+    },
+    {
+      "line": 476,
+      "type": "jsx_text",
+      "text": "Current Fare",
+      "already_in_en": false
+    },
+    {
+      "line": 478,
+      "type": "jsx_text",
+      "text": "Target P10",
+      "already_in_en": false
+    },
+    {
+      "line": 479,
+      "type": "jsx_text",
+      "text": "Last Scan",
+      "already_in_en": false
+    },
+    {
+      "line": 480,
+      "type": "jsx_text",
+      "text": "Actions",
+      "already_in_en": true
+    },
+    {
+      "line": 543,
+      "type": "jsx_text",
+      "text": "Awaiting Tick",
+      "already_in_en": false
+    }
+  ],
+  "app/setup/page.tsx": [
+    {
+      "line": 98,
+      "type": "attr:alt",
+      "text": "Paladio Logo",
+      "already_in_en": false
+    },
+    {
+      "line": 123,
+      "type": "jsx_text",
+      "text": "First-Run Provisioning:",
+      "already_in_en": false
+    },
+    {
+      "line": 214,
+      "type": "attr:placeholder",
+      "text": "Minimum 6 characters",
+      "already_in_en": false
+    },
+    {
+      "line": 243,
+      "type": "attr:placeholder",
+      "text": "Re-enter password",
+      "already_in_en": false
+    }
+  ],
+  "app/vault/page.tsx": [
+    {
+      "line": 9,
+      "type": "jsx_text",
+      "text": "LOADING MAP DATA...",
+      "already_in_en": false
+    }
+  ],
+  "components/AppSidebar.tsx": [
+    {
+      "line": 99,
+      "type": "attr:title",
+      "text": "Expand navigation (Ctrl+B)",
+      "already_in_en": false
+    },
+    {
+      "line": 100,
+      "type": "attr:aria-label",
+      "text": "Expand sidebar",
+      "already_in_en": true
+    },
+    {
+      "line": 122,
+      "type": "attr:aria-label",
+      "text": "Main Navigation",
+      "already_in_en": false
+    },
+    {
+      "line": 131,
+      "type": "attr:title",
+      "text": "Paladio Control Center",
+      "already_in_en": false
+    },
+    {
+      "line": 136,
+      "type": "jsx_text",
+      "text": "Paladio",
+      "already_in_en": false
+    },
+    {
+      "line": 145,
+      "type": "attr:title",
+      "text": "Collapse sidebar (Ctrl+B)",
+      "already_in_en": false
+    },
+    {
+      "line": 146,
+      "type": "attr:aria-label",
+      "text": "Collapse sidebar",
+      "already_in_en": true
+    }
+  ],
+  "components/AuthGuard.tsx": [
+    {
+      "line": 72,
+      "type": "attr:aria-label",
+      "text": "Mobile Navigation Bar",
+      "already_in_en": false
+    },
+    {
+      "line": 77,
+      "type": "attr:aria-label",
+      "text": "Open navigation menu",
+      "already_in_en": false
+    },
+    {
+      "line": 86,
+      "type": "attr:aria-label",
+      "text": "Paladio Dashboard",
+      "already_in_en": false
+    }
+  ],
+  "components/Calendar.tsx": [
+    {
+      "line": 296,
+      "type": "jsx_text",
+      "text": "TOTAL MISSIONS",
+      "already_in_en": false
+    },
+    {
+      "line": 300,
+      "type": "jsx_text",
+      "text": "ACTIVE / QUEUED",
+      "already_in_en": false
+    },
+    {
+      "line": 304,
+      "type": "jsx_text",
+      "text": "ARCHIVED MISSIONS",
+      "already_in_en": false
+    },
+    {
+      "line": 351,
+      "type": "attr:title",
+      "text": "Jump to current date",
+      "already_in_en": false
+    },
+    {
+      "line": 352,
+      "type": "attr:aria-label",
+      "text": "Today",
+      "already_in_en": false
+    },
+    {
+      "line": 369,
+      "type": "attr:aria-label",
+      "text": "Annual view",
+      "already_in_en": false
+    },
+    {
+      "line": 380,
+      "type": "attr:aria-label",
+      "text": "Month focus view",
+      "already_in_en": false
+    },
+    {
+      "line": 395,
+      "type": "attr:aria-label",
+      "text": "Plan trips mode",
+      "already_in_en": false
+    },
+    {
+      "line": 406,
+      "type": "attr:aria-label",
+      "text": "Mark holidays mode",
+      "already_in_en": false
+    },
+    {
+      "line": 420,
+      "type": "jsx_text",
+      "text": "Holiday Mode Active:",
+      "already_in_en": false
+    },
+    {
+      "line": 437,
+      "type": "jsx_text",
+      "text": "PALETTE:",
+      "already_in_en": false
+    },
+    {
+      "line": 459,
+      "type": "attr:title",
+      "text": "Click to toggle Holiday / PTO painting mode",
+      "already_in_en": false
+    },
+    {
+      "line": 489,
+      "type": "jsx_text",
+      "text": "Active",
+      "already_in_en": false
+    },
+    {
+      "line": 493,
+      "type": "jsx_text",
+      "text": "Queued",
+      "already_in_en": false
+    },
+    {
+      "line": 497,
+      "type": "jsx_text",
+      "text": "Archived",
+      "already_in_en": false
+    },
+    {
+      "line": 501,
+      "type": "jsx_text",
+      "text": "Current day",
+      "already_in_en": false
+    },
+    {
+      "line": 750,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    }
+  ],
+  "components/FloatingDock.tsx": [
+    {
+      "line": 115,
+      "type": "attr:aria-label",
+      "text": "Main Navigation",
+      "already_in_en": false
+    }
+  ],
+  "components/HarmonicRadarWidget.tsx": [
+    {
+      "line": 103,
+      "type": "jsx_text",
+      "text": "Taste Star",
+      "already_in_en": false
+    },
+    {
+      "line": 117,
+      "type": "jsx_text",
+      "text": "TRAVEL PACE",
+      "already_in_en": false
+    },
+    {
+      "line": 123,
+      "type": "jsx_text",
+      "text": "BUDGET STRATEGY",
+      "already_in_en": false
+    }
+  ],
+  "components/MissionInspectorModal.tsx": [
+    {
+      "line": 95,
+      "type": "attr:aria-label",
+      "text": "Close inspector",
+      "already_in_en": true
+    },
+    {
+      "line": 136,
+      "type": "jsx_text",
+      "text": "WAYPOINTS / POIS",
+      "already_in_en": false
+    },
+    {
+      "line": 142,
+      "type": "jsx_text",
+      "text": "SYSTEM ID",
+      "already_in_en": false
+    }
+  ],
+  "components/NotificationBell.tsx": [
+    {
+      "line": 24,
+      "type": "attr:title",
+      "text": "View Notifications",
+      "already_in_en": false
+    }
+  ],
+  "components/NotificationCenter.tsx": [
+    {
+      "line": 155,
+      "type": "attr:aria-label",
+      "text": "Notifications",
+      "already_in_en": true
+    },
+    {
+      "line": 205,
+      "type": "attr:title",
+      "text": "Mark all as read",
+      "already_in_en": false
+    },
+    {
+      "line": 224,
+      "type": "attr:title",
+      "text": "Clear all notifications",
+      "already_in_en": false
+    },
+    {
+      "line": 252,
+      "type": "attr:title",
+      "text": "No Notifications Yet",
+      "already_in_en": false
+    },
+    {
+      "line": 408,
+      "type": "attr:title",
+      "text": "Remove notification",
+      "already_in_en": false
+    }
+  ],
+  "components/PreferenceModelSection.tsx": [
+    {
+      "line": 181,
+      "type": "jsx_text",
+      "text": "ACTIVE WEIGHTS",
+      "already_in_en": false
+    }
+  ],
+  "components/PreferenceRadar.tsx": [
+    {
+      "line": 24,
+      "type": "jsx_text",
+      "text": "No data available",
+      "already_in_en": false
+    },
+    {
+      "line": 54,
+      "type": "jsx_text",
+      "text": "Affinity:",
+      "already_in_en": false
+    }
+  ],
+  "components/SyncGtfsTripsModal.tsx": [
+    {
+      "line": 164,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 198,
+      "type": "jsx_text",
+      "text": "No planned trips found.",
+      "already_in_en": false
+    }
+  ],
+  "components/ToastContainer.tsx": [
+    {
+      "line": 132,
+      "type": "attr:title",
+      "text": "Dismiss",
+      "already_in_en": false
+    }
+  ],
+  "components/TransitLegView.tsx": [
+    {
+      "line": 152,
+      "type": "attr:title",
+      "text": "Public transit fares are fetched automatically and may not be 100% accurate",
+      "already_in_en": false
+    }
+  ],
+  "components/TripTimeline.tsx": [
+    {
+      "line": 234,
+      "type": "jsx_text",
+      "text": "No route data available.",
+      "already_in_en": false
+    },
+    {
+      "line": 263,
+      "type": "attr:aria-label",
+      "text": "Transit upgrade info",
+      "already_in_en": false
+    },
+    {
+      "line": 371,
+      "type": "jsx_text",
+      "text": "UPGRADING TO REAL PUBLIC TRANSIT...",
+      "already_in_en": false
+    },
+    {
+      "line": 376,
+      "type": "jsx_text",
+      "text": "UPGRADE TO REAL PUBLIC TRANSIT",
+      "already_in_en": false
+    }
+  ],
+  "components/UserMenu.tsx": [
+    {
+      "line": 78,
+      "type": "attr:aria-label",
+      "text": "User menu",
+      "already_in_en": false
+    },
+    {
+      "line": 122,
+      "type": "attr:aria-label",
+      "text": "User menu",
+      "already_in_en": false
+    },
+    {
+      "line": 231,
+      "type": "attr:aria-label",
+      "text": "User navigation",
+      "already_in_en": false
+    },
+    {
+      "line": 392,
+      "type": "jsx_text",
+      "text": "Help",
+      "already_in_en": false
+    },
+    {
+      "line": 454,
+      "type": "jsx_text",
+      "text": "paladio",
+      "already_in_en": false
+    },
+    {
+      "line": 455,
+      "type": "jsx_text",
+      "text": "v2.0.0",
+      "already_in_en": false
+    }
+  ],
+  "components/VaultMap.tsx": [
+    {
+      "line": 919,
+      "type": "jsx_text",
+      "text": "MISSION ARCHIVE",
+      "already_in_en": false
+    },
+    {
+      "line": 929,
+      "type": "attr:aria-label",
+      "text": "Close trip preview",
+      "already_in_en": false
+    },
+    {
+      "line": 930,
+      "type": "attr:title",
+      "text": "Close trip preview",
+      "already_in_en": false
+    },
+    {
+      "line": 1220,
+      "type": "jsx_text",
+      "text": "SEE TRIP",
+      "already_in_en": false
+    }
+  ],
+  "components/VaultStatsTab.tsx": [
+    {
+      "line": 190,
+      "type": "attr:aria-label",
+      "text": "Open travel statistics",
+      "already_in_en": false
+    },
+    {
+      "line": 191,
+      "type": "attr:title",
+      "text": "Open travel statistics",
+      "already_in_en": false
+    },
+    {
+      "line": 225,
+      "type": "attr:aria-label",
+      "text": "Close travel statistics",
+      "already_in_en": false
+    },
+    {
+      "line": 226,
+      "type": "attr:title",
+      "text": "Close travel statistics",
+      "already_in_en": false
+    },
+    {
+      "line": 277,
+      "type": "attr:aria-label",
+      "text": "Travel statistics panel",
+      "already_in_en": false
+    },
+    {
+      "line": 355,
+      "type": "jsx_text",
+      "text": "completed",
+      "already_in_en": true
+    },
+    {
+      "line": 357,
+      "type": "jsx_text",
+      "text": "sites visited",
+      "already_in_en": false
+    },
+    {
+      "line": 359,
+      "type": "jsx_text",
+      "text": "countries",
+      "already_in_en": false
+    },
+    {
+      "line": 506,
+      "type": "jsx_text",
+      "text": "Month",
+      "already_in_en": false
+    },
+    {
+      "line": 507,
+      "type": "jsx_text",
+      "text": "Missions",
+      "already_in_en": false
+    },
+    {
+      "line": 508,
+      "type": "jsx_text",
+      "text": "Days",
+      "already_in_en": false
+    },
+    {
+      "line": 509,
+      "type": "jsx_text",
+      "text": "Sites",
+      "already_in_en": false
+    }
+  ],
+  "components/auth/AuthIllustration.tsx": [
+    {
+      "line": 48,
+      "type": "attr:aria-label",
+      "text": "Paladio Logo",
+      "already_in_en": false
+    }
+  ],
+  "components/common/LanguagePickerModal.tsx": [
+    {
+      "line": 121,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    }
+  ],
+  "components/common/PaladioLoader.tsx": [
+    {
+      "line": 68,
+      "type": "attr:alt",
+      "text": "Paladio Logo",
+      "already_in_en": false
+    },
+    {
+      "line": 73,
+      "type": "attr:alt",
+      "text": "Paladio Logo",
+      "already_in_en": false
+    }
+  ],
+  "components/dashboard/BestOfferCard.tsx": [
+    {
+      "line": 64,
+      "type": "jsx_text",
+      "text": "CORRIDOR TELEMETRY",
+      "already_in_en": true
+    },
+    {
+      "line": 65,
+      "type": "jsx_text",
+      "text": "No Active Scan Offers",
+      "already_in_en": true
+    },
+    {
+      "line": 106,
+      "type": "jsx_text",
+      "text": "Verified Roundtrip Package",
+      "already_in_en": true
+    },
+    {
+      "line": 132,
+      "type": "jsx_text",
+      "text": "Outbound:",
+      "already_in_en": true
+    },
+    {
+      "line": 146,
+      "type": "jsx_text",
+      "text": "Return:",
+      "already_in_en": true
+    },
+    {
+      "line": 161,
+      "type": "jsx_text",
+      "text": "Best Hotel:",
+      "already_in_en": true
+    },
+    {
+      "line": 189,
+      "type": "jsx_text",
+      "text": "Inspect Corridor Offer",
+      "already_in_en": true
+    },
+    {
+      "line": 239,
+      "type": "jsx_text",
+      "text": "Outbound Flight From",
+      "already_in_en": false
+    },
+    {
+      "line": 262,
+      "type": "jsx_text",
+      "text": "Outbound:",
+      "already_in_en": true
+    },
+    {
+      "line": 273,
+      "type": "jsx_text",
+      "text": "Telemetry:",
+      "already_in_en": false
+    },
+    {
+      "line": 285,
+      "type": "jsx_text",
+      "text": "Inspect Corridor Offer",
+      "already_in_en": true
+    }
+  ],
+  "components/dashboard/RecommendedPoiCard.tsx": [
+    {
+      "line": 162,
+      "type": "attr:aria-label",
+      "text": "Dismiss waypoint and find next best match",
+      "already_in_en": false
+    },
+    {
+      "line": 187,
+      "type": "attr:aria-label",
+      "text": "View waypoint in trip details",
+      "already_in_en": false
+    }
+  ],
+  "components/dashboard/RecommendedPoisSection.tsx": [
+    {
+      "line": 380,
+      "type": "attr:aria-label",
+      "text": "Top taste-matched destination recommendations",
+      "already_in_en": false
+    },
+    {
+      "line": 383,
+      "type": "jsx_text",
+      "text": "Recommended POIs",
+      "already_in_en": false
+    },
+    {
+      "line": 461,
+      "type": "jsx_text",
+      "text": "Initialize Mission",
+      "already_in_en": false
+    },
+    {
+      "line": 471,
+      "type": "attr:aria-label",
+      "text": "Top taste-matched destination recommendations",
+      "already_in_en": false
+    },
+    {
+      "line": 474,
+      "type": "jsx_text",
+      "text": "Recommended POIs",
+      "already_in_en": false
+    }
+  ],
+  "components/dashboard/UpcomingTripCard.tsx": [
+    {
+      "line": 385,
+      "type": "jsx_text",
+      "text": "going:",
+      "already_in_en": false
+    },
+    {
+      "line": 399,
+      "type": "attr:title",
+      "text": "1 Traveler",
+      "already_in_en": false
+    }
+  ],
+  "components/dashboard/UpcomingTripsSection.tsx": [
+    {
+      "line": 15,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 90,
+      "type": "attr:title",
+      "text": "ABORT MISSION?",
+      "already_in_en": true
+    }
+  ],
+  "components/help/HelpArticleView.tsx": [
+    {
+      "line": 139,
+      "type": "attr:aria-label",
+      "text": "Breadcrumbs",
+      "already_in_en": false
+    },
+    {
+      "line": 427,
+      "type": "jsx_text",
+      "text": "Setting / Item",
+      "already_in_en": false
+    },
+    {
+      "line": 428,
+      "type": "jsx_text",
+      "text": "What it Does",
+      "already_in_en": false
+    },
+    {
+      "line": 429,
+      "type": "jsx_text",
+      "text": "Options",
+      "already_in_en": false
+    },
+    {
+      "line": 430,
+      "type": "jsx_text",
+      "text": "Example",
+      "already_in_en": false
+    }
+  ],
+  "components/help/HelpSearchModal.tsx": [
+    {
+      "line": 92,
+      "type": "attr:aria-label",
+      "text": "Search Documentation",
+      "already_in_en": false
+    },
+    {
+      "line": 145,
+      "type": "attr:placeholder",
+      "text": "Search guides, algorithms, metrics, shortcuts...",
+      "already_in_en": false
+    },
+    {
+      "line": 174,
+      "type": "jsx_text",
+      "text": "knapsack",
+      "already_in_en": false
+    },
+    {
+      "line": 174,
+      "type": "jsx_text",
+      "text": "realism",
+      "already_in_en": false
+    },
+    {
+      "line": 174,
+      "type": "jsx_text",
+      "text": "lock",
+      "already_in_en": false
+    }
+  ],
+  "components/help/HelpSidebar.tsx": [
+    {
+      "line": 65,
+      "type": "attr:placeholder",
+      "text": "Search guides and tips...",
+      "already_in_en": false
+    },
+    {
+      "line": 66,
+      "type": "attr:aria-label",
+      "text": "Search guides",
+      "already_in_en": false
+    },
+    {
+      "line": 96,
+      "type": "attr:aria-label",
+      "text": "Clear search",
+      "already_in_en": false
+    },
+    {
+      "line": 291,
+      "type": "jsx_text",
+      "text": "Paladio Travel Guides",
+      "already_in_en": false
+    },
+    {
+      "line": 292,
+      "type": "jsx_text",
+      "text": "v2.0.0",
+      "already_in_en": false
+    }
+  ],
+  "components/help/HelpTopicCard.tsx": [
+    {
+      "line": 146,
+      "type": "jsx_text",
+      "text": "Read",
+      "already_in_en": false
+    }
+  ],
+  "components/help/HelpUiMockups.tsx": [
+    {
+      "line": 107,
+      "type": "jsx_text",
+      "text": "DAY 2 SCHEDULE",
+      "already_in_en": false
+    },
+    {
+      "line": 126,
+      "type": "jsx_text",
+      "text": "Hotel Kanra Kyoto (Departure)",
+      "already_in_en": false
+    },
+    {
+      "line": 127,
+      "type": "jsx_text",
+      "text": "Morning hotel anchor point",
+      "already_in_en": false
+    },
+    {
+      "line": 171,
+      "type": "jsx_text",
+      "text": "Fushimi Inari Shrine",
+      "already_in_en": false
+    },
+    {
+      "line": 187,
+      "type": "jsx_text",
+      "text": "LOCKED (1h 30m)",
+      "already_in_en": false
+    },
+    {
+      "line": 216,
+      "type": "jsx_text",
+      "text": "Nishiki Market Ramen (Lunch)",
+      "already_in_en": false
+    },
+    {
+      "line": 232,
+      "type": "jsx_text",
+      "text": "LUNCH BREAK",
+      "already_in_en": false
+    },
+    {
+      "line": 255,
+      "type": "jsx_text",
+      "text": "Switch dates, check walking totals, or refresh the schedule.",
+      "already_in_en": false
+    },
+    {
+      "line": 256,
+      "type": "jsx_text",
+      "text": "Real foot travel time with built-in buffer.",
+      "already_in_en": false
+    },
+    {
+      "line": 257,
+      "type": "jsx_text",
+      "text": "Freezes your ticketed time so other sights adjust around it.",
+      "already_in_en": false
+    },
+    {
+      "line": 258,
+      "type": "jsx_text",
+      "text": "Automatic lunch and dinner slots ensuring a comfortable pace.",
+      "already_in_en": false
+    },
+    {
+      "line": 289,
+      "type": "jsx_text",
+      "text": "UNORGANIZED (BACK-AND-FORTH)",
+      "already_in_en": false
+    },
+    {
+      "line": 331,
+      "type": "jsx_text",
+      "text": "PALADIO NEIGHBORHOOD FLOW",
+      "already_in_en": false
+    },
+    {
+      "line": 412,
+      "type": "jsx_text",
+      "text": "Guaranteed (Breakfast, Lunch, Dinner)",
+      "already_in_en": false
+    },
+    {
+      "line": 426,
+      "type": "jsx_text",
+      "text": "Zero Backtracking",
+      "already_in_en": false
+    },
+    {
+      "line": 464,
+      "type": "jsx_text",
+      "text": "Trip Spending Progress",
+      "already_in_en": false
+    },
+    {
+      "line": 476,
+      "type": "attr:title",
+      "text": "Accommodation $1,008",
+      "already_in_en": false
+    },
+    {
+      "line": 477,
+      "type": "attr:title",
+      "text": "Food & Dining $600",
+      "already_in_en": false
+    },
+    {
+      "line": 478,
+      "type": "attr:title",
+      "text": "Activities $360",
+      "already_in_en": false
+    },
+    {
+      "line": 479,
+      "type": "attr:title",
+      "text": "Transit $192",
+      "already_in_en": false
+    },
+    {
+      "line": 480,
+      "type": "attr:title",
+      "text": "Remaining Safe Buffer $240",
+      "already_in_en": false
+    },
+    {
+      "line": 504,
+      "type": "jsx_text",
+      "text": "Simple Settle Up:",
+      "already_in_en": false
+    },
+    {
+      "line": 554,
+      "type": "jsx_text",
+      "text": "Private Local Assistant",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/DealPackageNavigator.tsx": [
+    {
+      "line": 13,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 45,
+      "type": "attr:aria-label",
+      "text": "Top verified deal packages navigator",
+      "already_in_en": false
+    },
+    {
+      "line": 68,
+      "type": "attr:aria-label",
+      "text": "Previous deal package",
+      "already_in_en": false
+    },
+    {
+      "line": 69,
+      "type": "attr:title",
+      "text": "Previous deal package",
+      "already_in_en": false
+    },
+    {
+      "line": 85,
+      "type": "attr:aria-label",
+      "text": "Next deal package",
+      "already_in_en": false
+    },
+    {
+      "line": 86,
+      "type": "attr:title",
+      "text": "Next deal package",
+      "already_in_en": false
+    },
+    {
+      "line": 114,
+      "type": "jsx_text",
+      "text": "Landed Package",
+      "already_in_en": false
+    },
+    {
+      "line": 118,
+      "type": "jsx_text",
+      "text": "Typical Benchmark",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/MonitoringCalendar.tsx": [
+    {
+      "line": 16,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 163,
+      "type": "jsx_text",
+      "text": "Price Calendar Matrix",
+      "already_in_en": false
+    },
+    {
+      "line": 164,
+      "type": "jsx_text",
+      "text": "Loading multi-month price matrix...",
+      "already_in_en": false
+    },
+    {
+      "line": 170,
+      "type": "attr:aria-label",
+      "text": "Route price calendar matrix",
+      "already_in_en": false
+    },
+    {
+      "line": 174,
+      "type": "jsx_text",
+      "text": "Multi-Month Price Matrix",
+      "already_in_en": false
+    },
+    {
+      "line": 245,
+      "type": "jsx_text",
+      "text": "Standard",
+      "already_in_en": false
+    },
+    {
+      "line": 249,
+      "type": "jsx_text",
+      "text": "Peak Tariff",
+      "already_in_en": false
+    },
+    {
+      "line": 253,
+      "type": "jsx_text",
+      "text": "No Flight",
+      "already_in_en": false
+    },
+    {
+      "line": 341,
+      "type": "attr:title",
+      "text": "Marked as Vacation / PTO in Dashboard",
+      "already_in_en": false
+    },
+    {
+      "line": 382,
+      "type": "jsx_text",
+      "text": "SCHEDULED PTO",
+      "already_in_en": false
+    },
+    {
+      "line": 389,
+      "type": "attr:aria-label",
+      "text": "Close day detail",
+      "already_in_en": false
+    },
+    {
+      "line": 398,
+      "type": "jsx_text",
+      "text": "ALL TRAVEL DATES FIT YOUR MARKED VACATION / PTO",
+      "already_in_en": false
+    },
+    {
+      "line": 417,
+      "type": "jsx_text",
+      "text": "OUTBOUND FLIGHT",
+      "already_in_en": false
+    },
+    {
+      "line": 482,
+      "type": "jsx_text",
+      "text": "LIVE ACCOMMODATION",
+      "already_in_en": false
+    },
+    {
+      "line": 483,
+      "type": "jsx_text",
+      "text": "SCANNING...",
+      "already_in_en": false
+    },
+    {
+      "line": 532,
+      "type": "jsx_text",
+      "text": "Carrier",
+      "already_in_en": false
+    },
+    {
+      "line": 539,
+      "type": "jsx_text",
+      "text": "Departure",
+      "already_in_en": false
+    },
+    {
+      "line": 545,
+      "type": "jsx_text",
+      "text": "Flight Duration",
+      "already_in_en": false
+    },
+    {
+      "line": 561,
+      "type": "jsx_text",
+      "text": "Book Live Fare on Carrier",
+      "already_in_en": false
+    },
+    {
+      "line": 584,
+      "type": "jsx_text",
+      "text": "PLAN ITINERARY WITH THESE DATES",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/NewRouteModal.tsx": [
+    {
+      "line": 23,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 95,
+      "type": "jsx_text",
+      "text": "Track New Airfare Route",
+      "already_in_en": false
+    },
+    {
+      "line": 101,
+      "type": "attr:aria-label",
+      "text": "Close modal",
+      "already_in_en": false
+    },
+    {
+      "line": 125,
+      "type": "jsx_text",
+      "text": "e.g. MAD (Madrid), BCN (Barcelona)",
+      "already_in_en": false
+    },
+    {
+      "line": 142,
+      "type": "jsx_text",
+      "text": "e.g. FCO (Rome), DUB (Dublin), OPO",
+      "already_in_en": false
+    },
+    {
+      "line": 262,
+      "type": "jsx_text",
+      "text": "Activate Route Monitor",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/PriceTrendGraph.tsx": [
+    {
+      "line": 199,
+      "type": "jsx_text",
+      "text": "OUTBOUND:",
+      "already_in_en": true
+    },
+    {
+      "line": 205,
+      "type": "jsx_text",
+      "text": "RETURN:",
+      "already_in_en": true
+    },
+    {
+      "line": 211,
+      "type": "jsx_text",
+      "text": "TOTAL AIRFARE:",
+      "already_in_en": false
+    },
+    {
+      "line": 224,
+      "type": "jsx_text",
+      "text": "HOTEL RATE:",
+      "already_in_en": false
+    },
+    {
+      "line": 239,
+      "type": "jsx_text",
+      "text": "Est. Stay Total:",
+      "already_in_en": false
+    },
+    {
+      "line": 249,
+      "type": "jsx_text",
+      "text": "LANDED PACKAGE:",
+      "already_in_en": false
+    },
+    {
+      "line": 258,
+      "type": "attr:aria-label",
+      "text": "Route price trend graph",
+      "already_in_en": false
+    },
+    {
+      "line": 306,
+      "type": "jsx_text",
+      "text": "Confidence:",
+      "already_in_en": false
+    },
+    {
+      "line": 310,
+      "type": "jsx_text",
+      "text": "Low:",
+      "already_in_en": false
+    },
+    {
+      "line": 316,
+      "type": "jsx_text",
+      "text": "Median:",
+      "already_in_en": false
+    },
+    {
+      "line": 326,
+      "type": "attr:title",
+      "text": "Queries Ryanair fare finder across the next 11 months to refresh market baselines",
+      "already_in_en": false
+    },
+    {
+      "line": 337,
+      "type": "jsx_text",
+      "text": "AIRFARE CORRIDOR (OUTBOUND / RETURN)",
+      "already_in_en": false
+    },
+    {
+      "line": 437,
+      "type": "jsx_text",
+      "text": "Outbound Airfare",
+      "already_in_en": false
+    },
+    {
+      "line": 441,
+      "type": "jsx_text",
+      "text": "Return Airfare",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/RouteFullScreenView.tsx": [
+    {
+      "line": 35,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 36,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 37,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 38,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 42,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 80,
+      "type": "attr:aria-label",
+      "text": "Back to monitored routes list",
+      "already_in_en": false
+    },
+    {
+      "line": 83,
+      "type": "jsx_text",
+      "text": "Fleet Overview",
+      "already_in_en": false
+    },
+    {
+      "line": 203,
+      "type": "attr:aria-label",
+      "text": "Route observations audit feed",
+      "already_in_en": false
+    },
+    {
+      "line": 206,
+      "type": "jsx_text",
+      "text": "Observation Audit Feed",
+      "already_in_en": false
+    },
+    {
+      "line": 211,
+      "type": "jsx_text",
+      "text": "No recent observations logged for this corridor yet.",
+      "already_in_en": false
+    }
+  ],
+  "components/monitoring/RouteTelemetryCards.tsx": [
+    {
+      "line": 104,
+      "type": "attr:aria-label",
+      "text": "Route telemetry metrics",
+      "already_in_en": false
+    },
+    {
+      "line": 106,
+      "type": "jsx_text",
+      "text": "Telemetry",
+      "already_in_en": true
+    },
+    {
+      "line": 120,
+      "type": "jsx_text",
+      "text": "Best Historical Fare",
+      "already_in_en": false
+    },
+    {
+      "line": 149,
+      "type": "jsx_text",
+      "text": "Target: P10",
+      "already_in_en": false
+    },
+    {
+      "line": 215,
+      "type": "jsx_text",
+      "text": "Price Volatility Index",
+      "already_in_en": false
+    },
+    {
+      "line": 239,
+      "type": "jsx_text",
+      "text": "Air-gapped telemetry",
+      "already_in_en": false
+    }
+  ],
+  "components/past-trip/PastTripDayDots.tsx": [
+    {
+      "line": 28,
+      "type": "attr:aria-label",
+      "text": "Filter itinerary by day",
+      "already_in_en": false
+    },
+    {
+      "line": 35,
+      "type": "attr:title",
+      "text": "View All Days",
+      "already_in_en": false
+    }
+  ],
+  "components/past-trip/PastTripRouteMap.tsx": [
+    {
+      "line": 280,
+      "type": "attr:aria-label",
+      "text": "Back to Vault",
+      "already_in_en": false
+    }
+  ],
+  "components/past-trip/PastTripTabs.tsx": [
+    {
+      "line": 22,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 206,
+      "type": "attr:title",
+      "text": "Share Vault Recap",
+      "already_in_en": false
+    },
+    {
+      "line": 207,
+      "type": "attr:aria-label",
+      "text": "Share Vault Recap",
+      "already_in_en": false
+    },
+    {
+      "line": 242,
+      "type": "attr:title",
+      "text": "Edit Description & Notes",
+      "already_in_en": false
+    },
+    {
+      "line": 243,
+      "type": "attr:aria-label",
+      "text": "Edit Description & Notes",
+      "already_in_en": false
+    },
+    {
+      "line": 308,
+      "type": "attr:placeholder",
+      "text": "Record your memories or impressions of this destination...",
+      "already_in_en": false
+    },
+    {
+      "line": 341,
+      "type": "attr:placeholder",
+      "text": "Key recommendations, packing tips, or secret spots...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/BoardingPassUploadIntake.tsx": [
+    {
+      "line": 155,
+      "type": "attr:aria-label",
+      "text": "Upload boarding pass file or screenshot",
+      "already_in_en": false
+    },
+    {
+      "line": 256,
+      "type": "jsx_text",
+      "text": "Or paste IATA barcode string / confirmation text",
+      "already_in_en": false
+    },
+    {
+      "line": 274,
+      "type": "attr:placeholder",
+      "text": "Paste raw IATA BCBP barcode string (e.g. M1GARCIA/CARLOS... ) or flight booking confirmation email text",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/DocumentUploadModal.tsx": [
+    {
+      "line": 425,
+      "type": "attr:aria-label",
+      "text": "Close document upload window",
+      "already_in_en": false
+    },
+    {
+      "line": 658,
+      "type": "jsx_text",
+      "text": "Open Restored Trip Workspace",
+      "already_in_en": false
+    },
+    {
+      "line": 804,
+      "type": "jsx_text",
+      "text": "Or paste barcode text / airline email",
+      "already_in_en": false
+    },
+    {
+      "line": 813,
+      "type": "attr:placeholder",
+      "text": "Paste IATA barcode (e.g. M1GARCIA...) or flight confirmation email text...",
+      "already_in_en": false
+    },
+    {
+      "line": 969,
+      "type": "jsx_text",
+      "text": "Or paste hotel confirmation email text",
+      "already_in_en": false
+    },
+    {
+      "line": 978,
+      "type": "attr:placeholder",
+      "text": "Paste hotel booking confirmation email text or door code instructions...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/HotelMapModal.tsx": [
+    {
+      "line": 566,
+      "type": "attr:placeholder",
+      "text": "e.g. Hotel Le Marais",
+      "already_in_en": false
+    },
+    {
+      "line": 596,
+      "type": "attr:placeholder",
+      "text": "Click map or enter address...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/HotelStayAnchorBar.tsx": [
+    {
+      "line": 252,
+      "type": "attr:placeholder",
+      "text": "Search hotel by name or neighborhood anchor...",
+      "already_in_en": false
+    },
+    {
+      "line": 297,
+      "type": "attr:title",
+      "text": "Locate hotel or stay on map",
+      "already_in_en": false
+    },
+    {
+      "line": 433,
+      "type": "attr:title",
+      "text": "Verified Hotel Location",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/PaladioDateRangePicker.tsx": [
+    {
+      "line": 319,
+      "type": "attr:aria-label",
+      "text": "Previous month",
+      "already_in_en": false
+    },
+    {
+      "line": 351,
+      "type": "attr:aria-label",
+      "text": "Next month",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/ParticipantsManager.tsx": [
+    {
+      "line": 303,
+      "type": "jsx_text",
+      "text": "Add Participant",
+      "already_in_en": false
+    },
+    {
+      "line": 419,
+      "type": "attr:placeholder",
+      "text": "Enter traveler name (e.g. Sarah, Dad)...",
+      "already_in_en": false
+    },
+    {
+      "line": 452,
+      "type": "jsx_text",
+      "text": "Add Guest",
+      "already_in_en": false
+    },
+    {
+      "line": 466,
+      "type": "jsx_text",
+      "text": "SELECT VIA CHECKBOX",
+      "already_in_en": false
+    },
+    {
+      "line": 475,
+      "type": "attr:placeholder",
+      "text": "Filter users by name or email...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/PhotoUploadModal.tsx": [
+    {
+      "line": 159,
+      "type": "attr:title",
+      "text": "Close",
+      "already_in_en": true
+    }
+  ],
+  "components/trip-creation/RouteIntakeBar.tsx": [
+    {
+      "line": 273,
+      "type": "attr:title",
+      "text": "Click directly to edit origin airport IATA code",
+      "already_in_en": false
+    },
+    {
+      "line": 308,
+      "type": "attr:placeholder",
+      "text": "Search city / airport...",
+      "already_in_en": false
+    },
+    {
+      "line": 345,
+      "type": "attr:title",
+      "text": "Click to customize arrival time at destination",
+      "already_in_en": false
+    },
+    {
+      "line": 382,
+      "type": "attr:title",
+      "text": "Swap route",
+      "already_in_en": false
+    },
+    {
+      "line": 383,
+      "type": "attr:aria-label",
+      "text": "Swap origin and destination",
+      "already_in_en": false
+    },
+    {
+      "line": 435,
+      "type": "attr:title",
+      "text": "Click directly to edit destination airport IATA code",
+      "already_in_en": false
+    },
+    {
+      "line": 471,
+      "type": "attr:placeholder",
+      "text": "Search city / airport...",
+      "already_in_en": false
+    },
+    {
+      "line": 508,
+      "type": "attr:title",
+      "text": "Click to customize return / departure time",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-creation/TripCreationBoxes.tsx": [
+    {
+      "line": 623,
+      "type": "jsx_text",
+      "text": "Personalized Trip",
+      "already_in_en": false
+    },
+    {
+      "line": 645,
+      "type": "jsx_text",
+      "text": "Blank Trip",
+      "already_in_en": false
+    },
+    {
+      "line": 680,
+      "type": "jsx_text",
+      "text": "Upload Documents",
+      "already_in_en": false
+    },
+    {
+      "line": 748,
+      "type": "attr:title",
+      "text": "Upload your own trip photo",
+      "already_in_en": false
+    },
+    {
+      "line": 768,
+      "type": "jsx_text",
+      "text": "Upload Photo",
+      "already_in_en": true
+    },
+    {
+      "line": 778,
+      "type": "attr:title",
+      "text": "Remove photo altogether",
+      "already_in_en": false
+    },
+    {
+      "line": 804,
+      "type": "attr:title",
+      "text": "Restore default destination photo",
+      "already_in_en": false
+    },
+    {
+      "line": 907,
+      "type": "attr:placeholder",
+      "text": "Trip description (e.g. Autumn photography journey through local neighborhoods)...",
+      "already_in_en": false
+    },
+    {
+      "line": 962,
+      "type": "jsx_text",
+      "text": "Upload Docs",
+      "already_in_en": false
+    },
+    {
+      "line": 1046,
+      "type": "attr:title",
+      "text": "Change currency with dynamic spin dial",
+      "already_in_en": false
+    },
+    {
+      "line": 1200,
+      "type": "jsx_text",
+      "text": "Generate Sovereign Trip Plan",
+      "already_in_en": false
+    },
+    {
+      "line": 1237,
+      "type": "jsx_text",
+      "text": "Create Blank Canvas Trip",
+      "already_in_en": false
+    },
+    {
+      "line": 1266,
+      "type": "jsx_text",
+      "text": "NATURAL LANGUAGE",
+      "already_in_en": false
+    },
+    {
+      "line": 1272,
+      "type": "attr:placeholder",
+      "text": "Describe your travel vision, desired rhythm, favorite cuisines, special interests, or specific stops...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/AddPoiModal.tsx": [
+    {
+      "line": 221,
+      "type": "attr:title",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 222,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 267,
+      "type": "attr:placeholder",
+      "text": "e.g. Tsukiji Outer Market",
+      "already_in_en": false
+    },
+    {
+      "line": 472,
+      "type": "attr:placeholder",
+      "text": "Notes or tips about this spot...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/CollectionsTab.tsx": [
+    {
+      "line": 288,
+      "type": "attr:placeholder",
+      "text": "Collection name (e.g. Hidden Gems, Nightlife)",
+      "already_in_en": false
+    },
+    {
+      "line": 307,
+      "type": "attr:placeholder",
+      "text": "Description (optional)",
+      "already_in_en": false
+    },
+    {
+      "line": 322,
+      "type": "jsx_text",
+      "text": "Color:",
+      "already_in_en": false
+    },
+    {
+      "line": 640,
+      "type": "attr:title",
+      "text": "Edit collection name",
+      "already_in_en": false
+    },
+    {
+      "line": 665,
+      "type": "attr:title",
+      "text": "Delete collection",
+      "already_in_en": false
+    },
+    {
+      "line": 868,
+      "type": "attr:title",
+      "text": "Schedule into trip day",
+      "already_in_en": false
+    },
+    {
+      "line": 948,
+      "type": "attr:title",
+      "text": "Remove from collection",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/MinimalistPoiCard.tsx": [
+    {
+      "line": 169,
+      "type": "attr:aria-label",
+      "text": "Drag to reorder",
+      "already_in_en": false
+    },
+    {
+      "line": 239,
+      "type": "attr:aria-label",
+      "text": "Move stop up",
+      "already_in_en": false
+    },
+    {
+      "line": 260,
+      "type": "attr:aria-label",
+      "text": "Move stop down",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/PhotoUploadModal.tsx": [
+    {
+      "line": 12,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 178,
+      "type": "attr:title",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 179,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 282,
+      "type": "jsx_text",
+      "text": "Browse Files",
+      "already_in_en": true
+    }
+  ],
+  "components/trip-workspace/PoiDetailView.tsx": [
+    {
+      "line": 909,
+      "type": "attr:title",
+      "text": "Close Inspector",
+      "already_in_en": true
+    },
+    {
+      "line": 910,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 1093,
+      "type": "attr:aria-label",
+      "text": "Previous photo",
+      "already_in_en": false
+    },
+    {
+      "line": 1120,
+      "type": "attr:aria-label",
+      "text": "Next photo",
+      "already_in_en": false
+    },
+    {
+      "line": 1158,
+      "type": "attr:title",
+      "text": "Focus on Map",
+      "already_in_en": true
+    },
+    {
+      "line": 1159,
+      "type": "attr:aria-label",
+      "text": "Focus on Map",
+      "already_in_en": true
+    },
+    {
+      "line": 1296,
+      "type": "attr:title",
+      "text": "Focus on Map",
+      "already_in_en": true
+    },
+    {
+      "line": 1297,
+      "type": "attr:aria-label",
+      "text": "Focus on Map",
+      "already_in_en": true
+    },
+    {
+      "line": 1381,
+      "type": "attr:title",
+      "text": "Taste match calculated from your travel preferences",
+      "already_in_en": true
+    },
+    {
+      "line": 1439,
+      "type": "attr:aria-label",
+      "text": "Edit POI",
+      "already_in_en": true
+    },
+    {
+      "line": 1646,
+      "type": "jsx_text",
+      "text": "Attraction",
+      "already_in_en": false
+    },
+    {
+      "line": 1647,
+      "type": "jsx_text",
+      "text": "Monument",
+      "already_in_en": false
+    },
+    {
+      "line": 1648,
+      "type": "jsx_text",
+      "text": "Museum",
+      "already_in_en": false
+    },
+    {
+      "line": 1649,
+      "type": "jsx_text",
+      "text": "Restaurant",
+      "already_in_en": false
+    },
+    {
+      "line": 1651,
+      "type": "jsx_text",
+      "text": "Park",
+      "already_in_en": false
+    },
+    {
+      "line": 1652,
+      "type": "jsx_text",
+      "text": "Shopping",
+      "already_in_en": true
+    },
+    {
+      "line": 1653,
+      "type": "jsx_text",
+      "text": "Viewpoint",
+      "already_in_en": false
+    },
+    {
+      "line": 1654,
+      "type": "jsx_text",
+      "text": "Hotel",
+      "already_in_en": false
+    },
+    {
+      "line": 1655,
+      "type": "jsx_text",
+      "text": "Transit",
+      "already_in_en": true
+    },
+    {
+      "line": 2047,
+      "type": "attr:title",
+      "text": "Click to view full line route on map",
+      "already_in_en": false
+    },
+    {
+      "line": 2265,
+      "type": "jsx_text",
+      "text": "All Days",
+      "already_in_en": false
+    },
+    {
+      "line": 2508,
+      "type": "attr:aria-label",
+      "text": "Previous photo",
+      "already_in_en": false
+    },
+    {
+      "line": 2552,
+      "type": "attr:aria-label",
+      "text": "Next photo",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/SaveToCollectionMenu.tsx": [
+    {
+      "line": 233,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 439,
+      "type": "attr:placeholder",
+      "text": "Collection name...",
+      "already_in_en": false
+    },
+    {
+      "line": 489,
+      "type": "jsx_text",
+      "text": "Color:",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripConfigView.tsx": [
+    {
+      "line": 428,
+      "type": "jsx_text",
+      "text": "TRIP NAME / TITLE",
+      "already_in_en": true
+    },
+    {
+      "line": 433,
+      "type": "attr:placeholder",
+      "text": "e.g. Tokyo Sakura Season Expedition",
+      "already_in_en": true
+    },
+    {
+      "line": 528,
+      "type": "jsx_text",
+      "text": "Upload Photo",
+      "already_in_en": true
+    },
+    {
+      "line": 572,
+      "type": "attr:alt",
+      "text": "Trip Cover Preview",
+      "already_in_en": true
+    },
+    {
+      "line": 596,
+      "type": "jsx_text",
+      "text": "IMAGE URL (WEB LINK)",
+      "already_in_en": true
+    },
+    {
+      "line": 647,
+      "type": "attr:title",
+      "text": "Use this photo",
+      "already_in_en": true
+    },
+    {
+      "line": 682,
+      "type": "jsx_text",
+      "text": "TRIP DESCRIPTION",
+      "already_in_en": true
+    },
+    {
+      "line": 687,
+      "type": "attr:placeholder",
+      "text": "Overview of the mission, highlights, theme, or travel philosophy...",
+      "already_in_en": true
+    },
+    {
+      "line": 707,
+      "type": "attr:placeholder",
+      "text": "Packing lists, emergency contacts, SIM cards, reservation codes, keys...",
+      "already_in_en": true
+    },
+    {
+      "line": 738,
+      "type": "jsx_text",
+      "text": "TARGET BUDGET",
+      "already_in_en": true
+    },
+    {
+      "line": 746,
+      "type": "attr:placeholder",
+      "text": "e.g. 2500",
+      "already_in_en": false
+    },
+    {
+      "line": 763,
+      "type": "jsx_text",
+      "text": "BASE CURRENCY",
+      "already_in_en": false
+    },
+    {
+      "line": 788,
+      "type": "attr:title",
+      "text": "Change currency with dynamic spin dial",
+      "already_in_en": false
+    },
+    {
+      "line": 805,
+      "type": "jsx_text",
+      "text": "Change",
+      "already_in_en": false
+    },
+    {
+      "line": 809,
+      "type": "jsx_text",
+      "text": "Default currency for split ledgers and tickets",
+      "already_in_en": false
+    },
+    {
+      "line": 883,
+      "type": "jsx_text",
+      "text": "EXPLORATION PACE",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripMapView.tsx": [
+    {
+      "line": 406,
+      "type": "attr:alt",
+      "text": "${nameSafe}",
+      "already_in_en": false
+    },
+    {
+      "line": 2493,
+      "type": "attr:title",
+      "text": "Clear line highlight",
+      "already_in_en": false
+    },
+    {
+      "line": 2543,
+      "type": "jsx_text",
+      "text": "Walk",
+      "already_in_en": false
+    },
+    {
+      "line": 2547,
+      "type": "jsx_text",
+      "text": "Transit Lines",
+      "already_in_en": false
+    },
+    {
+      "line": 2551,
+      "type": "jsx_text",
+      "text": "Transfer",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripPhotosView.tsx": [
+    {
+      "line": 501,
+      "type": "jsx_text",
+      "text": "UPLOAD PHOTOS",
+      "already_in_en": false
+    },
+    {
+      "line": 591,
+      "type": "jsx_text",
+      "text": "Select Files to Upload",
+      "already_in_en": false
+    },
+    {
+      "line": 732,
+      "type": "attr:title",
+      "text": "View Full Resolution",
+      "already_in_en": false
+    },
+    {
+      "line": 756,
+      "type": "attr:title",
+      "text": "Delete Photo",
+      "already_in_en": false
+    },
+    {
+      "line": 880,
+      "type": "attr:title",
+      "text": "Close (Esc)",
+      "already_in_en": false
+    },
+    {
+      "line": 923,
+      "type": "attr:title",
+      "text": "Previous (Arrow Left)",
+      "already_in_en": false
+    },
+    {
+      "line": 987,
+      "type": "attr:title",
+      "text": "Next (Arrow Right)",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripShareModal.tsx": [
+    {
+      "line": 187,
+      "type": "attr:aria-label",
+      "text": "Close share dialog",
+      "already_in_en": false
+    },
+    {
+      "line": 288,
+      "type": "attr:aria-label",
+      "text": "Package profile",
+      "already_in_en": false
+    },
+    {
+      "line": 306,
+      "type": "jsx_text",
+      "text": "Full Vault",
+      "already_in_en": false
+    },
+    {
+      "line": 307,
+      "type": "jsx_text",
+      "text": "Shareable",
+      "already_in_en": false
+    },
+    {
+      "line": 339,
+      "type": "jsx_text",
+      "text": "Export",
+      "already_in_en": false
+    },
+    {
+      "line": 439,
+      "type": "jsx_text",
+      "text": "Print",
+      "already_in_en": false
+    },
+    {
+      "line": 524,
+      "type": "jsx_text",
+      "text": "Export",
+      "already_in_en": false
+    },
+    {
+      "line": 607,
+      "type": "jsx_text",
+      "text": "Export",
+      "already_in_en": false
+    },
+    {
+      "line": 670,
+      "type": "jsx_text",
+      "text": "Copied!",
+      "already_in_en": true
+    },
+    {
+      "line": 679,
+      "type": "jsx_text",
+      "text": "Copy link",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripSpeedDial.tsx": [
+    {
+      "line": 15,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 161,
+      "type": "attr:aria-label",
+      "text": "Trip Route Actions Dial",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripTransitDirectionsView.tsx": [
+    {
+      "line": 1171,
+      "type": "attr:placeholder",
+      "text": "Origin (place name, address, or lat,lng)",
+      "already_in_en": false
+    },
+    {
+      "line": 1214,
+      "type": "attr:title",
+      "text": "Pick origin on map",
+      "already_in_en": false
+    },
+    {
+      "line": 1276,
+      "type": "attr:title",
+      "text": "Swap Origin and Destination",
+      "already_in_en": false
+    },
+    {
+      "line": 1331,
+      "type": "attr:placeholder",
+      "text": "Destination (place name, address, or lat,lng)",
+      "already_in_en": false
+    },
+    {
+      "line": 1374,
+      "type": "attr:title",
+      "text": "Pick destination on map",
+      "already_in_en": false
+    },
+    {
+      "line": 1614,
+      "type": "jsx_text",
+      "text": "General",
+      "already_in_en": false
+    },
+    {
+      "line": 1642,
+      "type": "attr:title",
+      "text": "Click to select scheduled time",
+      "already_in_en": false
+    },
+    {
+      "line": 1687,
+      "type": "jsx_text",
+      "text": "Calculating Route...",
+      "already_in_en": false
+    },
+    {
+      "line": 1692,
+      "type": "jsx_text",
+      "text": "Get Directions",
+      "already_in_en": false
+    },
+    {
+      "line": 1754,
+      "type": "jsx_text",
+      "text": "Recommendation:",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripTransitTab.tsx": [
+    {
+      "line": 557,
+      "type": "jsx_text",
+      "text": "Loading scheduled departures...",
+      "already_in_en": false
+    },
+    {
+      "line": 747,
+      "type": "jsx_text",
+      "text": "Checking transit network availability...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripUnifiedSidebar.tsx": [
+    {
+      "line": 158,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 683,
+      "type": "attr:aria-label",
+      "text": "Filter by Price Range",
+      "already_in_en": false
+    },
+    {
+      "line": 880,
+      "type": "attr:aria-label",
+      "text": "Filter by Duration Range",
+      "already_in_en": false
+    },
+    {
+      "line": 1073,
+      "type": "attr:aria-label",
+      "text": "Filter by Minimum Star Rating",
+      "already_in_en": false
+    },
+    {
+      "line": 2079,
+      "type": "attr:aria-label",
+      "text": "Open sidebar menu",
+      "already_in_en": true
+    },
+    {
+      "line": 2080,
+      "type": "attr:title",
+      "text": "Open sidebar menu",
+      "already_in_en": true
+    },
+    {
+      "line": 2166,
+      "type": "attr:title",
+      "text": "Route",
+      "already_in_en": true
+    },
+    {
+      "line": 2167,
+      "type": "attr:aria-label",
+      "text": "Route",
+      "already_in_en": true
+    },
+    {
+      "line": 2189,
+      "type": "jsx_text",
+      "text": "Route",
+      "already_in_en": true
+    },
+    {
+      "line": 2196,
+      "type": "attr:title",
+      "text": "Search",
+      "already_in_en": false
+    },
+    {
+      "line": 2197,
+      "type": "attr:aria-label",
+      "text": "Search",
+      "already_in_en": false
+    },
+    {
+      "line": 2217,
+      "type": "jsx_text",
+      "text": "Search",
+      "already_in_en": false
+    },
+    {
+      "line": 2224,
+      "type": "attr:title",
+      "text": "Transit",
+      "already_in_en": true
+    },
+    {
+      "line": 2225,
+      "type": "attr:aria-label",
+      "text": "Transit",
+      "already_in_en": true
+    },
+    {
+      "line": 2252,
+      "type": "jsx_text",
+      "text": "Transit",
+      "already_in_en": true
+    },
+    {
+      "line": 2259,
+      "type": "attr:title",
+      "text": "Weather",
+      "already_in_en": false
+    },
+    {
+      "line": 2260,
+      "type": "attr:aria-label",
+      "text": "Weather",
+      "already_in_en": false
+    },
+    {
+      "line": 2282,
+      "type": "jsx_text",
+      "text": "Weather",
+      "already_in_en": false
+    },
+    {
+      "line": 2289,
+      "type": "attr:title",
+      "text": "Collections",
+      "already_in_en": false
+    },
+    {
+      "line": 2290,
+      "type": "attr:aria-label",
+      "text": "Collections",
+      "already_in_en": false
+    },
+    {
+      "line": 2316,
+      "type": "jsx_text",
+      "text": "Collections",
+      "already_in_en": false
+    },
+    {
+      "line": 2370,
+      "type": "attr:title",
+      "text": "Re-run C++ optimization solver with locked stops preserved",
+      "already_in_en": false
+    },
+    {
+      "line": 2863,
+      "type": "attr:title",
+      "text": "Add New POI",
+      "already_in_en": false
+    },
+    {
+      "line": 2864,
+      "type": "attr:aria-label",
+      "text": "Add New POI",
+      "already_in_en": false
+    },
+    {
+      "line": 2884,
+      "type": "jsx_text",
+      "text": "Add POI",
+      "already_in_en": false
+    },
+    {
+      "line": 2933,
+      "type": "attr:aria-label",
+      "text": "Clear Search Query",
+      "already_in_en": false
+    },
+    {
+      "line": 3348,
+      "type": "attr:aria-label",
+      "text": "Close sidebar menu",
+      "already_in_en": false
+    },
+    {
+      "line": 3349,
+      "type": "attr:title",
+      "text": "Close sidebar menu",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripWeatherTab.tsx": [
+    {
+      "line": 624,
+      "type": "attr:title",
+      "text": "Refresh weather telemetry",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/TripWorkspace.tsx": [
+    {
+      "line": 697,
+      "type": "attr:aria-label",
+      "text": "Close POI details",
+      "already_in_en": false
+    },
+    {
+      "line": 784,
+      "type": "attr:aria-label",
+      "text": "Reopen POI details",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/CategoryBreakdownWidget.tsx": [
+    {
+      "line": 112,
+      "type": "attr:title",
+      "text": "Overall Category Allocation",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/CostsFilterToolbar.tsx": [
+    {
+      "line": 98,
+      "type": "attr:placeholder",
+      "text": "Search expenses...",
+      "already_in_en": false
+    },
+    {
+      "line": 130,
+      "type": "jsx_text",
+      "text": "All categories",
+      "already_in_en": false
+    },
+    {
+      "line": 156,
+      "type": "jsx_text",
+      "text": "All days",
+      "already_in_en": false
+    },
+    {
+      "line": 214,
+      "type": "attr:title",
+      "text": "Export CSV",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/CostsSummaryCards.tsx": [
+    {
+      "line": 362,
+      "type": "attr:title",
+      "text": "View daily spending velocity & runway cushion",
+      "already_in_en": false
+    },
+    {
+      "line": 389,
+      "type": "attr:title",
+      "text": "View live currency converter & rates",
+      "already_in_en": false
+    },
+    {
+      "line": 491,
+      "type": "jsx_text",
+      "text": "EXPENSES BY DAY",
+      "already_in_en": false
+    },
+    {
+      "line": 501,
+      "type": "jsx_text",
+      "text": "Total:",
+      "already_in_en": false
+    },
+    {
+      "line": 1222,
+      "type": "attr:title",
+      "text": "Click to spin currency cylinder dial",
+      "already_in_en": false
+    },
+    {
+      "line": 1303,
+      "type": "attr:aria-label",
+      "text": "Currency amount to convert",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/CurrencyWheelPicker.tsx": [
+    {
+      "line": 323,
+      "type": "attr:aria-label",
+      "text": "Close",
+      "already_in_en": true
+    },
+    {
+      "line": 396,
+      "type": "attr:placeholder",
+      "text": "Search country or currency...",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/ExpenseModal.tsx": [
+    {
+      "line": 30,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 267,
+      "type": "attr:placeholder",
+      "text": "e.g. 4x4 hire, ten days",
+      "already_in_en": false
+    },
+    {
+      "line": 298,
+      "type": "attr:title",
+      "text": "Change payment currency",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/ExpenseRow.tsx": [
+    {
+      "line": 216,
+      "type": "attr:title",
+      "text": "Assign Payer",
+      "already_in_en": false
+    },
+    {
+      "line": 238,
+      "type": "attr:title",
+      "text": "Edit Expense",
+      "already_in_en": false
+    },
+    {
+      "line": 261,
+      "type": "attr:title",
+      "text": "Delete Expense",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/FlagIcon.tsx": [
+    {
+      "line": 63,
+      "type": "attr:title",
+      "text": "European Union",
+      "already_in_en": false
+    },
+    {
+      "line": 78,
+      "type": "attr:title",
+      "text": "Spain",
+      "already_in_en": false
+    },
+    {
+      "line": 96,
+      "type": "attr:title",
+      "text": "United States",
+      "already_in_en": false
+    },
+    {
+      "line": 120,
+      "type": "attr:title",
+      "text": "United Kingdom",
+      "already_in_en": false
+    },
+    {
+      "line": 133,
+      "type": "attr:title",
+      "text": "Japan",
+      "already_in_en": false
+    },
+    {
+      "line": 143,
+      "type": "attr:title",
+      "text": "France",
+      "already_in_en": false
+    },
+    {
+      "line": 154,
+      "type": "attr:title",
+      "text": "Germany",
+      "already_in_en": false
+    },
+    {
+      "line": 165,
+      "type": "attr:title",
+      "text": "Italy",
+      "already_in_en": false
+    },
+    {
+      "line": 176,
+      "type": "attr:title",
+      "text": "Poland",
+      "already_in_en": false
+    },
+    {
+      "line": 186,
+      "type": "attr:title",
+      "text": "Switzerland",
+      "already_in_en": false
+    },
+    {
+      "line": 197,
+      "type": "attr:title",
+      "text": "Norway",
+      "already_in_en": false
+    },
+    {
+      "line": 208,
+      "type": "attr:title",
+      "text": "Sweden",
+      "already_in_en": false
+    },
+    {
+      "line": 218,
+      "type": "attr:title",
+      "text": "Denmark",
+      "already_in_en": false
+    },
+    {
+      "line": 228,
+      "type": "attr:title",
+      "text": "Canada",
+      "already_in_en": false
+    },
+    {
+      "line": 244,
+      "type": "attr:title",
+      "text": "Australia",
+      "already_in_en": false
+    },
+    {
+      "line": 269,
+      "type": "attr:title",
+      "text": "New Zealand",
+      "already_in_en": false
+    },
+    {
+      "line": 289,
+      "type": "attr:title",
+      "text": "China",
+      "already_in_en": false
+    },
+    {
+      "line": 303,
+      "type": "attr:title",
+      "text": "India",
+      "already_in_en": false
+    },
+    {
+      "line": 328,
+      "type": "attr:title",
+      "text": "Brazil",
+      "already_in_en": false
+    },
+    {
+      "line": 340,
+      "type": "attr:title",
+      "text": "Mexico",
+      "already_in_en": false
+    },
+    {
+      "line": 353,
+      "type": "attr:title",
+      "text": "Turkey",
+      "already_in_en": false
+    },
+    {
+      "line": 365,
+      "type": "attr:title",
+      "text": "Thailand",
+      "already_in_en": false
+    },
+    {
+      "line": 378,
+      "type": "attr:title",
+      "text": "Czechia",
+      "already_in_en": false
+    },
+    {
+      "line": 389,
+      "type": "attr:title",
+      "text": "Hungary",
+      "already_in_en": false
+    },
+    {
+      "line": 400,
+      "type": "attr:title",
+      "text": "Singapore",
+      "already_in_en": false
+    },
+    {
+      "line": 417,
+      "type": "attr:title",
+      "text": "South Korea",
+      "already_in_en": false
+    },
+    {
+      "line": 432,
+      "type": "attr:title",
+      "text": "Portugal",
+      "already_in_en": false
+    },
+    {
+      "line": 443,
+      "type": "attr:title",
+      "text": "United Arab Emirates",
+      "already_in_en": false
+    },
+    {
+      "line": 455,
+      "type": "attr:title",
+      "text": "Netherlands",
+      "already_in_en": false
+    },
+    {
+      "line": 467,
+      "type": "attr:title",
+      "text": "European Union",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/costs/SettlementModal.tsx": [
+    {
+      "line": 19,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/TripWalletView.tsx": [
+    {
+      "line": 575,
+      "type": "attr:title",
+      "text": "YOUR TRIP WALLET IS EMPTY",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/WalletDropzone.tsx": [
+    {
+      "line": 92,
+      "type": "attr:aria-label",
+      "text": "Upload ticket documents or boarding passes",
+      "already_in_en": true
+    }
+  ],
+  "components/trip-workspace/wallet/WalletFilterBar.tsx": [
+    {
+      "line": 49,
+      "type": "attr:aria-label",
+      "text": "Filter tickets by category",
+      "already_in_en": false
+    },
+    {
+      "line": 127,
+      "type": "attr:placeholder",
+      "text": "Search by title, ref, PNR...",
+      "already_in_en": false
+    },
+    {
+      "line": 128,
+      "type": "attr:aria-label",
+      "text": "Search tickets",
+      "already_in_en": false
+    },
+    {
+      "line": 146,
+      "type": "attr:aria-label",
+      "text": "Clear search",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/WalletSummaryBar.tsx": [
+    {
+      "line": 16,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 75,
+      "type": "jsx_text",
+      "text": "ITINERARY DRIFT DETECTED:",
+      "already_in_en": false
+    },
+    {
+      "line": 118,
+      "type": "jsx_text",
+      "text": "TOTAL TICKETS:",
+      "already_in_en": false
+    },
+    {
+      "line": 137,
+      "type": "attr:title",
+      "text": "Flights",
+      "already_in_en": false
+    },
+    {
+      "line": 141,
+      "type": "attr:title",
+      "text": "Stays & Access Codes",
+      "already_in_en": false
+    },
+    {
+      "line": 145,
+      "type": "attr:title",
+      "text": "Attraction Passes",
+      "already_in_en": false
+    },
+    {
+      "line": 149,
+      "type": "attr:title",
+      "text": "Transit Passes",
+      "already_in_en": false
+    },
+    {
+      "line": 163,
+      "type": "attr:aria-label",
+      "text": "Sync tickets from itinerary",
+      "already_in_en": false
+    },
+    {
+      "line": 188,
+      "type": "attr:aria-label",
+      "text": "Manually add new ticket",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/WalletUpNext.tsx": [
+    {
+      "line": 28,
+      "type": "attr:aria-label",
+      "text": "Next upcoming credential",
+      "already_in_en": false
+    },
+    {
+      "line": 107,
+      "type": "jsx_text",
+      "text": "DOOR CODE",
+      "already_in_en": false
+    },
+    {
+      "line": 114,
+      "type": "jsx_text",
+      "text": "PNR / REF",
+      "already_in_en": false
+    },
+    {
+      "line": 147,
+      "type": "jsx_text",
+      "text": "VIEW PASS",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/cards/GenericTicketCard.tsx": [
+    {
+      "line": 197,
+      "type": "jsx_text",
+      "text": "ATTACHED DOCUMENT AVAILABLE",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/cards/TicketShell.tsx": [
+    {
+      "line": 122,
+      "type": "attr:title",
+      "text": "Private: Visible only to you",
+      "already_in_en": false
+    },
+    {
+      "line": 146,
+      "type": "attr:aria-label",
+      "text": "Ticket options",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/cards/TransitTicketCard.tsx": [
+    {
+      "line": 265,
+      "type": "jsx_text",
+      "text": "ATTACHED DOCUMENT AVAILABLE",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/modals/ScanReviewModal.tsx": [
+    {
+      "line": 17,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 66,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 204,
+      "type": "attr:aria-label",
+      "text": "Discard scan",
+      "already_in_en": false
+    },
+    {
+      "line": 352,
+      "type": "jsx_text",
+      "text": "REFERENCE / PNR",
+      "already_in_en": false
+    },
+    {
+      "line": 371,
+      "type": "jsx_text",
+      "text": "SEAT / ROOM",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/modals/TicketDetailModal.tsx": [
+    {
+      "line": 109,
+      "type": "jsx_text",
+      "text": "NO DIGITAL BARCODE ATTACHED",
+      "already_in_en": false
+    },
+    {
+      "line": 218,
+      "type": "attr:title",
+      "text": "Screen will stay awake",
+      "already_in_en": false
+    },
+    {
+      "line": 247,
+      "type": "attr:aria-label",
+      "text": "Close fullscreen pass",
+      "already_in_en": false
+    },
+    {
+      "line": 325,
+      "type": "jsx_text",
+      "text": "SEAT / ROOM",
+      "already_in_en": false
+    },
+    {
+      "line": 334,
+      "type": "jsx_text",
+      "text": "REFERENCE / PNR",
+      "already_in_en": false
+    },
+    {
+      "line": 346,
+      "type": "jsx_text",
+      "text": "START / SCHEDULE",
+      "already_in_en": false
+    },
+    {
+      "line": 355,
+      "type": "jsx_text",
+      "text": "END / EXPIRY",
+      "already_in_en": false
+    },
+    {
+      "line": 380,
+      "type": "jsx_text",
+      "text": "HOTEL WI-FI",
+      "already_in_en": false
+    }
+  ],
+  "components/trip-workspace/wallet/modals/TicketFormModal.tsx": [
+    {
+      "line": 14,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 59,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 252,
+      "type": "attr:aria-label",
+      "text": "Close modal",
+      "already_in_en": false
+    },
+    {
+      "line": 303,
+      "type": "jsx_text",
+      "text": "TICKET TYPE",
+      "already_in_en": false
+    },
+    {
+      "line": 373,
+      "type": "jsx_text",
+      "text": "PROVIDER / CARRIER",
+      "already_in_en": false
+    },
+    {
+      "line": 378,
+      "type": "attr:placeholder",
+      "text": "e.g. Iberia, Renfe",
+      "already_in_en": false
+    },
+    {
+      "line": 384,
+      "type": "jsx_text",
+      "text": "BOOKING REF / PNR",
+      "already_in_en": false
+    },
+    {
+      "line": 389,
+      "type": "attr:placeholder",
+      "text": "e.g. ABC123XYZ",
+      "already_in_en": false
+    },
+    {
+      "line": 395,
+      "type": "jsx_text",
+      "text": "HOLDER NAME",
+      "already_in_en": false
+    },
+    {
+      "line": 400,
+      "type": "attr:placeholder",
+      "text": "e.g. John Doe",
+      "already_in_en": false
+    },
+    {
+      "line": 522,
+      "type": "attr:placeholder",
+      "text": "Hotel_Guest",
+      "already_in_en": false
+    },
+    {
+      "line": 535,
+      "type": "attr:placeholder",
+      "text": "welcome2026",
+      "already_in_en": false
+    },
+    {
+      "line": 545,
+      "type": "jsx_text",
+      "text": "START / DEPARTURE / CHECK-IN",
+      "already_in_en": false
+    },
+    {
+      "line": 556,
+      "type": "attr:placeholder",
+      "text": "Timezone (e.g. Europe/Madrid)",
+      "already_in_en": false
+    },
+    {
+      "line": 562,
+      "type": "jsx_text",
+      "text": "END / ARRIVAL / CHECK-OUT",
+      "already_in_en": false
+    },
+    {
+      "line": 573,
+      "type": "attr:placeholder",
+      "text": "Timezone (e.g. Europe/Madrid)",
+      "already_in_en": false
+    },
+    {
+      "line": 587,
+      "type": "attr:placeholder",
+      "text": "e.g. 14A, Room 302",
+      "already_in_en": false
+    },
+    {
+      "line": 593,
+      "type": "jsx_text",
+      "text": "LOCATION / VENUE / ADDRESS",
+      "already_in_en": false
+    },
+    {
+      "line": 598,
+      "type": "attr:placeholder",
+      "text": "e.g. Calle San Fernando 2, Sevilla",
+      "already_in_en": false
+    },
+    {
+      "line": 607,
+      "type": "jsx_text",
+      "text": "BARCODE / QR PAYLOAD (ENCRYPTED AT REST)",
+      "already_in_en": false
+    },
+    {
+      "line": 612,
+      "type": "attr:placeholder",
+      "text": "Paste ticket barcode or QR string...",
+      "already_in_en": false
+    },
+    {
+      "line": 631,
+      "type": "jsx_text",
+      "text": "PRICE (PAID)",
+      "already_in_en": false
+    },
+    {
+      "line": 662,
+      "type": "attr:placeholder",
+      "text": "e.g. Present ID upon entry, non-refundable",
+      "already_in_en": false
+    }
+  ],
+  "contexts/AuthContext.tsx": [
+    {
+      "line": 22,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 23,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    },
+    {
+      "line": 25,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    }
+  ],
+  "contexts/I18nContext.tsx": [
+    {
+      "line": 11,
+      "type": "jsx_text",
+      "text": "Promise",
+      "already_in_en": false
+    }
+  ]
+}

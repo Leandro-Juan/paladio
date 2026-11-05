@@ -11,6 +11,7 @@ import {
 } from '@/utils/tripParser';
 import { getCountryForDestination } from '@/components/VaultMap';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
+import { resolveApiMediaUrl } from '@/utils/api';
 import styles from './UpcomingTripCard.module.css';
 
 interface UpcomingTripCardProps {
@@ -49,8 +50,62 @@ const KNOWN_DESTINATION_IATAS: Record<string, string> = {
   dublin: 'DUB',
   milan: 'MXP',
   newyork: 'JFK',
-  'new york': 'JFK',
 };
+
+function resolveTripPhoto(
+  externalPhotoUrl?: string,
+  itineraryData?: unknown,
+  destination?: string,
+  rawCity?: string,
+  getPhoto?: (city: string) => string | undefined
+): string | null {
+  if (externalPhotoUrl) return externalPhotoUrl;
+
+  const itin = itineraryData as {
+    photos?: Array<string | { url?: string }>;
+    cover_photo?: string | { url?: string };
+    photo_url?: string;
+    days?: Array<{
+      itinerary?: {
+        path?: Array<{
+          poi?: {
+            photo_url?: string;
+          };
+        }>;
+      };
+    }>;
+  } | null | undefined;
+
+  if (Array.isArray(itin?.photos) && itin.photos.length > 0 && itin.photos[0]) {
+    const p = itin.photos[0];
+    const raw = typeof p === 'string' ? p : p.url;
+    if (raw) return resolveApiMediaUrl(raw);
+  }
+
+  if (itin?.cover_photo) {
+    const raw = typeof itin.cover_photo === 'string' ? itin.cover_photo : itin.cover_photo.url;
+    if (raw) return resolveApiMediaUrl(raw);
+  }
+
+  if (Array.isArray(itin?.days)) {
+    for (const d of itin.days) {
+      if (Array.isArray(d?.itinerary?.path)) {
+        for (const stop of d.itinerary.path) {
+          if (stop?.poi?.photo_url) {
+            return resolveApiMediaUrl(stop.poi.photo_url);
+          }
+        }
+      }
+    }
+  }
+
+  if (destination && getPhoto) {
+    const cityPhoto = getPhoto(destination) || (rawCity ? getPhoto(rawCity) : undefined);
+    if (cityPhoto) return resolveApiMediaUrl(cityPhoto);
+  }
+
+  return null;
+}
 
 export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: UpcomingTripCardProps) {
   const destination = trip.destination;
@@ -169,49 +224,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
   }, [trip.start_date, trip.end_date]);
 
   // Dynamic Photo Resolution
-  const photoUrl = useMemo(() => {
-    if (externalPhotoUrl) return externalPhotoUrl;
-
-    const itin = trip.itinerary_data as {
-      photos?: Array<string | { url?: string }>;
-      days?: Array<{
-        itinerary?: {
-          path?: Array<{
-            poi?: {
-              photo_url?: string;
-            };
-          }>;
-        };
-      }>;
-    } | null | undefined;
-
-    // 1. Check itinerary root photos
-    if (Array.isArray(itin?.photos) && itin.photos.length > 0 && itin.photos[0]) {
-      const p = itin.photos[0];
-      return typeof p === 'string' ? p : p.url;
-    }
-
-    // 2. Check first POI stop in itinerary days
-    if (Array.isArray(itin?.days)) {
-      for (const d of itin.days) {
-        if (Array.isArray(d?.itinerary?.path)) {
-          for (const stop of d.itinerary.path) {
-            if (stop?.poi?.photo_url) {
-              return stop.poi.photo_url;
-            }
-          }
-        }
-      }
-    }
-
-    // 3. Dynamic lookup from POI database via usePoiPhotos (matching dashboard ActiveTripTicket)
-    if (destination) {
-      const cityPhoto = getPhoto(destination) || (rawCity ? getPhoto(rawCity) : undefined);
-      if (cityPhoto) return cityPhoto;
-    }
-
-    return null;
-  }, [externalPhotoUrl, trip.itinerary_data, destination, rawCity, getPhoto]);
+  const photoUrl = resolveTripPhoto(externalPhotoUrl, trip.itinerary_data, destination, rawCity, getPhoto);
 
   // Extract Important Trip Information Badges (replacing notes)
   const tripHighlights = useMemo(() => {

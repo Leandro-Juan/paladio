@@ -6,6 +6,7 @@ import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { apiFetch } from '@/utils/api';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { ChevronRightIcon } from '@/components/icons';
 import styles from './BestOfferCard.module.css';
 
 export function BestOfferCard() {
@@ -91,7 +92,7 @@ export function BestOfferCard() {
           {/* Route Header */}
           <h3 className={styles.routeTitle} title={`${activeDeal.origin_iata} to ${activeDeal.destination_name}`}>
             <span>{activeDeal.origin_iata}</span>
-            <span className={styles.arrow} aria-hidden="true">→</span>
+            <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
             <span>{activeDeal.destination_name}</span>
           </h3>
 
@@ -225,7 +226,7 @@ export function BestOfferCard() {
 
         <h3 className={styles.routeTitle}>
           <span>{bestDiscountRoute?.origin_iata}</span>
-          <span className={styles.arrow} aria-hidden="true">→</span>
+          <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
           <span>{bestDiscountRoute?.destination_name}</span>
         </h3>
 
