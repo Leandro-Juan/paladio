@@ -76,9 +76,12 @@ test.describe('ModelSelectorPopover Component', () => {
     const searchInput = component.getByPlaceholder('Search models...');
     await expect(searchInput).toBeVisible();
 
-    // Verify family headers
+    // Verify family headers for available providers
     await expect(component.getByText('Google Gemini')).toBeVisible();
     await expect(component.getByText('Anthropic Claude')).toBeVisible();
+
+    // Verify unconfigured providers (e.g. OpenAI) are not shown
+    await expect(component.getByText('OpenAI')).not.toBeVisible();
 
     // Verify no Basic or Advanced section headings
     await expect(component.getByText(/^BASIC$/i)).not.toBeVisible();

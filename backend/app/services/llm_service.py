@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from typing import Any, Dict, Optional, Type, TypeVar
+import httpx
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
@@ -409,32 +410,62 @@ class LLMService:
             if key and prov not in provider_keys:
                 provider_keys[prov] = key
 
+        # Probe local sovereign Ollama service for running status and installed models
+        ollama_reachable = False
+        ollama_installed_models: list[str] = []
+        try:
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip(
+                "/"
+            )
+            if ollama_url.endswith("/v1"):
+                ollama_url = ollama_url[:-3]
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                resp = await client.get(f"{ollama_url}/api/tags")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    ollama_reachable = True
+                    for m in data.get("models", []):
+                        m_name = m.get("name")
+                        if m_name and "embed" not in m_name:
+                            ollama_installed_models.append(m_name)
+        except Exception:
+            ollama_reachable = False
+
         result_map: Dict[str, Dict[str, Any]] = {}
         for prov_key, meta in SUPPORTED_PROVIDERS.items():
             is_active = prov_key == active_provider
             has_key = bool(provider_keys.get(prov_key))
             is_configured = False
 
-            if prov_key == "custom_openai":
+            if prov_key == "ollama":
+                is_configured = (
+                    ollama_reachable or is_active or bool(provider_keys.get("ollama"))
+                )
+            elif prov_key == "custom_openai":
                 is_configured = bool(
                     has_key or (is_active and active_provider == "custom_openai")
                 )
             elif not meta.get("requires_key", True):
-                # Local / self-hosted like Ollama
-                is_configured = True
+                is_configured = is_active or bool(provider_keys.get(prov_key))
             elif has_key:
                 is_configured = True
 
             if is_configured:
                 raw_key = provider_keys.get(prov_key)
+                models_to_use = meta.get("recommended_models", [])
+                if prov_key == "ollama" and ollama_installed_models:
+                    models_to_use = ollama_installed_models
+
                 result_map[prov_key] = {
                     "provider": prov_key,
                     "name": meta.get("name", prov_key),
                     "is_active": is_active,
                     "active_model": active_model
                     if is_active
-                    else meta.get("default_model"),
-                    "available_models": meta.get("recommended_models", []),
+                    else (
+                        models_to_use[0] if models_to_use else meta.get("default_model")
+                    ),
+                    "available_models": models_to_use,
                     "masked_key": mask_api_key(raw_key) if raw_key else None,
                     "requires_key": meta.get("requires_key", True),
                 }
