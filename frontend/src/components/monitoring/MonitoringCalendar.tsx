@@ -316,6 +316,14 @@ export function MonitoringCalendar({
                   fitsHolidayWindow = allCovered;
                 }
 
+                const tooltipPosClass = d.day <= 4 ? styles.tooltipBelow : styles.tooltipAbove;
+                const tooltipAlignClass =
+                  d.weekday === 0
+                    ? styles.tooltipAlignLeft
+                    : d.weekday === 6
+                    ? styles.tooltipAlignRight
+                    : styles.tooltipAlignCenter;
+
                 return (
                   <button
                     key={d.date}
@@ -330,15 +338,10 @@ export function MonitoringCalendar({
                       }
                     }}
                     onMouseLeave={() => setHoveredDay(null)}
-                    title={`${d.date}: ${d.price_eur ? formatCurrencyAmount(d.price_eur, activeCurrency) : 'No direct flight'}${
-                      d.nights ? ` · ${d.nights}N stay until ${d.return_date}` : ''
-                    }${topRank ? ` · #${topRank} Best Value Package` : ''}${
-                      isUserHoliday ? ' · User Holiday / Vacation' : ''
-                    }`}
                     aria-label={`${d.date}, ${d.price_eur ? `price ${formatCurrencyAmount(d.price_eur, activeCurrency)}` : 'no flight'}`}
                   >
                     {isUserHoliday && (
-                      <span className={styles.holidayMarker} title="Marked as Vacation / PTO in Dashboard" />
+                      <span className={styles.holidayMarker} />
                     )}
                     {topRank && (
                       <span className={`${styles.topRankBadge} ${styles[`topRank${topRank}`]}`}>
@@ -351,6 +354,26 @@ export function MonitoringCalendar({
                     <span className={styles.dayNum}>{d.day}</span>
                     <span className={styles.dayPrice}>
                       {d.price_eur !== null ? formatCurrencyAmount(d.price_eur, activeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—'}
+                    </span>
+
+                    {/* Native Paladio Aesthetic Day Tooltip */}
+                    <span
+                      role="tooltip"
+                      className={`${styles.dayTooltip} ${tooltipPosClass} ${tooltipAlignClass}`}
+                    >
+                      <span className={styles.dayTooltipHeader}>
+                        <span className={styles.dayTooltipDate}>{d.date}</span>
+                        <span className={styles.dayTooltipPrice}>
+                          {d.price_eur ? formatCurrencyAmount(d.price_eur, activeCurrency) : 'No flight'}
+                        </span>
+                      </span>
+                      {(d.nights || topRank || isUserHoliday) && (
+                        <span className={styles.dayTooltipSub}>
+                          {d.nights ? `${d.nights}N stay → ${d.return_date}` : ''}
+                          {topRank ? ` · #${topRank} Best Value` : ''}
+                          {isUserHoliday ? ' · Vacation' : ''}
+                        </span>
+                      )}
                     </span>
                   </button>
                 );

@@ -143,11 +143,6 @@ export function RouteTelemetryCards({
               />
             </svg>
           </div>
-
-          <div className={styles.cardFooter}>
-            <span>{stats?.lowest_ever_date ? `Observed ${stats.lowest_ever_date}` : 'Historical baseline'}</span>
-            <span>Target: P10</span>
-          </div>
         </div>
 
         {/* Card 2: Market & Median (Blue) */}
@@ -196,11 +191,6 @@ export function RouteTelemetryCards({
               />
             </svg>
           </div>
-
-          <div className={styles.cardFooter}>
-            <span>{stats?.depart_dates_count ?? prices.length} observation(s)</span>
-            <span>Next scan: ~{stats?.next_scan_minutes ?? 120}m</span>
-          </div>
         </div>
 
         {/* Card 3: Volatility (Purple) */}
@@ -233,11 +223,6 @@ export function RouteTelemetryCards({
                 className={`${styles.sparklinePath} ${styles.sparklinePurple}`}
               />
             </svg>
-          </div>
-
-          <div className={styles.cardFooter}>
-            <span>Air-gapped telemetry</span>
-            <span>Realism: {stats?.itinerary_realism_score ? `${stats.itinerary_realism_score}/10` : '10/10'}</span>
           </div>
         </div>
       </div>

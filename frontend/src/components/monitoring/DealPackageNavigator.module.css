@@ -81,6 +81,46 @@
   gap: 0.5rem;
 }
 
+.btnTooltipWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.arrowTooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  background-color: #1A2B32;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+}
+
+[data-theme="dark"] .arrowTooltip {
+  background-color: #0E171B;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.btnTooltipWrapper:hover .arrowTooltip,
+.btnTooltipWrapper:focus-within .arrowTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
 .carouselArrowBtn {
   display: inline-flex;
   align-items: center;
@@ -332,7 +372,7 @@
 .footerRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   padding-top: 0.5rem;
   border-top: 1px solid #F1F5F9;

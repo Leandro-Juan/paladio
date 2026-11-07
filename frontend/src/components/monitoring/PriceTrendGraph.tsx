@@ -225,7 +225,7 @@ export function PriceTrendGraph({
               <span className={styles.tooltipVal}>{symbol}{d.nightlyPrice.toFixed(2)}/night</span>
             </div>
             {d.propertyName && (
-              <div className={styles.tooltipHotelName} title={d.propertyName}>
+              <div className={styles.tooltipHotelName}>
                 {d.propertyName} {d.reviewScore ? `(★ ${d.reviewScore.toFixed(1)})` : ''}
               </div>
             )}
@@ -266,15 +266,6 @@ export function PriceTrendGraph({
             <h4 className={styles.title}>
               Calendar Horizon Price Spread
             </h4>
-            {verdict && (
-              <VerdictBadge
-                verdict={verdict.verdict}
-                percentile={verdict.percentile}
-                confidence={verdict.confidence}
-                showConfidence={true}
-                size="sm"
-              />
-            )}
           </div>
         </div>
 
@@ -295,41 +286,6 @@ export function PriceTrendGraph({
         </div>
       </div>
 
-      {/* Corpus Health & Sweep Status Banner */}
-      {corpus && (
-        <div className={styles.corpusBanner}>
-          <div className={styles.corpusStats}>
-            <span>
-              Corpus: <strong className={styles.corpusPill}>{corpus.depart_dates_count} dates indexed</strong> across 11 months
-            </span>
-            <span>•</span>
-            <span>Confidence: <strong style={{ textTransform: 'capitalize' }}>{corpus.confidence}</strong></span>
-            {corpus.min_price_eur !== null && (
-              <>
-                <span>•</span>
-                <span>Low: <strong>{symbol}{corpus.min_price_eur?.toFixed(2)}</strong></span>
-              </>
-            )}
-            {corpus.median_price_eur !== null && (
-              <>
-                <span>•</span>
-                <span>Median: <strong>{symbol}{corpus.median_price_eur?.toFixed(2)}</strong></span>
-              </>
-            )}
-          </div>
-          {onTriggerBackfill && (
-            <button
-              type="button"
-              className={styles.sweepBtn}
-              onClick={onTriggerBackfill}
-              disabled={isBusy}
-              title="Queries Ryanair fare finder across the next 11 months to refresh market baselines"
-            >
-              {isBusy ? 'Sweeping...' : 'Re-Sweep Calendar'}
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Chart 1: Flight Fares */}
       <div className={styles.chartWrapper}>

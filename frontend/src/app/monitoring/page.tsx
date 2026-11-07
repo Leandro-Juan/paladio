@@ -216,9 +216,6 @@ export default function MonitoringPage() {
                       <span className={styles.livePulseDot} />
                       VERIFIED DEAL PACKAGE FOUND
                     </span>
-                    <span className={styles.realismBadge}>
-                      REALISM {deal.realism_score.toFixed(1)}/10
-                    </span>
                   </div>
                   <h2 className={styles.dealRouteTitle}>
                     <span>{deal.origin_name}</span>
@@ -353,9 +350,6 @@ export default function MonitoringPage() {
 
               {/* Action Bar */}
               <div className={styles.dealCardFooter}>
-                <span className={styles.dealFooterPrompt}>
-                  Verified flight + hotel deal package ready for autonomous trip creation.
-                </span>
                 <div className={styles.dealFooterActions}>
                   <button
                     type="button"

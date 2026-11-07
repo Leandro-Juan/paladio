@@ -8,6 +8,7 @@
 }
 
 .badge {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -78,6 +79,7 @@
 }
 
 .confidencePill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   font-size: 9px;
@@ -106,4 +108,40 @@
 
 .confidenceBuilding {
   border-left: 2px solid var(--color-text-muted, #566B76);
+}
+
+.badgeTooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  background-color: #1A2B32;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+}
+
+[data-theme="dark"] .badgeTooltip {
+  background-color: #0E171B;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.badge:hover .badgeTooltip,
+.confidencePill:hover .badgeTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }

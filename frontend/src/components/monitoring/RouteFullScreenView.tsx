@@ -15,7 +15,6 @@ import { PriceTrendGraph } from './PriceTrendGraph';
 import { RouteTelemetryCards } from './RouteTelemetryCards';
 import { MonitoringCalendar } from './MonitoringCalendar';
 import { DealPackageNavigator } from './DealPackageNavigator';
-import { VerdictBadge } from './VerdictBadge';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import styles from './RouteFullScreenView.module.css';
@@ -102,14 +101,6 @@ export function RouteFullScreenView({
               >
                 {isDeal ? 'DEAL ACTIVE' : route.status || 'MONITORING'}
               </span>
-
-              {(history?.verdict?.verdict || route.verdict) && (
-                <VerdictBadge
-                  verdict={(history?.verdict?.verdict ?? route.verdict)!}
-                  percentile={history?.verdict?.percentile ?? route.verdict_percentile}
-                  confidence={history?.verdict?.confidence ?? route.verdict_confidence}
-                />
-              )}
             </div>
             <span className={styles.routeSub}>
               {route.destination_name} · RID-{route.id.slice(0, 8)}
@@ -198,34 +189,6 @@ export function RouteFullScreenView({
             }}
           />
         </div>
-
-        {/* Section 4: Observation Audit Feed */}
-        <section className={styles.auditSection} aria-label="Route observations audit feed">
-          <div className={styles.auditHeader}>
-            <span className={styles.auditSubtitle}>{"// TELEMETRY_OBSERVATION_STREAM"}</span>
-            <h4 className={styles.auditTitle}>Observation Audit Feed</h4>
-          </div>
-
-          <div className={styles.eventsTable}>
-            {events.length === 0 ? (
-              <p className={styles.emptyEvents}>No recent observations logged for this corridor yet.</p>
-            ) : (
-              events.map((ev) => (
-                <div key={ev.id} className={styles.eventRow}>
-                  <div className={styles.eventInfo}>
-                    <span className={styles.eventTitle}>{ev.title}</span>
-                    <span className={styles.eventMeta}>
-                      {ev.timestamp.replace('T', ' ').slice(0, 19)} · {ev.event_type}
-                    </span>
-                  </div>
-                  {ev.result && (
-                    <span className={styles.eventPriceTag}>{ev.result}</span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
       </div>
     </div>
   );

@@ -46,49 +46,50 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
       {/* Navigator Top Control Header */}
       <div className={styles.navTopBar}>
         <div className={styles.badgeGroup}>
-          <span className={styles.radarTag} aria-hidden="true">
-            <span className={styles.livePulseDot} />
-            {"// VERIFIED_PACKAGE_RADAR"}
-          </span>
           <span className={styles.rankBadge}>
             {safeIndex === 0 ? `★ TOP DEAL 1 OF ${deals.length} · BEST VALUE` : `OPTION ${safeIndex + 1} OF ${deals.length}`}
-          </span>
-          <span className={styles.realismBadge}>
-            REALISM {deal.realism_score.toFixed(1)}/10
           </span>
         </div>
 
         {/* Carousel Arrow Controls */}
         <div className={styles.carouselControls}>
-          <button
-            type="button"
-            className={styles.carouselArrowBtn}
-            onClick={handlePrev}
-            disabled={safeIndex === 0}
-            aria-label="Previous deal package"
-            title="Previous deal package"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+          <div className={styles.btnTooltipWrapper}>
+            <button
+              type="button"
+              className={styles.carouselArrowBtn}
+              onClick={handlePrev}
+              disabled={safeIndex === 0}
+              aria-label="Previous deal package"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className={styles.arrowTooltip} role="tooltip">
+              Previous deal package
+            </span>
+          </div>
 
           <span className={styles.counterText}>
             <strong>{safeIndex + 1}</strong> / {deals.length}
           </span>
 
-          <button
-            type="button"
-            className={styles.carouselArrowBtn}
-            onClick={handleNext}
-            disabled={safeIndex === deals.length - 1}
-            aria-label="Next deal package"
-            title="Next deal package"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
+          <div className={styles.btnTooltipWrapper}>
+            <button
+              type="button"
+              className={styles.carouselArrowBtn}
+              onClick={handleNext}
+              disabled={safeIndex === deals.length - 1}
+              aria-label="Next deal package"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+            <span className={styles.arrowTooltip} role="tooltip">
+              Next deal package
+            </span>
+          </div>
         </div>
       </div>
 
@@ -232,9 +233,6 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
 
         {/* Footer Actions */}
         <div className={styles.footerRow}>
-          <span className={styles.footerPrompt}>
-            Verified flight + hotel deal package ready for autonomous trip creation.
-          </span>
           <div className={styles.actionGroup}>
             {onDiscardDeal && (
               <button
