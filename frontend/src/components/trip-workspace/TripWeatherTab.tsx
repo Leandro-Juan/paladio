@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/utils/api';
 import { Spinner, RefreshIcon, CheckIcon, AlertTriangleIcon, InfoIcon, CompassIcon } from '@/components/icons';
+import { WeatherForecastIllustration } from '@/components/illustrations/GeneralAppIllustrations';
 
 export interface WeatherHighlight {
   uv_index: float_or_number;
@@ -290,6 +291,14 @@ export function TripWeatherTab({
   const [data, setData] = useState<WeatherForecastResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOutOfRange, setIsOutOfRange] = useState(false);
+  const [currentPreview, setCurrentPreview] = useState<{
+    temp_c: number;
+    condition: string;
+    icon_type: string;
+    humidity: number;
+    wind_kmh: number;
+  } | null>(null);
   const [unit, setUnit] = useState<'C' | 'F'>('C');
   const [selectedDayOverride, setSelectedDayOverride] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -308,6 +317,16 @@ export function TripWeatherTab({
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [tripStartDate, tripEndDate, tripDaysCount]);
 
+  const daysUntilTrip = useMemo(() => {
+    if (!effectiveStartDate) return null;
+    const start = new Date(effectiveStartDate + 'T00:00:00');
+    if (isNaN(start.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = start.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [effectiveStartDate]);
+
   const activeDayIndex = useMemo(() => {
     if (selectedDayOverride !== null) return selectedDayOverride;
     if (typeof selectedDay === 'number' && data?.forecast_days && selectedDay >= 1) {
@@ -318,6 +337,7 @@ export function TripWeatherTab({
 
   const fetchWeather = useCallback(async () => {
     setError(null);
+    setIsOutOfRange(false);
 
     const queryParams = new URLSearchParams();
     if (destinationCity) queryParams.set('city', destinationCity);
@@ -332,16 +352,29 @@ export function TripWeatherTab({
 
     try {
       const res = await apiFetch<WeatherForecastResponse>(`/weather/forecast?${queryParams.toString()}`);
+      if (!res.forecast_days || res.forecast_days.length === 0) {
+        throw new Error('No forecast days available for the requested range.');
+      }
       setData(res);
       setIsLoading(false);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Telemetry request failed';
       console.warn('Backend weather route failed, attempting direct Open-Meteo fallback:', errMsg);
-      try {
-        let lat = coordinates?.lat || 35.6895;
-        let lon = coordinates?.lng || 139.6917;
+      const isDateOutOfRange =
+        errMsg.toLowerCase().includes('out of') ||
+        errMsg.toLowerCase().includes('range') ||
+        errMsg.toLowerCase().includes('16 days') ||
+        errMsg.toLowerCase().includes('14') ||
+        (daysUntilTrip !== null && daysUntilTrip > 16);
+      if (isDateOutOfRange) {
+        setIsOutOfRange(true);
+      }
 
-        if (!coordinates && destinationCity) {
+      try {
+        let lat = coordinates?.lat;
+        let lon = coordinates?.lng;
+
+        if ((lat == null || lon == null) && destinationCity) {
           const geoRes = await fetch(
             `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destinationCity)}&count=1&language=en&format=json`
           );
@@ -354,6 +387,14 @@ export function TripWeatherTab({
           }
         }
 
+        if (lat == null || lon == null) {
+          throw new Error(
+            destinationCity
+              ? `Could not resolve geographic coordinates for "${destinationCity}".`
+              : 'Destination coordinates are not available.'
+          );
+        }
+
         const dateRangeParams =
           effectiveStartDate && effectiveEndDate
             ? `&start_date=${effectiveStartDate}&end_date=${effectiveEndDate}`
@@ -362,10 +403,25 @@ export function TripWeatherTab({
         const fRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility&hourly=relative_humidity_2m,visibility,uv_index&timezone=auto${dateRangeParams}`
         );
-        const fJson = await fRes.json();
+        const fJson = await fRes.json().catch(() => ({}));
+
+        if (!fRes.ok || fJson.error) {
+          const reason = fJson.reason || fJson.error || `Forecast API returned status ${fRes.status}`;
+          if (
+            String(reason).toLowerCase().includes('out of allowed range') ||
+            String(reason).toLowerCase().includes('out of range')
+          ) {
+            setIsOutOfRange(true);
+          }
+          throw new Error(String(reason));
+        }
 
         const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const times = fJson.daily?.time || [];
+        if (times.length === 0) {
+          throw new Error('Meteorological provider returned empty daily forecast data.');
+        }
+
         const days: WeatherDayForecast[] = times.map((t: string, i: number) => {
           const code = fJson.daily?.weather_code?.[i] || 0;
           const dObj = new Date(t);
@@ -409,12 +465,39 @@ export function TripWeatherTab({
           travel_advisory: 'Optimal meteorological conditions for pedestrian urban exploration.',
         });
         setIsLoading(false);
-      } catch {
-        setError(errMsg);
+      } catch (fallbackErr: unknown) {
+        const finalMsg = fallbackErr instanceof Error ? fallbackErr.message : errMsg;
+        setError(finalMsg);
         setIsLoading(false);
+
+        // Fetch optional live conditions preview for today if destination coords available
+        const previewLat = coordinates?.lat;
+        const previewLon = coordinates?.lng;
+        if (previewLat != null && previewLon != null) {
+          try {
+            const curRes = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${previewLat}&longitude=${previewLon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&forecast_days=1`
+            );
+            if (curRes.ok) {
+              const curJson = await curRes.json();
+              if (curJson.current) {
+                const code = curJson.current.weather_code || 0;
+                setCurrentPreview({
+                  temp_c: Math.round(curJson.current.temperature_2m),
+                  condition: code === 0 ? 'Clear Sky' : code < 3 ? 'Partly Cloudy' : code > 50 ? 'Rain' : 'Cloudy',
+                  icon_type: code === 0 ? 'clear' : code < 3 ? 'partly-cloudy' : code > 50 ? 'rain' : 'cloudy',
+                  humidity: curJson.current.relative_humidity_2m ?? 50,
+                  wind_kmh: Math.round(curJson.current.wind_speed_10m ?? 10),
+                });
+              }
+            }
+          } catch {
+            // Optional preview - non-blocking
+          }
+        }
       }
     }
-  }, [destinationCity, coordinates, effectiveStartDate, effectiveEndDate]);
+  }, [destinationCity, coordinates, effectiveStartDate, effectiveEndDate, daysUntilTrip]);
 
   useEffect(() => {
     let cancelled = false;
@@ -480,41 +563,279 @@ export function TripWeatherTab({
   }
 
   /* -------------------------------------------------------------------------- */
-  /* Error State                                                                */
+  /* Warning / Telemetry Unavailable State (Never blank)                        */
   /* -------------------------------------------------------------------------- */
-  if (error && !data) {
+  const hasValidForecast = Boolean(
+    data && data.forecast_days && data.forecast_days.length > 0 && selectedDayForecast
+  );
+
+  if (!hasValidForecast) {
+    const cityDisplayName = destinationCity || data?.city || 'Trip Destination';
+    const outOfRangeDetected =
+      isOutOfRange ||
+      (daysUntilTrip !== null && daysUntilTrip > 16) ||
+      Boolean(error?.toLowerCase().includes('out of') && error?.toLowerCase().includes('range')) ||
+      Boolean(error?.toLowerCase().includes('14') || error?.toLowerCase().includes('16'));
+
+    const displayLat = coordinates?.lat ?? data?.latitude;
+    const displayLon = coordinates?.lng ?? data?.longitude;
+
     return (
       <div
-        data-testid="weather-tab-error"
+        data-testid="weather-tab-warning"
         style={{
-          padding: '30px 20px',
-          textAlign: 'center',
+          padding: '16px 18px',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: '14px',
+          gap: '16px',
+          color: 'var(--color-text-primary)',
         }}
       >
-        <div style={{ fontSize: '13px', color: 'var(--color-danger, #B3261E)' }}>{error}</div>
-        <button
-          type="button"
-          onClick={handleManualRefresh}
+        {/* Header bar: City, Coordinates/Dates, Refresh */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                {cityDisplayName}
+              </span>
+              {displayLat != null && displayLon != null && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'monospace',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(15, 76, 92, 0.08)',
+                    color: 'var(--color-accent-primary)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {`${Math.abs(displayLat).toFixed(2)}°${displayLat >= 0 ? 'N' : 'S'}, ${Math.abs(displayLon).toFixed(2)}°${displayLon >= 0 ? 'E' : 'W'}`}
+                </span>
+              )}
+            </div>
+            {effectiveStartDate && (
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-text-muted)',
+                  marginTop: '2px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {effectiveStartDate}
+                {effectiveEndDate ? ` – ${effectiveEndDate}` : ''}
+                {daysUntilTrip !== null && daysUntilTrip > 0 ? ` (${daysUntilTrip} days away)` : ''}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '5px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-secondary)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            title="Refresh meteorological telemetry"
+          >
+            <RefreshIcon size={12} />
+            <span>Retry</span>
+          </button>
+        </div>
+
+        {/* Warning Card */}
+        <div
+          data-testid="weather-warning-card"
           style={{
-            display: 'inline-flex',
+            borderRadius: '12px',
+            border: '1px solid rgba(226, 179, 60, 0.4)',
+            borderLeft: '4px solid var(--color-accent-warning, #E2B33C)',
+            background: 'rgba(226, 179, 60, 0.08)',
+            padding: '22px 18px',
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            gap: '6px',
-            padding: '7px 14px',
-            borderRadius: '8px',
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-surface-card)',
-            color: 'var(--color-text-primary)',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
+            textAlign: 'center',
+            gap: '12px',
           }}
         >
-          <RefreshIcon size={13} /> Retry
-        </button>
+          <WeatherForecastIllustration width={120} height={76} />
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              background: 'var(--color-accent-warning-subtle, #FBF1D6)',
+              color: '#7A5A00',
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              fontFamily: 'monospace',
+            }}
+          >
+            <AlertTriangleIcon size={12} color="#7A5A00" />
+            <span>{outOfRangeDetected ? 'Forecast Window Notice' : 'Telemetry Warning'}</span>
+          </div>
+
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            {outOfRangeDetected
+              ? 'Weather Forecast Not Yet Available'
+              : 'Weather Telemetry Unavailable'}
+          </div>
+
+          <p
+            style={{
+              fontSize: '12px',
+              lineHeight: 1.6,
+              color: 'var(--color-text-secondary)',
+              margin: 0,
+              maxWidth: '380px',
+            }}
+          >
+            {outOfRangeDetected ? (
+              <>
+                Meteorological forecast models (ECMWF & GFS) only predict atmospheric conditions{' '}
+                <strong>up to 14–16 days in advance</strong>. Because your trip to{' '}
+                <strong>{cityDisplayName}</strong> is scheduled for{' '}
+                {effectiveStartDate || 'a future date'}
+                {daysUntilTrip !== null && daysUntilTrip > 0
+                  ? ` (${daysUntilTrip} days away)`
+                  : ''}
+                , daily weather telemetry will unlock automatically closer to your departure.
+              </>
+            ) : (
+              <>
+                Could not retrieve live meteorological telemetry for <strong>{cityDisplayName}</strong>
+                {error ? `: ${error}` : '.'} Please check your destination coordinates or connection and retry.
+              </>
+            )}
+          </p>
+
+          {/* Guidance Callout */}
+          <div
+            style={{
+              width: '100%',
+              background: 'var(--color-surface-card)',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              textAlign: 'left',
+            }}
+          >
+            <InfoIcon
+              size={14}
+              color="var(--color-accent-primary)"
+              style={{ marginTop: '2px', flexShrink: 0 }}
+            />
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--color-text-primary)' }}>Automatic updates: </strong>
+              Daily temperature curves, precipitation risk, UV index, and walking advisories update
+              automatically as travel dates draw near.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginTop: '4px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-subtle)',
+            }}
+          >
+            <RefreshIcon size={13} />
+            <span>Retry Telemetry</span>
+          </button>
+        </div>
+
+        {/* Current Live Weather Preview (if available) */}
+        {currentPreview && (
+          <div
+            data-testid="weather-current-preview"
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Today&apos;s Live Reference in {cityDisplayName}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <WeatherIcon type={currentPreview.icon_type} size={30} />
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 800 }}>
+                    {unit === 'F'
+                      ? Math.round((currentPreview.temp_c * 9) / 5 + 32)
+                      : currentPreview.temp_c}
+                    °{unit}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--color-text-secondary)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {currentPreview.condition}
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{
+                  textAlign: 'right',
+                  fontSize: '11px',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: 1.4,
+                }}
+              >
+                <div>Humidity: {currentPreview.humidity}%</div>
+                <div>Wind: {currentPreview.wind_kmh} km/h</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -210,4 +210,81 @@ test.describe('TripWeatherTab', () => {
     await expect(component.getByText('2026-09-10 – 2026-09-11', { exact: false })).toBeVisible();
     await expect(component.getByText("Thu's Highlights")).toBeVisible();
   });
+
+  test('displays tactical warning instead of blank screen when weather forecast is out of range', async ({ mount, page }) => {
+    await page.route('**/api/weather/forecast*', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          detail: "Forecast unavailable: Parameter 'start_date' is out of allowed range from 2026-08-06 to 2026-11-22",
+        }),
+      });
+    });
+
+    // Also intercept any direct Open-Meteo fallback
+    await page.route('https://api.open-meteo.com/**', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: true,
+          reason: "Parameter 'start_date' is out of allowed range from 2026-08-06 to 2026-11-22",
+        }),
+      });
+    });
+
+    const component = await mount(
+      <TripWeatherTab
+        destinationCity="Kyoto"
+        tripStartDate="2027-04-10"
+        tripEndDate="2027-04-15"
+        coordinates={{ lat: 35.0116, lng: 135.7681 }}
+      />
+    );
+
+    // Verify warning container is rendered (NOT blank)
+    await expect(page.getByTestId('weather-tab-warning')).toBeVisible();
+    await expect(page.getByTestId('weather-warning-card')).toBeVisible();
+
+    // Verify warning card and title
+    await expect(page.getByText('Weather Forecast Not Yet Available')).toBeVisible();
+    await expect(page.getByText('Forecast Window Notice')).toBeVisible();
+
+    // Verify explanation mentioning 14–16 days advance
+    await expect(page.getByText(/14–16 days in advance/)).toBeVisible();
+
+    // Verify retry button is available
+    await expect(page.getByRole('button', { name: 'Retry Telemetry' })).toBeVisible();
+  });
+
+  test('displays warning when network or backend fails completely', async ({ mount, page }) => {
+    await page.route('**/api/weather/forecast*', async (route) => {
+      await route.fulfill({
+        status: 502,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          detail: 'Weather telemetry provider unavailable',
+        }),
+      });
+    });
+
+    await page.route('https://api.open-meteo.com/**', async (route) => {
+      await route.abort('failed');
+    });
+
+    const component = await mount(
+      <TripWeatherTab
+        destinationCity="Sapporo"
+        tripStartDate="2026-12-01"
+        tripEndDate="2026-12-05"
+        coordinates={{ lat: 43.0618, lng: 141.3545 }}
+      />
+    );
+
+    // Warning is visible and never blank
+    await expect(page.getByTestId('weather-tab-warning')).toBeVisible();
+    await expect(page.getByTestId('weather-warning-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry Telemetry' })).toBeVisible();
+  });
 });

@@ -313,8 +313,11 @@ async def get_weather_forecast(
                             forecast_data = season_resp.json()
                         else:
                             raise HTTPException(
-                                status_code=502,
-                                detail="Weather telemetry provider unavailable",
+                                status_code=400,
+                                detail=(
+                                    "Weather forecast telemetry is out of range. "
+                                    "Forecast models only provide predictions up to 16 days in advance."
+                                ),
                             )
                 except HTTPException:
                     raise
@@ -324,6 +327,18 @@ async def get_weather_forecast(
                         status_code=502,
                         detail="Weather telemetry provider unavailable",
                     )
+            elif f_resp.status_code == 400:
+                try:
+                    err_body = f_resp.json()
+                    reason = err_body.get(
+                        "reason", "Weather query parameters out of range"
+                    )
+                except Exception:
+                    reason = "Weather query parameters out of range"
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Forecast unavailable: {reason}",
+                )
             else:
                 logger.error(
                     f"Open-Meteo forecast failed with status {f_resp.status_code}"
