@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { LanguagePickerModal } from '@/components/common/LanguagePickerModal';
 
 interface UserMenuProps {
   isCollapsed?: boolean;
@@ -13,10 +12,9 @@ interface UserMenuProps {
 
 export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProps) {
   const { user, logout } = useAuth();
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -361,60 +359,6 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
               <span>{t('nav.config')}</span>
             </button>
 
-            {/* Language Selector */}
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setIsLanguageModalOpen(true);
-              }}
-              role="menuitem"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '7px 8px',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                color: 'var(--color-text-primary)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(15, 76, 92, 0.08)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-                <span>{t('nav.change_language')}</span>
-              </div>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  background: 'var(--color-surface-raised, rgba(0, 0, 0, 0.05))',
-                  color: 'var(--color-text-muted)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                {locale ? locale.toUpperCase() : 'EN'}
-              </span>
-            </button>
-
             {/* Help */}
             <button
               onClick={handleHelpClick}
@@ -479,7 +423,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
-                <line x1="2" y1="12" x2="9" y2="12" />
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               <span>{t('nav.logout')}</span>
             </button>
@@ -515,11 +459,6 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
         </div>
       )}
 
-      {/* Language Picker Modal */}
-      <LanguagePickerModal
-        isOpen={isLanguageModalOpen}
-        onClose={() => setIsLanguageModalOpen(false)}
-      />
     </div>
   );
 }

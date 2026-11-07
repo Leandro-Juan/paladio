@@ -1451,8 +1451,5 @@ export function VideoIcon({ size = 14, className, style, color = 'currentColor' 
     </svg>
   );
 }
-
-
-
-
+export * from './ProviderIcons';
 

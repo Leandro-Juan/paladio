@@ -9,7 +9,7 @@ import {
   SupportedProviderMeta,
   TestLLMConnectionResponse,
 } from '@/utils/api';
-import { Spinner, CheckIcon } from '@/components/icons';
+import { Spinner, CheckIcon, ProviderBrandIcon } from '@/components/icons';
 import { notify } from '@/utils/notify';
 
 export function LlmConfigCard() {
@@ -218,9 +218,12 @@ export function LlmConfigCard() {
                 borderRadius: '4px',
                 background: 'var(--color-surface-card)',
                 border: '1px solid var(--color-border-subtle)',
-                color: 'var(--color-text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
+              <ProviderBrandIcon provider={activeConfig.provider} size={14} />
               ACTIVE: <strong>{activeConfig.provider.toUpperCase()}</strong> ({activeConfig.model})
             </span>
             <span
@@ -309,7 +312,8 @@ export function LlmConfigCard() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ProviderBrandIcon provider={provKey} size={16} />
                         <span
                           style={{
                             width: '6px',
@@ -449,9 +453,12 @@ export function LlmConfigCard() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '13px' }}>
-                    {meta.name}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ProviderBrandIcon provider={key} size={18} />
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '13px' }}>
+                      {meta.name}
+                    </span>
+                  </div>
                   {isSelected && <CheckIcon size={14} color="var(--color-accent-teal, #0D9488)" />}
                 </div>
 
