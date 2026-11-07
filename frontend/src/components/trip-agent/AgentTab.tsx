@@ -7,6 +7,7 @@ import { ContextChip } from './ContextChip';
 import { ChangeToast } from './ChangeToast';
 import { AgentComposer } from './AgentComposer';
 import { AgentMessageList } from './AgentMessageList';
+import { AgentPoiItem } from './AgentPoiCards';
 import { ModelSelectorPopover } from './ModelSelectorPopover';
 import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse } from '@/utils/api';
 import { notify } from '@/utils/notify';
@@ -16,9 +17,10 @@ export interface AgentTabProps {
   tripId: string;
   uiContext?: WorkspaceContextData;
   onTripUpdated?: () => void;
+  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
 }
 
-export function AgentTab({ tripId, uiContext, onTripUpdated }: AgentTabProps) {
+export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: AgentTabProps) {
   const [clearedContext, setClearedContext] = useState<WorkspaceContextData | null>(null);
   const activeContext = clearedContext === uiContext ? undefined : uiContext;
   const [llmInfo, setLlmInfo] = useState<{ provider: string; model: string } | null>(null);
@@ -85,6 +87,11 @@ export function AgentTab({ tripId, uiContext, onTripUpdated }: AgentTabProps) {
     uiContext: activeContext,
     onTripUpdated,
   });
+
+  const handleAddPoiFromChat = (poi: AgentPoiItem) => {
+    const dayStr = activeContext?.selected_day && activeContext.selected_day !== 'all' ? ` to Day ${activeContext.selected_day}` : '';
+    sendMessage(`Add ${poi.name}${dayStr} to the itinerary`);
+  };
 
   return (
     <div className={styles.agentTabContainer}>
@@ -181,6 +188,8 @@ export function AgentTab({ tripId, uiContext, onTripUpdated }: AgentTabProps) {
           messages={messages}
           onApproveProposal={approveProposal}
           onRejectProposal={rejectProposal}
+          onAddPoi={handleAddPoiFromChat}
+          onInspectPoi={onInspectPoi}
         />
       </div>
 

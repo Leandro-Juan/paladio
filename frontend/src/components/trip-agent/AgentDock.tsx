@@ -87,6 +87,11 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
     onTripUpdated,
   });
 
+  const handleAddPoiFromChat = (poi: any) => {
+    const dayStr = activeContext?.selected_day && activeContext.selected_day !== 'all' ? ` to Day ${activeContext.selected_day}` : '';
+    sendMessage(`Add ${poi.name}${dayStr} to the itinerary`);
+  };
+
   if (!tripId) return null;
 
   return (
@@ -228,6 +233,7 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             messages={messages}
             onApproveProposal={approveProposal}
             onRejectProposal={rejectProposal}
+            onAddPoi={handleAddPoiFromChat}
           />
 
           {/* Composer */}

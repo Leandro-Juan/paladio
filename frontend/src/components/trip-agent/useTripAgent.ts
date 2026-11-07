@@ -136,8 +136,13 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
             if (targetIdx === -1) return prev;
 
             const target = prev[targetIdx];
+            let matched = false;
             const toolCalls = (target.toolCalls || []).map((tc) => {
-              if (tc.call_id === ev.call_id || tc.tool === ev.tool) {
+              const isMatch = ev.call_id
+                ? tc.call_id === ev.call_id
+                : (!matched && tc.tool === ev.tool && tc.status === 'running') || (!matched && tc.tool === ev.tool);
+              if (isMatch) {
+                matched = true;
                 return {
                   ...tc,
                   status: (ev.ok ? 'done' : 'error') as 'done' | 'error',
