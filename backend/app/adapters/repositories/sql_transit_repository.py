@@ -129,25 +129,50 @@ class SQLTransitRepository(ITransitRepository):
         self, city: str, build_id: str, line_id: str
     ) -> dict[str, Any] | None:
         # 1. Line info
+        clean_line = (
+            line_id.removeprefix("LINE ")
+            .removeprefix("Line ")
+            .removeprefix("line ")
+            .strip()
+        )
+        l_conditions = [
+            TransitLineModel.line_id == line_id,
+            TransitLineModel.line_id == clean_line,
+            TransitLineModel.line_id.ilike(f"%.{clean_line}"),
+            TransitLineModel.line_id.ilike(f"%{clean_line}%"),
+            TransitLineModel.short_name == line_id,
+            TransitLineModel.short_name == clean_line,
+            TransitLineModel.short_name.ilike(clean_line),
+            TransitLineModel.short_name.ilike(f"%{clean_line}%"),
+            TransitLineModel.long_name.ilike(line_id),
+            TransitLineModel.long_name.ilike(clean_line),
+            TransitLineModel.long_name.ilike(f"%{clean_line}%"),
+        ]
         l_stmt = select(TransitLineModel).where(
             TransitLineModel.build_id == build_id,
             TransitLineModel.city == city,
-            or_(
-                TransitLineModel.line_id == line_id,
-                TransitLineModel.short_name == line_id,
-                TransitLineModel.long_name.ilike(line_id),
-            ),
+            or_(*l_conditions),
         )
         l_res = await self.db.execute(l_stmt)
         line = l_res.scalars().first()
         if not line:
+            fallback_stmt = select(TransitLineModel).where(
+                TransitLineModel.city == city,
+                or_(*l_conditions),
+            )
+            fallback_res = await self.db.execute(fallback_stmt)
+            line = fallback_res.scalars().first()
+
+        if not line:
             return None
+
+        effective_build_id = line.build_id
 
         # 2. Patterns
         p_stmt = (
             select(TransitPatternModel)
             .where(
-                TransitPatternModel.build_id == build_id,
+                TransitPatternModel.build_id == effective_build_id,
                 TransitPatternModel.city == city,
                 TransitPatternModel.line_id == line.line_id,
             )
@@ -182,7 +207,7 @@ class SQLTransitRepository(ITransitRepository):
                     ),
                 )
                 .where(
-                    TransitPatternStopModel.build_id == build_id,
+                    TransitPatternStopModel.build_id == effective_build_id,
                     TransitPatternStopModel.city == city,
                     TransitPatternStopModel.pattern_id == pat.pattern_id,
                 )
@@ -321,36 +346,98 @@ class SQLTransitRepository(ITransitRepository):
             for s in stations
         ]
 
-    async def get_station_detail(
-        self, city: str, build_id: str, station_id: str
-    ) -> dict[str, Any] | None:
+    async def _find_station(
+        self, city: str, build_id: str | None, station_id: str
+    ) -> TransitStationModel | None:
         city = city.strip().lower()
-        # 1. Station basic info
+        raw_id = station_id
+        if ":" in raw_id and raw_id.startswith("gtfs:"):
+            raw_id = raw_id.split(":")[-1]
+
         clean_name = (
-            station_id.removesuffix(" Station")
+            raw_id.removesuffix(" Station")
             .removesuffix(" station")
             .removesuffix("駅")
             .strip()
         )
-        st_stmt = select(TransitStationModel).where(
-            TransitStationModel.build_id == build_id,
+
+        match_conditions = [
+            TransitStationModel.station_id == station_id,
+            TransitStationModel.station_id == raw_id,
+            TransitStationModel.name.ilike(station_id),
+            TransitStationModel.name.ilike(raw_id),
+            TransitStationModel.original_name.ilike(station_id),
+            TransitStationModel.original_name.ilike(raw_id),
+            TransitStationModel.name.ilike(clean_name),
+            TransitStationModel.name.ilike(f"{clean_name} Station"),
+            TransitStationModel.original_name.ilike(clean_name),
+            TransitStationModel.original_name.ilike(f"{clean_name}駅"),
+        ]
+
+        if clean_name:
+            match_conditions.extend(
+                [
+                    TransitStationModel.original_name.ilike(f"%({clean_name})%"),
+                    TransitStationModel.original_name.ilike(f"%{clean_name}%"),
+                    TransitStationModel.name.ilike(f"%{clean_name}%"),
+                ]
+            )
+
+        if "(" in clean_name and ")" in clean_name:
+            import re
+
+            m = re.match(r"^(.*?)\s*\((.*?)\)$", clean_name)
+            if m:
+                part1, part2 = m.group(1).strip(), m.group(2).strip()
+                if part1:
+                    match_conditions.extend(
+                        [
+                            TransitStationModel.name.ilike(part1),
+                            TransitStationModel.name.ilike(f"{part1} Station"),
+                            TransitStationModel.original_name.ilike(part1),
+                            TransitStationModel.original_name.ilike(f"%({part1})%"),
+                            TransitStationModel.original_name.ilike(f"%{part1}%"),
+                        ]
+                    )
+                if part2:
+                    match_conditions.extend(
+                        [
+                            TransitStationModel.name.ilike(part2),
+                            TransitStationModel.original_name.ilike(part2),
+                            TransitStationModel.original_name.ilike(f"{part2}駅"),
+                            TransitStationModel.original_name.ilike(f"%({part2})%"),
+                            TransitStationModel.original_name.ilike(f"%{part2}%"),
+                        ]
+                    )
+
+        if build_id:
+            st_stmt = select(TransitStationModel).where(
+                TransitStationModel.build_id == build_id,
+                TransitStationModel.city == city,
+                or_(*match_conditions),
+            )
+            st_res = await self.db.execute(st_stmt)
+            station = st_res.scalars().first()
+            if station:
+                return station
+
+        fallback_stmt = select(TransitStationModel).where(
             TransitStationModel.city == city,
-            or_(
-                TransitStationModel.station_id == station_id,
-                TransitStationModel.name.ilike(station_id),
-                TransitStationModel.original_name.ilike(station_id),
-                TransitStationModel.name.ilike(clean_name),
-                TransitStationModel.name.ilike(f"{clean_name} Station"),
-                TransitStationModel.original_name.ilike(clean_name),
-                TransitStationModel.original_name.ilike(f"{clean_name}駅"),
-            ),
+            or_(*match_conditions),
         )
-        st_res = await self.db.execute(st_stmt)
-        station = st_res.scalars().first()
+        fallback_res = await self.db.execute(fallback_stmt)
+        return fallback_res.scalars().first()
+
+    async def get_station_detail(
+        self, city: str, build_id: str, station_id: str
+    ) -> dict[str, Any] | None:
+        city = city.strip().lower()
+        station = await self._find_station(city, build_id, station_id)
         if not station:
             return None
 
         actual_station_id = station.station_id
+        effective_build_id = station.build_id
 
         # 2. Serving lines with directions & headsigns
         lines_stmt = (
@@ -373,7 +460,7 @@ class SQLTransitRepository(ITransitRepository):
                 ),
             )
             .where(
-                TransitStationLineModel.build_id == build_id,
+                TransitStationLineModel.build_id == effective_build_id,
                 TransitStationLineModel.city == city,
                 TransitStationLineModel.station_id == actual_station_id,
             )
@@ -395,7 +482,7 @@ class SQLTransitRepository(ITransitRepository):
 
         # 3. Service summary (typical headways & spans)
         sum_stmt = select(TransitServiceSummaryModel).where(
-            TransitServiceSummaryModel.build_id == build_id,
+            TransitServiceSummaryModel.build_id == effective_build_id,
             TransitServiceSummaryModel.city == city,
             TransitServiceSummaryModel.station_id == actual_station_id,
         )
@@ -430,7 +517,7 @@ class SQLTransitRepository(ITransitRepository):
                 ),
             )
             .where(
-                TransitTransferModel.build_id == build_id,
+                TransitTransferModel.build_id == effective_build_id,
                 TransitTransferModel.city == city,
                 TransitTransferModel.from_station_id == actual_station_id,
             )
@@ -476,9 +563,14 @@ class SQLTransitRepository(ITransitRepository):
         except ValueError:
             return []
 
+        # Resolve station to match actual_station_id and its build_id
+        station = await self._find_station(city, build_id, station_id)
+        actual_station_id = station.station_id if station else station_id
+        effective_build_id = station.build_id if station else build_id
+
         # Find active service_ids from transit_service_days
         sd_stmt = select(TransitServiceDayModel).where(
-            TransitServiceDayModel.build_id == build_id,
+            TransitServiceDayModel.build_id == effective_build_id,
             TransitServiceDayModel.city == city,
             TransitServiceDayModel.start_date <= date_int,
             TransitServiceDayModel.end_date >= date_int,
@@ -539,9 +631,9 @@ class SQLTransitRepository(ITransitRepository):
                 ),
             )
             .where(
-                TransitPatternStopModel.build_id == build_id,
+                TransitPatternStopModel.build_id == effective_build_id,
                 TransitPatternStopModel.city == city,
-                TransitPatternStopModel.station_id == station_id,
+                TransitPatternStopModel.station_id == actual_station_id,
             )
         )
         pst_res = await self.db.execute(pst_stmt)
@@ -565,7 +657,7 @@ class SQLTransitRepository(ITransitRepository):
             TransitPatternTripModel.pattern_id,
             TransitPatternTripModel.departure_seconds,
         ).where(
-            TransitPatternTripModel.build_id == build_id,
+            TransitPatternTripModel.build_id == effective_build_id,
             TransitPatternTripModel.city == city,
             TransitPatternTripModel.pattern_id.in_(list(pattern_offsets.keys())),
             TransitPatternTripModel.service_id.in_(list(active_services)),

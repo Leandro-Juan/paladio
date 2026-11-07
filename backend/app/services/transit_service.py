@@ -108,6 +108,7 @@ async def get_detailed_transit_leg(
     departure_iso: str | None = None,
     is_airport_leg: bool = False,
     date_time_type: int = 1,
+    city: str | None = None,
 ) -> TransitLeg:
     """
     Retrieves detailed multimodal transit maneuvers (walk to stop, board line,
@@ -131,7 +132,9 @@ async def get_detailed_transit_leg(
     if not departure_iso:
         departure_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
-    city_clean = str(origin.get("city") or destination.get("city") or "").strip()
+    city_clean = str(
+        city or origin.get("city") or destination.get("city") or ""
+    ).strip()
     try:
         from app.services.transitous_service import TransitousService
 
@@ -161,6 +164,23 @@ async def get_detailed_transit_leg(
                         en_head = finder.translations.get(("stops", s.headsign), "")
                         if en_head and en_head != s.headsign:
                             s.headsign = f"{en_head} ({s.headsign})"
+                    if s.intermediate_stops:
+                        translated_stops = []
+                        for ista in s.intermediate_stops:
+                            en_i = finder.translations.get(("stops", ista), "")
+                            if en_i and en_i != ista:
+                                translated_stops.append(f"{en_i} ({ista})")
+                            else:
+                                translated_stops.append(ista)
+                        s.intermediate_stops = translated_stops
+                    if s.intermediate_stop_details:
+                        for isd in s.intermediate_stop_details:
+                            if "name" in isd:
+                                en_i = finder.translations.get(
+                                    ("stops", isd["name"]), ""
+                                )
+                                if en_i and en_i != isd["name"]:
+                                    isd["name"] = f"{en_i} ({isd['name']})"
             return transitous_leg
     except Exception as transitous_err:
         logger.debug(f"Transitous routing skipped/fallback: {transitous_err}")
@@ -1327,17 +1347,6 @@ async def ensure_walking_legs_populated(
             prev_poi = path[k - 1].get("poi") or {}
             curr_poi = path[k].get("poi") or {}
             existing_transit = path[k].get("transit_from_previous")
-
-            # Check if this leg already has verified real walking steps with geometry
-            if (
-                isinstance(existing_transit, dict)
-                and existing_transit.get("mode") in ("pedestrian", "walk")
-                and bool(existing_transit.get("steps"))
-                and bool(existing_transit.get("geometry"))
-                and not existing_transit.get("cost_is_estimated", False)
-            ):
-                continue
-
             prev_loc = prev_poi.get("location") or {}
             curr_loc = curr_poi.get("location") or {}
             p_lat = prev_loc.get("latitude", prev_poi.get("lat"))
@@ -1361,6 +1370,21 @@ async def ensure_walking_legs_populated(
                 except (ValueError, TypeError):
                     dist_km = 999.0
 
+            # Check if this leg already has verified real walking or transit steps with geometry
+            if (
+                isinstance(existing_transit, dict)
+                and bool(existing_transit.get("steps"))
+                and bool(existing_transit.get("geometry"))
+                and not existing_transit.get("cost_is_estimated", False)
+            ):
+                # Ensure a distant or airport leg was not mistakenly preserved as a pedestrian walk
+                is_erroneous_walk = existing_transit.get("mode") in (
+                    "pedestrian",
+                    "walk",
+                ) and (dist_km > 1.2 or is_airport_leg)
+                if not is_erroneous_walk:
+                    continue
+
             if dist_km <= 1.2 and not is_airport_leg:
                 # Real walking leg
                 try:
@@ -1375,64 +1399,87 @@ async def ensure_walking_legs_populated(
                     )
                     path[k]["transit_from_previous"] = synth.model_dump(mode="json")
             else:
-                # Public transit leg: provide realistic transit with corridor geometry from Valhalla
-                leg_geometry: list[list[float]] = []
-                trans_dur = (
-                    int(round(float(existing_transit.get("duration_mins", 20))))
-                    if isinstance(existing_transit, dict)
-                    and existing_transit.get("duration_mins") is not None
-                    else 20
-                )
+                # Public transit leg: retrieve real multimodal transit from Transitous (MOTIS v2)
+                # or fallback dynamically to Valhalla / GTFS routing
+                resolved_leg = None
+                try:
+                    resolved_leg = await get_detailed_transit_leg(
+                        origin=prev_poi,
+                        destination=curr_poi,
+                        is_airport_leg=is_airport_leg,
+                        city=city,
+                    )
+                except Exception as transit_err:
+                    logger.warning(
+                        f"Could not fetch real transit leg between '{prev_poi.get('name')}' and '{curr_poi.get('name')}': {transit_err}. Using fallback synthesis."
+                    )
 
-                if (
-                    p_lat is not None
-                    and p_lon is not None
-                    and c_lat is not None
-                    and c_lon is not None
-                ):
-                    try:
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            c_resp = await client.post(
-                                f"{VALHALLA_URL}/route",
-                                json={
-                                    "locations": [
-                                        {"lat": float(p_lat), "lon": float(p_lon)},
-                                        {"lat": float(c_lat), "lon": float(c_lon)},
-                                    ],
-                                    "costing": "bus",
-                                    "directions_options": {"units": "kilometers"},
-                                },
-                            )
-                            if c_resp.status_code == 200:
-                                c_trip = c_resp.json().get("trip", {})
-                                c_summary = c_trip.get("summary", {})
-                                trans_dur = max(
-                                    1, int(round(c_summary.get("time", 1200) / 60))
+                if resolved_leg and resolved_leg.steps:
+                    path[k]["transit_from_previous"] = resolved_leg.model_dump(
+                        mode="json"
+                    )
+                else:
+                    leg_geometry: list[list[float]] = []
+                    trans_dur = (
+                        int(round(float(existing_transit.get("duration_mins", 20))))
+                        if isinstance(existing_transit, dict)
+                        and existing_transit.get("duration_mins") is not None
+                        else 20
+                    )
+
+                    if (
+                        p_lat is not None
+                        and p_lon is not None
+                        and c_lat is not None
+                        and c_lon is not None
+                    ):
+                        try:
+                            async with httpx.AsyncClient(timeout=10.0) as client:
+                                c_resp = await client.post(
+                                    f"{VALHALLA_URL}/route",
+                                    json={
+                                        "locations": [
+                                            {"lat": float(p_lat), "lon": float(p_lon)},
+                                            {"lat": float(c_lat), "lon": float(c_lon)},
+                                        ],
+                                        "costing": "bus",
+                                        "directions_options": {"units": "kilometers"},
+                                    },
                                 )
-                                c_legs = c_trip.get("legs", [])
-                                for cl in c_legs:
-                                    cl_shape = cl.get("shape", "")
-                                    cl_coords = (
-                                        decode_polyline6(cl_shape) if cl_shape else []
+                                if c_resp.status_code == 200:
+                                    c_trip = c_resp.json().get("trip", {})
+                                    c_summary = c_trip.get("summary", {})
+                                    trans_dur = max(
+                                        1, int(round(c_summary.get("time", 1200) / 60))
                                     )
-                                    if cl_coords:
-                                        if not leg_geometry:
-                                            leg_geometry.extend(cl_coords)
-                                        else:
-                                            leg_geometry.extend(cl_coords[1:])
-                    except Exception as route_err:
-                        logger.debug(f"Could not pre-fetch corridor route: {route_err}")
+                                    c_legs = c_trip.get("legs", [])
+                                    for cl in c_legs:
+                                        cl_shape = cl.get("shape", "")
+                                        cl_coords = (
+                                            decode_polyline6(cl_shape)
+                                            if cl_shape
+                                            else []
+                                        )
+                                        if cl_coords:
+                                            if not leg_geometry:
+                                                leg_geometry.extend(cl_coords)
+                                            else:
+                                                leg_geometry.extend(cl_coords[1:])
+                        except Exception as route_err:
+                            logger.debug(
+                                f"Could not pre-fetch corridor route: {route_err}"
+                            )
 
-                synth = synthesize_fallback_transit_leg(
-                    origin=prev_poi,
-                    destination=curr_poi,
-                    city=city,
-                    is_airport_leg=is_airport_leg,
-                    geometry=leg_geometry if leg_geometry else None,
-                    duration_mins=trans_dur,
-                )
-                synth.cost_is_estimated = True
-                path[k]["transit_from_previous"] = synth.model_dump(mode="json")
+                    synth = synthesize_fallback_transit_leg(
+                        origin=prev_poi,
+                        destination=curr_poi,
+                        city=city,
+                        is_airport_leg=is_airport_leg,
+                        geometry=leg_geometry if leg_geometry else None,
+                        duration_mins=trans_dur,
+                    )
+                    synth.cost_is_estimated = True
+                    path[k]["transit_from_previous"] = synth.model_dump(mode="json")
 
     return itinerary
 
@@ -1499,9 +1546,25 @@ class TransitService:
             except ValueError:
                 pass
 
-        final_status = derived_status
-        if derived_status == "READY" and is_expired:
-            final_status = "EXPIRED"
+        if (
+            gtfs_status in ("BUILDING", "QUEUED")
+            or derived_status in ("BUILDING", "QUEUED")
+            or status in ("BUILDING", "QUEUED")
+        ):
+            final_status = (
+                "QUEUED"
+                if "QUEUED" in (derived_status, gtfs_status, status)
+                else "BUILDING"
+            )
+        elif derived_status == "READY":
+            final_status = "EXPIRED" if is_expired else "READY"
+        elif gtfs_status == "READY":
+            # GTFS download complete, line derivation in progress
+            final_status = "BUILDING"
+        elif derived_status in ("PENDING", "NOT_REQUESTED"):
+            final_status = "NOT_REQUESTED"
+        else:
+            final_status = derived_status
 
         return {
             "city": city,

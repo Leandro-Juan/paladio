@@ -1332,6 +1332,8 @@ class TransitDerivationService:
 
         now = datetime.now(timezone.utc)
         if cache_row:
+            cache_row.status = "READY"
+            cache_row.gtfs_status = "READY"
             cache_row.derived_status = "READY"
             cache_row.derived_at = now
             cache_row.active_build_id = build_id

@@ -247,7 +247,6 @@ def test_build_city_gtfs_task_execution_and_sanitization():
             assert not real_exists(os.path.join(dest_dir, "pathways.txt"))
 
             published_events = [call.args[0] for call in mock_publish.call_args_list]
-            assert "TRANSIT_COMPILE_STARTED" in published_events
             assert "TRANSIT_DOWNLOAD_STARTED" in published_events
             assert "TRANSIT_TILES_READY" in published_events
 

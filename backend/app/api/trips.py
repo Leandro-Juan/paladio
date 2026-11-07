@@ -1243,11 +1243,13 @@ async def sync_planned_trips_gtfs(
                 status=initial_status,
                 osm_status="PENDING",
                 gtfs_status=initial_gtfs,
+                derived_status=initial_gtfs,
             )
             session.add(record)
         else:
             record.status = initial_status
             record.gtfs_status = initial_gtfs
+            record.derived_status = initial_gtfs
         await session.commit()
 
         try:
@@ -1274,9 +1276,9 @@ async def sync_planned_trips_gtfs(
 
     total_initiated = len(triggered) + len(queued)
     msg = (
-        f"GTFS compilation initiated for {total_initiated} cities ({len(triggered)} active, {len(queued)} queued)."
+        f"GTFS download initiated for {total_initiated} cities ({len(triggered)} active, {len(queued)} queued)."
         if total_initiated > 0
-        else "All selected trips already have GTFS data or are currently compiling."
+        else "All selected trips already have GTFS data or are currently downloading."
     )
 
     return SyncPlannedGtfsResponse(
@@ -1445,11 +1447,13 @@ async def trigger_city_gtfs_compile(
             status=initial_status,
             osm_status="PENDING",
             gtfs_status=initial_gtfs,
+            derived_status=initial_gtfs,
         )
         session.add(record)
     else:
         record.status = initial_status
         record.gtfs_status = initial_gtfs
+        record.derived_status = initial_gtfs
     await session.commit()
 
     try:
@@ -1471,9 +1475,9 @@ async def trigger_city_gtfs_compile(
         "status": "queued" if should_queue else "triggered",
         "city": city_clean,
         "message": (
-            f"GTFS compilation queued for {city_clean}."
+            f"GTFS download queued for {city_clean}."
             if should_queue
-            else f"GTFS download and compilation process initiated for {city_clean}."
+            else f"GTFS download and ingestion process initiated for {city_clean}."
         ),
     }
 

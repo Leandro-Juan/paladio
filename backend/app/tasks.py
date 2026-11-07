@@ -1500,6 +1500,7 @@ async def _async_update_transit_cache(
     status: str | None = None,
     osm_status: str | None = None,
     gtfs_status: str | None = None,
+    derived_status: str | None = None,
     valid_until: datetime | None = None,
     feed_name: str | None = None,
     create_if_missing: bool = True,
@@ -1522,6 +1523,7 @@ async def _async_update_transit_cache(
                     status=status or TransitCacheStatus.BUILDING.value,
                     osm_status=osm_status or "PENDING",
                     gtfs_status=gtfs_status or "PENDING",
+                    derived_status=derived_status or "PENDING",
                     valid_until=valid_until,
                     gtfs_feed_name=feed_name,
                 )
@@ -1533,6 +1535,8 @@ async def _async_update_transit_cache(
                     record.osm_status = osm_status
                 if gtfs_status is not None:
                     record.gtfs_status = gtfs_status
+                if derived_status is not None:
+                    record.derived_status = derived_status
                 if valid_until is not None:
                     record.valid_until = valid_until
                 if feed_name is not None:
@@ -1842,11 +1846,9 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 city_name=city_lower,
                 status=TransitCacheStatus.BUILDING.value,
                 gtfs_status="BUILDING",
+                derived_status="BUILDING",
                 create_if_missing=False,
             )
-        )
-        _publish_transit_event(
-            "TRANSIT_COMPILE_STARTED", city_lower, city_name, trip_id
         )
         _publish_transit_event(
             "TRANSIT_DOWNLOAD_STARTED", city_lower, city_name, trip_id
@@ -1955,15 +1957,18 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 from app.adapters.repositories.sql_city_repository import (
                     SqlCityRepository,
                 )
-                from app.db.session import async_session
 
                 async def _get_city_coords():
-                    async with async_session() as s:
-                        c_repo = SqlCityRepository(s)
-                        c_ent = await c_repo.find_by_name_or_alias(city_lower)
-                        if c_ent:
-                            return c_ent.center_lat, c_ent.center_lon
-                    return None, None
+                    s_maker, eng = _get_task_session_maker()
+                    try:
+                        async with s_maker() as s:
+                            c_repo = SqlCityRepository(s)
+                            c_ent = await c_repo.find_by_name_or_alias(city_lower)
+                            if c_ent:
+                                return c_ent.center_lat, c_ent.center_lon
+                        return None, None
+                    finally:
+                        await eng.dispose()
 
                 center_lat, center_lon = _run_async(_get_city_coords())
             except Exception as coord_err:
@@ -2013,6 +2018,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 status=TransitCacheStatus.READY.value,
                 osm_status="READY",
                 gtfs_status="READY",
+                derived_status="BUILDING",
                 valid_until=valid_until,
                 create_if_missing=False,
             )
@@ -2034,6 +2040,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                     city_name=city_lower,
                     status=TransitCacheStatus.FAILED.value,
                     gtfs_status="FAILED",
+                    derived_status="FAILED",
                     create_if_missing=False,
                 )
             )
@@ -2068,7 +2075,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 @app.task(
     bind=True,
     name="app.tasks.derive_city_transit_task",
-    queue="default",
+    queue="transit_build",
     max_retries=2,
     default_retry_delay=10,
 )
@@ -2100,6 +2107,12 @@ def derive_city_transit_task(
                     city_name,
                     trip_id,
                     build_id=result.get("build_id"),
+                )
+                _publish_transit_event(
+                    "TRANSIT_TILES_READY",
+                    city_lower,
+                    city_name,
+                    trip_id,
                 )
                 return result
             except Exception as e:
