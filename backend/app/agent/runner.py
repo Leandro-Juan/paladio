@@ -210,10 +210,18 @@ class TripAgentRunner:
         model_name: Optional[str] = None,
         ollama_base_url: Optional[str] = None,
     ):
-        if model is not None:
-            self.model = model
-        else:
-            self.model = LLMService.get_model(model_name=model_name)
+        self._explicit_model = model
+        self.model_name = model_name
+
+    @property
+    def model(self) -> Optional[Any]:
+        if self._explicit_model is not None:
+            return self._explicit_model
+        return LLMService.get_model(model_name=self.model_name)
+
+    @model.setter
+    def model(self, value: Any) -> None:
+        self._explicit_model = value
 
     async def run_turn(
         self,
@@ -298,8 +306,11 @@ class TripAgentRunner:
             )
 
             # 6. Instantiate agent
+            active_model = self._explicit_model or await LLMService.get_model_async(
+                session=session, model_name=self.model_name
+            )
             agent = Agent(
-                model=self.model,
+                model=active_model,
                 system_prompt=system_prompt,
                 toolsets=[filtered_toolset],
                 retries=2,
