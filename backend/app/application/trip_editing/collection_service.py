@@ -95,6 +95,20 @@ class CollectionService:
                 detail=f"Collection '{collection_id}' not found.",
             )
 
+        # Check if item already exists in this collection
+        existing_stmt = select(TripCollectionItemModel).where(
+            TripCollectionItemModel.collection_id == collection_id,
+            TripCollectionItemModel.poi_id == poi_id,
+        )
+        existing_res = await session.execute(existing_stmt)
+        existing = existing_res.scalar_one_or_none()
+        if existing:
+            if notes:
+                existing.notes = notes.strip()
+                await session.commit()
+                await session.refresh(existing)
+            return existing
+
         # Get highest position
         pos_stmt = (
             select(TripCollectionItemModel.position)

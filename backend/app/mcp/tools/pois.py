@@ -2,6 +2,7 @@
 
 import math
 import uuid
+from typing import Any
 from mcp.server.fastmcp import Context
 
 from app.core.access import TripAccessLevel
@@ -13,8 +14,90 @@ from app.mcp.schemas import ToolResult
 from app.api.pois import (
     search_pois as api_search_pois,
     get_poi_details as api_get_poi_details,
+    PoiSearchResponse,
 )
 from app.api.locations import search_places as api_search_places
+
+
+def _extract_poi_items(results: Any) -> list[dict[str, Any]]:
+    """Safely unpacks PoiSearchResponse or dict into a list of normalized POI dicts."""
+    raw_list: list[Any] = []
+    if isinstance(results, PoiSearchResponse):
+        if results.exact_match:
+            raw_list.append(results.exact_match)
+        raw_list.extend(results.results or [])
+    elif isinstance(results, dict):
+        raw = results.get("results") or results.get("items") or []
+        raw_list = list(raw)
+    elif isinstance(results, list):
+        raw_list = results
+    elif hasattr(results, "results"):
+        exact = getattr(results, "exact_match", None)
+        if exact:
+            raw_list.append(exact)
+        raw_list.extend(getattr(results, "results", []) or [])
+
+    items: list[dict[str, Any]] = []
+    for it in raw_list:
+        if isinstance(it, dict):
+            poi_id = it.get("poi_id") or it.get("id")
+            name = it.get("name")
+            category = it.get("category")
+            lat = it.get("lat") or (it.get("coordinates", {}).get("lat"))
+            lng = (
+                it.get("lng") or it.get("lon") or (it.get("coordinates", {}).get("lng"))
+            )
+            price = it.get("cost_eur") or it.get("price") or 0.0
+            score = it.get("score") or it.get("similarity") or 0.0
+            photo_url = it.get("photo_url") or it.get("thumbnail_url")
+            desc = it.get("description")
+            neigh = it.get("neighborhood")
+            dur = it.get("duration_mins", 60)
+            hours = it.get("opening_hours")
+            rating = it.get("rating")
+        else:
+            poi_id = getattr(it, "id", None) or getattr(it, "poi_id", None)
+            name = getattr(it, "name", None)
+            category = getattr(it, "category", None)
+            lat = getattr(it, "lat", None)
+            lng = getattr(it, "lng", None)
+            price = getattr(it, "cost_eur", 0.0)
+            score = getattr(it, "similarity", 0.0) or getattr(it, "score", 0.0)
+            photo_url = getattr(it, "photo_url", None) or getattr(
+                it, "thumbnail_url", None
+            )
+            desc = getattr(it, "description", None)
+            neigh = getattr(it, "neighborhood", None)
+            dur = getattr(it, "duration_mins", 60)
+            hours = getattr(it, "opening_hours", None)
+            rating = getattr(it, "rating", None)
+
+        if not poi_id or not name:
+            continue
+
+        items.append(
+            {
+                "poi_id": str(poi_id),
+                "id": str(poi_id),
+                "name": str(name),
+                "category": str(category or "attraction"),
+                "coordinates": {
+                    "lat": float(lat) if lat is not None else 0.0,
+                    "lng": float(lng) if lng is not None else 0.0,
+                },
+                "lat": float(lat) if lat is not None else 0.0,
+                "lng": float(lng) if lng is not None else 0.0,
+                "price": float(price or 0.0),
+                "duration_mins": int(dur or 60),
+                "score": float(score or 0.0),
+                "rating": float(rating) if rating is not None else None,
+                "photo_url": photo_url,
+                "description": desc,
+                "neighborhood": neigh,
+                "opening_hours": hours,
+            }
+        )
+    return items
 
 
 def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -62,22 +145,7 @@ async def search_pois(
     )
 
     # Format items
-    items = []
-    raw_items = results.get("items", []) if isinstance(results, dict) else results
-    for item in raw_items:
-        if isinstance(item, dict):
-            items.append(
-                {
-                    "poi_id": item.get("id"),
-                    "name": item.get("name"),
-                    "category": item.get("category"),
-                    "coordinates": item.get("coordinates")
-                    or {"lat": item.get("lat"), "lng": item.get("lon")},
-                    "price": item.get("price"),
-                    "score": item.get("score"),
-                    "opening_hours": item.get("opening_hours"),
-                }
-            )
+    items = _extract_poi_items(results)
 
     await log_agent_action(
         session=u_ctx.session,
@@ -254,14 +322,12 @@ async def find_nearby(
         session=u_ctx.session,
         current_user=u_ctx.user,
     )
-    raw_items = (
-        search_res.get("items", []) if isinstance(search_res, dict) else search_res
-    )
+    raw_items = _extract_poi_items(search_res)
 
     nearby_items = []
     for item in raw_items:
-        i_lat = item.get("lat") or (item.get("coordinates", {}).get("lat"))
-        i_lon = item.get("lon") or (item.get("coordinates", {}).get("lng"))
+        i_lat = item.get("lat")
+        i_lon = item.get("lng")
         if i_lat is None or i_lon is None:
             continue
         dist = _haversine_distance(center_lat, center_lon, float(i_lat), float(i_lon))
@@ -330,9 +396,7 @@ async def suggest_additions(
         session=u_ctx.session,
         current_user=u_ctx.user,
     )
-    raw_items = (
-        search_res.get("items", []) if isinstance(search_res, dict) else search_res
-    )
+    raw_items = _extract_poi_items(search_res)
 
     candidates = [item for item in raw_items if item.get("id") not in visited_poi_ids]
 

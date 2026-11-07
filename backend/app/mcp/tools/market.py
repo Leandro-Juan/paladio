@@ -12,6 +12,7 @@ from app.mcp.schemas import ToolResult
 from app.mcp.proposals import create_proposal
 from app.api.weather import get_weather_forecast as api_get_weather
 from app.api.pois import search_pois as api_search_pois
+from app.mcp.tools.pois import _extract_poi_items
 
 
 async def get_weather_forecast(
@@ -79,13 +80,11 @@ async def suggest_weather_swaps(
         session=u_ctx.session,
         current_user=u_ctx.user,
     )
-    raw_items = (
-        indoor_res.get("items", []) if isinstance(indoor_res, dict) else indoor_res
-    )
+    raw_items = _extract_poi_items(indoor_res)
 
     items = [
         {
-            "poi_id": it.get("id"),
+            "poi_id": it.get("poi_id") or it.get("id"),
             "name": it.get("name"),
             "category": it.get("category"),
             "score": it.get("score"),

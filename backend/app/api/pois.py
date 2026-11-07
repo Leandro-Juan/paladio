@@ -18,7 +18,13 @@ from typing import Any
 from app.adapters.repositories.sql_city_repository import SqlCityRepository
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.api.deps import get_optional_user
-from app.db.models import AttractionModel, CityModel, TripModel, UserModel
+from app.db.models import (
+    AttractionModel,
+    CityModel,
+    TripCollectionItemModel,
+    TripModel,
+    UserModel,
+)
 from app.db.session import get_db
 from app.engine.retrieval.hybrid_retriever import HybridRetriever
 from app.engine.retrieval.query_rewriter import QueryRewriter
@@ -27,9 +33,9 @@ from app.infrastructure.providers.ollama_embedding_provider import (
 )
 from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
 from app.utils.opening_hours_parser import parse_osm_opening_hours
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import Float, and_, case, cast, func, or_, select
+from sqlalchemy import Float, and_, case, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -130,6 +136,9 @@ class PoiCreateRequest(BaseModel):
     cost_eur: float = 0.0
     description: str | None = None
     website: str | None = None
+    opening_time: str | None = None
+    closing_time: str | None = None
+    rating: float | None = None
 
 
 class PoiUpdateRequest(BaseModel):
@@ -473,17 +482,93 @@ async def search_pois(
     ),
     limit: int = Query(15, ge=1, le=200, description="Max results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
+    custom_only: bool = Query(
+        False, description="Filter to only user-created custom POIs"
+    ),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    """Hybrid POI Search Engine with Single-Roundtrip SQL RRF & Spatial-Semantic MMR."""
-    clean_query = query.strip()
+    # Normalize parameter values when called programmatically (where Query objects remain default)
+    if hasattr(custom_only, "default"):
+        custom_only = bool(custom_only.default)
+    else:
+        custom_only = bool(custom_only)
+
+    if hasattr(category, "default"):
+        category = category.default if category.default is not ... else None
+
+    if hasattr(query, "default"):
+        query = str(query.default) if query.default is not ... else ""
+    clean_query = (query or "").strip()
+
+    if hasattr(trip_id, "default"):
+        trip_id = trip_id.default if trip_id.default is not ... else None
+
+    if hasattr(day, "default"):
+        day = day.default if day.default is not ... else None
+
+    if hasattr(bounds, "default"):
+        bounds = bounds.default if bounds.default is not ... else None
+
+    if hasattr(polygon, "default"):
+        polygon = polygon.default if polygon.default is not ... else None
+
+    if hasattr(limit, "default"):
+        limit = int(limit.default) if limit.default is not ... else 15
+
+    if hasattr(offset, "default"):
+        offset = int(offset.default) if offset.default is not ... else 0
 
     # 1. Resolve city
     city_repo = SqlCityRepository(session)
     city_obj = await city_repo.find_by_name_or_alias(city)
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
+
+    # Fast-path for user-created custom POIs
+    if custom_only:
+        custom_query = (
+            select(AttractionModel)
+            .where(
+                or_(
+                    AttractionModel.city.ilike(city_name),
+                    AttractionModel.city_id == city_id,
+                )
+            )
+            .where(
+                or_(
+                    AttractionModel.id.like("custom-%"),
+                    AttractionModel.cost_source == "user",
+                    AttractionModel.metadata_field["source"].astext == "user_created",
+                )
+            )
+        )
+        if clean_query:
+            custom_query = custom_query.where(
+                AttractionModel.name.ilike(f"%{clean_query}%")
+            )
+        if category and category.lower() != "all":
+            custom_query = custom_query.where(
+                func.lower(AttractionModel.category) == category.lower().strip()
+            )
+        custom_query = (
+            custom_query.order_by(AttractionModel.id.desc()).limit(limit).offset(offset)
+        )
+        res = await session.execute(custom_query)
+        custom_pois = res.scalars().all()
+        results = [
+            _model_to_search_item(p, match_type="custom", similarity=1.0)
+            for p in custom_pois
+        ]
+        return PoiSearchResponse(
+            city=city_name,
+            query=clean_query,
+            search_type="custom",
+            exact_match_found=bool(results),
+            exact_match=results[0] if results else None,
+            results=results,
+            total=len(results),
+        )
 
     # Resolve user taste embedding for personalized recommendations & category affinity ranking
     resolved_user = current_user
@@ -1676,7 +1761,11 @@ async def get_poi_details(
     # If not found by ID, attempt lookup by name in AttractionModel
     target_name = (
         name
-        or (poi_id if not poi_id.startswith(("OSM-", "uuid-", "non-existent-")) else "")
+        or (
+            poi_id
+            if not poi_id.startswith(("OSM-", "uuid-", "non-existent-", "custom-"))
+            else ""
+        )
     ).strip()
 
     if not poi and target_name:
@@ -1789,7 +1878,7 @@ async def get_poi_details(
             name
             or (
                 poi_id
-                if not poi_id.startswith(("OSM-", "uuid-", "non-existent-"))
+                if not poi_id.startswith(("OSM-", "uuid-", "non-existent-", "custom-"))
                 and not poi_id.endswith("-999")
                 else ""
             )
@@ -1978,12 +2067,43 @@ async def create_poi(
 
     new_id = f"custom-{uuid.uuid4().hex[:12]}"
 
+    open_time_mins_by_day: list[int] = []
+    close_time_mins_by_day: list[int] = []
+    osm_hours: str | None = None
+    hours_known = False
+
+    if poi_in.opening_time and poi_in.closing_time:
+        try:
+            oh, om = map(int, poi_in.opening_time.strip().split(":"))
+            ch, cm = map(int, poi_in.closing_time.strip().split(":"))
+            open_min = max(0, min(1440, oh * 60 + om))
+            close_min = max(0, min(1440, ch * 60 + cm))
+            open_time_mins_by_day = [open_min] * 7
+            close_time_mins_by_day = [close_min] * 7
+            osm_hours = f"{poi_in.opening_time.strip()}-{poi_in.closing_time.strip()}"
+            hours_known = True
+        except Exception:
+            pass
+
+    rating_val: float | None = None
+    if poi_in.rating is not None:
+        rating_val = round(max(1.0, min(5.0, float(poi_in.rating))), 1)
+
     meta: dict[str, Any] = {
         "source": "user_created",
         "description": poi_in.description or "",
     }
+    if rating_val is not None:
+        meta["rating"] = rating_val
     if poi_in.website:
         meta["tags"] = {"website": poi_in.website}
+    if osm_hours:
+        meta["opening_hours"] = osm_hours
+
+    scoring_data: dict[str, Any] = {}
+    if rating_val is not None:
+        scoring_data["rating"] = rating_val
+        scoring_data["reviews"] = 1
 
     attraction = AttractionModel(
         id=new_id,
@@ -1996,18 +2116,25 @@ async def create_poi(
         cost_source="user",
         duration_mins=int(poi_in.duration_mins),
         location={"latitude": float(poi_in.lat), "longitude": float(poi_in.lng)},
-        scoring={"rating": 5.0, "reviews": 1},
+        scoring=scoring_data,
         metadata_field=meta,
         description=poi_in.description,
         website=poi_in.website,
         doc_quality="A",
-        hours_known=False,
-        open_time_mins_by_day=[480] * 7,
-        close_time_mins_by_day=[1320] * 7,
+        hours_known=hours_known,
+        osm_opening_hours=osm_hours,
+        open_time_mins_by_day=open_time_mins_by_day,
+        close_time_mins_by_day=close_time_mins_by_day,
     )
     session.add(attraction)
     await session.commit()
     await session.refresh(attraction)
+
+    daily_windows = (
+        [[[open_time_mins_by_day[0], close_time_mins_by_day[0]]]] * 7
+        if hours_known
+        else []
+    )
 
     return PoiDetailResponse(
         id=attraction.id,
@@ -2020,12 +2147,13 @@ async def create_poi(
         cost_eur=float(attraction.cost_eur),
         cost_is_estimated=False,
         cost_source=attraction.cost_source,
-        scoring={"rating": 5.0, "reviews": 1},
+        scoring=scoring_data,
         description=attraction.description,
         website=attraction.website,
         doc_quality="A",
-        hours_known=False,
-        daily_windows=[],
+        hours_known=hours_known,
+        osm_opening_hours=osm_hours,
+        daily_windows=daily_windows,
         photos=[],
     )
 
@@ -2116,3 +2244,38 @@ async def update_poi(
         daily_windows=list(getattr(attraction, "daily_windows", []) or []),
         photos=[],
     )
+
+
+@router.delete("/{poi_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_poi(
+    poi_id: str,
+    session: AsyncSession = Depends(get_db),
+) -> None:
+    """Deletes a manually created custom POI."""
+    res = await session.execute(
+        select(AttractionModel).where(AttractionModel.id == poi_id)
+    )
+    attraction = res.scalar_one_or_none()
+    if not attraction:
+        raise HTTPException(status_code=404, detail="POI not found")
+
+    meta = attraction.metadata_field or {}
+    is_custom = (
+        poi_id.startswith("custom-")
+        or meta.get("source") == "user_created"
+        or attraction.cost_source == "user"
+    )
+    if not is_custom:
+        raise HTTPException(
+            status_code=403,
+            detail="Only manually created custom POIs can be deleted",
+        )
+
+    # Clean up any trip collection items referencing this custom POI
+    await session.execute(
+        delete(TripCollectionItemModel).where(TripCollectionItemModel.poi_id == poi_id)
+    )
+
+    await session.delete(attraction)
+    await session.commit()
+    return None

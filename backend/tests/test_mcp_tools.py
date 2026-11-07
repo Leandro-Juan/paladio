@@ -13,6 +13,7 @@ from app.db.models import (
     TripTicketModel,
     TripRevisionModel,
     AgentActionModel,
+    AttractionModel,
 )
 from app.mcp import mcp, with_user_context
 from app.mcp.tools import (
@@ -21,6 +22,7 @@ from app.mcp.tools import (
     get_stop,
     resolve_stop,
     get_trip_issues,
+    search_pois,
     add_stop,
     remove_stop,
     swap_days,
@@ -432,3 +434,41 @@ async def test_mcp_resources_and_prompts(seeded_mcp_trip, db_session: AsyncSessi
 
         p2 = prompt_fix_all_issues(trip_id)
         assert f"get_trip_issues(trip_id='{trip_id}')" in p2
+
+
+@pytest.mark.asyncio
+async def test_mcp_search_pois_unpacking(seeded_mcp_trip, db_session: AsyncSession):
+    """Verifies that search_pois safely unpacks database POI results without 0-item regression."""
+    trip_id = seeded_mcp_trip["trip_id"]
+    owner = seeded_mcp_trip["owner"]
+
+    test_poi = AttractionModel(
+        id=f"test_poi_mcp_{seeded_mcp_trip['suffix']}",
+        city="Madrid",
+        city_id="madrid_es",
+        name="Museo Reina Sofia Test",
+        category="museum",
+        cost_eur=12.0,
+        cost_is_estimated=False,
+        cost_source="verified_catalog",
+        duration_mins=90,
+        location={"latitude": 40.4080, "longitude": -3.6944},
+        scoring={"rating": 4.7, "reviews": 800},
+        embedding=[0.0] * 768,
+        metadata_field={},
+    )
+    db_session.add(test_poi)
+    await db_session.commit()
+
+    async with with_user_context(user=owner, session=db_session):
+        res = await search_pois(trip_id=trip_id, query="", limit=5)
+        assert res.ok is True
+        assert res.data is not None
+        assert "pois" in res.data
+        assert isinstance(res.data["pois"], list)
+        assert len(res.data["pois"]) > 0
+        first_poi = res.data["pois"][0]
+        assert "poi_id" in first_poi
+        assert "name" in first_poi
+        assert "category" in first_poi
+        assert "coordinates" in first_poi

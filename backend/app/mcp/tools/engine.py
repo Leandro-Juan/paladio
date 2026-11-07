@@ -15,6 +15,7 @@ from app.mcp.audit import log_agent_action
 from app.mcp.schemas import ToolResult
 from app.mcp.proposals import create_proposal
 from app.api.pois import search_pois as api_search_pois
+from app.mcp.tools.pois import _extract_poi_items
 
 
 async def optimize_day(
@@ -476,9 +477,7 @@ async def fill_gaps(
         session=u_ctx.session,
         current_user=u_ctx.user,
     )
-    raw_items = (
-        search_res.get("items", []) if isinstance(search_res, dict) else search_res
-    )
+    raw_items = _extract_poi_items(search_res)
 
     if not raw_items:
         return ToolResult(

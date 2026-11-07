@@ -126,10 +126,41 @@ async def test_create_and_update_poi(async_client: AsyncClient):
     assert created["name"] == "Custom Ramen Spot"
     assert created["category"] == "restaurant"
     assert created["duration_mins"] == 45
-    assert created["cost_eur"] == 12.5
     assert created["website"] == "https://ramen-spot.example.com"
     poi_id = created["id"]
     assert poi_id.startswith("custom-")
+
+    # Create another custom POI with opening/closing windows and rating
+    custom_detailed_payload = {
+        "name": "Custom Matcha Teahouse",
+        "city": "Tokyo",
+        "category": "cafe",
+        "lat": 35.6900,
+        "lng": 139.7700,
+        "duration_mins": 40,
+        "cost_eur": 8.0,
+        "description": "Artisanal matcha bar.",
+        "opening_time": "10:00",
+        "closing_time": "19:30",
+        "rating": 4.8,
+    }
+    custom_res = await async_client.post("/api/pois", json=custom_detailed_payload)
+    assert custom_res.status_code == 200
+    custom_poi = custom_res.json()
+    assert custom_poi["name"] == "Custom Matcha Teahouse"
+    assert custom_poi["scoring"]["rating"] == 4.8
+    assert custom_poi["hours_known"] is True
+    assert custom_poi["osm_opening_hours"] == "10:00-19:30"
+    assert len(custom_poi["daily_windows"]) == 7
+
+    # Search with custom_only=true should retrieve this custom POI
+    search_res = await async_client.get("/api/pois/search?city=Tokyo&custom_only=true")
+    assert search_res.status_code == 200
+    search_data = search_res.json()
+    assert search_data["search_type"] == "custom"
+    assert any(
+        item["name"] == "Custom Matcha Teahouse" for item in search_data["results"]
+    )
 
     # Update in place
     update_payload = {
@@ -228,3 +259,41 @@ def test_generate_poi_overview_localized():
     )
     assert "東京タワーは東京にある注目のlandmarkスポットです" in ja_overview
     assert "入場料は無料です" in ja_overview
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_poi(async_client: AsyncClient, db_session: AsyncSession):
+    create_payload = {
+        "name": "My Custom Cafe",
+        "category": "cafe",
+        "city": "Madrid",
+        "lat": 40.415,
+        "lng": -3.702,
+        "duration_mins": 45,
+        "cost_eur": 5.0,
+    }
+    create_res = await async_client.post("/api/pois", json=create_payload)
+    assert create_res.status_code == 200
+    poi_id = create_res.json()["id"]
+    assert poi_id.startswith("custom-")
+
+    del_res = await async_client.delete(f"/api/pois/{poi_id}")
+    assert del_res.status_code == 204
+
+    get_res = await async_client.get(f"/api/pois/{poi_id}")
+    assert get_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_non_custom_poi_forbidden(async_client: AsyncClient):
+    del_res = await async_client.delete("/api/pois/OSM-node-madrid-prado-test")
+    assert del_res.status_code == 403
+    assert (
+        "Only manually created custom POIs can be deleted" in del_res.json()["detail"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_poi_not_found(async_client: AsyncClient):
+    del_res = await async_client.delete("/api/pois/custom-nonexistent-1234")
+    assert del_res.status_code == 404

@@ -63,7 +63,7 @@ mcp.tool(
 # 2. POIs and Discovery Tools
 mcp.tool(
     name="search_pois",
-    description="Searches POIs in the trip destination using hybrid semantic and category retrieval (capped at 50).",
+    description="Searches the destination POI database/catalog for attractions, sights, restaurants, ramen shops, cafes, and activities using hybrid semantic and category retrieval (capped at 50).",
     annotations=make_annotations(read_only=True, idempotent=True),
 )(tools.search_pois)
 
