@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 export type { PoiDetail };
-import { getApiBaseUrl, apiFetch } from '@/utils/api';
+import { getApiBaseUrl, apiFetch, getAuthToken } from '@/utils/api';
 import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
 import { useOptionalAuth } from '@/contexts/AuthContext';
@@ -26,17 +26,19 @@ import {
   StarIcon,
   CompassIcon,
   BookmarkIcon,
-  TagIcon,
   PinIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   EditIcon,
+  TrashIcon,
 } from '@/components/icons';
 import { notify } from '@/utils/notify';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
+import { CategoryIcon } from '@/components/PoiCategoryBadge';
+import { classifyPoiCategory } from '@/utils/poiCategory';
 
 function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: string; size?: number }) {
   const cat = (category || '').toLowerCase();
@@ -427,6 +429,45 @@ export function PoiDetailView({
       setIsSavingEdit(false);
     }
   }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, onUpdatePoi]);
+
+  const isCustomPoi = Boolean(
+    poi?.id?.startsWith('custom-') ||
+    poi?.cost_source === 'user' ||
+    (poi as any)?.source === 'user_created' ||
+    (poi as any)?.match_type === 'custom'
+  );
+
+  const [isDeletingCustom, setIsDeletingCustom] = useState(false);
+
+  const handleDeleteCustomPoi = useCallback(async () => {
+    if (!poi) return;
+    if (!window.confirm(`Are you sure you want to delete "${poi.name}"?`)) return;
+    setIsDeletingCustom(true);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const headers: Record<string, string> = {};
+      const token = getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(poi.id)}`, {
+        method: 'DELETE',
+        headers,
+      });
+      if (!res.ok && res.status !== 404) {
+        throw new Error(`Failed to delete POI (HTTP ${res.status})`);
+      }
+      notify.success('Place Deleted', `Deleted "${poi.name}"`);
+      window.dispatchEvent(new CustomEvent('paladio:poi-deleted', { detail: { id: poi.id } }));
+      onClose();
+    } catch (err) {
+      console.error('Error deleting custom POI:', err);
+      notify.error('Delete Failed', 'Could not delete custom place. Please try again.');
+    } finally {
+      setIsDeletingCustom(false);
+    }
+  }, [poi, onClose]);
+
   const [stationDepartures, setStationDepartures] = useState<StationDepartureItem[]>([]);
   const [departureTimeSeconds, setDepartureTimeSeconds] = useState<number>(32400); // 09:00 AM default
   const [loadingDepartures, setLoadingDepartures] = useState<boolean>(false);
@@ -894,42 +935,6 @@ export function PoiDetailView({
         background: 'var(--color-surface-card)',
       }}
     >
-      {/* Sticky Inspector Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          padding: '10px 16px',
-          borderBottom: '1px solid var(--color-border)',
-          background: 'var(--color-surface-card)',
-          flexShrink: 0,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          title={t('workspace.close_inspector')}
-          aria-label={t('workspace.close_inspector')}
-          data-testid="poi-inspector-close-btn"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            background: 'var(--color-surface-raised, #F8FAFC)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-text-secondary)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <CloseIcon size={14} />
-        </button>
-      </div>
-
       {/* Scrollable Content Area */}
       <div
         className="no-scrollbar"
@@ -1358,17 +1363,52 @@ export function PoiDetailView({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <span
-                      style={{
-                        fontSize: '22px',
-                        fontWeight: 800,
-                        letterSpacing: '-0.02em',
-                        fontFamily: 'var(--font-display, inherit)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    >
-                      {poi.cost_eur === 0 ? t('workspace.free') : `${currencySymbol}${Math.round(poi.cost_eur)}`}
-                    </span>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span
+                          style={{
+                            fontSize: '18px',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-display, inherit)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {currencySymbol}
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          data-testid="edit-poi-cost-input"
+                          value={editCost}
+                          onChange={(e) => setEditCost(Number(e.target.value))}
+                          style={{
+                            width: '74px',
+                            padding: '3px 6px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-surface-card)',
+                            fontSize: '16px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-display, inherit)',
+                            color: 'var(--color-text-primary)',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '22px',
+                          fontWeight: 800,
+                          letterSpacing: '-0.02em',
+                          fontFamily: 'var(--font-display, inherit)',
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {poi.cost_eur === 0 ? t('workspace.free') : `${currencySymbol}${Math.round(poi.cost_eur)}`}
+                      </span>
+                    )}
                     <span
                       style={{
                         fontSize: '12px',
@@ -1422,19 +1462,44 @@ export function PoiDetailView({
                     marginBottom: '4px',
                   }}
                 >
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: '18px',
-                      lineHeight: 1.3,
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-display, inherit)',
-                      color: 'var(--color-text-primary)',
-                      letterSpacing: '-0.01em',
-                    }}
-                  >
-                    {poi.name}
-                  </h2>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      data-testid="edit-poi-name-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Place name"
+                      style={{
+                        flex: '1 1 auto',
+                        minWidth: '140px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        fontSize: '17px',
+                        lineHeight: 1.3,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-display, inherit)',
+                        color: 'var(--color-text-primary)',
+                        letterSpacing: '-0.01em',
+                        outline: 'none',
+                      }}
+                    />
+                  ) : (
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: '18px',
+                        lineHeight: 1.3,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-display, inherit)',
+                        color: 'var(--color-text-primary)',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {poi.name}
+                    </h2>
+                  )}
                   <button
                     type="button"
                     onClick={isEditing ? () => setIsEditing(false) : startEditing}
@@ -1459,6 +1524,44 @@ export function PoiDetailView({
                   >
                     <EditIcon size={13} color="currentColor" />
                   </button>
+                  {isCustomPoi && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCustomPoi}
+                      disabled={isDeletingCustom}
+                      title="Delete manual POI"
+                      aria-label="Delete manual POI"
+                      data-testid="delete-custom-poi-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-raised, #F8FAFC)',
+                        color: 'var(--color-danger, #EF4444)',
+                        cursor: isDeletingCustom ? 'not-allowed' : 'pointer',
+                        padding: 0,
+                        transition: 'all 0.15s ease',
+                        flexShrink: 0,
+                        opacity: isDeletingCustom ? 0.6 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDeletingCustom) {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                          e.currentTarget.style.borderColor = 'var(--color-danger, #EF4444)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--color-surface-raised, #F8FAFC)';
+                        e.currentTarget.style.borderColor = 'var(--color-border)';
+                      }}
+                    >
+                      <TrashIcon size={13} color="currentColor" />
+                    </button>
+                  )}
                   {transitStationLabel && (
                     <span
                       data-testid="transit-station-badge"
@@ -1551,247 +1654,46 @@ export function PoiDetailView({
                 >
                   <PinIcon size={13} color="var(--color-text-muted)" />
                   <span>{poi.city || 'Destination'}</span>
-                  {poi.website && (
-                    <a
-                      href={poi.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  {isEditing ? (
+                    <input
+                      type="url"
+                      data-testid="edit-poi-website-input"
+                      placeholder="Website (https://...)"
+                      value={editWebsite}
+                      onChange={(e) => setEditWebsite(e.target.value)}
                       style={{
                         marginLeft: 'auto',
-                        color: 'var(--color-accent-primary)',
+                        width: '160px',
+                        padding: '2px 6px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
                         fontSize: '11px',
-                        textDecoration: 'none',
-                        fontWeight: 600,
+                        color: 'var(--color-text-primary)',
+                        fontFamily: 'var(--font-code, monospace)',
+                        outline: 'none',
                       }}
-                    >
-                      {t('workspace.website')}
-                    </a>
+                    />
+                  ) : (
+                    poi.website && (
+                      <a
+                        href={poi.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          marginLeft: 'auto',
+                          color: 'var(--color-accent-primary)',
+                          fontSize: '11px',
+                          textDecoration: 'none',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t('workspace.website')}
+                      </a>
+                    )
                   )}
                 </div>
               </div>
-
-              {/* In-Place POI Inline Editor */}
-              {isEditing && (
-                <div
-                  data-testid="inline-poi-editor"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    padding: '14px',
-                    background: 'var(--color-surface-raised, #F8FAFC)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '16px',
-                    boxShadow: 'var(--shadow-sm)',
-                    animation: 'fadeIn 0.2s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      {t('workspace.edit_place_info')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        color: 'var(--color-text-muted)',
-                      }}
-                    >
-                      <CloseIcon size={13} />
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                      Place Name
-                    </label>
-                    <input
-                      type="text"
-                      data-testid="edit-poi-name-input"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface-card)',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: 'var(--color-text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                        {t('workspace.category')}
-                      </label>
-                      <select
-                        data-testid="edit-poi-category-select"
-                        value={editCategory}
-                        onChange={(e) => setEditCategory(e.target.value)}
-                        style={{
-                          padding: '6px 8px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '12px',
-                          color: 'var(--color-text-primary)',
-                          outline: 'none',
-                        }}
-                      >
-                        <option value="attraction">Attraction</option>
-                        <option value="monument">Monument</option>
-                        <option value="museum">Museum</option>
-                        <option value="restaurant">Restaurant</option>
-                        <option value="cafe">Café</option>
-                        <option value="park">Park</option>
-                        <option value="shopping">Shopping</option>
-                        <option value="viewpoint">Viewpoint</option>
-                        <option value="hotel">Hotel</option>
-                        <option value="transit">Transit</option>
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                        Duration (mins)
-                      </label>
-                      <input
-                        type="number"
-                        min={5}
-                        step={5}
-                        data-testid="edit-poi-duration-input"
-                        value={editDuration}
-                        onChange={(e) => setEditDuration(Number(e.target.value))}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '12px',
-                          color: 'var(--color-text-primary)',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                        Cost (€ / person)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        data-testid="edit-poi-cost-input"
-                        value={editCost}
-                        onChange={(e) => setEditCost(Number(e.target.value))}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '12px',
-                          color: 'var(--color-text-primary)',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                        {t('workspace.website')}
-                      </label>
-                      <input
-                        type="url"
-                        data-testid="edit-poi-website-input"
-                        placeholder="https://..."
-                        value={editWebsite}
-                        onChange={(e) => setEditWebsite(e.target.value)}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '12px',
-                          color: 'var(--color-text-primary)',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                      Overview / Notes
-                    </label>
-                    <textarea
-                      rows={3}
-                      data-testid="edit-poi-description-input"
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface-card)',
-                        fontSize: '12px',
-                        color: 'var(--color-text-primary)',
-                        resize: 'vertical',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      data-testid="cancel-edit-poi-btn"
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface-card)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: 'var(--color-text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isSavingEdit || !editName.trim()}
-                      onClick={handleSaveEdit}
-                      data-testid="save-edit-poi-btn"
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: 'var(--color-accent-primary, #0F4C5C)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: '#FFFFFF',
-                        cursor: isSavingEdit || !editName.trim() ? 'not-allowed' : 'pointer',
-                        opacity: isSavingEdit || !editName.trim() ? 0.6 : 1,
-                      }}
-                    >
-                      {isSavingEdit ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Feature Chips Row */}
               {!isTransit && (
@@ -1884,19 +1786,47 @@ export function PoiDetailView({
                     >
                       {t('common.duration')}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    >
-                      ~{poi.duration_mins || 60}m
-                    </span>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>~</span>
+                        <input
+                          type="number"
+                          min={5}
+                          step={5}
+                          data-testid="edit-poi-duration-input"
+                          value={editDuration}
+                          onChange={(e) => setEditDuration(Number(e.target.value))}
+                          style={{
+                            width: '42px',
+                            padding: '1px 3px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-surface-card)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-primary)',
+                            outline: 'none',
+                          }}
+                        />
+                        <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>m</span>
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        ~{poi.duration_mins || 60}m
+                      </span>
+                    )}
                   </div>
                 </div>
 
+                {/* 3. Category Card */}
                 <div
                   style={{
                     display: 'flex',
@@ -1906,10 +1836,24 @@ export function PoiDetailView({
                     border: '1px solid var(--color-border)',
                     borderRadius: '10px',
                     padding: '8px 10px',
+                    minWidth: 0,
                   }}
                 >
-                  <TagIcon size={14} color="var(--color-accent-primary)" />
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--color-accent-primary)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CategoryIcon
+                      type={classifyPoiCategory(isEditing ? editCategory : poi.category, isEditing ? editName : poi.name).type}
+                      size={14}
+                    />
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
                     <span
                       style={{
                         fontSize: '9px',
@@ -1920,28 +1864,58 @@ export function PoiDetailView({
                     >
                       {t('workspace.category')}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-primary)',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {poi.category || 'Sight'}
-                    </span>
+                    {isEditing ? (
+                      <select
+                        data-testid="edit-poi-category-select"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        style={{
+                          padding: '1px 2px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-primary)',
+                          outline: 'none',
+                          maxWidth: '92px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="attraction">attraction</option>
+                        <option value="monument">monument</option>
+                        <option value="museum">museum</option>
+                        <option value="restaurant">restaurant</option>
+                        <option value="cafe">café</option>
+                        <option value="park">park</option>
+                        <option value="shopping">shopping</option>
+                        <option value="viewpoint">viewpoint</option>
+                        <option value="hotel">hotel</option>
+                        <option value="transit">transit</option>
+                      </select>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-primary)',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {poi.category || 'Sight'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-
-
               {/* Description Overview */}
-              {overviewDescription && (
+              {(overviewDescription || isEditing) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span
                     style={{
@@ -1955,17 +1929,41 @@ export function PoiDetailView({
                   >
                     {t('workspace.overview')}
                   </span>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '12.5px',
-                      lineHeight: 1.6,
-                      color: 'var(--color-text-secondary)',
-                      fontFamily: 'var(--font-body, inherit)',
-                    }}
-                  >
-                    {overviewDescription}
-                  </p>
+                  {isEditing ? (
+                    <textarea
+                      rows={4}
+                      data-testid="edit-poi-description-input"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="Add overview description or notes..."
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        fontSize: '12.5px',
+                        lineHeight: 1.6,
+                        color: 'var(--color-text-primary)',
+                        fontFamily: 'var(--font-body, inherit)',
+                        resize: 'vertical',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '12.5px',
+                        lineHeight: 1.6,
+                        color: 'var(--color-text-secondary)',
+                        fontFamily: 'var(--font-body, inherit)',
+                      }}
+                    >
+                      {overviewDescription}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -2374,6 +2372,62 @@ export function PoiDetailView({
                       })}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* In-Place Editing Action Buttons at the End */}
+              {isEditing && (
+                <div
+                  data-testid="in-place-poi-edit-actions"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '10px',
+                    padding: '14px 0 6px 0',
+                    borderTop: '1px solid var(--color-border)',
+                    marginTop: '8px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    data-testid="cancel-edit-poi-btn"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface-raised)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingEdit || !editName.trim()}
+                    onClick={handleSaveEdit}
+                    data-testid="save-edit-poi-btn"
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'var(--color-accent-primary, #0F4C5C)',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: isSavingEdit || !editName.trim() ? 'not-allowed' : 'pointer',
+                      opacity: isSavingEdit || !editName.trim() ? 0.6 : 1,
+                      boxShadow: '0 2px 8px rgba(15, 76, 92, 0.25)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               )}
 

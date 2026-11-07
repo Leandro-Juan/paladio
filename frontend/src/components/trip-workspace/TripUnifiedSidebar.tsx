@@ -12,6 +12,7 @@ import { TripWeatherTab } from './TripWeatherTab';
 import { CollectionsTab } from './CollectionsTab';
 import { AgentTab, WorkspaceContextData } from '@/components/trip-agent';
 import { SaveToCollectionMenu } from './SaveToCollectionMenu';
+import { AddPoiModal } from './AddPoiModal';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
@@ -21,7 +22,13 @@ import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
 import { getDayColor } from './TripMapView';
-import { AddPoiModal } from './AddPoiModal';
+import {
+  startCustomDragPreview,
+  markPaladioDropHandled,
+  resetPaladioDropHandled,
+  isPaladioDropHandled,
+} from '@/utils/dragPreview';
+export { startCustomDragPreview, markPaladioDropHandled, resetPaladioDropHandled, isPaladioDropHandled };
 import {
   SearchIcon,
   CheckIcon,
@@ -44,6 +51,7 @@ import {
   CpuIcon,
   LayersViewIcon,
   StarIcon,
+  TrashIcon,
 } from '@/components/icons';
 
 import type { PlaceItem, PoiApiItem } from '@/types/workspace';
@@ -117,6 +125,19 @@ interface PoiSearchResponseData {
   exact_match?: PoiApiItem | null;
   results: PoiApiItem[];
   total?: number | null;
+}
+
+export function isCustomPoi(p: { id?: string; match_type?: string; source?: string; metadata?: any; metadata_field?: any; cost_source?: string }) {
+  const idStr = String(p?.id || '');
+  const matchType = p?.match_type;
+  const source = p?.source || p?.metadata?.source || (p as any)?.metadata_field?.source;
+  const costSource = p?.cost_source;
+  return (
+    idStr.startsWith('custom-') ||
+    matchType === 'custom' ||
+    source === 'user_created' ||
+    costSource === 'user'
+  );
 }
 
 export interface TripUnifiedSidebarProps {
@@ -277,131 +298,7 @@ function HoverScrollRow({ children, testId, style }: HoverScrollRowProps) {
   );
 }
 
-/**
- * Starts a 100% solid, fully opaque ("full macizo") floating drag preview tracking cursor movement,
- * completely suppressing the browser's hardcoded translucent ghost.
- */
-export function startCustomDragPreview(
-  e: DragEvent | React.DragEvent,
-  poi: {
-    name: string;
-    category?: string;
-    duration_mins?: number;
-    cost_eur?: number;
-  }
-): HTMLElement {
-  // 1. Suppress native browser drag ghost & file icons using a loaded 1x1 transparent image in DOM
-  if (e.dataTransfer && typeof document !== 'undefined') {
-    try {
-      let blankImg = document.getElementById('paladio-blank-drag-pixel') as HTMLImageElement | null;
-      if (!blankImg) {
-        blankImg = document.createElement('img');
-        blankImg.id = 'paladio-blank-drag-pixel';
-        blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-        blankImg.alt = '';
-        blankImg.width = 1;
-        blankImg.height = 1;
-        blankImg.style.position = 'fixed';
-        blankImg.style.left = '-9999px';
-        blankImg.style.top = '-9999px';
-        blankImg.style.opacity = '0.01';
-        blankImg.style.pointerEvents = 'none';
-        document.body.appendChild(blankImg);
-      }
-      e.dataTransfer.setDragImage(blankImg, 0, 0);
-    } catch {
-      // fallback
-    }
-  }
 
-  // Remove any stale custom drag clones
-  if (typeof document !== 'undefined') {
-    const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-    existing.forEach((node) => node.remove());
-  }
-
-  // 2. Create the floating solid opaque card clone
-  const el = document.createElement('div');
-  el.setAttribute('data-paladio-custom-drag-preview', 'true');
-  el.style.position = 'fixed';
-  const startX = (e.clientX || 0) - 24;
-  const startY = (e.clientY || 0) - 20;
-  el.style.top = `${startY}px`;
-  el.style.left = `${startX}px`;
-  el.style.width = '320px';
-  el.style.padding = '10px 14px';
-  el.style.background = '#FFFFFF';
-  el.style.borderRadius = '14px';
-  el.style.border = '2px solid #0F4C5C';
-  el.style.boxShadow = '0 18px 40px rgba(15, 76, 92, 0.32), 0 4px 14px rgba(0, 0, 0, 0.16)';
-  el.style.display = 'flex';
-  el.style.alignItems = 'center';
-  el.style.justifyContent = 'space-between';
-  el.style.gap = '10px';
-  el.style.fontFamily = 'var(--font-sans, system-ui, sans-serif)';
-  el.style.zIndex = '999999';
-  el.style.pointerEvents = 'none';
-  el.style.opacity = '1';
-  el.style.userSelect = 'none';
-  el.style.transition = 'none';
-
-  const name = poi.name || 'Scheduled Place';
-  const cat = poi.category || 'Waypoint';
-  const dur = poi.duration_mins ? `${poi.duration_mins}m` : '60m';
-
-  el.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-      <div style="width: 24px; height: 24px; border-radius: 6px; background: rgba(15, 76, 92, 0.14); color: #0F4C5C; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: monospace;">
-        +
-      </div>
-      <div style="min-width: 0;">
-        <div style="font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 175px;">
-          ${name}
-        </div>
-        <div style="font-size: 11px; color: #64748b; text-transform: capitalize;">
-          ${cat} · ${dur}
-        </div>
-      </div>
-    </div>
-    <div style="font-size: 10px; font-weight: 700; font-family: monospace; color: #0F4C5C; background: rgba(15, 76, 92, 0.1); padding: 3px 8px; border-radius: 9999px; white-space: nowrap;">
-      ROUTE STOP
-    </div>
-  `;
-
-  document.body.appendChild(el);
-
-  // 3. Track cursor coordinates smoothly on drag / dragover
-  const handleDragUpdate = (ev: DragEvent | MouseEvent) => {
-    if (ev.clientX !== 0 || ev.clientY !== 0) {
-      el.style.top = `${ev.clientY - 20}px`;
-      el.style.left = `${ev.clientX - 24}px`;
-    }
-  };
-
-  const cleanup = () => {
-    document.removeEventListener('drag', handleDragUpdate, true);
-    document.removeEventListener('dragover', handleDragUpdate, true);
-    document.removeEventListener('dragend', cleanup, true);
-    document.removeEventListener('drop', cleanup, true);
-    document.removeEventListener('mouseup', cleanup, true);
-    if (el.parentElement) {
-      el.remove();
-    }
-    if (typeof window !== 'undefined') {
-      (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
-      (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
-      window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
-    }
-  };
-
-  document.addEventListener('drag', handleDragUpdate, true);
-  document.addEventListener('dragover', handleDragUpdate, true);
-  document.addEventListener('dragend', cleanup, true);
-  document.addEventListener('drop', cleanup, true);
-  document.addEventListener('mouseup', cleanup, true);
-
-  return el;
-}
 
 /**
  * Creates a route-styled ghost drag image resembling MinimalistPoiCard
@@ -1344,6 +1241,7 @@ export function TripUnifiedSidebar({
   const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [isAddPoiModalOpen, setIsAddPoiModalOpen] = useState(false);
+  const [onlyCustomPois, setOnlyCustomPois] = useState(false);
 
   const handlePoiCreated = useCallback(
     (newPoi: PoiApiItem) => {
@@ -1371,6 +1269,61 @@ export function TripUnifiedSidebar({
     [destinationCity, onInspectPoi]
   );
 
+  // Primary Tabs State
+  const [internalActiveTab, setInternalActiveTab] = useState<MainTabType>('route');
+  const [agentTabVisited, setAgentTabVisited] = useState(false);
+  const activeTab = sidebarTab !== undefined ? sidebarTab : internalActiveTab;
+
+  if (activeTab === 'agent' && !agentTabVisited) {
+    setAgentTabVisited(true);
+  }
+
+  const [deletingPoiId, setDeletingPoiId] = useState<string | null>(null);
+
+  const handleDeletePoi = useCallback(
+    async (poi: { id: string; name?: string }) => {
+      if (!window.confirm(`Are you sure you want to delete "${poi.name || 'this place'}"?`)) {
+        return;
+      }
+      setDeletingPoiId(poi.id);
+      try {
+        const baseUrl = getApiBaseUrl();
+        const headers: Record<string, string> = {};
+        const token = getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(poi.id)}`, {
+          method: 'DELETE',
+          headers,
+        });
+        if (!res.ok && res.status !== 404) {
+          throw new Error(`Failed to delete POI (HTTP ${res.status})`);
+        }
+        setSearchData((prev) => {
+          if (!prev) return prev;
+          const filtered = prev.results.filter((p) => p.id !== poi.id);
+          if (onCategoryPoisChange && activeTab === 'search') {
+            onCategoryPoisChange(filtered);
+          }
+          return {
+            ...prev,
+            results: filtered,
+            total: prev.total != null ? Math.max(0, prev.total - 1) : filtered.length,
+          };
+        });
+        notify.success('Place Deleted', `Deleted "${poi.name || 'custom place'}"`);
+        window.dispatchEvent(new CustomEvent('paladio:poi-deleted', { detail: { id: poi.id } }));
+      } catch (err: unknown) {
+        console.error('Error deleting custom POI:', err);
+        notify.error('Delete Failed', 'Could not delete custom place. Please try again.');
+      } finally {
+        setDeletingPoiId(null);
+      }
+    },
+    [onCategoryPoisChange, activeTab]
+  );
+
   useEffect(() => {
     const handlePoiUpdated = (e: Event) => {
       const customEvent = e as CustomEvent<PoiDetail>;
@@ -1394,18 +1347,30 @@ export function TripUnifiedSidebar({
         };
       });
     };
+    const handlePoiDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (!customEvent.detail?.id) return;
+      const deletedId = customEvent.detail.id;
+      setSearchData((prev) => {
+        if (!prev) return prev;
+        const filtered = prev.results.filter((p) => p.id !== deletedId);
+        if (onCategoryPoisChange && activeTab === 'search') {
+          onCategoryPoisChange(filtered);
+        }
+        return {
+          ...prev,
+          results: filtered,
+          total: prev.total != null ? Math.max(0, prev.total - 1) : filtered.length,
+        };
+      });
+    };
     window.addEventListener('paladio:poi-updated', handlePoiUpdated);
-    return () => window.removeEventListener('paladio:poi-updated', handlePoiUpdated);
-  }, []);
-
-  // Primary Tabs State
-  const [internalActiveTab, setInternalActiveTab] = useState<MainTabType>('route');
-  const [agentTabVisited, setAgentTabVisited] = useState(false);
-  const activeTab = sidebarTab !== undefined ? sidebarTab : internalActiveTab;
-
-  if (activeTab === 'agent' && !agentTabVisited) {
-    setAgentTabVisited(true);
-  }
+    window.addEventListener('paladio:poi-deleted', handlePoiDeleted);
+    return () => {
+      window.removeEventListener('paladio:poi-updated', handlePoiUpdated);
+      window.removeEventListener('paladio:poi-deleted', handlePoiDeleted);
+    };
+  }, [onCategoryPoisChange, activeTab]);
   const setActiveTab = useCallback(
     (tab: MainTabType) => {
       setInternalActiveTab(tab);
@@ -1578,11 +1543,12 @@ export function TripUnifiedSidebar({
 
   // Execute Dynamic POI Search
   const executeSearch = useCallback(
-    async (queryText: string, cat?: string, offset: number = 0, append: boolean = false) => {
+    async (queryText: string, cat?: string, offset: number = 0, append: boolean = false, customOnly?: boolean) => {
       const q = queryText.trim();
       const currentCat = cat !== undefined ? cat : activeCategory;
       const isCategoryBrowse = !q && currentCat && currentCat !== 'all';
       const isAllBrowse = !q && (!currentCat || currentCat === 'all');
+      const isCustomOnly = customOnly !== undefined ? customOnly : onlyCustomPois;
 
       if (append) {
         setIsLoadingMore(true);
@@ -1609,6 +1575,7 @@ export function TripUnifiedSidebar({
                 activeDayHull.map(([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(';')
               )}`
             : '';
+        const customParam = isCustomOnly ? '&custom_only=true' : '';
         const offsetParam = offset > 0 ? `&offset=${offset}` : '';
         const baseUrl = getApiBaseUrl();
         const limit = isCategoryBrowse ? 60 : isAllBrowse ? 40 : 25;
@@ -1622,7 +1589,7 @@ export function TripUnifiedSidebar({
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             destinationCity
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}${hullParam}&limit=${limit}${offsetParam}`,
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}${hullParam}${customParam}&limit=${limit}${offsetParam}`,
           { headers, signal }
         );
         if (!res.ok) {
@@ -1710,7 +1677,7 @@ export function TripUnifiedSidebar({
         }
       }
     },
-    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab]
+    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab, onlyCustomPois]
   );
 
   const handleLoadMore = useCallback(() => {
@@ -1815,6 +1782,22 @@ export function TripUnifiedSidebar({
       });
     }
 
+    // Custom POIs only filter
+    if (onlyCustomPois) {
+      list = list.filter((p) => {
+        const idStr = String(p.id || '');
+        const matchType = (p as any).match_type;
+        const source = (p as any).source || (p as any).metadata?.source;
+        const costSource = (p as any).cost_source;
+        return (
+          idStr.startsWith('custom-') ||
+          matchType === 'custom' ||
+          source === 'user_created' ||
+          costSource === 'user'
+        );
+      });
+    }
+
     // Sort
     if (sortOption === 'cost') {
       list.sort((a, b) => a.cost_eur - b.cost_eur);
@@ -1849,7 +1832,7 @@ export function TripUnifiedSidebar({
     }
 
     return list;
-  }, [searchData, costRange, durationRange, minRating, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay]);
+  }, [searchData, costRange, durationRange, minRating, onlyCustomPois, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay]);
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
@@ -1976,10 +1959,42 @@ export function TripUnifiedSidebar({
     [itinerary, onItineraryUpdate]
   );
 
+  // Remove scheduled waypoint from the route (e.g. dropped outside route or collection)
+  const handleRemoveStopFromRoute = useCallback(
+    (targetDayNum: number, sourceIdx: number, poiId?: string, poiName?: string) => {
+      if (!itinerary || !onItineraryUpdate) return;
+      const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+      const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === targetDayNum);
+      if (!targetDayObj?.itinerary?.path) return;
+
+      const path = targetDayObj.itinerary.path;
+      let removeIdx = -1;
+      if (poiId) {
+        removeIdx = path.findIndex((item) => item.poi?.id === poiId);
+      }
+      if (removeIdx === -1 && poiName) {
+        removeIdx = path.findIndex((item) => item.poi?.name === poiName);
+      }
+      if (removeIdx === -1 && sourceIdx >= 0 && sourceIdx < path.length) {
+        removeIdx = sourceIdx;
+      }
+
+      if (removeIdx >= 0 && removeIdx < path.length) {
+        const [removedItem] = path.splice(removeIdx, 1);
+        if (removedItem) {
+          onItineraryUpdate(clonedItin);
+          notify.info('Place Removed', `Removed "${removedItem.poi?.name || poiName || 'Waypoint'}" from Day ${targetDayNum}`);
+        }
+      }
+    },
+    [itinerary, onItineraryUpdate]
+  );
+
   // Drag and drop handlers for Route reordering
   const handleDrop = (e: React.DragEvent, targetDayNum: number, targetIdx: number) => {
     e.preventDefault();
     setActiveDropTarget(null);
+    markPaladioDropHandled();
 
     let payload: { source?: string; day?: number; index?: number; poi?: Record<string, unknown> } | null = null;
     try {
@@ -2034,7 +2049,7 @@ export function TripUnifiedSidebar({
           onItineraryUpdate(clonedItin);
           notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
         }
-      } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map') {
+      } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map' || payload.source === 'collection') {
         const poi = payload.poi;
         if (!poi) return;
         const lat = ((poi.location as { latitude?: number } | undefined)?.latitude ?? poi.lat ?? 0) as number;
@@ -2176,6 +2191,14 @@ export function TripUnifiedSidebar({
                     title="Route"
                     aria-label="Route"
                     onClick={() => setActiveTab('route')}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setActiveTab('route');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (activeTab !== 'route') setActiveTab('route');
+                    }}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -2206,6 +2229,14 @@ export function TripUnifiedSidebar({
                     title="Search"
                     aria-label="Search"
                     onClick={() => setActiveTab('search')}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setActiveTab('search');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (activeTab !== 'search') setActiveTab('search');
+                    }}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -2299,9 +2330,13 @@ export function TripUnifiedSidebar({
                     title="Collections"
                     aria-label="Collections"
                     onClick={() => setActiveTab('saved')}
-                    onDragOver={(e) => {
+                    onDragEnter={(e) => {
                       e.preventDefault();
                       setActiveTab('saved');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (activeTab !== 'saved') setActiveTab('saved');
                     }}
                     style={{
                       display: 'inline-flex',
@@ -2561,6 +2596,15 @@ export function TripUnifiedSidebar({
                         setActiveDropTarget(null);
                       }
                     }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (activeDropTarget) {
+                        handleDrop(e, activeDropTarget.day, activeDropTarget.index);
+                      } else if (displayedDays.length > 0) {
+                        const fallbackDay = displayedDays[0];
+                        handleDrop(e, fallbackDay.day, fallbackDay.itinerary?.path?.length || 0);
+                      }
+                    }}
                     style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}
                   >
                     {/* Scheduled Days and Stops Timeline */}
@@ -2578,6 +2622,10 @@ export function TripUnifiedSidebar({
                             if (!e.currentTarget.contains(e.relatedTarget as Node)) {
                               setActiveDropTarget(null);
                             }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            handleDrop(e, dayObj.day, path.length);
                           }}
                           style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
                         >
@@ -2771,15 +2819,22 @@ export function TripUnifiedSidebar({
                                       if (typeof window !== 'undefined') {
                                         (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = poiInfo;
                                       }
+                                      resetPaladioDropHandled();
                                       e.dataTransfer.setData('application/paladio-poi', serialized);
                                       e.dataTransfer.setData('text/plain', serialized);
                                       e.dataTransfer.effectAllowed = 'copyMove';
                                     }}
                                     onDragEnd={() => {
+                                      const wasHandled = isPaladioDropHandled();
                                       setDraggedPoi(null);
                                       setActiveDropTarget(null);
                                       if (typeof window !== 'undefined') {
                                         (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+                                      }
+                                      resetPaladioDropHandled();
+
+                                      if (!wasHandled) {
+                                        handleRemoveStopFromRoute(dayObj.day, poiIdx, p?.id, p?.name);
                                       }
                                     }}
                                     canMoveUp={poiIdx > 0}
@@ -3047,6 +3102,42 @@ export function TripUnifiedSidebar({
                         value={minRating}
                         onChange={setMinRating}
                       />
+
+                      {/* Custom POIs toggle button */}
+                      <button
+                        type="button"
+                        data-testid="toggle-custom-pois-btn"
+                        aria-pressed={onlyCustomPois}
+                        onClick={() => {
+                          const nextState = !onlyCustomPois;
+                          setOnlyCustomPois(nextState);
+                          if (nextState) {
+                            executeSearch(searchQuery, activeCategory, 0, false, true);
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '9999px',
+                          border: `1px solid ${onlyCustomPois ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-border)'}`,
+                          background: onlyCustomPois ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-surface-card, #FFFFFF)',
+                          color: onlyCustomPois ? '#FFFFFF' : 'var(--color-text-primary)',
+                          fontSize: '11.5px',
+                          fontFamily: 'var(--font-mono, monospace)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: onlyCustomPois ? '0 2px 8px rgba(15, 76, 92, 0.25)' : 'var(--shadow-sm)',
+                          transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                          whiteSpace: 'nowrap',
+                          userSelect: 'none',
+                          marginLeft: 'auto',
+                        }}
+                        title={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
+                      >
+                        <span>{onlyCustomPois ? 'Custom Only' : 'All POIs'}</span>
+                      </button>
                     </div>
 
                     {/* 4. Section Header: Best Places Header */}
@@ -3109,11 +3200,17 @@ export function TripUnifiedSidebar({
                             e.dataTransfer.setData('application/paladio-poi', serialized);
                             e.dataTransfer.setData('text/plain', serialized);
                             e.dataTransfer.effectAllowed = 'copyMove';
-
-                            // Switch to Route tab automatically so user can drop into any day!
-                            setTimeout(() => {
-                              setActiveTab('route');
-                            }, 50);
+                          }}
+                          onDragEnd={() => {
+                            if (typeof window !== 'undefined') {
+                              const win = window as unknown as {
+                                __paladioActivePoi?: unknown;
+                                __paladioActiveSearchPoi?: unknown;
+                              };
+                              win.__paladioActivePoi = null;
+                              win.__paladioActiveSearchPoi = null;
+                            }
+                            resetPaladioDropHandled();
                           }}
                           onClick={() => {
                             onPlaceClick?.({
@@ -3185,6 +3282,44 @@ export function TripUnifiedSidebar({
                                 </div>
                                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
                               </div>
+                              {isCustomPoi(poi) && (
+                                <button
+                                  type="button"
+                                  data-testid={`delete-custom-poi-${poi.id}`}
+                                  title="Delete manual POI"
+                                  aria-label="Delete manual POI"
+                                  disabled={deletingPoiId === poi.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePoi(poi);
+                                  }}
+                                  style={{
+                                    background: 'transparent',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '8px',
+                                    padding: '5px 7px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: deletingPoiId === poi.id ? 'not-allowed' : 'pointer',
+                                    color: 'var(--color-danger, #EF4444)',
+                                    transition: 'all 0.15s ease',
+                                    opacity: deletingPoiId === poi.id ? 0.5 : 1,
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (deletingPoiId !== poi.id) {
+                                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                      e.currentTarget.style.borderColor = 'var(--color-danger, #EF4444)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                                  }}
+                                >
+                                  <TrashIcon size={13} color="var(--color-danger, #EF4444)" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 data-testid={`search-poi-bookmark-${poi.id}`}
@@ -3372,6 +3507,7 @@ export function TripUnifiedSidebar({
                 {activeTab === 'saved' && (
                   <CollectionsTab
                     tripId={tripId || ''}
+                    onPlaceClick={onPlaceClick}
                     onInspectPoi={onInspectPoi}
                     onAddToDay={onAddToDay}
                     tripDaysCount={days.length || 7}
@@ -3394,6 +3530,7 @@ export function TripUnifiedSidebar({
                       tripId={tripId || ''}
                       uiContext={uiContext}
                       onTripUpdated={onTripUpdated}
+                      onInspectPoi={onInspectPoi}
                     />
                   </div>
                 )}
@@ -3458,11 +3595,9 @@ export function TripUnifiedSidebar({
         isOpen={isAddPoiModalOpen}
         onClose={() => setIsAddPoiModalOpen(false)}
         city={destinationCity}
-        defaultLat={hotelAnchor?.lat || airportAnchor?.lat || (searchData?.results?.[0]?.lat ?? 35.6812)}
-        defaultLng={hotelAnchor?.lng || airportAnchor?.lng || (searchData?.results?.[0]?.lng ?? 139.7671)}
-        availableDays={availableDays}
+        defaultLat={hotelAnchor?.lat ?? airportAnchor?.lat ?? searchData?.results?.[0]?.lat}
+        defaultLng={hotelAnchor?.lng ?? airportAnchor?.lng ?? searchData?.results?.[0]?.lng}
         onPoiCreated={handlePoiCreated}
-        onAddToDay={onAddToDay}
       />
     </div>
   );

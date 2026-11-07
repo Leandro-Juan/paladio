@@ -50,7 +50,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [sidebarTab, setSidebarTab] = useState<MainTabType>(initialSidebarTab);
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
-  const [lastInspectedPoi, setLastInspectedPoi] = useState<{ id: string; fallback?: Partial<PoiDetail> } | null>(null);
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
   const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
   const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
@@ -310,7 +309,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       setInspectedPoiId(pid);
       setInspectedPoiFallback(fallback);
       setRenderedPoi({ id: pid, fallback });
-      setLastInspectedPoi({ id: pid, fallback });
     }
   }, []);
 
@@ -319,25 +317,15 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setFocusedPlace(null);
     setInspectedPoiId(null);
     setInspectedPoiFallback(null);
-    setLastInspectedPoi(null);
+    setRenderedPoi(null);
   }, []);
 
   const isInspectorOpen = Boolean(inspectedPoiId);
-
-  useEffect(() => {
-    if (!inspectedPoiId) {
-      const timer = setTimeout(() => {
-        setRenderedPoi(null);
-      }, 340);
-      return () => clearTimeout(timer);
-    }
-  }, [inspectedPoiId]);
 
   const handleInspectPoi = useCallback((id: string, fallbackData?: Partial<PoiDetail>) => {
     setInspectedPoiId(id);
     setInspectedPoiFallback(fallbackData || null);
     setRenderedPoi({ id, fallback: fallbackData || null });
-    setLastInspectedPoi({ id, fallback: fallbackData });
     setIsSidebarOpen(true);
 
     const lat = fallbackData?.lat ?? (fallbackData as unknown as { location?: { latitude?: number } })?.location?.latitude;
@@ -435,14 +423,25 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     const handleClearTransitLine = () => {
       setActiveTransitLine(null);
     };
+    const handlePoiDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id) {
+        const deletedId = customEvent.detail.id;
+        setInspectedPoiId((prev) => (prev === deletedId ? null : prev));
+        setInspectedPoiFallback((prev) => (prev?.id === deletedId ? null : prev));
+        setRenderedPoi((prev) => (prev?.id === deletedId ? null : prev));
+      }
+    };
 
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
     window.addEventListener('paladio:show-transit-line', handleShowTransitLine);
     window.addEventListener('paladio:clear-transit-line', handleClearTransitLine);
+    window.addEventListener('paladio:poi-deleted', handlePoiDeleted);
     return () => {
       window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
       window.removeEventListener('paladio:show-transit-line', handleShowTransitLine);
       window.removeEventListener('paladio:clear-transit-line', handleClearTransitLine);
+      window.removeEventListener('paladio:poi-deleted', handlePoiDeleted);
     };
   }, []);
 
@@ -682,7 +681,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             selectedDay={selectedDay}
           />
 
-          {/* Right Floating POI Details Drawer with External Close Arrow */}
+          {/* Right Floating POI Details Drawer with External Arrow Tab */}
           {renderedPoi && (
             <div
               style={{
@@ -694,20 +693,26 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 zIndex: 1040,
                 display: 'flex',
                 alignItems: 'flex-start',
-                pointerEvents: isInspectorOpen ? 'auto' : 'none',
-                opacity: isInspectorOpen ? 1 : 0,
-                transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% + 24px))',
-                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease',
+                pointerEvents: 'none',
+                transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% - 10px))',
+                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
-              {/* External Arrow Tab to Close POI Details */}
+              {/* External Arrow Tab on the left to Close or Open POI Details */}
               <button
                 type="button"
-                data-testid="poi-inspector-close-arrow"
-                onClick={handleCloseInspect}
-                aria-label="Close POI details"
+                data-testid={isInspectorOpen ? 'poi-inspector-close-arrow' : 'poi-inspector-reopen-arrow'}
+                onClick={
+                  isInspectorOpen
+                    ? handleCloseInspect
+                    : () => {
+                        setInspectedPoiId(renderedPoi.id);
+                        setInspectedPoiFallback(renderedPoi.fallback || null);
+                      }
+                }
+                aria-label={isInspectorOpen ? 'Close POI details' : 'Reopen POI details'}
                 style={{
-                  pointerEvents: isInspectorOpen ? 'auto' : 'none',
+                  pointerEvents: 'auto',
                   alignSelf: 'flex-start',
                   marginTop: '16px',
                   marginRight: '-1px',
@@ -722,7 +727,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: 'var(--color-text-secondary)',
+                  color: isInspectorOpen ? 'var(--color-text-secondary)' : 'var(--color-accent-primary)',
                   transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                   zIndex: 1050,
                 }}
@@ -731,11 +736,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   e.currentTarget.style.background = 'var(--color-surface-raised)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--color-text-secondary)';
+                  e.currentTarget.style.color = isInspectorOpen ? 'var(--color-text-secondary)' : 'var(--color-accent-primary)';
                   e.currentTarget.style.background = 'var(--color-surface-card)';
                 }}
               >
-                <ChevronRightIcon size={16} />
+                {isInspectorOpen ? <ChevronRightIcon size={16} /> : <ChevronLeftIcon size={16} />}
               </button>
 
               <aside
@@ -780,44 +785,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 />
               </aside>
             </div>
-          )}
-
-          {/* External Arrow Tab to Reopen POI Details when collapsed */}
-          {!inspectedPoiId && lastInspectedPoi && (
-            <button
-              type="button"
-              data-testid="poi-inspector-reopen-arrow"
-              onClick={() => {
-                setInspectedPoiId(lastInspectedPoi.id);
-                setInspectedPoiFallback(lastInspectedPoi.fallback || null);
-                setRenderedPoi({ id: lastInspectedPoi.id, fallback: lastInspectedPoi.fallback || null });
-              }}
-              aria-label="Reopen POI details"
-              style={{
-                position: 'absolute',
-                top: '32px',
-                right: '0px',
-                width: '26px',
-                height: '42px',
-                borderRadius: '10px 0 0 10px',
-                background: 'var(--color-surface-card, #FFFFFF)',
-                border: '1px solid var(--color-border)',
-                borderRight: 'none',
-                boxShadow: '-4px 4px 14px rgba(0, 0, 0, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--color-accent-primary)',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                zIndex: 1040,
-                pointerEvents: 'auto',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              <ChevronLeftIcon size={16} />
-            </button>
           )}
         </div>
 

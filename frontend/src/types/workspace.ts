@@ -26,6 +26,8 @@ export interface PoiApiItem {
   iconicity_score?: number;
   match_type?: string;
   description?: string;
+  rating?: number;
+  scoring?: { rating?: number; reviews?: number };
   photo_url?: string;
   thumbnail_url?: string;
   transit_info?: PoiTransitInfo | null;

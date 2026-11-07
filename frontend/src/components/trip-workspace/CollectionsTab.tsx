@@ -3,10 +3,18 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useTripCollections, TripCollection, CollectionItem, CollectionPoiSummary } from '@/hooks/useTripCollections';
+import type { PlaceItem } from '@/types/workspace';
+import {
+  startCustomDragPreview,
+  markPaladioDropHandled,
+  resetPaladioDropHandled,
+  isPaladioDropHandled,
+} from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 
 interface CollectionsTabProps {
   tripId: string;
+  onPlaceClick?: (place: PlaceItem) => void;
   onInspectPoi?: (poiId: string, fallback?: { id?: string; name: string; category?: string; [key: string]: unknown }) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAddToDay?: (dayNumber: number, poi: any) => void;
@@ -25,6 +33,7 @@ const PALADIO_COLORS = [
 
 export function CollectionsTab({
   tripId,
+  onPlaceClick,
   onInspectPoi,
   onAddToDay,
   tripDaysCount = 7,
@@ -56,13 +65,12 @@ export function CollectionsTab({
   // User-toggled expansion state map
   const [toggledColIds, setToggledColIds] = useState<Record<string, boolean>>({});
 
-  // Add to Day dropdown popover per item
-  const [activeDayPickerItemId, setActiveDayPickerItemId] = useState<string | null>(null);
-
   // Drag over target state for collections
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
 
   const handleDropOnCollection = async (col: TripCollection, e: React.DragEvent) => {
+    markPaladioDropHandled();
+
     let payload: {
       source?: string;
       id?: string;
@@ -122,7 +130,17 @@ export function CollectionsTab({
     const poiId = payload.poi?.id || payload.id || payload.poi_id;
     if (!poiId) return;
 
-    const alreadyInCol = col.items.some((it) => it.poi_id === poiId);
+    const alreadyInCol = col.items.some((it) => {
+      const sameId =
+        (it.poi_id && poiId && it.poi_id.toLowerCase() === poiId.toLowerCase()) ||
+        (it.poi?.id && poiId && it.poi.id.toLowerCase() === poiId.toLowerCase());
+      const sameName = Boolean(
+        it.poi?.name &&
+          rawPoi.name &&
+          it.poi.name.trim().toLowerCase() === rawPoi.name.trim().toLowerCase()
+      );
+      return sameId || sameName;
+    });
     if (alreadyInCol) {
       notify.info('Already Saved', `"${rawPoi.name || 'Place'}" is already in "${col.name}"`);
       return;
@@ -445,6 +463,19 @@ export function CollectionsTab({
             const isEditing = editingColId === col.id;
             const isDragOver = dragOverColId === col.id;
 
+            // Deduplicate items in this collection by normalized ID and name
+            const seenIds = new Set<string>();
+            const seenNames = new Set<string>();
+            const uniqueItems = (col.items || []).filter((item) => {
+              const rawId = (item.poi_id || item.poi?.id || '').trim().toLowerCase();
+              const rawName = (item.poi?.name || '').trim().toLowerCase();
+              if (rawId && seenIds.has(rawId)) return false;
+              if (rawName && seenNames.has(rawName)) return false;
+              if (rawId) seenIds.add(rawId);
+              if (rawName) seenNames.add(rawName);
+              return true;
+            });
+
             return (
               <div
                 key={col.id}
@@ -631,7 +662,7 @@ export function CollectionsTab({
                           color: 'var(--color-accent-primary)',
                         }}
                       >
-                        {col.items_count}
+                        {uniqueItems.length}
                       </span>
 
                       {/* Edit Button */}
@@ -701,7 +732,7 @@ export function CollectionsTab({
                 {/* Collection Content (Saved POIs) */}
                 {isExpanded && (
                   <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {col.items.length === 0 ? (
+                    {uniqueItems.length === 0 ? (
                       <div
                         style={{
                           textAlign: 'center',
@@ -716,12 +747,39 @@ export function CollectionsTab({
                         Click bookmark on any place in Search or Route to add it here.
                       </div>
                     ) : (
-                      col.items.map((item: CollectionItem) => {
+                      uniqueItems.map((item: CollectionItem) => {
                         const poiName = item.poi?.name || item.poi_id;
                         const poiCategory = item.poi?.category || 'place';
                         const poiPhoto = item.poi?.thumbnail_url || item.poi?.photo_url;
                         const durationMins = item.poi?.duration_mins || 60;
                         const costEur = item.poi?.cost_eur ?? 0;
+
+                        const handlePoiClick = () => {
+                          if (onPlaceClick) {
+                            onPlaceClick({
+                              id: item.poi_id,
+                              name: poiName,
+                              lat: item.poi?.lat ?? 0,
+                              lng: item.poi?.lng ?? 0,
+                              category: poiCategory,
+                              durationMins,
+                              costEur,
+                              description: item.poi?.description || undefined,
+                            });
+                          }
+                          if (onInspectPoi) {
+                            onInspectPoi(item.poi_id, {
+                              id: item.poi_id,
+                              name: poiName,
+                              lat: item.poi?.lat,
+                              lng: item.poi?.lng,
+                              category: poiCategory,
+                              duration_mins: durationMins,
+                              cost_eur: costEur,
+                              description: item.poi?.description,
+                            });
+                          }
+                        };
 
                         return (
                           <div
@@ -729,6 +787,12 @@ export function CollectionsTab({
                             data-testid={`collection-item-${item.poi_id}`}
                             draggable={true}
                             onDragStart={(e) => {
+                              startCustomDragPreview(e, {
+                                name: poiName,
+                                category: poiCategory,
+                                duration_mins: durationMins,
+                                cost_eur: costEur,
+                              });
                               const payload = {
                                 source: 'collection',
                                 fromCollectionId: col.id,
@@ -757,11 +821,14 @@ export function CollectionsTab({
                                 win.__paladioActivePoi = payload;
                                 win.__paladioActiveSearchPoi = payload;
                               }
+                              resetPaladioDropHandled();
                               e.dataTransfer.setData('application/paladio-poi', serialized);
                               e.dataTransfer.setData('text/plain', serialized);
                               e.dataTransfer.effectAllowed = 'copyMove';
                             }}
-                            onDragEnd={() => {
+                            onDragEnd={async () => {
+                              const wasHandled = isPaladioDropHandled();
+
                               if (typeof window !== 'undefined') {
                                 const win = window as unknown as {
                                   __paladioActivePoi?: unknown;
@@ -770,7 +837,18 @@ export function CollectionsTab({
                                 win.__paladioActivePoi = null;
                                 win.__paladioActiveSearchPoi = null;
                               }
+                              resetPaladioDropHandled();
+
+                              if (!wasHandled) {
+                                try {
+                                  await removeItemFromCollection(col.id, item.poi_id);
+                                  notify.info('Place Removed', `Removed "${poiName}" from collection.`);
+                                } catch {
+                                  notify.error('Error', 'Failed to remove place from collection.');
+                                }
+                              }
                             }}
+                            onClick={handlePoiClick}
                             style={{
                               padding: '8px 10px',
                               borderRadius: '10px',
@@ -781,26 +859,17 @@ export function CollectionsTab({
                               justifyContent: 'space-between',
                               gap: '8px',
                               cursor: 'grab',
+                              transition: 'all 0.15s ease',
                             }}
                           >
-                            {/* POI Info (Click to inspect) */}
+                            {/* POI Info (Click to inspect and focus on map) */}
                             <div
-                              onClick={() => {
-                                onInspectPoi?.(item.poi_id, {
-                                  id: item.poi_id,
-                                  name: poiName,
-                                  category: poiCategory,
-                                  durationMins,
-                                  costEur,
-                                });
-                              }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '8px',
                                 minWidth: 0,
                                 flex: 1,
-                                cursor: 'pointer',
                               }}
                             >
                               {poiPhoto ? (
@@ -859,94 +928,15 @@ export function CollectionsTab({
                             </div>
 
                             {/* Item Actions */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, position: 'relative' }}>
-                              {/* Add to Day Schedule */}
-                              {onAddToDay && (
-                                <div style={{ position: 'relative' }}>
-                                  <button
-                                    type="button"
-                                    title="Schedule into trip day"
-                                    onClick={() =>
-                                      setActiveDayPickerItemId((prev) => (prev === item.id ? null : item.id))
-                                    }
-                                    style={{
-                                      padding: '3px 7px',
-                                      borderRadius: '6px',
-                                      border: '1px solid var(--color-border)',
-                                      background: 'var(--color-surface-raised, #FAFAFA)',
-                                      color: 'var(--color-accent-primary)',
-                                      fontSize: '10px',
-                                      fontWeight: 700,
-                                      fontFamily: 'var(--font-mono)',
-                                      cursor: 'pointer',
-                                    }}
-                                  >
-                                    + Day
-                                  </button>
-
-                                  {activeDayPickerItemId === item.id && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        right: 0,
-                                        top: '100%',
-                                        marginTop: '4px',
-                                        zIndex: 100,
-                                        background: 'var(--color-surface-card)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '8px',
-                                        boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15))',
-                                        padding: '4px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        minWidth: '80px',
-                                      }}
-                                    >
-                                      {Array.from({ length: tripDaysCount }, (_, idx) => idx + 1).map((dayNum) => (
-                                        <button
-                                          key={dayNum}
-                                          type="button"
-                                          onClick={() => {
-                                            onAddToDay(dayNum, {
-                                              id: item.poi_id,
-                                              name: poiName,
-                                              category: poiCategory,
-                                              durationMins,
-                                              costEur,
-                                            });
-                                            setActiveDayPickerItemId(null);
-                                            notify.success('Scheduled', `Added "${poiName}" to Day ${dayNum}`);
-                                          }}
-                                          style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            border: 'none',
-                                            background: 'transparent',
-                                            color: 'var(--color-text-primary)',
-                                            fontSize: '11px',
-                                            textAlign: 'left',
-                                            cursor: 'pointer',
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = 'var(--color-surface-sunken)';
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = 'transparent';
-                                          }}
-                                        >
-                                          Day {dayNum}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                               {/* Remove from Collection */}
                               <button
                                 type="button"
                                 title="Remove from collection"
-                                onClick={() => handleRemovePoi(col.id, item.poi_id, poiName)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemovePoi(col.id, item.poi_id, poiName);
+                                }}
                                 style={{
                                   background: 'transparent',
                                   border: 'none',

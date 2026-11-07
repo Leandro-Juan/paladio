@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { CloseIcon, PlusIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { PoiApiItem } from './TripUnifiedSidebar';
-import { PoiDetail } from './PoiDetailView';
 
 export interface AddPoiModalProps {
   isOpen: boolean;
@@ -13,10 +13,10 @@ export interface AddPoiModalProps {
   city: string;
   defaultLat?: number;
   defaultLng?: number;
-  availableDays?: number[];
   onPoiCreated: (poi: PoiApiItem) => void;
-  onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
 }
+
+const emptySubscribe = () => () => {};
 
 const CATEGORY_OPTIONS = [
   { value: 'attraction', label: 'Attraction' },
@@ -37,23 +37,41 @@ export function AddPoiModal({
   city,
   defaultLat,
   defaultLng,
-  availableDays = [],
   onPoiCreated,
-  onAddToDay,
 }: AddPoiModalProps) {
+  const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('attraction');
   const [duration, setDuration] = useState(60);
   const [cost, setCost] = useState(0);
   const [description, setDescription] = useState('');
   const [website, setWebsite] = useState('');
+  const [openTime, setOpenTime] = useState('');
+  const [closeTime, setCloseTime] = useState('');
+  const [rating, setRating] = useState<number | ''>('');
   const [lat, setLat] = useState<string>(
-    typeof defaultLat === 'number' && !isNaN(defaultLat) ? String(defaultLat) : '35.6812'
+    typeof defaultLat === 'number' && !isNaN(defaultLat) ? String(defaultLat) : ''
   );
   const [lng, setLng] = useState<string>(
-    typeof defaultLng === 'number' && !isNaN(defaultLng) ? String(defaultLng) : '139.7671'
+    typeof defaultLng === 'number' && !isNaN(defaultLng) ? String(defaultLng) : ''
   );
-  const [selectedDay, setSelectedDay] = useState<number | ''>('');
+  const [prevDefaultLat, setPrevDefaultLat] = useState(defaultLat);
+  const [prevDefaultLng, setPrevDefaultLng] = useState(defaultLng);
+
+  if (defaultLat !== prevDefaultLat) {
+    setPrevDefaultLat(defaultLat);
+    if (typeof defaultLat === 'number' && !isNaN(defaultLat)) {
+      setLat(String(defaultLat));
+    }
+  }
+
+  if (defaultLng !== prevDefaultLng) {
+    setPrevDefaultLng(defaultLng);
+    if (typeof defaultLng === 'number' && !isNaN(defaultLng)) {
+      setLng(String(defaultLng));
+    }
+  }
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -64,7 +82,9 @@ export function AddPoiModal({
     setCost(0);
     setDescription('');
     setWebsite('');
-    setSelectedDay('');
+    setOpenTime('');
+    setCloseTime('');
+    setRating('');
     setFormError(null);
   };
 
@@ -73,7 +93,7 @@ export function AddPoiModal({
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +124,9 @@ export function AddPoiModal({
         cost_eur: Number(cost) || 0,
         description: description.trim() || undefined,
         website: website.trim() || undefined,
+        opening_time: openTime.trim() || undefined,
+        closing_time: closeTime.trim() || undefined,
+        rating: typeof rating === 'number' && !isNaN(rating) ? rating : undefined,
       };
 
       const res = await fetch(`${baseUrl}/pois`, {
@@ -127,13 +150,17 @@ export function AddPoiModal({
         duration_mins: createdPoi.duration_mins,
         cost_eur: createdPoi.cost_eur,
         similarity: 1.0,
+        rating: createdPoi.scoring?.rating ?? (typeof rating === 'number' ? rating : undefined),
+        scoring: createdPoi.scoring
+          ? {
+              rating: createdPoi.scoring.rating ?? undefined,
+              reviews: createdPoi.scoring.reviews ?? undefined,
+            }
+          : undefined,
+        match_type: 'custom',
       };
 
       onPoiCreated(apiItem);
-
-      if (selectedDay !== '' && onAddToDay) {
-        onAddToDay(Number(selectedDay), createdPoi);
-      }
 
       window.dispatchEvent(new CustomEvent('paladio:poi-created', { detail: createdPoi }));
       notify.success('Place Added', `"${createdPoi.name}" has been added.`);
@@ -146,7 +173,7 @@ export function AddPoiModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -154,20 +181,22 @@ export function AddPoiModal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
+        pointerEvents: 'auto',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !isSubmitting) {
           handleClose();
         }
       }}
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <div
         data-testid="add-poi-modal"
@@ -183,7 +212,9 @@ export function AddPoiModal({
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
+          pointerEvents: 'auto',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
@@ -436,35 +467,110 @@ export function AddPoiModal({
             </div>
           </div>
 
-          {/* Add Directly to Day (Optional) */}
-          {availableDays.length > 0 && (
+          {/* Opening & Closing Windows */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                Schedule to Day (Optional)
+                Opening Time
               </label>
-              <select
-                data-testid="add-poi-day-select"
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value === '' ? '' : Number(e.target.value))}
+              <input
+                type="time"
+                data-testid="add-poi-open-time-input"
+                value={openTime}
+                onChange={(e) => setOpenTime(e.target.value)}
                 style={{
-                  padding: '8px 10px',
+                  padding: '8px 12px',
                   borderRadius: '10px',
                   border: '1px solid var(--color-border)',
                   background: 'var(--color-surface-card, #FFFFFF)',
                   fontSize: '12px',
+                  fontFamily: 'var(--font-mono, monospace)',
                   color: 'var(--color-text-primary)',
                   outline: 'none',
                 }}
-              >
-                <option value="">Don&apos;t schedule (Save to Places list only)</option>
-                {availableDays.map((d) => (
-                  <option key={d} value={d}>
-                    Day {d}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
-          )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                Closing Time
+              </label>
+              <input
+                type="time"
+                data-testid="add-poi-close-time-input"
+                value={closeTime}
+                onChange={(e) => setCloseTime(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-card, #FFFFFF)',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  color: 'var(--color-text-primary)',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Rating */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                Rating (1.0 – 5.0)
+              </label>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent-primary, #0F4C5C)', fontFamily: 'var(--font-mono, monospace)' }}>
+                {typeof rating === 'number' ? `★ ${rating.toFixed(1)}` : 'Not Rated'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="range"
+                min={1.0}
+                max={5.0}
+                step={0.1}
+                data-testid="add-poi-rating-range"
+                value={typeof rating === 'number' ? rating : 4.5}
+                onChange={(e) => setRating(parseFloat(e.target.value))}
+                style={{
+                  flex: 1,
+                  accentColor: 'var(--color-accent-primary, #0F4C5C)',
+                  cursor: 'pointer',
+                }}
+              />
+              <input
+                type="number"
+                min={1.0}
+                max={5.0}
+                step={0.1}
+                placeholder="4.5"
+                data-testid="add-poi-rating-input"
+                value={rating}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                  if (val === '') {
+                    setRating('');
+                  } else if (!isNaN(val)) {
+                    setRating(Math.max(1.0, Math.min(5.0, val)));
+                  }
+                }}
+                style={{
+                  width: '64px',
+                  padding: '6px 8px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-card, #FFFFFF)',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
+                  textAlign: 'center',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </div>
 
           {/* Description */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -546,6 +652,7 @@ export function AddPoiModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
