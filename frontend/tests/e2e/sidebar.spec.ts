@@ -16,11 +16,13 @@ test.describe('Modern Sidebar Navigation (Default)', () => {
     // Verify primary workspace tabs are present and Upcoming Trips is removed from sidebar
     const controlCenterLink = sidebar.getByRole('link', { name: /Control Center/i });
     const engineLink = sidebar.getByRole('link', { name: /Active Engine|New Trip/i });
+    const monitoringLink = sidebar.getByRole('link', { name: /Route Monitoring/i });
     const tripsLink = sidebar.getByRole('link', { name: /Upcoming Trips/i });
-    const vaultLink = sidebar.getByRole('link', { name: /Itinerary Vault/i });
+    const vaultLink = sidebar.getByRole('link', { name: /Trip Archive/i });
 
     await expect(controlCenterLink).toBeVisible();
     await expect(engineLink).toBeVisible();
+    await expect(monitoringLink).toBeVisible();
     await expect(tripsLink).not.toBeVisible();
     await expect(vaultLink).toBeVisible();
 
