@@ -2672,6 +2672,7 @@ export function TripUnifiedSidebar({
 
                           {path.map((scheduledPoi: ScheduledPoi, poiIdx: number) => {
                             const p = scheduledPoi.poi;
+                            const prevPoi = poiIdx > 0 ? path[poiIdx - 1]?.poi : null;
                             const { start: startTime, end: endTime } = getScheduledPoiTimes(scheduledPoi);
                             const transitFromPrev = scheduledPoi.transit_from_previous;
                             const stopNum = String(poiIdx + 1).padStart(2, '0');
@@ -2726,7 +2727,14 @@ export function TripUnifiedSidebar({
                                         handleDrop(e, dayObj.day, poiIdx);
                                       }}
                                     >
-                                      <TransitLegView transitLeg={transitFromPrev} />
+                                      <TransitLegView
+                                        transitLeg={transitFromPrev}
+                                        originName={prevPoi?.name}
+                                        destinationName={p?.name}
+                                        city={destinationCity}
+                                        tripId={tripId}
+                                        onInspectPoi={onInspectPoi}
+                                      />
                                     </div>
                                   ) : (
                                     <div

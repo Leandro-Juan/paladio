@@ -6,6 +6,7 @@ import { CloseIcon, PlusIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { PoiApiItem } from './TripUnifiedSidebar';
+import { PoiDetail } from '@/types/domain';
 
 export interface AddPoiModalProps {
   isOpen: boolean;

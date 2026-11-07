@@ -56,6 +56,7 @@ export interface TransitStationNode {
   stationName: string;
   line?: string | null;
   instruction: string;
+  color?: string;
 }
 
 export interface FocusedWaypointPlace {
@@ -955,7 +956,8 @@ export default function TripMapView({
     destination: { name: string; lat: number; lng: number };
   } | null>(null);
 
-  const activeDirectionsRoute = directionsRoute || internalDirectionsRoute;
+  const activeDirectionsRoute =
+    sidebarTab === 'transit' ? directionsRoute || internalDirectionsRoute : null;
 
   useEffect(() => {
     const handleShowDirections = (e: Event) => {
@@ -981,6 +983,124 @@ export default function TripMapView({
       window.removeEventListener('paladio:clear-directions-route', handleClearDirections);
     };
   }, []);
+
+  const handleTransitLineClick = useCallback(
+    async (
+      lineName: string,
+      color?: string,
+      positions?: [number, number][],
+      stationName?: string | null
+    ) => {
+      if (!lineName) return;
+      const cleanLine = lineName.replace(/^LINE\s+/i, '').replace(/^Line\s+/i, '').trim();
+      const targetCity = destinationCity || '';
+      if (targetCity) {
+        try {
+          const lineDetail = await apiFetch<any>(
+            `/transit/${encodeURIComponent(targetCity)}/lines/${encodeURIComponent(cleanLine)}`
+          );
+          if (lineDetail && (lineDetail.stops?.length > 0 || lineDetail.patterns?.length > 0)) {
+            const polyline: [number, number][] =
+              lineDetail.patterns?.[0]?.coordinates && lineDetail.patterns[0].coordinates.length > 0
+                ? lineDetail.patterns[0].coordinates
+                : (lineDetail.stops || []).map((s: any) => [s.lat, s.lon] as [number, number]);
+            const activeLineData = {
+              line: cleanLine,
+              color: color || lineDetail.color || '#007AFF',
+              polyline,
+              stations: (lineDetail.stops || []).map((s: any) => ({
+                id: s.id || `gtfs:${targetCity}:${s.name}`,
+                name: s.name,
+                lat: s.lat,
+                lng: s.lon,
+              })),
+            };
+            window.dispatchEvent(
+              new CustomEvent('paladio:show-transit-line', { detail: activeLineData })
+            );
+            return;
+          }
+        } catch (e) {
+          console.warn('Could not fetch line patterns in map view:', e);
+        }
+      }
+
+      // Fallback: Dispatch using segment / route geometry and stations
+      const routeSteps = activeDirectionsRoute?.primary_leg?.steps || [];
+      const matchingSteps = routeSteps.filter(
+        (s) => s.transit_line === lineName || s.transit_line === cleanLine
+      );
+      const lineCoords =
+        matchingSteps[0]?.geometry && matchingSteps[0].geometry.length > 0
+          ? matchingSteps[0].geometry
+          : (positions && positions.length > 0 ? positions : []);
+
+      const lineStations: Array<{ id: string; name: string; lat: number; lng: number }> = [];
+      const seenNames = new Set<string>();
+
+      if (matchingSteps.length > 0) {
+        for (let i = 0; i < routeSteps.length; i++) {
+          const s = routeSteps[i];
+          if (s.transit_line !== lineName && s.transit_line !== cleanLine) continue;
+
+          if (s.station_name && !seenNames.has(s.station_name)) {
+            seenNames.add(s.station_name);
+            lineStations.push({
+              id: `gtfs:${targetCity}:${s.station_name}`,
+              name: s.station_name,
+              lat: s.geometry?.[0]?.[0] || lineCoords[0]?.[0] || 0,
+              lng: s.geometry?.[0]?.[1] || lineCoords[0]?.[1] || 0,
+            });
+          }
+
+          if (s.intermediate_stop_details && s.intermediate_stop_details.length > 0) {
+            for (const isd of s.intermediate_stop_details) {
+              if (isd.name && !seenNames.has(isd.name)) {
+                seenNames.add(isd.name);
+                lineStations.push({
+                  id: `gtfs:${targetCity}:${isd.name}`,
+                  name: isd.name,
+                  lat: typeof isd.lat === 'number' ? isd.lat : 0,
+                  lng: typeof isd.lon === 'number' ? isd.lon : 0,
+                });
+              }
+            }
+          }
+
+          const nextStep = routeSteps[i + 1];
+          if (nextStep && nextStep.station_name && !seenNames.has(nextStep.station_name)) {
+            seenNames.add(nextStep.station_name);
+            lineStations.push({
+              id: `gtfs:${targetCity}:${nextStep.station_name}`,
+              name: nextStep.station_name,
+              lat: nextStep.geometry?.[0]?.[0] || lineCoords[lineCoords.length - 1]?.[0] || 0,
+              lng: nextStep.geometry?.[0]?.[1] || lineCoords[lineCoords.length - 1]?.[1] || 0,
+            });
+          }
+        }
+      }
+
+      if (lineStations.length === 0 && stationName && positions?.[0]) {
+        lineStations.push({
+          id: `gtfs:${targetCity}:${stationName}`,
+          name: stationName,
+          lat: positions[0][0],
+          lng: positions[0][1],
+        });
+      }
+
+      const activeLineData = {
+        line: cleanLine,
+        color: color || matchingSteps[0]?.route_color || '#007AFF',
+        polyline: lineCoords,
+        stations: lineStations,
+      };
+      window.dispatchEvent(
+        new CustomEvent('paladio:show-transit-line', { detail: activeLineData })
+      );
+    },
+    [destinationCity, activeDirectionsRoute]
+  );
 
   const effectiveLeftPadding = useMemo(() => {
     if (!isSidebarOpen) return 60;
@@ -1129,6 +1249,22 @@ export default function TripMapView({
                   stationName: step.station_name,
                   line: step.transit_line,
                   instruction: step.instruction || 'Station stop',
+                  color: style.color,
+                });
+              }
+
+              if (step.intermediate_stop_details && step.intermediate_stop_details.length > 0) {
+                step.intermediate_stop_details.forEach((isd, isdIdx) => {
+                  if (typeof isd.lat === 'number' && typeof isd.lon === 'number') {
+                    nodes.push({
+                      key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}-isd${isdIdx}`,
+                      position: [isd.lat, isd.lon],
+                      stationName: isd.name,
+                      line: step.transit_line,
+                      instruction: `Intermediate Stop on ${step.transit_line || 'transit line'}`,
+                      color: style.color,
+                    });
+                  }
                 });
               }
             }
@@ -1635,18 +1771,37 @@ export default function TripMapView({
                   weight: seg.weight,
                   opacity: 0.9,
                   dashArray: seg.isDashed ? '6, 6' : undefined,
-                  className: 'paladio-polyline-fade-in',
+                  className: `${seg.transitLine ? 'cursor-pointer ' : ''}paladio-polyline-fade-in`,
                 }}
+                eventHandlers={
+                  seg.transitLine
+                    ? {
+                        click: () => {
+                          handleTransitLineClick(
+                            seg.transitLine!,
+                            seg.color,
+                            seg.positions,
+                            seg.stationName
+                          );
+                        },
+                      }
+                    : undefined
+                }
               >
                 <Tooltip sticky direction="top" opacity={0.95}>
                   <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
                     {seg.transitLine ? `[LINE ${seg.transitLine}] ` : ''}
                     {seg.instruction}
                     {typeof seg.durationMins === 'number' && seg.durationMins > 0 ? ` · ${seg.durationMins}m` : ''}
+                    {seg.transitLine ? (
+                      <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
+                        Click to view line & schedule
+                      </span>
+                    ) : null}
                   </span>
                 </Tooltip>
                 <Popup>
-                  <div style={{ minWidth: '150px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                  <div style={{ minWidth: '160px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span
                         style={{
@@ -1673,6 +1828,61 @@ export default function TripMapView({
                         Distance: {seg.distanceKm.toFixed(2)} km
                       </div>
                     )}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {seg.transitLine && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleTransitLineClick(
+                              seg.transitLine!,
+                              seg.color,
+                              seg.positions,
+                              seg.stationName
+                            )
+                          }
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #CBD5E1',
+                            background: '#F8FAFC',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            color: '#0F172A',
+                          }}
+                        >
+                          Highlight Line
+                        </button>
+                      )}
+                      {seg.stationName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stableId = `gtfs:${destinationCity}:${seg.stationName}`;
+                            onInspectPoi?.(stableId, {
+                              id: stableId,
+                              name: seg.stationName!,
+                              category: 'transit',
+                              city: destinationCity,
+                              lat: seg.positions[0]?.[0] || 0,
+                              lng: seg.positions[0]?.[1] || 0,
+                            });
+                          }}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #CBD5E1',
+                            background: '#F8FAFC',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            color: '#0F172A',
+                          }}
+                        >
+                          Inspect Station
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </Popup>
               </Polyline>
@@ -1683,17 +1893,33 @@ export default function TripMapView({
               <CircleMarker
                 key={`node-${node.key}-${node.position[0]},${node.position[1]}`}
                 center={node.position}
-                radius={4.5}
+                radius={5}
                 pathOptions={{
-                  color: '#0F4C5C',
+                  color: node.color || '#0F4C5C',
                   fillColor: '#FFFFFF',
                   fillOpacity: 1,
-                  weight: 2,
+                  weight: 2.5,
+                  className: 'cursor-pointer',
+                }}
+                eventHandlers={{
+                  click: () => {
+                    const stableId = `gtfs:${destinationCity}:${node.stationName}`;
+                    onInspectPoi?.(stableId, {
+                      id: stableId,
+                      name: node.stationName,
+                      category: 'transit',
+                      city: destinationCity,
+                      lat: node.position[0],
+                      lng: node.position[1],
+                    });
+                  },
                 }}
               >
                 <Tooltip direction="top">
                   <span className="font-mono" style={{ fontSize: '10px', fontWeight: 600 }}>
                     {node.line ? `[Line ${node.line}] ` : ''}Station: {node.stationName}
+                    <br />
+                    <span style={{ fontSize: '9px', color: '#64748B' }}>Click to inspect departures & details</span>
                   </span>
                 </Tooltip>
               </CircleMarker>
@@ -2132,17 +2358,31 @@ export default function TripMapView({
                 eventHandlers={{
                   click: () => {
                     const stableId = st.id.startsWith('gtfs:') ? st.id : `gtfs:${destinationCity}:${st.id}`;
-                    onInspectPoi?.(stableId, {
+                    const payload = {
                       id: stableId,
                       name: st.name,
                       lat: st.lat,
                       lng: st.lng,
                       category: st.category || 'transit',
                       transit_info: {
-                        lines: st.lines,
-                        station_type: st.station_type,
+                        lines: st.lines || (activeTransitLine ? [activeTransitLine.line] : []),
+                        station_type: st.station_type || 'station',
                       },
-                    });
+                      serving_lines: [
+                        {
+                          line_id: activeTransitLine.line,
+                          short_name: activeTransitLine.line,
+                          color: activeTransitLine.color,
+                          mode: 'transit',
+                        },
+                      ],
+                    };
+                    onInspectPoi?.(stableId, payload);
+                    window.dispatchEvent(
+                      new CustomEvent('paladio:inspect-poi', {
+                        detail: { id: stableId, fallbackData: payload },
+                      })
+                    );
                   },
                 }}
               >
@@ -2268,6 +2508,19 @@ export default function TripMapView({
                       key={`dir-station-${sIdx}-${s.station_name}`}
                       position={[pos[0], pos[1]]}
                       icon={createDirectionsStationIcon(role)}
+                      eventHandlers={{
+                        click: () => {
+                          const stableId = `gtfs:${destinationCity}:${s.station_name}`;
+                          onInspectPoi?.(stableId, {
+                            id: stableId,
+                            name: s.station_name,
+                            category: 'transit',
+                            city: destinationCity,
+                            lat: pos[0],
+                            lng: pos[1],
+                          });
+                        },
+                      }}
                     >
                       <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
                         <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
@@ -2283,6 +2536,9 @@ export default function TripMapView({
                             {roleLabel}
                           </span>
                           {s.station_name}
+                          <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
+                            Click to inspect station & departures
+                          </span>
                         </div>
                       </Tooltip>
                     </Marker>
@@ -2305,6 +2561,19 @@ export default function TripMapView({
                       key={`dir-inter-stop-${stepIdx}-${stopIdx}-${stop.name}`}
                       position={[stop.lat, stop.lon]}
                       icon={createIntermediateStopIcon(lineColor)}
+                      eventHandlers={{
+                        click: () => {
+                          const stableId = `gtfs:${destinationCity}:${stop.name}`;
+                          onInspectPoi?.(stableId, {
+                            id: stableId,
+                            name: stop.name,
+                            category: 'transit',
+                            city: destinationCity,
+                            lat: stop.lat,
+                            lng: stop.lon,
+                          });
+                        },
+                      }}
                     >
                       <Tooltip direction="top" offset={[0, -6]} opacity={0.95}>
                         <div style={{ fontWeight: 600, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
@@ -2323,6 +2592,9 @@ export default function TripMapView({
                               : `Stop ${stopIdx + 1} of ${totalStops}`}
                           </span>
                           {stop.name}
+                          <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
+                            Click to inspect station & departures
+                          </span>
                         </div>
                       </Tooltip>
                     </Marker>
@@ -2379,8 +2651,35 @@ export default function TripMapView({
                             opacity: 0.95,
                             lineCap: 'round',
                             lineJoin: 'round',
+                            className: s.transit_line ? 'cursor-pointer' : undefined,
                           }}
-                        />
+                          eventHandlers={
+                            s.transit_line
+                              ? {
+                                  click: () => {
+                                    handleTransitLineClick(
+                                      s.transit_line,
+                                      transitColor,
+                                      s.geometry,
+                                      s.station_name
+                                    );
+                                  },
+                                }
+                              : undefined
+                          }
+                        >
+                          {s.transit_line && (
+                            <Tooltip sticky direction="top" opacity={0.95}>
+                              <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                {`[LINE ${s.transit_line}] `}
+                                {s.instruction || 'Transit'}
+                                <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
+                                  Click to highlight line & view schedule
+                                </span>
+                              </span>
+                            </Tooltip>
+                          )}
+                        </Polyline>
                       </React.Fragment>
                     );
                   })

@@ -48,6 +48,8 @@ export interface TransitStep {
         arrival?: string;
         departure?: string;
     }>;
+    departure_time?: string | null;
+    arrival_time?: string | null;
 }
 
 export interface TransitLeg {

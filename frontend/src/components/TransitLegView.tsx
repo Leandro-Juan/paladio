@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
+import { apiFetch } from '@/utils/api';
 import {
   TransitIcon,
   WalkIcon,
@@ -16,6 +17,10 @@ interface TransitLegViewProps {
   originName?: string;
   destinationName?: string;
   defaultExpanded?: boolean;
+  city?: string;
+  tripId?: string;
+  onInspectPoi?: (id: string, fallbackData?: any) => void;
+  onSelectTransitLine?: (lineData: any) => void;
 }
 
 export function TransitLegView({
@@ -23,6 +28,10 @@ export function TransitLegView({
   originName,
   destinationName,
   defaultExpanded = false,
+  city,
+  tripId,
+  onInspectPoi,
+  onSelectTransitLine,
 }: TransitLegViewProps) {
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const isExpanded = userExpanded !== null ? userExpanded : defaultExpanded;
@@ -66,6 +75,179 @@ export function TransitLegView({
       default:
         return <WalkIcon size={14} color="var(--color-text-muted)" />;
     }
+  };
+
+  const handleLineClick = async (lineName: string, explicitColor?: string) => {
+    const cleanLine = lineName.replace(/^line\s+/i, '').trim();
+    const targetCity = city || '';
+    try {
+      let endpoint = '';
+      if (targetCity) {
+        endpoint = `/transit/${encodeURIComponent(targetCity.toLowerCase())}/lines/${encodeURIComponent(cleanLine)}`;
+      } else if (tripId) {
+        endpoint = `/trips/${tripId}/transit/lines/${encodeURIComponent(cleanLine)}`;
+      }
+
+      if (endpoint) {
+        const detail = await apiFetch<{
+          id: string;
+          short_name?: string;
+          color?: string;
+          patterns?: Array<{
+            geometry?: { coordinates: [number, number][] };
+            stops?: Array<{ station_id: string; name: string; lat: number; lon: number }>;
+          }>;
+        }>(endpoint);
+
+        if (detail && detail.patterns && detail.patterns.length > 0) {
+          const primary = detail.patterns[0];
+          const activeLineData = {
+            line: detail.short_name || detail.id || cleanLine,
+            color: detail.color || explicitColor || '#007AFF',
+            polyline: primary.geometry?.coordinates || [],
+            stations: (primary.stops || []).map((s) => ({
+              id: s.station_id,
+              name: s.name,
+              lat: s.lat,
+              lng: s.lon,
+            })),
+          };
+          onSelectTransitLine?.(activeLineData);
+          window.dispatchEvent(
+            new CustomEvent('paladio:show-transit-line', { detail: activeLineData })
+          );
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch line patterns:', e);
+    }
+
+    // Fallback: If line cannot be retrieved from GTFS, assemble from all steps for this line
+    const matchingSteps = steps.filter((s) => s.transit_line === lineName);
+    const primaryStep = matchingSteps[0] || steps.find((s) => s.transit_line);
+    const lineCoords = primaryStep?.geometry || [];
+
+    const lineStations: Array<{ id: string; name: string; lat: number; lng: number }> = [];
+    const seenNames = new Set<string>();
+
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (s.transit_line !== lineName) continue;
+
+      // 1. Boarding station
+      if (s.station_name && !seenNames.has(s.station_name)) {
+        seenNames.add(s.station_name);
+        const lat = s.geometry?.[0]?.[0] || lineCoords[0]?.[0] || 0;
+        const lng = s.geometry?.[0]?.[1] || lineCoords[0]?.[1] || 0;
+        lineStations.push({
+          id: `gtfs:${targetCity}:${s.station_name}`,
+          name: s.station_name,
+          lat,
+          lng,
+        });
+      }
+
+      // 2. Intermediate stops
+      if (s.intermediate_stop_details && s.intermediate_stop_details.length > 0) {
+        for (const isd of s.intermediate_stop_details) {
+          if (isd.name && !seenNames.has(isd.name)) {
+            seenNames.add(isd.name);
+            lineStations.push({
+              id: `gtfs:${targetCity}:${isd.name}`,
+              name: isd.name,
+              lat: typeof isd.lat === 'number' ? isd.lat : 0,
+              lng: typeof isd.lon === 'number' ? isd.lon : 0,
+            });
+          }
+        }
+      } else if (s.intermediate_stops && s.intermediate_stops.length > 0) {
+        for (const isName of s.intermediate_stops) {
+          if (isName && !seenNames.has(isName)) {
+            seenNames.add(isName);
+            lineStations.push({
+              id: `gtfs:${targetCity}:${isName}`,
+              name: isName,
+              lat: 0,
+              lng: 0,
+            });
+          }
+        }
+      }
+
+      // 3. Alighting / destination station from next step
+      const nextStep = steps[i + 1];
+      if (nextStep && nextStep.station_name && !seenNames.has(nextStep.station_name)) {
+        seenNames.add(nextStep.station_name);
+        const lat = nextStep.geometry?.[0]?.[0] || lineCoords[lineCoords.length - 1]?.[0] || 0;
+        const lng = nextStep.geometry?.[0]?.[1] || lineCoords[lineCoords.length - 1]?.[1] || 0;
+        lineStations.push({
+          id: `gtfs:${targetCity}:${nextStep.station_name}`,
+          name: nextStep.station_name,
+          lat,
+          lng,
+        });
+      }
+    }
+
+    const activeLineData = {
+      line: cleanLine,
+      color: explicitColor || primaryStep?.route_color || '#007AFF',
+      polyline: lineCoords,
+      stations: lineStations,
+    };
+    onSelectTransitLine?.(activeLineData);
+    window.dispatchEvent(
+      new CustomEvent('paladio:show-transit-line', { detail: activeLineData })
+    );
+  };
+
+  const handleStationClick = (
+    stationName: string,
+    lat?: number,
+    lon?: number,
+    stepContext?: Partial<TransitStep>
+  ) => {
+    const targetCity = city || '';
+    const stableId = `gtfs:${targetCity}:${stationName}`;
+    const lineName = stepContext?.transit_line;
+    const lineColor = stepContext?.route_color || '#007AFF';
+    const headsign = stepContext?.headsign || '';
+
+    const payload = {
+      id: stableId,
+      name: stationName,
+      city: targetCity,
+      category: 'transit',
+      lat: lat ?? 0,
+      lng: lon ?? 0,
+      transit_info: {
+        lines: lineName ? [lineName] : [],
+        station_type: 'station',
+      },
+      serving_lines: lineName
+        ? [
+            {
+              line_id: lineName,
+              short_name: lineName,
+              headsign,
+              color: lineColor,
+              mode: 'transit',
+            },
+          ]
+        : [],
+      departure_time: stepContext?.departure_time,
+      arrival_time: stepContext?.arrival_time,
+      instruction: stepContext?.instruction,
+    };
+    if (onInspectPoi) {
+      onInspectPoi(stableId, payload);
+    }
+    window.dispatchEvent(
+      new CustomEvent('paladio:inspect-poi', {
+        detail: { id: stableId, fallbackData: payload },
+      })
+    );
   };
 
   return (
@@ -120,30 +302,58 @@ export function TransitLegView({
           <span style={{ color: 'var(--color-text-muted)' }}>{duration_mins} MINS</span>
 
           {/* Transit Line Chips */}
-          {transitLines.map((line, idx) => (
-            <span
-              key={idx}
-              data-testid="transit-line-chip"
-              style={{
-                background: 'var(--color-accent-primary)',
-                color: '#FFFFFF',
-                padding: '2px 6px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                letterSpacing: '0.5px',
-              }}
-            >
-              {line.toLowerCase() === 'transit'
+          {transitLines.map((line, idx) => {
+            const stepWithColor = steps.find((s) => s.transit_line === line);
+            const chipColor = stepWithColor?.route_color || 'var(--color-accent-primary)';
+            const chipTextColor = stepWithColor?.route_text_color || '#FFFFFF';
+            const displayLabel =
+              line.toLowerCase() === 'transit'
                 ? 'TRANSIT'
                 : line.toLowerCase().includes('line') ||
                   line.toLowerCase().includes('metro') ||
                   line.toLowerCase().includes('tram') ||
                   line.toLowerCase().includes('rer')
                   ? line.toUpperCase()
-                  : `LINE ${line}`}
-            </span>
-          ))}
+                  : `LINE ${line}`;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                data-testid="transit-line-chip"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLineClick(line, stepWithColor?.route_color || undefined);
+                }}
+                title={`Show full ${displayLabel} route and stations on map`}
+                style={{
+                  background: chipColor,
+                  color: chipTextColor,
+                  border: 'none',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                  transition: 'transform 0.15s ease, filter 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.filter = 'brightness(1.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.filter = 'brightness(1)';
+                }}
+              >
+                {displayLabel}
+              </button>
+            );
+          })}
 
           {/* Fare / Cost Badge */}
           <span style={{ color: 'var(--color-text-muted)' }}>·</span>
@@ -289,23 +499,57 @@ export function TransitLegView({
                       </span>
                     )}
                     {step.transit_line && (
-                      <span
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLineClick(step.transit_line!, step.route_color || undefined);
+                        }}
+                        title={`Inspect line ${step.transit_line} on map`}
                         style={{
                           background: step.route_color || 'rgba(15, 76, 92, 0.12)',
-                          color: step.route_text_color || (step.route_color ? '#FFFFFF' : 'var(--color-accent-primary)'),
+                          color:
+                            step.route_text_color ||
+                            (step.route_color ? '#FFFFFF' : 'var(--color-accent-primary)'),
+                          border: 'none',
                           padding: '1px 6px',
                           borderRadius: '4px',
                           fontWeight: 700,
                           fontSize: '0.72rem',
                           display: 'inline-flex',
                           alignItems: 'center',
+                          cursor: 'pointer',
                         }}
                       >
                         {step.transit_line}
-                      </span>
+                      </button>
                     )}
                     {step.headsign && <span>Towards: {step.headsign}</span>}
-                    {step.station_name && <span>Station: {step.station_name}</span>}
+                    {step.station_name && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Station:</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStationClick(step.station_name!, step.geometry?.[0]?.[0], step.geometry?.[0]?.[1], step);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: 0,
+                            color: 'var(--color-accent-primary)',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            fontSize: 'inherit',
+                          }}
+                          title={`Inspect ${step.station_name}`}
+                        >
+                          {step.station_name}
+                        </button>
+                      </span>
+                    )}
                   </div>
                   {step.intermediate_stops && step.intermediate_stops.length > 0 && (
                     <div
@@ -319,10 +563,39 @@ export function TransitLegView({
                         color: 'var(--color-text-secondary)',
                       }}
                     >
-                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginRight: '4px' }}>
                         Intermediate Stops ({step.intermediate_stops.length}):
-                      </span>{' '}
-                      {step.intermediate_stops.join(' → ')}
+                      </span>
+                      {step.intermediate_stops.map((stopName, sIdx) => {
+                        const detailObj = step.intermediate_stop_details?.find((d) => d.name === stopName);
+                        return (
+                          <React.Fragment key={sIdx}>
+                            {sIdx > 0 && <span style={{ opacity: 0.6, margin: '0 3px' }}>→</span>}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStationClick(stopName, detailObj?.lat, detailObj?.lon, step);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                padding: '1px 3px',
+                                borderRadius: '3px',
+                                color: 'var(--color-accent-primary)',
+                                fontWeight: 600,
+                                fontSize: 'inherit',
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                textDecorationColor: 'rgba(15, 76, 92, 0.4)',
+                              }}
+                              title={`Inspect ${stopName}`}
+                            >
+                              {stopName}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

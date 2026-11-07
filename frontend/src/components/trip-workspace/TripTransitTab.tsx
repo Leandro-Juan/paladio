@@ -137,7 +137,7 @@ export function TripTransitTab({
   const [transitStatus, setTransitStatus] = useState<string>('CHECKING');
   const [coveredRange, setCoveredRange] = useState<{ start: string; end: string } | null>(null);
   const [isExpired, setIsExpired] = useState<boolean>(false);
-  const [isCompiling, setIsCompiling] = useState<boolean>(false);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   // Data states
   const [nearbyGroups, setNearbyGroups] = useState<NearbyAnchorGroup[]>([]);
@@ -172,23 +172,37 @@ export function TripTransitTab({
         valid_until?: string | null;
       }>(endpoint);
 
-      const resolved = (
-        data.derived_status ||
-        data.gtfs_status ||
-        data.status ||
-        'NOT_REQUESTED'
-      ).toUpperCase();
+      const vu = data.feed_valid_to || data.valid_until;
+      let expired = false;
+      if (vu) {
+        const exp = new Date(vu).getTime();
+        expired = Number.isFinite(exp) && exp < Date.now();
+        setIsExpired(expired);
+      }
+
+      const ds = (data.derived_status || '').toUpperCase();
+      const gs = (data.gtfs_status || '').toUpperCase();
+      const st = (data.status || '').toUpperCase();
+
+      let resolved = 'NOT_REQUESTED';
+      if (ds === 'READY' || gs === 'READY') {
+        resolved = ds === 'READY' ? (expired ? 'EXPIRED' : 'READY') : 'BUILDING';
+      } else if (ds === 'BUILDING' || gs === 'BUILDING' || st === 'BUILDING') {
+        resolved = 'BUILDING';
+      } else if (ds === 'QUEUED' || gs === 'QUEUED' || st === 'QUEUED') {
+        resolved = 'QUEUED';
+      } else if (ds === 'FAILED' || gs === 'FAILED' || st === 'FAILED') {
+        resolved = 'FAILED';
+      } else if (ds === 'UNAVAILABLE' || gs === 'UNAVAILABLE') {
+        resolved = 'UNAVAILABLE';
+      } else {
+        resolved = ds || gs || st || 'NOT_REQUESTED';
+      }
 
       setTransitStatus(resolved);
 
       const capRange = (data.capabilities as { covered_date_range?: { start: string; end: string } })?.covered_date_range;
       if (capRange) setCoveredRange(capRange);
-
-      const vu = data.feed_valid_to || data.valid_until;
-      if (vu) {
-        const exp = new Date(vu).getTime();
-        setIsExpired(Number.isFinite(exp) && exp < Date.now());
-      }
     } catch {
       setTransitStatus('UNAVAILABLE');
     }
@@ -202,7 +216,7 @@ export function TripTransitTab({
     void run();
 
     let interval: NodeJS.Timeout | null = null;
-    if (['BUILDING', 'QUEUED', 'CHECKING'].includes(transitStatus)) {
+    if (['BUILDING', 'QUEUED', 'CHECKING'].includes(transitStatus) || isDownloading) {
       interval = setInterval(() => {
         if (!isCancelled) void fetchAvailability();
       }, 3000);
@@ -211,7 +225,32 @@ export function TripTransitTab({
       isCancelled = true;
       if (interval) clearInterval(interval);
     };
-  }, [fetchAvailability, transitStatus]);
+  }, [fetchAvailability, transitStatus, isDownloading]);
+
+  // Listen to background transit events for instant real-time updates
+  useEffect(() => {
+    const onTransitUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<{ city?: string; city_name?: string }>;
+      const eventCity = customEvt.detail?.city || customEvt.detail?.city_name;
+      if (!eventCity || !destinationCity || eventCity.toLowerCase() === destinationCity.toLowerCase()) {
+        void fetchAvailability();
+      }
+    };
+
+    window.addEventListener('paladio:transit_event', onTransitUpdate);
+    window.addEventListener('paladio:transit_download_started', onTransitUpdate);
+    window.addEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+    window.addEventListener('paladio:transit_derivation_ready', onTransitUpdate);
+    window.addEventListener('paladio:transit_compile_failed', onTransitUpdate);
+
+    return () => {
+      window.removeEventListener('paladio:transit_event', onTransitUpdate);
+      window.removeEventListener('paladio:transit_download_started', onTransitUpdate);
+      window.removeEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+      window.removeEventListener('paladio:transit_derivation_ready', onTransitUpdate);
+      window.removeEventListener('paladio:transit_compile_failed', onTransitUpdate);
+    };
+  }, [fetchAvailability, destinationCity]);
 
   // 2. Fetch Nearby or Lines when active
   const dayIndex = typeof selectedDay === 'number' ? Math.max(0, selectedDay - 1) : 0;
@@ -320,20 +359,20 @@ export function TripTransitTab({
     });
   };
 
-  const handleTriggerCompile = async () => {
+  const handleTriggerDownload = async () => {
     if (!destinationCity) return;
-    setIsCompiling(true);
-    setTransitStatus('QUEUED');
+    setIsDownloading(true);
+    setTransitStatus('BUILDING');
     try {
       await triggerGtfsCompileApi(destinationCity);
-      notify.info('Transit compilation started', `Compiling GTFS data for ${destinationCity}`);
+      notify.info('Transit download started', `Downloading GTFS public transit data for ${destinationCity}`);
       await fetchAvailability();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to start compilation';
-      notify.error('Compilation failed', msg);
+      const msg = err instanceof Error ? err.message : 'Failed to start transit download';
+      notify.error('Download failed', msg);
       setTransitStatus('FAILED');
     } finally {
-      setIsCompiling(false);
+      setIsDownloading(false);
     }
   };
 
@@ -637,7 +676,13 @@ export function TripTransitTab({
           type="button"
           onClick={() => {
             setDrillStationId(null);
-            setSubView('directions');
+            if (subView !== 'directions') {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+                window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+              }
+              setSubView('directions');
+            }
           }}
           style={{
             flex: 1,
@@ -658,7 +703,13 @@ export function TripTransitTab({
           type="button"
           onClick={() => {
             setDrillStationId(null);
-            setSubView('lines');
+            if (subView !== 'lines') {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+                window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+              }
+              setSubView('lines');
+            }
           }}
           style={{
             flex: 1,
@@ -679,7 +730,13 @@ export function TripTransitTab({
           type="button"
           onClick={() => {
             setDrillStationId(null);
-            setSubView('nearby');
+            if (subView !== 'nearby') {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+                window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+              }
+              setSubView('nearby');
+            }
           }}
           style={{
             flex: 1,
@@ -741,20 +798,22 @@ export function TripTransitTab({
           onStartMapPick={onStartMapPick}
           onCancelMapPick={onCancelMapPick}
           onRouteCalculated={onRouteCalculated}
+          onInspectPoi={onInspectPoi}
+          onSelectTransitLine={handleLineClick}
         />
       ) : transitStatus === 'CHECKING' ? (
         <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
           <div style={{ fontSize: '13px', fontWeight: 500 }}>Checking transit network availability...</div>
         </div>
-      ) : transitStatus === 'BUILDING' || transitStatus === 'QUEUED' ? (
+      ) : isDownloading || transitStatus === 'BUILDING' || transitStatus === 'QUEUED' ? (
         <div style={{ padding: '24px 16px', borderRadius: '12px', border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTopColor: 'var(--color-accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              {transitStatus === 'QUEUED' ? 'Transit Feed Queued' : 'Downloading Transit Data'}
+              {transitStatus === 'QUEUED' ? 'Transit Download Queued' : 'Downloading Transit Data'}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Deriving network graph and stop sequences for {destinationCity}...
+              Retrieving lines, routes, and station stops for {destinationCity}...
             </div>
           </div>
         </div>
@@ -774,8 +833,8 @@ export function TripTransitTab({
           <button
             type="button"
             data-testid="transit-build-button"
-            onClick={handleTriggerCompile}
-            disabled={isCompiling}
+            onClick={handleTriggerDownload}
+            disabled={isDownloading}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -784,11 +843,17 @@ export function TripTransitTab({
               color: '#FFFFFF',
               fontSize: '12px',
               fontWeight: 600,
-              cursor: isCompiling ? 'not-allowed' : 'pointer',
-              opacity: isCompiling ? 0.7 : 1,
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
+              opacity: isDownloading ? 0.7 : 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            {isCompiling ? 'Queueing Download...' : `Download ${destinationCity} GTFS`}
+            {isDownloading && (
+              <span style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
+            )}
+            {isDownloading ? `Downloading ${destinationCity} GTFS...` : `Download ${destinationCity} GTFS`}
           </button>
         </div>
       ) : isLoadingData ? (

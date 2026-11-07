@@ -101,6 +101,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const handleSidebarTabChange = useCallback((tab: MainTabType) => {
     setSidebarTab(tab);
+    if (tab !== 'transit') {
+      setActiveTransitLine(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+        window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+      }
+    }
     if (tab === 'route' || tab === 'transit' || tab === 'weather' || tab === 'agent') {
       // Clear category search and unselect focused search POI
       setCategoryFilter(null);
@@ -119,6 +126,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const handleTabChange = useCallback((tab: WorkspaceTab) => {
     setActiveTab(tab);
+    if (tab !== 'plan') {
+      setActiveTransitLine(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+        window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+      }
+    }
   }, []);
 
   // Local reactive itinerary data
@@ -318,6 +332,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setInspectedPoiId(null);
     setInspectedPoiFallback(null);
     setRenderedPoi(null);
+    setActiveTransitLine(null);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
+      window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
+    }
   }, []);
 
   const isInspectorOpen = Boolean(inspectedPoiId);
@@ -433,17 +452,26 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       }
     };
 
+    const handleInspectPoiEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string; fallbackData?: Partial<PoiDetail> }>;
+      if (customEvent.detail?.id) {
+        handleInspectPoi(customEvent.detail.id, customEvent.detail.fallbackData);
+      }
+    };
+
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
     window.addEventListener('paladio:show-transit-line', handleShowTransitLine);
     window.addEventListener('paladio:clear-transit-line', handleClearTransitLine);
+    window.addEventListener('paladio:inspect-poi', handleInspectPoiEvent);
     window.addEventListener('paladio:poi-deleted', handlePoiDeleted);
     return () => {
       window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
       window.removeEventListener('paladio:show-transit-line', handleShowTransitLine);
       window.removeEventListener('paladio:clear-transit-line', handleClearTransitLine);
+      window.removeEventListener('paladio:inspect-poi', handleInspectPoiEvent);
       window.removeEventListener('paladio:poi-deleted', handlePoiDeleted);
     };
-  }, []);
+  }, [handleInspectPoi]);
 
   const handleFocusFromDrawer = useCallback(
     (poi: { id?: string; lat: number; lng: number; name: string; category: string; durationMins?: number; costEur?: number }) => {

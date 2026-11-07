@@ -63,6 +63,8 @@ export interface TripTransitDirectionsViewProps {
     routeResult: DirectionsRouteResult | null,
     activeMode: 'primary' | 'alternative'
   ) => void;
+  onInspectPoi?: (id: string, fallbackData?: any) => void;
+  onSelectTransitLine?: (lineData: any) => void;
 }
 
 interface PlaceSearchResult {
@@ -119,6 +121,8 @@ export function TripTransitDirectionsView({
   onStartMapPick,
   onCancelMapPick,
   onRouteCalculated,
+  onInspectPoi,
+  onSelectTransitLine,
 }: TripTransitDirectionsViewProps) {
   // Origin State
   const [originQuery, setOriginQuery] = useState<string>('');
@@ -194,7 +198,17 @@ export function TripTransitDirectionsView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Listen for map click-to-pick events emitted by TripMapView
+  useEffect(() => {
+    const handleClearEvent = () => {
+      setRouteResult(null);
+      setErrorMsg(null);
+    };
+    window.addEventListener('paladio:clear-directions-route', handleClearEvent);
+    return () => {
+      window.removeEventListener('paladio:clear-directions-route', handleClearEvent);
+    };
+  }, []);
+
   // Listen for map click-to-pick events emitted by TripMapView
   useEffect(() => {
     const handleMapPickedLocation = (e: Event) => {
@@ -1801,6 +1815,10 @@ export function TripTransitDirectionsView({
               transitLeg={activeDisplayLeg}
               originName={routeResult.origin.name}
               destinationName={routeResult.destination.name}
+              city={destinationCity}
+              tripId={tripId}
+              onInspectPoi={onInspectPoi}
+              onSelectTransitLine={onSelectTransitLine}
               defaultExpanded={true}
             />
           </div>

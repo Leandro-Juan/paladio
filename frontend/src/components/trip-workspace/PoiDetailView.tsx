@@ -119,6 +119,7 @@ export interface StationDepartureItem {
   text_color: string;
   headsign?: string | null;
   departure_seconds: number;
+  departure_time?: string;
 }
 
 function formatDepartureSeconds(seconds: number): string {
@@ -209,6 +210,13 @@ export function getTransitStationLabel(p?: Partial<PoiDetail> | null): string | 
 export interface InspectPoiFallback extends Partial<PoiDetail> {
   photo_url?: string;
   thumbnail_url?: string;
+  serving_lines?: ServingLineDetail[];
+  line?: string;
+  headsign?: string;
+  route_color?: string;
+  departure_time?: string;
+  arrival_time?: string;
+  instruction?: string;
 }
 
 interface PoiDetailViewProps {
@@ -756,7 +764,82 @@ export function PoiDetailView({
           return;
         } catch (err) {
           console.warn('Failed to load GTFS station detail:', err);
-          if (fallbackPoi && isMounted) {
+          if (isMounted) {
+            const fallbackServingLines: ServingLineDetail[] = [];
+
+            if (fallbackPoi?.serving_lines && Array.isArray(fallbackPoi.serving_lines)) {
+              fallbackServingLines.push(...fallbackPoi.serving_lines);
+            } else if (fallbackPoi?.transit_info?.lines) {
+              for (const l of fallbackPoi.transit_info.lines) {
+                fallbackServingLines.push({
+                  line_id: l,
+                  direction_id: 0,
+                  short_name: l,
+                  headsign: fallbackPoi.headsign || '',
+                  color: fallbackPoi.route_color || '#007AFF',
+                  mode: 'transit',
+                });
+              }
+            } else if (fallbackPoi?.line) {
+              fallbackServingLines.push({
+                line_id: fallbackPoi.line,
+                direction_id: 0,
+                short_name: fallbackPoi.line,
+                headsign: fallbackPoi.headsign || '',
+                color: fallbackPoi.route_color || '#007AFF',
+                mode: 'transit',
+              });
+            }
+
+            const fallbackDetail: StationDetailData = {
+              id: effectiveId,
+              name: fallbackPoi?.name || stationRawId,
+              lat: fallbackPoi?.lat ?? 0,
+              lon: fallbackPoi?.lng ?? 0,
+              wheelchair_boarding: 0,
+              stop_count: 1,
+              serving_lines: fallbackServingLines,
+              service_summary: [],
+            };
+
+            setStationDetail(fallbackDetail);
+            setPoi({
+              id: effectiveId,
+              name: fallbackDetail.name,
+              category: 'transit',
+              city: stationCity,
+              lat: fallbackDetail.lat,
+              lng: fallbackDetail.lon,
+              duration_mins: 15,
+              cost_eur: 0,
+              cost_is_estimated: false,
+              description:
+                (fallbackPoi as any)?.instruction ||
+                (fallbackServingLines.length > 0
+                  ? `Serving: ${fallbackServingLines.map((l) => l.short_name).join(', ')}`
+                  : ''),
+              photos: fallbackPoi?.photos || initialPhotos,
+              scoring: {},
+              transit_info: {
+                lines: fallbackServingLines.map((l) => l.short_name),
+                station_type: 'station',
+              },
+            } as unknown as PoiDetail);
+
+            if ((fallbackPoi as any)?.departure_time || (fallbackPoi as any)?.arrival_time) {
+              setStationDepartures([
+                {
+                  line_id: fallbackServingLines[0]?.line_id || 'Transit',
+                  line_short_name: fallbackServingLines[0]?.short_name || 'Transit',
+                  mode: 'transit',
+                  color: fallbackServingLines[0]?.color || '#007AFF',
+                  text_color: '#FFFFFF',
+                  headsign: fallbackServingLines[0]?.headsign || (fallbackPoi as any)?.headsign || '',
+                  departure_time: (fallbackPoi as any)?.departure_time || (fallbackPoi as any)?.arrival_time || '',
+                  departure_seconds: 0,
+                },
+              ]);
+            }
             setLoading(false);
             return;
           }
@@ -2178,7 +2261,11 @@ export function PoiDetailView({
                                 </span>
                               </div>
                             <span style={{ fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-accent-primary)' }}>
-                              {formatDepartureSeconds(dep.departure_seconds)}
+                              {dep.departure_time
+                                ? (dep.departure_time.includes('T')
+                                    ? dep.departure_time.split('T')[1].slice(0, 5)
+                                    : dep.departure_time.slice(0, 5))
+                                : formatDepartureSeconds(dep.departure_seconds)}
                             </span>
                           </div>
                           );
