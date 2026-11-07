@@ -46,7 +46,7 @@ export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: 
         background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-subtle)',
         borderRadius: '16px',
-        padding: '20px 20px 16px 20px',
+        padding: '16px 20px',
         boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
@@ -55,33 +55,6 @@ export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: 
         transition: 'all 0.15s ease',
       }}
     >
-      {/* Signature corner-riding category badge */}
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: '-1px',
-          top: '-1px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '5px',
-          padding: '3px 10px 4px 9px',
-          borderRadius: '15px 0 10px 0',
-          background: meta.color,
-          color: '#FFFFFF',
-          fontFamily: 'var(--font-mono, monospace)',
-          fontSize: '0.65rem',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          lineHeight: 1.2,
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        <Icon size={10} />
-        {meta.label}
-      </span>
-
       {/* Left side: Icon + Title/Details */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
         <span
