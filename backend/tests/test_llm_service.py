@@ -41,7 +41,7 @@ def test_create_model_all_providers():
 
     # Groq (OpenAI-compatible)
     cfg_groq = LLMConfig(
-        provider="groq", model="llama-3.3-70b-versatile", api_key="gsk-test"
+        provider="groq", model="openai/gpt-oss-120b", api_key="gsk-test"
     )
     m_groq = LLMService.create_model(cfg_groq)
     assert isinstance(m_groq, OpenAIChatModel)

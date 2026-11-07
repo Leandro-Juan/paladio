@@ -49,8 +49,7 @@ SUPPORTED_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "recommended_models": [
             "gemini-3-flash-preview",
             "gemini-3.8-flash",
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
+            "gemini-3.1-pro-preview",
         ],
         "default_model": "gemini-3-flash-preview",
     },
@@ -59,11 +58,11 @@ SUPPORTED_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "default_base_url": "https://api.groq.com/openai/v1",
         "requires_key": True,
         "recommended_models": [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.8-27b",
         ],
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": "openai/gpt-oss-120b",
     },
     "deepseek": {
         "name": "DeepSeek",
@@ -138,19 +137,19 @@ SUPPORTED_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "default_base_url": "http://localhost:11434/v1",
         "requires_key": False,
         "recommended_models": [
-            "qwen2.5:latest",
             "qwen2.5:3b",
-            "llama3.1:8b",
-            "mistral:latest",
+            "llama3.2:latest",
+            "qwen2.5:latest",
+            "llama3.1:latest",
         ],
-        "default_model": "qwen2.5:latest",
+        "default_model": "qwen2.5:3b",
     },
 }
 
 
 class LLMConfig(BaseModel):
     provider: str = "ollama"
-    model: str = "qwen2.5:latest"
+    model: str = "qwen2.5:3b"
     api_key: Optional[str] = None
     base_url: Optional[str] = None
 
@@ -164,7 +163,16 @@ def mask_api_key(key: Optional[str]) -> Optional[str]:
 
 
 def resolve_ollama_base_url(custom_url: Optional[str] = None) -> str:
-    url = custom_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    env_url = os.getenv("OLLAMA_BASE_URL")
+    if not custom_url or (
+        env_url
+        and ("localhost" in custom_url or "127.0.0.1" in custom_url)
+        and "localhost" not in env_url
+        and "127.0.0.1" not in env_url
+    ):
+        url = env_url or "http://localhost:11434"
+    else:
+        url = custom_url
     url = url.rstrip("/")
     if not url.endswith("/v1"):
         url = f"{url}/v1"
@@ -191,7 +199,7 @@ class LLMService:
             model_name
             or os.getenv("TRIP_AGENT_MODEL")
             or os.getenv("VALIDATOR_MODEL")
-            or "qwen2.5:latest"
+            or "qwen2.5:3b"
         )
         if model.startswith("ollama:"):
             model = model.replace("ollama:", "")
@@ -249,6 +257,16 @@ class LLMService:
         effective_model = model or provider_meta.get("default_model", "gpt-4o-mini")
         effective_base_url = base_url or provider_meta.get("default_base_url")
 
+        # Automatically upgrade decommissioned Google Gemini models
+        if provider == "google" and (
+            effective_model.startswith("gemini-2.")
+            or effective_model.startswith("gemini-1.")
+            or effective_model == "gemini-pro"
+        ):
+            effective_model = provider_meta.get(
+                "default_model", "gemini-3-flash-preview"
+            )
+
         return LLMConfig(
             provider=provider,
             model=effective_model,
@@ -284,12 +302,29 @@ class LLMService:
         base_url = val.get("base_url")
 
         meta = SUPPORTED_PROVIDERS.get(provider, {})
+
+        # Automatically upgrade decommissioned Google Gemini models in persisted database config
+        if provider == "google" and (
+            model.startswith("gemini-2.")
+            or model.startswith("gemini-1.")
+            or model == "gemini-pro"
+        ):
+            model = meta.get("default_model", "gemini-3-flash-preview")
+            val["model"] = model
+            record.value = val
+            session.add(record)
+            await session.commit()
+            await session.refresh(record)
+
         # If the provider requires an API key but no key is configured,
         # automatically fallback to local Ollama
         if meta.get("requires_key", False) and not api_key:
             ollama_cfg = cls.get_default_ollama_config()
             cls._cached_config = ollama_cfg
             return ollama_cfg
+
+        if provider == "ollama":
+            base_url = resolve_ollama_base_url(base_url)
 
         config = LLMConfig(
             provider=provider,
@@ -316,9 +351,12 @@ class LLMService:
         clean_model = model.strip()
 
         provider_meta = SUPPORTED_PROVIDERS.get(clean_provider, {})
-        effective_base_url = (
-            base_url.strip() if base_url else provider_meta.get("default_base_url")
-        )
+        if clean_provider == "ollama":
+            effective_base_url = resolve_ollama_base_url(base_url)
+        else:
+            effective_base_url = (
+                base_url.strip() if base_url else provider_meta.get("default_base_url")
+            )
 
         stmt = select(SystemConfigModel).where(SystemConfigModel.key == CONFIG_KEY)
         result = await session.execute(stmt)
@@ -479,11 +517,7 @@ class LLMService:
         model_name = config.model
 
         if provider == "ollama":
-            url = config.base_url or os.getenv(
-                "OLLAMA_BASE_URL", "http://localhost:11434/v1"
-            )
-            if not url.endswith("/v1"):
-                url = f"{url.rstrip('/')}/v1"
+            url = resolve_ollama_base_url(config.base_url)
             clean_name = model_name.replace("ollama:", "")
             ollama_provider = OllamaProvider(base_url=url)
             return OllamaModel(clean_name, provider=ollama_provider)
