@@ -372,10 +372,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       case 'TRANSIT_QUEUED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Compilation queued for ${cityName}. Waiting for active compilation lock...`);
+        addLog(`> [TRANSIT] Download queued for ${cityName}...`);
         notify.info(
-          'GTFS Compilation Queued',
-          `Official public transit data compilation for ${cityName} is queued.`,
+          'GTFS Download Queued',
+          `Official public transit data download for ${cityName} is queued.`,
           {
             actionLink: '/config',
             actionLabel: 'View Queue',
@@ -404,21 +404,21 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       }
-      case 'TRANSIT_COMPILE_STARTED': {
+      case 'TRANSIT_DERIVATION_READY': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] GTFS tile compilation started for ${cityName}...`);
+        addLog(`> [TRANSIT] Transit lines and stops derived for ${cityName}.`);
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('paladio:transit_compile_started', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_derivation_ready', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
         }
         break;
       }
       case 'TRANSIT_TILES_READY': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Real transit data compiled and verified for ${cityName}.`);
+        addLog(`> [TRANSIT] Transit lines and stations ready for ${cityName}.`);
         notify.info(
-          'Real Transit Available',
-          `Official public transit network for ${cityName} is now ready to upgrade.`,
+          'Transit Network Ready',
+          `Official public transit network for ${cityName} is now ready.`,
           {
             actionLink: payload.trip_id ? `/trips/${payload.trip_id}` : '/engine',
             actionLabel: 'View Trip',
@@ -432,10 +432,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_COMPILE_FAILED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Compilation failed for ${cityName}.`);
+        addLog(`> [TRANSIT] Transit download failed for ${cityName}.`);
         notify.error(
-          'GTFS Compilation Failed',
-          `Compilation for ${cityName} encountered an error.`
+          'GTFS Download Failed',
+          `Transit data download for ${cityName} encountered an error.`
         );
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:transit_compile_failed', { detail: payload }));

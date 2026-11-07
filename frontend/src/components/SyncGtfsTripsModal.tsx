@@ -98,7 +98,7 @@ function SyncGtfsTripsModalContent({
 
       const res = await syncPlannedGtfsApi(citiesToSync);
       onSyncSuccess(
-        res.message || `GTFS download and compilation initiated for ${citiesToSync.length} destination(s).`
+        res.message || `GTFS download and ingestion initiated for ${citiesToSync.length} destination(s).`
       );
       onClose();
     } catch (err: unknown) {
@@ -339,7 +339,7 @@ function SyncGtfsTripsModalContent({
                               border: '1px solid rgba(234, 179, 8, 0.2)',
                             }}
                           >
-                            <Spinner size={11} color="var(--color-accent-gold)" /> COMPILING
+                            <Spinner size={11} color="var(--color-accent-gold)" /> DOWNLOADING
                           </span>
                         ) : isQueued ? (
                           <span

@@ -9,6 +9,7 @@ import { HelpCategoryHero } from '@/components/help/HelpCategoryHero';
 import { HelpTopicCard } from '@/components/help/HelpTopicCard';
 import { HelpArticleView } from '@/components/help/HelpArticleView';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { ChevronLeftIcon } from '@/components/icons';
 import styles from './help.module.css';
 
 function HelpPageInner() {
@@ -79,10 +80,7 @@ function HelpPageInner() {
         {/* Header Right Actions */}
         <div className={styles.headerActions}>
           <Link href="/dashboard" className={styles.backBtn} aria-label="Back to App">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
+            <ChevronLeftIcon size={14} aria-hidden="true" />
             <span>Back to App</span>
           </Link>
         </div>

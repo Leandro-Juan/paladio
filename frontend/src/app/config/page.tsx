@@ -1690,7 +1690,7 @@ export default function ConfigPage() {
               Public Transit & GTFS Schedules
             </h3>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// VALHALLA SCHEDULE REGISTRY & TILE COMPILER'}
+              {'// SCHEDULE REGISTRY & GTFS INGESTOR'}
             </p>
           </div>
           <button
@@ -1760,10 +1760,10 @@ export default function ConfigPage() {
                     letterSpacing: '0.5px',
                   }}
                 >
-                  ACTIVE COMPILATION PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
+                  ACTIVE DOWNLOAD PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
                 </span>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  Downloading and compiling GTFS schedules for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Valhalla routing tiles are regenerating in the background.
+                  Downloading and ingesting GTFS transit data for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Lines, stops, and schedules are being indexed in PostgreSQL.
                 </p>
               </div>
             </div>
@@ -1779,7 +1779,7 @@ export default function ConfigPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              COMPILING LIVE
+              DOWNLOADING LIVE
             </span>
           </div>
         ) : (
@@ -1799,11 +1799,11 @@ export default function ConfigPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--color-success)', fontSize: '12px' }}>●</span>
               <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600 }}>
-                ALL GTFS SCHEDULES IDLE — NO ACTIVE COMPILATIONS
+                ALL GTFS SCHEDULES IDLE — NO ACTIVE DOWNLOADS
               </span>
             </div>
             <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-              {gtfsTelemetry?.compiled_cities || 0} COMPILED & READY
+              {gtfsTelemetry?.compiled_cities || 0} DOWNLOADED & READY
             </span>
           </div>
         )}
@@ -1811,7 +1811,7 @@ export default function ConfigPage() {
         {/* Quick Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DOWNLOADED & COMPILED</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DOWNLOADED & READY</span>
             <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
               {gtfsTelemetry?.compiled_cities ?? '...'}
             </div>
@@ -1839,7 +1839,7 @@ export default function ConfigPage() {
               <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                 <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CITY</th>
                 <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>GTFS STATUS</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>COMPILED IN VALHALLA</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>TRANSIT NETWORK STATUS</th>
                 <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>OSM NETWORK</th>
                 <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>SCHEDULE VALIDITY</th>
                 <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
@@ -1933,7 +1933,7 @@ export default function ConfigPage() {
                             }}
                           >
                             {isItemCompiling && <Spinner size={11} color="var(--color-accent-gold)" />}
-                            {isItemCompiling ? 'DOWNLOADING & COMPILING' : cityItem.gtfs_status.toUpperCase()}
+                            {isItemCompiling ? 'DOWNLOADING & INGESTING' : cityItem.gtfs_status.toUpperCase()}
                           </span>
                         )}
                       </td>
