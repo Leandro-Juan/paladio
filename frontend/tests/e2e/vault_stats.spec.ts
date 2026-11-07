@@ -159,6 +159,9 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   // Verify countries visited gauge is present
   await expect(page.locator('text=Countries visited')).toBeVisible();
 
+  // Verify Earth traversed gauge is present
+  await expect(page.locator('text=Earth traversed')).toBeVisible();
+
   // Verify Most engaged section lists countries (Spain, Portugal) instead of cities
   const mostEngaged = page.locator('text=Most engaged');
   await expect(mostEngaged).toBeVisible();

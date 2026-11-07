@@ -74,6 +74,76 @@ function calculateTripDays(startStr: string, endStr: string): number {
   }
 }
 
+const EARTH_CIRCUMFERENCE_KM = 40075;
+
+const KNOWN_COORDINATES: Record<string, [number, number]> = {
+  tokyo: [35.6762, 139.6503],
+  paris: [48.8566, 2.3522],
+  london: [51.5074, -0.1278],
+  "new york": [40.7128, -74.0060],
+  rome: [41.9028, 12.4964],
+  berlin: [52.5200, 13.4050],
+  madrid: [40.4168, -3.7038],
+  barcelona: [41.3879, 2.1699],
+  porto: [41.1579, -8.6291],
+  sevilla: [37.3891, -5.9845],
+  seville: [37.3891, -5.9845],
+  lisbon: [38.7223, -9.1393],
+  alicante: [38.3452, -0.4810],
+  valencia: [39.4699, -0.3763],
+  malaga: [36.7213, -4.4214],
+  amsterdam: [52.3676, 4.9041],
+  vienna: [48.2082, 16.3738],
+  zurich: [47.3769, 8.5417],
+  kyoto: [35.0116, 135.7681],
+  bangkok: [13.7563, 100.5018],
+  singapore: [1.3521, 103.8198],
+  sydney: [-33.8688, 151.2093],
+  "san francisco": [37.7749, -122.4194],
+  mad: [40.4839, -3.5680],
+  opo: [41.2421, -8.6786],
+  svq: [37.4180, -5.8931],
+  alc: [38.2822, -0.5582],
+  lis: [38.7742, -9.1342],
+  bcn: [41.2974, 2.0833],
+  hnd: [35.5494, 139.7798],
+  nrt: [35.7720, 140.3929],
+  cdg: [49.0097, 2.5479],
+  lhr: [51.4700, -0.4543],
+  jfk: [40.6413, -73.7781],
+  fco: [41.8003, 12.2389],
+};
+
+function resolveLocationCoords(query?: string | null): [number, number] | null {
+  if (!query) return null;
+  const clean = query.trim().toLowerCase();
+  if (KNOWN_COORDINATES[clean]) return KNOWN_COORDINATES[clean];
+  for (const [key, coords] of Object.entries(KNOWN_COORDINATES)) {
+    if (clean.includes(key)) return coords;
+  }
+  return null;
+}
+
+function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  if (lat1 === lat2 && lon1 === lon2) return 0;
+  const R = 6371; // Earth's mean radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function VaultStatsTab({
   trips,
   completedTrips,
@@ -82,17 +152,13 @@ export default function VaultStatsTab({
 }: VaultStatsTabProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Dynamic calculations across real trips
-  const totalTripsCount = trips.length;
   const completedCount = completedTrips.length;
 
-  const completionRate = totalTripsCount > 0 
-    ? Math.round((completedCount / totalTripsCount) * 100) 
-    : 0;
-
-  const { totalDays, totalPois, engagements, monthlyStats, visitedCountriesCount } = useMemo(() => {
+  const { totalDays, totalPois, engagements, monthlyStats, visitedCountriesCount, totalKmTraveled } = useMemo(() => {
     let daysAcc = 0;
     let poisAcc = 0;
+    let kmAcc = 0;
+    let prevDestCoords: { lat: number; lng: number } | null = null;
     const countryMap = new Map<string, DestinationEngagement>();
     const monthMap = new Map<string, MonthlyStat>();
     const uniqueCountries = new Set<string>();
@@ -106,6 +172,81 @@ export default function VaultStatsTab({
       daysAcc += days;
       poisAcc += pois;
       uniqueCountries.add(countryName.toLowerCase());
+
+      // Calculate dynamic expedition distance (Intra-trip POI trail + origin-destination transit)
+      const itin = trip.itinerary_data as {
+        travel_constraints?: {
+          origin_city?: string;
+          origin_iata?: string;
+          home_city?: string;
+        };
+        days?: Array<{
+          itinerary?: {
+            path?: Array<{
+              poi?: {
+                location?: { latitude?: number; longitude?: number };
+                lat?: number;
+                lng?: number;
+              };
+            }>;
+          };
+        }>;
+      } | null | undefined;
+
+      // 1. Intra-day POI traversal
+      if (itin?.days && Array.isArray(itin.days)) {
+        for (const day of itin.days) {
+          if (day.itinerary?.path && Array.isArray(day.itinerary.path)) {
+            const poiCoords: Array<{ lat: number; lng: number }> = [];
+            for (const stop of day.itinerary.path) {
+              const lat = stop.poi?.location?.latitude ?? stop.poi?.lat;
+              const lng = stop.poi?.location?.longitude ?? stop.poi?.lng;
+              if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+                poiCoords.push({ lat, lng });
+              }
+            }
+            for (let i = 0; i < poiCoords.length - 1; i++) {
+              kmAcc += haversineDistanceKm(
+                poiCoords[i].lat,
+                poiCoords[i].lng,
+                poiCoords[i + 1].lat,
+                poiCoords[i + 1].lng
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Journey transit (origin to destination round trip or inter-destination hop)
+      const originQuery =
+        trip.origin_iata ||
+        itin?.travel_constraints?.origin_city ||
+        itin?.travel_constraints?.origin_iata ||
+        itin?.travel_constraints?.home_city;
+
+      const originCoords = resolveLocationCoords(originQuery);
+      if (originCoords && coords) {
+        const oneWay = haversineDistanceKm(
+          originCoords[0],
+          originCoords[1],
+          coords.lat,
+          coords.lng
+        );
+        if (oneWay > 1) {
+          kmAcc += oneWay * 2;
+        }
+      } else if (prevDestCoords && coords) {
+        const hop = haversineDistanceKm(
+          prevDestCoords.lat,
+          prevDestCoords.lng,
+          coords.lat,
+          coords.lng
+        );
+        if (hop > 1) {
+          kmAcc += hop;
+        }
+      }
+      prevDestCoords = coords;
 
       // Group by country
       const key = countryName.toLowerCase();
@@ -161,12 +302,27 @@ export default function VaultStatsTab({
       engagements: sortedEngagements,
       monthlyStats: sortedMonths,
       visitedCountriesCount: uniqueCountries.size,
+      totalKmTraveled: Math.round(kmAcc),
     };
   }, [completedTrips, getTripCoordinates]);
 
   // Percentage of world countries (195 recognized sovereign countries)
   const countryVisitedRate = ((visitedCountriesCount / 195) * 100).toFixed(1);
   const countryPercentNumeric = Math.max(3, (visitedCountriesCount / 195) * 100);
+
+  // Earth circumnavigated percentage (40,075 km equatorial circumference)
+  const earthRateNumeric = (totalKmTraveled / EARTH_CIRCUMFERENCE_KM) * 100;
+  const earthVisitedRate = earthRateNumeric >= 10
+    ? Math.round(earthRateNumeric).toString()
+    : earthRateNumeric.toFixed(1);
+  const earthPercentNumeric = Math.max(earthRateNumeric > 0 ? 3 : 0, Math.min(100, earthRateNumeric));
+
+  const formattedEarthTraversed = useMemo(() => {
+    if (totalKmTraveled >= 1000) {
+      return `${(totalKmTraveled / 1000).toFixed(1)}k km`;
+    }
+    return `${totalKmTraveled.toLocaleString()} km`;
+  }, [totalKmTraveled]);
 
   return (
     <div
@@ -427,8 +583,10 @@ export default function VaultStatsTab({
               </div>
             </div>
 
-            {/* Gauge 2: Completion Rate */}
+            {/* Gauge 2: Earth Circumnavigated (% of Equator) */}
             <div
+              data-testid="stats-earth-gauge"
+              title={`${Math.round(totalKmTraveled).toLocaleString()} km (${Math.round(totalKmTraveled * 0.621371).toLocaleString()} mi) traversed • ${earthVisitedRate}% of Earth's 40,075 km equator`}
               style={{
                 background: 'var(--color-surface-page)',
                 border: '1px solid var(--color-border-subtle)',
@@ -455,7 +613,7 @@ export default function VaultStatsTab({
                   fill="none"
                   stroke="var(--color-success, #1F7A4D)"
                   strokeWidth="3.5"
-                  strokeDasharray={`${(completionRate * 106.8) / 100} 106.8`}
+                  strokeDasharray={`${(earthPercentNumeric * 106.8) / 100} 106.8`}
                   strokeLinecap="round"
                   transform="rotate(-90 22 22)"
                 />
@@ -465,12 +623,12 @@ export default function VaultStatsTab({
                   textAnchor="middle"
                   className="font-mono"
                   style={{
-                    fontSize: '10px',
+                    fontSize: earthVisitedRate.length > 3 ? '8.5px' : '10px',
                     fontWeight: 700,
                     fill: 'var(--color-text-primary)',
                   }}
                 >
-                  {completionRate}%
+                  {earthVisitedRate}%
                 </text>
               </svg>
               <div>
@@ -478,10 +636,10 @@ export default function VaultStatsTab({
                   className="font-mono"
                   style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}
                 >
-                  {completedCount}
+                  {formattedEarthTraversed}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                  Completed
+                  Earth traversed
                 </div>
               </div>
             </div>
