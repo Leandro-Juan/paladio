@@ -202,9 +202,6 @@ export function LlmConfigCard() {
           <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
             AI &amp; LLM Provider Engine
           </h3>
-          <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-            {'// DEFAULT: LOCAL OLLAMA. CONFIGURING AN API KEY COMPLETELY DISPATCHES OLLAMA.'}
-          </p>
         </div>
 
         {/* Current Active Baseline Badge */}
@@ -242,8 +239,8 @@ export function LlmConfigCard() {
               }}
             >
               {activeConfig.has_api_key
-                ? `KEY ACTIVE // OLLAMA DISPATCHED (${activeConfig.masked_api_key})`
-                : 'DEFAULT // LOCAL OLLAMA ACTIVE'}
+                ? `KEY ACTIVE — OLLAMA DISPATCHED (${activeConfig.masked_api_key})`
+                : 'DEFAULT — LOCAL OLLAMA ACTIVE'}
             </span>
           </div>
         )}

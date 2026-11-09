@@ -21,7 +21,7 @@ test.describe('Typography Engine (Inter Universal & Classic Switcher)', () => {
   });
 
   test('toggle button on /config switches between inter and classic typography', async ({ page }) => {
-    await page.goto('/config');
+    await page.goto('/config?tab=typography');
     const html = page.locator('html');
     await expect(html).toHaveAttribute('data-typography', 'inter');
 
@@ -43,7 +43,7 @@ test.describe('Typography Engine (Inter Universal & Classic Switcher)', () => {
   });
 
   test('card selection on /config switches typography', async ({ page }) => {
-    await page.goto('/config');
+    await page.goto('/config?tab=typography');
     const html = page.locator('html');
 
     // Click Classic Editorial card

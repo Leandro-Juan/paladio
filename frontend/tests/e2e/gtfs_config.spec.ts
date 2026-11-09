@@ -104,7 +104,7 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
       }
     });
 
-    await page.goto('/config');
+    await page.goto('/config?tab=transit');
 
     // 1. Verify Madrid has DELETE button (NOT RECOMPILE)
     const madridDeleteBtn = page.getByTestId('delete-gtfs-btn-madrid');

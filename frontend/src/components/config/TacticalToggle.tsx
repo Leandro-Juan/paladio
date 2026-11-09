@@ -1,0 +1,103 @@
+'use strict';
+import React from 'react';
+
+interface TacticalToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+  tone?: 'coral' | 'teal' | 'gold';
+  ariaLabel?: string;
+}
+
+export function TacticalToggle({
+  checked,
+  onChange,
+  disabled = false,
+  label,
+  tone = 'teal',
+  ariaLabel,
+}: TacticalToggleProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      onChange(!checked);
+    }
+  };
+
+  const getToneBackground = () => {
+    if (!checked) return 'var(--color-border, #E2DDD5)';
+    switch (tone) {
+      case 'coral':
+        return 'var(--color-accent-coral, #C86D51)';
+      case 'gold':
+        return 'var(--color-accent-gold, #E2B33C)';
+      case 'teal':
+      default:
+        return 'var(--color-accent-teal, #2A8C82)';
+    }
+  };
+
+  return (
+    <label
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '10px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        userSelect: 'none',
+      }}
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={ariaLabel || label || 'Toggle setting'}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        onKeyDown={handleKeyDown}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          width: '42px',
+          height: '24px',
+          borderRadius: '9999px',
+          backgroundColor: getToneBackground(),
+          border: '1.5px solid rgba(0, 0, 0, 0.08)',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          padding: '2px',
+          transition: 'background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease',
+          outline: 'none',
+        }}
+      >
+        <span
+          style={{
+            display: 'block',
+            width: '18px',
+            height: '18px',
+            borderRadius: '50%',
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
+            transform: checked ? 'translateX(18px)' : 'translateX(0px)',
+            transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        />
+      </button>
+      {label && (
+        <span
+          style={{
+            fontFamily: 'var(--font-ui, sans-serif)',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: checked ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+          }}
+        >
+          {label}
+        </span>
+      )}
+    </label>
+  );
+}

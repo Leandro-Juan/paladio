@@ -52,7 +52,7 @@ test.describe('Internationalization (i18n) Engine & Multi-Language Switching', (
   });
 
   test('language picker opens on /config and switches language', async ({ page }) => {
-    await page.goto('/config');
+    await page.goto('/config?tab=language');
     const html = page.locator('html');
     await expect(html).toHaveAttribute('lang', 'en');
 
@@ -77,7 +77,7 @@ test.describe('Internationalization (i18n) Engine & Multi-Language Switching', (
   });
 
   test('selecting an RTL language applies dir="rtl"', async ({ page }) => {
-    await page.goto('/config');
+    await page.goto('/config?tab=language');
     const html = page.locator('html');
 
     const changeLangBtn = page.getByRole('button', { name: /change language/i }).first();

@@ -36,7 +36,7 @@ test.describe('Theme Engine (Pacific Jazz)', () => {
 
   test('toggle choice persists across reloads', async ({ page }) => {
     test.skip(!THEME_TOGGLE_ENABLED, 'Theme toggle disabled until Phase 8');
-    await page.goto('/config');
+    await page.goto('/config?tab=appearance');
     const toggle = page.getByRole('button', { name: /switch to dark mode/i });
     await expect(toggle).toBeVisible();
     await toggle.click();
@@ -54,7 +54,7 @@ test.describe('Theme Engine (Pacific Jazz)', () => {
   });
 
   test('can switch to Silent Waters in config', async ({ page }) => {
-    await page.goto('/config');
+    await page.goto('/config?tab=appearance');
     const silentWatersBtn = page.getByRole('button', { name: /switch to silent waters/i });
     await expect(silentWatersBtn).toBeVisible();
     await silentWatersBtn.click();

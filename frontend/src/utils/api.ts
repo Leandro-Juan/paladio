@@ -370,6 +370,54 @@ export const testLlmConfigApi = (
   });
 };
 
+export interface EngineConfigData {
+  default_max_walking_km: number;
+  pacing_tempo: 'leisurely' | 'balanced' | 'intense';
+  meal_windows: {
+    breakfast: number;
+    lunch: number;
+    dinner: number;
+  };
+  attraction_burnout_limit: number;
+  deal_scraper_cadence_hours: number;
+  price_alert_threshold_pct: number;
+}
+
+export interface SwarmConfigData {
+  critic_strictness: number;
+  thinking_token_budget: number;
+  auto_ticket_ingestion: boolean;
+  require_human_approval_on_repair: boolean;
+}
+
+export interface VaultConfigData {
+  auto_snapshot_enabled: boolean;
+  snapshot_retention_days: number;
+  export_anonymized_trips: boolean;
+}
+
+export interface DomainSettingsResponse<T = any> {
+  status: string;
+  domain: string;
+  config: T;
+}
+
+export const fetchDomainSettingsApi = <T = any>(
+  domain: 'engine' | 'swarm' | 'vault'
+): Promise<DomainSettingsResponse<T>> => {
+  return apiFetch<DomainSettingsResponse<T>>(`/system/settings/${domain}`);
+};
+
+export const updateDomainSettingsApi = <T = any>(
+  domain: 'engine' | 'swarm' | 'vault',
+  data: Partial<T>
+): Promise<DomainSettingsResponse<T>> => {
+  return apiFetch<DomainSettingsResponse<T>>(`/system/settings/${domain}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
 
 
 

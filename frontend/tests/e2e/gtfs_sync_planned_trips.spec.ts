@@ -106,7 +106,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       });
     });
 
-    await page.goto('/config');
+    await page.goto('/config?tab=transit');
 
     // 1. Verify old button is gone and new button exists
     await expect(page.getByText('REFRESH STATUS')).not.toBeVisible();

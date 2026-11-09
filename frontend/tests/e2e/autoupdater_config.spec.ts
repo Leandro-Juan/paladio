@@ -108,7 +108,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     });
 
     // 1. Navigate to /config
-    await page.goto('/config');
+    await page.goto('/config?tab=updates');
 
     // 2. Verify System Updates section is rendered
     await expect(page.getByText('System Updates & Auto-Updater')).toBeVisible();
@@ -139,7 +139,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     await expect(page.getByText('NEW UPDATE AVAILABLE', { exact: true })).toBeVisible();
     await expect(page.getByText('New Update Available: v2.1.0')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Paladio 2.1.0 Feature Release' })).toBeVisible();
-    await expect(page.getByText('// NEW FEATURES & PATCH NOTES:')).toBeVisible();
+    await expect(page.getByText('NEW FEATURES & PATCH NOTES:')).toBeVisible();
     await expect(page.getByText('New sovereign transit caching and auto-updater enhancements.')).toBeVisible();
     await expect(page.getByText('Would you like to install this update?')).toBeVisible();
 

@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { ChevronLeftIcon } from '@/components/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, UserRole } from '@/types/auth';
 import {
@@ -19,19 +22,21 @@ import {
   triggerUpdateDownloadApi,
   SystemUpdateStatus,
 } from '@/utils/api';
-import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon, SettingsIcon } from '@/components/icons';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
-import { useNavigationStore } from '@/stores/navigationStore';
-import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
-import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
-import { getCurrencyInfo, SUPPORTED_CURRENCY_LIST, CurrencyInfo } from '@/utils/currencyResolver';
-import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
 import { useTranslation } from '@/hooks/useTranslation';
-import { LanguagePickerModal } from '@/components/common/LanguagePickerModal';
-import { getLocaleInfo, ALL_LOCALES } from '@/utils/locales';
+import { CurrencyInfo } from '@/utils/currencyResolver';
 import { notify } from '@/utils/notify';
-import { LlmConfigCard } from '@/components/config/LlmConfigCard';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { SettingsTabId } from '@/components/config/settingsData';
+import { SettingsSidebar } from '@/components/config/SettingsSidebar';
+import { SettingsOverview } from '@/components/config/SettingsOverview';
+import { ExperienceSection } from '@/components/config/sections/ExperienceSection';
+import { LocalizationSection } from '@/components/config/sections/LocalizationSection';
+import { EngineSection } from '@/components/config/sections/EngineSection';
+import { IntelligenceSection } from '@/components/config/sections/IntelligenceSection';
+import { InfrastructureSection } from '@/components/config/sections/InfrastructureSection';
+import styles from './config.module.css';
 
 /**
  * Validates and sanitizes avatar URLs to prevent XSS / script injection.
@@ -55,28 +60,29 @@ function getSafeAvatarUrl(url: unknown): string | null {
   return null;
 }
 
-export default function ConfigPage() {
+function ConfigPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: currentUser, refreshUser } = useAuth();
-  const { t, locale, setLocale } = useTranslation();
-  const { theme, setTheme } = useThemeStore();
-  const { typography, setTypography, toggleTypography } = useTypographyStore();
-  const { navStyle, setNavStyle } = useNavigationStore();
-  const isAdmin = currentUser?.role === 'admin';
-  const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
-  const activeLocaleInfo = useMemo(() => getLocaleInfo(locale), [locale]);
+  const { setLocale, locale } = useTranslation();
+  const { theme } = useThemeStore();
+  const { typography } = useTypographyStore();
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [isFetching, setIsFetching] = useState<boolean>(false);
-  const [hasFetched, setHasFetched] = useState<boolean>(false);
-  const loading = isFetching || (!hasFetched && isAdmin);
+  const isAdmin = currentUser?.role === 'admin';
+
+  // Active Tab from URL query param
+  const activeTabParam = searchParams?.get('tab') as SettingsTabId | null;
+  const activeTab: SettingsTabId = activeTabParam || 'overview';
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Notifications and Feedback
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  // GTFS Telemetry State
-  const [gtfsTelemetry, setGtfsTelemetry] = useState<GtfsRegistryResponse | null>(null);
-  const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Provision Modal State
+  // Users Management State
+  const [users, setUsers] = useState<User[]>([]);
+  const [isFetchingUsers, setIsFetchingUsers] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -85,7 +91,6 @@ export default function ConfigPage() {
   const [newPreferredLanguage, setNewPreferredLanguage] = useState('en');
   const [creating, setCreating] = useState(false);
 
-  // Edit User / Profile Modal State
   const [editCandidate, setEditCandidate] = useState<User | null>(null);
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -94,24 +99,20 @@ export default function ConfigPage() {
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [editDefaultCurrency, setEditDefaultCurrency] = useState('EUR');
   const [editPreferredLanguage, setEditPreferredLanguage] = useState('en');
-  const safePreviewAvatarUrl = useMemo(() => getSafeAvatarUrl(editAvatarUrl), [editAvatarUrl]);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Default currency & wheel picker state
-  const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
   const [savingCurrency, setSavingCurrency] = useState(false);
-  const userDefaultCurrency = (currentUser?.preferences?.default_currency as string) || 'EUR';
-
-  // Confirm delete state
   const [deleteCandidate, setDeleteCandidate] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Confirm delete GTFS / stop compilation state
+  // GTFS Telemetry & Public Transit State
+  const [gtfsTelemetry, setGtfsTelemetry] = useState<GtfsRegistryResponse | null>(null);
+  const [gtfsMessage, setGtfsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deleteGtfsCandidate, setDeleteGtfsCandidate] = useState<CityGtfsItem | null>(null);
   const [deletingGtfs, setDeletingGtfs] = useState(false);
   const [syncTripsModalOpen, setSyncTripsModalOpen] = useState(false);
 
-  // System Updates & Auto-Updater State
+  // System Updater State
   const [updaterStatus, setUpdaterStatus] = useState<SystemUpdateStatus | null>(null);
   const [updaterChecking, setUpdaterChecking] = useState<boolean>(false);
   const [updaterDownloading, setUpdaterDownloading] = useState<boolean>(false);
@@ -122,6 +123,20 @@ export default function ConfigPage() {
   const [installPromptDismissed, setInstallPromptDismissed] = useState<boolean>(false);
   const notifiedVersionRef = React.useRef<string | null>(null);
 
+  // Tab Selection Handler
+  const handleSelectTab = (tab: SettingsTabId) => {
+    setActionError(null);
+    setActionSuccess(null);
+    if (tab === 'overview') {
+      router.push('/config', { scroll: false });
+    } else {
+      router.push(`/config?tab=${tab}`, { scroll: false });
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Fetch Updater Telemetry
+  // -------------------------------------------------------------------------
   const fetchUpdaterData = useCallback(async () => {
     try {
       const data = await fetchUpdateStatusApi();
@@ -133,7 +148,7 @@ export default function ConfigPage() {
           data.release_title || `Paladio v${data.latest_version} has new features and patch notes available to install.`,
           {
             actionLabel: 'Review & Install',
-            actionLink: '/config',
+            actionLink: '/config?tab=updates',
           }
         );
       }
@@ -191,7 +206,7 @@ export default function ConfigPage() {
           res.telemetry.release_title || `Paladio v${res.telemetry.latest_version} is available. Review features and install.`,
           {
             actionLabel: 'Review & Install',
-            actionLink: '/config',
+            actionLink: '/config?tab=updates',
           }
         );
       } else {
@@ -223,6 +238,9 @@ export default function ConfigPage() {
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Fetch GTFS Registry Telemetry
+  // -------------------------------------------------------------------------
   const fetchGtfsData = useCallback(async (_silent?: boolean) => {
     try {
       const data = await fetchGtfsRegistryApi();
@@ -258,7 +276,6 @@ export default function ConfigPage() {
     return () => clearInterval(interval);
   }, [fetchGtfsData, gtfsTelemetry?.has_active_process]);
 
-  // Handle TRANSIT_QUEUED and other WebSocket transit telemetry events
   useEffect(() => {
     const onTransitQueued = (e: Event) => {
       const customEvent = e as CustomEvent<{ city?: string; city_name?: string }>;
@@ -315,9 +332,12 @@ export default function ConfigPage() {
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Fetch Users
+  // -------------------------------------------------------------------------
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
-    setIsFetching(true);
+    setIsFetchingUsers(true);
     try {
       const data = await listUsersApi();
       setUsers(data);
@@ -325,8 +345,7 @@ export default function ConfigPage() {
       const msg = err instanceof Error ? err.message : 'Failed to fetch users';
       setActionError(msg);
     } finally {
-      setIsFetching(false);
-      setHasFetched(true);
+      setIsFetchingUsers(false);
     }
   }, [isAdmin]);
 
@@ -343,10 +362,6 @@ export default function ConfigPage() {
         if (!ignore) {
           const msg = err instanceof Error ? err.message : 'Failed to fetch users';
           setActionError(msg);
-        }
-      } finally {
-        if (!ignore) {
-          setHasFetched(true);
         }
       }
     }
@@ -599,2639 +614,219 @@ export default function ConfigPage() {
     }
   };
 
+  const telemetrySummary = useMemo(() => {
+    return {
+      themeName:
+        theme === 'light'
+          ? 'Pacific Jazz Light'
+          : theme === 'dark'
+          ? 'Pacific Jazz Dark'
+          : 'Silent Waters',
+      typographyName: typography === 'inter' ? 'Inter Modern' : 'Classic Editorial',
+      localeCode: locale,
+      currencyCode: (currentUser?.preferences?.default_currency as string) || 'EUR',
+      gtfsCompiledCount: gtfsTelemetry?.compiled_cities || 0,
+      userCount: users.length,
+      containerOnlineCount: 5,
+      updateAvailable: Boolean(updaterStatus?.update_available),
+    };
+  }, [theme, typography, locale, currentUser, gtfsTelemetry, users, updaterStatus]);
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-        <div>
-          <h2 className="font-display">Instance Configuration</h2>
-          <p className="font-mono text-muted text-sm mt-2">{'// DOCKER ENVIRONMENT & USER GOVERNANCE'}</p>
+    <div className={styles.settingsShell}>
+      <header className={styles.settingsHeader}>
+        <div className={styles.headerBrandArea}>
+          <Link href="/dashboard" className={styles.headerBrandLogo} title="Paladio Dashboard">
+            <div className="logo-mark" aria-hidden="true" style={{ width: '28px', height: '28px' }}>
+              <div className="logo-icon-sun" style={{ width: '26px', height: '26px' }} />
+            </div>
+            <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '0.5px' }}>PALADIO</span>
+          </Link>
+          <span className={styles.headerBadge}>SETTINGS</span>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setActionError(null);
-              setActionSuccess(null);
-              setIsModalOpen(true);
-            }}
-            className="font-display"
-            style={{
-              padding: '10px 18px',
-              background: 'var(--color-accent-primary)',
-              color: 'var(--color-btn-primary-text)',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <span>+</span> PROVISION NEW USER
-          </button>
-        )}
-      </div>
-
-      {actionError && (
-        <div
-          style={{
-            background: 'var(--color-danger-soft)',
-            border: '1px solid var(--color-danger)',
-            color: 'var(--color-danger)',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
-            fontSize: '13px',
-          }}
-        >
-          {actionError}
+        <div className={styles.headerActions}>
+          <Link href="/dashboard" className={styles.backBtn} aria-label="Back to App">
+            <ChevronLeftIcon size={14} aria-hidden="true" />
+            <span>Back to App</span>
+          </Link>
         </div>
-      )}
+      </header>
 
-      {actionSuccess && (
-        <div
-          style={{
-            background: 'var(--color-success-soft)',
-            border: '1px solid var(--color-success)',
-            color: 'var(--color-success)',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
-            fontSize: '13px',
-          }}
-        >
-          {actionSuccess}
-        </div>
-      )}
-
-      {/* Interface Appearance & Theme Engine */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-            Interface Appearance
-          </h3>
-          <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-            {'// PACIFIC JAZZ THEME ENGINE & VISUAL ACCENTS'}
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {/* Light Theme Card */}
-          <button
-            type="button"
-            onClick={() => setTheme('light')}
-            aria-label="Switch to light mode"
-            aria-pressed={theme === 'light'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: theme === 'light' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: theme === 'light' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Pacific Jazz Light</span>
-              </div>
-              {theme === 'light' && (
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Daytime operational palette: warm cream and paper background, deep sea sidebar, and sun coral accents.
-            </p>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#F6F0E1', border: '1px solid #D9CEB2' }} title="Cream #F6F0E1" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#FFFBF0', border: '1px solid #D9CEB2' }} title="Paper #FFFBF0" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#0F4C5C' }} title="Deep Sea #0F4C5C" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#D42A2F' }} title="Sun Red #D42A2F" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
-            </div>
-          </button>
-
-          {/* Dark Theme Card */}
-          <button
-            type="button"
-            onClick={() => setTheme('dark')}
-            aria-label="Switch to dark mode"
-            aria-pressed={theme === 'dark'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: theme === 'dark' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: theme === 'dark' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Pacific Jazz Dark</span>
-              </div>
-              {theme === 'dark' && (
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Nighttime deep ocean palette: low-glare dark abyss, sky teal highlights, and gold markers.
-            </p>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#08222B', border: '1px solid #1C4553' }} title="Abyss #08222B" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#0F333F', border: '1px solid #1C4553' }} title="Card #0F333F" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#061B22' }} title="Sidebar #061B22" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#7CC4D1' }} title="Sky Teal #7CC4D1" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E2B33C' }} title="Gold #E2B33C" />
-            </div>
-          </button>
-
-          {/* Silent Waters Theme Card */}
-          <button
-            type="button"
-            onClick={() => setTheme('silent-waters')}
-            aria-label="Switch to Silent Waters palette"
-            aria-pressed={theme === 'silent-waters'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: theme === 'silent-waters' ? '2px solid #5C6B73' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: theme === 'silent-waters' ? '0 0 16px rgba(92, 107, 115, 0.25)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                </svg>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Silent Waters</span>
-              </div>
-              {theme === 'silent-waters' && (
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: '#5C6B73',
-                    color: '#FFFFFF',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Dewy blues and weathered gray merge into a hushed palette, like drifting fog on silent waters.
-            </p>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#E0FBFC', border: '1px solid #C2DFE3' }} title="Light Cyan #E0FBFC" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#C2DFE3', border: '1px solid #9DB4C0' }} title="Powder Blue #C2DFE3" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#9DB4C0' }} title="Pewter Mist #9DB4C0" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#5C6B73' }} title="Slate Gray #5C6B73" />
-              <span style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#253237' }} title="Gunmetal #253237" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Interface Typography Engine */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              Interface Typography Engine
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// SYSTEM-WIDE TYPOGRAPHY SELECTION & FONT PAIRING'}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={toggleTypography}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: typography === 'inter' 
-                ? 'var(--color-surface-card)' 
-                : 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-mono, monospace)',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-            className="hover:opacity-90 active:scale-98"
-            aria-label={typography === 'inter' ? 'Switch to classic typography' : 'Switch to Inter typography'}
-          >
-            <span>{typography === 'inter' ? 'Switch to Classic Typography' : 'Switch to Inter Typography'}</span>
-            <span>⇄</span>
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {/* Inter (Universal) Card */}
-          <button
-            type="button"
-            onClick={() => setTypography('inter')}
-            aria-label="Set typography to Inter (Universal)"
-            aria-pressed={typography === 'inter'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: typography === 'inter' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: typography === 'inter' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-inter, sans-serif)' }}>Aa</span>
-                <span style={{ fontWeight: 600, fontSize: '15px', fontFamily: 'var(--font-inter, sans-serif)' }}>Inter (Universal)</span>
-              </div>
-              {typography === 'inter' && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                    fontFamily: 'var(--font-inter, sans-serif)',
-                  }}
-                >
-                  ACTIVE (DEFAULT)
-                </span>
-              )}
-            </div>
-            <p className="text-muted" style={{ fontSize: '12px', margin: 0, fontFamily: 'var(--font-inter, sans-serif)' }}>
-              Modern, unified neo-grotesque typography across all headings, titles, telemetry labels, and body text.
-            </p>
-            <div style={{ 
-              padding: '8px 12px', 
-              borderRadius: '6px', 
-              background: 'var(--color-surface-page, rgba(0,0,0,0.03))', 
-              border: '1px solid var(--color-border-subtle)',
-              fontFamily: 'var(--font-inter, sans-serif)',
-              fontSize: '11px',
-              color: 'var(--color-text-primary)'
-            }}>
-              <div>The quick brown fox jumps over the lazy dog</div>
-              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px' }}>All words • All headings • All telemetry</div>
-            </div>
-          </button>
-
-          {/* Classic Typography Card */}
-          <button
-            type="button"
-            onClick={() => setTypography('classic')}
-            aria-label="Set typography to Classic Editorial"
-            aria-pressed={typography === 'classic'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: typography === 'classic' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: typography === 'classic' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>Aa</span>
-                <span style={{ fontWeight: 600, fontSize: '15px', fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>Classic Editorial</span>
-              </div>
-              {typography === 'classic' && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Original Paladio pairing: geometric Jost for editorial headings, Inter for body, and JetBrains Mono for telemetry.
-            </p>
-            <div style={{ 
-              padding: '8px 12px', 
-              borderRadius: '6px', 
-              background: 'var(--color-surface-page, rgba(0,0,0,0.03))', 
-              border: '1px solid var(--color-border-subtle)',
-              fontSize: '11px',
-              color: 'var(--color-text-primary)'
-            }}>
-              <div style={{ fontFamily: 'var(--font-jost, "Jost", sans-serif)' }}>The quick brown fox jumps over the lazy dog</div>
-              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono, monospace)' }}>Jost Headings • Inter Body • JetBrains Mono</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Layout Engine */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              Navigation Layout Engine
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// SYSTEM NAVIGATION MODE & WORKSPACE SHELL PRESENTATION'}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {/* Sidebar Layout Card */}
-          <button
-            type="button"
-            onClick={() => setNavStyle('sidebar')}
-            aria-label="Set navigation to Sidebar"
-            aria-pressed={navStyle === 'sidebar'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: navStyle === 'sidebar' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: navStyle === 'sidebar' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="9" y1="3" x2="9" y2="21" />
-                </svg>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Sidebar Navigation</span>
-              </div>
-              {navStyle === 'sidebar' && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  DEFAULT • ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Sleek left navigation sidebar with clean typography, right-aligned icons, quick collapse shortcut, and full workspace focus.
-            </p>
-            <div style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              background: 'var(--color-surface-page, rgba(0,0,0,0.03))',
-              border: '1px solid var(--color-border-subtle)',
-              fontSize: '11px',
-              color: 'var(--color-text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-gold, #E2B33C)' }} />
-              <span>Left Rail • Collapsible (Ctrl+B) • Persistent</span>
-            </div>
-          </button>
-
-          {/* Floating Dock Layout Card */}
-          <button
-            type="button"
-            onClick={() => setNavStyle('dock')}
-            aria-label="Set navigation to Floating Bottom Dock"
-            aria-pressed={navStyle === 'dock'}
-            style={{
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: navStyle === 'dock' ? '2px solid var(--color-gold, #E2B33C)' : '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-              boxShadow: navStyle === 'dock' ? '0 0 16px rgba(226, 179, 60, 0.2)' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="3" y1="17" x2="21" y2="17" />
-                </svg>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '15px' }}>Floating Bottom Dock</span>
-              </div>
-              {navStyle === 'dock' && (
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#0A2A35',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE
-                </span>
-              )}
-            </div>
-            <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
-              Dynamic auto-hiding dock pinned to the bottom of the screen with hover label expansion.
-            </p>
-            <div style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              background: 'var(--color-surface-page, rgba(0,0,0,0.03))',
-              border: '1px solid var(--color-border-subtle)',
-              fontSize: '11px',
-              color: 'var(--color-text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}>
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-accent-teal, #1B8FA6)' }} />
-              <span>Bottom Floating • Auto-Hide • Spring Expansion</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Language & Localization Preferences */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              {t('config.language')}
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// SYSTEM DISPLAY LANGUAGE & LOCALIZATION ENGINE'}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsLanguagePickerOpen(true)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
-              border: '1px solid var(--color-accent-teal, #0D9488)',
-              color: 'var(--color-accent-teal, #0D9488)',
-              fontFamily: 'var(--font-mono, monospace)',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-            className="hover:opacity-90 active:scale-98"
-          >
-            <span>{t('nav.change_language')}</span>
-            <SettingsIcon size={14} />
-          </button>
-        </div>
-
-        {/* Current Active Language Highlight */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 18px',
-            borderRadius: '8px',
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-border-subtle)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                fontWeight: 700,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                background: 'var(--color-surface-muted, rgba(148, 163, 184, 0.15))',
-                color: 'var(--color-text-primary)',
-              }}
-            >
-              {activeLocaleInfo.code.toUpperCase()}
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontWeight: 600, fontSize: '15px' }}>
-                {activeLocaleInfo.nativeName} ({activeLocaleInfo.name})
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Script: {activeLocaleInfo.scriptFamily} • Text direction: {activeLocaleInfo.direction.toUpperCase()}
-              </div>
-            </div>
-          </div>
-
-          <span
-            className="font-mono"
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '3px 8px',
-              borderRadius: '4px',
-              background: 'var(--color-success-soft, rgba(16, 185, 129, 0.12))',
-              color: 'var(--color-success)',
-              letterSpacing: '0.5px',
-            }}
-          >
-            ACTIVE LOCALE
-          </span>
-        </div>
-      </div>
-
-      {/* Regional & Currency Preferences */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              Regional &amp; Currency Preferences
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// LOCALIZATION & DEFAULT CURRENCY FOR TRIP CALCULATIONS'}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsCurrencyWheelOpen(true)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))',
-              border: '1px solid var(--color-accent-teal, #0D9488)',
-              color: 'var(--color-accent-teal, #0D9488)',
-              fontFamily: 'var(--font-mono, monospace)',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-            className="hover:opacity-90 active:scale-98"
-          >
-            <span>Spin Cylinder Dial</span>
-            <SettingsIcon size={14} />
-          </button>
-        </div>
-
-        {/* Current Selection Highlight */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 18px',
-            borderRadius: '8px',
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-border-subtle)',
-            marginBottom: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <FlagIcon countryCode={getCurrencyInfo(userDefaultCurrency).countryCode} size={28} />
-            <div>
-              <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontWeight: 600, fontSize: '15px' }}>
-                {getCurrencyInfo(userDefaultCurrency).country} — {getCurrencyInfo(userDefaultCurrency).name}
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Active baseline: {userDefaultCurrency} ({getCurrencyInfo(userDefaultCurrency).symbol})
-              </div>
-            </div>
-          </div>
-
-          <span
-            className="font-mono"
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '3px 8px',
-              borderRadius: '4px',
-              background: 'var(--color-success-soft, rgba(16, 185, 129, 0.12))',
-              color: 'var(--color-success)',
-              letterSpacing: '0.5px',
-            }}
-          >
-            {savingCurrency ? 'SAVING...' : 'DEFAULT CURRENCY'}
-          </span>
-        </div>
-
-        {/* Quick Selection Pills */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {SUPPORTED_CURRENCY_LIST.slice(0, 8).map((cur) => {
-            const isSelected = cur.code === userDefaultCurrency;
-            return (
-              <button
-                key={cur.code}
-                type="button"
-                onClick={() => handleUpdateDefaultCurrency(cur)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: isSelected ? '2px solid var(--color-accent-teal, #0D9488)' : '1px solid var(--color-border-subtle)',
-                  background: isSelected ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.1))' : 'var(--color-surface-card)',
-                  color: 'var(--color-text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '12px',
-                  fontWeight: isSelected ? 700 : 500,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <FlagIcon countryCode={cur.countryCode} size={16} />
-                <span>{cur.code}</span>
-                <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>({cur.symbol})</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Currency Wheel Picker Modal */}
-      <CurrencyWheelPicker
-        isOpen={isCurrencyWheelOpen}
-        onClose={() => setIsCurrencyWheelOpen(false)}
-        selectedCurrency={userDefaultCurrency}
-        onSelectCurrency={handleUpdateDefaultCurrency}
-        title="Choose Default Currency"
+      <div className={styles.settingsBody}>
+      {/* Left Settings Sidebar */}
+      <SettingsSidebar
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+        isAdmin={isAdmin}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
-      {/* User Management Section */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              Authorized Users
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {isAdmin
-                ? 'All accounts provisioned on this self-hosted Paladio instance.'
-                : 'Your current account profile on this instance.'}
-            </p>
-          </div>
-          {isAdmin && (
-            <span className="font-mono text-muted" style={{ fontSize: '12px' }}>
-              TOTAL: {users.length}
-            </span>
-          )}
-        </div>
-
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p className="font-mono text-muted">LOADING USER DIRECTORY...</p>
-          </div>
-        ) : isAdmin ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>USERNAME</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>EMAIL</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>ROLE</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>STATUS</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CREATED</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => {
-                  const isSelf = u.id === currentUser?.id;
-                  const avatar = (u.preferences?.avatar_url || u.preferences?.pfp) as string | undefined;
-                  const initial = (u.username || 'U').charAt(0).toUpperCase();
-
-                  return (
-                    <tr
-                      key={u.id}
-                      style={{
-                        borderBottom: '1px solid var(--color-border-subtle)',
-                        backgroundColor: isSelf ? 'var(--color-accent-teal-soft)' : 'transparent',
-                      }}
-                    >
-                      <td style={{ padding: '12px', fontWeight: 600 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              background: 'var(--color-surface-page)',
-                              color: 'var(--color-text-primary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                              flexShrink: 0,
-                              overflow: 'hidden',
-                              border: '1px solid var(--color-border-subtle)',
-                            }}
-                          >
-                            {getSafeAvatarUrl(avatar) ? (
-                              <img
-                                src={getSafeAvatarUrl(avatar)!}
-                                alt={u.username}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              initial
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>{u.username}</span>
-                            {isSelf && (
-                              <span
-                                className="font-mono"
-                                style={{
-                                  fontSize: '9px',
-                                  background: 'var(--color-accent-teal-soft)',
-                                  color: 'var(--color-accent-teal)',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                }}
-                              >
-                                YOU
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="text-muted font-mono" style={{ padding: '12px', fontSize: '12px' }}>
-                        {u.email || <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>None</span>}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          className="font-mono"
-                          style={{
-                            fontSize: '10px',
-                            padding: '3px 7px',
-                            borderRadius: '4px',
-                            background: u.role === 'admin' ? 'var(--color-accent-teal-soft)' : 'var(--color-surface-page)',
-                            color: u.role === 'admin' ? 'var(--color-accent-teal)' : 'var(--color-text-muted)',
-                            border: '1px solid var(--color-border-subtle)',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {(u.role || 'user').toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          className="font-mono"
-                          style={{
-                            fontSize: '10px',
-                            padding: '3px 7px',
-                            borderRadius: '4px',
-                            background: u.is_active ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
-                            color: u.is_active ? 'var(--color-success)' : 'var(--color-danger)',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {u.is_active ? 'ACTIVE' : 'SUSPENDED'}
-                        </span>
-                      </td>
-                      <td className="font-mono text-muted" style={{ padding: '12px', fontSize: '11px' }}>
-                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => openEditModal(u)}
-                            className="font-mono"
-                            style={{
-                              padding: '5px 10px',
-                              fontSize: '11px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--color-border-subtle)',
-                              background: 'var(--color-surface-card)',
-                              color: 'var(--color-text-primary)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(u)}
-                            disabled={isSelf}
-                            className="font-mono"
-                            style={{
-                              padding: '5px 10px',
-                              fontSize: '11px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--color-border-subtle)',
-                              background: 'var(--color-surface-card)',
-                              color: isSelf ? 'var(--color-text-muted)' : u.is_active ? 'var(--color-danger)' : 'var(--color-success)',
-                              cursor: isSelf ? 'not-allowed' : 'pointer',
-                              opacity: isSelf ? 0.6 : 1,
-                            }}
-                          >
-                            {u.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button
-                            onClick={() => setDeleteCandidate(u)}
-                            disabled={isSelf}
-                            className="font-mono"
-                            style={{
-                              padding: '5px 10px',
-                              fontSize: '11px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--color-danger)',
-                              background: 'var(--color-surface-card)',
-                              color: isSelf ? 'var(--color-text-muted)' : 'var(--color-danger)',
-                              cursor: isSelf ? 'not-allowed' : 'pointer',
-                              opacity: isSelf ? 0.6 : 1,
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ padding: '1.5rem', background: 'var(--color-surface-card)', borderRadius: '10px', border: '1px solid var(--color-border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                <div
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    background: 'var(--color-surface-page)',
-                    color: 'var(--color-text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    border: '1px solid var(--color-border-subtle)',
-                  }}
-                >
-                  {(() => {
-                    const safeCurrentAvatar = getSafeAvatarUrl(currentUser?.preferences?.avatar_url || currentUser?.preferences?.pfp);
-                    return safeCurrentAvatar ? (
-                      <img
-                        src={safeCurrentAvatar}
-                        alt={currentUser?.username}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      (currentUser?.username || 'U').charAt(0).toUpperCase()
-                    );
-                  })()}
-                </div>
-                <div>
-                  <h4 className="font-display" style={{ margin: 0, fontSize: '1.1rem' }}>
-                    {currentUser?.username}
-                  </h4>
-                  <p className="font-mono text-muted" style={{ margin: '4px 0 0', fontSize: '12px' }}>
-                    {currentUser?.email || 'No email associated'}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                <div>
-                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>ROLE</span>
-                  <div style={{ marginTop: '2px' }}>
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontSize: '10px',
-                        padding: '3px 7px',
-                        borderRadius: '4px',
-                        background: 'var(--color-surface-page)',
-                        color: 'var(--color-text-muted)',
-                        border: '1px solid var(--color-border-subtle)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {(currentUser?.role || 'user').toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>STATUS</span>
-                  <div style={{ marginTop: '2px' }}>
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontSize: '10px',
-                        padding: '3px 7px',
-                        borderRadius: '4px',
-                        background: currentUser?.is_active ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
-                        color: currentUser?.is_active ? 'var(--color-success)' : 'var(--color-danger)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {currentUser?.is_active ? 'ACTIVE' : 'SUSPENDED'}
-                    </span>
-                  </div>
-                </div>
-                {currentUser && (
-                  <button
-                    onClick={() => openEditModal(currentUser)}
-                    className="font-display"
-                    style={{
-                      padding: '8px 16px',
-                      background: 'var(--color-accent-primary)',
-                      color: 'var(--color-btn-primary-text)',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    EDIT PROFILE
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '1.5rem' }}>
-              {'// NOTE: System user administration is restricted to Master Administrators.'}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Public Transit & GTFS Schedule Engine */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              Public Transit & GTFS Schedules
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// SCHEDULE REGISTRY & GTFS INGESTOR'}
-            </p>
-          </div>
-          <button
-            data-testid="sync-gtfs-trips-btn"
-            onClick={() => setSyncTripsModalOpen(true)}
-            className="font-mono"
-            style={{
-              padding: '6px 12px',
-              fontSize: '11px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <RefreshIcon size={13} /> SYNC WITH PLANNED TRIPS
-          </button>
-        </div>
-
-        {/* Action feedback message */}
-        {gtfsMessage && (
+      {/* Main Content Pane */}
+      <main className={styles.settingsCanvas} aria-label="Settings Content">
+        {/* Global Action Messages */}
+        {actionError && (
           <div
             style={{
-              background: gtfsMessage.type === 'success' ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
-              border: `1px solid ${gtfsMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`,
-              color: gtfsMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              marginBottom: '1rem',
-              fontSize: '12px',
-            }}
-          >
-            {gtfsMessage.text}
-          </div>
-        )}
-
-        {/* Live Compilation Process Banner */}
-        {gtfsTelemetry?.has_active_process ? (
-          <div
-            data-testid="gtfs-active-process-banner"
-            style={{
-              background: 'var(--color-accent-gold-soft)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '8px',
+              background: 'var(--color-danger-soft)',
+              border: '1px solid var(--color-danger)',
+              color: 'var(--color-danger)',
               padding: '12px 16px',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
+              borderRadius: '8px',
+              fontSize: '13px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <LightningIcon size={18} color="var(--color-accent-gold)" />
-              <div>
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: 'var(--color-accent-gold)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  ACTIVE DOWNLOAD PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
-                </span>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  Downloading and ingesting GTFS transit data for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Lines, stops, and schedules are being indexed in PostgreSQL.
-                </p>
-              </div>
-            </div>
-            <span
-              className="font-mono"
-              style={{
-                fontSize: '10px',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                background: 'var(--color-accent-gold-soft)',
-                color: 'var(--color-accent-gold)',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              DOWNLOADING LIVE
-            </span>
+            {actionError}
           </div>
-        ) : (
+        )}
+
+        {actionSuccess && (
           <div
-            data-testid="gtfs-idle-banner"
             style={{
               background: 'var(--color-success-soft)',
-              border: '1px solid var(--color-border-subtle)',
+              border: '1px solid var(--color-success)',
+              color: 'var(--color-success)',
+              padding: '12px 16px',
               borderRadius: '8px',
-              padding: '10px 14px',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              fontSize: '13px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--color-success)', fontSize: '12px' }}>●</span>
-              <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600 }}>
-                ALL GTFS SCHEDULES IDLE — NO ACTIVE DOWNLOADS
-              </span>
-            </div>
-            <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-              {gtfsTelemetry?.compiled_cities || 0} DOWNLOADED & READY
-            </span>
+            {actionSuccess}
           </div>
         )}
 
-        {/* Quick Summary Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-          <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DOWNLOADED & READY</span>
-            <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
-              {gtfsTelemetry?.compiled_cities ?? '...'}
-            </div>
-          </div>
-          <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>ACTIVE BACKGROUND TASKS</span>
-            <div
-              className="font-display"
-              style={{
-                fontSize: '1.4rem',
-                fontWeight: 700,
-                color: (gtfsTelemetry?.active_processes_count || 0) > 0 ? 'var(--color-accent-gold)' : 'var(--color-text-primary)',
-                marginTop: '4px',
-              }}
-            >
-              {gtfsTelemetry?.active_processes_count ?? 0}
-            </div>
-          </div>
-        </div>
+        {/* View Switcher */}
+        {activeTab === 'overview' && (
+          <SettingsOverview
+            onSelectTab={handleSelectTab}
+            isAdmin={isAdmin}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            telemetrySummary={telemetrySummary}
+          />
+        )}
 
-        {/* Registry Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CITY</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>GTFS STATUS</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>TRANSIT NETWORK STATUS</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>OSM NETWORK</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>SCHEDULE VALIDITY</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const activeOrCompiledCities = (gtfsTelemetry?.cities || []).filter(
-                  (c) =>
-                    c.is_compiled ||
-                    c.is_building ||
-                    c.gtfs_status === 'QUEUED' ||
-                    c.is_queued ||
-                    c.gtfs_status === 'FAILED' ||
-                    c.gtfs_status === 'UNAVAILABLE' ||
-                    c.status === 'FAILED'
-                );
-                if (activeOrCompiledCities.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                        No public transit networks currently compiled or downloading.
-                      </td>
-                    </tr>
-                  );
-                }
-                return activeOrCompiledCities.map((cityItem) => {
-                  const isItemQueued = cityItem.gtfs_status === 'QUEUED' || cityItem.is_queued;
-                  const isItemCompiling = !isItemQueued && cityItem.is_building;
-                  return (
-                    <tr key={cityItem.city} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                      <td style={{ padding: '12px', fontWeight: 600 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {isItemQueued && (
-                            <ClockIcon size={14} color="var(--color-accent-gold)" />
-                          )}
-                          <div>
-                            <span>{cityItem.display_name}</span>
-                            <div className="font-mono text-muted" style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px' }}>
-                              {cityItem.has_feed ? 'Open Data Transit Feed' : 'No Official Feed Mapped'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        {isItemQueued ? (
-                          <span
-                            className="font-mono"
-                            style={{
-                              fontSize: '10px',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              background: 'var(--color-accent-gold-soft)',
-                              color: 'var(--color-accent-gold)',
-                              border: '1px solid var(--color-accent-gold)',
-                              fontWeight: 600,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <ClockIcon size={11} color="var(--color-accent-gold)" /> In Queue
-                          </span>
-                        ) : (
-                          <span
-                            className="font-mono"
-                            style={{
-                              fontSize: '10px',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              background:
-                                cityItem.gtfs_status === 'READY'
-                                  ? 'var(--color-success-soft)'
-                                  : isItemCompiling
-                                  ? 'var(--color-accent-gold-soft)'
-                                  : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                  ? 'var(--color-danger-soft)'
-                                  : 'var(--color-surface-page)',
-                              color:
-                                cityItem.gtfs_status === 'READY'
-                                  ? 'var(--color-success)'
-                                  : isItemCompiling
-                                  ? 'var(--color-accent-gold)'
-                                  : cityItem.gtfs_status === 'UNAVAILABLE' || cityItem.gtfs_status === 'FAILED'
-                                  ? 'var(--color-danger)'
-                                  : 'var(--color-text-muted)',
-                              fontWeight: 600,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            {isItemCompiling && <Spinner size={11} color="var(--color-accent-gold)" />}
-                            {isItemCompiling ? 'DOWNLOADING & INGESTING' : cityItem.gtfs_status.toUpperCase()}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        {cityItem.is_compiled && !isItemCompiling && !isItemQueued ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <CheckIcon size={12} color="var(--color-success)" /> YES (READY)
-                          </span>
-                        ) : isItemQueued ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <ClockIcon size={12} color="var(--color-accent-gold)" /> QUEUED
-                          </span>
-                        ) : isItemCompiling ? (
-                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-accent-gold)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            IN PROGRESS
-                          </span>
-                        ) : (
-                          <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            NO
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          className="font-mono"
-                          style={{
-                            fontSize: '10px',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            background: cityItem.osm_status === 'READY' ? 'var(--color-success-soft)' : 'var(--color-surface-page)',
-                            color: cityItem.osm_status === 'READY' ? 'var(--color-success)' : 'var(--color-text-muted)',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {cityItem.osm_status}
-                        </span>
-                      </td>
-                      <td className="font-mono text-muted" style={{ padding: '12px', fontSize: '11px' }}>
-                        {cityItem.valid_until
-                          ? new Date(cityItem.valid_until).toLocaleDateString(undefined, {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })
-                          : 'N/A'}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                        <button
-                          data-testid={`delete-gtfs-btn-${cityItem.city}`}
-                          onClick={() => setDeleteGtfsCandidate(cityItem)}
-                          disabled={deletingGtfs && deleteGtfsCandidate?.city === cityItem.city}
-                          className="font-mono"
-                          style={{
-                            padding: '5px 10px',
-                            fontSize: '11px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--color-danger)',
-                            background: 'var(--color-surface-card)',
-                            color: 'var(--color-danger)',
-                            fontWeight: 600,
-                            cursor:
-                              deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
-                                ? 'not-allowed'
-                                : 'pointer',
-                            opacity:
-                              deletingGtfs && deleteGtfsCandidate?.city === cityItem.city ? 0.6 : 1,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          {deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
-                            ? isItemCompiling || isItemQueued
-                            ? 'STOPPING...'
-                            : 'DELETING...'
-                            : isItemQueued
-                            ? 'CANCEL'
-                            : isItemCompiling
-                            ? 'STOP'
-                            : 'DELETE'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                });
-              })()}
-            </tbody>
-          </table>
-        </div>
+        {(activeTab === 'profile' || activeTab === 'appearance' || activeTab === 'typography' || activeTab === 'navigation' || activeTab === 'maps') && (
+          <ExperienceSection
+            onBackToOverview={() => handleSelectTab('overview')}
+            subTab={activeTab}
+            currentUser={currentUser}
+            openEditModal={openEditModal}
+            getSafeAvatarUrl={getSafeAvatarUrl}
+          />
+        )}
+
+        {(activeTab === 'language' || activeTab === 'currency' || activeTab === 'units') && (
+          <LocalizationSection
+            onBackToOverview={() => handleSelectTab('overview')}
+            subTab={activeTab}
+            currentUser={currentUser}
+            onUpdateDefaultCurrency={handleUpdateDefaultCurrency}
+            savingCurrency={savingCurrency}
+          />
+        )}
+
+        {(activeTab === 'solver' || activeTab === 'transit' || activeTab === 'deals') && (
+          <EngineSection
+            onBackToOverview={() => handleSelectTab('overview')}
+            subTab={activeTab}
+            gtfsTelemetry={gtfsTelemetry}
+            gtfsMessage={gtfsMessage}
+            setGtfsMessage={setGtfsMessage}
+            fetchGtfsData={fetchGtfsData}
+            deleteGtfsCandidate={deleteGtfsCandidate}
+            setDeleteGtfsCandidate={setDeleteGtfsCandidate}
+            deletingGtfs={deletingGtfs}
+            handleDeleteGtfs={handleDeleteGtfs}
+            syncTripsModalOpen={syncTripsModalOpen}
+            setSyncTripsModalOpen={setSyncTripsModalOpen}
+          />
+        )}
+
+        {(activeTab === 'llm' || activeTab === 'swarm' || activeTab === 'memory') && (
+          <IntelligenceSection
+            onBackToOverview={() => handleSelectTab('overview')}
+            subTab={activeTab}
+          />
+        )}
+
+        {(activeTab === 'users' || activeTab === 'updates' || activeTab === 'telemetry' || activeTab === 'vault') && (
+          <InfrastructureSection
+            onBackToOverview={() => handleSelectTab('overview')}
+            subTab={activeTab}
+            isAdmin={isAdmin}
+            currentUser={currentUser}
+            users={users}
+            isFetchingUsers={isFetchingUsers}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+            newUsername={newUsername}
+            setNewUsername={setNewUsername}
+            newEmail={newEmail}
+            setNewEmail={setNewEmail}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            newRole={newRole}
+            setNewRole={setNewRole}
+            newPreferredLanguage={newPreferredLanguage}
+            setNewPreferredLanguage={setNewPreferredLanguage}
+            creating={creating}
+            handleCreateUser={handleCreateUser}
+            editCandidate={editCandidate}
+            setEditCandidate={setEditCandidate}
+            editUsername={editUsername}
+            setEditUsername={setEditUsername}
+            editEmail={editEmail}
+            setEditEmail={setEditEmail}
+            editPassword={editPassword}
+            setEditPassword={setEditPassword}
+            editRole={editRole}
+            setEditRole={setEditRole}
+            editAvatarUrl={editAvatarUrl}
+            setEditAvatarUrl={setEditAvatarUrl}
+            editDefaultCurrency={editDefaultCurrency}
+            setEditDefaultCurrency={setEditDefaultCurrency}
+            editPreferredLanguage={editPreferredLanguage}
+            setEditPreferredLanguage={setEditPreferredLanguage}
+            savingEdit={savingEdit}
+            handleSaveEdit={handleSaveEdit}
+            handleAvatarFileChange={handleAvatarFileChange}
+            openEditModal={openEditModal}
+            handleToggleActive={handleToggleActive}
+            deleteCandidate={deleteCandidate}
+            setDeleteCandidate={setDeleteCandidate}
+            deleting={deleting}
+            handleDeleteUser={handleDeleteUser}
+            getSafeAvatarUrl={getSafeAvatarUrl}
+            updaterStatus={updaterStatus}
+            updaterChecking={updaterChecking}
+            updaterDownloading={updaterDownloading}
+            updaterToggling={updaterToggling}
+            updaterError={updaterError}
+            updaterSuccess={updaterSuccess}
+            showReleaseNotes={showReleaseNotes}
+            setShowReleaseNotes={setShowReleaseNotes}
+            installPromptDismissed={installPromptDismissed}
+            setInstallPromptDismissed={setInstallPromptDismissed}
+            handleCheckForUpdates={handleCheckForUpdates}
+            handleDownloadUpdate={handleDownloadUpdate}
+            handleToggleAutoUpdate={handleToggleAutoUpdate}
+          />
+        )}
+      </main>
       </div>
-
-      {/* AI & LLM Engine Configuration */}
-      <LlmConfigCard />
-
-      {/* System Updates & Auto-Updater Section */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              System Updates & Auto-Updater
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-              {'// GITHUB REPOSITORY CONTINUOUS SYNCHRONIZATION & SOVEREIGN RELEASES'}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={updaterChecking || updaterDownloading}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border-subtle)',
-                background: 'var(--color-surface-card)',
-                color: 'var(--color-text-primary)',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                cursor: updaterChecking ? 'not-allowed' : 'pointer',
-                opacity: updaterChecking ? 0.7 : 1,
-              }}
-            >
-              {updaterChecking ? <Spinner size={12} /> : <RefreshIcon size={12} />}
-              {updaterChecking ? 'CHECKING...' : 'CHECK FOR UPDATES'}
-            </button>
-
-            {updaterStatus?.update_available && (
-              <button
-                type="button"
-                onClick={handleDownloadUpdate}
-                disabled={updaterDownloading || updaterStatus?.download_status === 'downloading'}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-gold, #E2B33C)',
-                  background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
-                  color: 'var(--color-gold, #E2B33C)',
-                  fontSize: '12px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  cursor: updaterDownloading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {updaterDownloading || updaterStatus?.download_status === 'downloading' ? (
-                  <>
-                    <Spinner size={12} />
-                    <span>DOWNLOADING...</span>
-                  </>
-                ) : (
-                  <>
-                    <LightningIcon size={12} />
-                    <span>DOWNLOAD LATEST (v{updaterStatus?.latest_version})</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Feedback Messages */}
-        {updaterError && (
-          <div
-            style={{
-              background: 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))',
-              border: '1px solid var(--color-danger, #EF4444)',
-              color: 'var(--color-danger, #EF4444)',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              marginBottom: '1rem',
-              fontSize: '12px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            {updaterError}
-          </div>
-        )}
-
-        {updaterSuccess && (
-          <div
-            style={{
-              background: 'var(--color-success-soft, rgba(34, 197, 94, 0.15))',
-              border: '1px solid var(--color-success, #22C55E)',
-              color: 'var(--color-success, #22C55E)',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              marginBottom: '1rem',
-              fontSize: '12px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            {updaterSuccess}
-          </div>
-        )}
-
-        {/* Interactive Update Notification & Installation Prompt */}
-        {updaterStatus?.update_available && !installPromptDismissed && (
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '2px solid var(--color-gold, #E2B33C)',
-              borderRadius: '10px',
-              padding: '1.5rem',
-              marginBottom: '1.5rem',
-              boxShadow: '0 0 24px rgba(226, 179, 60, 0.15)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    className="font-mono"
-                    style={{
-                      fontSize: '10px',
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
-                      color: 'var(--color-gold, #E2B33C)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    NEW UPDATE AVAILABLE
-                  </span>
-                  <h4 className="font-display" style={{ fontSize: '1.25rem', margin: 0 }}>
-                    {updaterStatus.release_title || `Paladio v${updaterStatus.latest_version}`}
-                  </h4>
-                </div>
-                <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
-                  Installed version: v{updaterStatus.current_version} → Latest version: v{updaterStatus.latest_version}
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setInstallPromptDismissed(true)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle)',
-                    background: 'var(--color-surface)',
-                    color: 'var(--color-text-secondary)',
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  REMIND ME LATER
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadUpdate}
-                  disabled={updaterDownloading || updaterStatus.download_status === 'downloading'}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'var(--color-gold, #E2B33C)',
-                    color: '#1a1815',
-                    fontSize: '12px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    cursor: updaterDownloading ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {updaterDownloading || updaterStatus.download_status === 'downloading' ? (
-                    <>
-                      <Spinner size={12} color="#1a1815" />
-                      <span>DOWNLOADING & INSTALLING...</span>
-                    </>
-                  ) : (
-                    <>
-                      <LightningIcon size={12} />
-                      <span>INSTALL UPDATE NOW (v{updaterStatus.latest_version})</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Features and Patch Notes */}
-            <div style={{ marginTop: '0.75rem' }}>
-              <p className="font-mono text-muted" style={{ fontSize: '10px', marginBottom: '6px', fontWeight: 600 }}>
-                {'// NEW FEATURES & PATCH NOTES:'}
-              </p>
-              <div
-                style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border-subtle)',
-                  borderRadius: '6px',
-                  padding: '0.85rem 1rem',
-                  maxHeight: '220px',
-                  overflowY: 'auto',
-                }}
-              >
-                <pre
-                  className="font-mono"
-                  style={{
-                    margin: 0,
-                    fontSize: '11px',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: 'var(--color-text-primary)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {updaterStatus.release_notes || 'No patch notes provided.'}
-                </pre>
-              </div>
-              <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '8px', marginBottom: 0 }}>
-                Would you like to install this update? Click &quot;INSTALL UPDATE NOW&quot; to download and apply the latest release.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Status and Configuration Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-          {/* Version Info Card */}
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '8px',
-              padding: '1.25rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>INSTALLED VERSION</span>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border-subtle)',
-                }}
-              >
-                v{updaterStatus?.current_version || '2.0.0'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>REMOTE RELEASE</span>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontWeight: 600,
-                  background: updaterStatus?.update_available ? 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))' : 'var(--color-success-soft)',
-                  color: updaterStatus?.update_available ? 'var(--color-gold, #E2B33C)' : 'var(--color-success)',
-                }}
-              >
-                v{updaterStatus?.latest_version || updaterStatus?.current_version || '2.0.0'}
-              </span>
-            </div>
-            <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>
-              GITHUB REPO: {updaterStatus?.github_repo || 'Leandro-Juan/paladio'}
-            </p>
-          </div>
-
-          {/* Auto-Update State & Toggle Button Card */}
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: updaterStatus?.auto_update_enabled ? '1px solid var(--color-success)' : '1px solid var(--color-border-subtle)',
-              borderRadius: '8px',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>AUTOMATIC UPDATES</span>
-                <span
-                  data-testid="auto-update-status-badge"
-                  className="font-mono"
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: updaterStatus?.auto_update_enabled ? 'var(--color-success-soft)' : 'var(--color-surface)',
-                    color: updaterStatus?.auto_update_enabled ? 'var(--color-success)' : 'var(--color-text-muted)',
-                    border: '1px solid var(--color-border-subtle)',
-                  }}
-                >
-                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'DISABLED'}
-                </span>
-              </div>
-              <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
-                {updaterStatus?.auto_update_enabled
-                  ? 'System automatically downloads and installs new releases in the background.'
-                  : 'Automatic updates are off by default. Paladio will notify you with patch notes and ask before installing.'}
-              </p>
-            </div>
-
-            <div style={{ marginTop: '12px' }}>
-              <button
-                type="button"
-                onClick={handleToggleAutoUpdate}
-                disabled={updaterToggling}
-                style={{
-                  width: '100%',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  cursor: updaterToggling ? 'not-allowed' : 'pointer',
-                  border: updaterStatus?.auto_update_enabled
-                    ? '1px solid var(--color-border-subtle)'
-                    : '1px solid var(--color-success)',
-                  background: updaterStatus?.auto_update_enabled
-                    ? 'var(--color-surface)'
-                    : 'var(--color-success-soft)',
-                  color: updaterStatus?.auto_update_enabled
-                    ? 'var(--color-text-muted)'
-                    : 'var(--color-success)',
-                }}
-              >
-                {updaterToggling ? (
-                  <Spinner size={10} />
-                ) : updaterStatus?.auto_update_enabled ? (
-                  'DISABLE AUTOMATIC UPDATES'
-                ) : (
-                  'ENABLE AUTOMATIC UPDATES'
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Download Telemetry Card */}
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '8px',
-              padding: '1.25rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>DOWNLOAD STATUS</span>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background:
-                    updaterStatus?.download_status === 'downloaded'
-                      ? 'var(--color-success-soft)'
-                      : updaterStatus?.download_status === 'downloading'
-                      ? 'rgba(59, 130, 246, 0.15)'
-                      : updaterStatus?.download_status === 'failed'
-                      ? 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))'
-                      : 'var(--color-surface)',
-                  color:
-                    updaterStatus?.download_status === 'downloaded'
-                      ? 'var(--color-success)'
-                      : updaterStatus?.download_status === 'downloading'
-                      ? '#3B82F6'
-                      : updaterStatus?.download_status === 'failed'
-                      ? 'var(--color-danger, #EF4444)'
-                      : 'var(--color-text-muted)',
-                }}
-              >
-                {updaterStatus?.download_status?.toUpperCase() || 'IDLE'}
-              </span>
-            </div>
-            {updaterStatus?.downloaded_file ? (
-              <div style={{ marginTop: '8px' }}>
-                <p className="font-mono" style={{ fontSize: '10px', margin: 0, wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>
-                  {updaterStatus.downloaded_file}
-                </p>
-                <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '4px', marginBottom: 0 }}>
-                  SIZE: {updaterStatus.file_size_bytes ? `${Math.round(updaterStatus.file_size_bytes / 1024)} KB` : 'N/A'}
-                  {updaterStatus.downloaded_at ? ` // ${new Date(updaterStatus.downloaded_at).toLocaleDateString()}` : ''}
-                </p>
-              </div>
-            ) : (
-              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '8px', marginBottom: 0 }}>
-                {updaterStatus?.last_checked_at
-                  ? `LAST CHECK: ${new Date(updaterStatus.last_checked_at).toLocaleTimeString()}`
-                  : 'NO CHECKS RECORDED YET'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Release Notes Collapsible */}
-        {updaterStatus?.release_notes && (
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: '8px',
-              padding: '1rem',
-              marginTop: '1rem',
-            }}
-          >
-            <div
-              onClick={() => setShowReleaseNotes(!showReleaseNotes)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="font-display" style={{ fontSize: '13px', fontWeight: 600 }}>
-                  {updaterStatus.release_title || `Release v${updaterStatus.latest_version}`}
-                </span>
-                {updaterStatus.release_url && (
-                  <a
-                    href={updaterStatus.release_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="font-mono"
-                    style={{ fontSize: '10px', color: 'var(--color-gold, #E2B33C)', textDecoration: 'underline' }}
-                  >
-                    View on GitHub
-                  </a>
-                )}
-              </div>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-                {showReleaseNotes ? '[- HIDE NOTES]' : '[+ SHOW NOTES]'}
-              </span>
-            </div>
-
-            {showReleaseNotes && (
-              <pre
-                className="font-mono"
-                style={{
-                  marginTop: '0.75rem',
-                  padding: '0.75rem',
-                  background: 'var(--color-surface)',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  whiteSpace: 'pre-wrap',
-                  overflowX: 'auto',
-                  maxHeight: '240px',
-                  color: 'var(--color-text-secondary)',
-                }}
-              >
-                {updaterStatus.release_notes}
-              </pre>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Docker Instance Health Panel */}
-      <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem' }}>
-        <h3 className="font-display" style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-          Sovereign Docker Telemetry
-        </h3>
-        <p className="font-mono text-muted" style={{ fontSize: '11px', marginBottom: '1.5rem' }}>
-          {'// LOCAL CONTAINER CLUSTER STATUS'}
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-          {[
-            { name: 'FastAPI Gateway', port: '8000', status: 'ONLINE', target: 'Semantic Gateway / Swarm Router' },
-            { name: 'TimescaleDB / Vector', port: '5432', status: 'ONLINE', target: 'PostgreSQL 16 Storage (pgdata)' },
-            { name: 'Redis Cache / Broker', port: '6379', status: 'ONLINE', target: 'Celery Broker & Cache (redisdata)' },
-            { name: 'Local Ollama LLM', port: '11434', status: 'ONLINE', target: 'Qwen 2.5 7B & nomic-embed-text' },
-            { name: 'Valhalla Routing', port: '8002', status: 'ONLINE', target: 'Deterministic Transit Node' },
-          ].map((node) => (
-            <div
-              key={node.name}
-              style={{
-                background: 'var(--color-surface-card)',
-                border: '1px solid var(--color-border-subtle)',
-                borderRadius: '8px',
-                padding: '1rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="font-display" style={{ fontWeight: 600, fontSize: '13px' }}>{node.name}</span>
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '9px',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: 'var(--color-success-soft)',
-                    color: 'var(--color-success)',
-                    fontWeight: 600,
-                  }}
-                >
-                  {node.status}
-                </span>
-              </div>
-              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '6px' }}>
-                PORT {node.port} {'//'} {node.target}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Provision User Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'var(--color-scrim)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              borderRadius: '16px',
-              padding: '2rem',
-              width: '100%',
-              maxWidth: '440px',
-              boxShadow: 'var(--shadow-modal)',
-              border: '1px solid var(--color-border-subtle)',
-            }}
-          >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-              Provision New User
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', marginBottom: '1.5rem' }}>
-              {'// CREATE CREDENTIALS FOR SELF-HOSTED ACCESS'}
-            </p>
-
-            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  USERNAME
-                </label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. navigator"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  EMAIL (OPTIONAL)
-                </label>
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="e.g. navigator@paladio.internal (optional)"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  INITIAL PASSWORD
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  ROLE
-                </label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as UserRole)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  <option value="user">Standard User</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  PREFERRED LANGUAGE
-                </label>
-                <select
-                  value={newPreferredLanguage}
-                  onChange={(e) => setNewPreferredLanguage(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  <option value="en">English (English)</option>
-                  <option value="es">Español (Spanish)</option>
-                  <option value="fr">Français (French)</option>
-                  <option value="de">Deutsch (German)</option>
-                  <option value="it">Italiano (Italian)</option>
-                  <option value="pt">Português (Portuguese)</option>
-                  <option value="ja">日本語 (Japanese)</option>
-                  <option value="zh-CN">简体中文 (Chinese)</option>
-                  <option value="ko">한국어 (Korean)</option>
-                  <option value="ar">العربية (Arabic)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle)',
-                    background: 'transparent',
-                    color: 'var(--color-text-muted)',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="font-display"
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'var(--color-accent-primary)',
-                    color: 'var(--color-btn-primary-text)',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    cursor: creating ? 'not-allowed' : 'pointer',
-                    opacity: creating ? 0.7 : 1,
-                  }}
-                >
-                  {creating ? 'PROVISIONING...' : 'CREATE ACCOUNT'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User / Profile Modal */}
-      {editCandidate && (
-        <div
-          data-testid="edit-user-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'var(--color-scrim)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              borderRadius: '16px',
-              padding: '2rem',
-              width: '100%',
-              maxWidth: '480px',
-              boxShadow: 'var(--shadow-modal)',
-              border: '1px solid var(--color-border-subtle)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-              {editCandidate.id === currentUser?.id ? 'Edit Your Profile' : `Edit User: ${editCandidate.username}`}
-            </h3>
-            <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', marginBottom: '1.5rem' }}>
-              {'// UPDATE ACCOUNT DETAILS, AVATAR & CREDENTIALS'}
-            </p>
-
-            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-              {/* Avatar Preview & Upload */}
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '8px' }}>
-                  PROFILE PICTURE (PFP)
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div
-                    style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      background: 'var(--color-surface-page)',
-                      color: 'var(--color-text-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '24px',
-                      fontWeight: 700,
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                      border: '2px solid var(--color-border-subtle)',
-                    }}
-                  >
-                    {safePreviewAvatarUrl ? (
-                      <img
-                        src={encodeURI(safePreviewAvatarUrl)}
-                        alt={editUsername || 'Avatar'}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      (editUsername || 'U').charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <label
-                        className="font-mono"
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--color-border-subtle)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        Upload Image
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarFileChange}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
-                      {editAvatarUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setEditAvatarUrl('')}
-                          className="font-mono"
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--color-danger)',
-                            background: 'var(--color-surface-card)',
-                            color: 'var(--color-danger)',
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      value={editAvatarUrl.startsWith('data:image') ? '' : editAvatarUrl}
-                      onChange={(e) => setEditAvatarUrl(e.target.value)}
-                      placeholder={editAvatarUrl.startsWith('data:image') ? 'Uploaded image attached' : 'Or paste image URL (https://...)'}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--color-border-input)',
-                        fontSize: '11px',
-                        background: 'var(--color-surface-card)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  USERNAME
-                </label>
-                <input
-                  type="text"
-                  value={editUsername}
-                  onChange={(e) => setEditUsername(e.target.value)}
-                  placeholder="e.g. navigator"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  EMAIL (OPTIONAL)
-                </label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="navigator@paladio.internal (optional)"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  NEW PASSWORD (OPTIONAL)
-                </label>
-                <input
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Leave blank to keep unchanged"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                />
-              </div>
-
-              {isAdmin && editCandidate.id !== currentUser?.id && (
-                <div>
-                  <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                    ROLE
-                  </label>
-                  <select
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value as UserRole)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--color-border-input)',
-                      fontSize: '13px',
-                      background: 'var(--color-surface-card)',
-                      color: 'var(--color-text-primary)',
-                    }}
-                  >
-                    <option value="user">Standard User</option>
-                    <option value="admin">Administrator</option>
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  DEFAULT CURRENCY
-                </label>
-                <select
-                  value={editDefaultCurrency}
-                  onChange={(e) => setEditDefaultCurrency(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  {SUPPORTED_CURRENCY_LIST.map((cur) => (
-                    <option key={cur.code} value={cur.code}>
-                      {cur.flag} {cur.code} — {cur.name} ({cur.symbol})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  PREFERRED LANGUAGE
-                </label>
-                <select
-                  value={editPreferredLanguage}
-                  onChange={(e) => setEditPreferredLanguage(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-input)',
-                    fontSize: '13px',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  {ALL_LOCALES.map((loc) => (
-                    <option key={loc.code} value={loc.code}>
-                      {loc.code.toUpperCase()} — {loc.nativeName} ({loc.name})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setEditCandidate(null)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-subtle)',
-                    background: 'transparent',
-                    color: 'var(--color-text-muted)',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="font-display"
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'var(--color-accent-primary)',
-                    color: 'var(--color-btn-primary-text)',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    cursor: savingEdit ? 'not-allowed' : 'pointer',
-                    opacity: savingEdit ? 0.7 : 1,
-                  }}
-                >
-                  {savingEdit ? 'SAVING...' : 'SAVE CHANGES'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Delete Dialog */}
-      {deleteCandidate && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'var(--color-scrim)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              borderRadius: '16px',
-              padding: '2rem',
-              width: '100%',
-              maxWidth: '400px',
-              boxShadow: 'var(--shadow-modal)',
-              border: '1px solid var(--color-border-subtle)',
-            }}
-          >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
-              Confirm User Deletion
-            </h3>
-            <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)' }}>
-              Are you sure you want to permanently delete user <strong>{deleteCandidate.username}</strong> ({deleteCandidate.email})?
-              This action is irreversible and cascades to all linked trips.
-            </p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setDeleteCandidate(null)}
-                disabled={deleting}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  background: 'transparent',
-                  color: 'var(--color-text-muted)',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteUser}
-                disabled={deleting}
-                className="font-display"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'var(--color-danger)',
-                  color: 'var(--color-btn-primary-text)',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: deleting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {deleting ? 'DELETING...' : 'PERMANENTLY DELETE'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm GTFS Delete / Stop Dialog */}
-      {deleteGtfsCandidate && (
-        <div
-          data-testid="gtfs-delete-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'var(--color-scrim)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              borderRadius: '16px',
-              padding: '2rem',
-              width: '100%',
-              maxWidth: '440px',
-              boxShadow: 'var(--shadow-modal)',
-              border: '1px solid var(--color-border-subtle)',
-            }}
-          >
-            <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
-              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                ? 'Stop GTFS Compilation'
-                : 'Delete GTFS Transit Data'}
-            </h3>
-            <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
-              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued ? (
-                <>
-                  Are you sure you want to stop and cancel GTFS compilation for{' '}
-                  <strong>{deleteGtfsCandidate.display_name}</strong>? Active background tasks will be terminated,
-                  locks released, and temporary build files deleted.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to permanently delete compiled GTFS transit data for{' '}
-                  <strong>{deleteGtfsCandidate.display_name}</strong>? This removes downloaded schedules and Valhalla
-                  transit tiles.
-                </>
-              )}
-            </p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setDeleteGtfsCandidate(null)}
-                disabled={deletingGtfs}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  background: 'transparent',
-                  color: 'var(--color-text-muted)',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                data-testid="confirm-delete-gtfs-btn"
-                onClick={handleDeleteGtfs}
-                disabled={deletingGtfs}
-                className="font-display"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'var(--color-danger)',
-                  color: 'var(--color-btn-primary-text)',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: deletingGtfs ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {deletingGtfs
-                  ? deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                    ? 'STOPPING...'
-                    : 'DELETING...'
-                  : deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                  ? 'STOP & CLEAN UP'
-                  : 'DELETE GTFS'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sync GTFS with Planned Trips Modal */}
-      <SyncGtfsTripsModal
-        isOpen={syncTripsModalOpen}
-        onClose={() => setSyncTripsModalOpen(false)}
-        onSyncSuccess={(msg) => {
-          setGtfsMessage({ type: 'success', text: msg });
-          fetchGtfsData(false);
-        }}
-      />
-
-      {/* Language Picker Modal */}
-      <LanguagePickerModal
-        isOpen={isLanguagePickerOpen}
-        onClose={() => setIsLanguagePickerOpen(false)}
-      />
     </div>
   );
+}
+
+export default function ConfigPage() {
+  return (
+    <Suspense fallback={<PaladioLoader variant="fullscreen" />}>
+      <ConfigPageContent />
+    </Suspense>
+  );
+}
+
+function ConfigPageContent() {
+  return <ConfigPageInner />;
 }

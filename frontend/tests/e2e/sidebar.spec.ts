@@ -134,7 +134,7 @@ test.describe('Navigation Style Configuration Switching', () => {
 
   test('can switch between sidebar and bottom dock in config page and persist', async ({ page }) => {
     await mockAuthenticatedUser(page, 'admin');
-    await page.goto('/config');
+    await page.goto('/config?tab=navigation');
 
     // Both option buttons exist in the Navigation Layout Engine section
     const sidebarOption = page.getByRole('button', { name: /Set navigation to Sidebar/i });
@@ -149,19 +149,17 @@ test.describe('Navigation Style Configuration Switching', () => {
     await expect(dockOption).toHaveAttribute('aria-pressed', 'true');
     await expect(sidebarOption).toHaveAttribute('aria-pressed', 'false');
 
-    // Verify dock trigger zone is now present
-    const triggerZone = page.locator('[class*="triggerZone"]');
-    await expect(triggerZone).toBeVisible();
+    // Verify dock navigation style is applied to html
+    await expect(page.locator('html')).toHaveAttribute('data-nav-style', 'dock');
 
     // Reload page to verify persistence
     await page.reload();
     await expect(dockOption).toHaveAttribute('aria-pressed', 'true');
-    await expect(triggerZone).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-nav-style', 'dock');
 
     // Switch back to Sidebar
     await sidebarOption.click();
     await expect(sidebarOption).toHaveAttribute('aria-pressed', 'true');
-    const sidebar = page.locator('nav.sidebar');
-    await expect(sidebar).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-nav-style', 'sidebar');
   });
 });

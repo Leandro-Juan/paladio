@@ -140,11 +140,12 @@ test.describe('Authentication & User Management Flow', () => {
     await settingsBtn.click();
     await expect(page).toHaveURL(/.*\/config/);
 
-    // 4. Verify Configuration components
-    await expect(page.getByRole('heading', { name: /Instance Configuration/i })).toBeVisible();
-    await expect(page.getByText('Sovereign Docker Telemetry')).toBeVisible();
+    // 4. Verify Settings components on overview
+    await expect(page.getByRole('heading', { name: /Settings/i }).first()).toBeVisible();
+    await expect(page.getByText('Container Telemetry').first()).toBeVisible();
 
-    // 5. Open "PROVISION NEW USER" modal
+    // 5. Navigate to Authorized Users tab and open "PROVISION NEW USER" modal
+    await page.getByRole('button', { name: /open authorized users/i }).click();
     const provisionBtn = page.getByRole('button', { name: /PROVISION NEW USER/i });
     await expect(provisionBtn).toBeVisible();
     await provisionBtn.click();
@@ -161,7 +162,7 @@ test.describe('Authentication & User Management Flow', () => {
 
     // 8. Sign Out via User Menu
     await userMenuBtn.click();
-    const signoutBtn = page.getByRole('menuitem', { name: /Log out/i });
+    const signoutBtn = page.getByRole('menuitem', { name: /(sign out|log out)/i });
     await expect(signoutBtn).toBeVisible();
     await signoutBtn.click();
 
@@ -234,7 +235,7 @@ test.describe('Authentication & User Management Flow', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
-    await page.goto('/config');
+    await page.goto('/config?tab=users');
 
     // 1. Verify sidebar header brand does NOT show version string
     const sidebarBrand = page.locator('nav.sidebar .brand');

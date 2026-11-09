@@ -1,0 +1,571 @@
+"use client";
+
+import React from 'react';
+import { SystemUpdateStatus } from '@/utils/api';
+import { Spinner, RefreshIcon, LightningIcon } from '@/components/icons';
+import { SettingsHeader } from '../SettingsHeader';
+
+interface SystemSectionProps {
+  onBackToOverview: () => void;
+  subTab?: 'updates' | 'telemetry';
+  updaterStatus: SystemUpdateStatus | null;
+  updaterChecking: boolean;
+  updaterDownloading: boolean;
+  updaterToggling: boolean;
+  updaterError: string | null;
+  updaterSuccess: string | null;
+  showReleaseNotes: boolean;
+  setShowReleaseNotes: (val: boolean) => void;
+  installPromptDismissed: boolean;
+  setInstallPromptDismissed: (val: boolean) => void;
+  handleCheckForUpdates: () => Promise<void>;
+  handleDownloadUpdate: () => Promise<void>;
+  handleToggleAutoUpdate: () => Promise<void>;
+}
+
+export function SystemSection({
+  onBackToOverview,
+  subTab = 'updates',
+  updaterStatus,
+  updaterChecking,
+  updaterDownloading,
+  updaterToggling,
+  updaterError,
+  updaterSuccess,
+  showReleaseNotes,
+  setShowReleaseNotes,
+  installPromptDismissed,
+  setInstallPromptDismissed,
+  handleCheckForUpdates,
+  handleDownloadUpdate,
+  handleToggleAutoUpdate,
+}: SystemSectionProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <SettingsHeader
+        title={subTab === 'telemetry' ? 'Sovereign Docker Telemetry' : 'System Updates & Sovereign Infrastructure'}
+        onBackToOverview={onBackToOverview}
+        actions={
+          subTab !== 'telemetry' ? (
+            <button
+              type="button"
+              onClick={handleCheckForUpdates}
+              disabled={updaterChecking || updaterDownloading}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-primary)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                cursor: updaterChecking ? 'not-allowed' : 'pointer',
+                opacity: updaterChecking ? 0.7 : 1,
+                fontWeight: 600,
+              }}
+            >
+              {updaterChecking ? <Spinner size={12} /> : <RefreshIcon size={12} />}
+              {updaterChecking ? 'CHECKING...' : 'CHECK FOR UPDATES'}
+            </button>
+          ) : undefined
+        }
+      />
+
+      {/* System Updates & Auto-Updater Section */}
+      <section
+        id="system-updates"
+        className="bg-surface border-subtle"
+        style={{
+          borderRadius: '10px',
+          padding: '1.5rem',
+          border: subTab === 'updates' ? '1px solid var(--color-border)' : '1px solid var(--color-border-subtle)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
+              System Updates &amp; Auto-Updater
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {updaterStatus?.update_available && (
+              <button
+                type="button"
+                onClick={handleDownloadUpdate}
+                disabled={updaterDownloading || updaterStatus?.download_status === 'downloading'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-gold, #E2B33C)',
+                  background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
+                  color: 'var(--color-gold, #E2B33C)',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  cursor: updaterDownloading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {updaterDownloading || updaterStatus?.download_status === 'downloading' ? (
+                  <>
+                    <Spinner size={12} />
+                    <span>DOWNLOADING...</span>
+                  </>
+                ) : (
+                  <>
+                    <LightningIcon size={12} />
+                    <span>DOWNLOAD LATEST (v{updaterStatus?.latest_version})</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Feedback Messages */}
+        {updaterError && (
+          <div
+            style={{
+              background: 'var(--color-danger-soft, rgba(239, 68, 68, 0.15))',
+              border: '1px solid var(--color-danger, #EF4444)',
+              color: 'var(--color-danger, #EF4444)',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {updaterError}
+          </div>
+        )}
+
+        {updaterSuccess && (
+          <div
+            style={{
+              background: 'var(--color-success-soft, rgba(34, 197, 94, 0.15))',
+              border: '1px solid var(--color-success, #22C55E)',
+              color: 'var(--color-success, #22C55E)',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {updaterSuccess}
+          </div>
+        )}
+
+        {/* Interactive Update Notification & Installation Prompt */}
+        {updaterStatus?.update_available && !installPromptDismissed && (
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '2px solid var(--color-gold, #E2B33C)',
+              borderRadius: '10px',
+              padding: '1.5rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 0 24px rgba(226, 179, 60, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    className="font-mono"
+                    style={{
+                      fontSize: '10px',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      background: 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))',
+                      color: 'var(--color-gold, #E2B33C)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    NEW UPDATE AVAILABLE
+                  </span>
+                  <h4 className="font-display" style={{ fontSize: '1.25rem', margin: 0 }}>
+                    {updaterStatus.release_title || `Paladio v${updaterStatus.latest_version}`}
+                  </h4>
+                </div>
+                <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                  Installed version: v{updaterStatus.current_version} → Latest version: v{updaterStatus.latest_version}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setInstallPromptDismissed(true)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  REMIND ME LATER
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadUpdate}
+                  disabled={updaterDownloading || updaterStatus.download_status === 'downloading'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'var(--color-gold, #E2B33C)',
+                    color: '#1a1815',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    cursor: updaterDownloading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {updaterDownloading || updaterStatus.download_status === 'downloading' ? (
+                    <>
+                      <Spinner size={12} color="#1a1815" />
+                      <span>DOWNLOADING &amp; INSTALLING...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LightningIcon size={12} />
+                      <span>INSTALL UPDATE NOW (v{updaterStatus.latest_version})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Features and Patch Notes */}
+            <div style={{ marginTop: '0.75rem' }}>
+              <p className="font-mono text-muted" style={{ fontSize: '10px', marginBottom: '6px', fontWeight: 600 }}>
+                NEW FEATURES &amp; PATCH NOTES:
+              </p>
+              <div
+                style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderRadius: '6px',
+                  padding: '0.85rem 1rem',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                }}
+              >
+                <pre
+                  className="font-mono"
+                  style={{
+                    margin: 0,
+                    fontSize: '11px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {updaterStatus.release_notes || 'No patch notes provided.'}
+                </pre>
+              </div>
+              <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '8px', marginBottom: 0 }}>
+                Would you like to install this update? Click &quot;INSTALL UPDATE NOW&quot; to download and apply the latest release.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Status and Configuration Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+          {/* Version Info Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>INSTALLED VERSION</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-subtle)',
+                }}
+              >
+                v{updaterStatus?.current_version || '2.0.0'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>REMOTE RELEASE</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  background: updaterStatus?.update_available ? 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))' : 'var(--color-success-soft)',
+                  color: updaterStatus?.update_available ? 'var(--color-gold, #E2B33C)' : 'var(--color-success)',
+                }}
+              >
+                v{updaterStatus?.latest_version || updaterStatus?.current_version || '2.0.0'}
+              </span>
+            </div>
+            <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>
+              GITHUB REPO: {updaterStatus?.github_repo || 'Leandro-Juan/paladio'}
+            </p>
+          </div>
+
+          {/* Auto-Update State & Toggle Button Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: updaterStatus?.auto_update_enabled ? '1px solid var(--color-success)' : '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>AUTOMATIC UPDATES</span>
+                <span
+                  data-testid="auto-update-status-badge"
+                  className="font-mono"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: updaterStatus?.auto_update_enabled ? 'var(--color-success-soft)' : 'var(--color-surface)',
+                    color: updaterStatus?.auto_update_enabled ? 'var(--color-success)' : 'var(--color-text-muted)',
+                    border: '1px solid var(--color-border-subtle)',
+                  }}
+                >
+                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'DISABLED'}
+                </span>
+              </div>
+              <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
+                {updaterStatus?.auto_update_enabled
+                  ? 'System automatically downloads and installs new releases in the background.'
+                  : 'Automatic updates are off by default. Paladio will notify you with patch notes and ask before installing.'}
+              </p>
+            </div>
+
+            <div style={{ marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={handleToggleAutoUpdate}
+                disabled={updaterToggling}
+                style={{
+                  width: '100%',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  cursor: updaterToggling ? 'not-allowed' : 'pointer',
+                  border: updaterStatus?.auto_update_enabled
+                    ? '1px solid var(--color-border-subtle)'
+                    : '1px solid var(--color-success)',
+                  background: updaterStatus?.auto_update_enabled
+                    ? 'var(--color-surface)'
+                    : 'var(--color-success-soft)',
+                  color: updaterStatus?.auto_update_enabled
+                    ? 'var(--color-text-muted)'
+                    : 'var(--color-success)',
+                }}
+              >
+                {updaterToggling ? (
+                  <Spinner size={10} />
+                ) : updaterStatus?.auto_update_enabled ? (
+                  'DISABLE AUTOMATIC UPDATES'
+                ) : (
+                  'ENABLE AUTOMATIC UPDATES'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Download Telemetry Card */}
+          <div
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '8px',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>DOWNLOAD STATUS</span>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background:
+                    updaterStatus?.download_status === 'downloaded'
+                      ? 'var(--color-success-soft)'
+                      : updaterStatus?.download_status === 'downloading'
+                      ? 'var(--color-gold-soft, rgba(226, 179, 60, 0.15))'
+                      : 'var(--color-surface)',
+                  color:
+                    updaterStatus?.download_status === 'downloaded'
+                      ? 'var(--color-success)'
+                      : updaterStatus?.download_status === 'downloading'
+                      ? 'var(--color-gold, #E2B33C)'
+                      : 'var(--color-text-muted)',
+                }}
+              >
+                {(updaterStatus?.download_status || 'idle').toUpperCase()}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>LAST CHECKED</span>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
+                {updaterStatus?.last_checked_at
+                  ? new Date(updaterStatus.last_checked_at).toLocaleDateString()
+                  : 'Pending'}
+              </span>
+            </div>
+            {updaterStatus?.file_sha256 && (
+              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>
+                SHA256: {updaterStatus.file_sha256.slice(0, 10)}...
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Release Notes Collapsible / Drawer Button */}
+        {updaterStatus?.release_notes && (
+          <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setShowReleaseNotes(!showReleaseNotes)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                color: 'var(--color-accent-teal)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>{showReleaseNotes ? '▼ HIDE RELEASE NOTES & CHANGELOG' : '▶ VIEW RELEASE NOTES & CHANGELOG'}</span>
+            </button>
+
+            {showReleaseNotes && (
+              <div
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-border-subtle)',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                }}
+              >
+                <pre
+                  className="font-mono"
+                  style={{
+                    margin: 0,
+                    fontSize: '11px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {updaterStatus.release_notes}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Docker Instance Health Panel */}
+      <section
+        id="system-telemetry"
+        className="bg-surface border-subtle"
+        style={{
+          borderRadius: '10px',
+          padding: '1.5rem',
+          border: subTab === 'telemetry' ? '1px solid var(--color-border)' : '1px solid var(--color-border-subtle)',
+        }}
+      >
+        <h3 className="font-display" style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+          Sovereign Docker Telemetry
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          {[
+            { name: 'FastAPI Gateway', port: '8000', status: 'ONLINE', target: 'Semantic Gateway / Swarm Router' },
+            { name: 'TimescaleDB / Vector', port: '5432', status: 'ONLINE', target: 'PostgreSQL 16 Storage (pgdata)' },
+            { name: 'Redis Cache / Broker', port: '6379', status: 'ONLINE', target: 'Celery Broker & Cache (redisdata)' },
+            { name: 'Local Ollama LLM', port: '11434', status: 'ONLINE', target: 'Qwen 2.5 7B & nomic-embed-text' },
+            { name: 'Valhalla Routing', port: '8002', status: 'ONLINE', target: 'Deterministic Transit Node' },
+          ].map((node) => (
+            <div
+              key={node.name}
+              style={{
+                background: 'var(--color-surface-card)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: '8px',
+                padding: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="font-display" style={{ fontWeight: 600, fontSize: '13px' }}>{node.name}</span>
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '9px',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'var(--color-success-soft)',
+                    color: 'var(--color-success)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {node.status}
+                </span>
+              </div>
+              <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '6px' }}>
+                PORT {node.port} — {node.target}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
