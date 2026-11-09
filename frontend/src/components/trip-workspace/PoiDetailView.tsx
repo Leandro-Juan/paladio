@@ -616,8 +616,7 @@ export function PoiDetailView({
         });
 
         if (!servesStation) {
-          console.warn(`Line ${lineIdentifier} does not serve station ${currentStationName || currentStationId}`);
-          return;
+          console.debug(`Line ${lineIdentifier} station check not matched exactly; showing line anyway`);
         }
 
         if (detail.color) {

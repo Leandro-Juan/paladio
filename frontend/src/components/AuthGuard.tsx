@@ -56,8 +56,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return <PaladioLoader variant="fullscreen" />;
   }
 
-  // Standalone pages (workspace /trips/[id], vault recap /vault/[id], and help center /help) do not render the main app sidebar or global navigation
-  const isStandalonePage = Boolean(pathname && (/^\/(trips|vault)\/[^\/]+/.test(pathname) || pathname.startsWith('/help')));
+  // Standalone pages (workspace /trips/[id], vault recap /vault/[id], help center /help, and config /config) do not render the main app sidebar or global navigation
+  const isStandalonePage = Boolean(pathname && (/^\/(trips|vault)\/[^\/]+/.test(pathname) || pathname.startsWith('/help') || pathname.startsWith('/config')));
   if (isStandalonePage) {
     return (
       <main className="trip-details-layout" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>

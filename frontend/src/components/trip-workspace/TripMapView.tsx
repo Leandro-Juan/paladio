@@ -1000,16 +1000,21 @@ export default function TripMapView({
             `/transit/${encodeURIComponent(targetCity)}/lines/${encodeURIComponent(cleanLine)}`
           );
           if (lineDetail && (lineDetail.stops?.length > 0 || lineDetail.patterns?.length > 0)) {
+            const primary = lineDetail.patterns?.[0];
+            const patternStops = primary?.stops || lineDetail.stops || [];
             const polyline: [number, number][] =
-              lineDetail.patterns?.[0]?.coordinates && lineDetail.patterns[0].coordinates.length > 0
-                ? lineDetail.patterns[0].coordinates
-                : (lineDetail.stops || []).map((s: any) => [s.lat, s.lon] as [number, number]);
+              primary?.geometry?.coordinates && primary.geometry.coordinates.length > 0
+                ? primary.geometry.coordinates
+                : primary?.coordinates && primary.coordinates.length > 0
+                ? primary.coordinates
+                : patternStops.map((s: any) => [s.lat, s.lon] as [number, number]);
+
             const activeLineData = {
-              line: cleanLine,
+              line: lineDetail.short_name || lineDetail.id || cleanLine,
               color: color || lineDetail.color || '#007AFF',
               polyline,
-              stations: (lineDetail.stops || []).map((s: any) => ({
-                id: s.id || `gtfs:${targetCity}:${s.name}`,
+              stations: patternStops.map((s: any) => ({
+                id: s.station_id || s.id || `gtfs:${targetCity}:${s.name}`,
                 name: s.name,
                 lat: s.lat,
                 lng: s.lon,

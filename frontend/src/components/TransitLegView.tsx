@@ -101,12 +101,18 @@ export function TransitLegView({
 
         if (detail && detail.patterns && detail.patterns.length > 0) {
           const primary = detail.patterns[0];
+          const patternStops = primary.stops || [];
+          const polyline: [number, number][] =
+            primary.geometry?.coordinates && primary.geometry.coordinates.length > 0
+              ? primary.geometry.coordinates
+              : patternStops.map((s) => [s.lat, s.lon] as [number, number]);
+
           const activeLineData = {
             line: detail.short_name || detail.id || cleanLine,
             color: detail.color || explicitColor || '#007AFF',
-            polyline: primary.geometry?.coordinates || [],
-            stations: (primary.stops || []).map((s) => ({
-              id: s.station_id,
+            polyline,
+            stations: patternStops.map((s) => ({
+              id: s.station_id || `gtfs:${targetCity}:${s.name}`,
               name: s.name,
               lat: s.lat,
               lng: s.lon,

@@ -276,20 +276,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           });
         }
         break;
-      case 'CHECKING_MISSING_FIELDS':
-        addLog(`> [VALIDATOR] VALIDATING TRIP CONSTRAINTS...`);
-        break;
-      case 'ROUTING_INTENT':
-        addLog(`> [ROUTER] INTENT DETECTED: ${payload.data}`);
-        break;
       case 'ANALYZING_PROMPT':
         addLog(`> [ANALYZER] ANALYZING USER REQUEST & PREFERENCES...`);
         break;
       case 'SCRAPING_DYNAMIC_DATA':
         addLog(`> [PLANNER] ${payload.data || 'FETCHING POIS & TRANSIT...'}`);
-        break;
-      case 'RETRIEVING_CONTEXT':
-        addLog(`> [RAG] CONTEXT RETRIEVED (TRUNCATED): ${payload.data}`);
         break;
       case 'CLARIFICATION_NEEDED':
         setStatus('awaiting_input');

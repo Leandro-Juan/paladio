@@ -8,9 +8,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 interface UserMenuProps {
   isCollapsed?: boolean;
   dockMode?: boolean;
+  placement?: 'top' | 'bottom';
 }
 
-export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProps) {
+export function UserMenu({ isCollapsed = false, dockMode = false, placement = 'top' }: UserMenuProps) {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const router = useRouter();
@@ -231,10 +232,11 @@ export function UserMenu({ isCollapsed = false, dockMode = false }: UserMenuProp
           aria-label="User navigation"
           style={{
             position: 'absolute',
-            bottom: dockMode ? 'calc(100% + 14px)' : (isCollapsed ? '0' : 'calc(100% + 8px)'),
-            left: dockMode ? 'auto' : (isCollapsed ? 'calc(100% + 10px)' : '0'),
-            right: dockMode ? '0' : 'auto',
-            width: dockMode ? '240px' : (isCollapsed ? '210px' : '100%'),
+            top: placement === 'bottom' ? 'calc(100% + 8px)' : 'auto',
+            bottom: placement === 'bottom' ? 'auto' : (dockMode ? 'calc(100% + 14px)' : (isCollapsed ? '0' : 'calc(100% + 8px)')),
+            left: placement === 'bottom' ? 'auto' : (dockMode ? 'auto' : (isCollapsed ? 'calc(100% + 10px)' : '0')),
+            right: placement === 'bottom' ? '0' : (dockMode ? '0' : 'auto'),
+            width: dockMode ? '240px' : (isCollapsed ? '210px' : (placement === 'bottom' ? '240px' : '100%')),
             minWidth: '200px',
             background: 'var(--color-surface-card)',
             borderRadius: '12px',

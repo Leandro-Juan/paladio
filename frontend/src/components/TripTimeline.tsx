@@ -12,6 +12,7 @@ interface TripTimelineProps {
   tripId?: string;
   onItineraryUpdate?: (updated: OptimizationResult) => void;
   selectedDay?: number | 'all';
+  onInspectPoi?: (id: string, fallbackData?: any) => void;
 }
 
 export function TripTimeline({
@@ -19,6 +20,7 @@ export function TripTimeline({
   tripId,
   onItineraryUpdate,
   selectedDay,
+  onInspectPoi,
 }: TripTimelineProps) {
   const [upgradedItinerary, setUpgradedItinerary] = React.useState<OptimizationResult | null>(null);
   const [upgrading, setUpgrading] = React.useState(false);
@@ -522,6 +524,9 @@ export function TripTimeline({
                       transitLeg={transitFromPrev}
                       originName={prevName}
                       destinationName={name}
+                      city={destinationCity}
+                      tripId={tripId}
+                      onInspectPoi={onInspectPoi}
                     />
                   )}
 
