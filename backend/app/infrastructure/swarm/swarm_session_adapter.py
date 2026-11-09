@@ -264,7 +264,7 @@ class SwarmSessionAdapter(ISwarmSession):
                         "status": "running",
                     }
 
-                elif node_name in ["assemble_constraints", "validator"]:
+                elif node_name == "assemble_constraints":
                     constraints = state_update.get("validated_itinerary")
                     data_val = None
                     if constraints:
@@ -283,9 +283,8 @@ class SwarmSessionAdapter(ISwarmSession):
                         "status": "running",
                     }
 
-                elif node_name in ["verify_constraints", "check_missing"]:
+                elif node_name == "verify_constraints":
                     yield {"event": "VERIFICATION_COMPLETED", "status": "completed"}
-                    yield {"event": "CHECKING_MISSING_FIELDS", "status": "completed"}
                     yield {"event": "EVALUATING_GUARDRAILS", "status": "running"}
 
                 elif node_name == "guardrails":
@@ -302,7 +301,7 @@ class SwarmSessionAdapter(ISwarmSession):
                         yield {"event": "GUARDRAILS_PASSED", "status": "completed"}
                         yield {"event": "ANALYZING_PROMPT", "status": "running"}
 
-                elif node_name in ["prompt_analyzer", "prompt_analysis"]:
+                elif node_name == "prompt_analyzer":
                     yield {"event": "ANALYZING_PROMPT", "status": "completed"}
                     yield {
                         "event": "SCRAPING_DYNAMIC_DATA",

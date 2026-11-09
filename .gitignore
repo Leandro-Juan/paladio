@@ -117,6 +117,7 @@ prompt.txt
 important.txt
 itinerary_output.json
 real_itinerary_output.json
+*_final.json
 skills-lock.json
 site/
 

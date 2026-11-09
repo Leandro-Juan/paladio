@@ -860,6 +860,7 @@ class TransitDerivationService:
         # Key: (route_id, direction_id, tuple_of_station_ids) -> pattern_id
         pattern_map: dict[tuple[str, int, tuple[str, ...]], str] = {}
         pattern_trips_list: list[TransitPatternTripModel] = []
+        seen_pattern_departures: set[tuple[str, str, int]] = set()
         pattern_stops_list: list[TransitPatternStopModel] = []
         pattern_headsigns: dict[str, str | None] = {}
         pattern_trip_counts: dict[str, int] = defaultdict(int)
@@ -930,16 +931,19 @@ class TransitDerivationService:
             # First departure for this trip (from interpolated or real schedule)
             first_dep = interpolated_stops[0][2]
             if first_dep >= 0:
-                pattern_trips_list.append(
-                    TransitPatternTripModel(
-                        build_id=build_id,
-                        city=city_lower,
-                        pattern_id=pat_id,
-                        service_id=meta["service_id"],
-                        departure_seconds=first_dep,
-                        trip_id=t_id,
+                trip_key = (pat_id, meta["service_id"], first_dep)
+                if trip_key not in seen_pattern_departures:
+                    seen_pattern_departures.add(trip_key)
+                    pattern_trips_list.append(
+                        TransitPatternTripModel(
+                            build_id=build_id,
+                            city=city_lower,
+                            pattern_id=pat_id,
+                            service_id=meta["service_id"],
+                            departure_seconds=first_dep,
+                            trip_id=t_id,
+                        )
                     )
-                )
 
                 # Determine day types for this service_id
                 s_day = service_days.get(meta["service_id"])

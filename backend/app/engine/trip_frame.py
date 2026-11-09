@@ -163,9 +163,9 @@ def build_trip_frame(
         is_dep = d == (num_days - 1)
 
         start_time = (
-            600
+            540
             if pace == PacePreference.LEISURELY
-            else (510 if pace == PacePreference.INTENSE else 540)
+            else (480 if pace == PacePreference.INTENSE else 510)
         )
         end_time = rhythm.evening_cutoff_min if rhythm else 1380  # 23:00 default
 
@@ -216,9 +216,14 @@ def build_trip_frame(
                     )
                 ).lower()
                 if "breakfast" in m_type:
-                    if start_time <= b_start + 60 and end_time >= b_start + 30:
+                    if (
+                        not is_arr
+                        or arrival_flight_mins is None
+                        or start_time <= b_start + 90
+                    ) and end_time >= b_start + 30:
                         if "breakfast" not in day_meals:
                             day_meals.append("breakfast")
+                            start_time = min(start_time, b_start)
                 elif "lunch" in m_type:
                     if start_time <= l_start + 60 and end_time >= l_start + 60:
                         if "lunch" not in day_meals:
@@ -232,8 +237,9 @@ def build_trip_frame(
                         day_meals.append(m_type)
         else:
             if not is_arr and not is_dep:
-                # Agency standard full day: lunch and dinner
-                day_meals = ["lunch", "dinner"]
+                # Agency standard full day: 3 distinct meals
+                day_meals = ["breakfast", "lunch", "dinner"]
+                start_time = min(start_time, b_start)
             elif is_arr and is_dep:
                 # Single day trip
                 meals_single = []
@@ -259,7 +265,7 @@ def build_trip_frame(
 
         # When dinner is scheduled, extend end_time to local evening cutoff
         if "dinner" in day_meals and not (is_dep and departure_flight_mins is not None):
-            end_time = max(end_time, r.evening_cutoff_min)
+            end_time = max(end_time, r.evening_cutoff_min, 1350)
 
         days.append(
             DayFrame(

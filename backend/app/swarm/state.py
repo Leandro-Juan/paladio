@@ -25,3 +25,4 @@ class SwarmState(TypedDict):
     critic_issues: list[dict] | None
     current_objective_j: float | None
     user_language: str | None
+    existing_trips: list[dict] | None

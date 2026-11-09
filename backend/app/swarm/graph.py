@@ -77,15 +77,18 @@ def route_guardrails(state: SwarmState) -> str:
     return END
 
 
+MAX_REFINEMENT_ITERATIONS: int = 3
+
+
 def route_critic(state: SwarmState) -> str:
     issues = state.get("critic_issues", [])
     iteration = state.get("refinement_iteration", 0) or 0
-    if issues and iteration < 3:
+    if issues and iteration < MAX_REFINEMENT_ITERATIONS:
         return "planner_repair"
     return END
 
 
-def create_swarm():
+def create_swarm(checkpointer=None):
     workflow = StateGraph(SwarmState)
     workflow.add_node("ticket_parser", ticket_parser_node)
     workflow.add_node("assemble_constraints", assemble_constraints_node)
@@ -122,9 +125,12 @@ def create_swarm():
     )
     workflow.add_edge("planner_repair", "planner_optimize")
 
-    from langgraph.checkpoint.memory import MemorySaver
+    if checkpointer is None:
+        from langgraph.checkpoint.memory import MemorySaver
 
-    return workflow.compile(checkpointer=MemorySaver())
+        checkpointer = MemorySaver()
+
+    return workflow.compile(checkpointer=checkpointer)
 
 
 graph = create_swarm()

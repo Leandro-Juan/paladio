@@ -8,11 +8,21 @@ Selects the global set of POIs for the entire trip before day assignment:
 """
 
 import math
+import unicodedata
 from enum import Enum
 
 from app.engine.candidate_pool import CandidatePoi
 from app.engine.trip_frame import TripFrame
 from pydantic import BaseModel
+
+
+def normalize_poi_name(name: str) -> str:
+    """Canonical name normalization removing diacritics, accents, and excessive spacing."""
+    if not name:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", name)
+    ascii_clean = nfkd.encode("ASCII", "ignore").decode("utf-8")
+    return " ".join(ascii_clean.strip().lower().split())
 
 
 class SelectionReasonCode(str, Enum):
@@ -89,10 +99,11 @@ def select_trip_pois(
 
     # 1. Forced Set: User Mandatories
     for cand in candidate_pool:
+        c_norm = normalize_poi_name(cand.name)
         if (
             cand.is_mandatory
             and cand.id not in selected_ids
-            and cand.name.strip().lower() not in selected_names
+            and c_norm not in selected_names
         ):
             dur = cand.duration_mins
             selected.append(
@@ -105,7 +116,7 @@ def select_trip_pois(
                 )
             )
             selected_ids.add(cand.id)
-            selected_names.add(cand.name.strip().lower())
+            selected_names.add(c_norm)
             current_time_mins += dur
             current_cost_eur += cand.cost_eur
             total_score += 100.0
@@ -117,7 +128,7 @@ def select_trip_pois(
             for c in candidate_pool
             if c.tier == 1
             and c.id not in selected_ids
-            and c.name.strip().lower() not in selected_names
+            and normalize_poi_name(c.name) not in selected_names
             and not c.is_meal_spot
             and is_poi_open_any_trip_day(c, trip_weekdays)
             and c.taste_score >= 35.0
@@ -140,7 +151,7 @@ def select_trip_pois(
             )
         )
         selected_ids.add(cand.id)
-        selected_names.add(cand.name.strip().lower())
+        selected_names.add(normalize_poi_name(cand.name))
         current_time_mins += dur
         current_cost_eur += cand.cost_eur
         total_score += gain
@@ -153,11 +164,8 @@ def select_trip_pois(
         best_dur = 60
 
         for cand in candidate_pool:
-            if (
-                cand.id in selected_ids
-                or cand.name.strip().lower() in selected_names
-                or cand.is_meal_spot
-            ):
+            c_norm = normalize_poi_name(cand.name)
+            if cand.id in selected_ids or c_norm in selected_names or cand.is_meal_spot:
                 continue
             if not cand.is_mandatory and not is_poi_open_any_trip_day(
                 cand, trip_weekdays
@@ -246,7 +254,7 @@ def select_trip_pois(
             )
         )
         selected_ids.add(best_cand.id)
-        selected_names.add(best_cand.name.strip().lower())
+        selected_names.add(normalize_poi_name(best_cand.name))
         current_time_mins += best_dur
         current_cost_eur += best_cand.cost_eur
         total_score += best_gain
@@ -256,7 +264,7 @@ def select_trip_pois(
     for cand in candidate_pool:
         if (
             cand.id in selected_ids
-            or cand.name.strip().lower() in selected_names
+            or normalize_poi_name(cand.name) in selected_names
             or cand.is_meal_spot
         ):
             continue

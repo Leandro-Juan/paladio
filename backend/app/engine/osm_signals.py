@@ -111,9 +111,9 @@ def classify_osm_category(tags: dict[str, str]) -> str:
         return "cafe"
     if amenity in ("bar", "pub"):
         return "bar"
-    if amenity in ("nightclub",):
-        return "nightlife"
-    if amenity in ("theatre", "arts_centre", "cinema", "music_venue"):
+    if amenity in ("arts_centre",):
+        return "museum"
+    if amenity in ("theatre", "cinema", "music_venue"):
         return "entertainment"
     if amenity == "marketplace" or tags.get("building") == "market":
         return "market"
@@ -256,6 +256,8 @@ def default_hours(category: str, tags: dict[str, str]) -> tuple[list[int], list[
         return [600] * 7, [1200] * 7  # 10:00 - 20:00
     if category in ("park", "viewpoint") or tags.get("natural"):
         return [420] * 7, [1260] * 7  # 07:00 - 21:00
+    if tags.get("amenity") == "arts_centre" or tags.get("building") == "greenhouse":
+        return [600] * 7, [1200] * 7  # 10:00 - 20:00 daytime cultural exhibition
     if tags.get("amenity") == "place_of_worship":
         return [540] * 7, [1080] * 7  # 09:00 - 18:00
     if tags.get("historic") in ("city_gate", "memorial", "monument", "citywalls"):

@@ -378,7 +378,24 @@ class SqlPoiRepository(IPoiRepository):
 
     async def find_by_city(self, city_name: str) -> list[Poi]:
         filter_clause = await self._get_city_filter(city_name)
-        stmt = select(AttractionModel).where(filter_clause)
+        stmt = (
+            select(AttractionModel)
+            .where(filter_clause)
+            .where(~AttractionModel.id.like("OSM-transit-%"))
+            .where(
+                ~func.lower(AttractionModel.category).in_(
+                    (
+                        "transit",
+                        "metro",
+                        "train",
+                        "bus_stop",
+                        "tram",
+                        "subway",
+                        "station",
+                    )
+                )
+            )
+        )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
@@ -389,6 +406,20 @@ class SqlPoiRepository(IPoiRepository):
             select(AttractionModel)
             .where(filter_clause)
             .where(AttractionModel.tier <= max_tier)
+            .where(~AttractionModel.id.like("OSM-transit-%"))
+            .where(
+                ~func.lower(AttractionModel.category).in_(
+                    (
+                        "transit",
+                        "metro",
+                        "train",
+                        "bus_stop",
+                        "tram",
+                        "subway",
+                        "station",
+                    )
+                )
+            )
             .order_by(
                 AttractionModel.tier.asc(),
                 AttractionModel.iconicity_score.desc(),

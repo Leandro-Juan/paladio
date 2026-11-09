@@ -22,10 +22,14 @@ logger = logging.getLogger(__name__)
 def apply_repairs(
     daily_pois_data: list[list[dict[str, Any]]],
     critic_issues: list[dict[str, Any]],
+    candidate_restaurants: list[dict[str, Any]] | None = None,
+    lunch_window: tuple[int, int] | None = None,
 ) -> tuple[list[list[dict[str, Any]]], bool]:
     """Applies targeted repairs to daily_pois_data. Returns (repaired_data, modified)."""
     if not daily_pois_data or not critic_issues:
         return daily_pois_data, False
+
+    w_start, w_end = lunch_window if lunch_window else (690, 900)
 
     repaired = copy.deepcopy(daily_pois_data)
     modified = False
@@ -44,41 +48,34 @@ def apply_repairs(
                 "lunch" in (p.get("name", "").lower())
                 or (
                     p.get("category") in ("RESTAURANT", "CAFE")
-                    and 690 <= p.get("open_time_mins_by_day", [0])[0] <= 900
+                    and w_start <= p.get("open_time_mins_by_day", [0])[0] <= w_end
                 )
                 for p in day_pois
             )
-            if not has_lunch:
-                # Find hotel or anchor location to position lunch nearby
-                anchor_loc = next(
-                    (
-                        p.get("location")
-                        for p in day_pois
-                        if p.get("category") == "HOTEL"
-                    ),
-                    {"latitude": 48.8566, "longitude": 2.3522},
-                )
-                lunch_spot = {
-                    "name": f"Local Lunch Bistro Day {d_idx + 1} (Lunch)",
-                    "city": day_pois[0].get("city", "Destination")
-                    if day_pois
-                    else "Destination",
-                    "category": "RESTAURANT",
-                    "cost_eur": 18.0,
-                    "cost_is_estimated": True,
-                    "cost_source": "repair_injected_lunch",
-                    "duration_mins": 60,
-                    "open_time_mins_by_day": [690] * 7,  # 11:30
-                    "close_time_mins_by_day": [900] * 7,  # 15:00
-                    "location": anchor_loc,
-                    "tier": 3,
-                    "category_id": 5,
-                    "is_lunch_spot": True,
+            if not has_lunch and candidate_restaurants:
+                existing_names = {
+                    p.get("name", "").lower() for day in repaired for p in day
                 }
+                available = [
+                    c
+                    for c in candidate_restaurants
+                    if c.get("name", "").lower() not in existing_names
+                ]
+                candidate = available[0] if available else candidate_restaurants[0]
+                lunch_spot = copy.deepcopy(candidate)
+                lunch_spot["is_lunch_spot"] = True
+                if not lunch_spot.get("open_time_mins_by_day"):
+                    lunch_spot["open_time_mins_by_day"] = [w_start] * 7
+                if not lunch_spot.get("close_time_mins_by_day"):
+                    lunch_spot["close_time_mins_by_day"] = [w_end] * 7
                 day_pois.append(lunch_spot)
                 modified = True
                 logger.info(
-                    f"--- [REPAIR] Injected lunch venue into Day {d_idx + 1} ---"
+                    f"--- [REPAIR] Injected dynamic restaurant '{lunch_spot.get('name')}' into Day {d_idx + 1} ---"
+                )
+            elif not has_lunch:
+                logger.warning(
+                    f"--- [REPAIR] MEAL_GAP on Day {d_idx + 1} could not be repaired: no dynamic restaurant candidates available. ---"
                 )
 
         # 2. Repair DAY_OVERLOADED: relocate lowest priority sight to an adjacent day
@@ -139,7 +136,58 @@ async def planner_repair_node(state: SwarmState, config: RunnableConfig) -> dict
     issues = state.get("critic_issues") or []
     iteration = state.get("refinement_iteration") or 0
 
-    repaired_pois, modified = apply_repairs(daily_pois, issues)
+    lunch_window = None
+    constraints_dict = state.get("validated_itinerary") or {}
+    meals = constraints_dict.get("meals") or []
+    for m in meals:
+        m_type = (
+            getattr(m, "meal_type", None)
+            or (m.get("meal_type") if isinstance(m, dict) else "")
+        ).upper()
+        if "LUNCH" in m_type:
+            st = getattr(m, "start_time", None) or (
+                m.get("start_time") if isinstance(m, dict) else None
+            )
+            et = getattr(m, "end_time", None) or (
+                m.get("end_time") if isinstance(m, dict) else None
+            )
+            if st and et:
+                from app.swarm.critic import _hhmm
+
+                s_mins = (
+                    _hhmm(str(st))
+                    if isinstance(st, str)
+                    else (st.hour * 60 + st.minute)
+                )
+                e_mins = (
+                    _hhmm(str(et))
+                    if isinstance(et, str)
+                    else (et.hour * 60 + et.minute)
+                )
+                lunch_window = (s_mins, e_mins)
+                break
+
+    candidate_restaurants = None
+    has_meal_gap = any(i.get("issue_type") == CriticIssueType.MEAL_GAP for i in issues)
+    if has_meal_gap:
+        city = constraints_dict.get("destination_city") or constraints_dict.get("city")
+        provider = (
+            config.get("configurable", {}).get("travel_data_provider")
+            if config and isinstance(config, dict)
+            else None
+        )
+        if provider and city:
+            try:
+                candidate_restaurants = await provider.get_restaurants(city=city)
+            except Exception as e:
+                logger.warning(f"Could not load dynamic restaurants for repair: {e}")
+
+    repaired_pois, modified = apply_repairs(
+        daily_pois,
+        issues,
+        candidate_restaurants=candidate_restaurants,
+        lunch_window=lunch_window,
+    )
     next_iteration = iteration + 1
 
     logger.info(

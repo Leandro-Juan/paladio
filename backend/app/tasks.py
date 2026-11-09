@@ -2119,6 +2119,7 @@ def derive_city_transit_task(
                 logger.error(f"Transit derivation failed for {city_lower}: {e}")
                 # Update derived_status to FAILED without altering active_build_id
                 try:
+                    await session.rollback()
                     q_cache = await session.execute(
                         select(TransitCacheModel).where(
                             TransitCacheModel.city == city_lower

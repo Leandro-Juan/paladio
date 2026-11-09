@@ -16,6 +16,7 @@ from app.engine.transit_matrix import haversine_distance
 from app.engine.candidate_pool import CandidatePoi
 from app.engine.exceptions import ItineraryInfeasible
 from app.engine.rhythm import RhythmProfile, get_meal_time_window
+from app.engine.selection import normalize_poi_name
 from app.engine.taxonomy import CANONICAL_CATEGORIES
 from app.schemas.itinerary import TravelConstraints
 
@@ -236,6 +237,15 @@ def _cand_to_meal_poi(cand: CandidatePoi | Poi, slot: str) -> Poi:
     )
 
 
+def _extract_base_venue_name(name: str) -> str:
+    """Strips slot suffixes and diacritics to obtain the canonical dining venue name."""
+    n = normalize_poi_name(name)
+    for suffix in (" (breakfast)", " (lunch)", " (dinner)"):
+        if n.endswith(suffix):
+            return n[: -len(suffix)].strip()
+    return n
+
+
 def snap_corridor_meals(
     day_itinerary: Itinerary,
     candidate_pool: Sequence[CandidatePoi | Poi],
@@ -244,6 +254,8 @@ def snap_corridor_meals(
     day_weekday: int = 0,
     depot_poi: Poi | None = None,
     constraints: TravelConstraints | None = None,
+    used_trip_poi_ids: set[str] | None = None,
+    used_trip_poi_names: set[str] | None = None,
 ) -> Itinerary:
     """Snaps virtual meal nodes to real dining POIs along the travel corridor.
 
@@ -276,6 +288,15 @@ def snap_corridor_meals(
         for step in day_itinerary.path
         if step.poi.id and not str(step.poi.id).startswith("virtual_meal_")
     }
+    used_poi_names = {
+        _extract_base_venue_name(step.poi.name)
+        for step in day_itinerary.path
+        if step.poi.name and not str(step.poi.id).startswith("virtual_meal_")
+    }
+    if used_trip_poi_ids:
+        used_poi_ids.update(used_trip_poi_ids)
+    if used_trip_poi_names:
+        used_poi_names.update(used_trip_poi_names)
 
     depot_lat = (
         depot_poi.location.latitude
@@ -373,7 +394,8 @@ def snap_corridor_meals(
 
         for cand in dining_candidates:
             c_id = str(getattr(cand, "id", "") or getattr(cand, "name", ""))
-            if c_id in used_poi_ids:
+            c_norm = _extract_base_venue_name(getattr(cand, "name", ""))
+            if c_id in used_poi_ids or c_norm in used_poi_names:
                 continue
 
             # Location check
@@ -426,11 +448,17 @@ def snap_corridor_meals(
                         if not window_open:
                             continue
                     else:
+                        slot_end = slot_window[1] if slot_window else target_arr + 120
+                        slot_start = slot_window[0] if slot_window else target_arr
                         if not (o_time == 0 and c_time in (0, 1440)) and (
-                            target_arr < o_time - 15
-                            or (target_arr + meal_duration) > c_time + 15
+                            c_time < slot_start + 30 or o_time > slot_end - 30
                         ):
                             continue  # Closed during meal time
+
+            if slot == "breakfast":
+                # Real breakfast venue must open in the morning (by 09:00 / 540m)
+                if o_time > 0 and o_time > 540:
+                    continue
 
             d_from_prev = haversine_distance(lat_prev, lon_prev, c_lat, c_lon)
             d_to_next = haversine_distance(c_lat, c_lon, lat_next, lon_next)
@@ -442,11 +470,17 @@ def snap_corridor_meals(
                     continue
                 d_to_hotel = haversine_distance(c_lat, c_lon, depot_lat, depot_lon)
                 dist_penalty = 10.0 * d_from_prev + 5.0 * d_to_hotel
+            elif slot == "breakfast":
+                # Breakfast: near hotel or on corridor to first daytime stop
+                d_from_hotel = haversine_distance(depot_lat, depot_lon, c_lat, c_lon)
+                if d_from_hotel > 2.5:
+                    continue
+                dist_penalty = 12.0 * d_from_hotel + 4.0 * d_to_next
             else:
                 # Lunch: corridor detour
-                if detour_km > 1.8 and d_from_prev > 2.2:
+                if detour_km > 0.85:
                     continue
-                dist_penalty = 15.0 * detour_km + 3.0 * d_from_prev + 3.0 * d_to_next
+                dist_penalty = 25.0 * detour_km + 4.0 * d_from_prev + 4.0 * d_to_next
 
             # Score computation
             base_taste = float(getattr(cand, "taste_score", 50.0) or 50.0)
@@ -477,6 +511,19 @@ def snap_corridor_meals(
             step.backup_poi = b_poi
             step.shortfall_notice = None
             used_poi_ids.add(str(p_poi.id))
+            base_p_name = _extract_base_venue_name(p_poi.name)
+            used_poi_names.add(base_p_name)
+            if used_trip_poi_ids is not None:
+                used_trip_poi_ids.add(str(primary_cand.id))
+                used_trip_poi_ids.add(str(p_poi.id))
+                if backup_cand:
+                    used_trip_poi_ids.add(str(backup_cand.id))
+                    if b_poi:
+                        used_trip_poi_ids.add(str(b_poi.id))
+            if used_trip_poi_names is not None:
+                used_trip_poi_names.add(base_p_name)
+                if backup_cand:
+                    used_trip_poi_names.add(_extract_base_venue_name(backup_cand.name))
 
             # Update transit legs (multimodal: transit speed if > 1.2km, pedestrian otherwise)
             d_in = scored_candidates[0][2]
@@ -535,13 +582,188 @@ def verify_day_schedule(
         else (_time_str_to_mins(path[0].scheduled_start) or 540)
     )
 
+    # 0. Enforce realistic evening sequencing: dinner should be after daytime cultural sights
+    temp_dinner_idx = None
+    for idx, step in enumerate(path):
+        p_name_l = step.poi.name.lower()
+        p_id_l = str(step.poi.id or "").lower()
+        if temp_dinner_idx is None and (
+            "dinner" in p_name_l
+            or "dinner" in p_id_l
+            or getattr(step.poi, "is_dinner_spot", False)
+        ):
+            temp_dinner_idx = idx
+
+    if temp_dinner_idx is not None and temp_dinner_idx < len(path) - 2:
+        # Check if daytime cultural sights/monuments are placed after dinner
+        has_daytime_sight_after = any(
+            not str(path[k].poi.id or "").startswith("virtual_meal_")
+            and path[k].poi.category
+            not in ("HOTEL", "DEPOT", "AIRPORT", "bar", "nightlife")
+            for k in range(temp_dinner_idx + 1, len(path) - 1)
+        )
+        if has_daytime_sight_after:
+            dinner_step = path.pop(temp_dinner_idx)
+            path.insert(len(path) - 1, dinner_step)
+            for k in range(1, len(path)):
+                p_prev = path[k - 1].poi
+                p_curr = path[k].poi
+                lat1 = p_prev.location.latitude if p_prev.location else 0.0
+                lon1 = p_prev.location.longitude if p_prev.location else 0.0
+                lat2 = p_curr.location.latitude if p_curr.location else 0.0
+                lon2 = p_curr.location.longitude if p_curr.location else 0.0
+                if lat1 and lon1 and lat2 and lon2:
+                    dist = haversine_distance(lat1, lon1, lat2, lon2)
+                    if dist > 1.2:
+                        dur_t = max(2, round(dist / 25.0 * 60 + 6))
+                        path[k].transit_from_previous = TransitLeg(
+                            duration_mins=dur_t, cost_eur=1.50, mode="transit"
+                        )
+                    else:
+                        dur_t = max(2, round(dist * 13.33))
+                        path[k].transit_from_previous = TransitLeg(
+                            duration_mins=dur_t, cost_eur=0.0, mode="pedestrian"
+                        )
+
+    # 0b. Enforce realistic morning sequencing: breakfast should precede daytime cultural visits
+    temp_b_idx = None
+    for idx, step in enumerate(path):
+        p_name_l = step.poi.name.lower()
+        p_id_l = str(step.poi.id or "").lower()
+        if temp_b_idx is None and (
+            "breakfast" in p_name_l
+            or "breakfast" in p_id_l
+            or getattr(step.poi, "is_breakfast_spot", False)
+        ):
+            temp_b_idx = idx
+
+    if temp_b_idx is not None and temp_b_idx > 1:
+        b_step = path.pop(temp_b_idx)
+        path.insert(1, b_step)
+        for k in range(1, len(path)):
+            p_prev = path[k - 1].poi
+            p_curr = path[k].poi
+            lat1 = p_prev.location.latitude if p_prev.location else 0.0
+            lon1 = p_prev.location.longitude if p_prev.location else 0.0
+            lat2 = p_curr.location.latitude if p_curr.location else 0.0
+            lon2 = p_curr.location.longitude if p_curr.location else 0.0
+            if lat1 and lon1 and lat2 and lon2:
+                dist = haversine_distance(lat1, lon1, lat2, lon2)
+                if dist > 1.2:
+                    dur_t = max(2, round(dist / 25.0 * 60 + 6))
+                    path[k].transit_from_previous = TransitLeg(
+                        duration_mins=dur_t, cost_eur=1.50, mode="transit"
+                    )
+                else:
+                    dur_t = max(2, round(dist * 13.33))
+                    path[k].transit_from_previous = TransitLeg(
+                        duration_mins=dur_t, cost_eur=0.0, mode="pedestrian"
+                    )
+
+    # 0c. Enforce realistic lunch sequencing: lunch must happen during midday (<= 15:30) and leave >= 180m before dinner
+    temp_b_idx = next(
+        (
+            i
+            for i, s in enumerate(path)
+            if "breakfast" in s.poi.name.lower()
+            or "breakfast" in str(s.poi.id or "").lower()
+            or getattr(s.poi, "is_breakfast_spot", False)
+        ),
+        None,
+    )
+    temp_l_idx = next(
+        (
+            i
+            for i, s in enumerate(path)
+            if "lunch" in s.poi.name.lower()
+            or "lunch" in str(s.poi.id or "").lower()
+            or getattr(s.poi, "is_lunch_spot", False)
+        ),
+        None,
+    )
+    temp_d_idx = next(
+        (
+            i
+            for i, s in enumerate(path)
+            if "dinner" in s.poi.name.lower()
+            or "dinner" in str(s.poi.id or "").lower()
+            or getattr(s.poi, "is_dinner_spot", False)
+        ),
+        None,
+    )
+
+    if temp_l_idx is not None and temp_d_idx is not None and temp_l_idx > 3:
+        sim_curr_t = first_start
+        for k in range(1, temp_l_idx + 1):
+            sim_curr_t += (
+                path[k].transit_from_previous.duration_mins
+                if path[k].transit_from_previous
+                else 0
+            )
+            o_k = (
+                path[k].poi.open_time_mins_by_day[day_weekday]
+                if day_weekday < len(path[k].poi.open_time_mins_by_day)
+                else 0
+            )
+            if o_k > 0 and o_k != -1 and sim_curr_t < o_k:
+                sim_curr_t = o_k
+            if k < temp_l_idx:
+                sim_curr_t += path[k].poi.duration_mins or 60
+
+        if sim_curr_t > 960:
+            min_slot = (temp_b_idx + 1) if temp_b_idx is not None else 1
+            max_slot = min(temp_d_idx - 1, len(path) - 2)
+            best_slot = None
+            best_detour = 1e9
+            l_step = path.pop(temp_l_idx)
+            for cand_slot in range(min_slot, max_slot + 1):
+                cand_path = list(path)
+                cand_path.insert(cand_slot, l_step)
+                t_d = 0.0
+                for idx_c in range(len(cand_path) - 1):
+                    p1, p2 = cand_path[idx_c].poi, cand_path[idx_c + 1].poi
+                    lat1 = p1.location.latitude if p1.location else 0.0
+                    lon1 = p1.location.longitude if p1.location else 0.0
+                    lat2 = p2.location.latitude if p2.location else 0.0
+                    lon2 = p2.location.longitude if p2.location else 0.0
+                    t_d += haversine_distance(lat1, lon1, lat2, lon2)
+                if t_d < best_detour:
+                    best_detour = t_d
+                    best_slot = cand_slot
+            path.insert(best_slot if best_slot is not None else min_slot, l_step)
+            for k in range(1, len(path)):
+                p_prev, p_curr = path[k - 1].poi, path[k].poi
+                lat1 = p_prev.location.latitude if p_prev.location else 0.0
+                lon1 = p_prev.location.longitude if p_prev.location else 0.0
+                lat2 = p_curr.location.latitude if p_curr.location else 0.0
+                lon2 = p_curr.location.longitude if p_curr.location else 0.0
+                if lat1 and lon1 and lat2 and lon2:
+                    dist = haversine_distance(lat1, lon1, lat2, lon2)
+                    dur_t = (
+                        max(2, round(dist / 25.0 * 60 + 6))
+                        if dist > 1.2
+                        else max(2, round(dist * 13.33))
+                    )
+                    path[k].transit_from_previous = TransitLeg(
+                        duration_mins=dur_t,
+                        cost_eur=1.50 if dist > 1.2 else 0.0,
+                        mode="transit" if dist > 1.2 else "pedestrian",
+                    )
+
     # 1. Identify key anchor meal indices
+    breakfast_idx: int | None = None
     lunch_idx: int | None = None
     dinner_idx: int | None = None
     for idx, step in enumerate(path):
         p_name_l = step.poi.name.lower()
         p_id_l = str(step.poi.id or "").lower()
-        if lunch_idx is None and (
+        if breakfast_idx is None and (
+            "breakfast" in p_name_l
+            or "breakfast" in p_id_l
+            or getattr(step.poi, "is_breakfast_spot", False)
+        ):
+            breakfast_idx = idx
+        elif lunch_idx is None and (
             "lunch" in p_name_l
             or "lunch" in p_id_l
             or getattr(step.poi, "is_lunch_spot", False)
@@ -554,25 +776,49 @@ def verify_day_schedule(
         ):
             dinner_idx = idx
 
+    # Enforce chronological ordering of meals
+    if (
+        breakfast_idx is not None
+        and lunch_idx is not None
+        and lunch_idx <= breakfast_idx
+    ):
+        raise ItineraryInfeasible(
+            "Schedule order violation: lunch cannot be scheduled before breakfast."
+        )
+    if lunch_idx is not None and dinner_idx is not None and dinner_idx <= lunch_idx:
+        raise ItineraryInfeasible(
+            "Schedule order violation: dinner cannot be scheduled before lunch."
+        )
+    if (
+        breakfast_idx is not None
+        and dinner_idx is not None
+        and dinner_idx <= breakfast_idx
+    ):
+        raise ItineraryInfeasible(
+            "Schedule order violation: dinner cannot be scheduled before breakfast."
+        )
+
+    b_win_start = rhythm.breakfast_window[0] if rhythm else 480
     l_win_start = rhythm.lunch_window[0] if rhythm else 780
     d_win_start = rhythm.dinner_window[0] if rhythm else 1170
 
     # 2. Build scheduling blocks: (start_idx, end_idx, target_floor)
     blocks: list[tuple[int, int, int | None]] = []
-    if lunch_idx is not None and lunch_idx > 0:
-        blocks.append((0, lunch_idx, l_win_start))
-        if dinner_idx is not None and dinner_idx > lunch_idx:
-            blocks.append((lunch_idx, dinner_idx, d_win_start))
-            if dinner_idx < len(path) - 1:
-                blocks.append((dinner_idx, len(path) - 1, None))
-        else:
-            if lunch_idx < len(path) - 1:
-                blocks.append((lunch_idx, len(path) - 1, None))
-    elif dinner_idx is not None and dinner_idx > 0:
-        blocks.append((0, dinner_idx, d_win_start))
-        if dinner_idx < len(path) - 1:
-            blocks.append((dinner_idx, len(path) - 1, None))
-    else:
+    prev_idx = 0
+    if breakfast_idx is not None and breakfast_idx > 0:
+        blocks.append((prev_idx, breakfast_idx, b_win_start))
+        prev_idx = breakfast_idx
+    if lunch_idx is not None and lunch_idx > prev_idx:
+        target_l = max(l_win_start, 750) if breakfast_idx is not None else l_win_start
+        blocks.append((prev_idx, lunch_idx, target_l))
+        prev_idx = lunch_idx
+    if dinner_idx is not None and dinner_idx > prev_idx:
+        target_d = max(d_win_start, 1170) if lunch_idx is not None else d_win_start
+        blocks.append((prev_idx, dinner_idx, target_d))
+        prev_idx = dinner_idx
+    if prev_idx < len(path) - 1:
+        blocks.append((prev_idx, len(path) - 1, None))
+    if not blocks:
         blocks.append((0, len(path) - 1, None))
 
     # Initialize start depot

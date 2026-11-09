@@ -203,15 +203,17 @@ def _select_anchor_seeds(
     return seeds
 
 
-def _is_intensive_museum(p: SelectedPoi) -> bool:
-    name_l = p.poi.name.lower()
-    cat_l = getattr(p.poi, "category", "").lower()
-    tax = getattr(p.poi, "taxonomy_category", "")
+def _is_intensive_museum(p: Any) -> bool:
+    poi = getattr(p, "poi", p)
+    name_l = getattr(poi, "name", "").lower()
+    cat_l = getattr(poi, "category", "").lower()
+    tax = getattr(poi, "taxonomy_category", "")
     is_museum_cat = (
         cat_l in ("museum", "gallery", "art_gallery") or tax == "art_culture"
     )
     has_museum_name = "museo" in name_l or "museum" in name_l or "musée" in name_l
-    return (is_museum_cat or has_museum_name) and p.effective_duration_mins >= 60
+    dur = getattr(p, "effective_duration_mins", getattr(poi, "duration_mins", 60))
+    return (is_museum_cat or has_museum_name) and dur >= 60
 
 
 def _calculate_insertion_cost(
@@ -665,10 +667,10 @@ def assign_pois_to_days(
 
     # 5. Populate zone surplus candidates (for full-day solver orienteering)
     if candidate_pool:
-        from app.engine.selection import SelectionReasonCode
+        from app.engine.selection import SelectionReasonCode, normalize_poi_name
 
         scheduled_ids = {p.poi.id for p in selected_pois}
-        scheduled_names = {p.poi.name.strip().lower() for p in selected_pois}
+        scheduled_names = {normalize_poi_name(p.poi.name) for p in selected_pois}
         claimed_surplus_ids: set[str] = set()
         claimed_surplus_names: set[str] = set()
 
@@ -682,10 +684,13 @@ def assign_pois_to_days(
             else:
                 d_lat, d_lon = 0.0, 0.0
 
+            # Count intensive museums already in this day to prevent museum burnout
+            current_day_museums = sum(1 for p in a_day.pois if _is_intensive_museum(p))
+
             nearby_candidates: list[tuple[float, Any]] = []
             for cp in candidate_pool:
                 cand_id = getattr(cp, "id", None) or getattr(cp, "name", "")
-                cand_name = getattr(cp, "name", "").strip().lower()
+                cand_name = normalize_poi_name(getattr(cp, "name", ""))
                 if (
                     cand_id in scheduled_ids
                     or cand_name in scheduled_names
@@ -694,6 +699,25 @@ def assign_pois_to_days(
                 ):
                     continue
                 if getattr(cp, "is_meal_spot", False):
+                    continue
+
+                # Filter transit
+                pid = str(cand_id or "")
+                pcat = str(getattr(cp, "category", "") or "").lower()
+                if pid.startswith("OSM-transit-") or pcat in (
+                    "transit",
+                    "metro",
+                    "train",
+                    "bus_stop",
+                    "tram",
+                    "subway",
+                    "station",
+                ):
+                    continue
+
+                # Anti-burnout: max 2 intensive museums per day
+                is_museum = _is_intensive_museum(cp)
+                if is_museum and current_day_museums >= 2:
                     continue
 
                 loc = getattr(cp, "location", {})
@@ -718,6 +742,9 @@ def assign_pois_to_days(
                         + (5 - tier) * 15.0
                         - (dist * 10.0)
                     )
+                    # Slight penalty if second museum
+                    if is_museum and current_day_museums == 1:
+                        score -= 20.0
                     nearby_candidates.append((score, cp))
 
             nearby_candidates.sort(key=lambda x: x[0], reverse=True)
@@ -732,9 +759,11 @@ def assign_pois_to_days(
             surplus_selected: list[SelectedPoi] = []
             for _, cand in top_surplus:
                 cand_id = getattr(cand, "id", None) or getattr(cand, "name", "")
-                cand_name = getattr(cand, "name", "").strip().lower()
+                cand_name = normalize_poi_name(getattr(cand, "name", ""))
                 claimed_surplus_ids.add(cand_id)
                 claimed_surplus_names.add(cand_name)
+                if _is_intensive_museum(cand):
+                    current_day_museums += 1
                 surplus_selected.append(
                     SelectedPoi(
                         poi=cand,

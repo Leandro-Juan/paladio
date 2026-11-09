@@ -182,11 +182,43 @@ def _poi_to_candidate(
             tax_cat = d_cat
             cat_id = d_id
 
+    meta_dict = (
+        poi.metadata
+        if isinstance(poi.metadata, dict)
+        else (poi.metadata.model_dump() if hasattr(poi.metadata, "model_dump") else {})
+    ) or {}
+    tags_dict = meta_dict.get("tags") if isinstance(meta_dict.get("tags"), dict) else {}
+    access_val = str(
+        tags_dict.get("access")
+        or meta_dict.get("access")
+        or (
+            meta_dict.get("osm", {}).get("access")
+            if isinstance(meta_dict.get("osm"), dict)
+            else ""
+        )
+        or ""
+    ).lower()
+    tourism_val = str(
+        tags_dict.get("tourism")
+        or meta_dict.get("tourism")
+        or (
+            meta_dict.get("osm", {}).get("tourism")
+            if isinstance(meta_dict.get("osm"), dict)
+            else ""
+        )
+        or ""
+    ).lower()
+    c_tier = (
+        4
+        if (access_val in ("private", "no", "military") or tourism_val == "no")
+        else poi.tier
+    )
+
     return CandidatePoi(
         id=str(poi.id or poi.name),
         name=poi.name,
         city=poi.city,
-        tier=poi.tier,
+        tier=c_tier,
         tier_confidence=poi.tier_confidence,
         tier_source=poi.tier_source,
         iconicity_score=poi.iconicity_score,
@@ -210,12 +242,38 @@ def _poi_to_candidate(
     )
 
 
+def _is_transit_poi(poi: Any) -> bool:
+    """Detects public transit stations, subway entrances, and transit nodes."""
+    pid = str(getattr(poi, "id", "") or "")
+    if pid.startswith("OSM-transit-"):
+        return True
+    cat = (getattr(poi, "category", "") or "").lower()
+    if cat in ("transit", "metro", "train", "bus_stop", "tram", "subway", "station"):
+        return True
+    meta = getattr(poi, "metadata", None)
+    if isinstance(meta, dict):
+        tags = meta.get("tags") if isinstance(meta.get("tags"), dict) else {}
+        if (
+            tags.get("railway") in ("subway_entrance", "stop", "station")
+            or tags.get("subway") == "yes"
+        ):
+            return True
+    return False
+
+
 def _add_or_update_pool(
     pool: dict[str, CandidatePoi],
     name_to_id: dict[str, str],
     cand: CandidatePoi,
 ) -> None:
-    norm_name = cand.name.strip().lower()
+    from app.engine.selection import normalize_poi_name
+    from app.engine.transit_matrix import haversine_distance
+
+    norm_name = normalize_poi_name(cand.name)
+    if not norm_name:
+        return
+
+    # 1. Exact normalized name match (e.g. Puerta de Alcalá vs Puerta de Alcala)
     if norm_name in name_to_id:
         existing_id = name_to_id[norm_name]
         existing = pool[existing_id]
@@ -229,9 +287,78 @@ def _add_or_update_pool(
             name_to_id[norm_name] = cand.id
         elif cand.taste_score > existing.taste_score:
             existing.taste_score = cand.taste_score
-    else:
-        pool[cand.id] = cand
-        name_to_id[norm_name] = cand.id
+        return
+
+    # 2. Near-duplicate spatial and token matching (e.g. Museo Reina Sofía vs Museo Nacional Centro de Arte Reina Sofía)
+    c_lat = cand.location.get("latitude") if isinstance(cand.location, dict) else 0.0
+    c_lon = cand.location.get("longitude") if isinstance(cand.location, dict) else 0.0
+    cand_tokens = set(norm_name.split()) - {
+        "de",
+        "del",
+        "el",
+        "la",
+        "los",
+        "las",
+        "y",
+        "en",
+        "museo",
+        "centro",
+        "arte",
+        "nacional",
+    }
+
+    if c_lat and c_lon:
+        for existing_id, existing in list(pool.items()):
+            e_lat = (
+                existing.location.get("latitude")
+                if isinstance(existing.location, dict)
+                else 0.0
+            )
+            e_lon = (
+                existing.location.get("longitude")
+                if isinstance(existing.location, dict)
+                else 0.0
+            )
+            if e_lat and e_lon:
+                dist = haversine_distance(c_lat, c_lon, e_lat, e_lon)
+                if dist <= 0.25:  # within 250 meters
+                    e_norm = normalize_poi_name(existing.name)
+                    e_tokens = set(e_norm.split()) - {
+                        "de",
+                        "del",
+                        "el",
+                        "la",
+                        "los",
+                        "las",
+                        "y",
+                        "en",
+                        "museo",
+                        "centro",
+                        "arte",
+                        "nacional",
+                    }
+                    if (
+                        cand_tokens
+                        and e_tokens
+                        and (
+                            cand_tokens == e_tokens
+                            or cand_tokens.issubset(e_tokens)
+                            or e_tokens.issubset(cand_tokens)
+                        )
+                    ):
+                        if cand.tier < existing.tier or (
+                            cand.tier == existing.tier
+                            and cand.iconicity_score > existing.iconicity_score
+                        ):
+                            del pool[existing_id]
+                            if e_norm in name_to_id:
+                                del name_to_id[e_norm]
+                            pool[cand.id] = cand
+                            name_to_id[norm_name] = cand.id
+                        return
+
+    pool[cand.id] = cand
+    name_to_id[norm_name] = cand.id
 
 
 async def build_candidate_pool(
@@ -249,10 +376,13 @@ async def build_candidate_pool(
     try:
         tiered_pois = await poi_repo.find_tiered_pois(city, max_tier=2)
         for p in tiered_pois:
+            if _is_transit_poi(p):
+                continue
             cand = _poi_to_candidate(p, constraints=constraints)
-            _add_or_update_pool(pool, name_to_id, cand)
+            if cand.tier <= 2:
+                _add_or_update_pool(pool, name_to_id, cand)
         logger.info(
-            f"Candidate pool seeded with {len(tiered_pois)} Tier 1 & 2 POIs for {city}."
+            f"Candidate pool seeded with {len(pool)} Tier 1 & 2 POIs for {city}."
         )
     except Exception as e:
         logger.warning(f"Could not load tiered POIs for {city}: {e}")
@@ -284,6 +414,8 @@ async def build_candidate_pool(
                 )
             semantic_hits = len(semantic_candidates)
             for poi, sim in semantic_candidates:
+                if _is_transit_poi(poi):
+                    continue
                 taste = compute_taste_score(
                     poi, constraints=constraints, base_similarity=sim
                 )
@@ -300,14 +432,17 @@ async def build_candidate_pool(
     # 2b. Deterministic fill when taste retrieval yields nothing (no user vector or not yet embedded).
     # Ranked by taste score (reflecting tag_affinities & travel_tastes) and iconicity.
     if semantic_hits == 0:
+        from app.engine.selection import normalize_poi_name
+
         city_pois = await poi_repo.find_by_city(city)
         fill = sorted(
             (
                 p
                 for p in city_pois
                 if (p.id or p.name) not in pool
-                and p.name.strip().lower() not in name_to_id
+                and normalize_poi_name(p.name) not in name_to_id
                 and not _is_meal_poi(p)
+                and not _is_transit_poi(p)
             ),
             key=lambda p: (
                 -compute_taste_score(p, constraints=constraints),

@@ -110,15 +110,7 @@ async def ticket_parser_node(state: dict) -> dict:
             return {"booking_anchors": deterministic.model_dump(mode="json")}
         anchors = BookingAnchors()
 
-    # Filter out the dummy 'XXX' segments if model hallucinates them
-    if anchors.outbound_flight and anchors.outbound_flight.origin_iata == "XXX":
-        anchors.outbound_flight = None
-    if anchors.return_flight and anchors.return_flight.origin_iata == "XXX":
-        anchors.return_flight = None
-    if anchors.hotel and anchors.hotel.name == "XXX":
-        anchors.hotel = None
-
-    # If LLM returned empty anchors but booking_text or raw_existing had valid data, fallback
+    # Fallback to existing anchors or deterministic parser if LLM extraction returned empty
     if not anchors.outbound_flight and not anchors.return_flight and not anchors.hotel:
         if raw_existing:
             logger.info(

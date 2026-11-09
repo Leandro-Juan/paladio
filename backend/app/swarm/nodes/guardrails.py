@@ -37,19 +37,21 @@ async def _find_overlapping_trip(
         from sqlalchemy.future import select
 
         async with async_session() as session:
-            stmt = select(TripModel)
+            stmt = select(TripModel).where(
+                TripModel.start_date <= end_date_str,
+                TripModel.end_date >= start_date_str,
+            )
             if user_id and user_id != "default_user":
                 stmt = stmt.where(TripModel.user_id == user_id)
-            result = await session.execute(stmt)
-            trips = result.scalars().all()
-            for t in trips:
-                if t.start_date <= end_date_str and t.end_date >= start_date_str:
-                    return {
-                        "id": str(t.id),
-                        "destination": t.destination,
-                        "start_date": t.start_date,
-                        "end_date": t.end_date,
-                    }
+            result = await session.execute(stmt.limit(1))
+            t = result.scalars().first()
+            if t:
+                return {
+                    "id": str(t.id),
+                    "destination": t.destination,
+                    "start_date": t.start_date,
+                    "end_date": t.end_date,
+                }
     except Exception as e:
         logger.warning(f"[GUARDRAILS] Could not query trip schedule from DB: {e}")
 

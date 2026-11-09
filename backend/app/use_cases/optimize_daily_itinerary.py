@@ -204,38 +204,6 @@ class OptimizeDailyItineraryUseCase:
                 except Exception as e:
                     logger.debug(f"Airport resolution fallback: {e}")
 
-        # Resolve Repository
-        repo = self.poi_repo
-        if repo is None:
-            flat_candidate_pois = []
-            if daily_pois_data:
-                for day in daily_pois_data:
-                    for p in day:
-                        if (
-                            isinstance(p, dict)
-                            and (p.get("category") or "").upper()
-                            not in ("HOTEL", "AIRPORT")
-                            or (
-                                isinstance(p, Poi)
-                                and p.category.upper() not in ("HOTEL", "AIRPORT")
-                            )
-                        ):
-                            flat_candidate_pois.append(p)
-
-            if flat_candidate_pois:
-                repo = InMemoryPoiRepository(flat_candidate_pois, city=city)
-            else:
-                from app.adapters.repositories.sql_poi_repository import (
-                    SqlPoiRepository,
-                )
-                from app.db.session import async_session
-                from app.engine.city_readiness import ensure_city_ready
-
-                async with async_session() as session:
-                    sql_repo = SqlPoiRepository(session)
-                    await ensure_city_ready(city, sql_repo)
-                    repo = sql_repo
-
         # Resolve Transit Matrix Function
         matrix_fn = self.transit_matrix_fn
         if matrix_fn is None:
@@ -252,17 +220,74 @@ class OptimizeDailyItineraryUseCase:
 
             matrix_fn = _default_matrix
 
-        # Execute Optimization Pipeline
-        v2_res: ItineraryResult = await run_itinerary_pipeline(
-            city=city,
-            constraints=constraints,
-            poi_repo=repo,
-            transit_matrix_fn=matrix_fn,
-            depot_poi=depot_poi,
-            outbound_flight=outbound,
-            return_flight=ret_flight,
-            user_vector=user_vector,
-        )
+        # Resolve Repository and Execute Optimization Pipeline
+        v2_res: ItineraryResult | None = None
+        if self.poi_repo is not None:
+            v2_res = await run_itinerary_pipeline(
+                city=city,
+                constraints=constraints,
+                poi_repo=self.poi_repo,
+                transit_matrix_fn=matrix_fn,
+                depot_poi=depot_poi,
+                outbound_flight=outbound,
+                return_flight=ret_flight,
+                user_vector=user_vector,
+            )
+        else:
+            try:
+                from app.adapters.repositories.sql_poi_repository import (
+                    SqlPoiRepository,
+                )
+                from app.db.session import async_session
+                from app.engine.city_readiness import ensure_city_ready
+
+                async with async_session() as session:
+                    sql_repo = SqlPoiRepository(session)
+                    await ensure_city_ready(city, sql_repo)
+                    tiered_check = await sql_repo.find_tiered_pois(city, max_tier=2)
+                    if tiered_check and len(tiered_check) >= 5:
+                        v2_res = await run_itinerary_pipeline(
+                            city=city,
+                            constraints=constraints,
+                            poi_repo=sql_repo,
+                            transit_matrix_fn=matrix_fn,
+                            depot_poi=depot_poi,
+                            outbound_flight=outbound,
+                            return_flight=ret_flight,
+                            user_vector=user_vector,
+                        )
+            except Exception as e:
+                logger.debug(
+                    f"Live SqlPoiRepository optimization skipped or failed: {e}"
+                )
+
+            if v2_res is None:
+                flat_candidate_pois = []
+                if daily_pois_data:
+                    for day in daily_pois_data:
+                        for p in day:
+                            if (
+                                isinstance(p, dict)
+                                and (p.get("category") or "").upper()
+                                not in ("HOTEL", "AIRPORT")
+                                or (
+                                    isinstance(p, Poi)
+                                    and p.category.upper() not in ("HOTEL", "AIRPORT")
+                                )
+                            ):
+                                flat_candidate_pois.append(p)
+
+                in_mem_repo = InMemoryPoiRepository(flat_candidate_pois, city=city)
+                v2_res = await run_itinerary_pipeline(
+                    city=city,
+                    constraints=constraints,
+                    poi_repo=in_mem_repo,
+                    transit_matrix_fn=matrix_fn,
+                    depot_poi=depot_poi,
+                    outbound_flight=outbound,
+                    return_flight=ret_flight,
+                    user_vector=user_vector,
+                )
 
         # Assemble Output
         multi_day_itinerary: list[dict[str, Any]] = []

@@ -179,18 +179,53 @@ def evaluate_itinerary_quality(
 
         # 2. Meal gap check on full sightseeing days
         if not is_edge and n_sights >= 3:
+            lunch_req = next(
+                (
+                    m
+                    for m in (constraints.meals or [])
+                    if "LUNCH"
+                    in (
+                        getattr(m, "meal_type", None)
+                        or (m.get("meal_type") if isinstance(m, dict) else "")
+                    ).upper()
+                ),
+                None,
+            )
+            if lunch_req:
+                st = getattr(lunch_req, "start_time", None) or (
+                    lunch_req.get("start_time") if isinstance(lunch_req, dict) else None
+                )
+                et = getattr(lunch_req, "end_time", None) or (
+                    lunch_req.get("end_time") if isinstance(lunch_req, dict) else None
+                )
+                l_start = (
+                    _hhmm(str(st))
+                    if isinstance(st, str)
+                    else (st.hour * 60 + st.minute if st else 11 * 60 + 30)
+                )
+                l_end = (
+                    _hhmm(str(et))
+                    if isinstance(et, str)
+                    else (et.hour * 60 + et.minute if et else 15 * 60)
+                )
+            else:
+                l_start = 11 * 60 + 30
+                l_end = 15 * 60
+
             lunches = [
                 m
                 for m in meals
-                if 11 * 60 + 30 <= _hhmm(m.get("scheduled_start", "12:00")) <= 15 * 60
+                if l_start <= _hhmm(m.get("scheduled_start", "12:00")) <= l_end
             ]
             if not lunches:
+                s_str = f"{l_start // 60:02d}:{l_start % 60:02d}"
+                e_str = f"{l_end // 60:02d}:{l_end % 60:02d}"
                 issues.append(
                     CriticIssue(
                         issue_type=CriticIssueType.MEAL_GAP,
                         day_index=d_idx,
                         severity=1.5,
-                        details=f"Day {d_idx + 1} has {n_sights} sights but no scheduled lunch between 11:30 and 15:00.",
+                        details=f"Day {d_idx + 1} has {n_sights} sights but no scheduled lunch between {s_str} and {e_str}.",
                     )
                 )
 

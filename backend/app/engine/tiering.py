@@ -22,7 +22,24 @@ def compute_unified_iconicity_raw(poi: dict[str, Any]) -> float:
     """
     meta = poi.get("metadata") if isinstance(poi.get("metadata"), dict) else {}
     sig = meta.get("osm") if isinstance(meta.get("osm"), dict) else {}
-    tags = meta.get("tags") if isinstance(meta.get("tags"), dict) else {}
+    tags = (
+        meta.get("tags")
+        if isinstance(meta.get("tags"), dict)
+        else (poi.get("tags") if isinstance(poi.get("tags"), dict) else {})
+    )
+
+    access_val = str(
+        tags.get("access")
+        or meta.get("access")
+        or sig.get("access")
+        or poi.get("access")
+        or ""
+    ).lower()
+    if (
+        access_val in ("private", "no", "military")
+        or str(tags.get("tourism") or "").lower() == "no"
+    ):
+        return 0.0
 
     osm_raw = float(sig.get("importance_raw") or poi.get("importance_raw") or 0.0)
     if osm_raw == 0.0 and tags:
@@ -78,6 +95,42 @@ def classify_poi_tier(
 
     Always dynamic and algorithmic for every city worldwide.
     """
+    name = poi.get("name", "")
+    category = poi.get("category", "")
+    metadata = poi.get("metadata") if isinstance(poi.get("metadata"), dict) else {}
+    sig = metadata.get("osm") if isinstance(metadata.get("osm"), dict) else {}
+    tags = (
+        metadata.get("tags")
+        if isinstance(metadata.get("tags"), dict)
+        else (poi.get("tags") if isinstance(poi.get("tags"), dict) else {})
+    )
+
+    access_val = str(
+        tags.get("access")
+        or metadata.get("access")
+        or sig.get("access")
+        or poi.get("access")
+        or ""
+    ).lower()
+    tourism_val = str(
+        tags.get("tourism")
+        or metadata.get("tourism")
+        or sig.get("tourism")
+        or poi.get("tourism")
+        or ""
+    ).lower()
+    if access_val in ("private", "no", "military") or tourism_val == "no":
+        tax_cat, cat_id = classify_poi_taxonomy(name, category, metadata)
+        return {
+            "tier": 4,
+            "tier_confidence": "high",
+            "tier_source": "access_restricted",
+            "iconicity_score": 0.05,
+            "taxonomy_category": tax_cat,
+            "category_id": cat_id,
+            "visit_mode": "quick",
+        }
+
     existing_tier = poi.get("tier")
     existing_iconicity = poi.get("iconicity_score")
     if (

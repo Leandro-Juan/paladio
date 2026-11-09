@@ -177,7 +177,13 @@ def build_cpp_pois(
                         cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration
                     )
                 elif "lunch" in name:
-                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, l_win[0])
+                    has_b = any(
+                        "breakfast" in p.poi.name.lower()
+                        or "desayuno" in p.poi.name.lower()
+                        for p in scored_pois
+                    )
+                    l_ear = max(l_win[0], 720) if has_b else l_win[0]
+                    cpp_poi.earliest_time = max(cpp_poi.earliest_time, l_ear)
                     cpp_poi.latest_time = min(cpp_poi.latest_time, l_win[1])
                     is_l = (
                         cpp_poi.latest_time >= cpp_poi.earliest_time + cpp_poi.duration

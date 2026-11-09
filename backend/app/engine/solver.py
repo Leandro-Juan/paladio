@@ -26,10 +26,12 @@ from app.engine.day_assignment import AssignedDay
 from app.engine.feasibility import probe_mandatory_feasibility
 from app.engine.transit_matrix import haversine_distance
 from app.engine.meals import (
+    _extract_base_venue_name,
     select_daily_meal_candidates,
     snap_corridor_meals,
     verify_day_schedule,
 )
+from app.engine.selection import normalize_poi_name
 from app.engine.rhythm import RhythmProfile
 from app.infrastructure.engine.struct_mapper import (
     build_cpp_pois,
@@ -120,6 +122,50 @@ def _two_opt_smooth_path(
             curr_m += dur
 
         if curr_m > assigned_day.end_time_mins + 15:
+            return False, 100000, []
+
+        b_idx, l_idx, d_idx = None, None, None
+        last_m_dep = -1
+        for step, u in enumerate(route):
+            p = all_pois[u]
+            p_name = p.name.lower()
+            is_b = (
+                "breakfast" in p_name
+                or getattr(p, "is_breakfast_spot", False)
+                or str(p.id or "").startswith("virtual_meal_breakfast")
+            )
+            is_l = (
+                "lunch" in p_name
+                or getattr(p, "is_lunch_spot", False)
+                or str(p.id or "").startswith("virtual_meal_lunch")
+            )
+            is_d = (
+                "dinner" in p_name
+                or getattr(p, "is_dinner_spot", False)
+                or str(p.id or "").startswith("virtual_meal_dinner")
+            )
+            if is_b:
+                b_idx = step
+                if arr_times[step] > 630:
+                    return False, 100000, []
+            if is_l:
+                l_idx = step
+                if arr_times[step] < 690 or arr_times[step] > 930:
+                    return False, 100000, []
+            if is_d:
+                d_idx = step
+                if arr_times[step] < 1140:
+                    return False, 100000, []
+            if is_b or is_l or is_d:
+                if last_m_dep > 0 and arr_times[step] - last_m_dep < 180:
+                    return False, 100000, []
+                last_m_dep = arr_times[step] + (all_pois[u].duration_mins or 60)
+
+        if b_idx is not None and l_idx is not None and b_idx > l_idx:
+            return False, 100000, []
+        if l_idx is not None and d_idx is not None and l_idx > d_idx:
+            return False, 100000, []
+        if b_idx is not None and d_idx is not None and b_idx > d_idx:
             return False, 100000, []
 
         return True, tot_travel, arr_times
@@ -219,6 +265,40 @@ def _smooth_post_snap_itinerary(
                 )
                 cand_dist = tour_dist(cand_indices)
                 if cand_dist < best_dist - 0.05:
+                    b_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "breakfast" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    l_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "lunch" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    d_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "dinner" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    if b_p is not None and l_p is not None and b_p > l_p:
+                        continue
+                    if l_p is not None and d_p is not None and l_p > d_p:
+                        continue
+                    if b_p is not None and d_p is not None and b_p > d_p:
+                        continue
+                    if b_p is not None and b_p > 1:
+                        continue
+                    if d_p is not None and d_p < len(cand_indices) - 2:
+                        continue
                     cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
                     cand_itin = Itinerary(
                         total_score=day_itinerary.total_score,
@@ -255,6 +335,40 @@ def _smooth_post_snap_itinerary(
                 cand_indices.insert(j, node)
                 cand_dist = tour_dist(cand_indices)
                 if cand_dist < best_dist - 0.05:
+                    b_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "breakfast" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    l_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "lunch" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    d_p = next(
+                        (
+                            pos
+                            for pos, k in enumerate(cand_indices)
+                            if "dinner" in path[k].poi.name.lower()
+                        ),
+                        None,
+                    )
+                    if b_p is not None and l_p is not None and b_p > l_p:
+                        continue
+                    if l_p is not None and d_p is not None and l_p > d_p:
+                        continue
+                    if b_p is not None and d_p is not None and b_p > d_p:
+                        continue
+                    if b_p is not None and b_p > 1:
+                        continue
+                    if d_p is not None and d_p < len(cand_indices) - 2:
+                        continue
                     cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
                     cand_itin = Itinerary(
                         total_score=day_itinerary.total_score,
@@ -302,6 +416,8 @@ async def solve_day_v2(
     max_nodes_expanded: int = 50000,
     timeout_ms: int = 500,
     rhythm: RhythmProfile | None = None,
+    used_trip_meal_ids: set[str] | None = None,
+    used_trip_meal_names: set[str] | None = None,
 ) -> DaySolveResult:
     """Solves a single calendar day deterministically using paladio_core."""
     # 1. Gather committed POIs
@@ -479,14 +595,19 @@ async def solve_day_v2(
         and assigned_day.start_time_mins <= l_win[1] - 30
         and assigned_day.end_time_mins >= l_win[0] + 60
     ):
+        l_start = max(l_win[0], 720) if "breakfast" in slots else l_win[0]
+        l_end = min(l_win[1], 900)
+        if l_end <= l_start:
+            l_end = min(l_win[1], 930)
+            l_start = min(l_start, l_end - 60)
         virtual_lunch = Poi(
             id="virtual_meal_lunch",
             name="Lunch Break (Virtual)",
             city=city,
             category="RESTAURANT",
             location=PoiLocation(latitude=anchor_lat, longitude=anchor_lon),
-            open_time_mins_by_day=[l_win[0]] * 7,
-            close_time_mins_by_day=[l_win[1]] * 7,
+            open_time_mins_by_day=[l_start] * 7,
+            close_time_mins_by_day=[l_end] * 7,
             duration_mins=60,
             cost_eur=0.0,
             tier=1,
@@ -502,14 +623,18 @@ async def solve_day_v2(
         and assigned_day.start_time_mins <= d_win[1] - 30
         and assigned_day.end_time_mins >= d_win[0] + 60
     ):
+        d_start = max(d_win[0], assigned_day.end_time_mins - 180)
+        d_end = min(d_win[1], assigned_day.end_time_mins - 15)
+        if d_end <= d_start:
+            d_start, d_end = d_win[0], d_win[1]
         virtual_dinner = Poi(
             id="virtual_meal_dinner",
             name="Dinner Break (Virtual)",
             city=city,
             category="RESTAURANT",
             location=PoiLocation(latitude=anchor_lat, longitude=anchor_lon),
-            open_time_mins_by_day=[d_win[0]] * 7,
-            close_time_mins_by_day=[d_win[1]] * 7,
+            open_time_mins_by_day=[d_start] * 7,
+            close_time_mins_by_day=[d_end] * 7,
             duration_mins=90,
             cost_eur=0.0,
             tier=1,
@@ -557,7 +682,7 @@ async def solve_day_v2(
     unique_mid_pois: list[Poi] = []
     seen_names: set[str] = set()
     for p in committed_entities + trimmed_surplus + meal_nodes:
-        norm_name = p.name.strip().lower()
+        norm_name = normalize_poi_name(p.name)
         if norm_name not in seen_names:
             seen_names.add(norm_name)
             unique_mid_pois.append(p)
@@ -755,6 +880,8 @@ async def solve_day_v2(
         day_weekday=assigned_day.weekday,
         depot_poi=depot_poi,
         constraints=constraints,
+        used_trip_poi_ids=used_trip_meal_ids,
+        used_trip_poi_names=used_trip_meal_names,
     )
     day_itin = verify_day_schedule(
         day_itinerary=day_itin,
@@ -769,6 +896,19 @@ async def solve_day_v2(
         assigned_day=assigned_day,
         rhythm=rhythm,
     )
+
+    if used_trip_meal_names is not None:
+        for step in day_itin.path:
+            name_l = step.poi.name.lower()
+            id_str = str(step.poi.id or "").lower()
+            if any(
+                slot in name_l or slot in id_str
+                for slot in ("breakfast", "lunch", "dinner")
+            ) or step.poi.category in ("RESTAURANT", "BAR", "CAFE"):
+                base_n = _extract_base_venue_name(step.poi.name)
+                used_trip_meal_names.add(base_n)
+                if used_trip_meal_ids is not None and step.poi.id:
+                    used_trip_meal_ids.add(str(step.poi.id))
 
     scheduled_names = {
         step.poi.name
@@ -810,6 +950,8 @@ async def solve_trip_v2(
 ) -> list[DaySolveResult]:
     """Solves all trip days with dynamic slack redistribution across consecutive days."""
     results: list[DaySolveResult] = []
+    used_trip_meal_ids: set[str] = set()
+    used_trip_meal_names: set[str] = set()
     for i, day in enumerate(assigned_days):
         day_res = await solve_day_v2(
             assigned_day=day,
@@ -820,6 +962,8 @@ async def solve_trip_v2(
             transit_matrix_fn=transit_matrix_fn,
             max_nodes_expanded=max_nodes_expanded,
             rhythm=rhythm,
+            used_trip_meal_ids=used_trip_meal_ids,
+            used_trip_meal_names=used_trip_meal_names,
         )
         results.append(day_res)
 
