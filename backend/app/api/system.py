@@ -9,6 +9,8 @@ from app.services.llm_service import (
     SUPPORTED_PROVIDERS,
     mask_api_key,
 )
+from app.services.settings_service import SettingsService
+from app.schemas.settings import DOMAIN_CONFIG_MAP
 from app.services.updater_service import UpdaterService
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -228,3 +230,50 @@ async def test_llm_connection(
             "provider": payload.provider,
             "model": payload.model,
         }
+
+
+@router.get("/settings/{domain}")
+async def get_domain_settings(
+    domain: str,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Retrieve system settings for a specific domain (engine, swarm, vault)."""
+    if domain not in DOMAIN_CONFIG_MAP:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Domain '{domain}' not found. Valid domains: {list(DOMAIN_CONFIG_MAP.keys())}",
+        )
+    try:
+        data = await SettingsService.get_domain_settings(session, domain)
+        return {"status": "success", "domain": domain, "config": data}
+    except Exception as e:
+        logger.exception(f"Failed to fetch domain settings for '{domain}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load settings: {e}",
+        )
+
+
+@router.post("/settings/{domain}")
+async def update_domain_settings(
+    domain: str,
+    payload: dict[str, Any],
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Update system settings for a domain (engine, swarm, vault)."""
+    if domain not in DOMAIN_CONFIG_MAP:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Domain '{domain}' not found. Valid domains: {list(DOMAIN_CONFIG_MAP.keys())}",
+        )
+    try:
+        updated = await SettingsService.update_domain_settings(session, domain, payload)
+        return {"status": "success", "domain": domain, "config": updated}
+    except Exception as e:
+        logger.exception(f"Failed to update domain settings for '{domain}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update settings: {e}",
+        )

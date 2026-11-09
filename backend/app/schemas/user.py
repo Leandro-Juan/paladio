@@ -44,6 +44,22 @@ class UserPreferences(BaseModel):
     disliked_tags: list[str] = Field(default_factory=list)
     default_currency: str = "EUR"
     preferred_language: str = "en"
+    map_preferences: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "default_tile_layer": "carto_dark",
+            "show_transit_lines": True,
+            "default_home_city": None,
+        }
+    )
+    units_preferences: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "distance_unit": "km",
+            "temperature_unit": "c",
+            "time_format": "24h",
+            "date_format": "YYYY-MM-DD",
+        }
+    )
+    solver_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
 def get_default_user_preferences() -> dict[str, Any]:
