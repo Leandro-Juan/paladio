@@ -198,7 +198,9 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
                 prompt = content.strip()
                 break
 
-    plan_mode = manual.get("plan_mode", "real")
+    plan_mode = manual.get("plan_mode")
+    if not plan_mode:
+        plan_mode = "estimated" if state.get("test_mode") else "real"
 
     constraints = TravelConstraints(
         origin_city=origin_city,

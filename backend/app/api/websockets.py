@@ -84,6 +84,16 @@ async def websocket_endpoint(websocket: WebSocket):
 
     writer = asyncio.create_task(writer_task())
 
+    async def heartbeat_task():
+        try:
+            while True:
+                await asyncio.sleep(15)
+                await outbound_queue.put({"event": "HEARTBEAT", "status": "ping"})
+        except asyncio.CancelledError:
+            pass
+
+    heartbeat = asyncio.create_task(heartbeat_task())
+
     async def redis_subscriber():
         try:
             import redis.asyncio as aioredis
@@ -185,6 +195,7 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception:
             pass
     finally:
+        heartbeat.cancel()
         writer.cancel()
         redis_task.cancel()
         for t in stream_tasks:

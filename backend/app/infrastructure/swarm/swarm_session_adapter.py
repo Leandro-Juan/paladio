@@ -133,6 +133,58 @@ class SwarmSessionAdapter(ISwarmSession):
         if "booking_text" in data:
             initial_state["booking_text"] = data["booking_text"]
 
+        # Populate booking anchors from explicit parameters (hotel, flights, or direct booking_anchors)
+        booking_anchors = None
+        if "booking_anchors" in data and isinstance(data["booking_anchors"], dict):
+            booking_anchors = data["booking_anchors"]
+        else:
+            anchors_dict = {}
+            if (
+                "hotel" in data
+                and isinstance(data["hotel"], dict)
+                and data["hotel"].get("name")
+            ):
+                h = data["hotel"]
+                dest_city = data.get("destination_city") or "Unknown"
+                anchors_dict["hotel"] = {
+                    "name": h["name"],
+                    "address": h.get("address"),
+                    "city": dest_city,
+                    "check_in_date": data.get("start_date"),
+                    "check_in_time": h.get("check_in_time", "15:00"),
+                    "check_out_date": data.get("end_date"),
+                    "check_out_time": h.get("check_out_time", "11:00"),
+                }
+
+            origin_iata = data.get("origin_iata")
+            dest_iata = data.get("destination_iata")
+            start_date = data.get("start_date")
+            end_date = data.get("end_date")
+            dep_hour = data.get("departure_hour", "10:00")
+            arr_hour = data.get("arrival_hour", "18:00")
+
+            if origin_iata and dest_iata and start_date:
+                anchors_dict["outbound_flight"] = {
+                    "origin_iata": origin_iata,
+                    "destination_iata": dest_iata,
+                    "departure_time": f"{start_date} {dep_hour}",
+                }
+            if origin_iata and dest_iata and end_date:
+                anchors_dict["return_flight"] = {
+                    "origin_iata": dest_iata,
+                    "destination_iata": origin_iata,
+                    "departure_time": f"{end_date} {arr_hour}",
+                }
+
+            if anchors_dict:
+                booking_anchors = anchors_dict
+
+        if booking_anchors:
+            initial_state["booking_anchors"] = booking_anchors
+
+        if "auto_verify" in data:
+            initial_state["auto_verify"] = bool(data["auto_verify"])
+
         if manual_constraints:
             initial_state["manual_constraints"] = manual_constraints
 

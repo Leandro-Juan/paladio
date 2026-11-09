@@ -12,6 +12,13 @@ logger = logging.getLogger(__name__)
 
 def get_prompt_model():
     model_override = os.getenv("PROMPT_ANALYSIS_MODEL")
+    active_cfg = LLMService._cached_config or LLMService.get_fallback_config()
+    if (
+        model_override
+        and model_override.startswith("ollama:")
+        and active_cfg.provider != "ollama"
+    ):
+        model_override = None
     return LLMService.get_model(model_name=model_override)
 
 

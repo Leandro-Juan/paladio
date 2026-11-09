@@ -17,8 +17,6 @@ services:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://llm:11434
-      - VALIDATOR_MODEL=ollama:qwen2.5:3b
-      - TICKET_PARSER_MODEL=ollama:qwen2.5:3b
       - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
     depends_on:

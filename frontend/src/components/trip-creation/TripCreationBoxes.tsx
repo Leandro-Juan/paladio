@@ -7,8 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MealRequirement } from '@/types/domain';
 import {
   PinIcon,
-  PlaneIcon,
-  HotelIcon,
   Spinner,
   CheckIcon,
   SettingsIcon,
@@ -33,9 +31,13 @@ import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
 import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager';
 import { PhotoUploadModal } from './PhotoUploadModal';
+import { ModelSelectorPopover } from '@/components/trip-agent/ModelSelectorPopover';
+import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse } from '@/utils/api';
+import { notify } from '@/utils/notify';
 
 interface TripCreationBoxesProps {
   onPersonalizedSubmit: (prompt: string, extras: Record<string, unknown>) => void;
+  onBlankSubmitStart?: (msg?: string) => void;
   disabled?: boolean;
   initialDestination?: string;
   initialOrigin?: string;
@@ -43,16 +45,12 @@ interface TripCreationBoxesProps {
   initialEndDate?: string;
   initialBudget?: number;
   status?: string;
+  onReconnect?: () => void;
 }
-
-const formatDateOffset = (offsetDays: number): string => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split('T')[0];
-};
 
 export function TripCreationBoxes({
   onPersonalizedSubmit,
+  onBlankSubmitStart,
   disabled = false,
   initialDestination = '',
   initialOrigin = '',
@@ -60,6 +58,7 @@ export function TripCreationBoxes({
   initialEndDate,
   initialBudget = 1500,
   status = 'connected',
+  onReconnect,
 }: TripCreationBoxesProps) {
   const router = useRouter();
   const { saveTrip } = useTrips();
@@ -130,6 +129,48 @@ export function TripCreationBoxes({
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const [blankError, setBlankError] = useState<string | null>(null);
   const [blankSuccess, setBlankSuccess] = useState<string | null>(null);
+
+  // Swarm LLM Model Selector state
+  const [llmConfig, setLlmConfig] = useState<LLMConfigResponse | null>(null);
+  const [isModelSwitcherOpen, setIsModelSwitcherOpen] = useState(false);
+  const [isSwitchingModel, setIsSwitchingModel] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchLlmConfigApi()
+      .then((cfg) => {
+        if (active && cfg) {
+          setLlmConfig(cfg);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSwitchModel = async (provider: string, model: string) => {
+    setIsSwitchingModel(true);
+    try {
+      const res = await updateLlmConfigApi({ provider, model });
+      if (res.status === 'success') {
+        setLlmConfig((prev) => ({
+          ...prev,
+          ...res.config,
+          supported_providers: res.config.supported_providers || prev?.supported_providers || {},
+          configured_providers: res.config.configured_providers || prev?.configured_providers || {},
+        }));
+        const provName = res.config.supported_providers?.[res.config.provider]?.name || res.config.provider;
+        notify.success('Swarm LLM Switched', `Active model: ${model} (${provName})`);
+        setIsModelSwitcherOpen(false);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to switch LLM engine';
+      notify.error('Switch Failed', msg);
+    } finally {
+      setIsSwitchingModel(false);
+    }
+  };
 
   // Setters delegating to persistent draft store
   const setSelectedMode = (mode: 'personalized' | 'blank') => updateDraft({ selectedMode: mode });
@@ -362,6 +403,7 @@ export function TripCreationBoxes({
     }
     setBlankError(null);
     setIsCreatingBlank(true);
+    onBlankSubmitStart?.('Creating blank trip workspace...');
 
     try {
       const start = new Date(startDate);
@@ -485,7 +527,11 @@ export function TripCreationBoxes({
     setBlankError(null);
 
     const extras: Record<string, unknown> = {
+      auto_verify: true,
       test_mode: anchorMode === 'simulated',
+      plan_mode: 'estimated',
+      llm_provider: llmConfig?.provider,
+      llm_model: llmConfig?.model,
       title: tripTitle.trim() || `Trip to ${destination.trim()}`,
       description: tripDescription.trim() || undefined,
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
@@ -520,6 +566,7 @@ export function TripCreationBoxes({
         check_out_time: hotelCheckOutHour || '11:00',
       } : undefined,
       manual_constraints: {
+        plan_mode: 'estimated',
         title: tripTitle.trim() || `Trip to ${destination.trim()}`,
         description: tripDescription.trim() || undefined,
         origin_city: origin.trim() || undefined,
@@ -646,39 +693,81 @@ export function TripCreationBoxes({
             </button>
           </div>
 
-          {/* Upload Documents Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setIsDocModalOpen(true)}
-            disabled={disabled}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 16px',
-              borderRadius: '9999px',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface-raised, #FFFFFF)',
-              color: 'var(--color-text-primary)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-accent-primary, #0F4C5C)';
-              e.currentTarget.style.color = 'var(--color-accent-primary, #0F4C5C)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-border)';
-              e.currentTarget.style.color = 'var(--color-text-primary)';
-            }}
-          >
-            <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-            <span>Upload Documents</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Swarm Model Selector Button */}
+            <button
+              type="button"
+              onClick={() => setIsModelSwitcherOpen(true)}
+              title="Switch AI model used by LangGraph swarm solver"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-raised, #FFFFFF)',
+                color: 'var(--color-text-primary)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-accent-primary, #0F4C5C)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981' }} />
+              <span style={{ color: 'var(--color-text-primary)' }}>
+                {llmConfig?.model ? (llmConfig.model.split('/').pop()?.split(':')[0] || llmConfig.model) : 'gpt-oss-120b'}
+              </span>
+              <span style={{ opacity: 0.55, fontSize: '10px', textTransform: 'uppercase' }}>
+                {llmConfig?.provider || 'groq'}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {/* Upload Documents Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setIsDocModalOpen(true)}
+              disabled={disabled}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 16px',
+                borderRadius: '9999px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-raised, #FFFFFF)',
+                color: 'var(--color-text-primary)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-accent-primary, #0F4C5C)';
+                e.currentTarget.style.color = 'var(--color-accent-primary, #0F4C5C)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-primary)';
+              }}
+            >
+              <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+              <span>Upload Documents</span>
+            </button>
+          </div>
         </div>
 
         {/* ================= SIDE-BY-SIDE MAIN WORKSPACE ================= */}
@@ -1165,6 +1254,42 @@ export function TripCreationBoxes({
 
             {/* Submit Action Button */}
             <div>
+              {status === 'disconnected' && selectedMode === 'personalized' && (
+                <div
+                  style={{
+                    marginBottom: '10px',
+                    padding: '8px 14px',
+                    background: 'rgba(217, 119, 6, 0.08)',
+                    border: '1px solid rgba(217, 119, 6, 0.25)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--color-accent-warning, #D97706)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>Gateway uplink offline (auto-reconnecting...)</span>
+                  {onReconnect && (
+                    <button
+                      type="button"
+                      onClick={onReconnect}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--color-accent-warning, #D97706)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Retry Now
+                    </button>
+                  )}
+                </div>
+              )}
               {selectedMode === 'personalized' ? (
                 <button
                   type="button"
@@ -1263,7 +1388,37 @@ export function TripCreationBoxes({
               <span className="font-mono text-xs text-muted" style={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                 INTENT, CONSTRAINTS & PREFERENCES (LLM SWARM SOLVER)
               </span>
-              <span className="font-mono text-xs text-muted">NATURAL LANGUAGE</span>
+              <button
+                type="button"
+                onClick={() => setIsModelSwitcherOpen(true)}
+                title="Switch AI model for swarm solver"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  color: 'var(--color-accent-primary, #0F4C5C)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  transition: 'opacity 0.15s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                <span>{llmConfig?.model ? (llmConfig.model.split('/').pop()?.split(':')[0] || llmConfig.model) : 'gpt-oss-120b'}</span>
+                <span style={{ opacity: 0.6, fontSize: '10px', textTransform: 'uppercase' }}>
+                  ({llmConfig?.provider || 'groq'})
+                </span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
             </div>
             <textarea
               rows={2}
@@ -1339,6 +1494,18 @@ export function TripCreationBoxes({
         onExtracted={handleExtracted}
         disabled={disabled}
       />
+
+      {/* LLM Swarm Model Selector Popover */}
+      <ModelSelectorPopover
+        isOpen={isModelSwitcherOpen}
+        onClose={() => setIsModelSwitcherOpen(false)}
+        llmConfig={llmConfig}
+        currentProvider={llmConfig?.provider || 'groq'}
+        currentModel={llmConfig?.model || ''}
+        onSelectModel={handleSwitchModel}
+        isSwitching={isSwitchingModel}
+      />
     </div>
   );
 }
+

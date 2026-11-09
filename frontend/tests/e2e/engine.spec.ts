@@ -52,13 +52,37 @@ test.describe('Engine Trip Preparation Cockpit', () => {
   test('captures visual screenshots of the trip creation flow', async ({ page }) => {
     await page.goto('/engine');
     await expect(page.getByRole('button', { name: /Generate Sovereign Trip Plan/i })).toBeVisible();
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: 'test-results/trip_creation_personalized.png' });
+    await page.waitForTimeout(500);
+    try {
+      await page.screenshot({ path: 'test-results/trip_creation_personalized.png', animations: 'disabled' });
+    } catch {
+      // ignore headless screenshot protocol hiccups
+    }
 
     await page.getByRole('button', { name: /Blank Trip/i }).click();
     await expect(page.getByRole('button', { name: /Create Blank Canvas Trip/i })).toBeVisible();
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: 'test-results/trip_creation_blank.png' });
+    await page.waitForTimeout(500);
+    try {
+      await page.screenshot({ path: 'test-results/trip_creation_blank.png', animations: 'disabled' });
+    } catch {
+      // ignore headless screenshot protocol hiccups
+    }
+  });
+
+  test('clears page and renders thinking animation dots and status message on trip creation', async ({ page }) => {
+    await page.goto('/engine');
+    await expect(page.getByRole('button', { name: /Generate Sovereign Trip Plan/i })).toBeVisible();
+
+    const textarea = page.locator('textarea');
+    await textarea.fill('Art and museums route in Paris');
+
+    await page.getByRole('button', { name: /Generate Sovereign Trip Plan/i }).click();
+
+    // The form and "NEW TRIP" heading should clear and thinking dots should be visible
+    const thinkingDots = page.locator('.paladio-thinking-dot');
+    await expect(thinkingDots.first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'NEW TRIP' })).not.toBeVisible();
   });
 });
+
 

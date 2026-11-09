@@ -96,6 +96,7 @@ export interface SocketContextProps {
   itinerary: OptimizationResult | null;
   missingFields: string[];
   verificationPayload: VerificationPayload | null;
+  clearVerification: () => void;
   overlapWarning: OverlapWarningPayload | null;
   clearOverlapWarning: () => void;
   guardrailAbort: GuardrailAbortPayload | null;
@@ -155,14 +156,30 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [verificationPayload, setVerificationPayload] = useState<VerificationPayload | null>(null);
+  const clearVerification = useCallback(() => {
+    setVerificationPayload(null);
+    setMissingFields([]);
+    setStatus('connected');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('paladio_missing');
+    }
+  }, []);
   const [overlapWarning, setOverlapWarning] = useState<OverlapWarningPayload | null>(null);
   const clearOverlapWarning = useCallback(() => setOverlapWarning(null), []);
   const [guardrailAbort, setGuardrailAbort] = useState<GuardrailAbortPayload | null>(null);
   const clearGuardrailAbort = useCallback(() => setGuardrailAbort(null), []);
   
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const threadIdRef = useRef<string>('');
   const hasNotifiedItineraryRef = useRef<boolean>(false);
+  const verificationPayloadRef = useRef<VerificationPayload | null>(null);
+  const connectRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    verificationPayloadRef.current = verificationPayload;
+  }, [verificationPayload]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -456,6 +473,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       }
+      case 'HEARTBEAT':
+        // Periodic keepalive from gateway; ignore to prevent log pollution
+        break;
       case 'DONE':
         setStatus('connected');
         addLog('> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.');
@@ -465,8 +485,19 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [addLog]);
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    clearReconnectTimer();
 
     const wsBase = getWsBaseUrl();
     const token = getAuthToken();
@@ -478,7 +509,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
-      setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'connected');
+      clearReconnectTimer();
+      setStatus(prev => (prev === 'awaiting_input' && verificationPayloadRef.current) ? 'awaiting_input' : (prev === 'inferencing' ? 'inferencing' : 'connected'));
       addLog('> [NETWORK] UPLINK ESTABLISHED WITH PALADIO GATEWAY.');
       
       ws.send(JSON.stringify({
@@ -499,9 +531,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     ws.onclose = (event) => {
       if (wsRef.current !== ws) return;
-      setStatus(prev => prev === 'awaiting_input' ? 'awaiting_input' : 'disconnected');
+      wsRef.current = null;
+      setStatus(prev => (prev === 'awaiting_input' || prev === 'inferencing') ? prev : 'disconnected');
       if (event.code !== 1000) {
         addLog(`> [NETWORK] UPLINK LOST. (CODE: ${event.code})`);
+        // Auto-reconnect with 2.5s delay
+        clearReconnectTimer();
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectTimerRef.current = null;
+          connectRef.current();
+        }, 2500);
       }
     };
 
@@ -509,20 +548,42 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return;
       setStatus('error');
       addLog('> [ERROR] WEBSOCKET CONNECTION FAILED.');
+      // Auto-reconnect with 2.5s delay
+      clearReconnectTimer();
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        connectRef.current();
+      }, 2500);
     };
-  }, [addLog, handleEvent]);
+  }, [addLog, handleEvent, clearReconnectTimer]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
+    clearReconnectTimer();
     if (wsRef.current) {
       const socket = wsRef.current;
       wsRef.current = null;
       socket.close(1000);
     }
-  }, []);
+  }, [clearReconnectTimer]);
 
   useEffect(() => {
     connect();
-    return () => disconnect();
+
+    const handleOnline = () => {
+      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+        connect();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      disconnect();
+    };
   }, [connect, disconnect]);
 
   const sendMessage = useCallback((message: string, payloadExtras?: Record<string, unknown>) => {
@@ -605,6 +666,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       itinerary,
       missingFields,
       verificationPayload,
+      clearVerification,
       overlapWarning,
       clearOverlapWarning,
       guardrailAbort,

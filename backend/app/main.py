@@ -65,6 +65,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not initialize catalog from DB on startup: {e}")
 
+    # Dynamically initialize active LLM configuration from PostgreSQL
+    try:
+        from app.db.session import async_session
+        from app.services.llm_service import LLMService
+
+        async with async_session() as db_session:
+            active_llm_cfg = await LLMService.get_config_from_db(db_session)
+        logger.info(
+            f"Dynamically initialized LLM Service: {active_llm_cfg.provider} / {active_llm_cfg.model}"
+        )
+    except Exception as e:
+        logger.warning(
+            f"Could not initialize LLM configuration from DB on startup: {e}"
+        )
+
     yield
     # Cleanup here
     logger.info("Shutting down Semantic Gateway...")
