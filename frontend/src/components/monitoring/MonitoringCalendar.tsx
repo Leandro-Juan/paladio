@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { RouteCalendar, CalendarDay, LodgingSummary } from '@/hooks/useRouteMonitoring';
 import { PlaneIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { useTrips, Trip } from '@/hooks/useTrips';
 import styles from './MonitoringCalendar.module.css';
 
 interface MonitoringCalendarProps {
@@ -39,6 +40,26 @@ export function MonitoringCalendar({
   );
   const [isFetchingLodging, setIsFetchingLodging] = useState<boolean>(false);
   const [dayLodgingMap, setDayLodgingMap] = useState<Record<string, LodgingSummary>>({});
+
+  // Existing trips from database
+  const { trips: fetchedTrips } = useTrips();
+  const validTrips = useMemo(() => {
+    return (fetchedTrips || []).filter((t) => t.start_date && t.end_date);
+  }, [fetchedTrips]);
+
+  const getTripForDate = (dateStr: string) => {
+    for (const t of validTrips) {
+      if (dateStr >= t.start_date && dateStr <= t.end_date) {
+        return {
+          trip: t,
+          isStart: dateStr === t.start_date,
+          isEnd: dateStr === t.end_date,
+          inRange: dateStr > t.start_date && dateStr < t.end_date,
+        };
+      }
+    }
+    return null;
+  };
 
   // User marked holidays from Dashboard Calendar
   const userHolidays = useMemo(() => {
@@ -252,6 +273,14 @@ export function MonitoringCalendar({
           <span className={`${styles.legendBox} ${styles.tierNoData}`} />
           <span>No Flight</span>
         </div>
+        <div className={styles.legendItem}>
+          <span className={`${styles.legendBox} ${styles.tripCapDay}`} />
+          <span>Booked Trip</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={`${styles.legendBox} ${styles.holidayDay}`} />
+          <span>Holiday / PTO</span>
+        </div>
       </div>
 
       {/* Multi-Month Grid Container */}
@@ -299,6 +328,9 @@ export function MonitoringCalendar({
                 );
                 const topRank = top3Dates.get(d.date);
                 const isUserHoliday = userHolidays.has(d.date);
+                const tripInfo = getTripForDate(d.date);
+                const isTripCap = Boolean(tripInfo && (tripInfo.isStart || tripInfo.isEnd));
+                const isTripInRange = Boolean(tripInfo && tripInfo.inRange);
                 let fitsHolidayWindow = false;
                 if (d.nights && d.return_date && isUserHoliday) {
                   const depD = new Date(d.date);
@@ -330,7 +362,11 @@ export function MonitoringCalendar({
                     type="button"
                     className={`${styles.dayCell} ${tierClass} ${isSelected ? styles.selectedDay : ''} ${
                       isInRange ? styles.inRangeDay : ''
-                    } ${topRank ? styles[`topDay${topRank}`] : ''}`}
+                    } ${!isSelected && !isInRange && isTripCap ? styles.tripCapDay : ''} ${
+                      !isSelected && !isInRange && isTripInRange ? styles.tripInRangeDay : ''
+                    } ${!isSelected && !isInRange && !tripInfo && isUserHoliday ? styles.holidayDay : ''} ${
+                      topRank ? styles[`topDay${topRank}`] : ''
+                    }`}
                     onClick={() => setSelectedDay(d)}
                     onMouseEnter={() => {
                       if (d.nights && d.return_date) {
@@ -338,7 +374,7 @@ export function MonitoringCalendar({
                       }
                     }}
                     onMouseLeave={() => setHoveredDay(null)}
-                    aria-label={`${d.date}, ${d.price_eur ? `price ${formatCurrencyAmount(d.price_eur, activeCurrency)}` : 'no flight'}`}
+                    aria-label={`${d.date}, ${d.price_eur ? `price ${formatCurrencyAmount(d.price_eur, activeCurrency)}` : 'no flight'}${tripInfo ? `, trip to ${tripInfo.trip.destination}` : ''}`}
                   >
                     {isUserHoliday && (
                       <span className={styles.holidayMarker} />
@@ -367,11 +403,12 @@ export function MonitoringCalendar({
                           {d.price_eur ? formatCurrencyAmount(d.price_eur, activeCurrency) : 'No flight'}
                         </span>
                       </span>
-                      {(d.nights || topRank || isUserHoliday) && (
+                      {(d.nights || topRank || isUserHoliday || tripInfo) && (
                         <span className={styles.dayTooltipSub}>
-                          {d.nights ? `${d.nights}N stay → ${d.return_date}` : ''}
+                          {tripInfo ? `Trip: ${tripInfo.trip.destination}` : ''}
+                          {d.nights ? `${tripInfo ? ' · ' : ''}${d.nights}N stay → ${d.return_date}` : ''}
                           {topRank ? ` · #${topRank} Best Value` : ''}
-                          {isUserHoliday ? ' · Vacation' : ''}
+                          {isUserHoliday ? ' · Vacation/PTO' : ''}
                         </span>
                       )}
                     </span>
@@ -517,6 +554,14 @@ export function MonitoringCalendar({
                     <div className={styles.cardHeader}>
                       <span>
                         {effectiveLodging.property_name ? 'ACCOMMODATION' : 'HOTEL BENCHMARK'} ({effectiveLodging.nights}N)
+                        {effectiveLodging.badge && (
+                          <span className={styles.lodgingBadge} style={{ marginLeft: '0.5rem' }}>
+                            {effectiveLodging.badge === 'best_value' ? '⚡ BEST VALUE' :
+                             effectiveLodging.badge === 'cheapest' ? '🏷 CHEAPEST' :
+                             effectiveLodging.badge === 'top_rated' ? '★ TOP RATED' :
+                             effectiveLodging.badge === 'central' ? '📍 CENTRAL' : effectiveLodging.badge.toUpperCase()}
+                          </span>
+                        )}
                       </span>
                       <span className={styles.cardPrice}>
                         {formatCurrencyAmount(effectiveLodging.total_lodging_eur, activeCurrency)}

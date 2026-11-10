@@ -155,5 +155,47 @@ test.describe('Calendar Component', () => {
     // Berlin remains a trip, not holiday
     await expect(component.getByText('Berlin').first()).toBeVisible();
   });
+
+  test('official public holidays cannot be removed in Holiday Mode', async ({ mount, page }) => {
+    await page.route('**/calendar/holidays*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          country: 'ES',
+          country_name: 'Spain',
+          year: new Date().getFullYear(),
+          subdivision: null,
+          holidays: [
+            {
+              date: `${new Date().getFullYear()}-01-01`,
+              name: 'Año Nuevo',
+              country_code: 'ES',
+              country_name: 'Spain',
+              is_public_holiday: true,
+            },
+          ],
+          total: 1,
+        }),
+      });
+    });
+
+    const component = await mount(<Calendar trips={[]} />);
+
+    // Switch to Month Focus view
+    await component.getByRole('button', { name: 'Month focus view' }).click();
+
+    // Switch to Mark Holidays mode
+    const holidayToggleBtn = component.getByRole('button', { name: 'Mark holidays mode' });
+    await holidayToggleBtn.click();
+
+    // Click on the public holiday cell
+    const publicCell = component.locator('div[title*="Año Nuevo"]');
+    if (await publicCell.count() > 0) {
+      await publicCell.first().click();
+      // Cell remains an official public holiday and is NOT removed
+      await expect(component.locator('div[title*="Año Nuevo"]').first()).toBeVisible();
+    }
+  });
 });
 

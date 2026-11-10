@@ -305,6 +305,21 @@
   border: 1px solid rgba(226, 179, 60, 0.6);
 }
 
+.publicHolidaySwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(42, 140, 130, 0.45) 0px,
+    rgba(42, 140, 130, 0.45) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border: 1px solid rgba(42, 140, 130, 0.7);
+}
+
 /* Weekday Strip */
 .weekdaysRow {
   display: grid;
@@ -390,6 +405,17 @@
   border: 1px solid rgba(226, 179, 60, 0.4) !important;
 }
 
+.dayCellPublicHoliday {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(42, 140, 130, 0.16) 0px,
+    rgba(42, 140, 130, 0.16) 4px,
+    transparent 4px,
+    transparent 10px
+  ) !important;
+  border: 1px solid rgba(42, 140, 130, 0.45) !important;
+}
+
 .cellTop {
   display: flex;
   justify-content: space-between;
@@ -426,6 +452,22 @@
   color: #7A5A00;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.publicHolidayBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(42, 140, 130, 0.22);
+  color: var(--color-accent-teal, #2A8C82);
+  border: 1px solid rgba(42, 140, 130, 0.4);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  max-width: 105px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Continuous Multi-Day Bar Styling */
@@ -628,6 +670,17 @@
     transparent 6px
   ) !important;
   border: 1px solid rgba(226, 179, 60, 0.5) !important;
+}
+
+.miniDayCellPublicHoliday {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(42, 140, 130, 0.25) 0px,
+    rgba(42, 140, 130, 0.25) 3px,
+    transparent 3px,
+    transparent 6px
+  ) !important;
+  border: 1px solid rgba(42, 140, 130, 0.6) !important;
 }
 
 .miniDayNum {

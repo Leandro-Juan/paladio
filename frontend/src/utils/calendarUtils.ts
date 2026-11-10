@@ -44,6 +44,8 @@ export interface CalendarDay {
   isToday: boolean;
   isPast: boolean;
   isHoliday?: boolean;
+  isPublicHoliday?: boolean;
+  publicHolidayName?: string;
   trips: Array<{
     trip: Trip;
     status: TripStatus;
@@ -99,7 +101,8 @@ export function generateMonthGrid(
   year: number,
   month: number,
   trips: Trip[] = [],
-  holidays?: Set<string>
+  holidays?: Set<string>,
+  publicHolidays?: Map<string, string>
 ): CalendarDay[] {
   const todayStr = formatDateToIsoDay(new Date());
   const firstDayOfMonth = new Date(year, month, 1);
@@ -122,20 +125,20 @@ export function generateMonthGrid(
   const prevMonthLastDate = new Date(year, month, 0).getDate();
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
     const d = new Date(year, month - 1, prevMonthLastDate - i);
-    days.push(createCalendarDay(d, false, todayStr, trips, tripColorMap, holidays));
+    days.push(createCalendarDay(d, false, todayStr, trips, tripColorMap, holidays, publicHolidays));
   }
 
   // Current month days
   for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
     const date = new Date(year, month, d);
-    days.push(createCalendarDay(date, true, todayStr, trips, tripColorMap, holidays));
+    days.push(createCalendarDay(date, true, todayStr, trips, tripColorMap, holidays, publicHolidays));
   }
 
   // Trailing padding days to fill 5 or 6 full 7-day weeks (multiples of 7)
   const remainingDays = (7 - (days.length % 7)) % 7;
   for (let d = 1; d <= remainingDays; d++) {
     const date = new Date(year, month + 1, d);
-    days.push(createCalendarDay(date, false, todayStr, trips, tripColorMap, holidays));
+    days.push(createCalendarDay(date, false, todayStr, trips, tripColorMap, holidays, publicHolidays));
   }
 
   return days;
@@ -144,13 +147,14 @@ export function generateMonthGrid(
 export function generateYearGrid(
   year: number,
   trips: Trip[] = [],
-  holidays?: Set<string>
+  holidays?: Set<string>,
+  publicHolidays?: Map<string, string>
 ): MonthGridData[] {
   return Array.from({ length: 12 }, (_, month) => ({
     year,
     month,
     monthName: MONTH_NAMES[month],
-    days: generateMonthGrid(year, month, trips, holidays),
+    days: generateMonthGrid(year, month, trips, holidays, publicHolidays),
   }));
 }
 
@@ -160,7 +164,8 @@ function createCalendarDay(
   todayStr: string,
   trips: Trip[],
   tripColorMap: Map<string, PaletteColor>,
-  holidays?: Set<string>
+  holidays?: Set<string>,
+  publicHolidays?: Map<string, string>
 ): CalendarDay {
   const dateString = formatDateToIsoDay(date);
   const isToday = dateString === todayStr;
@@ -186,6 +191,8 @@ function createCalendarDay(
     };
   });
 
+  const isPublicHoliday = Boolean(publicHolidays?.has(dateString)) && matchingTrips.length === 0;
+  const publicHolidayName = publicHolidays?.get(dateString);
   const isHoliday = Boolean(holidays?.has(dateString)) && matchingTrips.length === 0;
   const isPast = dateString < todayStr;
 
@@ -197,6 +204,8 @@ function createCalendarDay(
     isToday,
     isPast,
     isHoliday,
+    isPublicHoliday,
+    publicHolidayName,
     trips: matchingTrips,
   };
 }

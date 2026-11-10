@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.calendar import router as calendar_router
 from app.api.currency import router as currency_router
 from app.api.locations import router as locations_router
 from app.api.market import router as market_router
@@ -125,6 +126,7 @@ app.include_router(pois_router, prefix="/api/pois", tags=["pois"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
 app.include_router(locations_router, prefix="/api/locations", tags=["locations"])
 app.include_router(transit_router, prefix="/api", tags=["transit"])
+app.include_router(calendar_router, prefix="/api/calendar", tags=["calendar"])
 app.include_router(weather_router, prefix="/api/weather", tags=["weather"])
 app.include_router(system_router, prefix="/api/system", tags=["system"])
 app.include_router(trip_agent_router)

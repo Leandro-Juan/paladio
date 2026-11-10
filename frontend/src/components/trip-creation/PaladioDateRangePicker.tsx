@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { CalendarIcon } from '@/components/icons';
+import { Modal } from '@/components/Modal';
+import { useTrips, Trip } from '@/hooks/useTrips';
 
 interface PaladioDateRangePickerProps {
   startDate: string; // YYYY-MM-DD
@@ -10,6 +12,9 @@ interface PaladioDateRangePickerProps {
   onClose?: () => void;
   inline?: boolean;
   disabled?: boolean;
+  existingTrips?: Trip[];
+  excludeTripId?: string;
+  holidays?: Set<string>;
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -56,8 +61,53 @@ export function PaladioDateRangePicker({
   onChange,
   onClose,
   inline = false,
+  disabled = false,
+  existingTrips,
+  excludeTripId,
+  holidays,
 }: PaladioDateRangePickerProps) {
   const initialStart = useMemo(() => parseDateStr(startDate) || new Date(), [startDate]);
+
+  const { trips: fetchedTrips } = useTrips();
+  const tripsToUse = existingTrips ?? fetchedTrips;
+  const relevantTrips = useMemo(() => {
+    return (tripsToUse || []).filter(
+      (t) => t.start_date && t.end_date && (!excludeTripId || t.id !== excludeTripId)
+    );
+  }, [tripsToUse, excludeTripId]);
+
+  const [localHolidays] = useState<Set<string>>(() => {
+    if (holidays) return holidays;
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const stored = localStorage.getItem('paladio_user_holidays');
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+  const activeHolidays = holidays || localHolidays;
+
+  const [overlapConflict, setOverlapConflict] = useState<{
+    start: string;
+    end: string;
+    trip: Trip;
+  } | null>(null);
+
+  // Helper to resolve if a date matches an existing trip
+  const getTripForDate = (dateStr: string) => {
+    for (const trip of relevantTrips) {
+      if (dateStr >= trip.start_date && dateStr <= trip.end_date) {
+        return {
+          trip,
+          isStart: dateStr === trip.start_date,
+          isEnd: dateStr === trip.end_date,
+          inRange: dateStr > trip.start_date && dateStr < trip.end_date,
+        };
+      }
+    }
+    return null;
+  };
 
   // Current view month (0-indexed) and year for the left calendar
   const [viewYear, setViewYear] = useState(() => initialStart.getFullYear());
@@ -118,7 +168,7 @@ export function PaladioDateRangePicker({
   };
 
   const handleDayClick = (dateStr: string) => {
-    if (dateStr < todayStr) return;
+    if (dateStr < todayStr || disabled) return;
     if (selectingStep === 'start') {
       setTempStart(dateStr);
       setTempEnd('');
@@ -130,14 +180,47 @@ export function PaladioDateRangePicker({
         setTempEnd('');
         setSelectingStep('end');
       } else {
-        setTempEnd(dateStr);
-        setSelectingStep('start');
-        onChange(tempStart, dateStr);
-        if (onClose && !inline) {
-          onClose();
+        // Check for overlap with existing trips
+        const conflictingTrip = relevantTrips.find((t) => {
+          return tempStart <= t.end_date && dateStr >= t.start_date;
+        });
+
+        if (conflictingTrip) {
+          setOverlapConflict({
+            start: tempStart,
+            end: dateStr,
+            trip: conflictingTrip,
+          });
+        } else {
+          setTempEnd(dateStr);
+          setSelectingStep('start');
+          onChange(tempStart, dateStr);
+          if (onClose && !inline) {
+            onClose();
+          }
         }
       }
     }
+  };
+
+  const handleConfirmOverlap = () => {
+    if (overlapConflict) {
+      setTempEnd(overlapConflict.end);
+      setSelectingStep('start');
+      onChange(overlapConflict.start, overlapConflict.end);
+      if (onClose && !inline) {
+        onClose();
+      }
+      setOverlapConflict(null);
+    }
+  };
+
+  const handleCancelOverlap = () => {
+    setTempStart('');
+    setTempEnd('');
+    setSelectingStep('start');
+    setHoverDate(null);
+    setOverlapConflict(null);
   };
 
   const getDaysGrid = (year: number, month: number) => {
@@ -238,6 +321,65 @@ export function PaladioDateRangePicker({
             const isSelectedOrRange = isStart || isEnd || inRange;
             const isDisabled = isPast;
 
+            const tripInfo = getTripForDate(dateStr);
+            const isHoliday = Boolean(activeHolidays?.has(dateStr));
+            const isTripCap = Boolean(tripInfo && (tripInfo.isStart || tripInfo.isEnd));
+            const isTripInRange = Boolean(tripInfo && tripInfo.inRange);
+
+            let dayTitle = '';
+            if (tripInfo) {
+              dayTitle = `Trip: ${tripInfo.trip.destination} (${tripInfo.trip.start_date} – ${tripInfo.trip.end_date})`;
+            } else if (isHoliday) {
+              dayTitle = `Holiday / PTO (${dateStr})`;
+            } else if (isToday) {
+              dayTitle = `Today (${dateStr})`;
+            }
+
+            // Highlighting style hierarchy:
+            // 1. Current date selection (Deep sea teal)
+            // 2. Existing booked trips (Amber gold solid caps / amber tint)
+            // 3. User marked holidays (Gold tint + dashed border)
+            let cellBg = 'transparent';
+            let cellColor = isPast && !isSelectedOrRange ? 'var(--color-text-muted, #9E9E9E)' : 'var(--color-text-primary, #1A1A1A)';
+            let cellBorderRadius = '6px';
+            let cellBorder = isToday && !isStart && !isEnd ? '1px solid var(--color-accent-coral, #D42A2F)' : 'none';
+            let cellFontWeight = isToday ? 600 : 400;
+
+            if (isStart || isEnd) {
+              cellBg = 'var(--color-accent-primary, #0F4C5C)';
+              cellColor = '#FFFFFF';
+              cellBorderRadius = isStart
+                ? (inRange || effectiveEnd ? '8px 0 0 8px' : '8px')
+                : '0 8px 8px 0';
+              cellBorder = 'none';
+              cellFontWeight = 600;
+            } else if (inRange) {
+              cellBg = 'rgba(15, 76, 92, 0.09)';
+              cellColor = 'var(--color-accent-primary, #0F4C5C)';
+              cellBorderRadius = '0';
+              cellBorder = 'none';
+              cellFontWeight = 500;
+            } else if (isTripCap && tripInfo) {
+              cellBg = 'var(--color-accent-amber, #D97706)';
+              cellColor = '#FFFFFF';
+              cellBorderRadius = tripInfo.isStart
+                ? (tripInfo.isEnd ? '8px' : '8px 0 0 8px')
+                : '0 8px 8px 0';
+              cellBorder = 'none';
+              cellFontWeight = 600;
+            } else if (isTripInRange) {
+              cellBg = 'rgba(217, 119, 6, 0.16)';
+              cellColor = '#B45309';
+              cellBorderRadius = '0';
+              cellBorder = 'none';
+              cellFontWeight = 500;
+            } else if (isHoliday) {
+              cellBg = 'rgba(226, 179, 60, 0.20)';
+              cellBorder = '1px dashed rgba(226, 179, 60, 0.7)';
+              cellBorderRadius = '6px';
+              cellColor = 'var(--color-text-primary, #1A1A1A)';
+            }
+
             return (
               <button
                 key={dateStr}
@@ -245,33 +387,21 @@ export function PaladioDateRangePicker({
                 disabled={isDisabled}
                 onClick={() => handleDayClick(dateStr)}
                 onMouseEnter={() => !isDisabled && selectingStep === 'end' && setHoverDate(dateStr)}
+                title={dayTitle}
+                aria-label={dayTitle || dateStr}
                 style={{
                   height: '36px',
                   width: '100%',
-                  background: isStart || isEnd
-                    ? 'var(--color-accent-primary, #0F4C5C)'
-                    : inRange
-                    ? 'rgba(15, 76, 92, 0.09)'
-                    : 'transparent',
-                  color: isStart || isEnd
-                    ? '#FFFFFF'
-                    : isPast && !isSelectedOrRange
-                    ? 'var(--color-text-muted, #9E9E9E)'
-                    : 'var(--color-text-primary, #1A1A1A)',
-                  opacity: isSelectedOrRange ? 1 : isPast ? 0.38 : 1,
-                  border: isToday && !isStart && !isEnd ? '1px solid var(--color-accent-coral, #D42A2F)' : 'none',
-                  borderRadius: isStart
-                    ? inRange || effectiveEnd ? '8px 0 0 8px' : '8px'
-                    : isEnd
-                    ? '0 8px 8px 0'
-                    : inRange
-                    ? '0'
-                    : '6px',
+                  background: cellBg,
+                  color: cellColor,
+                  opacity: isSelectedOrRange || tripInfo || isHoliday ? 1 : isPast ? 0.38 : 1,
+                  border: cellBorder,
+                  borderRadius: cellBorderRadius,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '13px',
-                  fontWeight: isStart || isEnd ? 600 : isToday ? 600 : 400,
+                  fontWeight: cellFontWeight,
                   fontFamily: 'var(--font-mono)',
                   cursor: isPast ? 'not-allowed' : 'pointer',
                   transition: 'background 0.15s ease',
@@ -469,6 +599,97 @@ export function PaladioDateRangePicker({
           </button>
         )}
       </div>
+
+      {/* Visual Status Legend */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+          marginTop: '0.85rem',
+          fontSize: '11px',
+          color: 'var(--color-text-muted, #71717A)',
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'var(--color-accent-primary, #0F4C5C)',
+            }}
+          />
+          <span>Selected</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'var(--color-accent-amber, #D97706)',
+            }}
+          />
+          <span>Existing Trip</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '2px',
+              background: 'rgba(226, 179, 60, 0.3)',
+              border: '1px dashed #B8860B',
+            }}
+          />
+          <span>Holiday / PTO</span>
+        </div>
+      </div>
+
+      {/* Overlapping Trip Selection Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(overlapConflict)}
+        variant="warning"
+        title="[CONFLICT] TRIP DATES OVERLAP"
+        message={`Your selected travel dates (${overlapConflict?.start} to ${overlapConflict?.end}) overlap with an existing trip to ${overlapConflict?.trip.destination} (${overlapConflict?.trip.start_date} to ${overlapConflict?.trip.end_date}). Are you sure you want to proceed with these dates or reselect?`}
+        confirmText="PROCEED ANYWAY"
+        cancelText="RESELECT DATES"
+        onConfirm={handleConfirmOverlap}
+        onCancel={handleCancelOverlap}
+      >
+        {overlapConflict && (
+          <div
+            style={{
+              background: 'rgba(217, 119, 6, 0.10)',
+              border: '1px solid rgba(217, 119, 6, 0.3)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              marginTop: '8px',
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 700,
+                color: 'var(--color-accent-amber, #D97706)',
+                marginBottom: '4px',
+              }}
+            >
+              CONFLICTING TRIP DETAILS:
+            </div>
+            <div>
+              Destination: <strong>{overlapConflict.trip.destination}</strong>
+            </div>
+            <div>
+              Dates: {overlapConflict.trip.start_date} to {overlapConflict.trip.end_date}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

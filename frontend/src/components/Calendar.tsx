@@ -18,7 +18,8 @@ import {
   getTripPaletteColor,
 } from '@/utils/calendarUtils';
 import { MissionInspectorModal } from './MissionInspectorModal';
-import { PlaneIcon, UmbrellaIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
+import { PlaneIcon, UmbrellaIcon, CloseIcon, ChevronRightIcon, RefreshIcon } from '@/components/icons';
+import { notify } from '@/utils/notify';
 import styles from './Calendar.module.css';
 
 interface CalendarProps {
@@ -49,6 +50,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     isAbove: boolean;
   } | null>(null);
 
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
   // User-selected holiday days (persisted in localStorage)
   const [holidays, setHolidays] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
@@ -60,13 +64,84 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     }
   });
 
-  // Deal packages matching user's marked vacation windows
+  // Official statutory public holidays (synced from backend)
+  const [publicHolidays, setPublicHolidays] = useState<Map<string, string>>(new Map());
+  const [publicHolidayCountryName, setPublicHolidayCountryName] = useState<string>('');
+  const [isSyncingHolidays, setIsSyncingHolidays] = useState<boolean>(false);
+
+  const homeCountry = auth?.user?.preferences?.home_country as string | undefined;
+  const homeCity = auth?.user?.preferences?.home_city as string | undefined;
+
+  const loadPublicHolidays = React.useCallback(async () => {
+    setIsSyncingHolidays(true);
+    try {
+      const qCountry =
+        (typeof window !== 'undefined' ? localStorage.getItem('paladio_home_country') : null) ||
+        homeCountry ||
+        'ES';
+      const qCity =
+        (typeof window !== 'undefined' ? localStorage.getItem('paladio_home_city') : null) ||
+        homeCity ||
+        '';
+      const params = new URLSearchParams({ year: String(year) });
+      if (qCountry) params.set('country', qCountry);
+      if (qCity) params.set('city', qCity);
+
+      const res = await apiFetch<{
+        country: string;
+        country_name?: string;
+        year: number;
+        holidays: Array<{ date: string; name: string }>;
+      }>(`/calendar/holidays?${params.toString()}`);
+
+      if (res && Array.isArray(res.holidays)) {
+        const map = new Map<string, string>();
+        res.holidays.forEach((h) => {
+          map.set(h.date, h.name);
+        });
+        setPublicHolidays(map);
+        if (res.country_name) setPublicHolidayCountryName(res.country_name);
+      }
+    } catch {
+      // Quiet fail on network or backend unavailability
+    } finally {
+      setIsSyncingHolidays(false);
+    }
+  }, [year, homeCountry, homeCity]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadPublicHolidays();
+    }, 0);
+
+    const handleLocationChange = () => {
+      void loadPublicHolidays();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paladio_home_location_changed', handleLocationChange);
+      window.addEventListener('storage', handleLocationChange);
+    }
+    return () => {
+      clearTimeout(timer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('paladio_home_location_changed', handleLocationChange);
+        window.removeEventListener('storage', handleLocationChange);
+      }
+    };
+  }, [loadPublicHolidays]);
+
+  // Deal packages matching user's marked vacation windows & public holidays
   const [holidayPackages, setHolidayPackages] = useState<HolidayMatchedPackage[]>([]);
 
   useEffect(() => {
     let isCancelled = false;
     async function loadHolidayMatches() {
-      if (holidays.size === 0) {
+      const combinedHolidays = new Set([
+        ...Array.from(holidays),
+        ...Array.from(publicHolidays.keys()),
+      ]);
+      if (combinedHolidays.size === 0) {
         setHolidayPackages([]);
         return;
       }
@@ -76,7 +151,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
           {
             method: 'POST',
             body: JSON.stringify({
-              holiday_dates: Array.from(holidays),
+              holiday_dates: Array.from(combinedHolidays),
               pricing: 'package',
               currency: userCurrency,
             }),
@@ -93,7 +168,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     return () => {
       isCancelled = true;
     };
-  }, [holidays, userCurrency]);
+  }, [holidays, publicHolidays, userCurrency]);
 
   // Index packages by depart date for fast calendar cell lookup
   const holidayPackagesByDepartDate = useMemo(() => {
@@ -156,18 +231,15 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     }
   };
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
   // Month grid for focused month view
   const days: CalendarDay[] = useMemo(() => {
-    return generateMonthGrid(year, month, trips, holidays);
-  }, [year, month, trips, holidays]);
+    return generateMonthGrid(year, month, trips, holidays, publicHolidays);
+  }, [year, month, trips, holidays, publicHolidays]);
 
   // Year grid for 12-month panoramic view
   const yearMonths = useMemo(() => {
-    return generateYearGrid(year, trips, holidays);
-  }, [year, trips, holidays]);
+    return generateYearGrid(year, trips, holidays, publicHolidays);
+  }, [year, trips, holidays, publicHolidays]);
 
   // Map trips to colors for legend and chips
   const tripsWithPalette = useMemo(() => {
@@ -248,6 +320,14 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     if (interactionMode === 'HOLIDAY') {
       // Disallow turning trip days into holidays to prevent collision
       if (day.trips.length > 0) {
+        return;
+      }
+      // Official public holidays cannot be removed
+      if (day.isPublicHoliday || publicHolidays.has(day.dateString)) {
+        notify.info(
+          'Official Public Holiday',
+          `${day.publicHolidayName || 'This holiday'} is an official statutory day and cannot be removed.`
+        );
         return;
       }
       const nextHolidays = new Set(holidays);
@@ -417,18 +497,30 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
             <div className={styles.holidayBannerText}>
               <span className={styles.holidayBannerDot} />
               <span>
-                <strong>Holiday Mode Active:</strong> Click any open day to mark/unmark vacation. Scheduled trips are locked to prevent collisions.
+                <strong>Holiday Mode Active:</strong> Click any open day to mark/unmark PTO. Official public holidays ({publicHolidayCountryName || 'Local'}) are fixed and cannot be removed.
               </span>
             </div>
-            {telemetry.holidayDays > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={handleClearYearHolidays}
+                onClick={loadPublicHolidays}
+                disabled={isSyncingHolidays}
                 className={styles.clearHolidaysBtn}
+                title="Sync official public holidays from configured city/country"
               >
-                Clear {year} Holidays
+                <RefreshIcon size={11} className={isSyncingHolidays ? 'animate-spin' : ''} style={{ marginRight: '4px' }} />
+                {isSyncingHolidays ? 'Syncing...' : `Sync ${publicHolidayCountryName || 'Holidays'}`}
               </button>
-            )}
+              {telemetry.holidayDays > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearYearHolidays}
+                  className={styles.clearHolidaysBtn}
+                >
+                  Clear {year} PTO
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -450,6 +542,16 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <span>{trip.destination}</span>
               </div>
             ))}
+            {publicHolidays.size > 0 && (
+              <div
+                className={styles.tripLegendChip}
+                style={{ cursor: 'default' }}
+                title={`${publicHolidays.size} official statutory public holidays for ${publicHolidayCountryName || 'configured country'} (cannot be removed)`}
+              >
+                <span className={styles.publicHolidaySwatch} />
+                <span>Public Holidays ({publicHolidays.size})</span>
+              </div>
+            )}
             <div
               className={`${styles.tripLegendChip} ${interactionMode === 'HOLIDAY' ? styles.holidayChipActive : ''}`}
               onClick={() => {
@@ -541,13 +643,15 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                       !day.isCurrentMonth ? styles.miniDayCellOutside : '',
                       day.isPast ? styles.miniDayCellPast : '',
                       day.isToday ? styles.miniDayCellToday : '',
-                      day.isHoliday ? styles.miniDayCellHoliday : '',
+                      day.isPublicHoliday ? styles.miniDayCellPublicHoliday : day.isHoliday ? styles.miniDayCellHoliday : '',
                     ].filter(Boolean).join(' ');
 
                     const title = hasTrips
                       ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
                       : dayMonitoredDeals.length > 0
                       ? `Monitored Deal: ${dayMonitoredDeals[0].origin_name || dayMonitoredDeals[0].origin_iata} → ${dayMonitoredDeals[0].destination_name || dayMonitoredDeals[0].destination_code} ${formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 })}${dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : ''}`
+                      : day.isPublicHoliday
+                      ? `Public Holiday: ${day.publicHolidayName || 'Official Holiday'} on ${day.dateString}`
                       : day.isHoliday
                       ? `Holiday / PTO on ${day.dateString}`
                       : interactionMode === 'HOLIDAY'
@@ -616,7 +720,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   !day.isCurrentMonth ? styles.dayCellOutside : '',
                   day.isPast ? styles.dayCellPast : '',
                   day.isToday ? styles.dayCellToday : '',
-                  day.isHoliday ? styles.dayCellHoliday : '',
+                  day.isPublicHoliday ? styles.dayCellPublicHoliday : day.isHoliday ? styles.dayCellHoliday : '',
                 ].filter(Boolean).join(' ');
 
                 return (
@@ -627,6 +731,8 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                     title={
                       day.trips.length > 0
                         ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
+                        : day.isPublicHoliday
+                        ? `Public Holiday: ${day.publicHolidayName || 'Official Statutory Holiday'} on ${day.dateString}`
                         : day.isHoliday
                         ? `Holiday / PTO on ${day.dateString}`
                         : `Click to plan mission on ${day.dateString}`
@@ -635,9 +741,13 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                     {/* Cell Header: Day Number and optional Holiday badge */}
                     <div className={styles.cellTop}>
                       <span className={styles.dateNum}>{day.dayNumber}</span>
-                      {day.isHoliday && (
+                      {day.isPublicHoliday ? (
+                        <span className={styles.publicHolidayBadge} title={day.publicHolidayName || 'Public Holiday'}>
+                          {day.publicHolidayName ? day.publicHolidayName.slice(0, 12).toUpperCase() : 'HOLIDAY'}
+                        </span>
+                      ) : day.isHoliday ? (
                         <span className={styles.holidayBadge}>HOLIDAY</span>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* Spanning Multi-Day Trip Bars with palette colors */}

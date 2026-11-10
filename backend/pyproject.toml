@@ -36,6 +36,7 @@ dependencies = [
     "osmium>=4.0.0",
     "airportsdata>=20240101",
     "geonamescache>=3.0.0",
+    "holidays>=0.60.0",
 ]
 
 [project.optional-dependencies]
