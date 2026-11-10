@@ -549,7 +549,10 @@ async def search_pois(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    # Normalize parameter values when called programmatically (where Query objects remain default)
+    # Normalize parameter values when called programmatically (where Query/Depends objects remain default)
+    if hasattr(current_user, "dependency") or not isinstance(current_user, UserModel):
+        current_user = None
+
     if hasattr(custom_only, "default"):
         custom_only = bool(custom_only.default)
     else:

@@ -90,7 +90,7 @@ async def _resolve_city_name(session: AsyncSession, code: str) -> str:
 
 
 async def _get_or_create_user_id(session: AsyncSession, user: UserModel | None) -> str:
-    if user and user.id:
+    if isinstance(user, UserModel) and user.id:
         return user.id
     res = await session.execute(select(UserModel).limit(1))
     first_user = res.scalar_one_or_none()
@@ -541,7 +541,11 @@ async def get_market_summary(
     deals_cnt = deals_ev_res.scalar() or 0
     avg_savings_pct = 0.0
     if deals_cnt == 0:
-        active_deals = await list_active_deals(session=session, limit=10)
+        active_deals = await list_active_deals(
+            session=session,
+            limit=10,
+            current_user=current_user if isinstance(current_user, UserModel) else None,
+        )
         deals_cnt = len(active_deals)
         if active_deals:
             avg_savings_pct = round(
@@ -762,7 +766,7 @@ async def create_monitored_route(
             req.currency
             or (
                 current_user.preferences.get("default_currency")
-                if current_user and current_user.preferences
+                if isinstance(current_user, UserModel) and current_user.preferences
                 else None
             )
             or "EUR"
@@ -1307,7 +1311,7 @@ async def get_route_price_history(
 
         user_prefs = (
             (current_user.preferences or {})
-            if current_user and current_user.preferences
+            if isinstance(current_user, UserModel) and current_user.preferences
             else {}
         )
         if not user_prefs and alert.user_id:
@@ -1683,7 +1687,7 @@ async def get_route_lodging_for_date(
 
     user_prefs = (
         (current_user.preferences or {})
-        if current_user and current_user.preferences
+        if isinstance(current_user, UserModel) and current_user.preferences
         else {}
     )
     if not user_prefs and alert.user_id:
@@ -2795,7 +2799,8 @@ async def list_active_deals(
     currency_param: str | None = Query(None, alias="currency"),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
+    user_model = current_user if isinstance(current_user, UserModel) else None
+    target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
 
     stmt = (
         select(DealEventModel)
@@ -2831,7 +2836,11 @@ async def list_active_deals(
             )
         for a in alerts:
             route_pkgs = await list_route_deals(
-                a.id, session=session, limit=3, currency_param="EUR"
+                a.id,
+                session=session,
+                limit=3,
+                currency_param="EUR",
+                current_user=user_model,
             )
             items.extend(route_pkgs)
 
@@ -2846,7 +2855,8 @@ async def list_routes_best_deals(
     currency_param: str | None = Query(None, alias="currency"),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
+    user_model = current_user if isinstance(current_user, UserModel) else None
+    target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
     alerts = (await session.execute(select(DealWatchAlertModel))).scalars().all()
     all_deals: list[DealPackageItem] = []
     for alert in alerts:
@@ -2855,7 +2865,7 @@ async def list_routes_best_deals(
             session=session,
             limit=limit_per_route,
             currency_param=target_curr,
-            current_user=current_user,
+            current_user=user_model,
         )
         all_deals.extend(route_deals)
     return all_deals
@@ -2869,7 +2879,8 @@ async def list_route_deals(
     currency_param: str | None = Query(None, alias="currency"),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
-    target_curr = _resolve_target_currency(currency_param, current_user, default="EUR")
+    user_model = current_user if isinstance(current_user, UserModel) else None
+    target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
     stmt = (
         select(DealEventModel)
         .where(
@@ -2948,8 +2959,8 @@ async def list_route_deals(
             center_lon = city_obj.center_lon if city_obj else None
 
             user_prefs = (
-                (current_user.preferences or {})
-                if current_user and current_user.preferences
+                (user_model.preferences or {})
+                if user_model and user_model.preferences
                 else {}
             )
             if not user_prefs and alert.user_id:

@@ -260,6 +260,35 @@ def test_generate_poi_overview_localized():
     assert "東京タワーは東京にある注目のlandmarkスポットです" in ja_overview
     assert "入場料は無料です" in ja_overview
 
+    hotel_overview = _generate_poi_overview(
+        name="Hotel Gracery Shinjuku",
+        category="hotel",
+        city="Tokyo",
+        cost_eur=0.0,
+        duration_mins=60,
+        target_lang="en",
+    )
+    assert (
+        "provides hospitality accommodations and base camp lodging in Tokyo"
+        in hotel_overview
+    )
+    assert "entry is free of charge" not in hotel_overview
+    assert "Recommended visit duration" not in hotel_overview
+
+    airport_overview = _generate_poi_overview(
+        name="Haneda International Airport",
+        category="airport",
+        city="Tokyo",
+        cost_eur=0.0,
+        duration_mins=60,
+        target_lang="en",
+    )
+    assert (
+        "is an aviation gateway and flight transport hub in Tokyo" in airport_overview
+    )
+    assert "entry is free of charge" not in airport_overview
+    assert "Recommended visit duration" not in airport_overview
+
 
 @pytest.mark.asyncio
 async def test_delete_custom_poi(async_client: AsyncClient, db_session: AsyncSession):
