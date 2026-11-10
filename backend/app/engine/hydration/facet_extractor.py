@@ -470,7 +470,7 @@ async def generate_grounded_description(
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.0, "num_predict": 60},
+                "options": {"temperature": 0.0, "num_predict": 60, "num_ctx": 2048},
             },
         )
         if resp.status_code == 200:

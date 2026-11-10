@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import json
 import logging
 from typing import Any, Optional
@@ -165,6 +166,8 @@ async def trip_agent_websocket(
                 await cancel_active_turn(trip_id)
                 if active_turn_task and not active_turn_task.done():
                     active_turn_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await active_turn_task
                 warn_ev = AgentServerEvent(
                     event="warning",
                     message="Turn cancellation requested.",

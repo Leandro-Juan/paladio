@@ -192,6 +192,11 @@ export function ModelSelectorPopover({
               <div key={fam.provKey} className={styles.familyGroup}>
                 <div className={styles.familyHeader}>
                   <span className={styles.familyName}>{fam.name}</span>
+                  {fam.provKey === 'ollama' && llmConfig?.hardware_profile && (
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>
+                      {llmConfig.hardware_profile.recommended_num_ctx} ctx • {llmConfig.hardware_profile.total_ram_gb}GB RAM
+                    </span>
+                  )}
                 </div>
 
                 <div className={styles.modelRows}>
@@ -206,6 +211,10 @@ export function ModelSelectorPopover({
                       isProviderMatch &&
                       (llmConfig?.model === modelName || currentModel === modelName);
 
+                    const isRecommended =
+                      fam.provKey === 'ollama' &&
+                      llmConfig?.hardware_profile?.recommended_model === modelName;
+
                     return (
                       <button
                         key={`${fam.provKey}-${modelName}`}
@@ -219,6 +228,22 @@ export function ModelSelectorPopover({
                         <div className={styles.modelItemLeft}>
                           <ProviderBrandIcon provider={fam.provKey} size={18} />
                           <span className={styles.modelItemName}>{modelName}</span>
+                          {isRecommended && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                color: '#38bdf8',
+                                fontWeight: 600,
+                                letterSpacing: '0.02em',
+                                marginLeft: '6px',
+                              }}
+                            >
+                              Recommended
+                            </span>
+                          )}
                         </div>
 
                         {isSelected && (

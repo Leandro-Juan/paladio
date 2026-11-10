@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import json
 import logging
+import os
 import uuid
 from typing import Any, AsyncGenerator, Optional, Set
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.mcp import MCPToolset
 from app.services.llm_service import LLMService
+from app.services.hardware_service import HardwareService
 
 from app.agent.events import AgentServerEvent
 from app.agent.prompts import build_system_prompt, build_trip_digest
@@ -248,8 +252,21 @@ class TripAgentRunner:
             )
             return
 
+        # Check host memory safety before launching local turn
+        is_safe, mem_msg = HardwareService.check_memory_safety()
+        if not is_safe:
+            yield AgentServerEvent(
+                event="error",
+                turn_id=turn_id,
+                message=mem_msg,
+                code="LOW_MEMORY",
+            )
+            await release_turn_lock(trip_id)
+            return
+
         event_queue: asyncio.Queue[AgentServerEvent] = asyncio.Queue()
         tools_called: list[str] = []
+        worker_task: Optional[asyncio.Task[str]] = None
 
         try:
             # 1. Fetch trip, itinerary, issues, and budget
@@ -305,15 +322,30 @@ class TripAgentRunner:
                 f"{digest}\n\n{history_prompt}User message:\n{user_message}"
             )
 
-            # 6. Instantiate agent
+            # 6. Instantiate agent with dynamic hardware-safe settings
             active_model = self._explicit_model or await LLMService.get_model_async(
                 session=session, model_name=self.model_name
             )
+            hardware = HardwareService.get_hardware_profile()
+            max_tokens = int(os.getenv("TRIP_AGENT_MAX_TOKENS", "1024"))
+            model_extra_body = {
+                "options": {
+                    "num_ctx": hardware.recommended_num_ctx,
+                    "num_thread": hardware.recommended_num_thread,
+                },
+                "keep_alive": hardware.keep_alive,
+            }
+
             agent = Agent(
                 model=active_model,
                 system_prompt=system_prompt,
                 toolsets=[filtered_toolset],
                 retries=2,
+                model_settings=ModelSettings(
+                    max_tokens=max_tokens,
+                    parallel_tool_calls=False,
+                    extra_body=model_extra_body,
+                ),
             )
 
             async def _agent_worker() -> str:
@@ -322,6 +354,8 @@ class TripAgentRunner:
                     session=session,
                     auth_mode="trip_agent_ws",
                 ):
+                    if cancel_event and cancel_event.is_set():
+                        raise asyncio.CancelledError("Turn cancelled by user.")
                     accumulated_text = ""
                     async with agent.run_stream(composed_prompt) as stream_res:
                         async for chunk in stream_res.stream_text(delta=True):
@@ -341,15 +375,31 @@ class TripAgentRunner:
 
             # Read queue while worker is running
             while not worker_task.done() or not event_queue.empty():
+                if cancel_event and cancel_event.is_set():
+                    if not worker_task.done():
+                        worker_task.cancel()
+                    break
                 try:
                     ev = await asyncio.wait_for(event_queue.get(), timeout=0.05)
+                    if cancel_event and cancel_event.is_set():
+                        if not worker_task.done():
+                            worker_task.cancel()
+                        break
                     yield ev
                 except asyncio.TimeoutError:
                     if cancel_event and cancel_event.is_set():
-                        worker_task.cancel()
+                        if not worker_task.done():
+                            worker_task.cancel()
                         break
 
-            if cancel_event and cancel_event.is_set():
+            if (cancel_event and cancel_event.is_set()) or (
+                worker_task and worker_task.cancelled()
+            ):
+                if worker_task and not worker_task.done():
+                    worker_task.cancel()
+                if worker_task:
+                    with suppress(asyncio.CancelledError):
+                        await worker_task
                 yield AgentServerEvent(
                     event="warning",
                     turn_id=turn_id,
@@ -380,11 +430,35 @@ class TripAgentRunner:
             )
         except Exception as e:
             logger.exception(f"Error in TripAgentRunner turn {turn_id}: {e}")
-            yield AgentServerEvent(
-                event="error",
-                turn_id=turn_id,
-                message=str(e),
-                code="INTERNAL_ERROR",
-            )
+            err_str = str(e)
+            err_lower = err_str.lower()
+            if (
+                "413" in err_str
+                or "429" in err_str
+                or "rate limit" in err_lower
+                or "ratelimit" in err_lower
+                or "tpm" in err_lower
+            ):
+                user_msg = (
+                    "Provider token rate limit exceeded (TPM/RPM limit reached). "
+                    "Please wait a few moments before trying again, or configure a higher-capacity provider in Settings."
+                )
+                yield AgentServerEvent(
+                    event="error",
+                    turn_id=turn_id,
+                    message=user_msg,
+                    code="RATE_LIMIT_EXCEEDED",
+                )
+            else:
+                yield AgentServerEvent(
+                    event="error",
+                    turn_id=turn_id,
+                    message=err_str,
+                    code="INTERNAL_ERROR",
+                )
         finally:
+            if worker_task and not worker_task.done():
+                worker_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await worker_task
             await release_turn_lock(trip_id)

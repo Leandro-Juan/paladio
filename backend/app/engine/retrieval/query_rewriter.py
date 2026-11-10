@@ -284,6 +284,7 @@ class QueryRewriter:
                         "prompt": prompt,
                         "format": "json",
                         "stream": False,
+                        "options": {"num_ctx": 2048, "num_predict": 128},
                     },
                 )
                 if resp.status_code == 200:

@@ -75,6 +75,20 @@ def _extract_poi_items(results: Any) -> list[dict[str, Any]]:
         if not poi_id or not name:
             continue
 
+        # Truncate lengthy descriptions to conserve tokens in model context
+        short_desc = None
+        if desc:
+            desc_str = str(desc).strip()
+            short_desc = (desc_str[:120] + "...") if len(desc_str) > 120 else desc_str
+
+        # Compact hours representation to avoid leaking voluminous nested schedules into prompt
+        compact_hours = None
+        if hours:
+            if isinstance(hours, str):
+                compact_hours = (hours[:60] + "...") if len(hours) > 60 else hours
+            elif isinstance(hours, dict):
+                compact_hours = "Available (call get_poi_details for full schedule)"
+
         items.append(
             {
                 "poi_id": str(poi_id),
@@ -92,9 +106,9 @@ def _extract_poi_items(results: Any) -> list[dict[str, Any]]:
                 "score": float(score or 0.0),
                 "rating": float(rating) if rating is not None else None,
                 "photo_url": photo_url,
-                "description": desc,
+                "description": short_desc,
                 "neighborhood": neigh,
-                "opening_hours": hours,
+                "opening_hours": compact_hours,
             }
         )
     return items
@@ -119,7 +133,7 @@ async def search_pois(
     query: str = "",
     category: str | None = None,
     day: int | None = None,
-    limit: int = 15,
+    limit: int = 8,
     ctx: Context | None = None,
 ) -> ToolResult:
     """
@@ -262,7 +276,7 @@ async def find_nearby(
     lon: float | None = None,
     radius_meters: int = 1000,
     category: str | None = None,
-    limit: int = 15,
+    limit: int = 8,
     ctx: Context | None = None,
 ) -> ToolResult:
     """

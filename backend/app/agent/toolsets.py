@@ -230,9 +230,7 @@ INTENT_KEYWORDS: dict[str, list[str]] = {
         "re-route",
         "add day",
         "remove day",
-        "breakfast",
-        "lunch",
-        "dinner",
+        "meal",
     ],
 }
 
