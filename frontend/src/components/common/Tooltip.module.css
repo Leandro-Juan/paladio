@@ -1,0 +1,100 @@
+.tooltipPortal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 100000;
+}
+
+.tooltip {
+  position: fixed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  background-color: #1A2B32;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100000;
+  will-change: transform, opacity;
+}
+
+:global([data-theme="dark"]) .tooltip {
+  background-color: #0E171B;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+:global([data-theme="silent-waters"]) .tooltip {
+  background-color: #253237;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.entering {
+  animation: tooltipEnter 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.exiting {
+  animation: tooltipExit 100ms ease-in forwards;
+}
+
+@keyframes tooltipEnter {
+  from {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+  }
+}
+
+@keyframes tooltipExit {
+  from {
+    opacity: 1;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(0.96);
+  }
+}
+
+.label {
+  display: inline-block;
+  color: #FFFFFF;
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.02em;
+}

@@ -7,6 +7,7 @@ import { I18nProvider } from '@/contexts/I18nContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { ToastContainer } from '@/components/ToastContainer';
+import { PaladioTooltipProvider } from '@/components/common/PaladioTooltipProvider';
 
 const jost = Jost({
   subsets: ['latin'],
@@ -59,6 +60,7 @@ export default function RootLayout({
                 {children}
               </AuthGuard>
               <ToastContainer />
+              <PaladioTooltipProvider />
             </SocketProvider>
           </I18nProvider>
         </AuthProvider>
