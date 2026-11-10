@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
 import { apiFetch } from '@/utils/api';
 import {
@@ -36,19 +36,13 @@ export function TransitLegView({
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const isExpanded = userExpanded !== null ? userExpanded : defaultExpanded;
 
-  if (!transitLeg) {
-    return null;
-  }
-
-  const {
-    duration_mins = 0,
-    cost_eur = 0,
-    cost_is_estimated = false,
-    price_source,
-    mode = 'multimodal',
-    steps = [],
-    airport_surcharge_eur = 0,
-  } = transitLeg;
+  const duration_mins = transitLeg?.duration_mins ?? 0;
+  const cost_eur = transitLeg?.cost_eur ?? 0;
+  const cost_is_estimated = transitLeg?.cost_is_estimated ?? false;
+  const price_source = transitLeg?.price_source;
+  const mode = transitLeg?.mode ?? 'multimodal';
+  const steps = transitLeg?.steps ?? [];
+  const airport_surcharge_eur = transitLeg?.airport_surcharge_eur ?? 0;
 
   // Extract unique transit lines from steps (e.g. Line 1, Line 10)
   const transitLines = Array.from(
@@ -256,6 +250,147 @@ export function TransitLegView({
     );
   };
 
+  // Structured transit stations flow for public transport
+  const stationFlow = useMemo(() => {
+    if (!isTransit || steps.length === 0) return null;
+
+    interface StationItem {
+      name: string;
+      role: 'board' | 'transfer' | 'alight' | 'intermediate';
+      line?: string;
+      color?: string;
+      textColor?: string;
+      headsign?: string;
+      lat?: number;
+      lon?: number;
+      stepContext?: Partial<TransitStep>;
+    }
+
+    const stations: StationItem[] = [];
+    const intermediateStops: StationItem[] = [];
+
+    steps.forEach((step, idx) => {
+      const isBoard =
+        step.type === 'transit_board' ||
+        (step.type === 'transit' && !stations.some((s) => s.role === 'board'));
+      const isTransfer = step.type === 'transfer' || step.type === 'transit_transfer';
+      const isAlight = step.type === 'transit_alight';
+
+      if (step.station_name) {
+        if (isBoard && !stations.some((s) => s.role === 'board')) {
+          stations.push({
+            name: step.station_name,
+            role: 'board',
+            line: step.transit_line || undefined,
+            color: step.route_color || undefined,
+            textColor: step.route_text_color || undefined,
+            headsign: step.headsign || undefined,
+            lat: step.geometry?.[0]?.[0],
+            lon: step.geometry?.[0]?.[1],
+            stepContext: step,
+          });
+        } else if (isTransfer) {
+          stations.push({
+            name: step.station_name,
+            role: 'transfer',
+            line: step.transit_line || undefined,
+            color: step.route_color || undefined,
+            textColor: step.route_text_color || undefined,
+            headsign: step.headsign || undefined,
+            lat: step.geometry?.[0]?.[0],
+            lon: step.geometry?.[0]?.[1],
+            stepContext: step,
+          });
+        } else if (
+          isAlight ||
+          idx === steps.length - 1 ||
+          (idx === steps.length - 2 && steps[steps.length - 1].type === 'walk')
+        ) {
+          stations.push({
+            name: step.station_name,
+            role: 'alight',
+            line: step.transit_line || undefined,
+            color: step.route_color || undefined,
+            textColor: step.route_text_color || undefined,
+            lat: step.geometry?.[0]?.[0],
+            lon: step.geometry?.[0]?.[1],
+            stepContext: step,
+          });
+        }
+      }
+
+      // Collect intermediate stops if present
+      if (step.intermediate_stop_details && step.intermediate_stop_details.length > 0) {
+        step.intermediate_stop_details.forEach((isd) => {
+          if (isd.name && !intermediateStops.some((s) => s.name === isd.name)) {
+            intermediateStops.push({
+              name: isd.name,
+              role: 'intermediate',
+              line: step.transit_line || undefined,
+              color: step.route_color || undefined,
+              lat: typeof isd.lat === 'number' ? isd.lat : undefined,
+              lon: typeof isd.lon === 'number' ? isd.lon : undefined,
+              stepContext: step,
+            });
+          }
+        });
+      } else if (step.intermediate_stops && step.intermediate_stops.length > 0) {
+        step.intermediate_stops.forEach((stopName) => {
+          if (stopName && !intermediateStops.some((s) => s.name === stopName)) {
+            intermediateStops.push({
+              name: stopName,
+              role: 'intermediate',
+              line: step.transit_line || undefined,
+              color: step.route_color || undefined,
+              stepContext: step,
+            });
+          }
+        });
+      }
+    });
+
+    // Fallback: If no board or alight explicitly identified by type, pick from steps having station_name
+    if (stations.length === 0) {
+      const stepsWithStation = steps.filter((s) => Boolean(s.station_name));
+      if (stepsWithStation.length > 0) {
+        const first = stepsWithStation[0];
+        stations.push({
+          name: first.station_name!,
+          role: 'board',
+          line: first.transit_line || undefined,
+          color: first.route_color || undefined,
+          textColor: first.route_text_color || undefined,
+          headsign: first.headsign || undefined,
+          lat: first.geometry?.[0]?.[0],
+          lon: first.geometry?.[0]?.[1],
+          stepContext: first,
+        });
+        if (stepsWithStation.length > 1) {
+          const last = stepsWithStation[stepsWithStation.length - 1];
+          stations.push({
+            name: last.station_name!,
+            role: 'alight',
+            line: last.transit_line || undefined,
+            color: last.route_color || undefined,
+            textColor: last.route_text_color || undefined,
+            lat: last.geometry?.[0]?.[0],
+            lon: last.geometry?.[0]?.[1],
+            stepContext: last,
+          });
+        }
+      }
+    }
+
+    return {
+      keyStations: stations,
+      intermediateStops,
+    };
+  }, [isTransit, steps]);
+
+  if (!transitLeg) {
+    return null;
+  }
+
   return (
     <div
       data-testid="transit-leg-view"
@@ -448,6 +583,199 @@ export function TransitLegView({
           </button>
         )}
       </div>
+
+      {/* Tactical Transit Stations Route */}
+      {stationFlow && stationFlow.keyStations.length > 0 && (
+        <div
+          data-testid="transit-stations-to-go"
+          style={{
+            marginTop: '0.65rem',
+            padding: '8px 10px',
+            background: 'rgba(15, 76, 92, 0.04)',
+            borderRadius: 'var(--radius-sm, 8px)',
+            border: '1px solid var(--color-border-subtle, rgba(0,0,0,0.08))',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--color-accent-teal-deep, #0F4C5C)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <TransitIcon size={12} color="currentColor" />
+              <span>Stations to Go</span>
+            </span>
+            {stationFlow.intermediateStops.length > 0 && (
+              <span style={{ color: 'var(--color-text-muted)', fontWeight: 500, fontSize: '0.65rem' }}>
+                {stationFlow.intermediateStops.length} stops
+              </span>
+            )}
+          </div>
+
+          {/* Interactive Stations Timeline */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '2px' }}>
+            {stationFlow.keyStations.map((st, sIdx) => {
+              const isBoard = st.role === 'board';
+              const isAlight = st.role === 'alight';
+              const dotColor = isBoard ? '#10B981' : isAlight ? '#EF4444' : '#F59E0B';
+              const roleLabel = isBoard ? 'BOARD AT' : isAlight ? 'ALIGHT AT' : 'TRANSFER AT';
+
+              return (
+                <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                  {/* Status Indicator Dot */}
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: dotColor,
+                      boxShadow: `0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 4px ${dotColor}`,
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  {/* Role text */}
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--color-text-muted)',
+                      minWidth: '65px',
+                    }}
+                  >
+                    {roleLabel}:
+                  </span>
+
+                  {/* Clickable Station Badge */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStationClick(st.name, st.lat, st.lon, st.stepContext);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: 'var(--color-surface-card)',
+                      border: '1px solid var(--color-border)',
+                      color: 'var(--color-accent-primary, #0F4C5C)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-accent-primary, #0F4C5C)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    title={`Inspect ${st.name} station on map & in drawer`}
+                  >
+                    <span>{st.name}</span>
+                  </button>
+
+                  {/* Line / Direction Chip */}
+                  {st.line && (
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: st.color || 'var(--color-accent-teal-soft, rgba(15, 76, 92, 0.15))',
+                        color: st.textColor || '#FFFFFF',
+                      }}
+                    >
+                      {st.line}
+                    </span>
+                  )}
+                  {st.headsign && (
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--color-text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '150px',
+                      }}
+                    >
+                      → {st.headsign}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Intermediate Stops Row (if any) */}
+            {stationFlow.intermediateStops.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  paddingLeft: '15px',
+                  fontSize: '0.675rem',
+                  color: 'var(--color-text-secondary)',
+                  flexWrap: 'wrap',
+                  marginTop: '2px',
+                }}
+              >
+                <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  Via:
+                </span>
+                {stationFlow.intermediateStops.map((ist, isIdx) => (
+                  <React.Fragment key={isIdx}>
+                    {isIdx > 0 && <span style={{ opacity: 0.5 }}>→</span>}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStationClick(ist.name, ist.lat, ist.lon, ist.stepContext);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '0 2px',
+                        color: 'var(--color-accent-primary, #0F4C5C)',
+                        fontSize: '0.675rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textDecorationColor: 'rgba(15, 76, 92, 0.35)',
+                      }}
+                      title={`Inspect ${ist.name} stop`}
+                    >
+                      {ist.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Expanded Turn-by-Turn Steps */}
       {isExpanded && steps.length > 0 && (

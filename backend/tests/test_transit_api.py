@@ -151,6 +151,17 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert len(st_obj["lines"]) == 1
     assert st_obj["lines"][0]["short_name"] == "G"
 
+    # TEST 2b: Nearby with circle waypoint
+    res_nearby_wp = await async_client.get(
+        f"/api/trips/{trip.id}/transit/nearby?center_lat=35.6580&center_lng=139.7016&radius=500"
+    )
+    assert res_nearby_wp.status_code == 200
+    wp_data = res_nearby_wp.json()
+    assert wp_data["anchors_count"] == 1
+    assert wp_data["grouped_stations"][0]["anchor_type"] == "waypoint"
+    assert len(wp_data["grouped_stations"][0]["stations"]) == 1
+    assert wp_data["grouped_stations"][0]["stations"][0]["id"] == "G01"
+
     # TEST 3: Lines
     res_lines = await async_client.get(f"/api/trips/{trip.id}/transit/lines")
     assert res_lines.status_code == 200
@@ -158,6 +169,19 @@ async def test_transit_api_endpoints(async_client: AsyncClient, db_session):
     assert len(lines_data["lines"]) == 1
     assert lines_data["lines"][0]["short_name"] == "G"
     assert lines_data["lines"][0]["mode"] == "Metro"
+
+    # TEST 3b: Lines filtered by circle radius
+    res_lines_near = await async_client.get(
+        f"/api/trips/{trip.id}/transit/lines?center_lat=35.6580&center_lng=139.7016&radius=500"
+    )
+    assert res_lines_near.status_code == 200
+    assert len(res_lines_near.json()["lines"]) == 1
+
+    res_lines_far = await async_client.get(
+        f"/api/trips/{trip.id}/transit/lines?center_lat=36.0000&center_lng=140.0000&radius=500"
+    )
+    assert res_lines_far.status_code == 200
+    assert len(res_lines_far.json()["lines"]) == 0
 
     # TEST 4: Line Detail
     res_ld = await async_client.get(f"/api/trips/{trip.id}/transit/lines/G")

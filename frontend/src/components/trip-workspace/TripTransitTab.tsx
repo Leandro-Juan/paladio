@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
-import { BookmarkIcon, CompassIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { BookmarkIcon, CompassIcon, ChevronLeftIcon, ChevronRightIcon, RadarIcon } from '@/components/icons';
 import { getTripDayDate } from '@/utils/date';
 import { registerTransitLineColor } from '@/utils/transitColors';
+import type { SpatialCircleFilter } from './TripMapView';
+import { SpatialFilterCard } from './SpatialFilterCard';
 import {
   TripTransitDirectionsView,
   DirectionsRouteResult,
@@ -47,6 +49,11 @@ export interface TripTransitTabProps {
     routeResult: DirectionsRouteResult | null,
     activeMode: 'primary' | 'alternative'
   ) => void;
+  spatialCircle?: SpatialCircleFilter | null;
+  onSpatialCircleChange?: (circle: SpatialCircleFilter | null) => void;
+  isDroppingWaypoint?: boolean;
+  onToggleDropWaypoint?: () => void;
+  onClearSpatialCircle?: () => void;
 }
 
 export type TransitSubView = 'directions' | 'lines' | 'nearby';
@@ -129,8 +136,23 @@ export function TripTransitTab({
   onStartMapPick,
   onCancelMapPick,
   onRouteCalculated,
+  spatialCircle,
+  onSpatialCircleChange,
+  isDroppingWaypoint,
+  onToggleDropWaypoint,
+  onClearSpatialCircle,
 }: TripTransitTabProps) {
-  const [subView, setSubView] = useState<TransitSubView>('directions');
+  const [subView, setSubView] = useState<TransitSubView>(() => (spatialCircle ? 'nearby' : 'directions'));
+
+  // Switch to nearby subview when spatial circle filter is activated
+  useEffect(() => {
+    if (spatialCircle) {
+      const timer = setTimeout(() => {
+        setSubView('nearby');
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [spatialCircle]);
   const [activeModes, setActiveModes] = useState<Set<TransitModeFilter>>(
     new Set(ALL_TRANSIT_MODES)
   );
@@ -265,9 +287,13 @@ export function TripTransitTab({
       try {
         if (subView === 'nearby') {
           const modeParams = Array.from(activeModes).join(',');
-          const res = await apiFetch<{ grouped_stations: NearbyAnchorGroup[] }>(
-            `/trips/${tripId}/transit/nearby?day=${dayIndex}&radius=800&modes=${modeParams}`
-          );
+          let nearbyUrl = `/trips/${tripId}/transit/nearby?day=${dayIndex}&modes=${modeParams}`;
+          if (spatialCircle) {
+            nearbyUrl += `&center_lat=${spatialCircle.lat}&center_lng=${spatialCircle.lng}&radius=${spatialCircle.radiusMeters}`;
+          } else {
+            nearbyUrl += `&radius=800`;
+          }
+          const res = await apiFetch<{ grouped_stations: NearbyAnchorGroup[] }>(nearbyUrl);
           if (!isCancelled) {
             setNearbyGroups(res.grouped_stations || []);
             (res.grouped_stations || []).forEach((g) => {
@@ -282,9 +308,11 @@ export function TripTransitTab({
             });
           }
         } else {
-          const res = await apiFetch<{ lines: TransitLineItem[] }>(
-            `/trips/${tripId}/transit/lines`
-          );
+          let linesUrl = `/trips/${tripId}/transit/lines`;
+          if (spatialCircle) {
+            linesUrl += `?center_lat=${spatialCircle.lat}&center_lng=${spatialCircle.lng}&radius=${spatialCircle.radiusMeters}`;
+          }
+          const res = await apiFetch<{ lines: TransitLineItem[] }>(linesUrl);
           if (!isCancelled) {
             setLines(res.lines || []);
             (res.lines || []).forEach((l) => {
@@ -306,7 +334,7 @@ export function TripTransitTab({
     return () => {
       isCancelled = true;
     };
-  }, [transitStatus, tripId, subView, dayIndex, activeModes]);
+  }, [transitStatus, tripId, subView, dayIndex, activeModes, spatialCircle]);
 
   // 3. Drill-in Station Fetch
   useEffect(() => {
@@ -662,6 +690,60 @@ export function TripTransitTab({
         </div>
       )}
 
+      {/* Transit Header with Waypoint Area Filter Button */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            Transit & Directions
+          </div>
+          {onToggleDropWaypoint && (
+            <button
+              type="button"
+              onClick={onToggleDropWaypoint}
+              title={spatialCircle ? 'Adjust Waypoint Radius Filter' : isDroppingWaypoint ? 'Cancel Waypoint Placement' : 'Drop Waypoint on Map'}
+              aria-label="Area Filter"
+              data-testid="transit-toggle-waypoint-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                background: spatialCircle
+                  ? 'rgba(15, 76, 92, 0.1)'
+                  : isDroppingWaypoint
+                  ? 'var(--color-accent-primary, #0F4C5C)'
+                  : 'var(--color-surface-card, #FFFFFF)',
+                border: `1px solid ${
+                  spatialCircle || isDroppingWaypoint
+                    ? 'var(--color-accent-primary, #0F4C5C)'
+                    : 'var(--color-border)'
+                }`,
+                borderRadius: '9999px',
+                color: isDroppingWaypoint ? '#FFFFFF' : 'var(--color-accent-primary, #0F4C5C)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: isDroppingWaypoint
+                  ? '0 2px 8px rgba(15, 76, 92, 0.25)'
+                  : 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <RadarIcon size={13} color={isDroppingWaypoint ? '#FFFFFF' : 'var(--color-accent-primary, #0F4C5C)'} />
+              <span>{spatialCircle ? 'Area Filter' : isDroppingWaypoint ? 'Click Map' : 'Area Filter'}</span>
+            </button>
+          )}
+        </div>
+
+        <SpatialFilterCard
+          spatialCircle={spatialCircle}
+          onSpatialCircleChange={onSpatialCircleChange}
+          isDroppingWaypoint={isDroppingWaypoint}
+          onToggleDropWaypoint={onToggleDropWaypoint}
+          onClearSpatialCircle={onClearSpatialCircle}
+        />
+      </div>
+
       {/* Segmented Control: [ Directions | Lines | Nearby ] */}
       <div
         style={{
@@ -864,13 +946,19 @@ export function TripTransitTab({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {nearbyGroups.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-              No transit stations found within 800m of today&apos;s stops.
+              {spatialCircle
+                ? `No transit stations found within ${spatialCircle.radiusMeters}m of waypoint.`
+                : `No transit stations found within 800m of today's stops.`}
             </div>
           ) : (
             nearbyGroups.map((grp) => (
               <div key={grp.anchor_id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {grp.anchor_type === 'lodging' ? 'Near your hotel' : `Near ${grp.anchor_name}`}
+                  {grp.anchor_type === 'waypoint'
+                    ? `Near Waypoint Radius (${spatialCircle?.radiusMeters || 800}m)`
+                    : grp.anchor_type === 'lodging'
+                    ? 'Near your hotel'
+                    : `Near ${grp.anchor_name}`}
                 </div>
                 {grp.stations.map((st) => {
                   const stableId = `gtfs:${destinationCity}:${st.id}`;

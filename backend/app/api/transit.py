@@ -72,7 +72,13 @@ async def get_trip_transit_nearby(
     trip_id: str,
     day: int = Query(0, ge=0, description="0-indexed day of the itinerary"),
     radius: float = Query(
-        800.0, ge=100.0, le=5000.0, description="Search radius in meters"
+        800.0, ge=100.0, le=10000.0, description="Search radius in meters"
+    ),
+    center_lat: float | None = Query(
+        None, description="Optional center latitude for custom circle search"
+    ),
+    center_lng: float | None = Query(
+        None, description="Optional center longitude for custom circle search"
     ),
     modes: str | None = Query(
         None, description="Comma-separated modes e.g. 'metro,rail'"
@@ -86,63 +92,73 @@ async def get_trip_transit_nearby(
     if not city:
         raise HTTPException(status_code=400, detail="Trip has no destination city")
 
-    # Extract anchors from trip: Lodging + Day itinerary stops
     anchors: list[dict[str, Any]] = []
 
-    # 1. Lodging anchor (from itinerary_data.get('lodging') or hotel)
-    itin = trip.itinerary_data or {}
-    lodging = itin.get("lodging") or itin.get("hotel") or {}
-    if (
-        isinstance(lodging, dict)
-        and (lodging.get("latitude") or lodging.get("lat"))
-        and (lodging.get("longitude") or lodging.get("lon"))
-    ):
-        lat_val = lodging.get("latitude") or lodging.get("lat")
-        lon_val = lodging.get("longitude") or lodging.get("lon")
+    if center_lat is not None and center_lng is not None:
         anchors.append(
             {
-                "id": "lodging",
-                "name": lodging.get("name") or "Your Hotel",
-                "type": "lodging",
-                "lat": float(lat_val),
-                "lon": float(lon_val),
+                "id": "waypoint",
+                "name": "Waypoint Area",
+                "type": "waypoint",
+                "lat": float(center_lat),
+                "lon": float(center_lng),
             }
         )
+    else:
+        # Extract anchors from trip: Lodging + Day itinerary stops
+        # 1. Lodging anchor (from itinerary_data.get('lodging') or hotel)
+        itin = trip.itinerary_data or {}
+        lodging = itin.get("lodging") or itin.get("hotel") or {}
+        if (
+            isinstance(lodging, dict)
+            and (lodging.get("latitude") or lodging.get("lat"))
+            and (lodging.get("longitude") or lodging.get("lon"))
+        ):
+            lat_val = lodging.get("latitude") or lodging.get("lat")
+            lon_val = lodging.get("longitude") or lodging.get("lon")
+            anchors.append(
+                {
+                    "id": "lodging",
+                    "name": lodging.get("name") or "Your Hotel",
+                    "type": "lodging",
+                    "lat": float(lat_val),
+                    "lon": float(lon_val),
+                }
+            )
 
-    # 2. Day itinerary stops
-    itin = trip.itinerary_data or {}
-    days = itin.get("days", [])
-    if isinstance(days, list) and day < len(days):
-        day_obj = days[day]
-        day_itin = day_obj.get("itinerary", {})
-        path = day_itin.get("path", [])
-        for item in path:
-            poi = item.get("poi") or {}
-            loc = poi.get("location") or {}
-            lat = (
-                loc.get("lat")
-                or loc.get("latitude")
-                or poi.get("lat")
-                or poi.get("latitude")
-            )
-            lon = (
-                loc.get("lon")
-                or loc.get("longitude")
-                or poi.get("lon")
-                or poi.get("longitude")
-            )
-            if lat is not None and lon is not None:
-                p_id = poi.get("id") or item.get("poi_id") or str(len(anchors))
-                p_name = poi.get("name") or item.get("name") or "Attraction"
-                anchors.append(
-                    {
-                        "id": str(p_id),
-                        "name": p_name,
-                        "type": "stop",
-                        "lat": float(lat),
-                        "lon": float(lon),
-                    }
+        # 2. Day itinerary stops
+        days = itin.get("days", [])
+        if isinstance(days, list) and day < len(days):
+            day_obj = days[day]
+            day_itin = day_obj.get("itinerary", {})
+            path = day_itin.get("path", [])
+            for item in path:
+                poi = item.get("poi") or {}
+                loc = poi.get("location") or {}
+                lat = (
+                    loc.get("lat")
+                    or loc.get("latitude")
+                    or poi.get("lat")
+                    or poi.get("latitude")
                 )
+                lon = (
+                    loc.get("lon")
+                    or loc.get("longitude")
+                    or poi.get("lon")
+                    or poi.get("longitude")
+                )
+                if lat is not None and lon is not None:
+                    p_id = poi.get("id") or item.get("poi_id") or str(len(anchors))
+                    p_name = poi.get("name") or item.get("name") or "Attraction"
+                    anchors.append(
+                        {
+                            "id": str(p_id),
+                            "name": p_name,
+                            "type": "stop",
+                            "lat": float(lat),
+                            "lon": float(lon),
+                        }
+                    )
 
     mode_list = [m.strip() for m in modes.split(",") if m.strip()] if modes else None
     grouped_stations = await transit_svc.get_nearby_stations_for_anchors(
@@ -169,6 +185,15 @@ async def get_trip_transit_lines(
     mode: str | None = Query(
         None, description="Optional filter by mode e.g. Metro, Rail"
     ),
+    center_lat: float | None = Query(
+        None, description="Optional center latitude for custom circle search"
+    ),
+    center_lng: float | None = Query(
+        None, description="Optional center longitude for custom circle search"
+    ),
+    radius: float | None = Query(
+        None, description="Optional radius in meters for circle search"
+    ),
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
     transit_svc: TransitService = Depends(get_transit_service),
@@ -176,6 +201,37 @@ async def get_trip_transit_lines(
     trip = await _get_authorized_trip(trip_id, current_user, session)
     city = (trip.destination or "").strip().lower()
     lines = await transit_svc.get_lines(city, mode=mode)
+
+    if center_lat is not None and center_lng is not None:
+        nearby_res = await transit_svc.get_nearby_stations_for_anchors(
+            city=city,
+            anchors=[
+                {
+                    "id": "waypoint",
+                    "name": "Waypoint Area",
+                    "type": "waypoint",
+                    "lat": float(center_lat),
+                    "lon": float(center_lng),
+                }
+            ],
+            radius_meters=radius or 800.0,
+            modes=[mode] if mode else None,
+        )
+        active_line_ids: set[str] = set()
+        for grp in nearby_res:
+            for st in grp.get("stations", []):
+                for l_chip in st.get("lines", []):
+                    if l_chip.get("line_id"):
+                        active_line_ids.add(str(l_chip["line_id"]).lower())
+                    if l_chip.get("short_name"):
+                        active_line_ids.add(str(l_chip["short_name"]).lower())
+        lines = [
+            line_item
+            for line_item in lines
+            if str(line_item.get("id", "")).lower() in active_line_ids
+            or str(line_item.get("short_name", "")).lower() in active_line_ids
+        ]
+
     avail = await transit_svc.get_availability(city)
     return {
         "city": city,

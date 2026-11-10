@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import httpx
@@ -35,6 +35,51 @@ def format_transitous_time(departure_iso: str | None) -> str | None:
     return None
 
 
+def shift_to_active_timetable_window(departure_iso: str | None) -> str | None:
+    """Shifts a past or out-of-bounds date to the matching weekday and time in the upcoming week."""
+    if not departure_iso:
+        return None
+    clean = departure_iso.strip()
+    try:
+        dt: datetime | None = None
+        if "T" in clean:
+            dt = datetime.fromisoformat(clean.replace("Z", "+00:00"))
+        elif len(clean) == 10 and clean.count("-") == 2:
+            dt = datetime.fromisoformat(f"{clean}T09:00:00+00:00")
+
+        if dt is not None:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            days_ahead = (dt.weekday() - now.weekday()) % 7
+            if days_ahead == 0 and dt.time() < now.time():
+                days_ahead = 7
+            shifted_dt = (now + timedelta(days=days_ahead)).replace(
+                hour=dt.hour, minute=dt.minute, second=dt.second, microsecond=0
+            )
+            return shifted_dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception as e:
+        logger.debug(f"Could not shift date for Transitous: {e}")
+    return None
+
+
+def _extract_lat_lon(point: dict[str, Any]) -> tuple[float | None, float | None]:
+    """Safely extracts latitude and longitude from dictionary whether top-level or nested."""
+    loc = point.get("location")
+    if isinstance(loc, dict):
+        lat = loc.get("latitude") if "latitude" in loc else loc.get("lat")
+        lon = loc.get("longitude") if "longitude" in loc else loc.get("lon")
+    else:
+        lat = point.get("latitude") if "latitude" in point else point.get("lat")
+        lon = point.get("longitude") if "longitude" in point else point.get("lon")
+    if lat is None or lon is None:
+        return None, None
+    try:
+        return float(lat), float(lon)
+    except (ValueError, TypeError):
+        return None, None
+
+
 class TransitousService:
     """
     Client for querying the community-maintained Transitous (MOTIS v2) routing engine.
@@ -56,16 +101,10 @@ class TransitousService:
         Queries Transitous /plan endpoint between origin and destination coordinates.
         Returns a canonical TransitLeg on success, or None if no transit routes are found.
         """
-        orig_lat = origin.get("location", {}).get("latitude", origin.get("lat"))
-        orig_lon = origin.get("location", {}).get("longitude", origin.get("lon"))
+        orig_lat, orig_lon = _extract_lat_lon(origin)
         orig_name = origin.get("name", "Origin")
 
-        dest_lat = destination.get("location", {}).get(
-            "latitude", destination.get("lat")
-        )
-        dest_lon = destination.get("location", {}).get(
-            "longitude", destination.get("lon")
-        )
+        dest_lat, dest_lon = _extract_lat_lon(destination)
         dest_name = destination.get("name", "Destination")
 
         if orig_lat is None or orig_lon is None or dest_lat is None or dest_lon is None:
@@ -73,11 +112,6 @@ class TransitousService:
                 "TransitousService: missing coordinates for origin or destination"
             )
             return None
-
-        orig_lat = float(orig_lat)
-        orig_lon = float(orig_lon)
-        dest_lat = float(dest_lat)
-        dest_lon = float(dest_lon)
 
         city_name = str(
             city or origin.get("city") or destination.get("city") or ""
@@ -131,10 +165,29 @@ class TransitousService:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url, params=params, headers=headers)
                 if resp.status_code != 200:
-                    logger.warning(
-                        f"TransitousService request failed: HTTP {resp.status_code} - {resp.text[:300]}"
-                    )
-                    return None
+                    if (
+                        resp.status_code == 400
+                        and "outside of loaded timetable window" in resp.text
+                        and "time" in params
+                    ):
+                        shifted = shift_to_active_timetable_window(departure_iso)
+                        if shifted and shifted != params.get("time"):
+                            logger.info(
+                                f"TransitousService: query time outside window, shifting to active window: {shifted}"
+                            )
+                            params["time"] = shifted
+                            resp = await client.get(url, params=params, headers=headers)
+                        if resp.status_code != 200:
+                            logger.info(
+                                "TransitousService: retrying without time constraint..."
+                            )
+                            params.pop("time", None)
+                            resp = await client.get(url, params=params, headers=headers)
+                    if resp.status_code != 200:
+                        logger.warning(
+                            f"TransitousService request failed: HTTP {resp.status_code} - {resp.text[:300]}"
+                        )
+                        return None
 
                 data = resp.json()
 

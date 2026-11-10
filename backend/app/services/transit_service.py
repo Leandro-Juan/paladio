@@ -76,6 +76,27 @@ def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -
     return r * c
 
 
+def extract_point_lat_lon(
+    point: dict[str, Any] | None, default: float = 0.0
+) -> tuple[float, float]:
+    """Safely extracts latitude and longitude from dictionary whether top-level or nested."""
+    if not isinstance(point, dict):
+        return default, default
+    loc = point.get("location")
+    if isinstance(loc, dict):
+        lat = loc.get("latitude") if "latitude" in loc else loc.get("lat")
+        lon = loc.get("longitude") if "longitude" in loc else loc.get("lon")
+    else:
+        lat = point.get("latitude") if "latitude" in point else point.get("lat")
+        lon = point.get("longitude") if "longitude" in point else point.get("lon")
+    try:
+        lat_val = float(lat) if lat is not None else default
+        lon_val = float(lon) if lon is not None else default
+        return lat_val, lon_val
+    except (ValueError, TypeError):
+        return default, default
+
+
 def is_poi_airport(poi: dict | None) -> bool:
     if not isinstance(poi, dict):
         return False
@@ -114,16 +135,10 @@ async def get_detailed_transit_leg(
     Retrieves detailed multimodal transit maneuvers (walk to stop, board line,
     transfer, alight, walk to destination) between two locations via Valhalla /route.
     """
-    orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
-    orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+    orig_lat, orig_lon = extract_point_lat_lon(origin)
     orig_name = origin.get("name", "Origin")
 
-    dest_lat = destination.get("location", {}).get(
-        "latitude", destination.get("lat", 0.0)
-    )
-    dest_lon = destination.get("location", {}).get(
-        "longitude", destination.get("lon", 0.0)
-    )
+    dest_lat, dest_lon = extract_point_lat_lon(destination)
     dest_name = destination.get("name", "Destination")
 
     if not is_airport_leg:
@@ -451,16 +466,10 @@ async def get_detailed_walking_leg(
     """
     Retrieves real pedestrian maneuvers and route between two locations via Valhalla /route.
     """
-    orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
-    orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+    orig_lat, orig_lon = extract_point_lat_lon(origin)
     orig_name = origin.get("name", "Origin")
 
-    dest_lat = destination.get("location", {}).get(
-        "latitude", destination.get("lat", 0.0)
-    )
-    dest_lon = destination.get("location", {}).get(
-        "longitude", destination.get("lon", 0.0)
-    )
+    dest_lat, dest_lon = extract_point_lat_lon(destination)
     dest_name = destination.get("name", "Destination")
 
     req_payload = {
@@ -572,16 +581,10 @@ async def calculate_point_to_point_directions(
 
     # Handle fallback if walking raised an exception
     if isinstance(walk_res, Exception):
-        orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
-        orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+        orig_lat, orig_lon = extract_point_lat_lon(origin)
         orig_name = origin.get("name", "Origin")
         dest_name = destination.get("name", "Destination")
-        dest_lat = destination.get("location", {}).get(
-            "latitude", destination.get("lat", 0.0)
-        )
-        dest_lon = destination.get("location", {}).get(
-            "longitude", destination.get("lon", 0.0)
-        )
+        dest_lat, dest_lon = extract_point_lat_lon(destination)
         dist_km = calculate_haversine_km(
             float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
         )
@@ -741,16 +744,10 @@ def synthesize_fallback_transit_leg(
     Synthesizes a realistic fallback transit leg with step-by-step instructions
     when Valhalla is unavailable or the route cannot be resolved.
     """
-    orig_lat = origin.get("location", {}).get("latitude", origin.get("lat", 0.0))
-    orig_lon = origin.get("location", {}).get("longitude", origin.get("lon", 0.0))
+    orig_lat, orig_lon = extract_point_lat_lon(origin)
     orig_name = origin.get("name", "Origin")
 
-    dest_lat = destination.get("location", {}).get(
-        "latitude", destination.get("lat", 0.0)
-    )
-    dest_lon = destination.get("location", {}).get(
-        "longitude", destination.get("lon", 0.0)
-    )
+    dest_lat, dest_lon = extract_point_lat_lon(destination)
     dest_name = destination.get("name", "Destination")
 
     dist_km = 0.5

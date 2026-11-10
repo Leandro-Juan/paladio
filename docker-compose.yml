@@ -102,6 +102,7 @@ services:
       - gtfsdata:/gtfs_feeds
     environment:
       - serve_rst=True
+      - server_threads=2
       - use_tiles_ignore_pbf=False
       - force_rebuild=False
       - build_elevation=False

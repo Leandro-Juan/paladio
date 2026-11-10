@@ -234,14 +234,14 @@ export function TripTransitDirectionsView({
         setOriginQuery(site.name);
         setIsOriginMenuOpen(false);
 
-        // Auto-advance to destination map pick & focus input B
-        if (onStartMapPick) {
-          onStartMapPick('destination');
+        // Auto-advance to destination map pick if destination not yet set
+        if (!destSite) {
+          if (onStartMapPick) {
+            onStartMapPick('destination');
+          }
+        } else {
+          if (onCancelMapPick) onCancelMapPick();
         }
-        setTimeout(() => {
-          destInputRef.current?.focus();
-          setIsDestMenuOpen(true);
-        }, 60);
       } else {
         setDestSite(site);
         setDestQuery(site.name);
@@ -369,46 +369,55 @@ export function TripTransitDirectionsView({
       });
     }
 
-    // 3. Day POIs
-    const rawPois =
+    // 3. Day POIs - Prioritize the selected day's stops, then include all other trip stops
+    const sortedDays =
       typeof selectedDayOption === 'number'
-        ? tripDays.find((d) => d.day_number === selectedDayOption)?.pois || []
-        : tripDays.flatMap((d) => d.pois || []);
+        ? [
+            ...(tripDays || []).filter((d) => d.day_number === selectedDayOption),
+            ...(tripDays || []).filter((d) => d.day_number !== selectedDayOption),
+          ]
+        : tripDays || [];
 
-    rawPois.forEach((p) => {
-      if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
-      const norm = normalize(p.name);
-      const coordKey = getCoordKey(p.lat, p.lng);
+    sortedDays.forEach((dayGroup) => {
+      (dayGroup.pois || []).forEach((p) => {
+        if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+        const norm = normalize(p.name);
+        const coordKey = getCoordKey(p.lat, p.lng);
 
-      // Deduplicate against Hotel
-      if (hotel) {
-        const hotelNorm = normalize(hotel.name);
-        if (norm === hotelNorm || norm.includes(hotelNorm) || hotelNorm.includes(norm)) {
+        // Deduplicate against Hotel
+        if (hotel) {
+          const hotelNorm = normalize(hotel.name);
+          if (norm === hotelNorm || norm.includes(hotelNorm) || hotelNorm.includes(norm)) {
+            return;
+          }
+        }
+        // Deduplicate against Airport
+        if (airport) {
+          const airportNorm = normalize(airport.name);
+          if (norm === airportNorm || norm.includes(airportNorm) || airportNorm.includes(norm)) {
+            return;
+          }
+        }
+
+        // Deduplicate across POIs
+        if (seenNames.has(norm) || seenCoords.has(coordKey)) {
           return;
         }
-      }
-      // Deduplicate against Airport
-      if (airport) {
-        const airportNorm = normalize(airport.name);
-        if (norm === airportNorm || norm.includes(airportNorm) || airportNorm.includes(norm)) {
-          return;
-        }
-      }
 
-      // Deduplicate across POIs
-      if (seenNames.has(norm) || seenCoords.has(coordKey)) {
-        return;
-      }
-
-      seenNames.add(norm);
-      seenCoords.add(coordKey);
-      list.push({
-        name: p.name,
-        address: p.name,
-        lat: p.lat,
-        lng: p.lng,
-        category: p.category || 'attraction',
-        badgeLabel: 'TRIP STOP',
+        seenNames.add(norm);
+        seenCoords.add(coordKey);
+        const isCurrentDay =
+          typeof selectedDayOption === 'number' && dayGroup.day_number === selectedDayOption;
+        list.push({
+          name: p.name,
+          address: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          category: p.category || 'attraction',
+          badgeLabel: isCurrentDay
+            ? `DAY ${dayGroup.day_number} STOP`
+            : `DAY ${dayGroup.day_number}`,
+        });
       });
     });
 
@@ -421,14 +430,19 @@ export function TripTransitDirectionsView({
     setOriginQuery(site.name);
     setIsOriginMenuOpen(false);
 
-    // Auto-advance to destination
+    // Auto-advance to destination only if destination is not yet set
     if (activeMapPickField === 'origin') {
-      onStartMapPick?.('destination');
+      if (!destSite) {
+        onStartMapPick?.('destination');
+      } else {
+        onCancelMapPick?.();
+      }
+    } else if (!destSite) {
+      setTimeout(() => {
+        destInputRef.current?.focus();
+        setIsDestMenuOpen(true);
+      }, 60);
     }
-    setTimeout(() => {
-      destInputRef.current?.focus();
-      setIsDestMenuOpen(true);
-    }, 60);
   };
 
   const handleSelectDest = (site: DirectionSite) => {
@@ -574,7 +588,7 @@ export function TripTransitDirectionsView({
   const getScheduledDateTimeIso = (): string => {
     let dateStr = tripStartDate || '2026-09-10';
     if (typeof selectedDayOption === 'number' && tripStartDate) {
-      dateStr = getTripDayDate(tripStartDate, selectedDayOption - 1);
+      dateStr = getTripDayDate(tripStartDate, selectedDayOption);
     }
     return `${dateStr}T${timeValue}:00`;
   };
