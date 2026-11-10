@@ -11,6 +11,8 @@ export interface RecommendedPoiCardProps {
   name: string;
   city: string;
   category?: string;
+  lat?: number;
+  lng?: number;
   description?: string | null;
   photoUrl?: string | null;
   tasteMatchPct: number;
@@ -32,6 +34,8 @@ export function RecommendedPoiCard({
   name,
   city,
   category,
+  lat,
+  lng,
   description,
   photoUrl,
   tasteMatchPct,
@@ -60,6 +64,8 @@ export function RecommendedPoiCard({
   const searchParams = new URLSearchParams();
   if (id) searchParams.set('poi', id);
   if (name) searchParams.set('name', name);
+  if (typeof lat === 'number' && !isNaN(lat)) searchParams.set('lat', String(lat));
+  if (typeof lng === 'number' && !isNaN(lng)) searchParams.set('lng', String(lng));
   const destinationHref = tripId
     ? `/trips/${tripId}?${searchParams.toString()}`
     : `/engine?${searchParams.toString()}`;
@@ -141,6 +147,8 @@ export function RecommendedPoiCard({
               <span
                 className={`${styles.badgePill} ${styles.categoryIconPill} ${styles.tooltipTrigger}`}
                 data-testid="poi-category-pill"
+                data-tooltip={formatCategoryLabel(categoryMeta.label)}
+                data-tooltip-position="top"
                 aria-label={categoryMeta.label}
               >
                 <CategoryIcon type={categoryMeta.type} size={12} className={styles.badgeIcon} />
@@ -160,6 +168,8 @@ export function RecommendedPoiCard({
               className={`${styles.actionButton} ${styles.dismissButton}`}
               onClick={handleDismiss}
               aria-label="Dismiss waypoint and find next best match"
+              data-tooltip="Dismiss waypoint"
+              data-tooltip-position="top"
               data-testid="poi-dismiss-btn"
             >
               <svg
@@ -185,6 +195,8 @@ export function RecommendedPoiCard({
               href={destinationHref}
               className={`${styles.actionButton} ${styles.heartButton}`}
               aria-label="View waypoint in trip details"
+              data-tooltip="View waypoint in trip details"
+              data-tooltip-position="top"
               data-testid="poi-heart-btn"
             >
               <svg

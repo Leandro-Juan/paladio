@@ -14,6 +14,8 @@ interface ExtractedPoi {
   name: string;
   city: string;
   category?: string;
+  lat?: number;
+  lng?: number;
   description?: string | null;
   photo_url?: string;
   tasteMatchPct: number;
@@ -151,11 +153,17 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
         for (const item of items) {
           if (!item.name) continue;
           const matchPct = calculateTasteMatch(item as Record<string, unknown>, targetTripId || 'paladio');
+          const rawLat = (item as { lat?: number; latitude?: number }).lat ?? (item as { latitude?: number }).latitude;
+          const rawLng = (item as { lng?: number; longitude?: number }).lng ?? (item as { longitude?: number }).longitude;
+          const lat = typeof rawLat === 'number' && !isNaN(rawLat) ? rawLat : undefined;
+          const lng = typeof rawLng === 'number' && !isNaN(rawLng) ? rawLng : undefined;
           results.push({
             id: item.id,
             name: item.name,
             city: targetCity,
             category: item.category,
+            lat,
+            lng,
             description: item.description,
             photo_url: item.photo_url || item.thumbnail_url,
             tasteMatchPct: matchPct,
@@ -188,6 +196,11 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
         name?: string;
         city?: string;
         category?: string;
+        lat?: number;
+        lng?: number;
+        latitude?: number;
+        longitude?: number;
+        location?: { latitude?: number; longitude?: number; lat?: number; lng?: number };
         description?: string | null;
         photo_url?: string;
         thumbnail_url?: string;
@@ -221,12 +234,18 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
 
       const city = p.city || tripDestination || targetCity || 'Destination';
       const matchPct = calculateTasteMatch(p as unknown as Record<string, unknown>, tripId || 'paladio');
+      const rawLat = p.lat ?? p.latitude ?? p.location?.latitude ?? p.location?.lat;
+      const rawLng = p.lng ?? p.longitude ?? p.location?.longitude ?? p.location?.lng;
+      const lat = typeof rawLat === 'number' && !isNaN(rawLat) ? rawLat : undefined;
+      const lng = typeof rawLng === 'number' && !isNaN(rawLng) ? rawLng : undefined;
 
       candidates.push({
         id: p.id,
         name: p.name,
         city,
         category: p.category,
+        lat,
+        lng,
         description: p.description,
         photo_url: p.photo_url || p.thumbnail_url || undefined,
         tasteMatchPct: matchPct,
@@ -489,6 +508,8 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
               name={poi.name}
               city={poi.city}
               category={poi.category}
+              lat={poi.lat}
+              lng={poi.lng}
               description={description}
               photoUrl={photoUrl}
               tasteMatchPct={poi.tasteMatchPct}

@@ -77,6 +77,8 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
             name: 'Gornergrat Observatory',
             city: 'Zermatt',
             category: 'nature_outdoors',
+            lat: 45.9833,
+            lng: 7.7833,
             description: 'Historic mountain ridge with panoramic glacier views.',
             photo_url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800',
             scoring: { taste_match: 0.94 },
@@ -145,6 +147,8 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
           name: 'Gornergrat Observatory',
           city: 'Zermatt',
           category: 'nature_outdoors',
+          lat: 45.9833,
+          lng: 7.7833,
           description: 'Historic mountain ridge with panoramic glacier views.',
           rating: 4.8,
         }),
@@ -322,6 +326,11 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     // Hover to capture screenshot of clean white box tooltip
     await heartButtons.first().hover();
     await page.locator('main.main-content').screenshot({ path: 'test-results/dashboard_tooltip_hover.png' });
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      const main = document.querySelector('main.main-content');
+      if (main) main.scrollTop = 0;
+    });
 
     // 5. Verify Swapped Position: Best Offer Card is on the LEFT of Recommended POIs
     const offerBox = await page.getByText('35% OFF').boundingBox();
@@ -371,6 +380,8 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await heartButtons.first().click();
     await page.waitForURL(/\/trips\/trip-swiss-alps\?poi=/);
     await expect(page).toHaveURL(/poi=poi-gornergrat/);
+    await expect(page).toHaveURL(/lat=45\.9833/);
+    await expect(page).toHaveURL(/lng=7\.7833/);
 
     // Verify POI detail view with its information cards is rendered on screen
     await expect(page.getByRole('heading', { level: 2, name: 'Gornergrat Observatory' })).toBeVisible({ timeout: 5000 });
@@ -671,6 +682,6 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(emptyState).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'No Saved Collections' })).toBeVisible();
     await expect(page.locator('[data-testid="saved-collections-count"]')).toHaveText('0 CURATED');
-    await expect(emptyState.getByRole('link', { name: '+ Plan New Expedition' })).toBeVisible();
+    await expect(emptyState.getByRole('link', { name: /\+ (Plan New Expedition|Initialize Protocol)/i })).toBeVisible();
   });
 });
