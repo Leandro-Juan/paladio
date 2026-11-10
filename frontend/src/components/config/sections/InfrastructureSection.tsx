@@ -8,12 +8,15 @@ import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
 import { UsersSection } from './UsersSection';
 import { SystemSection } from './SystemSection';
+import { PhotoSyncSettingsCard } from './PhotoSyncSettingsCard';
+import { NotificationsSettingsCard } from './NotificationsSettingsCard';
 import { notify } from '@/utils/notify';
 
 interface InfrastructureSectionProps {
   onBackToOverview: () => void;
-  subTab?: 'users' | 'updates' | 'telemetry' | 'vault';
+  subTab?: 'users' | 'updates' | 'telemetry' | 'vault' | 'notifications';
   isAdmin: boolean;
+
   currentUser: User | null;
   users: User[];
   isFetchingUsers: boolean;
@@ -95,11 +98,23 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
   } = props;
 
   // Vault config state
+  const [vaultSubTab, setVaultSubTab] = useState<'storage' | 'photo_sync'>('storage');
   const [vaultConfig, setVaultConfig] = useState<VaultConfigData>({
     auto_snapshot_enabled: true,
     snapshot_retention_days: 30,
     export_anonymized_trips: false,
+    immich_enabled: false,
+    immich_url: '',
+    immich_api_key: '',
+    immich_album_name: 'Paladio Vault',
+    synology_enabled: false,
+    synology_url: '',
+    synology_username: '',
+    synology_password: '',
+    synology_destination_path: '/photo/Paladio',
+    sync_on_upload: true,
   });
+
 
   useEffect(() => {
     let mounted = true;
@@ -208,15 +223,23 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
         <>
           <SettingsHeader
             title="Data Vault & Instance Backups"
+            subtitle="Manage encrypted instance snapshots, export JSON/PDF trip archives, and Immich / Synology photo sync"
             onBackToOverview={onBackToOverview}
           />
           <SettingsCardFrame
-            title="Sovereign Data Vault & Snapshots"
-            subtitle="Manage encrypted instance snapshots, export JSON/PDF trip archives, and purge local cache"
+            title="Sovereign Data Vault & Media Sync"
+            subtitle="Manage encrypted instance snapshots, export JSON/PDF trip archives, and sync itinerary photos to Immich and Synology"
             badge={vaultConfig.auto_snapshot_enabled ? 'AUTO SNAPSHOTS ON' : 'MANUAL'}
             badgeTone="gold"
-            innerTitle="Instance Backup Registry"
-            innerBadge={`Retention: ${vaultConfig.snapshot_retention_days} days`}
+            subTabs={[
+              { id: 'storage', label: 'Storage & Snapshots' },
+              { id: 'photo_sync', label: 'Photo Sync (Immich & Synology)' },
+            ]}
+            activeSubTab={vaultSubTab}
+            onSelectSubTab={(id) => setVaultSubTab(id as 'storage' | 'photo_sync')}
+
+            innerTitle={vaultSubTab === 'storage' ? 'Instance Backup Registry' : 'Photo Sync Integrations'}
+            innerBadge={vaultSubTab === 'storage' ? `Retention: ${vaultConfig.snapshot_retention_days} days` : (vaultConfig.immich_enabled || vaultConfig.synology_enabled ? 'Active' : 'Standby')}
             menuItems={[
               {
                 id: 'create_snapshot',
@@ -230,73 +253,94 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
               },
             ]}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Daily Automated Database Snapshots
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Archives trips, POI embeddings, and GTFS schedules to sovereign disk storage
-                  </p>
+            {vaultSubTab === 'storage' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      Daily Automated Database Snapshots
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
+                      Archives trips, POI embeddings, and GTFS schedules to sovereign disk storage
+                    </p>
+                  </div>
+                  <TacticalToggle
+                    checked={vaultConfig.auto_snapshot_enabled}
+                    onChange={(checked) => handleUpdateVault({ auto_snapshot_enabled: checked })}
+                    tone="gold"
+                    ariaLabel="Toggle automated snapshots"
+                  />
                 </div>
-                <TacticalToggle
-                  checked={vaultConfig.auto_snapshot_enabled}
-                  onChange={(checked) => handleUpdateVault({ auto_snapshot_enabled: checked })}
-                  tone="gold"
-                  ariaLabel="Toggle automated snapshots"
-                />
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Snapshot Retention Policy: {vaultConfig.snapshot_retention_days} Days
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Older automated snapshots are pruned automatically to conserve volume disk space
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      Snapshot Retention Policy: {vaultConfig.snapshot_retention_days} Days
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
+                      Older automated snapshots are pruned automatically to conserve volume disk space
+                    </p>
+                  </div>
+                  <select
+                    value={vaultConfig.snapshot_retention_days}
+                    onChange={(e) => handleUpdateVault({ snapshot_retention_days: parseInt(e.target.value, 10) })}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: 'var(--color-surface-card)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days (Recommended)</option>
+                    <option value={90}>90 days</option>
+                  </select>
                 </div>
-                <select
-                  value={vaultConfig.snapshot_retention_days}
-                  onChange={(e) => handleUpdateVault({ snapshot_retention_days: parseInt(e.target.value, 10) })}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    backgroundColor: 'var(--color-surface-card)',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                >
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                  <option value={30}>30 days (Recommended)</option>
-                  <option value={90}>90 days</option>
-                </select>
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Anonymize Exported Trip Bundles
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Strip traveler names and email credentials when exporting trips for public showcase
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      Anonymize Exported Trip Bundles
+                    </span>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
+                      Strip traveler names and email credentials when exporting trips for public showcase
+                    </p>
+                  </div>
+                  <TacticalToggle
+                    checked={vaultConfig.export_anonymized_trips}
+                    onChange={(checked) => handleUpdateVault({ export_anonymized_trips: checked })}
+                    tone="teal"
+                    ariaLabel="Toggle anonymized trip exports"
+                  />
                 </div>
-                <TacticalToggle
-                  checked={vaultConfig.export_anonymized_trips}
-                  onChange={(checked) => handleUpdateVault({ export_anonymized_trips: checked })}
-                  tone="teal"
-                  ariaLabel="Toggle anonymized trip exports"
-                />
               </div>
-            </div>
+            ) : (
+              <PhotoSyncSettingsCard
+                config={vaultConfig}
+                onChange={handleUpdateVault}
+                isAdmin={isAdmin}
+              />
+            )}
           </SettingsCardFrame>
+        </>
+      )}
+
+      {/* 4. Notification Relays (Admin Only) */}
+      {subTab === 'notifications' && (
+        <>
+          <SettingsHeader
+            title="Notification Relays & Device Alerts"
+            subtitle="Configure push delivery for trip events, flight deal alerts, and ticket processing"
+            onBackToOverview={onBackToOverview}
+          />
+          <NotificationsSettingsCard isAdmin={isAdmin} />
         </>
       )}
     </div>
   );
 }
+

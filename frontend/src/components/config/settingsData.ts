@@ -22,7 +22,8 @@ export type SettingsTabId =
   | 'users'
   | 'updates'
   | 'telemetry'
-  | 'vault';
+  | 'vault'
+  | 'notifications';
 
 export interface SettingCardItem {
   id: SettingsTabId;
@@ -46,8 +47,10 @@ export interface SettingCardItem {
     | 'sliders'
     | 'tag'
     | 'brain'
-    | 'database';
+    | 'database'
+    | 'bell';
   iconTone?: 'coral' | 'teal' | 'gold';
+
   keywords: string[];
   requiresAdmin?: boolean;
   statusBadge?: string;
@@ -275,13 +278,35 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
       {
         id: 'vault',
         title: 'Data Vault & Backups',
-        description: 'Instance database snapshots, anonymized trip JSON bundles, and storage cleanups',
+        description: 'Instance database snapshots, anonymized trip exports, and Immich / Synology photo sync',
         category: 'infrastructure',
         iconName: 'database',
         iconTone: 'gold',
-        keywords: ['vault', 'backup', 'snapshot', 'export', 'trips', 'archive', 'storage'],
-        statusBadge: 'Snapshots: ON',
+        keywords: ['vault', 'backup', 'snapshot', 'export', 'trips', 'archive', 'storage', 'photos', 'immich', 'synology', 'sync'],
+        statusBadge: 'Vault & Media',
+        subTabs: [
+          { id: 'storage', label: 'Storage & Snapshots' },
+          { id: 'photo_sync', label: 'Photo Sync (Immich & Synology)' },
+        ],
+      },
+      {
+        id: 'notifications',
+        title: 'Notification Relays',
+        description: 'Pushify, Pushover, Ntfy, and Custom Webhook delivery for travel alerts and events',
+        category: 'infrastructure',
+        iconName: 'bell',
+        iconTone: 'coral',
+        keywords: ['notifications', 'pushify', 'pushover', 'ntfy', 'webhook', 'alerts', 'push', 'events', 'sync'],
+        requiresAdmin: true,
+        statusBadge: 'Admin Gated',
+        subTabs: [
+          { id: 'pushify', label: 'Pushify' },
+          { id: 'pushover', label: 'Pushover & Ntfy' },
+          { id: 'webhooks', label: 'Custom Webhooks' },
+          { id: 'events', label: 'Event Triggers' },
+        ],
       },
     ],
   },
 ];
+

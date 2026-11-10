@@ -750,10 +750,11 @@ function ConfigPageInner() {
           />
         )}
 
-        {(activeTab === 'users' || activeTab === 'updates' || activeTab === 'telemetry' || activeTab === 'vault') && (
+        {(activeTab === 'users' || activeTab === 'updates' || activeTab === 'telemetry' || activeTab === 'vault' || activeTab === 'notifications') && (
           <InfrastructureSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
+
             isAdmin={isAdmin}
             currentUser={currentUser}
             users={users}

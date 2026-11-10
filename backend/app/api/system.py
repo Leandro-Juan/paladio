@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from app.api.deps import get_optional_user
+from app.api.deps import get_current_admin_user, get_optional_user
 from app.db.models import UserModel
 from app.db.session import get_db
 from app.services.llm_service import (
@@ -10,8 +10,11 @@ from app.services.llm_service import (
     mask_api_key,
 )
 from app.services.settings_service import SettingsService
+from app.services.photo_sync_service import PhotoSyncService
+from app.services.notification_relay_service import NotificationRelayService
 from app.schemas.settings import DOMAIN_CONFIG_MAP
 from app.services.updater_service import UpdaterService
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -232,18 +235,66 @@ async def test_llm_connection(
         }
 
 
+class PhotoSyncTestPayload(BaseModel):
+    provider: str = Field(
+        ..., description="Target photo provider ('immich' or 'synology')"
+    )
+    url: str = Field(..., description="Base endpoint URL")
+    api_key: str | None = Field(None, description="API key for Immich")
+    username: str | None = Field(None, description="Username for Synology")
+    password: str | None = Field(None, description="Password for Synology")
+    destination_path: str | None = Field(
+        None, description="Destination folder on Synology"
+    )
+
+
+class PhotoSyncAllPayload(BaseModel):
+    trip_id: str | None = Field(
+        None, description="Optional trip ID to restrict sync to"
+    )
+
+
+class NotificationTestPayload(BaseModel):
+    provider: str = Field(
+        ..., description="Provider key ('pushify', 'pushover', 'ntfy', 'webhook')"
+    )
+    config: dict[str, Any] = Field(..., description="Provider configuration dictionary")
+
+
+class NotificationRelayPayload(BaseModel):
+    title: str = Field(..., description="Notification title")
+    message: str = Field(..., description="Notification body content")
+    level: str = Field(
+        "info", description="Severity level: info, success, warning, error"
+    )
+    action_url: str | None = Field(None, description="Optional target action link URL")
+    event_type: str = Field(
+        "general",
+        description="Event category: deal_alert, trip_update, ticket_parse, photo_sync, general",
+    )
+
+
 @router.get("/settings/{domain}")
 async def get_domain_settings(
     domain: str,
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Retrieve system settings for a specific domain (engine, swarm, vault)."""
+    """Retrieve system settings for a specific domain (engine, swarm, vault, notifications)."""
     if domain not in DOMAIN_CONFIG_MAP:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Domain '{domain}' not found. Valid domains: {list(DOMAIN_CONFIG_MAP.keys())}",
         )
+
+    # Sensitive infrastructure domains require administrator role
+    if domain in ("vault", "notifications"):
+        if not _user or getattr(_user, "role", "user") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Administrator privileges required to access infrastructure domain settings",
+            )
+
     try:
         data = await SettingsService.get_domain_settings(session, domain)
         return {"status": "success", "domain": domain, "config": data}
@@ -262,7 +313,13 @@ async def update_domain_settings(
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Update system settings for a domain (engine, swarm, vault)."""
+    """Update system settings for a domain (engine, swarm, vault, notifications) - Admin Only."""
+    if not _user or getattr(_user, "role", "user") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator privileges required to modify system settings",
+        )
+
     if domain not in DOMAIN_CONFIG_MAP:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -277,3 +334,71 @@ async def update_domain_settings(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update settings: {e}",
         )
+
+
+@router.post("/photo-sync/test")
+async def test_photo_sync_endpoint(
+    payload: PhotoSyncTestPayload,
+    _admin: UserModel = Depends(get_current_admin_user),
+) -> dict[str, Any]:
+    """Test Immich or Synology connection and authentication (Admin Only)."""
+    provider = payload.provider.strip().lower()
+    if provider == "immich":
+        return await PhotoSyncService.test_immich_connection(
+            url=payload.url,
+            api_key=payload.api_key or "",
+        )
+    elif provider == "synology":
+        return await PhotoSyncService.test_synology_connection(
+            url=payload.url,
+            username=payload.username or "",
+            password=payload.password or "",
+            destination_path=payload.destination_path or "/photo/Paladio",
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported photo sync provider '{payload.provider}'. Supported: 'immich', 'synology'",
+        )
+
+
+@router.post("/photo-sync/sync-all")
+async def sync_all_vault_photos_endpoint(
+    payload: PhotoSyncAllPayload | None = None,
+    session: AsyncSession = Depends(get_db),
+    _admin: UserModel = Depends(get_current_admin_user),
+) -> dict[str, Any]:
+    """Manually trigger photo synchronization across all vault trips (Admin Only)."""
+    trip_id = payload.trip_id if payload else None
+    return await PhotoSyncService.sync_all_vault_photos(
+        session=session, trip_id=trip_id
+    )
+
+
+@router.post("/notifications/test")
+async def test_notification_relay_endpoint(
+    payload: NotificationTestPayload,
+    _admin: UserModel = Depends(get_current_admin_user),
+) -> dict[str, Any]:
+    """Send a diagnostic ping message to verify a notification relay provider (Admin Only)."""
+    return await NotificationRelayService.test_relay(
+        provider=payload.provider.strip().lower(),
+        config=payload.config,
+    )
+
+
+@router.post("/notifications/relay")
+async def relay_notification_endpoint(
+    payload: NotificationRelayPayload,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Dispatch a notification event to all configured notification relays."""
+    return await NotificationRelayService.dispatch(
+        session=session,
+        title=payload.title,
+        message=payload.message,
+        level=payload.level,
+        action_url=payload.action_url,
+        event_type=payload.event_type,
+    )

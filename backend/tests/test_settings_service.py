@@ -7,7 +7,7 @@ from sqlalchemy import delete
 
 @pytest.mark.asyncio
 async def test_domain_config_defaults():
-    for domain in ["engine", "swarm", "vault"]:
+    for domain in ["engine", "swarm", "vault", "notifications"]:
         defaults = get_default_domain_config(domain)
         assert isinstance(defaults, dict)
         schema_cls = DOMAIN_CONFIG_MAP[domain]
@@ -23,7 +23,7 @@ async def test_settings_service_fallback(db_session):
     # Ensure test isolation
     await db_session.execute(
         delete(SystemConfigModel).where(
-            SystemConfigModel.key.in_(["engine", "swarm", "vault"])
+            SystemConfigModel.key.in_(["engine", "swarm", "vault", "notifications"])
         )
     )
     await db_session.commit()
@@ -39,6 +39,14 @@ async def test_settings_service_fallback(db_session):
 
     vault_cfg = await SettingsService.get_domain_settings(db_session, "vault")
     assert vault_cfg["auto_snapshot_enabled"] is True
+    assert vault_cfg["immich_enabled"] is False
+    assert vault_cfg["synology_enabled"] is False
+    assert vault_cfg["sync_on_upload"] is True
+
+    notif_cfg = await SettingsService.get_domain_settings(db_session, "notifications")
+    assert notif_cfg["pushify"]["enabled"] is False
+    assert notif_cfg["pushover"]["enabled"] is False
+    assert notif_cfg["notify_on_deal_alert"] is True
 
 
 @pytest.mark.asyncio
