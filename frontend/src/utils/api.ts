@@ -315,6 +315,22 @@ export interface ConfiguredProviderInfo {
   requires_key: boolean;
 }
 
+export interface HardwareProfileData {
+  total_ram_gb: number;
+  available_ram_gb: number;
+  swap_total_gb: number;
+  cpu_logical_cores: number;
+  cpu_physical_cores: number;
+  has_gpu: boolean;
+  gpu_name: string | null;
+  tier: 'low' | 'medium' | 'high';
+  recommended_model: string;
+  recommended_num_ctx: number;
+  recommended_num_thread: number;
+  keep_alive: string;
+  memory_warning: string | null;
+}
+
 export interface LLMConfigResponse {
   provider: string;
   model: string;
@@ -323,6 +339,7 @@ export interface LLMConfigResponse {
   masked_api_key: string | null;
   supported_providers: Record<string, SupportedProviderMeta>;
   configured_providers?: Record<string, ConfiguredProviderInfo>;
+  hardware_profile?: HardwareProfileData;
 }
 
 export interface UpdateLLMConfigPayload {
@@ -367,6 +384,15 @@ export const testLlmConfigApi = (
   return apiFetch<TestLLMConnectionResponse>('/system/llm/test', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+};
+
+export const unloadLlmModelApi = (
+  model?: string
+): Promise<{ success: boolean; message: string; hardware_profile?: HardwareProfileData }> => {
+  return apiFetch<{ success: boolean; message: string; hardware_profile?: HardwareProfileData }>('/system/llm/unload', {
+    method: 'POST',
+    body: JSON.stringify({ model: model || null }),
   });
 };
 

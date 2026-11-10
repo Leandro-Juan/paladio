@@ -14,8 +14,11 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.settings import ModelSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.hardware_service import HardwareProfile, HardwareService
 
 logger = logging.getLogger(__name__)
 
@@ -195,11 +198,12 @@ class LLMService:
 
     @classmethod
     def get_default_ollama_config(cls, model_name: Optional[str] = None) -> LLMConfig:
+        hardware = HardwareService.get_hardware_profile()
         model = (
             model_name
             or os.getenv("TRIP_AGENT_MODEL")
             or os.getenv("VALIDATOR_MODEL")
-            or "qwen2.5:3b"
+            or hardware.recommended_model
         )
         if model.startswith("ollama:"):
             model = model.replace("ollama:", "")
@@ -419,13 +423,14 @@ class LLMService:
         record = result.scalar_one_or_none()
 
         provider_keys: Dict[str, str] = {}
+        hardware = HardwareService.get_hardware_profile()
         active_provider = "ollama"
-        active_model = "qwen2.5:latest"
+        active_model = hardware.recommended_model
 
         if record and record.value:
             val = record.value
             active_provider = val.get("provider", "ollama")
-            active_model = val.get("model", "qwen2.5:latest")
+            active_model = val.get("model", hardware.recommended_model)
             provider_keys = dict(val.get("provider_keys", {}))
             if val.get("provider") and val.get("api_key"):
                 provider_keys[val.get("provider")] = val.get("api_key")
@@ -520,7 +525,17 @@ class LLMService:
             url = resolve_ollama_base_url(config.base_url)
             clean_name = model_name.replace("ollama:", "")
             ollama_provider = OllamaProvider(base_url=url)
-            return OllamaModel(clean_name, provider=ollama_provider)
+            hardware = HardwareService.get_hardware_profile()
+            settings = ModelSettings(
+                extra_body={
+                    "options": {
+                        "num_ctx": hardware.recommended_num_ctx,
+                        "num_thread": hardware.recommended_num_thread,
+                    },
+                    "keep_alive": hardware.keep_alive,
+                }
+            )
+            return OllamaModel(clean_name, provider=ollama_provider, settings=settings)
 
         elif provider == "anthropic":
             if not config.api_key:
@@ -701,3 +716,37 @@ class LLMService:
         except Exception as e:
             logger.warning(f"Structured extraction failed via LLM: {e}")
             return None
+
+    @classmethod
+    def get_hardware_profile(cls) -> HardwareProfile:
+        """Returns dynamic machine hardware profile and safe parameters."""
+        return HardwareService.get_hardware_profile()
+
+    @classmethod
+    async def unload_ollama_model(cls, model_name: Optional[str] = None) -> bool:
+        """
+        Signals local Ollama daemon to immediately unload a resident model
+        from RAM/VRAM by issuing keep_alive=0.
+        """
+        try:
+            ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip(
+                "/"
+            )
+            if ollama_url.endswith("/v1"):
+                ollama_url = ollama_url[:-3]
+
+            target_model = model_name
+            if not target_model:
+                hardware = HardwareService.get_hardware_profile()
+                target_model = hardware.recommended_model
+
+            clean_name = target_model.replace("ollama:", "")
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.post(
+                    f"{ollama_url}/api/generate",
+                    json={"model": clean_name, "keep_alive": 0},
+                )
+                return resp.status_code == 200
+        except Exception as e:
+            logger.debug(f"Failed to unload Ollama model '{model_name}': {e}")
+            return False

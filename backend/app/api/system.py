@@ -156,6 +156,7 @@ async def get_llm_configuration(
     try:
         config = await LLMService.get_config_from_db(session)
         configured_providers = await LLMService.get_configured_providers(session)
+        hardware = LLMService.get_hardware_profile()
         return {
             "provider": config.provider,
             "model": config.model,
@@ -164,6 +165,7 @@ async def get_llm_configuration(
             "masked_api_key": mask_api_key(config.api_key),
             "supported_providers": SUPPORTED_PROVIDERS,
             "configured_providers": configured_providers,
+            "hardware_profile": hardware.to_dict(),
         }
     except Exception as e:
         logger.exception(f"Failed to retrieve LLM configuration: {e}")
@@ -189,6 +191,7 @@ async def update_llm_configuration(
             base_url=payload.base_url,
         )
         configured_providers = await LLMService.get_configured_providers(session)
+        hardware = LLMService.get_hardware_profile()
         return {
             "status": "success",
             "config": {
@@ -199,6 +202,7 @@ async def update_llm_configuration(
                 "masked_api_key": mask_api_key(saved.api_key),
                 "supported_providers": SUPPORTED_PROVIDERS,
                 "configured_providers": configured_providers,
+                "hardware_profile": hardware.to_dict(),
             },
         }
     except Exception as e:
@@ -233,6 +237,32 @@ async def test_llm_connection(
             "provider": payload.provider,
             "model": payload.model,
         }
+
+
+class UnloadModelPayload(BaseModel):
+    model: str | None = Field(
+        None, description="Optional model name to unload from memory"
+    )
+
+
+@router.post("/llm/unload")
+async def unload_local_model(
+    payload: UnloadModelPayload | None = None,
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Unload resident local Ollama model to immediately reclaim system memory."""
+    target_model = payload.model if payload else None
+    success = await LLMService.unload_ollama_model(model_name=target_model)
+    hardware = LLMService.get_hardware_profile()
+    return {
+        "success": success,
+        "message": (
+            f"Local model '{target_model or 'active'}' unloaded from memory."
+            if success
+            else "Failed to unload or Ollama is not active."
+        ),
+        "hardware_profile": hardware.to_dict(),
+    }
 
 
 class PhotoSyncTestPayload(BaseModel):

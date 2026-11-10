@@ -5,6 +5,7 @@ import {
   fetchLlmConfigApi,
   updateLlmConfigApi,
   testLlmConfigApi,
+  unloadLlmModelApi,
   LLMConfigResponse,
   SupportedProviderMeta,
   TestLLMConnectionResponse,
@@ -16,11 +17,12 @@ export function LlmConfigCard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [unloading, setUnloading] = useState(false);
   const [testResult, setTestResult] = useState<TestLLMConnectionResponse | null>(null);
 
   const [activeConfig, setActiveConfig] = useState<LLMConfigResponse | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>('ollama');
-  const [selectedModel, setSelectedModel] = useState<string>('qwen2.5:latest');
+  const [selectedModel, setSelectedModel] = useState<string>('qwen2.5:3b');
   const [customModel, setCustomModel] = useState<string>('');
   const [isCustomModelMode, setIsCustomModelMode] = useState<boolean>(false);
   const [apiKey, setApiKey] = useState<string>('');
@@ -170,6 +172,26 @@ export function LlmConfigCard() {
       notify.error('Connection Failed', msg);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleUnloadModel = async () => {
+    setUnloading(true);
+    try {
+      const res = await unloadLlmModelApi(selectedModel);
+      if (res.success) {
+        notify.success('Model Unloaded', res.message || 'Local model released from host RAM.');
+        if (res.hardware_profile && activeConfig) {
+          setActiveConfig({ ...activeConfig, hardware_profile: res.hardware_profile });
+        }
+      } else {
+        notify.info('Ollama Status', res.message || 'No resident model to unload.');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error unloading model';
+      notify.error('Unload Failed', msg);
+    } finally {
+      setUnloading(false);
     }
   };
 
@@ -669,8 +691,69 @@ export function LlmConfigCard() {
         </div>
       )}
 
+      {selectedProvider === 'ollama' && activeConfig?.hardware_profile && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '10px 14px',
+            borderRadius: '6px',
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            fontSize: '12px',
+            fontFamily: 'var(--font-mono)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          <div>
+            <span style={{ color: '#38bdf8', fontWeight: 600 }}>HOST HARDWARE PROFILE: </span>
+            <span style={{ color: 'var(--color-text-secondary)' }}>
+              {activeConfig.hardware_profile.total_ram_gb}GB RAM (
+              {activeConfig.hardware_profile.available_ram_gb}GB free, {activeConfig.hardware_profile.swap_total_gb}GB swap) • {activeConfig.hardware_profile.cpu_logical_cores} CPU cores
+              {activeConfig.hardware_profile.has_gpu ? ` • ${activeConfig.hardware_profile.gpu_name || 'GPU'}` : ' • CPU Inference'}
+            </span>
+            {activeConfig.hardware_profile.memory_warning && (
+              <div style={{ color: '#f59e0b', marginTop: '4px', fontSize: '11px' }}>
+                ⚠️ {activeConfig.hardware_profile.memory_warning}
+              </div>
+            )}
+          </div>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>
+            Recommended: {activeConfig.hardware_profile.recommended_model} ({activeConfig.hardware_profile.recommended_num_ctx} ctx)
+          </span>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+        {selectedProvider === 'ollama' && (
+          <button
+            type="button"
+            onClick={handleUnloadModel}
+            disabled={unloading || saving || testing}
+            title="Unload model from host RAM to immediately reclaim memory"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-secondary)',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+              cursor: unloading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {unloading && <Spinner size={12} />}
+            {unloading ? 'UNLOADING...' : 'FREE LOCAL MEMORY'}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleTestConnection}
