@@ -146,7 +146,10 @@ export function SpatialFilterCard({
           <button
             type="button"
             data-testid="clear-spatial-circle-btn"
-            onClick={onClearSpatialCircle}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearSpatialCircle();
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

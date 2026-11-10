@@ -185,7 +185,7 @@ function UvGauge({ value }: { value: number }) {
         />
       </svg>
       {/* Scale indicators */}
-      <span style={{ position: 'absolute', bottom: '2px', left: '12px', fontSize: '10px', color: 'var(--color-text-muted)' }}>
+      <span style={{ position: 'absolute', bottom: '2px', left: '20px', fontSize: '10px', color: 'var(--color-text-muted)' }}>
         0
       </span>
       <span style={{ position: 'absolute', top: '10px', left: '26px', fontSize: '10px', color: 'var(--color-text-muted)' }}>

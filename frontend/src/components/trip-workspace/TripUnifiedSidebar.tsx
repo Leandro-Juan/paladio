@@ -13,6 +13,7 @@ import { CollectionsTab } from './CollectionsTab';
 import { AgentTab, WorkspaceContextData } from '@/components/trip-agent';
 import { SaveToCollectionMenu } from './SaveToCollectionMenu';
 import { AddPoiModal } from './AddPoiModal';
+import { Modal } from '@/components/Modal';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { notify } from '@/utils/notify';
@@ -24,11 +25,18 @@ import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
 import { getDayColor, SpatialCircleFilter } from './TripMapView';
 import {
   startCustomDragPreview,
+  cleanupCustomDragPreview,
   markPaladioDropHandled,
   resetPaladioDropHandled,
   isPaladioDropHandled,
 } from '@/utils/dragPreview';
-export { startCustomDragPreview, markPaladioDropHandled, resetPaladioDropHandled, isPaladioDropHandled };
+export {
+  startCustomDragPreview,
+  cleanupCustomDragPreview,
+  markPaladioDropHandled,
+  resetPaladioDropHandled,
+  isPaladioDropHandled,
+};
 import {
   SearchIcon,
   CheckIcon,
@@ -205,7 +213,6 @@ const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType
   { id: 'cafe', label: 'Cafés', iconType: 'cafe' },
   { id: 'landmark', label: 'Monuments', iconType: 'landmark' },
   { id: 'park', label: 'Parks', iconType: 'park' },
-  { id: 'hotel', label: 'Stays', iconType: 'hotel' },
   { id: 'shopping', label: 'Shopping', iconType: 'shopping' },
 ];
 
@@ -1449,6 +1456,13 @@ export function TripUnifiedSidebar({
     name: string;
     type: string;
   } | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{
+    payload: { source?: string; day?: number; index?: number; poi?: Record<string, unknown> };
+    targetDayNum: number;
+    targetIdx: number;
+    poiName: string;
+    position: 'first stop' | 'last stop';
+  } | null>(null);
 
   // Auto-switch to route tab when any POI begins being dragged from search or inspector
   useEffect(() => {
@@ -1462,6 +1476,7 @@ export function TripUnifiedSidebar({
   // Reset active drop target and clean up drag state if dragging ends anywhere without inserting
   useEffect(() => {
     const handleDragEnded = () => {
+      cleanupCustomDragPreview();
       setActiveDropTarget(null);
       window.setTimeout(() => {
         setDraggedPoi(null);
@@ -1470,16 +1485,16 @@ export function TripUnifiedSidebar({
           (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
         }
       }, 120);
-      const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-      existing.forEach((node) => node.remove());
     };
 
     window.addEventListener('dragend', handleDragEnded, true);
     window.addEventListener('mouseup', handleDragEnded, true);
+    window.addEventListener('drop', handleDragEnded, false);
     window.addEventListener('paladio:drag-ended', handleDragEnded, true);
     return () => {
       window.removeEventListener('dragend', handleDragEnded, true);
       window.removeEventListener('mouseup', handleDragEnded, true);
+      window.removeEventListener('drop', handleDragEnded, false);
       window.removeEventListener('paladio:drag-ended', handleDragEnded, true);
     };
   }, []);
@@ -2011,8 +2026,87 @@ export function TripUnifiedSidebar({
   );
 
   // Drag and drop handlers for Route reordering
+  const executeDrop = useCallback(
+    (
+      payload: { source?: string; day?: number; index?: number; poi?: Record<string, unknown> },
+      targetDayNum: number,
+      targetIdx: number
+    ) => {
+      if (!payload || !itinerary || !onItineraryUpdate) return;
+
+      try {
+        const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+        if (!Array.isArray(clonedItin.days)) {
+          clonedItin.days = [];
+        }
+        let targetDayObj = clonedItin.days.find((d) => (d.day ?? 1) === targetDayNum);
+        if (!targetDayObj) {
+          targetDayObj = { day: targetDayNum, itinerary: { path: [] } };
+          clonedItin.days.push(targetDayObj);
+        }
+
+        if (!targetDayObj.itinerary) {
+          targetDayObj.itinerary = { path: [] };
+        }
+        if (!Array.isArray(targetDayObj.itinerary.path)) {
+          targetDayObj.itinerary.path = [];
+        }
+
+        if (payload.source === 'route') {
+          const srcDayNum = payload.day;
+          const srcIdx = payload.index;
+          if (typeof srcDayNum !== 'number' || typeof srcIdx !== 'number') return;
+          const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
+          if (!srcDayObj?.itinerary?.path) return;
+
+          const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
+          if (movedItem) {
+            let adjustedTargetIdx = targetIdx;
+            if (srcDayNum === targetDayNum && srcIdx < targetIdx) {
+              adjustedTargetIdx = targetIdx - 1;
+            }
+            const safeIdx = Math.max(0, Math.min(adjustedTargetIdx, targetDayObj.itinerary.path.length));
+            targetDayObj.itinerary.path.splice(safeIdx, 0, movedItem);
+            onItineraryUpdate(clonedItin);
+            notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
+          }
+        } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map' || payload.source === 'collection') {
+          const poi = payload.poi;
+          if (!poi) return;
+          const lat = ((poi.location as { latitude?: number } | undefined)?.latitude ?? poi.lat ?? 0) as number;
+          const lng = ((poi.location as { longitude?: number } | undefined)?.longitude ?? poi.lng ?? 0) as number;
+          const poiName = (poi.name as string) || 'Waypoint';
+          const newScheduled: ScheduledPoi = {
+            poi: {
+              id: (poi.id as string) || poiName,
+              name: poiName,
+              city: destinationCity,
+              category: (poi.category as string) || 'attraction',
+              duration_mins: (poi.duration_mins as number) || (poi.durationMins as number) || 60,
+              cost_eur: (poi.cost_eur as number) || (poi.costEur as number) || 0,
+              location: {
+                latitude: lat,
+                longitude: lng,
+              },
+            },
+          };
+          const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
+          targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
+          onItineraryUpdate(clonedItin);
+          setJustInserted((prev) => ({ day: targetDayNum, index: safeIdx, key: (prev?.key ?? 0) + 1 }));
+          window.setTimeout(() => setJustInserted(null), 800);
+          notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
+        }
+      } catch (err) {
+        console.error('Failed to execute drop:', err);
+      }
+    },
+    [itinerary, onItineraryUpdate, destinationCity]
+  );
+
   const handleDrop = (e: React.DragEvent, targetDayNum: number, targetIdx: number) => {
     e.preventDefault();
+    cleanupCustomDragPreview();
     setActiveDropTarget(null);
     markPaladioDropHandled();
 
@@ -2034,68 +2128,54 @@ export function TripUnifiedSidebar({
     if (!payload || !itinerary || !onItineraryUpdate) return;
 
     try {
-      const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
-      if (!Array.isArray(clonedItin.days)) {
-        clonedItin.days = [];
-      }
-      let targetDayObj = clonedItin.days.find((d) => (d.day ?? 1) === targetDayNum);
-      if (!targetDayObj) {
-        targetDayObj = { day: targetDayNum, itinerary: { path: [] } };
-        clonedItin.days.push(targetDayObj);
-      }
+      const targetDayObj = itinerary.days?.find((d) => (d.day ?? 1) === targetDayNum);
+      const currentPath = targetDayObj?.itinerary?.path || [];
+      const currentLength = currentPath.length;
 
-      if (!targetDayObj.itinerary) {
-        targetDayObj.itinerary = { path: [] };
-      }
-      if (!Array.isArray(targetDayObj.itinerary.path)) {
-        targetDayObj.itinerary.path = [];
-      }
+      let willChange = false;
+      let finalIdx = 0;
+      let newLength = 0;
+      let poiName = 'Waypoint';
 
       if (payload.source === 'route') {
         const srcDayNum = payload.day;
         const srcIdx = payload.index;
-        if (typeof srcDayNum !== 'number' || typeof srcIdx !== 'number') return;
-        const srcDayObj = clonedItin.days.find((d) => (d.day ?? 1) === srcDayNum);
-        if (!srcDayObj?.itinerary?.path) return;
-
-        const [movedItem] = srcDayObj.itinerary.path.splice(srcIdx, 1);
-        if (movedItem) {
+        if (typeof srcDayNum === 'number' && typeof srcIdx === 'number') {
+          const srcDayObj = itinerary.days?.find((d) => (d.day ?? 1) === srcDayNum);
+          const srcItem = srcDayObj?.itinerary?.path?.[srcIdx];
+          poiName = srcItem?.poi?.name || 'Waypoint';
           let adjustedTargetIdx = targetIdx;
           if (srcDayNum === targetDayNum && srcIdx < targetIdx) {
             adjustedTargetIdx = targetIdx - 1;
           }
-          const safeIdx = Math.max(0, Math.min(adjustedTargetIdx, targetDayObj.itinerary.path.length));
-          targetDayObj.itinerary.path.splice(safeIdx, 0, movedItem);
-          onItineraryUpdate(clonedItin);
-          notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
+          finalIdx = Math.max(0, Math.min(adjustedTargetIdx, srcDayNum === targetDayNum ? currentLength - 1 : currentLength));
+          newLength = srcDayNum === targetDayNum ? currentLength : currentLength + 1;
+          willChange = srcDayNum !== targetDayNum || srcIdx !== finalIdx;
         }
-      } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map' || payload.source === 'collection') {
+      } else {
         const poi = payload.poi;
-        if (!poi) return;
-        const lat = ((poi.location as { latitude?: number } | undefined)?.latitude ?? poi.lat ?? 0) as number;
-        const lng = ((poi.location as { longitude?: number } | undefined)?.longitude ?? poi.lng ?? 0) as number;
-        const poiName = (poi.name as string) || 'Waypoint';
-        const newScheduled: ScheduledPoi = {
-          poi: {
-            id: (poi.id as string) || poiName,
-            name: poiName,
-            city: destinationCity,
-            category: (poi.category as string) || 'attraction',
-            duration_mins: (poi.duration_mins as number) || (poi.durationMins as number) || 60,
-            cost_eur: (poi.cost_eur as number) || (poi.costEur as number) || 0,
-            location: {
-              latitude: lat,
-              longitude: lng,
-            },
-          },
-        };
-        const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
-        targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
-        onItineraryUpdate(clonedItin);
-        setJustInserted((prev) => ({ day: targetDayNum, index: safeIdx, key: (prev?.key ?? 0) + 1 }));
-        window.setTimeout(() => setJustInserted(null), 800);
-        notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
+        poiName = (poi?.name as string) || 'Waypoint';
+        finalIdx = Math.max(0, Math.min(targetIdx, currentLength));
+        newLength = currentLength + 1;
+        willChange = true;
       }
+
+      const isFirst = finalIdx === 0;
+      const isLast = finalIdx === newLength - 1;
+
+      // Warn if user tries to drag a POI as the first or last of any day with existing stops
+      if (willChange && currentLength > 0 && (isFirst || isLast)) {
+        setPendingDrop({
+          payload,
+          targetDayNum,
+          targetIdx,
+          poiName,
+          position: isFirst ? 'first stop' : 'last stop',
+        });
+        return;
+      }
+
+      executeDrop(payload, targetDayNum, targetIdx);
     } catch (err) {
       console.error('Failed to handle drop:', err);
     } finally {
@@ -2955,6 +3035,7 @@ export function TripUnifiedSidebar({
                                       e.dataTransfer.effectAllowed = 'copyMove';
                                     }}
                                     onDragEnd={() => {
+                                      cleanupCustomDragPreview();
                                       const handled = isPaladioDropHandled();
                                       const curDay = dayObj.day;
                                       const curIdx = poiIdx;
@@ -3360,6 +3441,7 @@ export function TripUnifiedSidebar({
                             }, 50);
                           }}
                           onDragEnd={() => {
+                            cleanupCustomDragPreview();
                             if (typeof window !== 'undefined') {
                               const win = window as unknown as {
                                 __paladioActivePoi?: unknown;
@@ -3773,6 +3855,26 @@ export function TripUnifiedSidebar({
         defaultLat={hotelAnchor?.lat ?? airportAnchor?.lat ?? searchData?.results?.[0]?.lat}
         defaultLng={hotelAnchor?.lng ?? airportAnchor?.lng ?? searchData?.results?.[0]?.lng}
         onPoiCreated={handlePoiCreated}
+      />
+
+      <Modal
+        isOpen={Boolean(pendingDrop)}
+        variant="warning"
+        title="ANCHOR REORDER WARNING"
+        message={
+          pendingDrop
+            ? `Are you sure you want to place "${pendingDrop.poiName}" as the ${pendingDrop.position} of Day ${pendingDrop.targetDayNum}? First and last stops are normally reserved for your hotel or airport anchors. Do you want to proceed?`
+            : 'Confirm reordering boundary stop.'
+        }
+        confirmText="PROCEED"
+        cancelText="CANCEL"
+        onConfirm={() => {
+          if (pendingDrop) {
+            executeDrop(pendingDrop.payload, pendingDrop.targetDayNum, pendingDrop.targetIdx);
+            setPendingDrop(null);
+          }
+        }}
+        onCancel={() => setPendingDrop(null)}
       />
     </div>
   );

@@ -1,4 +1,13 @@
 /**
+ * Removes all custom drag preview floating cards from the document immediately.
+ */
+export function cleanupCustomDragPreview(): void {
+  if (typeof document === 'undefined') return;
+  const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
+  existing.forEach((node) => node.remove());
+}
+
+/**
  * Starts a 100% solid, fully opaque ("full macizo") floating drag preview tracking cursor movement,
  * completely suppressing the browser's hardcoded translucent ghost.
  */
@@ -35,11 +44,8 @@ export function startCustomDragPreview(
     }
   }
 
-  // Remove any stale custom drag clones
-  if (typeof document !== 'undefined') {
-    const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-    existing.forEach((node) => node.remove());
-  }
+  // Remove any stale custom drag clones immediately
+  cleanupCustomDragPreview();
 
   // 2. Create the floating solid opaque card clone
   const el = document.createElement('div');
@@ -99,11 +105,25 @@ export function startCustomDragPreview(
     }
   };
 
-  const cleanup = () => {
+  const removeListeners = () => {
     document.removeEventListener('drag', handleDragUpdate, true);
     document.removeEventListener('dragover', handleDragUpdate, true);
     document.removeEventListener('dragend', cleanup, true);
     document.removeEventListener('mouseup', cleanup, true);
+    document.removeEventListener('pointerup', cleanup, true);
+    document.removeEventListener('touchend', cleanup, true);
+    document.removeEventListener('drop', cleanup, false);
+
+    window.removeEventListener('dragend', cleanup, true);
+    window.removeEventListener('mouseup', cleanup, true);
+    window.removeEventListener('pointerup', cleanup, true);
+    window.removeEventListener('touchend', cleanup, true);
+    window.removeEventListener('drop', cleanup, false);
+  };
+
+  const cleanup = () => {
+    removeListeners();
+    cleanupCustomDragPreview();
     if (el.parentElement) {
       el.remove();
     }
@@ -121,6 +141,15 @@ export function startCustomDragPreview(
   document.addEventListener('dragover', handleDragUpdate, true);
   document.addEventListener('dragend', cleanup, true);
   document.addEventListener('mouseup', cleanup, true);
+  document.addEventListener('pointerup', cleanup, true);
+  document.addEventListener('touchend', cleanup, true);
+  document.addEventListener('drop', cleanup, false);
+
+  window.addEventListener('dragend', cleanup, true);
+  window.addEventListener('mouseup', cleanup, true);
+  window.addEventListener('pointerup', cleanup, true);
+  window.addEventListener('touchend', cleanup, true);
+  window.addEventListener('drop', cleanup, false);
 
   return el;
 }

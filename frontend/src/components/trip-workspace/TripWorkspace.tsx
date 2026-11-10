@@ -60,7 +60,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setIsDroppingWaypoint((prev) => {
       const next = !prev;
       if (next) {
-        notify.info('Waypoint Drop Mode', 'Click anywhere on the map to place the area search center.');
+        window.setTimeout(() => {
+          notify.info('Waypoint Drop Mode', 'Click anywhere on the map to place the area search center.');
+        }, 0);
       }
       return next;
     });
@@ -76,7 +78,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const handleClearSpatialCircle = useCallback(() => {
     setSpatialCircle(null);
     setIsDroppingWaypoint(false);
-    notify.info('Area Filter Cleared', 'Returned to full city results.');
+    window.setTimeout(() => {
+      notify.info('Area Filter Cleared', 'Returned to full city results.');
+    }, 0);
   }, []);
 
   const agentUiContext: WorkspaceContextData = useMemo(() => ({
@@ -89,12 +93,14 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
       const next = !prev;
-      notify.info(
-        next ? 'Route Editing Mode Active' : 'Route Editing Mode Disabled',
-        next
-          ? 'You can now drag & reorder waypoints, reorder days, and manage stop locks.'
-          : 'Waypoint orders and stop locks are now locked.'
-      );
+      window.setTimeout(() => {
+        notify.info(
+          next ? 'Route Editing Mode Active' : 'Route Editing Mode Disabled',
+          next
+            ? 'You can now drag & reorder waypoints, reorder days, and manage stop locks.'
+            : 'Waypoint orders and stop locks are now locked.'
+        );
+      }, 0);
       return next;
     });
   }, []);
@@ -134,14 +140,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       }
     }
     if (tab === 'route' || tab === 'transit' || tab === 'weather' || tab === 'agent') {
-      // Clear category search and unselect focused search POI
+      // Clear category search results
       setCategoryFilter(null);
       setCategoryPois([]);
-      setFocusedPlace(null);
-      if (tab === 'route') {
-        setInspectedPoiId(null);
-        setInspectedPoiFallback(null);
-      }
     }
   }, []);
 
@@ -353,10 +354,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const handleSelectDay = useCallback((day: number | 'all') => {
     setSelectedDay(day);
-    setFocusedPlace(null);
-    setInspectedPoiId(null);
-    setInspectedPoiFallback(null);
-    setRenderedPoi(null);
+    setFocusedPlace((prev) => (prev?.day && prev.day !== day ? null : prev));
     setActiveTransitLine(null);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('paladio:clear-directions-route'));
@@ -391,6 +389,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   // Check for deep-linked POI inspection via query parameters
   const deepLinkPoi = searchParams?.get('poi');
   const deepLinkName = searchParams?.get('name');
+  const deepLinkLat = searchParams?.get('lat');
+  const deepLinkLng = searchParams?.get('lng');
   const deepLinkHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -419,14 +419,19 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     } else if (trip) {
       // If not in standard places array or trip has no waypoints yet, inspect directly
       deepLinkHandledRef.current = targetKey;
+      const parsedLat = deepLinkLat ? parseFloat(deepLinkLat) : undefined;
+      const parsedLng = deepLinkLng ? parseFloat(deepLinkLng) : undefined;
+      const hasCoords = typeof parsedLat === 'number' && typeof parsedLng === 'number' && !isNaN(parsedLat) && !isNaN(parsedLng);
       queueMicrotask(() => {
         handleInspectPoi(deepLinkPoi || deepLinkName || 'waypoint', {
           id: deepLinkPoi || undefined,
           name: deepLinkName || deepLinkPoi || 'Waypoint',
+          lat: hasCoords ? parsedLat : undefined,
+          lng: hasCoords ? parsedLng : undefined,
         });
       });
     }
-  }, [deepLinkPoi, deepLinkName, places, trip, handlePlaceClick, handleInspectPoi]);
+  }, [deepLinkPoi, deepLinkName, deepLinkLat, deepLinkLng, places, trip, handlePlaceClick, handleInspectPoi]);
 
   const scheduledPoiDay = useMemo(() => {
     if (!inspectedPoiId && !inspectedPoiFallback?.name) return null;
@@ -512,6 +517,36 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     },
     [handlePlaceClick, inspectedPoiId]
   );
+
+  const handlePoiLoaded = useCallback((loadedPoi: PoiDetail) => {
+    if (
+      typeof loadedPoi.lat === 'number' &&
+      typeof loadedPoi.lng === 'number' &&
+      !isNaN(loadedPoi.lat) &&
+      !isNaN(loadedPoi.lng) &&
+      !(loadedPoi.lat === 0 && loadedPoi.lng === 0)
+    ) {
+      setFocusedPlace((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.lat - loadedPoi.lat) < 0.0001 &&
+          Math.abs(prev.lng - loadedPoi.lng) < 0.0001
+        ) {
+          return prev;
+        }
+        return {
+          id: loadedPoi.id,
+          name: loadedPoi.name,
+          lat: loadedPoi.lat,
+          lng: loadedPoi.lng,
+          category: (loadedPoi.category as string) || 'attraction',
+          durationMins: loadedPoi.duration_mins,
+          costEur: loadedPoi.cost_eur,
+          timestamp: Date.now(),
+        };
+      });
+    }
+  }, []);
 
   const handleAddPoiToDay = useCallback(
     (dayNum: number, poi: PoiDetail) => {
@@ -644,13 +679,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             airport={airport}
             activeDay={selectedDay}
             onDayChange={handleSelectDay}
-            focusedPlace={
-              sidebarTab === 'route' &&
-              focusedPlace &&
-              !places.some((p) => p.id === focusedPlace.id || p.name.toLowerCase() === focusedPlace.name.toLowerCase())
-                ? null
-                : focusedPlace
-            }
+            focusedPlace={focusedPlace}
             categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
             onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
@@ -844,6 +873,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   onClose={handleCloseInspect}
                   onAddToDay={handleAddPoiToDay}
                   onFocusOnMap={handleFocusFromDrawer}
+                  onPoiLoaded={handlePoiLoaded}
                   availableDays={daysOutput.map((d) => d.day)}
                   initialDay={typeof selectedDay === 'number' ? selectedDay : 1}
                   selectedDay={selectedDay}

@@ -6,6 +6,7 @@ import { useTripCollections, TripCollection, CollectionItem, CollectionPoiSummar
 import type { PlaceItem } from '@/types/workspace';
 import {
   startCustomDragPreview,
+  cleanupCustomDragPreview,
   markPaladioDropHandled,
   resetPaladioDropHandled,
   isPaladioDropHandled,
@@ -69,6 +70,7 @@ export function CollectionsTab({
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
 
   const handleDropOnCollection = async (col: TripCollection, e: React.DragEvent) => {
+    cleanupCustomDragPreview();
     markPaladioDropHandled();
 
     let payload: {
@@ -830,6 +832,7 @@ export function CollectionsTab({
                               window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
                             }}
                             onDragEnd={() => {
+                              cleanupCustomDragPreview();
                               if (typeof window !== 'undefined') {
                                 const win = window as unknown as {
                                   __paladioActivePoi?: unknown;

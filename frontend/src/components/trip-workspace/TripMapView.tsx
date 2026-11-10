@@ -11,7 +11,7 @@ import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
 import { InfoIcon, CrosshairIcon, CloseIcon, RadarIcon } from '@/components/icons';
-import { createRouteCardDragImage, startCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
+import { createRouteCardDragImage, startCustomDragPreview, cleanupCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
@@ -288,13 +288,16 @@ function createWaypointCenterIcon(): L.DivIcon {
   return L.divIcon({
     className: 'paladio-waypoint-center',
     html: `
-      <div style="
+      <div draggable="false" style="
         position: relative;
         width: 32px;
         height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-drag: none;
       ">
         <div style="
           position: absolute;
@@ -303,6 +306,7 @@ function createWaypointCenterIcon(): L.DivIcon {
           border-radius: 50%;
           background: rgba(15, 76, 92, 0.25);
           animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+          pointer-events: none;
         "></div>
         <div style="
           width: 20px;
@@ -315,6 +319,7 @@ function createWaypointCenterIcon(): L.DivIcon {
           align-items: center;
           justify-content: center;
           color: #FFFFFF;
+          pointer-events: none;
         ">
           <div style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF;"></div>
         </div>
@@ -325,28 +330,38 @@ function createWaypointCenterIcon(): L.DivIcon {
   });
 }
 
-function createRadiusHandleIcon(radiusMeters: number): L.DivIcon {
+function createRadiusHandleIcon(): L.DivIcon {
   return L.divIcon({
     className: 'paladio-radius-handle',
     html: `
-      <div style="
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: #0F4C5C;
-        border: 2.5px solid #FFFFFF;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      <div draggable="false" style="
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: ew-resize;
-        transition: transform 0.1s ease;
+        user-select: none;
+        -webkit-user-drag: none;
       ">
-        <div style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF;"></div>
+        <div style="
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #0F4C5C;
+          border: 2.5px solid #FFFFFF;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        ">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF;"></div>
+        </div>
       </div>
     `,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 }
 
@@ -398,63 +413,125 @@ function InteractiveSpatialCircleLayer({
   onClearSpatialCircle?: () => void;
 }) {
   const map = useMap();
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragRadius, setDragRadius] = useState<number | null>(null);
-  const [dragStartPos, setDragStartPos] = useState<[number, number] | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const handleMarkerRef = useRef<L.Marker | null>(null);
+  const centerMarkerRef = useRef<L.Marker | null>(null);
+  const isDraggingRef = useRef(false);
 
-  const radius = dragRadius !== null ? dragRadius : spatialCircle.radiusMeters;
+  // Stable DivIcon instances so React-Leaflet never invokes marker.setIcon() mid-drag
+  const handleIcon = useMemo(() => createRadiusHandleIcon(), []);
+  const centerIcon = useMemo(() => createWaypointCenterIcon(), []);
 
   // Calculate handle position pointing East
-  const deltaLng = radius / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
+  const deltaLng = spatialCircle.radiusMeters / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
   const handlePosition: [number, number] = [spatialCircle.lat, spatialCircle.lng + deltaLng];
 
-  // Freeze position prop during active dragging so React-Leaflet doesn't reset Leaflet's native marker drag
-  const activeHandlePosition = isDragging && dragStartPos ? dragStartPos : handlePosition;
-
-  const handleDragStart = useCallback(() => {
-    setIsDragging(true);
-    setDragStartPos(handlePosition);
-  }, [handlePosition]);
-
-  const handleDrag = useCallback((e: L.LeafletEvent) => {
-    const handleLatLng = (e.target as L.Marker).getLatLng();
-    const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
-    const clampedDist = Math.max(100, Math.min(10000, newDist));
+  // Sync Leaflet objects when spatialCircle changes from external controls (slider, presets, etc.)
+  useEffect(() => {
+    if (isDraggingRef.current) return;
     if (circleRef.current) {
-      circleRef.current.setRadius(clampedDist);
+      circleRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng]);
+      circleRef.current.setRadius(spatialCircle.radiusMeters);
     }
-    setDragRadius(clampedDist);
-  }, [map, spatialCircle.lat, spatialCircle.lng]);
+    if (handleMarkerRef.current) {
+      const dLng = spatialCircle.radiusMeters / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
+      handleMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
+      handleMarkerRef.current.setTooltipContent(`${spatialCircle.radiusMeters}m`);
+    }
+    if (centerMarkerRef.current) {
+      centerMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng]);
+    }
+  }, [spatialCircle.lat, spatialCircle.lng, spatialCircle.radiusMeters]);
 
-  const handleDragEnd = useCallback((e: L.LeafletEvent) => {
-    const handleLatLng = (e.target as L.Marker).getLatLng();
-    const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
-    const clampedDist = Math.max(100, Math.min(10000, newDist));
-    setDragStartPos(null);
-    setDragRadius(null);
-    setIsDragging(false);
-    onSpatialCircleChange?.({
-      ...spatialCircle,
-      radiusMeters: clampedDist,
-    });
-  }, [map, spatialCircle, onSpatialCircleChange]);
+  // Safely close popups and tooltips on unmount so Leaflet never processes events on detached DOM nodes
+  useEffect(() => {
+    return () => {
+      try {
+        if (centerMarkerRef.current) {
+          centerMarkerRef.current.closePopup();
+        }
+        if (handleMarkerRef.current) {
+          handleMarkerRef.current.closeTooltip();
+        }
+        map.closePopup();
+      } catch {
+        // ignore unmount cleanup errors
+      }
+    };
+  }, [map]);
 
-  const handleCenterDragEnd = useCallback((e: L.LeafletEvent) => {
-    const centerLatLng = (e.target as L.Marker).getLatLng();
-    onSpatialCircleChange?.({
-      ...spatialCircle,
-      lat: centerLatLng.lat,
-      lng: centerLatLng.lng,
-    });
-  }, [spatialCircle, onSpatialCircleChange]);
+  // Radius handle drag handlers - 60fps native Leaflet dragging with zero React re-renders during drag
+  const handleEventHandlers = useMemo(() => ({
+    dragstart: (e: L.LeafletEvent) => {
+      isDraggingRef.current = true;
+      const marker = e.target as L.Marker;
+      marker.openTooltip();
+    },
+    drag: (e: L.LeafletEvent) => {
+      const marker = e.target as L.Marker;
+      const handleLatLng = marker.getLatLng();
+      const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
+      const clampedDist = Math.max(100, Math.min(10000, newDist));
+      if (circleRef.current) {
+        circleRef.current.setRadius(clampedDist);
+      }
+      marker.setTooltipContent(`${clampedDist}m`);
+      marker.openTooltip();
+    },
+    dragend: (e: L.LeafletEvent) => {
+      const marker = e.target as L.Marker;
+      const handleLatLng = marker.getLatLng();
+      const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
+      const clampedDist = Math.max(100, Math.min(10000, newDist));
+
+      // Snap handle back to the East perimeter of the circle
+      const dLng = clampedDist / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
+      marker.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
+      marker.setTooltipContent(`${clampedDist}m`);
+
+      isDraggingRef.current = false;
+
+      onSpatialCircleChange?.({
+        ...spatialCircle,
+        radiusMeters: clampedDist,
+      });
+    },
+  }), [map, spatialCircle, onSpatialCircleChange]);
+
+  // Center pin drag handlers - circle and handle follow smoothly in real time
+  const centerEventHandlers = useMemo(() => ({
+    dragstart: () => {
+      isDraggingRef.current = true;
+    },
+    drag: (e: L.LeafletEvent) => {
+      const marker = e.target as L.Marker;
+      const centerLatLng = marker.getLatLng();
+      if (circleRef.current) {
+        circleRef.current.setLatLng(centerLatLng);
+      }
+      if (handleMarkerRef.current) {
+        const dLng = spatialCircle.radiusMeters / (111320.0 * Math.max(0.0001, Math.cos((centerLatLng.lat * Math.PI) / 180.0)));
+        handleMarkerRef.current.setLatLng([centerLatLng.lat, centerLatLng.lng + dLng]);
+      }
+    },
+    dragend: (e: L.LeafletEvent) => {
+      const marker = e.target as L.Marker;
+      const centerLatLng = marker.getLatLng();
+      isDraggingRef.current = false;
+      onSpatialCircleChange?.({
+        ...spatialCircle,
+        lat: centerLatLng.lat,
+        lng: centerLatLng.lng,
+      });
+    },
+  }), [spatialCircle, onSpatialCircleChange]);
 
   return (
     <>
       <Circle
         ref={circleRef}
         center={[spatialCircle.lat, spatialCircle.lng]}
-        radius={radius}
+        radius={spatialCircle.radiusMeters}
         pathOptions={{
           color: '#0F4C5C',
           weight: 2,
@@ -465,12 +542,12 @@ function InteractiveSpatialCircleLayer({
       />
       {/* Center Waypoint Pin (Draggable to move area filter) */}
       <Marker
+        ref={centerMarkerRef}
         position={[spatialCircle.lat, spatialCircle.lng]}
-        icon={createWaypointCenterIcon()}
+        icon={centerIcon}
         draggable={true}
-        eventHandlers={{
-          dragend: handleCenterDragEnd,
-        }}
+        zIndexOffset={4000}
+        eventHandlers={centerEventHandlers}
       >
         <Popup>
           <div style={{ padding: '6px', minWidth: '140px', fontFamily: 'var(--font-sans, sans-serif)' }}>
@@ -478,12 +555,26 @@ function InteractiveSpatialCircleLayer({
               Area Search Waypoint
             </div>
             <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-              Radius: {radius}m
+              Radius: {spatialCircle.radiusMeters}m
             </div>
             {onClearSpatialCircle && (
               <button
                 type="button"
-                onClick={onClearSpatialCircle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  try {
+                    if (centerMarkerRef.current) {
+                      centerMarkerRef.current.closePopup();
+                    }
+                    map.closePopup();
+                  } catch {
+                    // ignore
+                  }
+                  window.setTimeout(() => {
+                    onClearSpatialCircle();
+                  }, 0);
+                }}
                 style={{
                   marginTop: '6px',
                   width: '100%',
@@ -504,25 +595,23 @@ function InteractiveSpatialCircleLayer({
         </Popup>
         <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
           <div style={{ fontSize: '11px', fontWeight: 600 }}>
-            Center Waypoint ({radius}m) &bull; Drag to move
+            Center Waypoint ({spatialCircle.radiusMeters}m) &bull; Drag to move
           </div>
         </Tooltip>
       </Marker>
 
       {/* Perimeter Draggable Handle (Draggable to resize radius) */}
       <Marker
-        position={activeHandlePosition}
+        ref={handleMarkerRef}
+        position={handlePosition}
         draggable={true}
-        icon={createRadiusHandleIcon(radius)}
-        eventHandlers={{
-          dragstart: handleDragStart,
-          drag: handleDrag,
-          dragend: handleDragEnd,
-        }}
+        icon={handleIcon}
+        zIndexOffset={5000}
+        eventHandlers={handleEventHandlers}
       >
-        <Tooltip direction="right" offset={[10, 0]} opacity={0.95} permanent={isDragging}>
+        <Tooltip direction="right" offset={[12, 0]} opacity={0.95}>
           <div style={{ fontSize: '11px', fontWeight: 600 }}>
-            {radius}m
+            {spatialCircle.radiusMeters}m
           </div>
         </Tooltip>
       </Marker>
@@ -1084,15 +1173,12 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
+      cleanupCustomDragPreview();
       window.setTimeout(() => {
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
           (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
           window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
-        }
-        if (typeof document !== 'undefined') {
-          const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-          existing.forEach((node) => node.remove());
         }
       }, 50);
     };

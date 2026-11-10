@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { classifyPoiCategory, isCategoryMatch } from '../../src/utils/poiCategory';
+import { classifyPoiCategory, isCategoryMatch, isHotelPoi, isAirportPoi } from '../../src/utils/poiCategory';
 
 test.describe('POI Category Classification & Metadata', () => {
   test('correctly identifies museum categories', () => {
@@ -126,5 +126,26 @@ test.describe('POI Category Classification & Metadata', () => {
     const empty = classifyPoiCategory('', '');
     expect(empty.type).toBe('general');
     expect(empty.label).toBe('WAYPOINT');
+  });
+
+  test('isHotelPoi accurately detects hotel POIs regardless of input variant', () => {
+    expect(isHotelPoi({ category: 'hotel', name: 'Grand Palace' })).toBe(true);
+    expect(isHotelPoi({ category: 'attraction', name: 'Hotel Gracery Shinjuku' })).toBe(true);
+    expect(isHotelPoi({ category: 'lodging', name: 'Base Camp' })).toBe(true);
+    expect(isHotelPoi({ category: 'ryokan', name: 'Hakone Onsen' })).toBe(true);
+    expect(isHotelPoi({ category: 'attraction', name: 'Kyoto Traditional Ryokan' })).toBe(true);
+    expect(isHotelPoi({ id: 'hotel:start-madrid', name: 'Start Location' })).toBe(true);
+    expect(isHotelPoi({ category: 'museum', name: 'Museo del Prado' })).toBe(false);
+    expect(isHotelPoi(null)).toBe(false);
+  });
+
+  test('isAirportPoi accurately detects airport and flight POIs', () => {
+    expect(isAirportPoi({ category: 'airport', name: 'Haneda' })).toBe(true);
+    expect(isAirportPoi({ category: 'attraction', name: 'Haneda International Airport (HND)' })).toBe(true);
+    expect(isAirportPoi({ category: 'flight', name: 'JL001 Departure' })).toBe(true);
+    expect(isAirportPoi({ id: 'flight:madrid-hnd', name: 'Flight Stop' })).toBe(true);
+    expect(isAirportPoi({ category: 'attraction', name: 'Barajas Aeropuerto T4' })).toBe(true);
+    expect(isAirportPoi({ category: 'transit', name: 'Tokyo Station' })).toBe(false);
+    expect(isAirportPoi(null)).toBe(false);
   });
 });

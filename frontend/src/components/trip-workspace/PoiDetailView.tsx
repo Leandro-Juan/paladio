@@ -43,6 +43,8 @@ import {
 import { startCustomDragPreview } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 import { useTripCollections } from '@/hooks/useTripCollections';
+import { useTripTickets } from '@/hooks/useTripTickets';
+import { formatTicketDateTime, formatTicketTime } from '@/lib/wallet/format';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
 import { classifyPoiCategory, isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
@@ -251,6 +253,7 @@ interface PoiDetailViewProps {
   onSelectTransitLine?: (lineData: ActiveTransitLineData | null) => void;
   tripId?: string;
   onUpdatePoi?: (poi: PoiDetail) => void;
+  onPoiLoaded?: (poi: PoiDetail) => void;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -364,8 +367,10 @@ export function PoiDetailView({
   onSelectTransitLine,
   tripId,
   onUpdatePoi,
+  onPoiLoaded,
 }: PoiDetailViewProps) {
   const { isPoiSaved } = useTripCollections(tripId);
+  const { tickets } = useTripTickets(tripId || '');
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
   const auth = useOptionalAuth();
@@ -540,6 +545,374 @@ export function PoiDetailView({
     const id = poiId || poi?.id || fallbackPoi?.id || '';
     return id.startsWith('gtfs:');
   }, [poiId, poi?.id, fallbackPoi?.id]);
+
+  const hotelTicket = useMemo(() => {
+    if (!isHotel || !tickets || tickets.length === 0) return null;
+    const pName = (poi?.name || fallbackPoi?.name || '').toLowerCase();
+    const hotelTickets = tickets.filter((t) => t.ticket_type === 'hotel');
+    if (hotelTickets.length === 0) return null;
+
+    if (pName) {
+      const matched = hotelTickets.find((t) => {
+        const title = (t.title || '').toLowerCase();
+        const venue = (t.location_or_venue || '').toLowerCase();
+        const provider = (t.provider || '').toLowerCase();
+        return (
+          title.includes(pName) || pName.includes(title) ||
+          (venue && (venue.includes(pName) || pName.includes(venue))) ||
+          (provider && (provider.includes(pName) || pName.includes(provider)))
+        );
+      });
+      if (matched) return matched;
+    }
+
+    if (hotelTickets.length === 1) return hotelTickets[0];
+
+    const dateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
+    if (dateStr) {
+      const matchedByDate = hotelTickets.find((t) => {
+        const start = t.start_time?.substring(0, 10);
+        const end = t.end_time?.substring(0, 10);
+        if (start && end) return dateStr >= start && dateStr <= end;
+        if (start) return dateStr >= start;
+        return false;
+      });
+      if (matchedByDate) return matchedByDate;
+    }
+
+    return hotelTickets[0] || null;
+  }, [isHotel, tickets, poi?.name, fallbackPoi?.name, tripStartDate, effectiveDayNumber]);
+
+  const flightTicket = useMemo(() => {
+    if (!isAirport || !tickets || tickets.length === 0) return null;
+    const pName = (poi?.name || fallbackPoi?.name || '').toLowerCase();
+    const flightTickets = tickets.filter((t) => t.ticket_type === 'flight');
+    if (flightTickets.length === 0) return null;
+
+    if (pName) {
+      const matched = flightTickets.find((t) => {
+        const title = (t.title || '').toLowerCase();
+        const meta = t.metadata || {};
+        const originIata = typeof meta.origin_iata === 'string' ? meta.origin_iata.toLowerCase() : '';
+        const destIata = typeof meta.destination_iata === 'string' ? meta.destination_iata.toLowerCase() : '';
+        const flightNum = typeof meta.flight_number === 'string' ? meta.flight_number.toLowerCase() : '';
+        const provider = (t.provider || '').toLowerCase();
+        return (
+          title.includes(pName) || pName.includes(title) ||
+          (originIata && pName.includes(originIata)) ||
+          (destIata && pName.includes(destIata)) ||
+          (provider && pName.includes(provider)) ||
+          (flightNum && pName.includes(flightNum))
+        );
+      });
+      if (matched) return matched;
+    }
+
+    if (flightTickets.length === 1) return flightTickets[0];
+
+    const dateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
+    if (dateStr) {
+      const matchedByDate = flightTickets.find((t) => {
+        const start = t.start_time?.substring(0, 10);
+        const end = t.end_time?.substring(0, 10);
+        return start === dateStr || end === dateStr;
+      });
+      if (matchedByDate) return matchedByDate;
+    }
+
+    return flightTickets[0] || null;
+  }, [isAirport, tickets, poi?.name, fallbackPoi?.name, tripStartDate, effectiveDayNumber]);
+
+  const hotelChips = useMemo(() => {
+    if (!isHotel || !hotelTicket) return [];
+    const chips: React.ReactNode[] = [];
+    const checkInStr = hotelTicket.start_time ? formatTicketTime(hotelTicket.start_time, hotelTicket.start_tz) : null;
+    const checkOutStr = hotelTicket.end_time ? formatTicketTime(hotelTicket.end_time, hotelTicket.end_tz) : null;
+    if (checkInStr || checkOutStr) {
+      chips.push(
+        <div
+          key="hotel-checkin-out"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={`Check-in: ${checkInStr || '--'}, Check-out: ${checkOutStr || '--'}`}
+        >
+          <ClockIcon size={14} color="var(--color-accent-primary)" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {checkInStr && checkOutStr ? 'Check-In / Out' : checkInStr ? 'Check-In' : 'Check-Out'}
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {[checkInStr, checkOutStr].filter(Boolean).join(' / ')}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    const room = hotelTicket.seat_or_room || (hotelTicket.metadata?.room_number as string);
+    if (room) {
+      chips.push(
+        <div
+          key="hotel-room"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={`Room ${room}`}
+        >
+          <KeyIcon size={14} color="#10B981" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Room
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {room}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    const refCode = hotelTicket.reference_code || hotelTicket.booking_reference;
+    if (refCode) {
+      chips.push(
+        <div
+          key="hotel-conf"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={`Booking Reference: ${refCode}`}
+        >
+          <BookmarkIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Booking Ref
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {refCode}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    return chips;
+  }, [isHotel, hotelTicket]);
+
+  const airportChips = useMemo(() => {
+    if (!isAirport || !flightTicket) return [];
+    const chips: React.ReactNode[] = [];
+    const flightNum = (flightTicket.metadata?.flight_number as string) || flightTicket.provider || flightTicket.title;
+    if (flightNum) {
+      chips.push(
+        <div
+          key="flight-num"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={`Flight: ${flightNum}`}
+        >
+          <PlaneIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Flight
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {flightNum}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    const depStr = flightTicket.start_time ? formatTicketTime(flightTicket.start_time, flightTicket.start_tz || flightTicket.departure_tz) : null;
+    const arrStr = flightTicket.end_time ? formatTicketTime(flightTicket.end_time, flightTicket.end_tz || flightTicket.arrival_tz) : null;
+    if (depStr || arrStr) {
+      chips.push(
+        <div
+          key="flight-dep-arr"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={`Departure: ${depStr || '--'}, Arrival: ${arrStr || '--'}`}
+        >
+          <ClockIcon size={14} color="var(--color-accent-primary)" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {depStr && arrStr ? 'Dep / Arr' : depStr ? 'Departure' : 'Arrival'}
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {[depStr, arrStr].filter(Boolean).join(' / ')}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    const terminal = (flightTicket.metadata?.terminal as string) || null;
+    const gate = (flightTicket.metadata?.gate as string) || null;
+    if (terminal || gate) {
+      chips.push(
+        <div
+          key="flight-term-gate"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+            minWidth: 0,
+          }}
+          title={[terminal ? `Terminal ${terminal}` : '', gate ? `Gate ${gate}` : ''].filter(Boolean).join(', ')}
+        >
+          <CompassIcon size={14} color="var(--color-accent-primary)" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {terminal && gate ? 'Terminal / Gate' : terminal ? 'Terminal' : 'Gate'}
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-code, monospace)',
+                color: 'var(--color-text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {[terminal ? `T${terminal}` : '', gate ? `Gate ${gate}` : ''].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    return chips;
+  }, [isAirport, flightTicket]);
 
   const lineColorsMap = useMemo(() => {
     const map: Record<string, { color: string; textColor?: string }> = {};
@@ -937,7 +1310,7 @@ export function PoiDetailView({
             ? [{ url: fallbackPoi.photo_url, thumbnail_url: fallbackPoi.thumbnail_url || fallbackPoi.photo_url }]
             : [];
 
-          setPoi({
+          const resolvedPoiData: PoiDetail = {
             ...data,
             lat: resolvedLat,
             lng: resolvedLng,
@@ -949,8 +1322,10 @@ export function PoiDetailView({
             city: data.city || fallbackPoi?.city || city || '',
             scoring: data.scoring && Object.keys(data.scoring).length > 0 ? data.scoring : fallbackPoi?.scoring || {},
             transit_info: data.transit_info || fallbackPoi?.transit_info || null,
-          });
+          };
+          setPoi(resolvedPoiData);
           setLoading(false);
+          onPoiLoaded?.(resolvedPoiData);
         }
       } catch (err: unknown) {
         if (isMounted) {
@@ -1050,17 +1425,39 @@ export function PoiDetailView({
 
   const targetDayName = DAY_NAMES[targetDayOfWeekIdx];
 
-  // User taste vector affinity percentage
+  // User taste vector affinity percentage (strictly dynamic; omitted for hotels, airports, or unrated)
   const tasteMatchPct = useMemo(() => {
+    if (isHotel || isAirport) return null;
     const scoringAny = poi?.scoring as Record<string, unknown> | undefined;
     const raw = (poi as any)?.similarity ?? (poi as any)?.taste_match ?? scoringAny?.taste_match ?? scoringAny?.similarity;
     if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
       const pct = raw <= 1.0 ? Math.round(raw * 100) : Math.round(raw);
       return Math.min(99, Math.max(68, pct));
     }
-    const seed = (poi?.id || poi?.name || 'tokyo').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return 80 + (seed % 18);
-  }, [poi]);
+    return null;
+  }, [poi, isHotel, isAirport]);
+
+  const effectiveCost = useMemo(() => {
+    if (isHotel) {
+      if (poi?.cost_eur && poi.cost_eur > 0) return poi.cost_eur;
+      if (hotelTicket?.price && hotelTicket.price > 0) return hotelTicket.price;
+      return null;
+    }
+    if (isAirport) {
+      if (poi?.cost_eur && poi.cost_eur > 0) return poi.cost_eur;
+      if (flightTicket?.price && flightTicket.price > 0) return flightTicket.price;
+      return null;
+    }
+    return poi?.cost_eur ?? 0;
+  }, [poi, isHotel, isAirport, hotelTicket, flightTicket]);
+
+  const showPricingRow = !isTransit && (
+    isEditing ||
+    tasteMatchPct !== null ||
+    (!isHotel && !isAirport) ||
+    (isHotel && effectiveCost !== null && effectiveCost > 0) ||
+    (isAirport && effectiveCost !== null && effectiveCost > 0)
+  );
 
   if (!poiId && !fallbackPoi) {
     return null;
@@ -1563,8 +1960,8 @@ export function PoiDetailView({
                 flexShrink: 0,
               }}
             >
-              {/* Pricing & Rating Row (Hidden for transit stations) */}
-              {!isTransit && (
+              {/* Pricing & Rating Row (Hidden for transit stations, or hotels/airports without price) */}
+              {showPricingRow && (
                 <div
                   style={{
                     display: 'flex',
@@ -1617,78 +2014,46 @@ export function PoiDetailView({
                         </span>
                       </div>
                     ) : isHotel ? (
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                        {poi.cost_eur > 0 ? (
-                          <>
-                            <span
-                              style={{
-                                fontSize: '22px',
-                                fontWeight: 800,
-                                letterSpacing: '-0.02em',
-                                fontFamily: 'var(--font-display, inherit)',
-                                color: 'var(--color-text-primary)',
-                              }}
-                            >
-                              {`${currencySymbol}${Math.round(poi.cost_eur)}`}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: '12px',
-                                color: 'var(--color-text-muted)',
-                                fontFamily: 'var(--font-code, monospace)',
-                              }}
-                            >
-                              / night
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <span
-                              style={{
-                                fontSize: '17px',
-                                fontWeight: 800,
-                                letterSpacing: '-0.01em',
-                                fontFamily: 'var(--font-display, inherit)',
-                                color: 'var(--color-accent-primary, #0F766E)',
-                              }}
-                            >
-                              Lodging Base Camp
-                            </span>
-                            <span
-                              style={{
-                                fontSize: '11px',
-                                color: 'var(--color-text-muted)',
-                                fontFamily: 'var(--font-code, monospace)',
-                              }}
-                            >
-                              Overnight stay
-                            </span>
-                          </>
-                        )}
-                      </div>
+                      effectiveCost !== null && effectiveCost > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '22px',
+                              fontWeight: 800,
+                              letterSpacing: '-0.02em',
+                              fontFamily: 'var(--font-display, inherit)',
+                              color: 'var(--color-text-primary)',
+                            }}
+                          >
+                            {`${currencySymbol}${Math.round(effectiveCost)}`}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--color-text-muted)',
+                              fontFamily: 'var(--font-code, monospace)',
+                            }}
+                          >
+                            / night
+                          </span>
+                        </div>
+                      ) : null
                     ) : isAirport ? (
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                        <span
-                          style={{
-                            fontSize: '17px',
-                            fontWeight: 800,
-                            letterSpacing: '-0.01em',
-                            fontFamily: 'var(--font-display, inherit)',
-                            color: 'var(--color-accent-teal-mid, #14788D)',
-                          }}
-                        >
-                          Aviation Gateway
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            color: 'var(--color-text-muted)',
-                            fontFamily: 'var(--font-code, monospace)',
-                          }}
-                        >
-                          Flight transport hub
-                        </span>
-                      </div>
+                      effectiveCost !== null && effectiveCost > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '22px',
+                              fontWeight: 800,
+                              letterSpacing: '-0.02em',
+                              fontFamily: 'var(--font-display, inherit)',
+                              color: 'var(--color-text-primary)',
+                            }}
+                          >
+                            {`${currencySymbol}${Math.round(effectiveCost)}`}
+                          </span>
+                        </div>
+                      ) : null
                     ) : (
                       <>
                         <span
@@ -1715,36 +2080,40 @@ export function PoiDetailView({
                     )}
                   </div>
 
-                  <div
-                    title={t('workspace.taste_match')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      background: 'rgba(20, 120, 141, 0.08)',
-                      border: '1px solid rgba(20, 120, 141, 0.25)',
-                      padding: '3px 8px',
-                      borderRadius: '16px',
-                    }}
-                  >
-                    <CompassIcon size={13} color="var(--color-accent-teal-mid, #14788D)" />
-                    <span
+                  {tasteMatchPct !== null && (
+                    <div
+                      title={t('workspace.taste_match')}
                       style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-accent-teal-mid, #14788D)',
-                        letterSpacing: '0.02em',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        background: 'rgba(20, 120, 141, 0.08)',
+                        border: '1px solid rgba(20, 120, 141, 0.25)',
+                        padding: '3px 8px',
+                        borderRadius: '16px',
                       }}
                     >
-                      {t('workspace.taste_match_pct', { pct: tasteMatchPct })}
-                    </span>
-                  </div>
+                      <CompassIcon size={13} color="var(--color-accent-teal-mid, #14788D)" />
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-accent-teal-mid, #14788D)',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {t('workspace.taste_match_pct', { pct: tasteMatchPct })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Subtle Divider */}
-              <div style={{ height: '1px', background: 'var(--color-border)', opacity: 0.6 }} />
+              {/* Subtle Divider (Only shown when top pricing row is present) */}
+              {showPricingRow && (
+                <div style={{ height: '1px', background: 'var(--color-border)', opacity: 0.6 }} />
+              )}
 
               {/* Title & Address */}
               <div>
@@ -1992,270 +2361,34 @@ export function PoiDetailView({
 
               {/* Feature Chips Row */}
               {!isTransit && (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-                    gap: '8px',
-                  }}
-                >
-                  {isHotel ? (
-                    <>
-                      {/* Hotel Chip 1: Check-in / Out */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="Standard Check-in from 15:00, Check-out by 11:00"
-                      >
-                        <ClockIcon size={14} color="var(--color-accent-primary)" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Check-In / Out
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            15:00 / 11:00
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Hotel Chip 2: Property Type */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="Base Camp Lodging"
-                      >
-                        <HotelIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Property
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            Hotel Base Camp
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Hotel Chip 3: Front Desk */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="24/7 Front Desk Reception and Keycard Access"
-                      >
-                        <KeyIcon size={14} color="#10B981" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Front Desk
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            24/7 Access
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  ) : isAirport ? (
-                    <>
-                      {/* Airport Chip 1: Operations */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="Continuous 24-hour flight and terminal operations"
-                      >
-                        <ClockIcon size={14} color="#10B981" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Operations
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            24/7 Continuous
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Airport Chip 2: Recommended Arrival */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="Recommended arrival: 2h prior for domestic, 3h prior for international departures"
-                      >
-                        <PlaneIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Recommended
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            2h - 3h Prior
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Airport Chip 3: Facility */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'var(--color-surface-raised)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
-                          minWidth: 0,
-                        }}
-                        title="Aviation Gateway & Transport Hub"
-                      >
-                        <CompassIcon size={14} color="var(--color-accent-primary)" />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-muted)',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Facility
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-code, monospace)',
-                              color: 'var(--color-text-primary)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            Aviation Hub
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
+                (isHotel && hotelChips.length > 0) ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+                      gap: '8px',
+                    }}
+                  >
+                    {hotelChips}
+                  </div>
+                ) : (isAirport && airportChips.length > 0) ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+                      gap: '8px',
+                    }}
+                  >
+                    {airportChips}
+                  </div>
+                ) : (!isHotel && !isAirport) ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+                      gap: '8px',
+                    }}
+                  >
                     <>
                       {/* General POI: 1. Rating Card (Omitted if not rated, or substituted with District) */}
                       {(() => {
@@ -2527,8 +2660,8 @@ export function PoiDetailView({
                         </div>
                       </div>
                     </>
-                  )}
-                </div>
+                  </div>
+                ) : null
               )}
 
               {/* Description Overview */}
@@ -2829,8 +2962,8 @@ export function PoiDetailView({
                 </div>
               )}
 
-              {/* Hotel Lodging & Reception Panel */}
-              {isHotel && (
+              {/* Hotel Reservation & Hours Panel (Dynamic from parsed ticket; omitted if no ticket data) */}
+              {isHotel && hotelTicket && (hotelTicket.start_time || hotelTicket.end_time) && (
                 <div
                   style={{
                     background: 'var(--color-surface-raised)',
@@ -2844,35 +2977,31 @@ export function PoiDetailView({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span
-                        style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          background: 'var(--color-success, #10B981)',
-                        }}
-                      />
+                      <HotelIcon size={14} color="var(--color-accent-primary, #0F766E)" />
                       <span
                         style={{
                           fontFamily: 'var(--font-code, monospace)',
                           fontSize: '10.5px',
                           fontWeight: 700,
-                          color: 'var(--color-success, #10B981)',
+                          color: 'var(--color-accent-primary, #0F766E)',
+                          textTransform: 'uppercase',
                         }}
                       >
-                        24/7 GUEST RECEPTION & ACCESS
+                        {hotelTicket.provider || hotelTicket.title || 'Reservation'}
                       </span>
                     </div>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Base Camp
-                    </span>
+                    {hotelTicket.reference_code && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-muted)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        CONF: {hotelTicket.reference_code}
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{
@@ -2886,23 +3015,36 @@ export function PoiDetailView({
                       color: 'var(--color-text-muted)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Check-in:</span>
-                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>From 15:00</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Check-out:</span>
-                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>By 11:00</span>
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-                      Front desk operates around the clock. Luggage storage is available prior to check-in.
-                    </div>
+                    {hotelTicket.start_time && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Check-in:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {formatTicketDateTime(hotelTicket.start_time, hotelTicket.start_tz)}
+                        </span>
+                      </div>
+                    )}
+                    {hotelTicket.end_time && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Check-out:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {formatTicketDateTime(hotelTicket.end_time, hotelTicket.end_tz)}
+                        </span>
+                      </div>
+                    )}
+                    {hotelTicket.seat_or_room && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Room:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {hotelTicket.seat_or_room}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Airport Flight Operations & Access Panel */}
-              {isAirport && (
+              {/* Airport Flight Schedule Panel (Dynamic from parsed ticket; omitted if no ticket data) */}
+              {isAirport && flightTicket && (flightTicket.start_time || flightTicket.end_time) && (
                 <div
                   style={{
                     background: 'var(--color-surface-raised)',
@@ -2916,35 +3058,31 @@ export function PoiDetailView({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span
-                        style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          background: 'var(--color-success, #10B981)',
-                        }}
-                      />
+                      <PlaneIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
                       <span
                         style={{
                           fontFamily: 'var(--font-code, monospace)',
                           fontSize: '10.5px',
                           fontWeight: 700,
-                          color: 'var(--color-success, #10B981)',
+                          color: 'var(--color-accent-teal-mid, #14788D)',
+                          textTransform: 'uppercase',
                         }}
                       >
-                        24/7 FLIGHT OPERATIONS
+                        {(flightTicket.metadata?.flight_number as string) || flightTicket.provider || flightTicket.title || 'Flight'}
                       </span>
                     </div>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Terminal Access
-                    </span>
+                    {flightTicket.reference_code && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: 'var(--color-text-muted)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        PNR: {flightTicket.reference_code}
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{
@@ -2958,17 +3096,30 @@ export function PoiDetailView({
                       color: 'var(--color-text-muted)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Terminals:</span>
-                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>Open 24 Hours</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Check-in Advisories:</span>
-                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>2h domestic / 3h int&apos;l</span>
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-                      Security checkpoints and ground transport operate continuously for all scheduled flights.
-                    </div>
+                    {flightTicket.start_time && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Departure:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {formatTicketDateTime(flightTicket.start_time, flightTicket.start_tz || flightTicket.departure_tz)}
+                        </span>
+                      </div>
+                    )}
+                    {flightTicket.end_time && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Arrival:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {formatTicketDateTime(flightTicket.end_time, flightTicket.end_tz || flightTicket.arrival_tz)}
+                        </span>
+                      </div>
+                    )}
+                    {(Boolean(flightTicket.metadata?.terminal) || Boolean(flightTicket.metadata?.gate)) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Terminal / Gate:</span>
+                        <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                          {[flightTicket.metadata?.terminal ? `T${flightTicket.metadata.terminal}` : '', flightTicket.metadata?.gate ? `Gate ${flightTicket.metadata.gate}` : ''].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

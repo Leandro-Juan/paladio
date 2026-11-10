@@ -171,8 +171,9 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       el.dispatchEvent(ev);
     });
 
-    // 5. Verify toast appears
+    // 5. Verify toast appears and custom floating preview is cleaned up
     await expect(page.getByText('Added Meiji Jingu Shrine to Day 1')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
 
     // 6. Verify EXACT stop order in DOM:
     // All stop names inside Day 1: Senso-ji Temple -> Meiji Jingu Shrine -> Tokyo Skytree
@@ -297,8 +298,9 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       cardEl.dispatchEvent(ev);
     });
 
-    // 3. Verify the toast notification appears
+    // 3. Verify the toast notification appears and custom preview is cleaned up
     await expect(page.getByText('Removed "Senso-ji Temple" from Day 1')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
 
     // 4. Verify Senso-ji is removed from the DOM, but Tokyo Skytree remains
     await expect(sidebar.getByText('Senso-ji Temple')).not.toBeVisible();
@@ -451,8 +453,16 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       el.dispatchEvent(ev);
     });
 
-    // Verify toast
+    // Verify boundary warning modal pops up
+    const warningModal = page.getByText('ANCHOR REORDER WARNING');
+    await expect(warningModal).toBeVisible({ timeout: 5000 });
+    const proceedBtn = page.getByRole('button', { name: 'PROCEED' });
+    await expect(proceedBtn).toBeVisible();
+    await proceedBtn.click();
+
+    // Verify toast and custom drag preview cleanup
     await expect(page.getByText('Added Meiji Jingu Shrine to Day 1')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
 
     // Verify order in DOM: Meiji Jingu (index 0) -> Senso-ji -> Tokyo Skytree
     const allStopsText = await sidebar.innerText();
@@ -464,7 +474,221 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     expect(sensojiIdx).toBeGreaterThan(meijiIdx); // Meiji is BEFORE Senso-ji
     expect(skytreeIdx).toBeGreaterThan(sensojiIdx); // Senso-ji is BEFORE Skytree
 
-    console.log('SUCCESS: Verified POI dropped at top position (index 0) without jumping to end!');
-    console.log(`Indices in DOM: Meiji Jingu=${meijiIdx}, Senso-ji=${sensojiIdx}, Skytree=${skytreeIdx}`);
+    console.log('SUCCESS: Verified POI dropped at top position (index 0) after confirming warning!');
+  });
+
+  test('cancelling boundary warning modal aborts drop and leaves schedule unchanged', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    const mockTripId = 'test-trip-drag-drop-cancel';
+    const mockTrip = {
+      id: mockTripId,
+      destination: 'Tokyo',
+      start_date: '2027-05-10',
+      end_date: '2027-05-14',
+      budget_eur: 1500,
+      itinerary_data: {
+        days: [
+          {
+            day: 1,
+            theme: 'Historic Asakusa',
+            itinerary: {
+              path: [
+                {
+                  poi: {
+                    id: 'poi-sensoji',
+                    name: 'Senso-ji Temple',
+                    category: 'monument',
+                    duration_mins: 90,
+                    cost_eur: 0,
+                    location: { latitude: 35.7148, longitude: 139.7967 },
+                  },
+                  arrival_time: 600,
+                  departure_time: 690,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTrip),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          results: [
+            {
+              id: 'poi-meiji-shrine',
+              name: 'Meiji Jingu Shrine',
+              category: 'monument',
+              lat: 35.6764,
+              lng: 139.6993,
+              duration_mins: 60,
+              cost_eur: 0,
+            },
+          ],
+          total: 1,
+        }),
+      });
+    });
+
+    await page.goto(`/trips/${mockTripId}`);
+    const sidebar = page.getByTestId('trip-unified-sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+
+    const searchTab = page.getByTestId('tab-search');
+    await searchTab.click();
+
+    const meijiCard = page.getByTestId('poi-card-poi-meiji-shrine');
+    await expect(meijiCard).toBeVisible({ timeout: 5000 });
+
+    const day1Header = sidebar.getByText('Day 1 — Historic Asakusa');
+    await day1Header.evaluate((el) => {
+      const payload = JSON.stringify({
+        source: 'search',
+        poi: {
+          id: 'poi-meiji-shrine',
+          name: 'Meiji Jingu Shrine',
+          category: 'monument',
+          duration_mins: 60,
+          cost_eur: 0,
+          location: { latitude: 35.6764, longitude: 139.6993 },
+        },
+      });
+      const dt = new DataTransfer();
+      dt.setData('application/paladio-poi', payload);
+      dt.setData('text/plain', payload);
+      const ev = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: dt,
+      });
+      el.dispatchEvent(ev);
+    });
+
+    // Verify warning modal appears
+    const warningModal = page.getByText('ANCHOR REORDER WARNING');
+    await expect(warningModal).toBeVisible({ timeout: 5000 });
+
+    // Click CANCEL
+    const cancelBtn = page.getByRole('button', { name: 'CANCEL' });
+    await expect(cancelBtn).toBeVisible();
+    await cancelBtn.click();
+
+    // Verify modal closes
+    await expect(warningModal).not.toBeVisible();
+
+    // Verify Meiji Jingu Shrine was NOT added
+    const allStopsText = await sidebar.innerText();
+    expect(allStopsText.includes('Meiji Jingu Shrine')).toBe(false);
+    expect(allStopsText.includes('Senso-ji Temple')).toBe(true);
+  });
+
+  test('clicking a search POI focuses it and opens details, and switching tabs does not close details or unfocus it', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    const mockTripId = 'test-trip-focus-persist-1';
+
+    const mockTrip = {
+      id: mockTripId,
+      destination: 'Tokyo',
+      start_date: '2027-05-10',
+      end_date: '2027-05-14',
+      budget_eur: 1500,
+      itinerary_data: {
+        days: [
+          {
+            day: 1,
+            theme: 'Historic Asakusa',
+            itinerary: {
+              path: [
+                {
+                  poi: {
+                    id: 'poi-sensoji',
+                    name: 'Senso-ji Temple',
+                    category: 'monument',
+                    duration_mins: 90,
+                    cost_eur: 0,
+                    location: { latitude: 35.7148, longitude: 139.7967 },
+                  },
+                  arrival_time: 600,
+                  departure_time: 690,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTrip),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          results: [
+            {
+              id: 'poi-meiji-shrine',
+              name: 'Meiji Jingu Shrine',
+              category: 'monument',
+              lat: 35.6764,
+              lng: 139.6993,
+              duration_mins: 60,
+              cost_eur: 0,
+              scoring: { rating: 4.8 },
+            },
+          ],
+          total: 1,
+        }),
+      });
+    });
+
+    await page.goto(`/trips/${mockTripId}`);
+
+    const sidebar = page.getByTestId('trip-unified-sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+
+    // 1. Switch to Search Tab
+    const searchTab = page.getByTestId('tab-search');
+    await searchTab.click();
+    await expect(searchTab).toHaveText('Search');
+
+    // 2. Click the search POI card to focus and inspect it
+    const meijiCard = page.getByTestId('poi-card-poi-meiji-shrine');
+    await expect(meijiCard).toBeVisible({ timeout: 5000 });
+    await meijiCard.click();
+
+    // 3. Verify details drawer is open
+    const inspectorDrawer = page.getByTestId('trip-poi-inspector-drawer');
+    await expect(inspectorDrawer).toBeVisible({ timeout: 5000 });
+    await expect(inspectorDrawer.getByText('Meiji Jingu Shrine')).toBeVisible();
+
+    // 4. Switch to Route Tab
+    const routeTab = page.getByTestId('tab-route');
+    await routeTab.click();
+    await expect(routeTab).toHaveText('Route');
+
+    // 5. Verify the details drawer did NOT close and still shows Meiji Jingu Shrine
+    await expect(inspectorDrawer).toBeVisible();
+    await expect(inspectorDrawer.getByText('Meiji Jingu Shrine')).toBeVisible();
   });
 });
+
