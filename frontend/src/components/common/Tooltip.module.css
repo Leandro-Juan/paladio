@@ -15,21 +15,21 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 4px 10px;
-  background-color: #1A2B32;
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  min-height: 26px;
+  padding: 4px 9px;
+  background-color: #FFFFFF;
+  color: var(--color-accent-teal-deep, #0F4C5C);
+  border: 1px solid rgba(15, 76, 92, 0.18);
   border-radius: 6px;
   font-family: var(--font-body, system-ui, -apple-system, sans-serif);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(15, 76, 92, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 100000;
@@ -37,14 +37,16 @@
 }
 
 :global([data-theme="dark"]) .tooltip {
-  background-color: #0E171B;
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.2);
+  background-color: #123340;
+  color: #F0F6F6;
+  border-color: rgba(124, 196, 209, 0.3);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 :global([data-theme="silent-waters"]) .tooltip {
-  background-color: #253237;
-  border-color: rgba(255, 255, 255, 0.18);
+  background-color: #FFFFFF;
+  color: #253237;
+  border-color: rgba(37, 50, 55, 0.18);
 }
 
 .entering {
@@ -79,7 +81,7 @@
 
 .label {
   display: inline-block;
-  color: #FFFFFF;
+  color: inherit;
 }
 
 .kbd {
@@ -88,13 +90,20 @@
   justify-content: center;
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
   padding: 2px 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(15, 76, 92, 0.08);
+  color: var(--color-accent-teal-deep, #0F4C5C);
+  border: 1px solid rgba(15, 76, 92, 0.22);
+  border-bottom: 2px solid rgba(15, 76, 92, 0.35);
   letter-spacing: 0.02em;
+}
+
+:global([data-theme="dark"]) .kbd {
+  background: rgba(124, 196, 209, 0.15);
+  color: #7CC4D1;
+  border-color: rgba(124, 196, 209, 0.3);
+  border-bottom-color: rgba(124, 196, 209, 0.45);
 }

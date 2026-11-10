@@ -58,7 +58,11 @@ export function VerdictBadge({
 
   return (
     <div className={styles.badgeWrapper}>
-      <span className={`${styles.badge} ${verdictClass} ${sizeClass}`}>
+      <span
+        className={`${styles.badge} ${verdictClass} ${sizeClass}`}
+        data-tooltip={percentile !== null && percentile !== undefined ? `Percentile: P${percentile.toFixed(0)}` : undefined}
+        data-tooltip-position="top"
+      >
         <span aria-hidden="true">{icon}</span>
         <span>{label}</span>
         {percentile !== null && percentile !== undefined && (
@@ -66,21 +70,19 @@ export function VerdictBadge({
             {percentile <= 25 ? `P${Math.round(percentile)}` : ''}
           </span>
         )}
-        {percentile !== null && percentile !== undefined && (
-          <span className={styles.badgeTooltip} role="tooltip">
-            Percentile: P{percentile.toFixed(0)}
-          </span>
-        )}
       </span>
 
       {showConfidence && confidence && (
-        <span className={`${styles.confidencePill} ${confClass}`}>
-          {confidence}
-          <span className={styles.badgeTooltip} role="tooltip">
-            {confidence === 'established'
+        <span
+          className={`${styles.confidencePill} ${confClass}`}
+          data-tooltip={
+            confidence === 'established'
               ? 'Backed by 21+ days of time-series observations'
-              : 'Provisional baseline from forward calendar sweep'}
-          </span>
+              : 'Provisional baseline from forward calendar sweep'
+          }
+          data-tooltip-position="top"
+        >
+          {confidence}
         </span>
       )}
     </div>

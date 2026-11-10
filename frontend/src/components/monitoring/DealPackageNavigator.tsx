@@ -54,43 +54,37 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
 
         {/* Carousel Arrow Controls */}
         <div className={styles.carouselControls}>
-          <div className={styles.btnTooltipWrapper}>
-            <button
-              type="button"
-              className={styles.carouselArrowBtn}
-              onClick={handlePrev}
-              disabled={safeIndex === 0}
-              aria-label="Previous deal package"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span className={styles.arrowTooltip} role="tooltip">
-              Previous deal package
-            </span>
-          </div>
+          <button
+            type="button"
+            className={styles.carouselArrowBtn}
+            onClick={handlePrev}
+            disabled={safeIndex === 0}
+            aria-label="Previous deal package"
+            data-tooltip="Previous deal package"
+            data-tooltip-position="top"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
 
           <span className={styles.counterText}>
             <strong>{safeIndex + 1}</strong> / {deals.length}
           </span>
 
-          <div className={styles.btnTooltipWrapper}>
-            <button
-              type="button"
-              className={styles.carouselArrowBtn}
-              onClick={handleNext}
-              disabled={safeIndex === deals.length - 1}
-              aria-label="Next deal package"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-            <span className={styles.arrowTooltip} role="tooltip">
-              Next deal package
-            </span>
-          </div>
+          <button
+            type="button"
+            className={styles.carouselArrowBtn}
+            onClick={handleNext}
+            disabled={safeIndex === deals.length - 1}
+            aria-label="Next deal package"
+            data-tooltip="Next deal package"
+            data-tooltip-position="top"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         </div>
       </div>
 

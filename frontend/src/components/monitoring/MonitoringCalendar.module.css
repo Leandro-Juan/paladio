@@ -222,9 +222,9 @@
 .dayTooltip {
   position: absolute;
   padding: 5px 9px;
-  background-color: #1A2B32;
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background-color: #FFFFFF;
+  color: var(--color-accent-teal-deep, #0F4C5C);
+  border: 1px solid rgba(15, 76, 92, 0.18);
   border-radius: 6px;
   font-family: var(--font-mono, monospace);
   font-size: 11px;
@@ -234,7 +234,7 @@
   opacity: 0;
   visibility: hidden;
   transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(15, 76, 92, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08);
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -243,8 +243,10 @@
 }
 
 [data-theme="dark"] .dayTooltip {
-  background-color: #0E171B;
-  border-color: rgba(255, 255, 255, 0.22);
+  background-color: #123340;
+  color: #F0F6F6;
+  border-color: rgba(124, 196, 209, 0.3);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .tooltipAbove {
@@ -308,17 +310,29 @@
 }
 
 .dayTooltipDate {
-  color: #FFFFFF;
+  color: var(--color-accent-teal-deep, #0F4C5C);
 }
 
 .dayTooltipPrice {
-  color: #7CC4D1;
+  color: var(--color-accent-teal-mid, #14788D);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
 .dayTooltipSub {
   font-size: 10px;
+  color: var(--color-text-muted, #566B76);
+}
+
+:global([data-theme="dark"]) .dayTooltipDate {
+  color: #FFFFFF;
+}
+
+:global([data-theme="dark"]) .dayTooltipPrice {
+  color: #7CC4D1;
+}
+
+:global([data-theme="dark"]) .dayTooltipSub {
   color: rgba(255, 255, 255, 0.75);
 }
 

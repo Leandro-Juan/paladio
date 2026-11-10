@@ -51,6 +51,8 @@
   --color-gold: #E2B33C;
   --color-sun: #D42A2F;
   --color-cream: #F6F0E1;
+  --color-brand-navy: #203C63;
+  --color-logo: #203C63;
 
   --shadow-sm: 0 1px 3px rgba(15, 76, 92, 0.05);
   --shadow-md: 0 4px 12px rgba(15, 76, 92, 0.08);
@@ -122,6 +124,9 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --color-brand-navy: #7CC4D1;
+  --color-logo: #7CC4D1;
 }
 
 [data-theme="silent-waters"] {
@@ -174,6 +179,8 @@
   --color-gold: #D4A347;
   --color-sun: #D46A6A;
   --color-cream: #E0FBFC;
+  --color-brand-navy: #203C63;
+  --color-logo: #203C63;
 
   --shadow-sm: 0 1px 3px rgba(37, 50, 55, 0.06);
   --shadow-md: 0 4px 12px rgba(37, 50, 55, 0.09);
@@ -580,10 +587,14 @@ a {
 .logo-icon-sun {
   width: 28px;
   height: 28px;
-  background-color: var(--color-sun, #D42A2F);
+  background-color: var(--color-logo, #203C63);
   -webkit-mask: url('/logo-white.png') no-repeat center / contain;
   mask: url('/logo-white.png') no-repeat center / contain;
-  filter: drop-shadow(0 0 8px rgba(212, 42, 47, 0.45));
+  filter: drop-shadow(0 0 8px rgba(32, 60, 99, 0.35));
+}
+
+[data-theme="dark"] .logo-icon-sun {
+  filter: drop-shadow(0 0 8px rgba(124, 196, 209, 0.35));
 }
 
 .logo-ring {

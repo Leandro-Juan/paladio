@@ -39,10 +39,10 @@ export function SunMark({ size = 32 }: { size?: number }) {
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        backgroundColor: 'var(--color-sun, #D42A2F)',
+        backgroundColor: 'var(--color-logo, #203C63)',
         WebkitMask: "url('/logo-white.png') no-repeat center / contain",
         mask: "url('/logo-white.png') no-repeat center / contain",
-        filter: 'drop-shadow(0 0 8px rgba(212, 42, 47, 0.45))',
+        filter: 'drop-shadow(0 0 8px rgba(32, 60, 99, 0.35))',
         display: 'block',
       }}
       aria-label="Paladio Logo"

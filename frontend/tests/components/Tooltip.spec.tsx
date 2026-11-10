@@ -70,4 +70,27 @@ test.describe('Paladio Native Tooltip System', () => {
     await expect(tooltip).toContainText('Optimize Route');
     await expect(tooltip.locator('kbd')).toHaveText('⌘O');
   });
+
+  test('PaladioTooltipProvider applies white background and project blue text', async ({ mount, page }) => {
+    await mount(
+      <div>
+        <PaladioTooltipProvider />
+        <button
+          data-testid="color-test-btn"
+          data-tooltip="Weather Telemetry"
+          data-tooltip-position="bottom"
+        >
+          Weather
+        </button>
+      </div>
+    );
+
+    const btn = page.getByTestId('color-test-btn');
+    await btn.hover();
+
+    const tooltip = page.locator('#paladio-global-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(tooltip).toHaveCSS('color', 'rgb(10, 54, 66)');
+  });
 });
