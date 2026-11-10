@@ -52,6 +52,8 @@ from app.services.photo_storage import (
     find_photo_file,
     delete_photo_file,
 )
+from app.services.photo_sync_service import PhotoSyncService
+
 from app.trip_package import (
     TripPackager,
     MIMETYPE_STR,
@@ -2192,6 +2194,7 @@ async def upgrade_trip_transit(
 @router.post("/{trip_id}/photos", response_model=list[TripPhotoResponse])
 async def upload_trip_photos(
     trip_id: str,
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -2239,6 +2242,11 @@ async def upload_trip_photos(
         }
         uploaded_photos.append(photo_item)
         existing_photos.append(photo_item)
+
+        # Trigger background synchronization to Immich and/or Synology if configured
+        background_tasks.add_task(
+            PhotoSyncService.sync_photo_from_disk_background, trip_id, photo_item
+        )
 
     itin_data["photos"] = existing_photos
     trip.itinerary_data = itin_data

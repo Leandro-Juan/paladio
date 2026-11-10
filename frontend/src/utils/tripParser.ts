@@ -77,18 +77,18 @@ export function getTripReturnDateTime(trip: {
 
   if (Array.isArray(itinerary?.days) && itinerary.days.length > 0) {
     const lastDay = itinerary.days[itinerary.days.length - 1];
-    if (lastDay?.flight_info?.arrival_time) {
+    if (typeof lastDay?.flight_info?.arrival_time === 'string') {
       explicitTimeStr = lastDay.flight_info.arrival_time.trim();
-    } else if (lastDay?.flight_info?.departure_time) {
+    } else if (typeof lastDay?.flight_info?.departure_time === 'string') {
       explicitTimeStr = lastDay.flight_info.departure_time.trim();
     } else if (
       Array.isArray(lastDay?.itinerary?.path) &&
       lastDay.itinerary.path.length > 0
     ) {
       const lastPoi = lastDay.itinerary.path[lastDay.itinerary.path.length - 1];
-      if (lastPoi?.departure_time) {
+      if (typeof lastPoi?.departure_time === 'string') {
         explicitTimeStr = lastPoi.departure_time.trim();
-      } else if (lastPoi?.arrival_time) {
+      } else if (typeof lastPoi?.arrival_time === 'string') {
         explicitTimeStr = lastPoi.arrival_time.trim();
       }
     }

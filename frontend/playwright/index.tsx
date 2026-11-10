@@ -1,6 +1,7 @@
 import React from 'react';
 import { beforeMount } from '@playwright/experimental-ct-react/hooks';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { I18nProvider } from '../src/contexts/I18nContext';
 import '../src/app/globals.css';
 
 const mockRouter: any = {
@@ -15,7 +16,9 @@ const mockRouter: any = {
 beforeMount(async ({ App }) => {
   return (
     <AppRouterContext.Provider value={mockRouter}>
-      <App />
+      <I18nProvider>
+        <App />
+      </I18nProvider>
     </AppRouterContext.Provider>
   );
 });

@@ -7,6 +7,7 @@ import {
   formatTimezone,
 } from '@/utils/tripParser';
 import { resolveApiMediaUrl } from '@/utils/api';
+import { ChevronRightIcon } from '@/components/icons';
 import styles from './ActiveTripTicket.module.css';
 
 export interface ActiveTripTicketProps {
@@ -178,20 +179,7 @@ export function ActiveTripTicket({
           {/* Tactical Action Button */}
           <div className={styles.openCockpitBtn}>
             <span>{t('dashboard.open_cockpit')}</span>
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
+            <ChevronRightIcon size={13} aria-hidden="true" />
           </div>
         </div>
       </div>

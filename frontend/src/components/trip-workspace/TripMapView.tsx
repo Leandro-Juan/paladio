@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, useMapEvents, Tooltip, CircleMarker } from 'react-leaflet';
+import { MapContainer, Marker, Popup, Polyline, Polygon, ZoomControl, useMap, useMapEvents, Tooltip, CircleMarker, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -10,7 +10,7 @@ import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clu
 import { TransitLeg, TransitStep } from '@/types/domain';
 import { formatPoiTime } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
-import { InfoIcon, CrosshairIcon, CloseIcon } from '@/components/icons';
+import { InfoIcon, CrosshairIcon, CloseIcon, RadarIcon } from '@/components/icons';
 import { createRouteCardDragImage, startCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
@@ -114,6 +114,17 @@ interface TripMapViewProps {
     origin: { name: string; lat: number; lng: number };
     destination: { name: string; lat: number; lng: number };
   } | null;
+  spatialCircle?: SpatialCircleFilter | null;
+  onSpatialCircleChange?: (circle: SpatialCircleFilter) => void;
+  isDroppingWaypoint?: boolean;
+  onCancelDropWaypoint?: () => void;
+  onClearSpatialCircle?: () => void;
+}
+
+export interface SpatialCircleFilter {
+  lat: number;
+  lng: number;
+  radiusMeters: number;
 }
 
 function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.DivIcon {
@@ -271,6 +282,252 @@ function DirectionsMapEventsHandler({
   }, [directionsRoute, map]);
 
   return null;
+}
+
+function createWaypointCenterIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'paladio-waypoint-center',
+    html: `
+      <div style="
+        position: relative;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <div style="
+          position: absolute;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(15, 76, 92, 0.25);
+          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        "></div>
+        <div style="
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #0F4C5C;
+          border: 2.5px solid #FFFFFF;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #FFFFFF;
+        ">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF;"></div>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+function createRadiusHandleIcon(radiusMeters: number): L.DivIcon {
+  return L.divIcon({
+    className: 'paladio-radius-handle',
+    html: `
+      <div style="
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #0F4C5C;
+        border: 2.5px solid #FFFFFF;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: ew-resize;
+        transition: transform 0.1s ease;
+      ">
+        <div style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF;"></div>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
+function WaypointMapEventsHandler({
+  isDroppingWaypoint,
+  onCancelDropWaypoint,
+  onSetSpatialCircle,
+}: {
+  isDroppingWaypoint?: boolean;
+  onCancelDropWaypoint?: () => void;
+  onSetSpatialCircle?: (circle: SpatialCircleFilter) => void;
+}) {
+  useMapEvents({
+    click: (e) => {
+      if (!isDroppingWaypoint) return;
+      const { lat, lng } = e.latlng;
+      if (onSetSpatialCircle) {
+        onSetSpatialCircle({
+          lat,
+          lng,
+          radiusMeters: 800,
+        });
+      }
+      if (onCancelDropWaypoint) onCancelDropWaypoint();
+    },
+  });
+
+  useEffect(() => {
+    if (!isDroppingWaypoint) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onCancelDropWaypoint) {
+        onCancelDropWaypoint();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDroppingWaypoint, onCancelDropWaypoint]);
+
+  return null;
+}
+
+function InteractiveSpatialCircleLayer({
+  spatialCircle,
+  onSpatialCircleChange,
+  onClearSpatialCircle,
+}: {
+  spatialCircle: SpatialCircleFilter;
+  onSpatialCircleChange?: (circle: SpatialCircleFilter) => void;
+  onClearSpatialCircle?: () => void;
+}) {
+  const map = useMap();
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragRadius, setDragRadius] = useState<number | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<[number, number] | null>(null);
+  const circleRef = useRef<L.Circle | null>(null);
+
+  const radius = dragRadius !== null ? dragRadius : spatialCircle.radiusMeters;
+
+  // Calculate handle position pointing East
+  const deltaLng = radius / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
+  const handlePosition: [number, number] = [spatialCircle.lat, spatialCircle.lng + deltaLng];
+
+  // Freeze position prop during active dragging so React-Leaflet doesn't reset Leaflet's native marker drag
+  const activeHandlePosition = isDragging && dragStartPos ? dragStartPos : handlePosition;
+
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true);
+    setDragStartPos(handlePosition);
+  }, [handlePosition]);
+
+  const handleDrag = useCallback((e: L.LeafletEvent) => {
+    const handleLatLng = (e.target as L.Marker).getLatLng();
+    const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
+    const clampedDist = Math.max(100, Math.min(10000, newDist));
+    if (circleRef.current) {
+      circleRef.current.setRadius(clampedDist);
+    }
+    setDragRadius(clampedDist);
+  }, [map, spatialCircle.lat, spatialCircle.lng]);
+
+  const handleDragEnd = useCallback((e: L.LeafletEvent) => {
+    const handleLatLng = (e.target as L.Marker).getLatLng();
+    const newDist = Math.round(map.distance([spatialCircle.lat, spatialCircle.lng], handleLatLng));
+    const clampedDist = Math.max(100, Math.min(10000, newDist));
+    setDragStartPos(null);
+    setDragRadius(null);
+    setIsDragging(false);
+    onSpatialCircleChange?.({
+      ...spatialCircle,
+      radiusMeters: clampedDist,
+    });
+  }, [map, spatialCircle, onSpatialCircleChange]);
+
+  const handleCenterDragEnd = useCallback((e: L.LeafletEvent) => {
+    const centerLatLng = (e.target as L.Marker).getLatLng();
+    onSpatialCircleChange?.({
+      ...spatialCircle,
+      lat: centerLatLng.lat,
+      lng: centerLatLng.lng,
+    });
+  }, [spatialCircle, onSpatialCircleChange]);
+
+  return (
+    <>
+      <Circle
+        ref={circleRef}
+        center={[spatialCircle.lat, spatialCircle.lng]}
+        radius={radius}
+        pathOptions={{
+          color: '#0F4C5C',
+          weight: 2,
+          dashArray: '5, 5',
+          fillColor: '#0F4C5C',
+          fillOpacity: 0.12,
+        }}
+      />
+      {/* Center Waypoint Pin (Draggable to move area filter) */}
+      <Marker
+        position={[spatialCircle.lat, spatialCircle.lng]}
+        icon={createWaypointCenterIcon()}
+        draggable={true}
+        eventHandlers={{
+          dragend: handleCenterDragEnd,
+        }}
+      >
+        <Popup>
+          <div style={{ padding: '6px', minWidth: '140px', fontFamily: 'var(--font-sans, sans-serif)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F4C5C' }}>
+              Area Search Waypoint
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+              Radius: {radius}m
+            </div>
+            {onClearSpatialCircle && (
+              <button
+                type="button"
+                onClick={onClearSpatialCircle}
+                style={{
+                  marginTop: '6px',
+                  width: '100%',
+                  padding: '5px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: '1px solid #CBD5E1',
+                  background: '#F8FAFC',
+                  color: '#EF4444',
+                  cursor: 'pointer',
+                }}
+              >
+                Clear Area Filter
+              </button>
+            )}
+          </div>
+        </Popup>
+        <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
+          <div style={{ fontSize: '11px', fontWeight: 600 }}>
+            Center Waypoint ({radius}m) &bull; Drag to move
+          </div>
+        </Tooltip>
+      </Marker>
+
+      {/* Perimeter Draggable Handle (Draggable to resize radius) */}
+      <Marker
+        position={activeHandlePosition}
+        draggable={true}
+        icon={createRadiusHandleIcon(radius)}
+        eventHandlers={{
+          dragstart: handleDragStart,
+          drag: handleDrag,
+          dragend: handleDragEnd,
+        }}
+      >
+        <Tooltip direction="right" offset={[10, 0]} opacity={0.95} permanent={isDragging}>
+          <div style={{ fontSize: '11px', fontWeight: 600 }}>
+            {radius}m
+          </div>
+        </Tooltip>
+      </Marker>
+    </>
+  );
 }
 
 function getTransitStepStyle(step: TransitStep): { color: string; isDashed: boolean; weight: number } {
@@ -827,26 +1084,26 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
-      if (typeof window !== 'undefined') {
-        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
-        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
-        window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
-      }
-      if (typeof document !== 'undefined') {
-        const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-        existing.forEach((node) => node.remove());
-      }
+      window.setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+          (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+          window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+        }
+        if (typeof document !== 'undefined') {
+          const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
+          existing.forEach((node) => node.remove());
+        }
+      }, 50);
     };
 
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('dragend', handleMouseUp, true);
-    document.addEventListener('drop', handleMouseUp, true);
     document.addEventListener('mousedown', handleMouseDown, true);
     document.addEventListener('mouseup', handleMouseUp, true);
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleMouseUp, true);
-      document.removeEventListener('drop', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
     };
@@ -947,6 +1204,11 @@ export default function TripMapView({
   activeMapPickField,
   onCancelMapPick,
   directionsRoute,
+  spatialCircle = null,
+  onSpatialCircleChange,
+  isDroppingWaypoint = false,
+  onCancelDropWaypoint,
+  onClearSpatialCircle,
 }: TripMapViewProps) {
   const [internalDirectionsRoute, setInternalDirectionsRoute] = useState<{
     activeLeg: TransitLeg;
@@ -1600,6 +1862,54 @@ export default function TripMapView({
         </div>
       )}
 
+      {/* Tactical Waypoint Dropping Active Banner */}
+      {isDroppingWaypoint && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            background: 'rgba(15, 76, 92, 0.95)',
+            backdropFilter: 'blur(8px)',
+            color: '#FFFFFF',
+            borderRadius: '9999px',
+            padding: '8px 18px',
+            fontSize: '12px',
+            fontWeight: 600,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            pointerEvents: 'auto',
+          }}
+        >
+          <RadarIcon size={14} color="#FFFFFF" />
+          <span>Click anywhere on the map to place search waypoint center (Esc to cancel)</span>
+          <button
+            type="button"
+            onClick={onCancelDropWaypoint}
+            style={{
+              border: 'none',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '50%',
+              color: '#FFFFFF',
+              width: '18px',
+              height: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              marginLeft: '4px',
+            }}
+            title="Cancel (Esc)"
+          >
+            <CloseIcon size={10} />
+          </button>
+        </div>
+      )}
+
       {/* Map Canvas */}
       <MapContainer
         center={centerPosition}
@@ -1608,7 +1918,7 @@ export default function TripMapView({
         maxBounds={[[-85, -180], [85, 180]]}
         maxBoundsViscosity={1.0}
         zoomControl={false}
-        style={{ height: '100%', width: '100%', cursor: activeMapPickField ? 'crosshair' : undefined }}
+        style={{ height: '100%', width: '100%', cursor: (activeMapPickField || isDroppingWaypoint) ? 'crosshair' : undefined }}
         attributionControl={false}
       >
         <ZoomControl position="bottomright" />
@@ -1616,6 +1926,11 @@ export default function TripMapView({
           activeMapPickField={activeMapPickField}
           onCancelMapPick={onCancelMapPick}
           directionsRoute={activeDirectionsRoute}
+        />
+        <WaypointMapEventsHandler
+          isDroppingWaypoint={isDroppingWaypoint}
+          onCancelDropWaypoint={onCancelDropWaypoint}
+          onSetSpatialCircle={onSpatialCircleChange}
         />
         <MapViewportController
           activePoints={activeBoundsPoints}
@@ -2261,10 +2576,11 @@ export default function TripMapView({
           });
         })()}
 
-        {/* 7. Category POI Markers (Displayed when browsing a category like MUSEUM, CAFE, etc.) */}
-        {activeCategory && categoryPois && categoryPois.length > 0 && (
+        {/* 7. Category & Waypoint Area Filter POI Markers */}
+        {categoryPois && categoryPois.length > 0 && (
           categoryPois
             .filter((poi) => {
+              if (!activeCategory || (activeCategory as string) === 'all') return true;
               const catType = classifyPoiCategory(poi.category, poi.name).type;
               return isCategoryMatch(activeCategory, catType);
             })
@@ -2274,7 +2590,7 @@ export default function TripMapView({
               const photoUrl = poi.photo_url || getPhoto(poi.id) || getPhoto(poi.name);
               return (
                 <Marker
-                  key={`cat-poi-${activeCategory}-${poi.id || idx}-${poi.lat}-${poi.lng}`}
+                  key={`cat-poi-${activeCategory || 'all'}-${poi.id || idx}-${poi.lat}-${poi.lng}`}
                   position={[poi.lat, poi.lng]}
                   icon={createCategoryPoiIcon(catType, poi, photoUrl, isCatPoiFocused, Math.min(idx * 16, 180))}
                   zIndexOffset={isCatPoiFocused ? 2500 : 400}
@@ -2745,6 +3061,15 @@ export default function TripMapView({
               </>
             )}
           </>
+        )}
+
+        {/* 9. Interactive Waypoint Radius Circle & Resize Handle */}
+        {spatialCircle && (
+          <InteractiveSpatialCircleLayer
+            spatialCircle={spatialCircle}
+            onSpatialCircleChange={onSpatialCircleChange}
+            onClearSpatialCircle={onClearSpatialCircle}
+          />
         )}
       </MapContainer>
 

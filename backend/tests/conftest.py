@@ -348,6 +348,9 @@ async def db_engine():
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS feed_valid_to TIMESTAMPTZ;",
                 "ALTER TABLE transit_cache ADD COLUMN IF NOT EXISTS quality JSONB;",
                 "ALTER TABLE transit_pattern_stops ADD COLUMN IF NOT EXISTS is_interpolated BOOLEAN DEFAULT FALSE NOT NULL;",
+                "ALTER TABLE deal_watch_alerts DROP CONSTRAINT IF EXISTS ck_deal_watch_alerts_travelers;",
+                "ALTER TABLE deal_watch_alerts ADD CONSTRAINT ck_deal_watch_alerts_travelers CHECK (travelers >= 1 AND travelers <= 16);",
+                "ALTER TABLE deal_watch_alerts ADD COLUMN IF NOT EXISTS participants JSONB;",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(

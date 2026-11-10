@@ -224,10 +224,10 @@ export function classifyPoiCategory(category?: string, name?: string): CategoryM
     if (/\b(restaurant|bistro|trattoria|osteria|pizzeria|brasserie)\b/i.test(normName)) {
       return { type: 'restaurant', ...CATEGORY_DEFINITIONS.restaurant };
     }
-    if (/\b(hotel|hostel|inn|resort|hyatt|hilton|marriott)\b/i.test(normName)) {
+    if (/\b(hotel|hostel|inn|resort|hyatt|hilton|marriott|motel|ryokan|suites|guesthouse)\b/i.test(normName)) {
       return { type: 'hotel', ...CATEGORY_DEFINITIONS.hotel };
     }
-    if (/\b(airport|aeroport|aeropuerto|terminal)\b/i.test(normName)) {
+    if (/\b(airport|aeroport|aeropuerto|flughafen|aeroporto|airfield|aerodrome)\b/i.test(normName)) {
       return { type: 'airport', ...CATEGORY_DEFINITIONS.airport };
     }
     if (/\b(park|garden|jardin|parque)\b/i.test(normName)) {
@@ -285,10 +285,12 @@ export function isCategoryMatch(
   if (!targetCategory) return false;
   if (filterCategory === targetCategory) return true;
 
-  // Landmark and attraction are mutually inclusive in travel filters
+  // Landmark and attraction are mutually inclusive in travel filters; attraction also includes viewpoints & entertainment
+  const f = String(filterCategory).toLowerCase();
+  const t = String(targetCategory).toLowerCase();
   if (
-    (filterCategory === 'landmark' && targetCategory === 'attraction') ||
-    (filterCategory === 'attraction' && targetCategory === 'landmark')
+    (f === 'landmark' && (t === 'attraction' || t === 'monument' || t === 'viewpoint' || t === 'sight')) ||
+    (f === 'attraction' && (t === 'landmark' || t === 'monument' || t === 'entertainment' || t === 'viewpoint' || t === 'sight' || t === 'artwork'))
   ) {
     return true;
   }
@@ -317,4 +319,38 @@ export function isCategoryMatch(
   }
 
   return false;
+}
+
+export function isHotelPoi(p?: { category?: string | null; name?: string | null; id?: string | null } | null): boolean {
+  if (!p) return false;
+  const cat = (p.category || '').toLowerCase().trim();
+  const name = (p.name || '').toLowerCase().trim();
+  const id = (p.id || '').toLowerCase().trim();
+  if (['hotel', 'lodging', 'hostel', 'resort', 'motel', 'accommodation', 'ryokan', 'inn', 'guesthouse'].includes(cat)) {
+    return true;
+  }
+  if (id.startsWith('hotel:') || id.startsWith('lodging:')) return true;
+  if (/\b(hotel|hostel|resort|inn|motel|suites|ryokan|guesthouse|bed & breakfast|b&b)\b/i.test(name)) {
+    return true;
+  }
+  return classifyPoiCategory(p.category || undefined, p.name || undefined).type === 'hotel';
+}
+
+export function isAirportPoi(p?: { category?: string | null; name?: string | null; id?: string | null } | null): boolean {
+  if (!p) return false;
+  const cat = (p.category || '').toLowerCase().trim();
+  const name = (p.name || '').toLowerCase().trim();
+  const id = (p.id || '').toLowerCase().trim();
+  if (['airport', 'flight', 'aerodrome', 'airfield', 'heliport'].includes(cat)) {
+    return true;
+  }
+  if (id.startsWith('flight:') || id.startsWith('airport:')) return true;
+  if (/\b(airport|aeroport|aeropuerto|flughafen|aeroporto|airfield|aerodrome|heliport)\b/i.test(name)) {
+    return true;
+  }
+  if (/\b[a-z]{3}\s+airport\b/i.test(name) || /\bairport\s*\([a-z]{3}\)/i.test(name) || /\b(international|domestic)\s+airport\b/i.test(name)) {
+    return true;
+  }
+  const classified = classifyPoiCategory(p.category || undefined, p.name || undefined).type;
+  return classified === 'airport' || classified === 'flight';
 }

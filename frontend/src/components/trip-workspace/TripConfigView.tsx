@@ -470,7 +470,15 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             startDate={startDate}
             endDate={endDate}
             onOriginChange={setOrigin}
-            onDestinationChange={setDestination}
+            onDestinationChange={(val) => {
+              if (val.trim().toLowerCase() !== destination.trim().toLowerCase()) {
+                setHotelArea('');
+                setHotelAddress('');
+                setHotelLat(undefined);
+                setHotelLng(undefined);
+              }
+              setDestination(val);
+            }}
             onDepartureHourChange={setDepartureHour}
             onArrivalHourChange={setArrivalHour}
             disabled={isSaving}
@@ -876,6 +884,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             }}
             inline={true}
             disabled={isSaving}
+            excludeTripId={trip.id}
           />
         </div>
 

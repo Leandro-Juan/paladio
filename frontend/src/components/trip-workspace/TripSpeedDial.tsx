@@ -4,9 +4,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   PlusIcon,
   EditIcon,
-  CpuIcon,
-  Spinner,
   LayersViewIcon,
+  PinIcon,
 } from '@/components/icons';
 
 export interface TripSpeedDialProps {
@@ -21,6 +20,10 @@ export interface TripSpeedDialProps {
   dockSide?: 'left' | 'right';
   isPanelOpen?: boolean;
   panelWidth?: string;
+  isDroppingWaypoint?: boolean;
+  onToggleDropWaypoint?: () => void;
+  spatialCircle?: { lat: number; lng: number; radiusMeters: number } | null;
+  onClearSpatialCircle?: () => void;
 }
 
 export function TripSpeedDial({
@@ -35,6 +38,10 @@ export function TripSpeedDial({
   dockSide = 'left',
   isPanelOpen = true,
   panelWidth = 'min(520px, calc(100vw - 32px))',
+  isDroppingWaypoint = false,
+  onToggleDropWaypoint,
+  spatialCircle = null,
+  onClearSpatialCircle,
 }: TripSpeedDialProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
@@ -78,17 +85,10 @@ export function TripSpeedDial({
     onToggleEditMode();
   }, [onToggleEditMode]);
 
-  const handleResolverClick = useCallback(async () => {
-    if (onReoptimizeDay && !isReoptimizing) {
-      await onReoptimizeDay();
-    }
-  }, [onReoptimizeDay, isReoptimizing]);
-
   const handleViewToggleClick = useCallback(() => {
     onToggleTransitMode();
   }, [onToggleTransitMode]);
 
-  const activeDayLabel = selectedDay === 'all' ? 'DAY 1' : `DAY ${selectedDay}`;
   const isLeft = dockSide === 'left';
 
   // Radial offsets:
@@ -111,19 +111,40 @@ export function TripSpeedDial({
       delayClose: '60ms',
     },
     {
-      id: 'resolver',
-      label: isReoptimizing ? 'SOLVING...' : `SOLVE ${activeDayLabel}`,
-      sublabel: 'C++20 TSPTW',
-      icon: isReoptimizing ? (
-        <Spinner size={16} color="var(--color-accent-primary)" />
-      ) : (
-        <CpuIcon size={16} color="currentColor" />
+      id: 'waypoint',
+      label: isDroppingWaypoint
+        ? 'CANCEL PLACEMENT'
+        : spatialCircle
+        ? `CLEAR AREA (${spatialCircle.radiusMeters}M)`
+        : 'DROP WAYPOINT',
+      sublabel: isDroppingWaypoint
+        ? 'Click map to place'
+        : spatialCircle
+        ? 'Click to clear filter'
+        : 'Radius search filter',
+      icon: (
+        <PinIcon
+          size={16}
+          color={isDroppingWaypoint || spatialCircle ? '#FFFFFF' : 'currentColor'}
+        />
       ),
-      onClick: handleResolverClick,
-      isActive: isReoptimizing,
-      disabled: isReoptimizing || !onReoptimizeDay,
-      testId: 'speed-dial-resolver',
-      title: `Run deterministic C++ solver for ${activeDayLabel}`,
+      onClick: () => {
+        if (spatialCircle && !isDroppingWaypoint) {
+          if (onClearSpatialCircle) {
+            onClearSpatialCircle();
+          }
+        } else if (onToggleDropWaypoint) {
+          onToggleDropWaypoint();
+        }
+      },
+      isActive: isDroppingWaypoint || !!spatialCircle,
+      disabled: false,
+      testId: 'speed-dial-waypoint',
+      title: isDroppingWaypoint
+        ? 'Cancel waypoint placement mode'
+        : spatialCircle
+        ? `Active radius: ${spatialCircle.radiusMeters}m (Click to clear filter)`
+        : 'Drop waypoint on map to filter POIs and transit by radius',
       dx: isLeft ? 46 : -50,
       dy: isLeft ? -46 : -50,
       delayOpen: '30ms',

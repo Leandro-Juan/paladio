@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
+import { isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
 import { GripVerticalIcon, LockIcon, UnlockIcon, ChevronUpIcon, ChevronDownIcon } from '@/components/icons';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 
@@ -25,6 +26,7 @@ export interface MinimalistPoiCardProps {
   onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   isBeingDragged?: boolean;
+  isRemoving?: boolean;
 
   // Edit mode controls (only visible if isEditMode === true)
   isEditMode?: boolean;
@@ -61,6 +63,7 @@ export function MinimalistPoiCard({
   onDragOver,
   onDrop,
   isBeingDragged = false,
+  isRemoving = false,
   isEditMode = false,
   stopNum,
   anchorInfo,
@@ -103,30 +106,42 @@ export function MinimalistPoiCard({
 
   return (
     <div
+      data-testid={`poi-stop-card-${id || name}`}
       className={className}
-      draggable={draggable}
+      draggable={draggable && !isRemoving}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      onClick={onClick}
+      onClick={isRemoving ? undefined : onClick}
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '8px 10px 8px 16px',
+        padding: isRemoving ? '0px 10px 0px 16px' : '8px 10px 8px 16px',
         background: isBeingDragged ? 'rgba(15, 76, 92, 0.05)' : 'var(--color-bg-card, #FFFFFF)',
         border: isBeingDragged
           ? '1.5px dashed var(--color-accent-teal-soft)'
+          : isRemoving
+          ? '1px solid transparent'
           : '1px solid var(--color-border)',
         borderRadius: '9999px', // Pill / capsule shape from sketch!
-        boxShadow: isBeingDragged ? 'none' : 'var(--shadow-sm)',
+        boxShadow: isBeingDragged || isRemoving ? 'none' : 'var(--shadow-sm)',
         cursor: draggable ? 'grab' : 'pointer',
-        opacity: isBeingDragged ? 0.45 : 1,
-        transform: isBeingDragged ? 'scale(0.98)' : 'none',
-        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        opacity: isRemoving ? 0 : isBeingDragged ? 0.45 : 1,
+        transform: isRemoving
+          ? 'scale(0.85) translateX(-32px)'
+          : isBeingDragged
+          ? 'scale(0.98)'
+          : 'none',
+        maxHeight: isRemoving ? '0px' : '90px',
+        overflow: isRemoving ? 'hidden' : 'visible',
+        transition: isRemoving
+          ? 'all 0.28s cubic-bezier(0.2, 0, 0, 1)'
+          : 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         position: 'relative',
         userSelect: 'none',
+        pointerEvents: isRemoving ? 'none' : undefined,
         ...style,
       }}
       onMouseEnter={(e) => {
@@ -305,7 +320,7 @@ export function MinimalistPoiCard({
               • {costEur.toFixed(1)}€
             </span>
           )}
-          {typeof costEur === 'number' && costEur === 0 && (
+          {typeof costEur === 'number' && costEur === 0 && !isHotelPoi({ category, name, id }) && !isAirportPoi({ category, name, id }) && (
             <span style={{ color: '#10b981', fontWeight: 600 }}>
               • Free
             </span>

@@ -308,6 +308,30 @@ a {
   height: 0 !important;
 }
 
+/* Itinerary POI drop-insert animation */
+@keyframes paladioPoiInsert {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    background-color: rgba(15, 76, 92, 0.18);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-poi-insert {
+    animation: none !important;
+  }
+}
+
 /* Map Waypoint Focus Pop-In Bounce Animation */
 @keyframes paladioWaypointPopIn {
   0% {

@@ -60,6 +60,10 @@ class UserPreferences(BaseModel):
         }
     )
     solver_overrides: dict[str, Any] = Field(default_factory=dict)
+    home_city: str | None = None
+    home_country: str | None = None  # ISO 3166-1 alpha-2 code e.g. "ES", "US", "FR"
+    home_country_name: str | None = None  # e.g. "Spain", "United States"
+    home_subdivision: str | None = None  # e.g. "MD", "CA"
 
 
 def get_default_user_preferences() -> dict[str, Any]:

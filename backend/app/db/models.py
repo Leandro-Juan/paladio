@@ -1017,6 +1017,7 @@ class DealWatchAlertModel(Base):
     min_nights = Column(Integer, default=1, nullable=False)
     max_nights = Column(Integer, default=7, nullable=False)
     travelers = Column(Integer, default=1, nullable=False)
+    participants = Column(JSONB, nullable=True)
     bags_needed = Column(Integer, default=0, nullable=False)
     baggage_budget_cents = Column(BigInteger, nullable=True)
     max_budget_cents = Column(BigInteger, nullable=False)
@@ -1038,7 +1039,7 @@ class DealWatchAlertModel(Base):
         CheckConstraint("min_nights <= max_nights", name="ck_deal_watch_alerts_nights"),
         CheckConstraint("max_budget_cents > 0", name="ck_deal_watch_alerts_budget"),
         CheckConstraint(
-            "travelers >= 1 AND travelers <= 2", name="ck_deal_watch_alerts_travelers"
+            "travelers >= 1 AND travelers <= 16", name="ck_deal_watch_alerts_travelers"
         ),
         Index("ix_deal_watch_alerts_gin_dest", "destinations", postgresql_using="gin"),
         Index(

@@ -196,7 +196,15 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
             close_vec[d] = -1
         elif daily_windows[d]:
             # Sort windows and remove overlaps if any
-            daily_windows[d].sort(key=lambda iv: iv[0])
+            daily_windows[d].sort(key=lambda iv: (iv[0], -iv[1]))
+            merged: list[tuple[int, int]] = [daily_windows[d][0]]
+            for iv in daily_windows[d][1:]:
+                prev_start, prev_end = merged[-1]
+                if iv[0] <= prev_end:
+                    merged[-1] = (prev_start, max(prev_end, iv[1]))
+                else:
+                    merged.append(iv)
+            daily_windows[d] = merged
             open_vec[d] = daily_windows[d][0][0]
             close_vec[d] = daily_windows[d][-1][1]
         elif matched_any:

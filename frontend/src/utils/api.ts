@@ -394,22 +394,74 @@ export interface VaultConfigData {
   auto_snapshot_enabled: boolean;
   snapshot_retention_days: number;
   export_anonymized_trips: boolean;
+  // Photo Sync: Immich
+  immich_enabled: boolean;
+  immich_url: string;
+  immich_api_key: string;
+  immich_album_name: string;
+  // Photo Sync: Synology
+  synology_enabled: boolean;
+  synology_url: string;
+  synology_username: string;
+  synology_password: string;
+  synology_destination_path: string;
+  sync_on_upload: boolean;
 }
 
-export interface DomainSettingsResponse<T = any> {
+export interface PushifyConfigData {
+  enabled: boolean;
+  endpoint_url: string;
+  api_key: string;
+  channel: string;
+}
+
+export interface PushoverConfigData {
+  enabled: boolean;
+  user_key: string;
+  app_token: string;
+  priority: number;
+}
+
+export interface NtfyConfigData {
+  enabled: boolean;
+  server_url: string;
+  topic: string;
+  auth_token: string;
+}
+
+export interface WebhookConfigData {
+  enabled: boolean;
+  url: string;
+  secret_header: string;
+}
+
+export interface NotificationsConfigData {
+  pushify: PushifyConfigData;
+  pushover: PushoverConfigData;
+  ntfy: NtfyConfigData;
+  webhook: WebhookConfigData;
+  notify_on_deal_alert: boolean;
+  notify_on_trip_update: boolean;
+  notify_on_ticket_parse: boolean;
+  notify_on_photo_sync: boolean;
+}
+
+export interface DomainSettingsResponse<T = unknown> {
   status: string;
   domain: string;
   config: T;
 }
 
-export const fetchDomainSettingsApi = <T = any>(
-  domain: 'engine' | 'swarm' | 'vault'
+export type SupportedSettingsDomain = 'engine' | 'swarm' | 'vault' | 'notifications';
+
+export const fetchDomainSettingsApi = <T = unknown>(
+  domain: SupportedSettingsDomain
 ): Promise<DomainSettingsResponse<T>> => {
   return apiFetch<DomainSettingsResponse<T>>(`/system/settings/${domain}`);
 };
 
-export const updateDomainSettingsApi = <T = any>(
-  domain: 'engine' | 'swarm' | 'vault',
+export const updateDomainSettingsApi = <T = unknown>(
+  domain: SupportedSettingsDomain,
   data: Partial<T>
 ): Promise<DomainSettingsResponse<T>> => {
   return apiFetch<DomainSettingsResponse<T>>(`/system/settings/${domain}`, {
@@ -417,6 +469,59 @@ export const updateDomainSettingsApi = <T = any>(
     body: JSON.stringify(data),
   });
 };
+
+
+export interface PhotoSyncTestPayload {
+  provider: 'immich' | 'synology';
+  url: string;
+  api_key?: string;
+  username?: string;
+  password?: string;
+  destination_path?: string;
+}
+
+export interface DiagnosticsResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  details?: unknown;
+}
+
+export const testPhotoSyncApi = (
+  payload: PhotoSyncTestPayload
+): Promise<DiagnosticsResponse> => {
+  return apiFetch<DiagnosticsResponse>('/system/photo-sync/test', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const syncAllVaultPhotosApi = (payload?: {
+  trip_id?: string;
+}): Promise<{
+  success: boolean;
+  total_scanned: number;
+  synced_immich: number;
+  synced_synology: number;
+  failures: number;
+  error?: string;
+}> => {
+  return apiFetch('/system/photo-sync/sync-all', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+  });
+};
+
+export const testNotificationRelayApi = (payload: {
+  provider: 'pushify' | 'pushover' | 'ntfy' | 'webhook';
+  config: Record<string, unknown>;
+}): Promise<DiagnosticsResponse> => {
+  return apiFetch<DiagnosticsResponse>('/system/notifications/test', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
 
 
 

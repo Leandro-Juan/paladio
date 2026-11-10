@@ -126,3 +126,20 @@ def test_parse_comma_separated_day_ranges_with_holiday_exclusions():
     assert res.open_time_mins_by_day[6] == 570
     assert res.close_time_mins_by_day[6] == 1050
     assert res.daily_windows[6] == [(570, 1050)]
+
+
+def test_parse_overlapping_and_seasonal_hours():
+    # Multi-rule or seasonal schedule where hours overlap (e.g. 10:00-21:00, 10:00-20:00, 10:00-18:00)
+    schedule_str = "Sa,Su 10:00-21:00; Sa,Su 10:00-20:00; Sa,Su 10:00-18:00; Mo-Fr off"
+    res = parse_osm_opening_hours(schedule_str)
+
+    assert res.hours_known is True
+    for day in range(5):
+        assert res.open_time_mins_by_day[day] == -1
+        assert res.daily_windows[day] == []
+
+    # Saturday (5) and Sunday (6) should merge into single 10:00-21:00 window (600 to 1260)
+    for day in [5, 6]:
+        assert res.open_time_mins_by_day[day] == 600
+        assert res.close_time_mins_by_day[day] == 1260
+        assert res.daily_windows[day] == [(600, 1260)]

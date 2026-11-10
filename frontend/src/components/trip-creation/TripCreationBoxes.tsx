@@ -174,7 +174,20 @@ export function TripCreationBoxes({
 
   // Setters delegating to persistent draft store
   const setSelectedMode = (mode: 'personalized' | 'blank') => updateDraft({ selectedMode: mode });
-  const setDestination = (val: string) => updateDraft({ destination: val });
+  const setDestination = (val: string) => {
+    const isNewDest = destination.trim() && val.trim().toLowerCase() !== destination.trim().toLowerCase();
+    if (isNewDest) {
+      updateDraft({
+        destination: val,
+        hotelArea: '',
+        hotelAddress: '',
+        hotelLat: undefined,
+        hotelLng: undefined,
+      });
+    } else {
+      updateDraft({ destination: val });
+    }
+  };
   const setOrigin = (val: string) => updateDraft({ origin: val });
   const setOriginIata = (val: string) => updateDraft({ originIata: val });
   const setDestIata = (val: string) => updateDraft({ destIata: val });

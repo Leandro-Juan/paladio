@@ -262,7 +262,7 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
 
     // 3. Verify Bottom Left: The Best Offer Card for Monitored Routes (Outbound + Return + Best Hotel)
     await expect(page.getByText('35% OFF')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 3, name: /MAD.*Tokyo/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: /MAD.*TYO/ })).toBeVisible();
     await expect(page.getByText(/420/)).toBeVisible();
     await expect(page.getByText(/Outbound:/i)).toBeVisible();
     await expect(page.getByText(/Iberia.*IB6801/)).toBeVisible();

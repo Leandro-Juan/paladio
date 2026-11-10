@@ -77,7 +77,7 @@ test.describe('Trip Workspace Renovated Components', () => {
         onToggleEditMode={() => {
           editMode = !editMode;
         }}
-        onReoptimizeDay={async () => {
+        onToggleDropWaypoint={() => {
           resolved = true;
         }}
         isReoptimizing={false}
@@ -101,9 +101,9 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(editBtn).toBeVisible();
     await expect(component.getByText('EDIT ROUTE')).toBeVisible();
 
-    const solveBtn = component.getByTestId('speed-dial-resolver');
-    await expect(solveBtn).toBeVisible();
-    await expect(component.getByText('SOLVE DAY 1')).toBeVisible();
+    const waypointBtn = component.getByTestId('speed-dial-waypoint');
+    await expect(waypointBtn).toBeVisible();
+    await expect(component.getByText('DROP WAYPOINT')).toBeVisible();
 
     const viewBtn = component.getByTestId('speed-dial-view-toggle');
     await expect(viewBtn).toBeVisible();
@@ -113,9 +113,9 @@ test.describe('Trip Workspace Renovated Components', () => {
     await editBtn.click();
     expect(editMode).toBe(true);
 
-    // Reopen dial for resolver action
+    // Reopen dial for waypoint action
     await triggerBtn.click();
-    await solveBtn.click();
+    await waypointBtn.click();
     expect(resolved).toBe(true);
 
     // Reopen dial for view mode switch
@@ -256,6 +256,85 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(agentTab).toHaveText('Agent');
     await expect(unifiedCard).toHaveCSS('width', '520px');
   });
+
+  test('TripUnifiedSidebar handles POI drag-and-drop into itinerary slots', async ({ mount }) => {
+    let updatedItinerary: any = null;
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Discovery',
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'p1', name: 'Existing Stop 1', category: 'attraction', duration_mins: 60, cost_eur: 15 },
+              arrival_time: 600,
+              departure_time: 660,
+            } as any,
+            {
+              poi: { id: 'p2', name: 'Existing Stop 2', category: 'museum', duration_mins: 75, cost_eur: 20 },
+              arrival_time: 680,
+              departure_time: 755,
+            } as any,
+          ],
+        },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        itinerary={{ days: mockDays } as any}
+        onItineraryUpdate={(newItin) => {
+          updatedItinerary = newItin;
+        }}
+      />
+    );
+
+    // Initial stop is present
+    await expect(component.getByText('Existing Stop 1')).toBeVisible();
+
+    // Route tab button has onDragOver and onDragEnter
+    const routeTab = component.getByTestId('tab-route');
+    await routeTab.dispatchEvent('dragover');
+    await expect(routeTab).toHaveText('Route');
+
+    // Simulate drop of a new POI onto the connector drop zone
+    const dropTarget = component.getByTestId('route-poi-connector').first();
+    await dropTarget.evaluate((el) => {
+      const dt = new DataTransfer();
+      const payload = JSON.stringify({
+        source: 'search',
+        poi: {
+          id: 'new-p2',
+          name: 'Tokyo Tower',
+          category: 'monument',
+          duration_mins: 90,
+          cost_eur: 20,
+          lat: 35.6586,
+          lng: 139.7454,
+        },
+      });
+      dt.setData('application/paladio-poi', payload);
+      dt.setData('text/plain', payload);
+      const ev = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: dt,
+      });
+      el.dispatchEvent(ev);
+    });
+
+    // onItineraryUpdate was called and new stop is in itinerary
+    expect(updatedItinerary).not.toBeNull();
+    const day1Path = updatedItinerary.days[0].itinerary.path;
+    expect(day1Path.some((s: any) => s.poi?.name === 'Tokyo Tower')).toBe(true);
+  });
 });
+
 
 

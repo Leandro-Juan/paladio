@@ -10,6 +10,7 @@ Powered by HybridRetriever:
 import asyncio
 import json
 import logging
+import math
 import re
 import unicodedata
 import uuid
@@ -206,6 +207,11 @@ def _candidate_to_search_item(
         if raw_rating is not None and float(raw_rating) > 0
         else None
     )
+    clean_sim = (
+        0.0
+        if (sim is None or (isinstance(sim, float) and math.isnan(sim)))
+        else round(float(sim), 3)
+    )
     return PoiSearchItem(
         id=str(c.get("id")),
         name=str(c.get("name")),
@@ -214,7 +220,7 @@ def _candidate_to_search_item(
         lng=lng,
         duration_mins=int(c.get("duration_mins") or 60),
         cost_eur=float(c.get("cost_eur") or 0.0),
-        similarity=round(float(sim), 3),
+        similarity=clean_sim,
         rating=rating_val,
         iconicity_score=iconicity,
         scoring=scoring_dict,
@@ -228,15 +234,48 @@ def _candidate_to_search_item(
 
 
 CATEGORY_SYNONYMS: dict[str, list[str]] = {
-    "monument": ["monument", "landmark", "historic"],
-    "landmark": ["monument", "landmark", "historic"],
-    "museum": ["museum", "gallery", "exhibition"],
-    "cafe": ["cafe", "coffee", "bakery"],
+    "monument": [
+        "monument",
+        "landmark",
+        "historic",
+        "attraction",
+        "sight",
+        "viewpoint",
+        "artwork",
+    ],
+    "landmark": [
+        "monument",
+        "landmark",
+        "historic",
+        "attraction",
+        "sight",
+        "viewpoint",
+        "artwork",
+    ],
+    "museum": ["museum", "gallery", "exhibition", "arts_centre"],
+    "cafe": ["cafe", "coffee", "bakery", "pastry"],
     "restaurant": ["restaurant", "bistro", "food", "dining"],
-    "attraction": ["attraction", "sight", "theme_park"],
-    "bar": ["bar", "pub", "nightlife"],
-    "park": ["park", "garden", "nature"],
-    "shopping": ["shop", "shopping", "market", "store"],
+    "attraction": [
+        "attraction",
+        "sight",
+        "theme_park",
+        "monument",
+        "landmark",
+        "viewpoint",
+        "historic",
+        "entertainment",
+        "artwork",
+    ],
+    "entertainment": [
+        "entertainment",
+        "theatre",
+        "cinema",
+        "music_venue",
+        "attraction",
+    ],
+    "bar": ["bar", "pub", "nightlife", "nightclub"],
+    "park": ["park", "garden", "nature", "nature_reserve"],
+    "shopping": ["shop", "shopping", "market", "store", "mall"],
     "hotel": ["hotel", "hostel", "lodging"],
 }
 
@@ -396,6 +435,19 @@ def is_point_in_polygon(
     return inside
 
 
+def haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Computes great-circle distance between two points in meters using Haversine formula."""
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dphi / 2.0) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+    return 6371000.0 * c
+
+
 def _model_to_search_item(
     p: AttractionModel,
     match_type: str = "category_browse",
@@ -480,6 +532,15 @@ async def search_pois(
     polygon: str | None = Query(
         None, description="Optional convex hull polygon 'lat1,lng1;lat2,lng2;...'"
     ),
+    circle_lat: float | None = Query(
+        None, description="Center latitude for radial circle search"
+    ),
+    circle_lng: float | None = Query(
+        None, description="Center longitude for radial circle search"
+    ),
+    circle_radius: float | None = Query(
+        None, description="Radius in meters for radial circle search"
+    ),
     limit: int = Query(15, ge=1, le=200, description="Max results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     custom_only: bool = Query(
@@ -513,6 +574,42 @@ async def search_pois(
     if hasattr(polygon, "default"):
         polygon = polygon.default if polygon.default is not ... else None
 
+    if hasattr(circle_lat, "default"):
+        circle_lat = (
+            float(circle_lat.default)
+            if circle_lat.default is not ... and circle_lat.default is not None
+            else None
+        )
+    elif circle_lat is not None:
+        try:
+            circle_lat = float(circle_lat)
+        except (ValueError, TypeError):
+            circle_lat = None
+
+    if hasattr(circle_lng, "default"):
+        circle_lng = (
+            float(circle_lng.default)
+            if circle_lng.default is not ... and circle_lng.default is not None
+            else None
+        )
+    elif circle_lng is not None:
+        try:
+            circle_lng = float(circle_lng)
+        except (ValueError, TypeError):
+            circle_lng = None
+
+    if hasattr(circle_radius, "default"):
+        circle_radius = (
+            float(circle_radius.default)
+            if circle_radius.default is not ... and circle_radius.default is not None
+            else None
+        )
+    elif circle_radius is not None:
+        try:
+            circle_radius = float(circle_radius)
+        except (ValueError, TypeError):
+            circle_radius = None
+
     if hasattr(limit, "default"):
         limit = int(limit.default) if limit.default is not ... else 15
 
@@ -524,6 +621,35 @@ async def search_pois(
     city_obj = await city_repo.find_by_name_or_alias(city)
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
+
+    # Resolve radial circle parameters
+    has_circle = (
+        circle_lat is not None
+        and circle_lng is not None
+        and circle_radius is not None
+        and circle_radius > 0
+    )
+    circle_bounds: tuple[float, float, float, float] | None = None
+    circle_clause = None
+    if has_circle:
+        d_lat = circle_radius / 111320.0
+        d_lng = circle_radius / (
+            111320.0 * max(0.0001, math.cos(math.radians(circle_lat)))
+        )
+        circle_bounds = (
+            circle_lat - d_lat,
+            circle_lng - d_lng,
+            circle_lat + d_lat,
+            circle_lng + d_lng,
+        )
+        circle_clause = and_(
+            cast(AttractionModel.location["latitude"].astext, Float).between(
+                circle_bounds[0], circle_bounds[2]
+            ),
+            cast(AttractionModel.location["longitude"].astext, Float).between(
+                circle_bounds[1], circle_bounds[3]
+            ),
+        )
 
     # Fast-path for user-created custom POIs
     if custom_only:
@@ -543,6 +669,8 @@ async def search_pois(
                 )
             )
         )
+        if circle_clause is not None:
+            custom_query = custom_query.where(circle_clause)
         if clean_query:
             custom_query = custom_query.where(
                 AttractionModel.name.ilike(f"%{clean_query}%")
@@ -551,8 +679,12 @@ async def search_pois(
             custom_query = custom_query.where(
                 func.lower(AttractionModel.category) == category.lower().strip()
             )
+        fetch_limit = max(100, limit + offset) if has_circle else limit
+        fetch_offset = 0 if has_circle else offset
         custom_query = (
-            custom_query.order_by(AttractionModel.id.desc()).limit(limit).offset(offset)
+            custom_query.order_by(AttractionModel.id.desc())
+            .limit(fetch_limit)
+            .offset(fetch_offset)
         )
         res = await session.execute(custom_query)
         custom_pois = res.scalars().all()
@@ -560,6 +692,14 @@ async def search_pois(
             _model_to_search_item(p, match_type="custom", similarity=1.0)
             for p in custom_pois
         ]
+        if has_circle:
+            results = [
+                r
+                for r in results
+                if haversine_distance_m(circle_lat, circle_lng, r.lat, r.lng)
+                <= circle_radius
+            ]
+            results = results[offset : offset + limit]
         return PoiSearchResponse(
             city=city_name,
             query=clean_query,
@@ -651,6 +791,9 @@ async def search_pois(
         except Exception as e:
             logger.debug(f"Failed to resolve day territory bounds: {e}")
 
+    if circle_bounds and not bounds:
+        day_bounds = circle_bounds
+
     in_day_clause = None
     if day_bounds:
         b_min_lat, b_min_lng, b_max_lat, b_max_lng = day_bounds
@@ -700,6 +843,8 @@ async def search_pois(
                 .where(func.lower(AttractionModel.category) != "transit")
                 .where(~AttractionModel.id.like("OSM-transit-%"))
             )
+            if circle_clause is not None:
+                count_stmt = count_stmt.where(circle_clause)
             total_count = (await session.execute(count_stmt)).scalar() or 0
 
             order_clauses = []
@@ -716,8 +861,10 @@ async def search_pois(
                 )
                 order_clauses.append(comp_quality.desc())
 
-                fetch_limit = max(100, limit + offset) if polygon_pts else limit
-                fetch_offset = 0 if polygon_pts else offset
+                fetch_limit = (
+                    max(100, limit + offset) if (polygon_pts or has_circle) else limit
+                )
+                fetch_offset = 0 if (polygon_pts or has_circle) else offset
                 stmt = (
                     select(AttractionModel, sim_expr)
                     .where(
@@ -729,7 +876,11 @@ async def search_pois(
                     .where(func.lower(AttractionModel.category).in_(target_cats))
                     .where(func.lower(AttractionModel.category) != "transit")
                     .where(~AttractionModel.id.like("OSM-transit-%"))
-                    .order_by(*order_clauses)
+                )
+                if circle_clause is not None:
+                    stmt = stmt.where(circle_clause)
+                stmt = (
+                    stmt.order_by(*order_clauses)
                     .offset(fetch_offset)
                     .limit(fetch_limit)
                 )
@@ -744,8 +895,10 @@ async def search_pois(
                 ]
             else:
                 order_clauses.append(AttractionModel.iconicity_score.desc())
-                fetch_limit = max(100, limit + offset) if polygon_pts else limit
-                fetch_offset = 0 if polygon_pts else offset
+                fetch_limit = (
+                    max(100, limit + offset) if (polygon_pts or has_circle) else limit
+                )
+                fetch_offset = 0 if (polygon_pts or has_circle) else offset
                 stmt = (
                     select(AttractionModel)
                     .where(
@@ -757,14 +910,27 @@ async def search_pois(
                     .where(func.lower(AttractionModel.category).in_(target_cats))
                     .where(func.lower(AttractionModel.category) != "transit")
                     .where(~AttractionModel.id.like("OSM-transit-%"))
-                    .order_by(*order_clauses)
+                )
+                if circle_clause is not None:
+                    stmt = stmt.where(circle_clause)
+                stmt = (
+                    stmt.order_by(*order_clauses)
                     .offset(fetch_offset)
                     .limit(fetch_limit)
                 )
                 db_pois = (await session.execute(stmt)).scalars().all()
                 results = [_model_to_search_item(p, "category_browse") for p in db_pois]
 
-            if polygon_pts:
+            if has_circle:
+                results = [
+                    r
+                    for r in results
+                    if haversine_distance_m(circle_lat, circle_lng, r.lat, r.lng)
+                    <= circle_radius
+                ]
+                total_count = len(results)
+                results = results[offset : offset + limit]
+            elif polygon_pts:
                 results.sort(
                     key=lambda x: (
                         1 if is_point_in_polygon(x.lat, x.lng, polygon_pts) else 0,
@@ -806,12 +972,17 @@ async def search_pois(
                 .where(func.lower(AttractionModel.category) != "transit")
                 .where(~AttractionModel.id.like("OSM-transit-%"))
             )
+            if circle_clause is not None:
+                count_stmt = count_stmt.where(circle_clause)
             total_count = (await session.execute(count_stmt)).scalar() or 0
 
             order_clauses = []
             if in_day_clause is not None:
                 order_clauses.append(case((in_day_clause, 1), else_=0).desc())
             order_clauses.append(AttractionModel.tier.asc())
+
+            fetch_limit = max(100, limit + offset) if has_circle else limit
+            fetch_offset = 0 if has_circle else offset
 
             if user_embedding is not None:
                 cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
@@ -833,9 +1004,13 @@ async def search_pois(
                     .where(func.lower(AttractionModel.category) != "transit")
                     .where(~AttractionModel.id.like("OSM-transit-%"))
                     .where(AttractionModel.embedding.isnot(None))
-                    .order_by(*order_clauses)
-                    .offset(offset)
-                    .limit(limit)
+                )
+                if circle_clause is not None:
+                    stmt = stmt.where(circle_clause)
+                stmt = (
+                    stmt.order_by(*order_clauses)
+                    .offset(fetch_offset)
+                    .limit(fetch_limit)
                 )
                 db_rows = (await session.execute(stmt)).all()
                 results = [
@@ -846,6 +1021,15 @@ async def search_pois(
                     )
                     for row in db_rows
                 ]
+                if has_circle:
+                    results = [
+                        r
+                        for r in results
+                        if haversine_distance_m(circle_lat, circle_lng, r.lat, r.lng)
+                        <= circle_radius
+                    ]
+                    total_count = len(results)
+                    results = results[offset : offset + limit]
                 await _enrich_items_with_photos(results, city_name)
                 return PoiSearchResponse(
                     city=city_name,
@@ -868,12 +1052,25 @@ async def search_pois(
                     )
                     .where(func.lower(AttractionModel.category) != "transit")
                     .where(~AttractionModel.id.like("OSM-transit-%"))
-                    .order_by(*order_clauses)
-                    .offset(offset)
-                    .limit(limit)
+                )
+                if circle_clause is not None:
+                    stmt = stmt.where(circle_clause)
+                stmt = (
+                    stmt.order_by(*order_clauses)
+                    .offset(fetch_offset)
+                    .limit(fetch_limit)
                 )
                 db_pois = (await session.execute(stmt)).scalars().all()
                 results = [_model_to_search_item(p, "recommendations") for p in db_pois]
+                if has_circle:
+                    results = [
+                        r
+                        for r in results
+                        if haversine_distance_m(circle_lat, circle_lng, r.lat, r.lng)
+                        <= circle_radius
+                    ]
+                    total_count = len(results)
+                    results = results[offset : offset + limit]
                 await _enrich_items_with_photos(results, city_name)
                 return PoiSearchResponse(
                     city=city_name,
@@ -1144,62 +1341,83 @@ async def search_pois(
 
     # 3. Decision: Exact / Fuzzy match branch
     if best_match and best_match_score >= 0.60:
-        exact_item = _candidate_to_search_item(
-            best_match, 1.0, best_match_type or "exact_name"
-        )
+        b_loc = best_match.get("location") or {}
+        b_lat = float(best_match.get("lat") or b_loc.get("latitude") or 0.0)
+        b_lng = float(best_match.get("lng") or b_loc.get("longitude") or 0.0)
+        if (
+            has_circle
+            and haversine_distance_m(circle_lat, circle_lng, b_lat, b_lng)
+            > circle_radius
+        ):
+            best_match = None
+            best_match_score = 0.0
+        else:
+            exact_item = _candidate_to_search_item(
+                best_match, 1.0, best_match_type or "exact_name"
+            )
 
-        # Find similar POIs nearby using vector embedding of exact match
-        similar_items: list[PoiSearchItem] = []
-        p_emb = best_match.get("embedding")
-        if p_emb is not None:
-            emb_list: list[float] | None = None
-            if isinstance(p_emb, str):
-                try:
-                    loaded = json.loads(p_emb)
-                    if isinstance(loaded, list):
-                        emb_list = [float(x) for x in loaded]
-                except Exception as parse_err:
-                    logger.debug("Failed parsing embedding JSON string: %s", parse_err)
-            elif hasattr(p_emb, "__iter__"):
-                emb_list = [float(x) for x in p_emb]
-
-            if emb_list and len(emb_list) == 768:
-                sim_candidates = await HybridRetriever.search_hybrid(
-                    session=session,
-                    city=city_name,
-                    city_id=city_id,
-                    query_vec=emb_list,
-                    clean_query="",
-                    exclude_transit=True,
-                    limit=limit + 1,
-                    w_vec=1.0,
-                    w_fts=0.0,
-                    w_trgm=0.0,
-                    apply_mmr=True,
-                )
-                for c in sim_candidates:
-                    if str(c.get("id")) != str(best_match.get("id")):
-                        raw_sim = float(c.get("vec_sim") or 0.0)
-                        sim_val = (
-                            raw_sim
-                            if raw_sim > 0.0
-                            else float(c.get("composite_score") or 0.85)
+            # Find similar POIs nearby using vector embedding of exact match
+            similar_items: list[PoiSearchItem] = []
+            p_emb = best_match.get("embedding")
+            if p_emb is not None:
+                emb_list: list[float] | None = None
+                if isinstance(p_emb, str):
+                    try:
+                        loaded = json.loads(p_emb)
+                        if isinstance(loaded, list):
+                            emb_list = [float(x) for x in loaded]
+                    except Exception as parse_err:
+                        logger.debug(
+                            "Failed parsing embedding JSON string: %s", parse_err
                         )
-                        similar_items.append(
-                            _candidate_to_search_item(c, sim_val, "similar_poi")
-                        )
-                    if len(similar_items) >= limit:
-                        break
+                elif hasattr(p_emb, "__iter__"):
+                    emb_list = [float(x) for x in p_emb]
 
-        return PoiSearchResponse(
-            city=city_name,
-            query=clean_query,
-            search_type=best_match_type or "exact_match",
-            exact_match_found=True,
-            exact_match=exact_item,
-            results=similar_items,
-            total=len(similar_items) + (1 if exact_item else 0),
-        )
+                if emb_list and len(emb_list) == 768:
+                    sim_candidates = await HybridRetriever.search_hybrid(
+                        session=session,
+                        city=city_name,
+                        city_id=city_id,
+                        query_vec=emb_list,
+                        clean_query="",
+                        exclude_transit=True,
+                        limit=limit + 1,
+                        w_vec=1.0,
+                        w_fts=0.0,
+                        w_trgm=0.0,
+                        apply_mmr=False,
+                    )
+                    for c in sim_candidates:
+                        if str(c.get("id")) != str(best_match.get("id")):
+                            raw_sim = float(c.get("vec_sim") or 0.0)
+                            sim_val = (
+                                raw_sim
+                                if raw_sim > 0.0
+                                else float(c.get("composite_score") or 0.85)
+                            )
+                            similar_items.append(
+                                _candidate_to_search_item(c, sim_val, "similar_poi")
+                            )
+                        if len(similar_items) >= limit:
+                            break
+
+            if has_circle:
+                similar_items = [
+                    s
+                    for s in similar_items
+                    if haversine_distance_m(circle_lat, circle_lng, s.lat, s.lng)
+                    <= circle_radius
+                ]
+
+            return PoiSearchResponse(
+                city=city_name,
+                query=clean_query,
+                search_type=best_match_type or "exact_match",
+                exact_match_found=True,
+                exact_match=exact_item,
+                results=similar_items,
+                total=len(similar_items) + (1 if exact_item else 0),
+            )
 
     # 4. Natural Language Semantic RAG & Hybrid Retrieval
     sq = QueryRewriter.rewrite_query(clean_query, city_name)
@@ -1223,7 +1441,7 @@ async def search_pois(
         require_rain_friendly=sq.require_rain_friendly,
         exclude_transit=True,
         limit=max(100, limit + offset)
-        if (polygon_pts or day_bounds)
+        if (polygon_pts or day_bounds or has_circle)
         else (limit + offset),
         w_vec=0.55 if query_vector else 0.0,
         w_fts=0.25 if sq.clean_query else 0.0,
@@ -1246,6 +1464,21 @@ async def search_pois(
             c for c in candidates if str(c.get("category", "")).lower() in allowed_cats
         ]
 
+    if has_circle:
+        candidates = [
+            c
+            for c in candidates
+            if haversine_distance_m(
+                circle_lat,
+                circle_lng,
+                float((c.get("location") or {}).get("latitude") or c.get("lat") or 0.0),
+                float(
+                    (c.get("location") or {}).get("longitude") or c.get("lng") or 0.0
+                ),
+            )
+            <= circle_radius
+        ]
+
     # Compute authentic dynamic total count matching city and filters
     count_filters = [
         or_(
@@ -1255,6 +1488,8 @@ async def search_pois(
         func.lower(AttractionModel.category) != "transit",
         ~AttractionModel.id.like("OSM-transit-%"),
     ]
+    if circle_clause is not None:
+        count_filters.append(circle_clause)
     if category and category.lower() != "all":
         cat_lower = category.lower().strip()
         allowed_cats_list = list(CATEGORY_SYNONYMS.get(cat_lower, [cat_lower]))
@@ -1278,8 +1513,29 @@ async def search_pois(
 
     results: list[PoiSearchItem] = []
     for c in candidates:
-        sim_val = float(c.get("vec_sim", c.get("composite_score", 0.0)))
+        raw_sim = c.get("vec_sim")
+        if raw_sim is not None and not (
+            isinstance(raw_sim, float) and math.isnan(raw_sim)
+        ):
+            sim_val = float(raw_sim)
+        else:
+            raw_comp = c.get("composite_score")
+            sim_val = (
+                float(raw_comp)
+                if raw_comp is not None
+                and not (isinstance(raw_comp, float) and math.isnan(raw_comp))
+                else 0.0
+            )
         results.append(_candidate_to_search_item(c, sim_val, "semantic_rag"))
+
+    if has_circle:
+        results = [
+            r
+            for r in results
+            if haversine_distance_m(circle_lat, circle_lng, r.lat, r.lng)
+            <= circle_radius
+        ]
+        db_total = len(results)
 
     # Sort by convex hull polygon first if provided, then day territory bounds, then by similarity
     if polygon_pts:
@@ -1297,7 +1553,7 @@ async def search_pois(
             ),
             reverse=True,
         )
-    elif day_bounds:
+    elif day_bounds and not has_circle:
         b_min_lat, b_min_lng, b_max_lat, b_max_lng = day_bounds
         results.sort(
             key=lambda x: (
@@ -1606,18 +1862,64 @@ def _generate_poi_overview(
         parts.append(
             f"{name} is a key transit waypoint{location_str}, connecting travelers to major routes and attractions."
         )
+    elif (
+        cat_lower in ("hotel", "lodging", "resort", "hostel", "accommodation")
+        or "hotel" in name.lower()
+        or "hostel" in name.lower()
+    ):
+        parts.append(
+            f"{name} provides hospitality accommodations and base camp lodging{location_str}."
+        )
+    elif (
+        cat_lower in ("airport", "flight", "aerodrome", "airfield")
+        or "airport" in name.lower()
+    ):
+        parts.append(
+            f"{name} is an aviation gateway and flight transport hub{location_str}."
+        )
     else:
         parts.append(
             f"{name} is a notable {cat_lower}{location_str}, popular with visitors and locals alike."
         )
 
+    is_hotel_or_airport = (
+        cat_lower
+        in (
+            "hotel",
+            "lodging",
+            "resort",
+            "hostel",
+            "accommodation",
+            "airport",
+            "flight",
+            "aerodrome",
+            "airfield",
+        )
+        or any(
+            w in name.lower().split()
+            for w in (
+                "hotel",
+                "hostel",
+                "resort",
+                "inn",
+                "motel",
+                "ryokan",
+                "suites",
+                "airport",
+            )
+        )
+        or "hotel" in name.lower()
+        or "airport" in name.lower()
+    )
+
     extras: list[str] = []
-    if duration_mins and duration_mins > 0:
-        extras.append(f"Recommended visit duration is ~{duration_mins} minutes")
-    if cost_eur is not None and cost_eur > 0:
-        extras.append(f"admission is around €{cost_eur:.2f}")
-    elif cost_eur == 0:
-        extras.append("entry is free of charge")
+    if not is_hotel_or_airport:
+        if duration_mins and duration_mins > 0:
+            extras.append(f"Recommended visit duration is ~{duration_mins} minutes")
+        if cost_eur is not None and cost_eur > 0:
+            extras.append(f"admission is around €{cost_eur:.2f}")
+        elif cost_eur == 0:
+            extras.append("entry is free of charge")
 
     if extras:
         parts.append(f"{'. '.join(extras).capitalize()}.")
@@ -1890,25 +2192,73 @@ async def get_poi_details(
                 city=city or "",
                 target_lang=effective_lang,
             )
+            cat_lower = (category or "").lower().strip()
+            name_lower = resolved_name.lower().strip()
+            if (
+                cat_lower
+                in (
+                    "hotel",
+                    "lodging",
+                    "resort",
+                    "hostel",
+                    "accommodation",
+                    "motel",
+                    "inn",
+                    "ryokan",
+                )
+                or any(
+                    w in name_lower.split()
+                    for w in (
+                        "hotel",
+                        "hostel",
+                        "resort",
+                        "inn",
+                        "motel",
+                        "ryokan",
+                        "suites",
+                        "guesthouse",
+                    )
+                )
+                or "hotel" in name_lower
+                or "hostel" in name_lower
+            ):
+                resolved_category = "hotel"
+                resolved_duration = 0
+            elif (
+                cat_lower in ("airport", "flight", "aerodrome", "airfield")
+                or "airport" in name_lower
+                or "aeroport" in name_lower
+                or "aeropuerto" in name_lower
+                or "flughafen" in name_lower
+            ):
+                resolved_category = "airport"
+                resolved_duration = 0
+            elif cat_lower:
+                resolved_category = cat_lower
+                resolved_duration = 60
+            else:
+                resolved_category = "attraction"
+                resolved_duration = 60
+
             return PoiDetailResponse(
                 id=poi_id,
                 name=resolved_name,
-                category="attraction",
+                category=resolved_category,
                 city=city or "",
                 lat=lat if lat is not None else 0.0,
                 lng=lng if lng is not None else 0.0,
-                duration_mins=60,
+                duration_mins=resolved_duration,
                 cost_eur=0.0,
-                cost_is_estimated=True,
+                cost_is_estimated=resolved_category not in ("hotel", "airport"),
                 cost_source=None,
                 scoring={},
                 description=lead_extract
                 or _generate_poi_overview(
                     name=resolved_name,
-                    category="attraction",
+                    category=resolved_category,
                     city=city or "",
                     cost_eur=0.0,
-                    duration_mins=60,
+                    duration_mins=resolved_duration,
                     target_lang=effective_lang,
                 ),
                 photos=[PoiPhotoItem(**p) for p in photos_data],

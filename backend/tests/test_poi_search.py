@@ -246,3 +246,58 @@ async def test_category_browse_empty_query(async_client: AsyncClient):
     assert len(data["results"]) > 0
     for item in data["results"]:
         assert item["category"].lower() in ("museum", "gallery", "exhibition")
+
+
+@pytest.mark.asyncio
+async def test_poi_search_circle_radius_filter(async_client: AsyncClient):
+    """Verifies that circle_lat, circle_lng, and circle_radius filter POIs within geographic radius."""
+    # 1. Search with center near Museo del Prado (40.4138, -3.6922) with 500m radius
+    resp_near = await async_client.get(
+        "/api/pois/search",
+        params={
+            "city": "Madrid",
+            "query": "Prado",
+            "circle_lat": 40.4138,
+            "circle_lng": -3.6922,
+            "circle_radius": 500.0,
+        },
+    )
+    assert resp_near.status_code == 200
+    data_near = resp_near.json()
+    assert data_near["exact_match_found"] is True
+    assert data_near["exact_match"] is not None
+    assert "Prado" in data_near["exact_match"]["name"]
+
+    # 2. Category browse within 500m radius around Prado
+    resp_browse = await async_client.get(
+        "/api/pois/search",
+        params={
+            "city": "Madrid",
+            "query": "",
+            "category": "museum",
+            "circle_lat": 40.4138,
+            "circle_lng": -3.6922,
+            "circle_radius": 500.0,
+        },
+    )
+    assert resp_browse.status_code == 200
+    data_browse = resp_browse.json()
+    assert len(data_browse["results"]) > 0
+    assert any("Prado" in r["name"] for r in data_browse["results"])
+
+    # 3. Search with center far away (Barajas area: 40.5000, -3.5000) with 500m radius
+    resp_far = await async_client.get(
+        "/api/pois/search",
+        params={
+            "city": "Madrid",
+            "query": "Prado",
+            "circle_lat": 40.5000,
+            "circle_lng": -3.5000,
+            "circle_radius": 500.0,
+        },
+    )
+    assert resp_far.status_code == 200
+    data_far = resp_far.json()
+    # Prado is ~18km away, so exact match and results must be empty
+    assert data_far.get("exact_match") is None
+    assert not any("Prado" in r["name"] for r in data_far.get("results", []))

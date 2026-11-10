@@ -103,22 +103,23 @@ export function startCustomDragPreview(
     document.removeEventListener('drag', handleDragUpdate, true);
     document.removeEventListener('dragover', handleDragUpdate, true);
     document.removeEventListener('dragend', cleanup, true);
-    document.removeEventListener('drop', cleanup, true);
     document.removeEventListener('mouseup', cleanup, true);
     if (el.parentElement) {
       el.remove();
     }
-    if (typeof window !== 'undefined') {
-      (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
-      (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
-      window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
-    }
+    // Defer clearing active POI slightly to allow onDrop handlers in the DOM to consume the payload
+    window.setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+        window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+      }
+    }, 50);
   };
 
   document.addEventListener('drag', handleDragUpdate, true);
   document.addEventListener('dragover', handleDragUpdate, true);
   document.addEventListener('dragend', cleanup, true);
-  document.addEventListener('drop', cleanup, true);
   document.addEventListener('mouseup', cleanup, true);
 
   return el;

@@ -825,10 +825,11 @@ export function CollectionsTab({
                               e.dataTransfer.setData('application/paladio-poi', serialized);
                               e.dataTransfer.setData('text/plain', serialized);
                               e.dataTransfer.effectAllowed = 'copyMove';
-                            }}
-                            onDragEnd={async () => {
-                              const wasHandled = isPaladioDropHandled();
 
+                              // Automatically switch sidebar to route tab so user can drop into any day
+                              window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                            }}
+                            onDragEnd={() => {
                               if (typeof window !== 'undefined') {
                                 const win = window as unknown as {
                                   __paladioActivePoi?: unknown;
@@ -838,15 +839,6 @@ export function CollectionsTab({
                                 win.__paladioActiveSearchPoi = null;
                               }
                               resetPaladioDropHandled();
-
-                              if (!wasHandled) {
-                                try {
-                                  await removeItemFromCollection(col.id, item.poi_id);
-                                  notify.info('Place Removed', `Removed "${poiName}" from collection.`);
-                                } catch {
-                                  notify.error('Error', 'Failed to remove place from collection.');
-                                }
-                              }
                             }}
                             onClick={handlePoiClick}
                             style={{

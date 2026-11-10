@@ -638,15 +638,24 @@ class PbfPoiExtractor:
             if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
                 return dest_path
 
+            temp_path = f"{dest_path}.part"
             logger.info(
-                f"Downloading OSM PBF for '{city_name}' from {url} to {dest_path}..."
+                f"Downloading OSM PBF for '{city_name}' from {url} to temporary file {temp_path}..."
             )
-            urllib.request.urlretrieve(url, dest_path)
-            if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
-                logger.info(
-                    f"Successfully downloaded {filename} ({os.path.getsize(dest_path)} bytes)"
-                )
-                return dest_path
+            try:
+                urllib.request.urlretrieve(url, temp_path)
+                if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+                    os.replace(temp_path, dest_path)
+                    logger.info(
+                        f"Successfully downloaded {filename} ({os.path.getsize(dest_path)} bytes)"
+                    )
+                    return dest_path
+            finally:
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except OSError:
+                        pass
         except Exception as exc:
             logger.warning(f"Could not download PBF extract for '{city_name}': {exc}")
         return None

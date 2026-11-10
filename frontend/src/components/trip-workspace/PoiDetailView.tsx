@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 export type { PoiDetail };
 import { getApiBaseUrl, apiFetch, getAuthToken } from '@/utils/api';
@@ -33,12 +33,19 @@ import {
   ChevronUpIcon,
   EditIcon,
   TrashIcon,
+  Spinner,
+  GripVerticalIcon,
+  ExpandIcon,
+  HotelIcon,
+  PlaneIcon,
+  KeyIcon,
 } from '@/components/icons';
+import { startCustomDragPreview } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
-import { classifyPoiCategory } from '@/utils/poiCategory';
+import { classifyPoiCategory, isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
 
 function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: string; size?: number }) {
   const cat = (category || '').toLowerCase();
@@ -281,10 +288,38 @@ function parseWindowMinutes(w: unknown): { start: number; end: number } | null {
   return { start: startMin, end: endMin };
 }
 
-function formatWindowTime(w: unknown): string | null {
-  const parsed = parseWindowMinutes(w);
-  if (!parsed) return null;
+interface ParsedWindow {
+  start: number;
+  end: number;
+}
 
+function parseAndMergeWindows(windows: unknown): ParsedWindow[] {
+  if (!Array.isArray(windows)) return [];
+  const parsedList: ParsedWindow[] = [];
+  for (const w of windows) {
+    const pw = parseWindowMinutes(w);
+    if (pw) parsedList.push(pw);
+  }
+  if (parsedList.length === 0) return [];
+
+  // Sort by start ascending, then by end descending so larger intervals come first
+  parsedList.sort((a, b) => a.start - b.start || b.end - a.end);
+
+  // Merge overlapping or contiguous intervals (e.g. 10:00-18:00 and 10:00-21:00 -> 10:00-21:00)
+  const merged: ParsedWindow[] = [parsedList[0]];
+  for (let i = 1; i < parsedList.length; i++) {
+    const prev = merged[merged.length - 1];
+    const curr = parsedList[i];
+    if (curr.start <= prev.end) {
+      prev.end = Math.max(prev.end, curr.end);
+    } else {
+      merged.push(curr);
+    }
+  }
+  return merged;
+}
+
+function formatWindow(parsed: ParsedWindow): string {
   const sH = String(Math.floor(parsed.start / 60) % 24).padStart(2, '0');
   const sM = String(parsed.start % 60).padStart(2, '0');
   const rawEndHours = Math.floor(parsed.end / 60);
@@ -304,6 +339,12 @@ function formatWindowTime(w: unknown): string | null {
   }
 
   return `${sH}:${sM} – ${eH}:${eM}${suffix}`;
+}
+
+function formatWindowTime(w: unknown): string | null {
+  const parsed = parseWindowMinutes(w);
+  if (!parsed) return null;
+  return formatWindow(parsed);
 }
 
 export function PoiDetailView({
@@ -356,7 +397,7 @@ export function PoiDetailView({
     }
     return null;
   });
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(Boolean(poiId || fallbackPoi));
   const [error, setError] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState<number>(0);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
@@ -365,6 +406,8 @@ export function PoiDetailView({
   const isSaved = effectivePoiId ? isPoiSaved(effectivePoiId) : false;
 
   const isTransit = useMemo(() => isTransitPoi(poi || fallbackPoi), [poi, fallbackPoi]);
+  const isHotel = useMemo(() => isHotelPoi(poi || fallbackPoi), [poi, fallbackPoi]);
+  const isAirport = useMemo(() => isAirportPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
   const [stationDetail, setStationDetail] = useState<StationDetailData | null>(null);
 
@@ -651,6 +694,19 @@ export function PoiDetailView({
 
   const overviewDescription = useMemo(() => {
     const rawDesc = poi?.description?.trim() || fallbackPoi?.description?.trim() || '';
+    const loc = poi?.city || fallbackPoi?.city || city;
+
+    if (isHotel) {
+      if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
+        return `${poi?.name || fallbackPoi?.name || 'Hotel'} provides lodging accommodations and base camp facilities${loc ? ` for your stay in ${loc}` : ''}.`;
+      }
+    }
+    if (isAirport) {
+      if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
+        return `${poi?.name || fallbackPoi?.name || 'Airport'} serves as an aviation hub and flight transport gateway${loc ? ` for ${loc}` : ''}.`;
+      }
+    }
+
     if (rawDesc) {
       if (isTransit && rawDesc.toLowerCase().startsWith('public transit station')) {
         return '';
@@ -662,11 +718,10 @@ export function PoiDetailView({
     }
     if (poi?.name) {
       const cat = (poi.category || fallbackPoi?.category || 'waypoint').toLowerCase();
-      const loc = poi.city || fallbackPoi?.city || city;
       return `${poi.name} is a notable ${cat}${loc ? ` located in ${loc}` : ''}.`;
     }
     return '';
-  }, [poi, fallbackPoi, city, isTransit]);
+  }, [poi, fallbackPoi, city, isTransit, isHotel, isAirport]);
 
   // Load POI details and real photos whenever poiId or fallbackPoi changes
   useEffect(() => {
@@ -704,7 +759,7 @@ export function PoiDetailView({
         setPoi(null);
       }
 
-      setLoading(!fallbackPoi);
+      setLoading(true);
       setError(null);
       setActivePhotoIdx(0);
       setLightboxOpen(false);
@@ -719,11 +774,23 @@ export function PoiDetailView({
         const stationRawId = parts.slice(2).join(':');
 
         try {
-          const stData = await apiFetch<StationDetailData>(
-            `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}`
-          );
+          const targetDateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
+          setLoadingDepartures(true);
+          const [stData, deps] = await Promise.all([
+            apiFetch<StationDetailData>(
+              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}`
+            ),
+            apiFetch<StationDepartureItem[]>(
+              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${targetDateStr}&seconds=${departureTimeSeconds}&limit=8`
+            ).catch((err) => {
+              console.warn('Could not load departures:', err);
+              return [] as StationDepartureItem[];
+            }),
+          ]);
+
           if (isMounted && stData) {
             setStationDetail(stData);
+            setStationDepartures(Array.isArray(deps) ? deps : []);
             setPoi({
               id: effectiveId,
               name: stData.name,
@@ -742,23 +809,8 @@ export function PoiDetailView({
                 station_type: stData.serving_lines[0]?.mode || 'station',
               },
             } as unknown as PoiDetail);
+            setLoadingDepartures(false);
             setLoading(false);
-
-            // Fetch departures for planned trip day
-            const targetDateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
-            setLoadingDepartures(true);
-            apiFetch<StationDepartureItem[]>(
-              `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${targetDateStr}&seconds=${departureTimeSeconds}&limit=8`
-            )
-              .then((deps) => {
-                if (isMounted && Array.isArray(deps)) {
-                  setStationDepartures(deps);
-                }
-              })
-              .catch((err) => console.warn('Could not load departures:', err))
-              .finally(() => {
-                if (isMounted) setLoadingDepartures(false);
-              });
           }
           return;
         } catch (err) {
@@ -915,7 +967,39 @@ export function PoiDetailView({
     return () => {
       isMounted = false;
     };
-  }, [poiId, fallbackPoi, city, tripStartDate, effectiveDayNumber, departureTimeSeconds, locale]);
+  }, [poiId, fallbackPoi, city, tripStartDate, effectiveDayNumber, locale]);
+
+  // Re-fetch departures when user switches departure time or preview day on an already-loaded station
+  const isInitialStationLoadRef = useRef(true);
+  useEffect(() => {
+    if (isInitialStationLoadRef.current) {
+      isInitialStationLoadRef.current = false;
+      return;
+    }
+    if (!stationDetail || !isGtfsStation) return;
+    let isMounted = true;
+    const parts = (poiId || fallbackPoi?.id || '').split(':');
+    const stationCity = parts[1] || fallbackPoi?.city || city || '';
+    const stationRawId = parts.slice(2).join(':');
+    if (!stationCity || !stationRawId) return;
+    const targetDateStr = getTripDayDate(tripStartDate, effectiveDayNumber);
+    apiFetch<StationDepartureItem[]>(
+      `/transit/${encodeURIComponent(stationCity.toLowerCase())}/stations/${encodeURIComponent(stationRawId)}/departures?date=${targetDateStr}&seconds=${departureTimeSeconds}&limit=8`
+    )
+      .then((deps) => {
+        if (isMounted && Array.isArray(deps)) {
+          setStationDepartures(deps);
+        }
+      })
+      .catch((err) => console.warn('Could not load departures:', err))
+      .finally(() => {
+        if (isMounted) setLoadingDepartures(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [departureTimeSeconds, effectiveDayNumber, isGtfsStation, poiId, fallbackPoi?.id, fallbackPoi?.city, city, tripStartDate]);
 
 
   // Handle escape key to close view or lightbox
@@ -992,9 +1076,8 @@ export function PoiDetailView({
   const targetWindows = hasDailyWindows ? poi?.daily_windows?.[targetDayOfWeekIdx] : null;
 
   if (Array.isArray(targetWindows) && targetWindows.length > 0) {
-    const formattedWindows = targetWindows
-      .map(formatWindowTime)
-      .filter((str): str is string => Boolean(str));
+    const mergedWindows = parseAndMergeWindows(targetWindows);
+    const formattedWindows = mergedWindows.map(formatWindow);
 
     if (formattedWindows.length > 0) {
       targetDayHoursLabel = formattedWindows.join(', ');
@@ -1010,9 +1093,12 @@ export function PoiDetailView({
       style={{
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
         maxHeight: '100%',
+        minHeight: 0,
         width: '100%',
         minWidth: 0,
+        overflow: 'hidden',
         animation: 'poiViewEnter 0.22s cubic-bezier(0.23, 1, 0.32, 1)',
         background: 'var(--color-surface-card)',
       }}
@@ -1031,26 +1117,30 @@ export function PoiDetailView({
         }}
       >
         {loading && (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                margin: '0 auto 16px auto',
-                border: '3px solid var(--color-border)',
-                borderTopColor: 'var(--color-accent-primary)',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite',
-              }}
-            />
+          <div
+            style={{
+              padding: '64px 24px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              flex: '1 1 auto',
+              minHeight: '260px',
+            }}
+          >
+            <Spinner size={32} color="var(--color-accent-primary)" />
             <p
               style={{
                 fontFamily: 'var(--font-code, monospace)',
                 fontSize: '12px',
                 color: 'var(--color-text-muted)',
+                letterSpacing: '0.04em',
+                margin: 0,
               }}
             >
-              {'// RESOLVING WIKIMEDIA SIGHTS & SPECS...'}
+              {'// RESOLVING PLACE DETAILS...'}
             </p>
           </div>
         )}
@@ -1097,6 +1187,7 @@ export function PoiDetailView({
                 overflow: 'hidden',
                 background: 'var(--color-surface-raised)',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                flexShrink: 0,
               }}
             >
               {photos.length > 0 ? (
@@ -1115,6 +1206,7 @@ export function PoiDetailView({
                       position: 'relative',
                       width: '100%',
                       height: '215px',
+                      minHeight: '215px',
                       backgroundImage: `url(${currentPhoto.url})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
@@ -1129,8 +1221,43 @@ export function PoiDetailView({
                         inset: 0,
                         background:
                           'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(15, 23, 42, 0.65) 100%)',
+                        pointerEvents: 'none',
                       }}
                     />
+
+                    {/* Top-left View Photo Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxOpen(true);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        background: 'rgba(15, 23, 42, 0.72)',
+                        backdropFilter: 'blur(8px)',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '10.5px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        fontWeight: 600,
+                        color: '#FFFFFF',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        zIndex: 2,
+                        transition: 'transform 0.15s ease, background 0.15s ease',
+                      }}
+                      title="View full uncropped photo"
+                      aria-label="View full uncropped photo"
+                    >
+                      <ExpandIcon size={12} color="#FFFFFF" />
+                      <span>View</span>
+                    </button>
 
                     {/* Top-right Photo Counter Pill if multiple photos */}
                     {photos.length > 1 && (
@@ -1295,6 +1422,7 @@ export function PoiDetailView({
                         padding: '8px 12px',
                         overflowX: 'auto',
                         background: 'var(--color-surface-card)',
+                        flexShrink: 0,
                       }}
                     >
                       {photos.map((item, idx) => {
@@ -1428,10 +1556,11 @@ export function PoiDetailView({
             {/* Content Details (Luxury Reference Layout) */}
             <div
               style={{
-                padding: '14px',
+                padding: '14px 14px 44px 14px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
+                flexShrink: 0,
               }}
             >
               {/* Pricing & Rating Row (Hidden for transit stations) */}
@@ -1477,29 +1606,113 @@ export function PoiDetailView({
                             outline: 'none',
                           }}
                         />
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--color-text-muted)',
+                            fontFamily: 'var(--font-code, monospace)',
+                          }}
+                        >
+                          {isHotel ? '/ night' : t('workspace.per_person')}
+                        </span>
+                      </div>
+                    ) : isHotel ? (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                        {poi.cost_eur > 0 ? (
+                          <>
+                            <span
+                              style={{
+                                fontSize: '22px',
+                                fontWeight: 800,
+                                letterSpacing: '-0.02em',
+                                fontFamily: 'var(--font-display, inherit)',
+                                color: 'var(--color-text-primary)',
+                              }}
+                            >
+                              {`${currencySymbol}${Math.round(poi.cost_eur)}`}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '12px',
+                                color: 'var(--color-text-muted)',
+                                fontFamily: 'var(--font-code, monospace)',
+                              }}
+                            >
+                              / night
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              style={{
+                                fontSize: '17px',
+                                fontWeight: 800,
+                                letterSpacing: '-0.01em',
+                                fontFamily: 'var(--font-display, inherit)',
+                                color: 'var(--color-accent-primary, #0F766E)',
+                              }}
+                            >
+                              Lodging Base Camp
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                color: 'var(--color-text-muted)',
+                                fontFamily: 'var(--font-code, monospace)',
+                              }}
+                            >
+                              Overnight stay
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    ) : isAirport ? (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '17px',
+                            fontWeight: 800,
+                            letterSpacing: '-0.01em',
+                            fontFamily: 'var(--font-display, inherit)',
+                            color: 'var(--color-accent-teal-mid, #14788D)',
+                          }}
+                        >
+                          Aviation Gateway
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--color-text-muted)',
+                            fontFamily: 'var(--font-code, monospace)',
+                          }}
+                        >
+                          Flight transport hub
+                        </span>
                       </div>
                     ) : (
-                      <span
-                        style={{
-                          fontSize: '22px',
-                          fontWeight: 800,
-                          letterSpacing: '-0.02em',
-                          fontFamily: 'var(--font-display, inherit)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        {poi.cost_eur === 0 ? t('workspace.free') : `${currencySymbol}${Math.round(poi.cost_eur)}`}
-                      </span>
+                      <>
+                        <span
+                          style={{
+                            fontSize: '22px',
+                            fontWeight: 800,
+                            letterSpacing: '-0.02em',
+                            fontFamily: 'var(--font-display, inherit)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {poi.cost_eur === 0 ? t('workspace.free') : `${currencySymbol}${Math.round(poi.cost_eur)}`}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--color-text-muted)',
+                            fontFamily: 'var(--font-code, monospace)',
+                          }}
+                        >
+                          {t('workspace.per_person')}
+                        </span>
+                      </>
                     )}
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--color-text-muted)',
-                        fontFamily: 'var(--font-code, monospace)',
-                      }}
-                    >
-                      {t('workspace.per_person')}
-                    </span>
                   </div>
 
                   <div
@@ -1716,7 +1929,7 @@ export function PoiDetailView({
                               />
                               <span>{line}</span>
                               {isLoading && (
-                                <span style={{ fontSize: '9px', opacity: 0.8 }}>...</span>
+                                <Spinner size={10} color="currentColor" />
                               )}
                             </button>
                           );
@@ -1782,219 +1995,541 @@ export function PoiDetailView({
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
                     gap: '8px',
                   }}
                 >
-                {/* 1. Rating Card */}
-                {(() => {
-                  const ratingNum = (poi.scoring?.rating && poi.scoring.rating > 0)
-                    ? poi.scoring.rating
-                    : ((poi as any)?.rating && (poi as any).rating > 0)
-                      ? (poi as any).rating
-                      : ((fallbackPoi as any)?.rating && (fallbackPoi as any).rating > 0)
-                        ? (fallbackPoi as any).rating
-                        : null;
-                  const reviewCount = (poi.scoring?.reviews && poi.scoring.reviews > 0)
-                    ? poi.scoring.reviews
-                    : null;
-                  const isRated = ratingNum !== null;
-
-                  return (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: 'var(--color-surface-raised)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '10px',
-                        padding: '8px 10px',
-                      }}
-                      title={isRated && reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : isRated ? `${ratingNum.toFixed(1)} / 5.0` : t('workspace.no_reviews')}
-                    >
-                      <StarIcon
-                        size={14}
-                        fill={isRated ? '#F59E0B' : 'none'}
-                        color={isRated ? '#F59E0B' : 'var(--color-text-muted)'}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontFamily: 'var(--font-code, monospace)',
-                            color: 'var(--color-text-muted)',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {isRated && reviewCount ? t('workspace.reviews_count', { count: reviewCount.toLocaleString() }) : t('workspace.rating')}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-code, monospace)',
-                            color: isRated ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                          }}
-                        >
-                          {isRated ? `${ratingNum.toFixed(1)} / 5.0` : '— / 5.0'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* 2. Duration Card */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'var(--color-surface-raised)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '10px',
-                    padding: '8px 10px',
-                  }}
-                >
-                  <ClockIcon size={14} color="var(--color-accent-primary)" />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {t('common.duration')}
-                    </span>
-                    {isEditing ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>~</span>
-                        <input
-                          type="number"
-                          min={5}
-                          step={5}
-                          data-testid="edit-poi-duration-input"
-                          value={editDuration}
-                          onChange={(e) => setEditDuration(Number(e.target.value))}
-                          style={{
-                            width: '42px',
-                            padding: '1px 3px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--color-border)',
-                            background: 'var(--color-surface-card)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-code, monospace)',
-                            color: 'var(--color-text-primary)',
-                            outline: 'none',
-                          }}
-                        />
-                        <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>m</span>
-                      </div>
-                    ) : (
-                      <span
+                  {isHotel ? (
+                    <>
+                      {/* Hotel Chip 1: Check-in / Out */}
+                      <div
                         style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-code, monospace)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        ~{poi.duration_mins || 60}m
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. Category Card */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'var(--color-surface-raised)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '10px',
-                    padding: '8px 10px',
-                    minWidth: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--color-accent-primary)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <CategoryIcon
-                      type={classifyPoiCategory(isEditing ? editCategory : poi.category, isEditing ? editName : poi.name).type}
-                      size={14}
-                    />
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        fontFamily: 'var(--font-code, monospace)',
-                        color: 'var(--color-text-muted)',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {t('workspace.category')}
-                    </span>
-                    {isEditing ? (
-                      <select
-                        data-testid="edit-poi-category-select"
-                        value={editCategory}
-                        onChange={(e) => setEditCategory(e.target.value)}
-                        style={{
-                          padding: '1px 2px',
-                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
                           border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface-card)',
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-code, monospace)',
-                          color: 'var(--color-text-primary)',
-                          outline: 'none',
-                          maxWidth: '92px',
-                          cursor: 'pointer',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
                         }}
+                        title="Standard Check-in from 15:00, Check-out by 11:00"
                       >
-                        <option value="attraction">attraction</option>
-                        <option value="monument">monument</option>
-                        <option value="museum">museum</option>
-                        <option value="restaurant">restaurant</option>
-                        <option value="cafe">café</option>
-                        <option value="park">park</option>
-                        <option value="shopping">shopping</option>
-                        <option value="viewpoint">viewpoint</option>
-                        <option value="hotel">hotel</option>
-                        <option value="transit">transit</option>
-                      </select>
-                    ) : (
-                      <span
+                        <ClockIcon size={14} color="var(--color-accent-primary)" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Check-In / Out
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            15:00 / 11:00
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Hotel Chip 2: Property Type */}
+                      <div
                         style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-code, monospace)',
-                          color: 'var(--color-text-primary)',
-                          textOverflow: 'ellipsis',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
+                        }}
+                        title="Base Camp Lodging"
+                      >
+                        <HotelIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Property
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            Hotel Base Camp
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Hotel Chip 3: Front Desk */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
+                        }}
+                        title="24/7 Front Desk Reception and Keycard Access"
+                      >
+                        <KeyIcon size={14} color="#10B981" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Front Desk
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            24/7 Access
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : isAirport ? (
+                    <>
+                      {/* Airport Chip 1: Operations */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
+                        }}
+                        title="Continuous 24-hour flight and terminal operations"
+                      >
+                        <ClockIcon size={14} color="#10B981" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Operations
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            24/7 Continuous
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Airport Chip 2: Recommended Arrival */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
+                        }}
+                        title="Recommended arrival: 2h prior for domestic, 3h prior for international departures"
+                      >
+                        <PlaneIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Recommended
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            2h - 3h Prior
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Airport Chip 3: Facility */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
+                        }}
+                        title="Aviation Gateway & Transport Hub"
+                      >
+                        <CompassIcon size={14} color="var(--color-accent-primary)" />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Facility
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-primary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            Aviation Hub
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* General POI: 1. Rating Card (Omitted if not rated, or substituted with District) */}
+                      {(() => {
+                        const ratingNum = (poi.scoring?.rating && poi.scoring.rating > 0)
+                          ? poi.scoring.rating
+                          : ((poi as any)?.rating && (poi as any).rating > 0)
+                            ? (poi as any).rating
+                            : ((fallbackPoi as any)?.rating && (fallbackPoi as any).rating > 0)
+                              ? (fallbackPoi as any).rating
+                              : null;
+                        const reviewCount = (poi.scoring?.reviews && poi.scoring.reviews > 0)
+                          ? poi.scoring.reviews
+                          : null;
+                        const isRated = ratingNum !== null;
+
+                        if (isRated) {
+                          return (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'var(--color-surface-raised)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '10px',
+                                padding: '8px 10px',
+                                minWidth: 0,
+                              }}
+                              title={reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : `${ratingNum.toFixed(1)} / 5.0`}
+                            >
+                              <StarIcon
+                                size={14}
+                                fill="#F59E0B"
+                                color="#F59E0B"
+                              />
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    fontSize: '9px',
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    color: 'var(--color-text-muted)',
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  {reviewCount ? t('workspace.reviews_count', { count: reviewCount.toLocaleString() }) : t('workspace.rating')}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    color: 'var(--color-text-primary)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}
+                                >
+                                  {`${ratingNum.toFixed(1)} / 5.0`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Substitute with District if neighborhood exists and no rating
+                        if (poi.neighborhood && poi.neighborhood.trim()) {
+                          return (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'var(--color-surface-raised)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '10px',
+                                padding: '8px 10px',
+                                minWidth: 0,
+                              }}
+                              title={`District: ${poi.neighborhood}`}
+                            >
+                              <PinIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    fontSize: '9px',
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    color: 'var(--color-text-muted)',
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  District
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    color: 'var(--color-text-primary)',
+                                    textOverflow: 'ellipsis',
+                                    overflow: 'hidden',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {poi.neighborhood}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Omit completely when rating is unlisted and no district
+                        return null;
+                      })()}
+
+                      {/* General POI: 2. Duration Card (Omitted if missing and not editing) */}
+                      {(isEditing || (poi.duration_mins && poi.duration_mins > 0)) && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'var(--color-surface-raised)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '10px',
+                            padding: '8px 10px',
+                            minWidth: 0,
+                          }}
+                        >
+                          <ClockIcon size={14} color="var(--color-accent-primary)" />
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <span
+                              style={{
+                                fontSize: '9px',
+                                fontFamily: 'var(--font-code, monospace)',
+                                color: 'var(--color-text-muted)',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              {t('common.duration')}
+                            </span>
+                            {isEditing ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>~</span>
+                                <input
+                                  type="number"
+                                  min={5}
+                                  step={5}
+                                  data-testid="edit-poi-duration-input"
+                                  value={editDuration}
+                                  onChange={(e) => setEditDuration(Number(e.target.value))}
+                                  style={{
+                                    width: '42px',
+                                    padding: '1px 3px',
+                                    borderRadius: '4px',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'var(--color-surface-card)',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-code, monospace)',
+                                    color: 'var(--color-text-primary)',
+                                    outline: 'none',
+                                  }}
+                                />
+                                <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-primary)' }}>m</span>
+                              </div>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  fontFamily: 'var(--font-code, monospace)',
+                                  color: 'var(--color-text-primary)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                ~{poi.duration_mins || 60}m
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* General POI: 3. Category Card */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'var(--color-surface-raised)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '10px',
+                          padding: '8px 10px',
+                          minWidth: 0,
                         }}
                       >
-                        {poi.category || 'Sight'}
-                      </span>
-                    )}
-                  </div>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--color-accent-primary)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CategoryIcon
+                            type={classifyPoiCategory(isEditing ? editCategory : poi.category, isEditing ? editName : poi.name).type}
+                            size={14}
+                          />
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-code, monospace)',
+                              color: 'var(--color-text-muted)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {t('workspace.category')}
+                          </span>
+                          {isEditing ? (
+                            <select
+                              data-testid="edit-poi-category-select"
+                              value={editCategory}
+                              onChange={(e) => setEditCategory(e.target.value)}
+                              style={{
+                                padding: '1px 2px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-surface-card)',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                fontFamily: 'var(--font-code, monospace)',
+                                color: 'var(--color-text-primary)',
+                                outline: 'none',
+                                maxWidth: '92px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <option value="attraction">attraction</option>
+                              <option value="monument">monument</option>
+                              <option value="museum">museum</option>
+                              <option value="restaurant">restaurant</option>
+                              <option value="cafe">café</option>
+                              <option value="park">park</option>
+                              <option value="shopping">shopping</option>
+                              <option value="viewpoint">viewpoint</option>
+                              <option value="hotel">hotel</option>
+                              <option value="airport">airport</option>
+                              <option value="transit">transit</option>
+                            </select>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                fontFamily: 'var(--font-code, monospace)',
+                                color: 'var(--color-text-primary)',
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {classifyPoiCategory(poi.category, poi.name).label || poi.category || 'Sight'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
 
               {/* Description Overview */}
               {(overviewDescription || isEditing) && (
@@ -2194,7 +2729,10 @@ export function PoiDetailView({
                             <button
                               key={slot.secs}
                               type="button"
-                              onClick={() => setDepartureTimeSeconds(slot.secs)}
+                              onClick={() => {
+                                setDepartureTimeSeconds(slot.secs);
+                                setLoadingDepartures(true);
+                              }}
                               style={{
                                 padding: '1px 5px',
                                 borderRadius: '3px',
@@ -2212,14 +2750,30 @@ export function PoiDetailView({
                           );
                         })}
                         {loadingDepartures && (
-                          <span style={{ fontSize: '9.5px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)', marginLeft: '3px' }}>
-                            ...
-                          </span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+                            <Spinner size={10} color="var(--color-accent-primary)" />
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {stationDepartures.length === 0 && !loadingDepartures ? (
+                    {loadingDepartures && stationDepartures.length === 0 ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '20px 0',
+                          color: 'var(--color-text-muted)',
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '11px',
+                        }}
+                      >
+                        <Spinner size={14} color="var(--color-accent-primary)" />
+                        <span>Loading scheduled departures...</span>
+                      </div>
+                    ) : stationDepartures.length === 0 ? (
                       <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                         No upcoming scheduled departures in timetable for {selectedDay === 'all' && !isScheduledInRoute ? 'all days' : `Day ${effectiveDayNumber}`}.
                       </span>
@@ -2275,8 +2829,152 @@ export function PoiDetailView({
                 </div>
               )}
 
-              {/* Collapsible Opening Hours (Hidden for transit stations) */}
-              {!isTransit && (
+              {/* Hotel Lodging & Reception Panel */}
+              {isHotel && (
+                <div
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          background: 'var(--color-success, #10B981)',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          color: 'var(--color-success, #10B981)',
+                        }}
+                      >
+                        24/7 GUEST RECEPTION & ACCESS
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Base Camp
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      paddingTop: '4px',
+                      borderTop: '1px dashed var(--color-border)',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-code, monospace)',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Check-in:</span>
+                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>From 15:00</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Check-out:</span>
+                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>By 11:00</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                      Front desk operates around the clock. Luggage storage is available prior to check-in.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Airport Flight Operations & Access Panel */}
+              {isAirport && (
+                <div
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          background: 'var(--color-success, #10B981)',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-code, monospace)',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          color: 'var(--color-success, #10B981)',
+                        }}
+                      >
+                        24/7 FLIGHT OPERATIONS
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontFamily: 'var(--font-code, monospace)',
+                        color: 'var(--color-text-muted)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Terminal Access
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      paddingTop: '4px',
+                      borderTop: '1px dashed var(--color-border)',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-code, monospace)',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Terminals:</span>
+                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>Open 24 Hours</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Check-in Advisories:</span>
+                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>2h domestic / 3h int&apos;l</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                      Security checkpoints and ground transport operate continuously for all scheduled flights.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Collapsible Opening Hours (Hidden for transit stations, hotels, airports, or when unlisted) */}
+              {!isTransit && !isHotel && !isAirport && Boolean(poi?.hours_known || (poi?.daily_windows && poi.daily_windows.some((w) => Array.isArray(w) && w.length > 0)) || (poi?.osm_opening_hours && poi.osm_opening_hours.trim())) && (
                 <div
                   style={{
                     background: 'var(--color-surface-raised)',
@@ -2361,13 +3059,20 @@ export function PoiDetailView({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
+                        flexWrap: 'wrap',
                         gap: '4px',
                         padding: '4px 0 2px 0',
                         borderTop: '1px dashed var(--color-border)',
                         fontSize: '10px',
                       }}
                     >
-                      <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-code, monospace)' }}>
+                      <span
+                        style={{
+                          color: 'var(--color-text-muted)',
+                          fontFamily: 'var(--font-code, monospace)',
+                          flexShrink: 0,
+                        }}
+                      >
                         Preview:
                       </span>
                       {(availableDays || [1, 2, 3]).map((d) => (
@@ -2385,6 +3090,7 @@ export function PoiDetailView({
                             fontWeight: effectiveDayNumber === d ? 700 : 500,
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
+                            flexShrink: 0,
                           }}
                         >
                           Day {d}
@@ -2410,9 +3116,8 @@ export function PoiDetailView({
                         let hoursStr = poi?.hours_known ? 'Closed' : 'Not listed';
 
                         if (Array.isArray(win) && win.length > 0) {
-                          const parsedList = win
-                            .map(formatWindowTime)
-                            .filter((str): str is string => Boolean(str));
+                          const mergedWindows = parseAndMergeWindows(win);
+                          const parsedList = mergedWindows.map(formatWindow);
 
                           if (parsedList.length > 0) {
                             hoursStr = parsedList.join(', ');
@@ -2425,34 +3130,39 @@ export function PoiDetailView({
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
-                              alignItems: 'center',
+                              alignItems: 'baseline',
                               fontSize: '10.5px',
                               fontFamily: 'var(--font-code, monospace)',
                               color: isTarget ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
                               fontWeight: isTarget ? 700 : 400,
-                              padding: isTarget ? '2px 6px' : '0px',
+                              padding: isTarget ? '4px 8px' : '2px 4px',
                               background: isTarget ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
-                              borderRadius: '4px',
+                              borderRadius: '6px',
+                              gap: '8px',
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>{dName}:</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <span style={{ minWidth: '65px' }}>{dName}:</span>
                               {isTarget && (
                                 <span
                                   style={{
                                     fontSize: '9px',
-                                    padding: '1px 5px',
+                                    padding: '1.5px 6px',
                                     borderRadius: '999px',
                                     background: 'var(--color-accent-primary)',
                                     color: '#FFFFFF',
                                     fontWeight: 700,
+                                    whiteSpace: 'nowrap',
+                                    letterSpacing: '0.04em',
+                                    lineHeight: '1.2',
+                                    flexShrink: 0,
                                   }}
                                 >
                                   DAY {effectiveDayNumber}
                                 </span>
                               )}
                             </div>
-                            <span>{hoursStr}</span>
+                            <span style={{ textAlign: 'right', wordBreak: 'break-word', flex: '1 1 auto' }}>{hoursStr}</span>
                           </div>
                         );
                       })}

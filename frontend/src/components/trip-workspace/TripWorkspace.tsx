@@ -15,7 +15,7 @@ import { TripSpeedDial } from './TripSpeedDial';
 import { PoiDetailView } from './PoiDetailView';
 import { PlaceItem, PoiApiItem } from '@/types/workspace';
 import TripMapLoader from './TripMapLoader';
-import { MapDayGroup, MapPoi, CategoryPoiItem } from './TripMapView';
+import { MapDayGroup, MapPoi, CategoryPoiItem, SpatialCircleFilter } from './TripMapView';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { TripCostsView } from './TripCostsView';
 import { TripConfigView } from './TripConfigView';
@@ -53,6 +53,31 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
   const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
   const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
+  const [spatialCircle, setSpatialCircle] = useState<SpatialCircleFilter | null>(null);
+  const [isDroppingWaypoint, setIsDroppingWaypoint] = useState(false);
+
+  const handleToggleDropWaypoint = useCallback(() => {
+    setIsDroppingWaypoint((prev) => {
+      const next = !prev;
+      if (next) {
+        notify.info('Waypoint Drop Mode', 'Click anywhere on the map to place the area search center.');
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSetSpatialCircle = useCallback((circle: SpatialCircleFilter | null) => {
+    setSpatialCircle(circle);
+    if (circle && sidebarTab === 'route') {
+      setSidebarTab('search');
+    }
+  }, [sidebarTab]);
+
+  const handleClearSpatialCircle = useCallback(() => {
+    setSpatialCircle(null);
+    setIsDroppingWaypoint(false);
+    notify.info('Area Filter Cleared', 'Returned to full city results.');
+  }, []);
 
   const agentUiContext: WorkspaceContextData = useMemo(() => ({
     active_tab: activeTab,
@@ -637,6 +662,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onClearTransitLine={() => setActiveTransitLine(null)}
             activeMapPickField={activeMapPickField}
             onCancelMapPick={() => setActiveMapPickField(null)}
+            spatialCircle={spatialCircle}
+            onSpatialCircleChange={handleSetSpatialCircle}
+            isDroppingWaypoint={isDroppingWaypoint}
+            onCancelDropWaypoint={() => setIsDroppingWaypoint(false)}
+            onClearSpatialCircle={handleClearSpatialCircle}
             onInspectPoi={handleInspectPoi}
             onSelectCategoryPoi={(poi) =>
               handlePlaceClick({
@@ -691,6 +721,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             activeMapPickField={activeMapPickField}
             onStartMapPick={(field) => setActiveMapPickField(field)}
             onCancelMapPick={() => setActiveMapPickField(null)}
+            spatialCircle={spatialCircle}
+            onSpatialCircleChange={handleSetSpatialCircle}
+            isDroppingWaypoint={isDroppingWaypoint}
+            onToggleDropWaypoint={handleToggleDropWaypoint}
+            onClearSpatialCircle={handleClearSpatialCircle}
             uiContext={agentUiContext}
             onTripUpdated={onTripUpdated}
           />
@@ -699,7 +734,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           <TripSpeedDial
             dockSide="left"
             isPanelOpen={isSidebarOpen}
-            panelWidth={sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'}
+            panelWidth={
+              sidebarTab === 'route'
+                ? transitMode === 'detailed'
+                  ? 'min(520px, calc(100vw - 32px))'
+                  : 'min(380px, calc(100vw - 32px))'
+                : 'min(520px, calc(100vw - 32px))'
+            }
             isEditMode={isEditMode}
             onToggleEditMode={handleToggleEditMode}
             onReoptimizeDay={handleReoptimizeDay}
@@ -707,6 +748,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             transitMode={transitMode}
             onToggleTransitMode={handleToggleTransitMode}
             selectedDay={selectedDay}
+            isDroppingWaypoint={isDroppingWaypoint}
+            onToggleDropWaypoint={handleToggleDropWaypoint}
+            spatialCircle={spatialCircle}
+            onClearSpatialCircle={handleClearSpatialCircle}
           />
 
           {/* Right Floating POI Details Drawer with External Arrow Tab */}
@@ -716,11 +761,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
-                maxHeight: 'calc(100% - 32px)',
+                bottom: '16px',
                 width: 'min(380px, calc(100vw - 32px))',
                 zIndex: 1040,
                 display: 'flex',
-                alignItems: 'flex-start',
+                alignItems: 'stretch',
                 pointerEvents: 'none',
                 transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% - 10px))',
                 transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -777,6 +822,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   pointerEvents: isInspectorOpen ? 'auto' : 'none',
                   flex: '1 1 auto',
                   minWidth: 0,
+                  height: '100%',
                   maxHeight: '100%',
                   background: 'var(--color-surface-card, #FFFFFF)',
                   backdropFilter: 'blur(28px)',

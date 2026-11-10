@@ -21,7 +21,7 @@ import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import { isPointInPolygon, computeClusterPolygon } from '@/utils/clusterHull';
-import { getDayColor } from './TripMapView';
+import { getDayColor, SpatialCircleFilter } from './TripMapView';
 import {
   startCustomDragPreview,
   markPaladioDropHandled,
@@ -188,6 +188,11 @@ export interface TripUnifiedSidebarProps {
   onTabChange?: (tab: MainTabType) => void;
   uiContext?: WorkspaceContextData;
   onTripUpdated?: () => void;
+  spatialCircle?: SpatialCircleFilter | null;
+  onSpatialCircleChange?: (circle: SpatialCircleFilter | null) => void;
+  isDroppingWaypoint?: boolean;
+  onToggleDropWaypoint?: () => void;
+  onClearSpatialCircle?: () => void;
 }
 
 export type MainTabType = 'route' | 'search' | 'transit' | 'weather' | 'saved' | 'agent';
@@ -1220,6 +1225,11 @@ export function TripUnifiedSidebar({
   onTabChange,
   uiContext,
   onTripUpdated,
+  spatialCircle,
+  onSpatialCircleChange,
+  isDroppingWaypoint,
+  onToggleDropWaypoint,
+  onClearSpatialCircle,
 }: TripUnifiedSidebarProps) {
   const auth = useOptionalAuth();
   const user = auth?.user ?? null;
@@ -1424,14 +1434,21 @@ export function TripUnifiedSidebar({
 
   // Route Drag-and-drop state
   const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
-  const [draggedPoi, setDraggedPoi] = useState<{ day: number; index: number } | null>(null);
+  const [justInserted, setJustInserted] = useState<{ day: number; index: number; key: number } | null>(null);
+  const [draggedPoi, setDraggedPoi] = useState<{
+    day: number;
+    index: number;
+    id?: string;
+    source?: string;
+    poi?: unknown;
+  } | null>(null);
+  const [removingPoi, setRemovingPoi] = useState<{ day: number; index: number; id?: string } | null>(null);
   const [unlockConfirmAnchor, setUnlockConfirmAnchor] = useState<{
     dayNum: number;
     poiIdx: number;
     name: string;
     type: string;
   } | null>(null);
-
 
   // Auto-switch to route tab when any POI begins being dragged from search or inspector
   useEffect(() => {
@@ -1446,22 +1463,22 @@ export function TripUnifiedSidebar({
   useEffect(() => {
     const handleDragEnded = () => {
       setActiveDropTarget(null);
-      setDraggedPoi(null);
-      if (typeof window !== 'undefined') {
-        (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
-        (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
-      }
+      window.setTimeout(() => {
+        setDraggedPoi(null);
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
+          (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
+        }
+      }, 120);
       const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
       existing.forEach((node) => node.remove());
     };
 
     window.addEventListener('dragend', handleDragEnded, true);
-    window.addEventListener('drop', handleDragEnded, true);
     window.addEventListener('mouseup', handleDragEnded, true);
     window.addEventListener('paladio:drag-ended', handleDragEnded, true);
     return () => {
       window.removeEventListener('dragend', handleDragEnded, true);
-      window.removeEventListener('drop', handleDragEnded, true);
       window.removeEventListener('mouseup', handleDragEnded, true);
       window.removeEventListener('paladio:drag-ended', handleDragEnded, true);
     };
@@ -1576,6 +1593,9 @@ export function TripUnifiedSidebar({
               )}`
             : '';
         const customParam = isCustomOnly ? '&custom_only=true' : '';
+        const circleParam = spatialCircle
+          ? `&circle_lat=${spatialCircle.lat}&circle_lng=${spatialCircle.lng}&circle_radius=${spatialCircle.radiusMeters}`
+          : '';
         const offsetParam = offset > 0 ? `&offset=${offset}` : '';
         const baseUrl = getApiBaseUrl();
         const limit = isCategoryBrowse ? 60 : isAllBrowse ? 40 : 25;
@@ -1589,7 +1609,7 @@ export function TripUnifiedSidebar({
         const res = await fetch(
           `${baseUrl}/pois/search?city=${encodeURIComponent(
             destinationCity
-          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}${hullParam}${customParam}&limit=${limit}${offsetParam}`,
+          )}&query=${encodeURIComponent(q)}${catParam}${tripParam}${dayParam}${boundsParam}${hullParam}${circleParam}${customParam}&limit=${limit}${offsetParam}`,
           { headers, signal }
         );
         if (!res.ok) {
@@ -1677,7 +1697,7 @@ export function TripUnifiedSidebar({
         }
       }
     },
-    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab, onlyCustomPois]
+    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab, onlyCustomPois, spatialCircle]
   );
 
   const handleLoadMore = useCallback(() => {
@@ -2072,6 +2092,8 @@ export function TripUnifiedSidebar({
         const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
         targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
         onItineraryUpdate(clonedItin);
+        setJustInserted((prev) => ({ day: targetDayNum, index: safeIdx, key: (prev?.key ?? 0) + 1 }));
+        window.setTimeout(() => setJustInserted(null), 800);
         notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
       }
     } catch (err) {
@@ -2102,7 +2124,8 @@ export function TripUnifiedSidebar({
         data-testid="sidebar-expand-btn"
         onClick={onToggle}
         aria-label="Open sidebar menu"
-        title="Open sidebar menu"
+        data-tooltip="Open sidebar menu"
+        data-tooltip-position="right"
         style={{
           pointerEvents: isOpen ? 'none' : 'auto',
           opacity: isOpen ? 0 : 1,
@@ -2155,7 +2178,12 @@ export function TripUnifiedSidebar({
           data-testid="trip-unified-sidebar"
           style={{
             pointerEvents: isOpen ? 'auto' : 'none',
-            width: activeTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))',
+            width:
+              activeTab === 'route'
+                ? transitMode === 'detailed'
+                  ? 'min(520px, calc(100vw - 32px))'
+                  : 'min(380px, calc(100vw - 32px))'
+                : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
             backdropFilter: 'blur(28px)',
@@ -2188,7 +2216,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-route"
-                    title="Route"
+                    data-tooltip="Route"
+                    data-tooltip-position="bottom"
                     aria-label="Route"
                     onClick={() => setActiveTab('route')}
                     onDragEnter={(e) => {
@@ -2226,7 +2255,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-search"
-                    title="Search"
+                    data-tooltip="Search"
+                    data-tooltip-position="bottom"
                     aria-label="Search"
                     onClick={() => setActiveTab('search')}
                     onDragEnter={(e) => {
@@ -2262,7 +2292,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-transit"
-                    title="Transit"
+                    data-tooltip="Transit"
+                    data-tooltip-position="bottom"
                     aria-label="Transit"
                     onClick={() => setActiveTab('transit')}
                     style={{
@@ -2297,7 +2328,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-weather"
-                    title="Weather"
+                    data-tooltip="Weather"
+                    data-tooltip-position="bottom"
                     aria-label="Weather"
                     onClick={() => setActiveTab('weather')}
                     style={{
@@ -2327,7 +2359,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-saved"
-                    title="Collections"
+                    data-tooltip="Collections"
+                    data-tooltip-position="bottom"
                     aria-label="Collections"
                     onClick={() => setActiveTab('saved')}
                     onDragEnter={(e) => {
@@ -2365,7 +2398,8 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-agent"
-                    title="Paladio Agent"
+                    data-tooltip="Paladio Agent"
+                    data-tooltip-position="bottom"
                     aria-label="Paladio Agent"
                     onClick={() => setActiveTab('agent')}
                     style={{
@@ -2443,7 +2477,8 @@ export function TripUnifiedSidebar({
                         cursor: isReoptimizing ? 'wait' : 'pointer',
                         opacity: isReoptimizing ? 0.7 : 1,
                       }}
-                      title="Re-run C++ optimization solver with locked stops preserved"
+                      data-tooltip="Re-run C++ optimization solver with locked stops preserved"
+                      data-tooltip-position="bottom"
                     >
                       <svg
                         width="11"
@@ -2585,14 +2620,21 @@ export function TripUnifiedSidebar({
                 }}
               >
                 {/* VIEW A: ROUTE TAB CONTENT */}
-                {activeTab === 'route' && (
+                <div
+                  style={{
+                    display: activeTab === 'route' ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    flex: 1,
+                    minHeight: 0,
+                  }}
+                >
                   <div
                     onDragOver={(e) => {
                       e.preventDefault();
                       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                     }}
                     onDragLeave={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
                         setActiveDropTarget(null);
                       }
                     }}
@@ -2617,19 +2659,63 @@ export function TripUnifiedSidebar({
                           onDragOver={(e) => {
                             e.preventDefault();
                             if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                            const container = e.currentTarget;
+                            const cards = container.querySelectorAll<HTMLElement>('[data-paladio-stop-index]');
+                            if (cards.length === 0) {
+                              setActiveDropTarget({ day: dayObj.day, index: 0 });
+                              return;
+                            }
+                            const cursorY = e.clientY;
+                            let targetIdx = path.length;
+                            for (let ci = 0; ci < cards.length; ci++) {
+                              const rect = cards[ci].getBoundingClientRect();
+                              const midY = rect.top + rect.height / 2;
+                              if (cursorY < midY) {
+                                targetIdx = ci;
+                                break;
+                              }
+                            }
+                            setActiveDropTarget({ day: dayObj.day, index: targetIdx });
                           }}
                           onDragLeave={(e) => {
-                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                            if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
                               setActiveDropTarget(null);
                             }
                           }}
                           onDrop={(e) => {
                             e.preventDefault();
-                            handleDrop(e, dayObj.day, path.length);
+                            e.stopPropagation();
+                            let targetIdx = path.length;
+                            if (activeDropTarget && activeDropTarget.day === dayObj.day) {
+                              targetIdx = activeDropTarget.index;
+                            } else {
+                              const container = e.currentTarget;
+                              const cards = container.querySelectorAll<HTMLElement>('[data-paladio-stop-index]');
+                              const cursorY = e.clientY;
+                              for (let ci = 0; ci < cards.length; ci++) {
+                                const rect = cards[ci].getBoundingClientRect();
+                                const midY = rect.top + rect.height / 2;
+                                if (cursorY < midY) {
+                                  targetIdx = ci;
+                                  break;
+                                }
+                              }
+                            }
+                            handleDrop(e, dayObj.day, targetIdx);
                           }}
                           style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
                         >
                           <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                              setActiveDropTarget({ day: dayObj.day, index: 0 });
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDrop(e, dayObj.day, 0);
+                            }}
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
@@ -2684,6 +2770,16 @@ export function TripUnifiedSidebar({
                                 {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx && (
                                   <div
                                     data-testid="route-drop-insert-indicator"
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDrop(e, dayObj.day, poiIdx);
+                                    }}
                                     style={{
                                       height: '32px',
                                       borderRadius: '10px',
@@ -2694,6 +2790,8 @@ export function TripUnifiedSidebar({
                                       justifyContent: 'center',
                                       margin: '2px 0',
                                       transition: 'all 0.15s ease',
+                                      pointerEvents: 'auto',
+                                      cursor: 'copy',
                                     }}
                                   >
                                     <span
@@ -2733,6 +2831,7 @@ export function TripUnifiedSidebar({
                                         destinationName={p?.name}
                                         city={destinationCity}
                                         tripId={tripId}
+                                        defaultExpanded={true}
                                         onInspectPoi={onInspectPoi}
                                       />
                                     </div>
@@ -2773,6 +2872,10 @@ export function TripUnifiedSidebar({
                                 )}
 
                                 <div
+                                  key={justInserted?.day === dayObj.day && justInserted.index === poiIdx ? `ins-${justInserted.key}` : undefined}
+                                  data-paladio-stop-index={poiIdx}
+                                  className={justInserted?.day === dayObj.day && justInserted.index === poiIdx ? 'paladio-poi-insert' : undefined}
+                                  style={justInserted?.day === dayObj.day && justInserted.index === poiIdx ? { animation: 'paladioPoiInsert 0.5s cubic-bezier(0.22, 1, 0.36, 1)', borderRadius: '12px' } : undefined}
                                   onDragOver={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -2803,9 +2906,28 @@ export function TripUnifiedSidebar({
                                     isEditMode={isEditMode}
                                     stopNum={stopNum}
                                     anchorInfo={anchorInfo}
-                                    draggable={isEditMode && !anchorInfo.isFixed}
+                                    draggable={!anchorInfo.isFixed}
+                                    isBeingDragged={draggedPoi?.day === dayObj.day && draggedPoi?.index === poiIdx}
+                                    isRemoving={removingPoi?.day === dayObj.day && (removingPoi?.id === p?.id || removingPoi?.index === poiIdx)}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+                                      const targetIdx = isUpperHalf ? poiIdx : poiIdx + 1;
+                                      setActiveDropTarget({ day: dayObj.day, index: targetIdx });
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+                                      const targetIdx = isUpperHalf ? poiIdx : poiIdx + 1;
+                                      handleDrop(e, dayObj.day, targetIdx);
+                                    }}
                                     onDragStart={(e) => {
-                                      if (!isEditMode || anchorInfo.isFixed) {
+                                      if (anchorInfo.isFixed) {
                                         e.preventDefault();
                                         return;
                                       }
@@ -2833,17 +2955,27 @@ export function TripUnifiedSidebar({
                                       e.dataTransfer.effectAllowed = 'copyMove';
                                     }}
                                     onDragEnd={() => {
-                                      const wasHandled = isPaladioDropHandled();
+                                      const handled = isPaladioDropHandled();
+                                      const curDay = dayObj.day;
+                                      const curIdx = poiIdx;
+                                      const curId = p?.id;
+                                      const curName = p?.name;
+
+                                      if (!handled && !anchorInfo.isFixed) {
+                                        // Dropped outside itinerary: trigger smooth removal animation
+                                        setRemovingPoi({ day: curDay, index: curIdx, id: curId });
+                                        window.setTimeout(() => {
+                                          handleRemoveStopFromRoute(curDay, curIdx, curId, curName);
+                                          setRemovingPoi(null);
+                                        }, 280);
+                                      }
+
                                       setDraggedPoi(null);
                                       setActiveDropTarget(null);
                                       if (typeof window !== 'undefined') {
                                         (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
                                       }
                                       resetPaladioDropHandled();
-
-                                      if (!wasHandled) {
-                                        handleRemoveStopFromRoute(dayObj.day, poiIdx, p?.id, p?.name);
-                                      }
                                     }}
                                     canMoveUp={poiIdx > 0}
                                     canMoveDown={poiIdx < path.length - 1}
@@ -2897,9 +3029,9 @@ export function TripUnifiedSidebar({
                               if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                               setActiveDropTarget({ day: dayObj.day, index: path.length });
                             }}
-                            onDragLeave={() => setActiveDropTarget(null)}
                             onDrop={(e) => {
                               e.preventDefault();
+                              e.stopPropagation();
                               handleDrop(e, dayObj.day, path.length);
                             }}
                             style={{
@@ -2941,10 +3073,17 @@ export function TripUnifiedSidebar({
                       );
                     })}
                   </div>
-                )}
+                </div>
 
                 {/* VIEW B: SEARCH TAB CONTENT (Exact Match to User Reference Layout) */}
-                {activeTab === 'search' && (
+                <div
+                  style={{
+                    display: activeTab === 'search' ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    flex: 1,
+                    minHeight: 0,
+                  }}
+                >
                   <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {/* 1. Top Options Pill Dropdowns & Add POI button */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%', overflow: 'visible' }}>
@@ -2961,32 +3100,35 @@ export function TripUnifiedSidebar({
                         testId="sort-order-dropdown"
                       />
 
-                      <button
-                        type="button"
-                        onClick={() => setIsAddPoiModalOpen(true)}
-                        title="Add New POI"
-                        aria-label="Add New POI"
-                        data-testid="add-new-poi-btn"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 12px',
-                          background: 'var(--color-surface-card, #FFFFFF)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '9999px',
-                          color: 'var(--color-accent-primary, #0F4C5C)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
-                          transition: 'all 0.15s ease',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-                        <span>Add POI</span>
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddPoiModalOpen(true)}
+                          data-tooltip="Add New POI"
+                          data-tooltip-position="top"
+                          aria-label="Add New POI"
+                          data-testid="add-new-poi-btn"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            background: 'var(--color-surface-card, #FFFFFF)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '9999px',
+                            color: 'var(--color-accent-primary, #0F4C5C)',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
+                            transition: 'all 0.15s ease',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+                          <span>Add POI</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* 2. Elevated Search Box Card (Matching Flight Search Form Card) */}
@@ -3142,7 +3284,9 @@ export function TripUnifiedSidebar({
                           userSelect: 'none',
                           marginLeft: 'auto',
                         }}
-                        title={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
+                        data-tooltip={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
+                        data-tooltip-position="top"
+                        aria-label={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
                       >
                         <span>{onlyCustomPois ? 'Custom Only' : 'All POIs'}</span>
                       </button>
@@ -3208,6 +3352,12 @@ export function TripUnifiedSidebar({
                             e.dataTransfer.setData('application/paladio-poi', serialized);
                             e.dataTransfer.setData('text/plain', serialized);
                             e.dataTransfer.effectAllowed = 'copyMove';
+
+                            // Switch to Route tab automatically so user can drop into any day
+                            window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                            setTimeout(() => {
+                              setActiveTab('route');
+                            }, 50);
                           }}
                           onDragEnd={() => {
                             if (typeof window !== 'undefined') {
@@ -3294,7 +3444,8 @@ export function TripUnifiedSidebar({
                                 <button
                                   type="button"
                                   data-testid={`delete-custom-poi-${poi.id}`}
-                                  title="Delete manual POI"
+                                  data-tooltip="Delete manual POI"
+                                  data-tooltip-position="left"
                                   aria-label="Delete manual POI"
                                   disabled={deletingPoiId === poi.id}
                                   onClick={(e) => {
@@ -3331,7 +3482,8 @@ export function TripUnifiedSidebar({
                               <button
                                 type="button"
                                 data-testid={`search-poi-bookmark-${poi.id}`}
-                                title={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                data-tooltip={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                data-tooltip-position="left"
                                 aria-label={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3455,7 +3607,7 @@ export function TripUnifiedSidebar({
                       )}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* VIEW C: TRANSIT TAB CONTENT */}
                 {activeTab === 'transit' && (
@@ -3466,13 +3618,20 @@ export function TripUnifiedSidebar({
                     selectedDay={selectedDay}
                     tripDays={days.map((d: DayOutput) => ({
                       day_number: d.day,
-                      pois: (d.itinerary?.path || []).map((s: ScheduledPoi, sIdx: number) => ({
-                        id: s.poi.id || `poi-${d.day}-${sIdx}`,
-                        name: s.poi.name,
-                        lat: s.poi.location.latitude,
-                        lng: s.poi.location.longitude,
-                        category: s.poi.category,
-                      })),
+                      pois: (d.itinerary?.path || [])
+                        .filter((s: ScheduledPoi) => Boolean(s?.poi))
+                        .map((s: ScheduledPoi, sIdx: number) => {
+                          const p = s.poi;
+                          const lat = p.location?.latitude ?? (p as unknown as { lat?: number }).lat ?? 0;
+                          const lng = p.location?.longitude ?? (p as unknown as { lng?: number }).lng ?? 0;
+                          return {
+                            id: p.id || `poi-${d.day}-${sIdx}`,
+                            name: p.name || 'Waypoint',
+                            lat,
+                            lng,
+                            category: p.category || 'attraction',
+                          };
+                        }),
                     }))}
                     hotel={hotelAnchor}
                     airport={airportAnchor}
@@ -3512,7 +3671,14 @@ export function TripUnifiedSidebar({
                 )}
 
                 {/* VIEW D: COLLECTIONS TAB CONTENT */}
-                {activeTab === 'saved' && (
+                <div
+                  style={{
+                    display: activeTab === 'saved' ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    flex: 1,
+                    minHeight: 0,
+                  }}
+                >
                   <CollectionsTab
                     tripId={tripId || ''}
                     onPlaceClick={onPlaceClick}
@@ -3521,7 +3687,7 @@ export function TripUnifiedSidebar({
                     tripDaysCount={days.length || 7}
                     currencySymbol={currencySymbol}
                   />
-                )}
+                </div>
 
                 {/* VIEW E: AGENT TAB CONTENT */}
                 {(activeTab === 'agent' || agentTabVisited) && (
@@ -3551,7 +3717,8 @@ export function TripUnifiedSidebar({
           data-testid="sidebar-collapse-btn"
           onClick={onToggle}
           aria-label="Close sidebar menu"
-          title="Close sidebar menu"
+          data-tooltip="Close sidebar menu"
+          data-tooltip-position="right"
           style={{
             pointerEvents: 'auto',
             alignSelf: 'flex-start',
