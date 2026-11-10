@@ -2,14 +2,17 @@
 
 import uuid
 from datetime import date, datetime, timezone
+from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     DealWatchAlertModel,
     HotelPropertyModel,
     HotelRateObservationModel,
+    MarketPriceTickModel,
     UserModel,
 )
 
@@ -137,9 +140,23 @@ async def test_route_lodging_not_found_fails_fast(
         is_active=True,
     )
     db_session.add(alert)
+    await db_session.execute(
+        delete(HotelRateObservationModel).where(
+            HotelRateObservationModel.destination_code == "XYZ"
+        )
+    )
+    await db_session.execute(
+        delete(MarketPriceTickModel).where(
+            MarketPriceTickModel.destination_code == "XYZ"
+        )
+    )
     await db_session.commit()
 
-    res = await async_client.get(
-        f"/api/market/routes/{route_id}/lodging?check_in=2026-11-25&nights=3"
-    )
+    with patch(
+        "app.engine.market.ingest.ingest_lodging_ticks",
+        new=AsyncMock(return_value=0),
+    ):
+        res = await async_client.get(
+            f"/api/market/routes/{route_id}/lodging?check_in=2026-11-25&nights=3"
+        )
     assert res.status_code == 404

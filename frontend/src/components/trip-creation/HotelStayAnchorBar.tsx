@@ -78,9 +78,14 @@ export function HotelStayAnchorBar({
 
   // Synchronize when external prop changes
   const [prevHotelArea, setPrevHotelArea] = useState(hotelArea);
+  const [prevDestination, setPrevDestination] = useState(destination);
   if (hotelArea !== prevHotelArea) {
     setPrevHotelArea(hotelArea);
     setQuery(hotelArea);
+  }
+  if (destination !== prevDestination) {
+    setPrevDestination(destination);
+    setResults([]);
   }
 
   // Click outside to dismiss menu
@@ -177,7 +182,14 @@ export function HotelStayAnchorBar({
   const isPinned = typeof hotelLat === 'number' && typeof hotelLng === 'number';
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        width: '100%',
+        zIndex: isMenuOpen ? 40 : undefined,
+      }}
+    >
       {/* Label Row */}
       <div
         style={{

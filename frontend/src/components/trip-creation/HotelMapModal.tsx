@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { HotelIcon, PinIcon, CheckIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
@@ -55,38 +55,66 @@ export function HotelMapModal({
   initialLng,
   onConfirm,
 }: HotelMapModalProps) {
-  const [hotelName, setHotelName] = useState(initialHotelName);
-  const [hotelAddress, setHotelAddress] = useState(initialHotelAddress);
+  const destLower = (destination || '').toLowerCase().trim();
+  const addressLower = (initialHotelAddress || '').toLowerCase().trim();
+  const nameLower = (initialHotelName || '').toLowerCase().trim();
+  // Check if initial hotel belongs to a previous / different destination
+  const isCityMismatch = Boolean(
+    destLower &&
+      (addressLower || nameLower) &&
+      !addressLower.includes(destLower) &&
+      !nameLower.includes(destLower) &&
+      !destLower.includes(addressLower)
+  );
+
+  const [hotelName, setHotelName] = useState(isCityMismatch ? '' : initialHotelName);
+  const [hotelAddress, setHotelAddress] = useState(isCityMismatch ? '' : initialHotelAddress);
   const [prevInitialName, setPrevInitialName] = useState(initialHotelName);
   const [prevInitialAddress, setPrevInitialAddress] = useState(initialHotelAddress);
+  const [prevDestination, setPrevDestination] = useState(destination);
 
   if (initialHotelName !== prevInitialName) {
     setPrevInitialName(initialHotelName);
-    setHotelName(initialHotelName);
+    if (!isCityMismatch) setHotelName(initialHotelName);
   }
   if (initialHotelAddress !== prevInitialAddress) {
     setPrevInitialAddress(initialHotelAddress);
-    setHotelAddress(initialHotelAddress);
+    if (!isCityMismatch) setHotelAddress(initialHotelAddress);
+  }
+  if (destination !== prevDestination) {
+    setPrevDestination(destination);
+    setHotelName('');
+    setHotelAddress('');
   }
 
+  const hasValidInitialCoords = Boolean(initialLat && initialLng && !isCityMismatch);
   const [pinPos, setPinPos] = useState<[number, number] | null>(
-    initialLat && initialLng ? [initialLat, initialLng] : null
+    hasValidInitialCoords ? [initialLat!, initialLng!] : null
   );
   const [center, setCenter] = useState<[number, number] | null>(
-    initialLat && initialLng ? [initialLat, initialLng] : null
+    hasValidInitialCoords ? [initialLat!, initialLng!] : null
   );
   const [prevLat, setPrevLat] = useState(initialLat);
   const [prevLng, setPrevLng] = useState(initialLng);
-  const [isLocating, setIsLocating] = useState<boolean>(!initialLat || !initialLng);
+  const [isLocating, setIsLocating] = useState<boolean>(!hasValidInitialCoords);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   if (initialLat !== prevLat || initialLng !== prevLng) {
     setPrevLat(initialLat);
     setPrevLng(initialLng);
-    if (initialLat && initialLng) {
+    if (initialLat && initialLng && !isCityMismatch) {
       setPinPos([initialLat, initialLng]);
       setCenter([initialLat, initialLng]);
       setIsLocating(false);
+      setLocationError(null);
+    }
+  }
+
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen && !hasValidInitialCoords) {
+      setIsLocating(true);
       setLocationError(null);
     }
   }
@@ -95,20 +123,25 @@ export function HotelMapModal({
   const [searchResults, setSearchResults] = useState<HotelSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isReverseLoading, setIsReverseLoading] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Automatically locate accommodation / destination dynamically when opened
   useEffect(() => {
-    if (!isOpen || (initialLat && initialLng)) return;
+    if (!isOpen) return;
+
+    if (initialLat && initialLng && !isCityMismatch) {
+      return;
+    }
 
     let isMounted = true;
 
     const resolveLocation = async () => {
       const baseUrl = getApiBaseUrl();
-      const targetQuery = initialHotelName?.trim() || '';
+      const targetQuery = isCityMismatch ? '' : (initialHotelName?.trim() || '');
       const destQuery = destination?.trim() || '';
 
-      // 1. If an accommodation name is provided, search & pin the hotel dynamically
-      if (targetQuery) {
+      // 1. If an accommodation name is provided and matches destination, search & pin the hotel dynamically
+      if (targetQuery && !isCityMismatch) {
         try {
           const hotelUrl = `${baseUrl}/locations/hotels?city=${encodeURIComponent(
             destQuery
@@ -133,8 +166,26 @@ export function HotelMapModal({
         }
       }
 
-      // 2. If no hotel was found or no hotel name was provided, center on destination city dynamically
+      // 2. Resolve destination city coordinates dynamically via resolve-airport
       if (destQuery) {
+        try {
+          const apUrl = `${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destQuery)}`;
+          const res = await fetch(apUrl);
+          if (res.ok) {
+            const ap = await res.json();
+            if (ap && ap.latitude && ap.longitude) {
+              if (isMounted) {
+                setCenter([ap.latitude, ap.longitude]);
+                setIsLocating(false);
+                return;
+              }
+            }
+          }
+        } catch {
+          // Fall through
+        }
+
+        // 3. Fallback: query locations/search dynamically
         try {
           const destUrl = `${baseUrl}/locations/search?q=${encodeURIComponent(destQuery)}&limit=1`;
           const res = await fetch(destUrl);
@@ -152,7 +203,7 @@ export function HotelMapModal({
           // Fall through
         }
 
-        // 3. Fallback: query Nominatim dynamically for destination city
+        // 4. Fallback: query Nominatim dynamically for destination city
         try {
           const osmUrl = `${baseUrl}/locations/hotels?city=${encodeURIComponent(destQuery)}&q=${encodeURIComponent(destQuery)}&limit=1`;
           const res = await fetch(osmUrl);
@@ -185,10 +236,11 @@ export function HotelMapModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination]);
+  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination, isCityMismatch]);
 
   // Handle map click with reverse geocode
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
+    setSearchResults([]);
     setPinPos([lat, lng]);
     setIsReverseLoading(true);
     try {
@@ -204,6 +256,17 @@ export function HotelMapModal({
     } finally {
       setIsReverseLoading(false);
     }
+  }, []);
+
+  // Click outside to dismiss search results dropdown inside modal
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchResults([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Debounced search within map modal
@@ -359,11 +422,13 @@ export function HotelMapModal({
 
         {/* Modal Search Bar Input */}
         <div
+          ref={searchContainerRef}
           style={{
             padding: '12px 24px',
             background: 'var(--color-surface-raised, #FFFFFF)',
             borderBottom: '1px solid var(--color-border)',
             position: 'relative',
+            zIndex: 1000,
           }}
         >
           <div
@@ -419,7 +484,7 @@ export function HotelMapModal({
                 border: '1px solid var(--color-border)',
                 borderRadius: '16px',
                 boxShadow: '0 12px 32px rgba(0,0,0,0.14)',
-                zIndex: 80,
+                zIndex: 1001,
                 maxHeight: '200px',
                 overflowY: 'auto',
                 scrollbarWidth: 'none',
@@ -477,7 +542,7 @@ export function HotelMapModal({
         </div>
 
         {/* Map Container */}
-        <div style={{ position: 'relative', width: '100%', height: '380px', padding: '12px 24px' }}>
+        <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '380px', padding: '12px 24px' }}>
           {isLocating || !center ? (
             <div
               className="font-mono text-xs text-muted"

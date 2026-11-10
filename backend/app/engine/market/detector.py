@@ -21,6 +21,7 @@ from app.db.models import (
     DealWatchAlertModel,
     MarketPriceTickModel,
     TripModel,
+    UserModel,
 )
 from app.engine.market.adapters import (
     CompositeFlightFeed,
@@ -66,9 +67,22 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
     verified_deals: list[dict[str, Any]] = []
     ingested_lodging_dates: set[tuple[str, date]] = set()
 
+    # Cache user preferences by user_id
+    user_prefs_by_id: dict[str, dict[str, Any]] = {}
+
     # Map alerts by (origin_iata, destination)
     for alert in active_alerts:
         orig = alert.origin_iata
+        user_prefs = {}
+        if alert.user_id:
+            if alert.user_id not in user_prefs_by_id:
+                u_stmt = select(UserModel).where(UserModel.id == alert.user_id)
+                u_res = (await session.execute(u_stmt)).scalar_one_or_none()
+                user_prefs_by_id[alert.user_id] = (
+                    (u_res.preferences or {}) if u_res else {}
+                )
+            user_prefs = user_prefs_by_id.get(alert.user_id, {})
+
         for dest in alert.destinations:
             # Query candidate flights for this route within alert date window
             fl_query = (
@@ -121,7 +135,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
 
                 # Fetch lodging quote dynamically for this window
                 lodging_quote = await lodging_feed.fetch_destination_summary(
-                    dest, dep_date, ret_date, session=session
+                    dest, dep_date, ret_date, session=session, taste=user_prefs
                 )
                 total_lodging_base = lodging_quote.base_price_per_night_cents * nights
                 total_package_base = (
@@ -267,6 +281,8 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 # -------------------------------------------------------------
                 # Stage 4: Affordable & Still Cheap (Landed Arithmetic)
                 # -------------------------------------------------------------
+                travelers = getattr(alert, "travelers", 1) or 1
+                landed_flight_cents = landed_flight_cents * travelers
                 landed_lodging_cents = total_lodging_base
                 # Append user-configured baggage budget if present
                 user_baggage_budget = alert.baggage_budget_cents or 0
@@ -280,7 +296,9 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                     )
                     continue
 
-                landed_baseline_est = flight_median + (lodging_median * nights)
+                landed_baseline_est = (flight_median * travelers) + (
+                    lodging_median * nights
+                )
                 landed_savings_cents = max(landed_baseline_est - landed_total_cents, 0)
                 logger.debug(
                     f"[Detector] Landed Total: {landed_total_cents}, Landed Base Est: {landed_baseline_est}, Landed Savings: {landed_savings_cents}"
@@ -294,7 +312,7 @@ async def run_deal_detection_scan(session: AsyncSession) -> list[dict[str, Any]]
                 # -------------------------------------------------------------
                 # Stage 5: Quality Gate (Lodging >= 70)
                 # -------------------------------------------------------------
-                l_scores = lodging_scorer.score([lodging_quote])
+                l_scores = lodging_scorer.score([lodging_quote], taste=user_prefs)
                 quality_score = l_scores[0] if l_scores else lodging_quote.quality_score
                 logger.debug(
                     f"[Detector] Stage 5 Quality: score={quality_score}, min={config.LODGING_MIN_QUALITY}"

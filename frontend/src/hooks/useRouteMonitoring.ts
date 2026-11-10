@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/utils/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { SelectedParticipant } from '@/components/trip-creation/ParticipantsManager';
 
 export interface RouteItem {
   id: string;
@@ -13,6 +14,8 @@ export interface RouteItem {
   latest_date: string;
   min_nights: number;
   max_nights: number;
+  travelers?: number;
+  participants?: SelectedParticipant[];
   max_budget_eur: number;
   currency: string;
   is_active: boolean;
@@ -99,6 +102,8 @@ export interface LodgingPricePoint {
   p75_eur?: number | null;
   n_properties?: number;
   coverage_ratio?: number | null;
+  value_score?: number | null;
+  badge?: string | null;
 }
 
 export interface RouteHistory {
@@ -140,6 +145,9 @@ export interface LodgingSummary {
   booking_url?: string | null;
   source?: string | null;
   currency?: string;
+  value_score?: number | null;
+  badge?: string | null;
+  rank_reasons?: string[];
 }
 
 export interface CalendarDay {
@@ -255,6 +263,7 @@ export interface DealLodging {
   source?: string;
   is_live?: boolean;
   taxes_included?: boolean;
+  badge?: string | null;
 }
 
 export interface ProviderHealth {
@@ -290,6 +299,8 @@ export interface DealPackage {
   flight: DealFlight;
   return_flight?: DealFlight | null;
   lodging: DealLodging;
+  travelers?: number;
+  participants?: SelectedParticipant[];
   currency?: string;
 }
 
@@ -483,6 +494,7 @@ export function useRouteMonitoring(overrideCurrency?: string) {
     min_nights: number;
     max_nights: number;
     travelers: number;
+    participants?: SelectedParticipant[];
     max_budget_eur: number;
     currency?: string;
   }) => {

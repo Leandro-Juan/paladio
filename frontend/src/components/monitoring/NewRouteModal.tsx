@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
-import { CloseIcon, Spinner } from '@/components/icons';
+import React, { useState, useEffect } from 'react';
+import { CloseIcon, Spinner, SettingsIcon } from '@/components/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { SUPPORTED_CURRENCY_LIST, getCurrencyInfo } from '@/utils/currencyResolver';
+import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { RouteIntakeBar } from '@/components/trip-creation/RouteIntakeBar';
+import { ParticipantsManager, SelectedParticipant } from '@/components/trip-creation/ParticipantsManager';
+import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
+import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import styles from './NewRouteModal.module.css';
 
 interface NewRouteModalProps {
@@ -18,6 +22,7 @@ interface NewRouteModalProps {
     min_nights: number;
     max_nights: number;
     travelers: number;
+    participants?: SelectedParticipant[];
     max_budget_eur: number;
     currency?: string;
   }) => Promise<unknown>;
@@ -35,45 +40,93 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
   plusSixty.setDate(plusSixty.getDate() + 60);
   const defaultLatest = plusSixty.toISOString().slice(0, 10);
 
-  const [origin, setOrigin] = useState<string>('MAD');
-  const [destination, setDestination] = useState<string>('FCO');
+  const [originCity, setOriginCity] = useState<string>('Madrid');
+  const [destCity, setDestCity] = useState<string>('Rome');
+  const [originIata, setOriginIata] = useState<string>('MAD');
+  const [destIata, setDestIata] = useState<string>('FCO');
+
   const [earliestDate, setEarliestDate] = useState<string>(defaultEarliest);
   const [latestDate, setLatestDate] = useState<string>(defaultLatest);
   const [minNights, setMinNights] = useState<number>(2);
   const [maxNights, setMaxNights] = useState<number>(5);
-  const [budget, setBudget] = useState<number>(120);
+  const [budget, setBudget] = useState<number>(150);
   const [selectedCurrency, setSelectedCurrency] = useState<string>(initialCurrency);
+  const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Initialize participants with current user as organizer
+  const [participants, setParticipants] = useState<SelectedParticipant[]>(() => {
+    if (!user) return [];
+    return [
+      {
+        id: user.id || 'organizer',
+        name: (user as { name?: string }).name || user.username || 'Organizer',
+        email: user.email || '',
+        user_id: user.id,
+        is_guest: false,
+        is_organizer: true,
+      },
+    ];
+  });
+
+  useEffect(() => {
+    if (user && participants.length === 0) {
+      const timer = setTimeout(() => {
+        setParticipants([
+          {
+            id: user.id || 'organizer',
+            name: (user as { name?: string }).name || user.username || 'Organizer',
+            email: user.email || '',
+            user_id: user.id,
+            is_guest: false,
+            is_organizer: true,
+          },
+        ]);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [user, participants.length]);
+
   if (!isOpen) return null;
+
+  const travelersCount = Math.max(1, participants.length);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!origin || origin.length !== 3) {
+
+    const origCode = (originIata || originCity).trim().toUpperCase();
+    const destCode = (destIata || destCity).trim().toUpperCase();
+
+    if (!origCode || origCode.length !== 3) {
       setError('Origin must be a 3-letter IATA code (e.g. MAD, BCN, DUB)');
       return;
     }
-    if (!destination || destination.length < 3) {
-      setError('Destination must be an airport or city code (e.g. FCO, DUB, OPO)');
+    if (!destCode || destCode.length < 3) {
+      setError('Destination must be a valid airport or city code (e.g. FCO, DUB, OPO)');
       return;
     }
     if (new Date(earliestDate) > new Date(latestDate)) {
       setError('Earliest departure date must be before latest departure date');
       return;
     }
+    if (participants.length === 0) {
+      setError('At least one traveler or participant must be added to the monitored route.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       await onSubmit({
-        origin_iata: origin.trim().toUpperCase(),
-        destination_code: destination.trim().toUpperCase(),
+        origin_iata: origCode,
+        destination_code: destCode,
         earliest_date: earliestDate,
         latest_date: latestDate,
         min_nights: Number(minNights),
         max_nights: Number(maxNights),
-        travelers: 1,
+        travelers: travelersCount,
+        participants: participants,
         max_budget_eur: Number(budget),
         currency: selectedCurrency,
       });
@@ -107,46 +160,45 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
         <form onSubmit={handleSubmit} className={styles.form}>
           {error && <div className={styles.errorMessage}>{error}</div>}
 
-          <div className={styles.twoCol}>
-            <div className={styles.inputGroup}>
-              <label htmlFor="origin_iata" className={styles.label}>
-                Origin IATA Code
-              </label>
-              <input
-                id="origin_iata"
-                type="text"
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-                placeholder="MAD"
-                maxLength={3}
-                required
-                className={styles.input}
-              />
-              <span className={styles.hint}>e.g. MAD (Madrid), BCN (Barcelona)</span>
+          {/* Flight Route Corridor Intake from Trip Creation */}
+          <div className={styles.sectionGroup}>
+            <div className={styles.sectionLabel}>
+              <span>Flight Route Corridor & Airport Search</span>
             </div>
-
-            <div className={styles.inputGroup}>
-              <label htmlFor="destination_code" className={styles.label}>
-                Destination Code
-              </label>
-              <input
-                id="destination_code"
-                type="text"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value.toUpperCase())}
-                placeholder="FCO"
-                maxLength={10}
-                required
-                className={styles.input}
-              />
-              <span className={styles.hint}>e.g. FCO (Rome), DUB (Dublin), OPO</span>
-            </div>
+            <RouteIntakeBar
+              origin={originCity}
+              destination={destCity}
+              originIata={originIata}
+              destIata={destIata}
+              onOriginChange={setOriginCity}
+              onDestinationChange={setDestCity}
+              onOriginIataChange={setOriginIata}
+              onDestIataChange={setDestIata}
+              disabled={isSubmitting}
+            />
           </div>
 
+          {/* Travelers & Participants Manager from Trip Creation */}
+          <div className={styles.sectionGroup}>
+            <div className={styles.sectionLabel}>
+              <span>Travelers & Participants</span>
+              <span className={styles.badgeTravelers}>
+                {travelersCount} {travelersCount === 1 ? 'Traveler' : 'Travelers'}
+              </span>
+            </div>
+            <ParticipantsManager
+              participants={participants}
+              onChange={setParticipants}
+              disabled={isSubmitting}
+              currentUserId={user?.id}
+            />
+          </div>
+
+          {/* Departure Window (Earliest - Latest) */}
           <div className={styles.twoCol}>
             <div className={styles.inputGroup}>
               <label htmlFor="earliest_date" className={styles.label}>
-                Earliest Departure
+                Earliest Departure Window
               </label>
               <input
                 id="earliest_date"
@@ -160,7 +212,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
 
             <div className={styles.inputGroup}>
               <label htmlFor="latest_date" className={styles.label}>
-                Latest Departure
+                Latest Departure Window
               </label>
               <input
                 id="latest_date"
@@ -173,6 +225,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
             </div>
           </div>
 
+          {/* Stay Duration & Budget Envelope */}
           <div className={styles.twoCol}>
             <div className={styles.inputGroup}>
               <label htmlFor="min_nights" className={styles.label}>
@@ -204,41 +257,40 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
             </div>
 
             <div className={styles.inputGroup}>
-              <label htmlFor="currency_select" className={styles.label}>
-                Currency
+              <label className={styles.label}>
+                Target Ceiling Budget Envelope
               </label>
-              <select
-                id="currency_select"
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className={styles.input}
-              >
-                {SUPPORTED_CURRENCY_LIST.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.code} ({c.symbol}) - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.inputGroup}>
-              <label htmlFor="max_budget" className={styles.label}>
-                Target Ceiling Budget ({getCurrencyInfo(selectedCurrency).symbol} {selectedCurrency})
-              </label>
-              <input
-                id="max_budget"
-                type="number"
-                min={1}
-                max={50000}
-                step={5}
-                value={budget}
-                onChange={(e) => setBudget(Number(e.target.value))}
-                required
-                className={styles.input}
-              />
+              <div className={styles.budgetPillContainer}>
+                <input
+                  id="max_budget"
+                  type="number"
+                  min={1}
+                  max={50000}
+                  step={10}
+                  value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value))}
+                  required
+                  className={styles.budgetInput}
+                  placeholder="150"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsCurrencyWheelOpen(true)}
+                  title="Change currency with dynamic spin dial"
+                  className={styles.currencyTriggerBtn}
+                >
+                  <FlagIcon countryCode={getCurrencyInfo(selectedCurrency).flag} size={15} />
+                  <span>{selectedCurrency}</span>
+                  <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                    ({getCurrencyInfo(selectedCurrency).symbol})
+                  </span>
+                  <SettingsIcon size={12} color="var(--color-text-muted)" />
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* Modal Actions */}
           <div className={styles.modalFooter}>
             <button
               type="button"
@@ -256,7 +308,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
               {isSubmitting ? (
                 <>
                   <Spinner size={14} />
-                  <span>Scanning & Activating...</span>
+                  <span>Configuring Target...</span>
                 </>
               ) : (
                 <span>Activate Route Monitor</span>
@@ -264,6 +316,17 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
             </button>
           </div>
         </form>
+
+        {/* Currency Wheel Picker Modal from Trip Workspace */}
+        <CurrencyWheelPicker
+          isOpen={isCurrencyWheelOpen}
+          onClose={() => setIsCurrencyWheelOpen(false)}
+          selectedCurrency={selectedCurrency}
+          onSelectCurrency={(c) => {
+            setSelectedCurrency(c.code);
+            setIsCurrencyWheelOpen(false);
+          }}
+        />
       </div>
     </div>
   );

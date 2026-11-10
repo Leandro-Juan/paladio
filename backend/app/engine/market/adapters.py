@@ -203,6 +203,7 @@ class OpenLodgingFeed(LodgingFeed):
         check_in: date,
         check_out: date,
         session: AsyncSession | None = None,
+        taste: Any | None = None,
     ) -> LodgingQuote:
         offers = await self.search_offers(
             destination_code,
@@ -217,13 +218,42 @@ class OpenLodgingFeed(LodgingFeed):
             raise NoDataError(
                 f"No verified lodging data obtainable across providers for {destination_code}"
             )
-        # Returns lowest verified price offer
-        offers.sort(key=lambda x: x.base_price_per_night_cents)
+        from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+
+        candidates = [
+            HotelCandidate(
+                property_id=o.property_id or o.property_name or f"prop_{idx}",
+                name=o.property_name or "Hotel",
+                nightly_cents=o.base_price_per_night_cents,
+                stars=o.stars,
+                review_score=o.review_score,
+                review_count=o.review_count,
+                latitude=o.latitude,
+                longitude=o.longitude,
+                deep_link=o.deep_link,
+                provider=o.source,
+                confidence=o.confidence,
+                taxes_included=o.taxes_included,
+            )
+            for idx, o in enumerate(offers)
+        ]
+        user_pref = taste if isinstance(taste, dict) else None
+        ranked = rank_hotels(candidates, user_preferences=user_pref)
+        if ranked:
+            best_cand = ranked[0].candidate
+            for o in offers:
+                if (
+                    o.property_id and o.property_id == best_cand.property_id
+                ) or o.property_name == best_cand.name:
+                    o.quality_score = ranked[0].value_score
+                    return o
+            offers[0].quality_score = ranked[0].value_score
+            return offers[0]
         return offers[0]
 
 
 class SovereignLodgingScorer(LodgingScorer):
-    """Wraps Paladio's HybridSovereignScorer to evaluate lodging quality on 0-100 scale."""
+    """Evaluates lodging quality and value on 0-100 scale using taste-aware ranking."""
 
     def __init__(self):
         self.scorer = HybridSovereignScorer()
@@ -233,18 +263,35 @@ class SovereignLodgingScorer(LodgingScorer):
     ) -> list[float]:
         if not properties:
             return []
-        scores = []
-        for prop in properties:
-            # Baseline quality score modulated by real property attributes
-            score_val = (
-                prop.quality_score
-                if prop.quality_score is not None
-                else (
-                    prop.review_score * 10.0 if prop.review_score is not None else 0.0
-                )
+        from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+
+        candidates = [
+            HotelCandidate(
+                property_id=p.property_id or p.property_name or f"prop_{idx}",
+                name=p.property_name or "Hotel",
+                nightly_cents=p.base_price_per_night_cents,
+                stars=p.stars,
+                review_score=p.review_score,
+                review_count=p.review_count,
+                latitude=p.latitude,
+                longitude=p.longitude,
+                deep_link=p.deep_link,
+                provider=p.source,
+                confidence=p.confidence,
+                taxes_included=p.taxes_included,
             )
-            scores.append(float(score_val))
-        return scores
+            for idx, p in enumerate(properties)
+        ]
+        user_pref = taste if isinstance(taste, dict) else None
+        ranked = rank_hotels(candidates, user_preferences=user_pref)
+        score_by_id = {r.candidate.property_id: r.value_score for r in ranked}
+        return [
+            score_by_id.get(
+                p.property_id or p.property_name or f"prop_{idx}",
+                (p.review_score * 10.0 if p.review_score is not None else 70.0),
+            )
+            for idx, p in enumerate(properties)
+        ]
 
 
 class SovereignItineraryGate(ItineraryGate):

@@ -18,12 +18,15 @@
 
 .modalCard {
   width: 100%;
-  max-width: 520px;
+  max-width: 680px;
   background: var(--color-surface-card, #FFFFFF);
   border: 1px solid var(--color-border, #E2E8F0);
-  border-radius: var(--border-radius-xl, 14px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
+  border-radius: var(--border-radius-xl, 16px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-height: 92vh;
   animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -152,6 +155,83 @@
   font-size: 0.75rem;
   color: var(--color-text-muted, #64748B);
   font-family: var(--font-mono, monospace);
+  font-weight: 600;
+}
+
+.sectionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #64748B);
+}
+
+.badgeTravelers {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--color-bg-main, #F1F5F9);
+  color: var(--color-accent-primary, #0F4C5C);
+  border: 1px solid var(--color-border, #E2E8F0);
+}
+
+.budgetPillContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-bg-main, #FAF8F5);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 9999px;
+  padding: 6px 12px 6px 16px;
+  transition: border-color 0.15s ease;
+}
+
+.budgetPillContainer:focus-within {
+  border-color: var(--color-accent-primary, #0F4C5C);
+}
+
+.budgetInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.currencyTriggerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface-raised, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.currencyTriggerBtn:hover {
+  border-color: var(--color-accent-primary, #0F4C5C);
 }
 
 .modalFooter {
@@ -161,6 +241,7 @@
   gap: 0.75rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border, #E2E8F0);
+  flex-shrink: 0;
 }
 
 .cancelBtn {

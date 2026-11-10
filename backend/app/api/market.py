@@ -143,6 +143,7 @@ class RouteCreateRequest(BaseModel):
     min_nights: int = 1
     max_nights: int = 7
     travelers: int = 1
+    participants: list[dict[str, Any]] | None = None
     max_budget_eur: float = Field(..., gt=0)
     currency: str | None = None
 
@@ -161,6 +162,8 @@ class RouteItemResponse(BaseModel):
     latest_date: str
     min_nights: int
     max_nights: int
+    travelers: int = 1
+    participants: list[dict[str, Any]] | None = None
     max_budget_eur: float
     currency: str
     is_active: bool
@@ -233,6 +236,8 @@ class LodgingPricePoint(BaseModel):
     p75_eur: float | None = None
     n_properties: int = 0
     coverage_ratio: float | None = None
+    value_score: float | None = None
+    badge: str | None = None
 
 
 class HistoryResponse(BaseModel):
@@ -274,6 +279,9 @@ class LodgingSummary(BaseModel):
     booking_url: str | None = None
     source: str | None = None
     currency: str = "EUR"
+    value_score: float | None = None
+    badge: str | None = None
+    rank_reasons: list[str] = Field(default_factory=list)
 
 
 class CalendarDayItem(BaseModel):
@@ -395,6 +403,7 @@ class DealLodgingItem(BaseModel):
     source: str = "booking"
     is_live: bool = True
     taxes_included: bool = True
+    badge: str | None = None
 
 
 class DealPackageItem(BaseModel):
@@ -419,6 +428,8 @@ class DealPackageItem(BaseModel):
     flight: DealFlightItem
     return_flight: DealFlightItem | None = None
     lodging: DealLodgingItem
+    travelers: int = 1
+    participants: list[dict[str, Any]] | None = None
     currency: str = "EUR"
 
 
@@ -703,6 +714,8 @@ async def list_monitored_routes(
                 latest_date=a.latest_date.isoformat(),
                 min_nights=a.min_nights,
                 max_nights=a.max_nights,
+                travelers=a.travelers or 1,
+                participants=a.participants,
                 max_budget_eur=budget_disp,
                 currency=target_curr,
                 is_active=a.is_active,
@@ -758,6 +771,10 @@ async def create_monitored_route(
         .strip()
     )
 
+    travelers_count = (
+        max(1, len(req.participants)) if req.participants else max(1, req.travelers)
+    )
+
     alert = DealWatchAlertModel(
         id=new_id,
         user_id=user_id,
@@ -767,7 +784,8 @@ async def create_monitored_route(
         latest_date=l_date,
         min_nights=req.min_nights,
         max_nights=req.max_nights,
-        travelers=req.travelers,
+        travelers=travelers_count,
+        participants=req.participants,
         bags_needed=0,
         max_budget_cents=int(round(req.max_budget_eur * 100)),
         currency=target_currency,
@@ -870,6 +888,8 @@ async def create_monitored_route(
         latest_date=alert.latest_date.isoformat(),
         min_nights=alert.min_nights,
         max_nights=alert.max_nights,
+        travelers=alert.travelers or 1,
+        participants=alert.participants,
         max_budget_eur=round(alert.max_budget_cents / 100.0, 2),
         currency=alert.currency,
         is_active=alert.is_active,
@@ -1266,9 +1286,37 @@ async def get_route_price_history(
         for row in obs_rows
     }
 
-    # Fetch top property details for dates with observations
+    # Fetch top property details for dates with observations using taste-aware ranking
     best_props_by_date = {}
     if obs_rows:
+        from collections import defaultdict
+        from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+
+        city_stmt = (
+            select(CityModel)
+            .where(
+                (CityModel.id == dest_code.upper())
+                | (CityModel.country_code == dest_code.upper())
+                | (CityModel.name.ilike(f"%{dest_code}%"))
+            )
+            .limit(1)
+        )
+        city_obj = (await session.execute(city_stmt)).scalar_one_or_none()
+        center_lat = city_obj.center_lat if city_obj else None
+        center_lon = city_obj.center_lon if city_obj else None
+
+        user_prefs = (
+            (current_user.preferences or {})
+            if current_user and current_user.preferences
+            else {}
+        )
+        if not user_prefs and alert.user_id:
+            u_row = await session.scalar(
+                select(UserModel).where(UserModel.id == alert.user_id)
+            )
+            if u_row and u_row.preferences:
+                user_prefs = u_row.preferences
+
         prop_stmt = (
             select(
                 HotelRateObservationModel.check_in,
@@ -1280,6 +1328,13 @@ async def get_route_price_history(
                 HotelRateObservationModel.review_count,
                 HotelRateObservationModel.deep_link,
                 HotelRateObservationModel.provider,
+                HotelPropertyModel.latitude,
+                HotelPropertyModel.longitude,
+                HotelPropertyModel.property_type,
+                HotelRateObservationModel.free_cancellation,
+                HotelRateObservationModel.board,
+                HotelRateObservationModel.taxes_included,
+                HotelRateObservationModel.confidence,
             )
             .join(
                 HotelPropertyModel,
@@ -1295,18 +1350,51 @@ async def get_route_price_history(
             )
         )
         p_res = await session.execute(prop_stmt)
+        cands_by_date = defaultdict(list)
         for p_row in p_res.all():
             cin = p_row[0]
-            if cin not in best_props_by_date:
+            cands_by_date[cin].append(
+                HotelCandidate(
+                    property_id=p_row[2],
+                    name=p_row[3],
+                    nightly_cents=p_row[1],
+                    stars=float(p_row[4]) if p_row[4] else None,
+                    review_score=float(p_row[5]) if p_row[5] is not None else None,
+                    review_count=int(p_row[6]) if p_row[6] is not None else None,
+                    deep_link=p_row[7],
+                    provider=p_row[8],
+                    latitude=float(p_row[9]) if p_row[9] is not None else None,
+                    longitude=float(p_row[10]) if p_row[10] is not None else None,
+                    property_type=p_row[11] or "hotel",
+                    free_cancellation=p_row[12],
+                    board=p_row[13],
+                    taxes_included=p_row[14] if p_row[14] is not None else True,
+                    confidence=p_row[15] or "high",
+                )
+            )
+
+        for cin, cand_list in cands_by_date.items():
+            ranked = rank_hotels(
+                cand_list,
+                user_preferences=user_prefs,
+                center_lat=center_lat,
+                center_lon=center_lon,
+            )
+            if ranked:
+                best = ranked[0]
                 best_props_by_date[cin] = {
-                    "nightly_cents": p_row[1],
-                    "property_id": p_row[2],
-                    "name": p_row[3],
-                    "stars": int(p_row[4]) if p_row[4] else None,
-                    "review_score": p_row[5],
-                    "review_count": p_row[6],
-                    "deep_link": p_row[7],
-                    "provider": p_row[8],
+                    "nightly_cents": best.candidate.nightly_cents,
+                    "property_id": best.candidate.property_id,
+                    "name": best.candidate.name,
+                    "stars": int(best.candidate.stars)
+                    if best.candidate.stars
+                    else None,
+                    "review_score": best.candidate.review_score,
+                    "review_count": best.candidate.review_count,
+                    "deep_link": best.candidate.deep_link,
+                    "provider": best.candidate.provider,
+                    "value_score": best.value_score,
+                    "badge": best.badge,
                 }
 
     # Also fallback to existing market_price_ticks if older scan ticks exist
@@ -1359,6 +1447,8 @@ async def get_route_price_history(
                     min_eur=rate_val,
                     median_eur=med_val,
                     n_properties=stat.get("count", 1),
+                    value_score=bp.get("value_score"),
+                    badge=bp.get("badge"),
                 )
             )
         elif f_date in db_l_by_date:
@@ -1532,7 +1622,7 @@ async def get_route_lodging_for_date(
     route_id: str,
     check_in: date = Query(..., description="Check-in date (YYYY-MM-DD)"),
     nights: int = Query(3, ge=1, le=14, description="Stay duration in nights"),
-    adults: int = Query(2, ge=1, le=4, description="Number of guests"),
+    adults: int | None = Query(None, ge=1, le=16, description="Number of guests"),
     currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
@@ -1566,6 +1656,9 @@ async def get_route_lodging_for_date(
         r_count: int | None,
         b_url: str | None,
         src: str | None,
+        val_score: float | None = None,
+        badge_str: str | None = None,
+        reasons: list[str] | None = None,
     ) -> LodgingSummary:
         raw_eur = round(float(nightly_cents_val) / 100.0, 2)
         converted_nightly = _cvt_money(raw_eur, target_currency) or raw_eur
@@ -1580,9 +1673,39 @@ async def get_route_lodging_for_date(
             booking_url=b_url,
             source=src,
             currency=target_currency,
+            value_score=val_score,
+            badge=badge_str,
+            rank_reasons=reasons or [],
         )
 
     # 1. Query existing authentic hotel rate observations for this destination & check_in
+    from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+
+    user_prefs = (
+        (current_user.preferences or {})
+        if current_user and current_user.preferences
+        else {}
+    )
+    if not user_prefs and alert.user_id:
+        u_row = await session.scalar(
+            select(UserModel).where(UserModel.id == alert.user_id)
+        )
+        if u_row and u_row.preferences:
+            user_prefs = u_row.preferences
+
+    city_stmt = (
+        select(CityModel)
+        .where(
+            (CityModel.id == dest_code.upper())
+            | (CityModel.country_code == dest_code.upper())
+            | (CityModel.name.ilike(f"%{dest_code}%"))
+        )
+        .limit(1)
+    )
+    city_obj = (await session.execute(city_stmt)).scalar_one_or_none()
+    center_lat = city_obj.center_lat if city_obj else None
+    center_lon = city_obj.center_lon if city_obj else None
+
     obs_stmt = (
         select(
             HotelRateObservationModel.price_nightly_cents,
@@ -1592,6 +1715,14 @@ async def get_route_lodging_for_date(
             HotelRateObservationModel.review_count,
             HotelRateObservationModel.deep_link,
             HotelRateObservationModel.provider,
+            HotelPropertyModel.id,
+            HotelPropertyModel.latitude,
+            HotelPropertyModel.longitude,
+            HotelPropertyModel.property_type,
+            HotelRateObservationModel.free_cancellation,
+            HotelRateObservationModel.board,
+            HotelRateObservationModel.taxes_included,
+            HotelRateObservationModel.confidence,
         )
         .join(
             HotelPropertyModel,
@@ -1602,19 +1733,49 @@ async def get_route_lodging_for_date(
             HotelRateObservationModel.check_in == check_in,
         )
         .order_by(HotelRateObservationModel.price_nightly_cents.asc())
-        .limit(1)
     )
-    obs_row = (await session.execute(obs_stmt)).first()
-    if obs_row:
-        return _build_lodging_summary(
-            obs_row[0],
-            obs_row[1],
-            int(obs_row[2]) if obs_row[2] else None,
-            float(obs_row[3]) if obs_row[3] is not None else None,
-            int(obs_row[4]) if obs_row[4] is not None else None,
-            obs_row[5],
-            obs_row[6],
+    obs_rows = (await session.execute(obs_stmt)).all()
+    if obs_rows:
+        candidates = [
+            HotelCandidate(
+                property_id=r[7],
+                name=r[1],
+                nightly_cents=r[0],
+                stars=float(r[2]) if r[2] else None,
+                review_score=float(r[3]) if r[3] is not None else None,
+                review_count=int(r[4]) if r[4] is not None else None,
+                deep_link=r[5],
+                provider=r[6],
+                latitude=float(r[8]) if r[8] is not None else None,
+                longitude=float(r[9]) if r[9] is not None else None,
+                property_type=r[10] or "hotel",
+                free_cancellation=r[11],
+                board=r[12],
+                taxes_included=r[13] if r[13] is not None else True,
+                confidence=r[14] or "high",
+            )
+            for r in obs_rows
+        ]
+        ranked = rank_hotels(
+            candidates,
+            user_preferences=user_prefs,
+            center_lat=center_lat,
+            center_lon=center_lon,
         )
+        if ranked:
+            best = ranked[0]
+            return _build_lodging_summary(
+                best.candidate.nightly_cents,
+                best.candidate.name,
+                int(best.candidate.stars) if best.candidate.stars else None,
+                best.candidate.review_score,
+                best.candidate.review_count,
+                best.candidate.deep_link,
+                best.candidate.provider,
+                val_score=best.value_score,
+                badge_str=best.badge,
+                reasons=best.rank_reasons,
+            )
 
     # 2. Also check market_price_ticks if tick exists
     t_stmt = (
@@ -1640,6 +1801,8 @@ async def get_route_lodging_for_date(
             int(meta["review_count"]) if meta.get("review_count") is not None else None,
             meta.get("deep_link"),
             t_row.source,
+            badge_str="cheapest",
+            reasons=["Tick baseline estimate"],
         )
 
     # 3. Live on-demand multi-provider ingest if no observations cached
@@ -1662,17 +1825,48 @@ async def get_route_lodging_for_date(
         )
 
     # Re-query after ingestion
-    obs_row_after = (await session.execute(obs_stmt)).first()
-    if obs_row_after:
-        return _build_lodging_summary(
-            obs_row_after[0],
-            obs_row_after[1],
-            int(obs_row_after[2]) if obs_row_after[2] else None,
-            float(obs_row_after[3]) if obs_row_after[3] is not None else None,
-            int(obs_row_after[4]) if obs_row_after[4] is not None else None,
-            obs_row_after[5],
-            obs_row_after[6],
+    obs_rows_after = (await session.execute(obs_stmt)).all()
+    if obs_rows_after:
+        candidates_after = [
+            HotelCandidate(
+                property_id=r[7],
+                name=r[1],
+                nightly_cents=r[0],
+                stars=float(r[2]) if r[2] else None,
+                review_score=float(r[3]) if r[3] is not None else None,
+                review_count=int(r[4]) if r[4] is not None else None,
+                deep_link=r[5],
+                provider=r[6],
+                latitude=float(r[8]) if r[8] is not None else None,
+                longitude=float(r[9]) if r[9] is not None else None,
+                property_type=r[10] or "hotel",
+                free_cancellation=r[11],
+                board=r[12],
+                taxes_included=r[13] if r[13] is not None else True,
+                confidence=r[14] or "high",
+            )
+            for r in obs_rows_after
+        ]
+        ranked_after = rank_hotels(
+            candidates_after,
+            user_preferences=user_prefs,
+            center_lat=center_lat,
+            center_lon=center_lon,
         )
+        if ranked_after:
+            best = ranked_after[0]
+            return _build_lodging_summary(
+                best.candidate.nightly_cents,
+                best.candidate.name,
+                int(best.candidate.stars) if best.candidate.stars else None,
+                best.candidate.review_score,
+                best.candidate.review_count,
+                best.candidate.deep_link,
+                best.candidate.provider,
+                val_score=best.value_score,
+                badge_str=best.badge,
+                reasons=best.rank_reasons,
+            )
 
     # ZERO synthetic data fallback: raise 404 if no authentic provider data could be fetched
     raise HTTPException(
@@ -1920,32 +2114,39 @@ async def get_route_calendar(
                     hotel_rate_eur = 0.0
 
     # Effective quantiles for tiering
+    cal_travelers = getattr(alert, "travelers", 1) or 1
     if view == "roundtrip":
         effective_p10 = (
-            (p10 or 0)
-            + (inbound_p10 or p10 or 0)
+            ((p10 or 0) * cal_travelers)
+            + ((inbound_p10 or p10 or 0) * cal_travelers)
             + (hotel_rate_eur * alert.min_nights if pricing == "package" else 0)
         ) or None
         effective_p50 = (
-            (p50 or 0)
-            + (inbound_p50 or p50 or 0)
+            ((p50 or 0) * cal_travelers)
+            + ((inbound_p50 or p50 or 0) * cal_travelers)
             + (hotel_rate_eur * alert.min_nights if pricing == "package" else 0)
         ) or None
         effective_p90 = (
-            (p90 or 0)
-            + (inbound_p90 or p90 or 0)
+            ((p90 or 0) * cal_travelers)
+            + ((inbound_p90 or p90 or 0) * cal_travelers)
             + (hotel_rate_eur * alert.min_nights if pricing == "package" else 0)
         ) or None
         route_label = f"{alert.origin_iata} ⇄ {dest_name} ({dest_code}) · {alert.min_nights}-{alert.max_nights}N"
     elif view == "inbound":
-        effective_p10 = inbound_p10 or p10
-        effective_p50 = inbound_p50 or p50
-        effective_p90 = inbound_p90 or p90
+        effective_p10 = (
+            ((inbound_p10 or p10) * cal_travelers) if (inbound_p10 or p10) else None
+        )
+        effective_p50 = (
+            ((inbound_p50 or p50) * cal_travelers) if (inbound_p50 or p50) else None
+        )
+        effective_p90 = (
+            ((inbound_p90 or p90) * cal_travelers) if (inbound_p90 or p90) else None
+        )
         route_label = f"{dest_name} ({dest_code}) → {alert.origin_iata}"
     else:
-        effective_p10 = p10
-        effective_p50 = p50
-        effective_p90 = p90
+        effective_p10 = (p10 * cal_travelers) if p10 else None
+        effective_p50 = (p50 * cal_travelers) if p50 else None
+        effective_p90 = (p90 * cal_travelers) if p90 else None
         route_label = f"{alert.origin_iata} → {dest_name} ({dest_code})"
 
     months_list: list[CalendarMonthItem] = []
@@ -1975,7 +2176,10 @@ async def get_route_calendar(
                         cand_ret_str = cand_ret_date.isoformat()
                         if cand_ret_str in inbound_quotes:
                             in_q = inbound_quotes[cand_ret_str]
-                            total_fare = out_q["price_eur"] + in_q["price_eur"]
+                            flight_part = (
+                                out_q["price_eur"] + in_q["price_eur"]
+                            ) * cal_travelers
+                            total_fare = flight_part
                             if pricing == "package":
                                 total_fare += hotel_rate_eur * n
 
@@ -1997,13 +2201,19 @@ async def get_route_calendar(
                             else 0.0
                         )
                         day_p10 = (
-                            (p10 or 0) + (inbound_p10 or p10 or 0) + night_hotel
+                            ((p10 or 0) * cal_travelers)
+                            + ((inbound_p10 or p10 or 0) * cal_travelers)
+                            + night_hotel
                         ) or None
                         day_p50 = (
-                            (p50 or 0) + (inbound_p50 or p50 or 0) + night_hotel
+                            ((p50 or 0) * cal_travelers)
+                            + ((inbound_p50 or p50 or 0) * cal_travelers)
+                            + night_hotel
                         ) or None
                         day_p90 = (
-                            (p90 or 0) + (inbound_p90 or p90 or 0) + night_hotel
+                            ((p90 or 0) * cal_travelers)
+                            + ((inbound_p90 or p90 or 0) * cal_travelers)
+                            + night_hotel
                         ) or None
 
                         if day_p10 and price <= day_p10:
@@ -2036,7 +2246,9 @@ async def get_route_calendar(
                                     duration_mins=out_q["duration_mins"],
                                     departure_time=out_q["departure_time"],
                                     booking_url=out_q["booking_url"],
-                                    price_eur=out_q["price_eur"],
+                                    price_eur=round(
+                                        out_q["price_eur"] * cal_travelers, 2
+                                    ),
                                 ),
                                 return_flight=FlightSummary(
                                     carrier=best_ret_q["carrier"],
@@ -2044,7 +2256,9 @@ async def get_route_calendar(
                                     duration_mins=best_ret_q["duration_mins"],
                                     departure_time=best_ret_q["departure_time"],
                                     booking_url=best_ret_q["booking_url"],
-                                    price_eur=best_ret_q["price_eur"],
+                                    price_eur=round(
+                                        best_ret_q["price_eur"] * cal_travelers, 2
+                                    ),
                                 ),
                                 lodging=LodgingSummary(
                                     nights=best_nights,
@@ -2092,13 +2306,19 @@ async def get_route_calendar(
             else:
                 # One-way view (outbound or inbound)
                 active_quotes = inbound_quotes if view == "inbound" else outbound_quotes
-                eff_p10 = inbound_p10 if view == "inbound" else p10
-                eff_p50 = inbound_p50 if view == "inbound" else p50
-                eff_p90 = inbound_p90 if view == "inbound" else p90
+                eff_p10 = (inbound_p10 if view == "inbound" else p10) or None
+                eff_p50 = (inbound_p50 if view == "inbound" else p50) or None
+                eff_p90 = (inbound_p90 if view == "inbound" else p90) or None
+                if eff_p10:
+                    eff_p10 = round(eff_p10 * cal_travelers, 2)
+                if eff_p50:
+                    eff_p50 = round(eff_p50 * cal_travelers, 2)
+                if eff_p90:
+                    eff_p90 = round(eff_p90 * cal_travelers, 2)
 
                 if date_str in active_quotes:
                     q = active_quotes[date_str]
-                    price = q["price_eur"]
+                    price = round(q["price_eur"] * cal_travelers, 2)
                     if eff_p10 and price <= eff_p10:
                         tier = "deal"
                     elif eff_p50 and price <= eff_p50:
@@ -2434,6 +2654,14 @@ async def _format_deal_package_item(
     if not orig or not dest:
         return None
 
+    alert = None
+    if ev.alert_id:
+        alert = await session.scalar(
+            select(DealWatchAlertModel).where(DealWatchAlertModel.id == ev.alert_id)
+        )
+    travelers = getattr(alert, "travelers", 1) or pkg.get("travelers", 1) or 1
+    participants = getattr(alert, "participants", None) or pkg.get("participants")
+
     orig_name = pkg.get("origin_name") or await _resolve_city_name(session, orig)
     dest_name = pkg.get("destination_name") or await _resolve_city_name(session, dest)
 
@@ -2446,8 +2674,10 @@ async def _format_deal_package_item(
     fl_number = flight_info.get("flight_number") or ""
     fl_dep_time = flight_info.get("depart_time") or ""
     fl_arr_time = flight_info.get("arrival_time") or ""
-    fl_base_cents = flight_info.get("base_price_cents", 0)
-    fl_landed_cents = flight_info.get("landed_price_cents") or fl_base_cents
+    fl_base_unit = flight_info.get("base_price_cents", 0)
+    fl_landed_unit = flight_info.get("landed_price_cents") or fl_base_unit
+    fl_base_cents = int(fl_base_unit * travelers)
+    fl_landed_cents = int(fl_landed_unit * travelers)
     fl_url = (
         flight_info.get("deep_link")
         or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={orig}&destinationIata={dest}&dateOut={dep_date}"
@@ -2455,6 +2685,8 @@ async def _format_deal_package_item(
 
     lodging_info = pkg.get("lodging") or {}
     lg_name = lodging_info.get("property_name") or f"Hotel in {dest_name}"
+    if travelers > 1 and "Guest" not in lg_name and "people" not in lg_name:
+        lg_name = f"{lg_name} ({travelers} Guests)"
     lg_nightly_cents = lodging_info.get("base_nightly_cents", 0)
     lg_landed_cents = lodging_info.get("landed_total_cents") or (
         lg_nightly_cents * nights
@@ -2462,17 +2694,40 @@ async def _format_deal_package_item(
     lg_quality = lodging_info.get("quality_score")
     lg_url = (
         lodging_info.get("deep_link")
-        or f"https://www.booking.com/searchresults.html?ss={dest_name}&checkin={dep_date}&checkout={ret_date}&group_adults=2&no_rooms=1"
+        or f"https://www.booking.com/searchresults.html?ss={dest_name}&checkin={dep_date}&checkout={ret_date}&group_adults={travelers}&no_rooms=1"
     )
 
-    total_landed_cents = pkg.get("total_landed_cents") or (
-        fl_landed_cents + lg_landed_cents
-    )
+    ret_flight_info = pkg.get("return_flight")
+    ret_flight_item = None
+    ret_landed_cents = 0
+    if ret_flight_info:
+        ret_base_unit = ret_flight_info.get("base_price_cents", 0)
+        ret_landed_unit = ret_flight_info.get("landed_price_cents") or ret_base_unit
+        ret_base_cents = int(ret_base_unit * travelers)
+        ret_landed_cents = int(ret_landed_unit * travelers)
+        ret_flight_item = DealFlightItem(
+            airline=ret_flight_info.get("airline") or "Ryanair",
+            flight_number=ret_flight_info.get("flight_number") or "FR1025",
+            depart_time=ret_flight_info.get("depart_time") or f"{ret_date}T18:45:00Z",
+            arrival_time=ret_flight_info.get("arrival_time") or f"{ret_date}T21:20:00Z",
+            base_price_eur=round(ret_base_cents / 100.0, 2),
+            landed_price_eur=round(ret_landed_cents / 100.0, 2),
+            booking_url=ret_flight_info.get("deep_link")
+            or f"https://www.ryanair.com/flights?origin={dest}&dest={orig}&date={ret_date}",
+            source=ret_flight_info.get("source", "carrier"),
+            is_live=ret_flight_info.get("is_live", True),
+            ancillaries_excluded=True,
+        )
+
+    total_landed_cents = pkg.get("total_landed_cents")
+    if total_landed_cents is None or travelers > 1:
+        total_landed_cents = fl_landed_cents + ret_landed_cents + lg_landed_cents
+
     savings_cents = pkg.get("landed_savings_cents") or 0
     package_ratio = pkg.get("package_ratio") or 0.75
     realism = pkg.get("realism_score") or 8.5
 
-    total_price_eur = pkg.get("total_price_eur") or round(total_landed_cents / 100.0, 2)
+    total_price_eur = round(total_landed_cents / 100.0, 2)
     savings_eur = pkg.get("savings_eur") or round(savings_cents / 100.0, 2)
     baseline_median_eur = pkg.get("baseline_median_eur") or round(
         (total_landed_cents + savings_cents) / 100.0, 2
@@ -2480,25 +2735,6 @@ async def _format_deal_package_item(
     discount_pct = pkg.get("discount_pct") or round(
         max((1.0 - package_ratio) * 100, 0.0), 1
     )
-
-    ret_flight_info = pkg.get("return_flight")
-    ret_flight_item = None
-    if ret_flight_info:
-        ret_flight_item = DealFlightItem(
-            airline=ret_flight_info.get("airline") or "Ryanair",
-            flight_number=ret_flight_info.get("flight_number") or "FR1025",
-            depart_time=ret_flight_info.get("depart_time") or f"{ret_date}T18:45:00Z",
-            arrival_time=ret_flight_info.get("arrival_time") or f"{ret_date}T21:20:00Z",
-            base_price_eur=round(ret_flight_info.get("base_price_cents", 0) / 100.0, 2),
-            landed_price_eur=round(
-                ret_flight_info.get("landed_price_cents", 0) / 100.0, 2
-            ),
-            booking_url=ret_flight_info.get("deep_link")
-            or f"https://www.ryanair.com/flights?origin={dest}&dest={orig}&date={ret_date}",
-            source=ret_flight_info.get("source", "carrier"),
-            is_live=ret_flight_info.get("is_live", True),
-            ancillaries_excluded=True,
-        )
 
     return DealPackageItem(
         id=ev.id,
@@ -2547,6 +2783,8 @@ async def _format_deal_package_item(
             is_live=lodging_info.get("is_live", True),
             taxes_included=lodging_info.get("taxes_included", True),
         ),
+        travelers=travelers,
+        participants=participants,
     )
 
 
@@ -2693,15 +2931,52 @@ async def list_route_deals(
                 for row in (await session.execute(fwd_ret_stmt)).all()
             }
 
+            from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+            from collections import defaultdict
+
+            city_stmt = (
+                select(CityModel)
+                .where(
+                    (CityModel.id == dest_code.upper())
+                    | (CityModel.country_code == dest_code.upper())
+                    | (CityModel.name.ilike(f"%{dest_code}%"))
+                )
+                .limit(1)
+            )
+            city_obj = (await session.execute(city_stmt)).scalar_one_or_none()
+            center_lat = city_obj.center_lat if city_obj else None
+            center_lon = city_obj.center_lon if city_obj else None
+
+            user_prefs = (
+                (current_user.preferences or {})
+                if current_user and current_user.preferences
+                else {}
+            )
+            if not user_prefs and alert.user_id:
+                u_row = await session.scalar(
+                    select(UserModel).where(UserModel.id == alert.user_id)
+                )
+                if u_row and u_row.preferences:
+                    user_prefs = u_row.preferences
+
             prop_stmt = (
                 select(
+                    HotelRateObservationModel.check_in,
                     HotelRateObservationModel.price_nightly_cents,
+                    HotelRateObservationModel.property_id,
                     HotelPropertyModel.name,
                     HotelPropertyModel.stars,
                     HotelRateObservationModel.review_score,
                     HotelRateObservationModel.review_count,
                     HotelRateObservationModel.deep_link,
                     HotelRateObservationModel.provider,
+                    HotelPropertyModel.latitude,
+                    HotelPropertyModel.longitude,
+                    HotelPropertyModel.property_type,
+                    HotelRateObservationModel.free_cancellation,
+                    HotelRateObservationModel.board,
+                    HotelRateObservationModel.taxes_included,
+                    HotelRateObservationModel.confidence,
                 )
                 .join(
                     HotelPropertyModel,
@@ -2711,10 +2986,58 @@ async def list_route_deals(
                     HotelRateObservationModel.destination_code == dest_code,
                     HotelRateObservationModel.check_in >= today,
                 )
-                .order_by(HotelRateObservationModel.price_nightly_cents.asc())
-                .limit(20)
+                .order_by(
+                    HotelRateObservationModel.check_in.asc(),
+                    HotelRateObservationModel.price_nightly_cents.asc(),
+                )
             )
             prop_rows = (await session.execute(prop_stmt)).all()
+            cands_by_date = defaultdict(list)
+            for p_row in prop_rows:
+                cin = p_row[0]
+                cands_by_date[cin].append(
+                    HotelCandidate(
+                        property_id=p_row[2],
+                        name=p_row[3],
+                        nightly_cents=p_row[1],
+                        stars=float(p_row[4]) if p_row[4] else None,
+                        review_score=float(p_row[5]) if p_row[5] is not None else None,
+                        review_count=int(p_row[6]) if p_row[6] is not None else None,
+                        deep_link=p_row[7],
+                        provider=p_row[8],
+                        latitude=float(p_row[9]) if p_row[9] is not None else None,
+                        longitude=float(p_row[10]) if p_row[10] is not None else None,
+                        property_type=p_row[11] or "hotel",
+                        free_cancellation=p_row[12],
+                        board=p_row[13],
+                        taxes_included=p_row[14] if p_row[14] is not None else True,
+                        confidence=p_row[15] or "high",
+                    )
+                )
+
+            best_hotel_by_date = {}
+            for cin, cl in cands_by_date.items():
+                ranked_d = rank_hotels(
+                    cl,
+                    user_preferences=user_prefs,
+                    center_lat=center_lat,
+                    center_lon=center_lon,
+                )
+                if ranked_d:
+                    best_hotel_by_date[cin] = ranked_d[0]
+
+            all_cands = [c for cl in cands_by_date.values() for c in cl]
+            general_ranked = (
+                rank_hotels(
+                    all_cands,
+                    user_preferences=user_prefs,
+                    center_lat=center_lat,
+                    center_lon=center_lon,
+                )
+                if all_cands
+                else []
+            )
+            general_best = general_ranked[0] if general_ranked else None
 
             tick_props = []
             if not prop_rows:
@@ -2769,26 +3092,23 @@ async def list_route_deals(
                     continue
                 seen_dates.add((dep_dt, best_ret[2]))
 
-                cand_idx = len(cand_packages)
-                p_row = prop_rows[cand_idx % len(prop_rows)] if prop_rows else None
-                t_row = (
-                    tick_props[cand_idx % len(tick_props)]
-                    if (not p_row and tick_props)
-                    else None
-                )
-
-                if p_row:
-                    hotel_nightly_cents = int(p_row[0])
-                    prop_name = p_row[1] or f"Hotel in {dest_name}"
-                    prop_stars = float(p_row[2]) if p_row[2] else None
-                    prop_rev_score = float(p_row[3]) if p_row[3] is not None else None
-                    prop_rev_count = int(p_row[4]) if p_row[4] is not None else None
+                chosen_ranked = best_hotel_by_date.get(dep_dt) or general_best
+                if chosen_ranked:
+                    cand = chosen_ranked.candidate
+                    hotel_nightly_cents = cand.nightly_cents
+                    prop_name = cand.name
+                    prop_stars = cand.stars
+                    prop_rev_score = cand.review_score
+                    prop_rev_count = cand.review_count
                     prop_link = (
-                        p_row[5]
+                        cand.deep_link
                         or f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
                     )
-                    prop_src = p_row[6] or "lodging"
-                elif t_row:
+                    prop_src = cand.provider or "lodging"
+                    prop_badge = chosen_ranked.badge
+                elif tick_props:
+                    cand_idx = len(cand_packages)
+                    t_row = tick_props[cand_idx % len(tick_props)]
                     hotel_nightly_cents = int(t_row.base_price_cents)
                     meta = t_row.metadata_json or {}
                     prop_name = meta.get("property_name") or f"Hotel in {dest_name}"
@@ -2808,6 +3128,7 @@ async def list_route_deals(
                         or f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
                     )
                     prop_src = t_row.source or "lodging"
+                    prop_badge = "standard"
                 else:
                     hotel_nightly_cents = fallback_hotel_cents
                     prop_name = f"Lodging in {dest_name}"
@@ -2818,13 +3139,29 @@ async def list_route_deals(
                         f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}"
                     )
                     prop_src = "lodging"
+                    prop_badge = "standard"
 
-                total_fl_cents = out_cents + best_ret[0]
+                cand_travelers = getattr(alert, "travelers", 1) or 1
+                cand_participants = getattr(alert, "participants", None)
+
+                if (
+                    cand_travelers > 1
+                    and "Guest" not in prop_name
+                    and "people" not in prop_name
+                ):
+                    prop_name = f"{prop_name} ({cand_travelers} Guests)"
+                if cand_travelers > 1:
+                    prop_link = f"https://www.google.com/travel/search?q=Hotels+in+{dest_name}+for+{cand_travelers}+guests"
+
+                total_fl_cents = (out_cents + best_ret[0]) * cand_travelers
                 total_hotel_cents = hotel_nightly_cents * best_nights
                 total_package_cents = total_fl_cents + total_hotel_cents
 
                 baseline_pkg_cents = (
-                    (median_fl_cents * 2) + int(hotel_nightly_cents * best_nights * 1.5)
+                    (
+                        (median_fl_cents * 2 * cand_travelers)
+                        + int(hotel_nightly_cents * best_nights * 1.5)
+                    )
                     if median_fl_cents and hotel_nightly_cents
                     else total_package_cents
                 )
@@ -2860,8 +3197,10 @@ async def list_route_deals(
                             flight_number="FR1024",
                             depart_time=f"{dep_dt.isoformat()}T08:30:00Z",
                             arrival_time=f"{dep_dt.isoformat()}T11:05:00Z",
-                            base_price_eur=round(out_cents / 100.0, 2),
-                            landed_price_eur=round(out_cents / 100.0, 2),
+                            base_price_eur=round(out_cents * cand_travelers / 100.0, 2),
+                            landed_price_eur=round(
+                                out_cents * cand_travelers / 100.0, 2
+                            ),
                             booking_url=f"https://www.ryanair.com/flights?origin={alert.origin_iata}&dest={dest_code}&date={dep_dt.isoformat()}",
                             source="ryanair",
                             is_live=True,
@@ -2872,8 +3211,12 @@ async def list_route_deals(
                             flight_number="FR1025",
                             depart_time=f"{best_ret[2].isoformat()}T18:45:00Z",
                             arrival_time=f"{best_ret[2].isoformat()}T21:20:00Z",
-                            base_price_eur=round(best_ret[0] / 100.0, 2),
-                            landed_price_eur=round(best_ret[0] / 100.0, 2),
+                            base_price_eur=round(
+                                best_ret[0] * cand_travelers / 100.0, 2
+                            ),
+                            landed_price_eur=round(
+                                best_ret[0] * cand_travelers / 100.0, 2
+                            ),
                             booking_url=f"https://www.ryanair.com/flights?origin={dest_code}&dest={alert.origin_iata}&date={best_ret[2].isoformat()}",
                             source="ryanair",
                             is_live=True,
@@ -2893,7 +3236,10 @@ async def list_route_deals(
                             source=prop_src,
                             is_live=True,
                             taxes_included=True,
+                            badge=prop_badge,
                         ),
+                        travelers=cand_travelers,
+                        participants=cand_participants,
                     )
                 )
 

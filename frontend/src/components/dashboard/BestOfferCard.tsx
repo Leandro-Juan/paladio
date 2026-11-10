@@ -6,7 +6,7 @@ import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { apiFetch } from '@/utils/api';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
-import { ChevronRightIcon } from '@/components/icons';
+import { ArrowRightIcon } from '@/components/icons';
 import styles from './BestOfferCard.module.css';
 
 export function BestOfferCard() {
@@ -90,10 +90,10 @@ export function BestOfferCard() {
           </div>
 
           {/* Route Header */}
-          <h3 className={styles.routeTitle} title={`${activeDeal.origin_iata} to ${activeDeal.destination_name}`}>
+          <h3 className={styles.routeTitle} title={`${activeDeal.origin_iata} to ${activeDeal.destination_name} (${activeDeal.destination_code})`}>
             <span>{activeDeal.origin_iata}</span>
-            <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
-            <span>{activeDeal.destination_name}</span>
+            <ArrowRightIcon size={14} className={styles.arrow} aria-hidden="true" />
+            <span>{activeDeal.destination_code || activeDeal.destination_name}</span>
           </h3>
 
           <span className={styles.datesSubtitle}>
@@ -224,10 +224,10 @@ export function BestOfferCard() {
           ) : null}
         </div>
 
-        <h3 className={styles.routeTitle}>
+        <h3 className={styles.routeTitle} title={bestDiscountRoute?.destination_name ? `${bestDiscountRoute.origin_iata} to ${bestDiscountRoute.destination_name} (${bestDiscountRoute.destination_code})` : undefined}>
           <span>{bestDiscountRoute?.origin_iata}</span>
-          <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
-          <span>{bestDiscountRoute?.destination_name}</span>
+          <ArrowRightIcon size={14} className={styles.arrow} aria-hidden="true" />
+          <span>{bestDiscountRoute?.destination_code || bestDiscountRoute?.destination_name}</span>
         </h3>
 
         <span className={styles.datesSubtitle}>

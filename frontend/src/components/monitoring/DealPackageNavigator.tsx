@@ -34,10 +34,11 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
   };
 
   const handleMakeTrip = () => {
+    const travelersParam = deal.travelers && deal.travelers > 1 ? `&travelers=${deal.travelers}` : '';
     router.push(
       `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
         deal.origin_name
-      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
+      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}${travelersParam}`
     );
   };
 
@@ -106,7 +107,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
               <span className={styles.routeIata}>({deal.destination_code})</span>
             </h3>
             <span className={styles.dealDatesSub}>
-              {deal.depart_date} → {deal.return_date} · {deal.nights} Nights Stay & Flight
+              {deal.depart_date} → {deal.return_date} · {deal.nights} Nights Stay & Flight{deal.travelers && deal.travelers > 1 ? ` · ${deal.travelers} Travelers` : ''}
             </span>
           </div>
 
@@ -177,7 +178,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             </div>
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
-                {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), activeCurrency)} Roundtrip Flights
+                {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), activeCurrency)} Roundtrip Flights{deal.travelers && deal.travelers > 1 ? ` (${deal.travelers} travelers)` : ''}
               </span>
               {deal.flight.booking_url && (
                 <a
@@ -215,7 +216,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             </div>
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
-                {formatCurrencyAmount(deal.lodging.landed_total_eur, activeCurrency)} Landed ({deal.nights} Nights)
+                {formatCurrencyAmount(deal.lodging.landed_total_eur, activeCurrency)} Landed ({deal.nights} Nights{deal.travelers && deal.travelers > 1 ? ` · ${deal.travelers} Guests` : ''})
               </span>
               {deal.lodging.booking_url && (
                 <a

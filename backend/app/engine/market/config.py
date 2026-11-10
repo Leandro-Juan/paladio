@@ -64,6 +64,36 @@ class MarketConfig:
         os.getenv("MARKET_MAX_ALERTS_PER_USER_PER_DAY", "3")
     )
 
+    # Lodging taste-aware ranking configuration
+    LODGING_MIN_REVIEWS: int = int(os.getenv("MARKET_LODGING_MIN_REVIEWS", "15"))
+    LODGING_PRIOR_REVIEWS_M: float = float(
+        os.getenv("MARKET_LODGING_PRIOR_REVIEWS_M", "50.0")
+    )
+    LODGING_PRIOR_RATING_C: float = float(
+        os.getenv("MARKET_LODGING_PRIOR_RATING_C", "7.5")
+    )
+    LODGING_MAX_CENTER_KM: float = float(
+        os.getenv("MARKET_LODGING_MAX_CENTER_KM", "12.0")
+    )
+    LODGING_WEIGHT_PRICE: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_PRICE", "0.30")
+    )
+    LODGING_WEIGHT_QUALITY: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_QUALITY", "0.25")
+    )
+    LODGING_WEIGHT_LOCATION: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_LOCATION", "0.20")
+    )
+    LODGING_WEIGHT_TASTE: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_TASTE", "0.15")
+    )
+    LODGING_WEIGHT_FLEXIBILITY: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_FLEXIBILITY", "0.05")
+    )
+    LODGING_WEIGHT_TRUST: float = float(
+        os.getenv("MARKET_LODGING_WEIGHT_TRUST", "0.05")
+    )
+
 
 config = MarketConfig()
 CORPUS_HORIZON_MONTHS = config.CORPUS_HORIZON_MONTHS

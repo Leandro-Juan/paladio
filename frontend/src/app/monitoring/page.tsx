@@ -294,7 +294,7 @@ export default function MonitoringPage() {
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), dealCurrency)} Landed Flights
+                      {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), dealCurrency)} Landed Flights {deal.travelers && deal.travelers > 1 ? `(${deal.travelers} travelers)` : ''}
                     </span>
                     {deal.flight.booking_url && (
                       <a
@@ -319,6 +319,7 @@ export default function MonitoringPage() {
                       Accommodation
                     </span>
                     <span className={styles.componentCarrierBadge}>
+                      {deal.lodging.badge && deal.lodging.badge !== 'standard' ? `${deal.lodging.badge === 'best_value' ? '⚡ Best Value' : deal.lodging.badge === 'cheapest' ? '🏷 Cheapest' : deal.lodging.badge === 'top_rated' ? '★ Top Rated' : '📍 Central'} · ` : ''}
                       {deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)}/100 Quality` : (deal.lodging.stars ? `★ ${deal.lodging.stars} Stars` : 'Verified Stay')}
                     </span>
                   </div>
@@ -332,7 +333,7 @@ export default function MonitoringPage() {
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      {formatCurrencyAmount(deal.lodging.landed_total_eur, dealCurrency)} Landed
+                      {formatCurrencyAmount(deal.lodging.landed_total_eur, dealCurrency)} Landed {deal.travelers && deal.travelers > 1 ? `· ${deal.travelers} Guests` : ''}
                     </span>
                     {deal.lodging.booking_url && (
                       <a
@@ -365,7 +366,7 @@ export default function MonitoringPage() {
                       router.push(
                         `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
                           deal.origin_name
-                        )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}`
+                        )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}&travelers=${deal.travelers || 1}`
                       )
                     }
                   >
