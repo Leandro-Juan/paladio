@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -385,6 +386,271 @@ def _populate_corridor_constraints(
         tc["corridor"] = f"{orig_iata} → {dest_iata}"
     elif dest_iata:
         tc["corridor"] = f"→ {dest_iata}"
+
+    return itin_data
+
+
+def _populate_initial_anchors(
+    itin_data: dict[str, Any] | None,
+    destination: str | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> dict[str, Any]:
+    """
+    Populates initial airport and hotel anchors for trips where only airport and/or hotel
+    are specified (such as blank trips or empty day paths).
+    - Trip arrival (first POI of the trip): Airport
+    - Trip departure (last POI of the trip): Airport
+    - Daily base camps: Hotel as first and last POI of every day (except first day where first is Airport,
+      and last day where last is Airport).
+    - If no hotel is provided, hotel is omitted.
+    - Zero hardcoded synthetic data: fully dynamic.
+    """
+    if not isinstance(itin_data, dict):
+        itin_data = {}
+
+    days = itin_data.get("days")
+    if not isinstance(days, list) or len(days) == 0:
+        num_days = 1
+        if start_date and end_date:
+            try:
+                s_dt = datetime.fromisoformat(start_date.split("T")[0])
+                e_dt = datetime.fromisoformat(end_date.split("T")[0])
+                diff = (e_dt - s_dt).days + 1
+                if diff > 0:
+                    num_days = diff
+            except Exception:
+                num_days = 1
+        days = []
+        for i in range(1, num_days + 1):
+            days.append(
+                {
+                    "day": i,
+                    "theme": f"Day {i} Exploration",
+                    "itinerary": {"path": []},
+                    "activities": [],
+                }
+            )
+        itin_data["days"] = days
+
+    # Check if days already contain non-empty path POIs
+    has_existing_places = False
+    for d in days:
+        if isinstance(d, dict):
+            p = (
+                d.get("itinerary", {}).get("path")
+                if isinstance(d.get("itinerary"), dict)
+                else None
+            )
+            acts = d.get("activities")
+            if (isinstance(p, list) and len(p) > 0) or (
+                isinstance(acts, list) and len(acts) > 0
+            ):
+                has_existing_places = True
+                break
+
+    if has_existing_places:
+        return itin_data
+
+    tc = (
+        itin_data.get("travel_constraints")
+        if isinstance(itin_data.get("travel_constraints"), dict)
+        else {}
+    )
+    dest_iata = tc.get("destination_iata")
+    if not dest_iata and isinstance(itin_data.get("outbound_flight"), dict):
+        dest_iata = itin_data["outbound_flight"].get("destination_iata")
+
+    airport_poi = None
+    try:
+        from app.services.airport_service import get_airport_service
+
+        svc = get_airport_service()
+        ap_info = None
+        if dest_iata:
+            ap_info = svc.get_airport(dest_iata)
+        if not ap_info and destination:
+            ap_info = svc.resolve_airport_for_city(destination)
+        if not ap_info and destination:
+            clean_dest = destination.split(",")[0].strip()
+            ap_info = svc.resolve_airport_for_city(clean_dest)
+
+        if ap_info:
+            ap_iata = ap_info.iata or dest_iata or "AIR"
+            airport_poi = {
+                "id": f"airport-{ap_iata.lower()}",
+                "name": ap_info.name or f"{ap_iata} Airport",
+                "city": ap_info.city or destination or "",
+                "category": "AIRPORT",
+                "duration_mins": 120,
+                "cost_eur": 0.0,
+                "location": {
+                    "latitude": float(ap_info.latitude),
+                    "longitude": float(ap_info.longitude),
+                },
+            }
+        elif dest_iata:
+            airport_poi = {
+                "id": f"airport-{dest_iata.lower()}",
+                "name": f"{dest_iata.upper()} Airport",
+                "city": destination or "",
+                "category": "AIRPORT",
+                "duration_mins": 120,
+                "cost_eur": 0.0,
+                "location": {"latitude": 0.0, "longitude": 0.0},
+            }
+    except Exception as e:
+        logger.warning(f"Could not resolve airport in _populate_initial_anchors: {e}")
+
+    hotel_info = (
+        itin_data.get("hotel")
+        or tc.get("hotel")
+        or (
+            {"name": itin_data.get("accommodation")}
+            if itin_data.get("accommodation")
+            else None
+        )
+    )
+    hotel_poi = None
+    if isinstance(hotel_info, dict) and hotel_info.get("name"):
+        h_name = str(hotel_info["name"]).strip()
+        h_lat = hotel_info.get("lat") or (
+            hotel_info.get("location", {}).get("latitude")
+            if isinstance(hotel_info.get("location"), dict)
+            else None
+        )
+        h_lng = hotel_info.get("lng") or (
+            hotel_info.get("location", {}).get("longitude")
+            if isinstance(hotel_info.get("location"), dict)
+            else None
+        )
+
+        if (
+            h_lat is None or h_lng is None or (h_lat == 0.0 and h_lng == 0.0)
+        ) and destination:
+            try:
+                from app.services.airport_service import get_airport_service
+
+                clean_dest = destination.split(",")[0].strip()
+                locs = get_airport_service().search_locations(
+                    f"{h_name} {clean_dest}", limit=1
+                )
+                if locs:
+                    h_lat = locs[0].get("latitude")
+                    h_lng = locs[0].get("longitude")
+            except Exception:
+                pass
+
+        hotel_poi = {
+            "id": "hotel-base",
+            "name": h_name,
+            "city": destination or "",
+            "category": "HOTEL",
+            "duration_mins": 0,
+            "cost_eur": 0.0,
+            "location": {
+                "latitude": float(h_lat) if h_lat is not None else 0.0,
+                "longitude": float(h_lng) if h_lng is not None else 0.0,
+            },
+        }
+
+    if not airport_poi and not hotel_poi:
+        return itin_data
+
+    if hotel_poi:
+        itin_data["hotel"] = {
+            "name": hotel_poi["name"],
+            "lat": hotel_poi["location"]["latitude"],
+            "lng": hotel_poi["location"]["longitude"],
+        }
+    if airport_poi:
+        itin_data["airport"] = {
+            "name": airport_poi["name"],
+            "lat": airport_poi["location"]["latitude"],
+            "lng": airport_poi["location"]["longitude"],
+        }
+
+    total_days = len(days)
+
+    def _make_scheduled(
+        poi: dict[str, Any], start_t: str, end_t: str
+    ) -> dict[str, Any]:
+        return {
+            "poi": copy.deepcopy(poi),
+            "scheduled_start": start_t,
+            "scheduled_end": end_t,
+            "arrival_time": start_t,
+            "departure_time": end_t,
+        }
+
+    for idx, d in enumerate(days):
+        if not isinstance(d, dict):
+            continue
+
+        path: list[dict[str, Any]] = []
+
+        if total_days == 1:
+            if airport_poi and hotel_poi:
+                path = [
+                    _make_scheduled(airport_poi, "10:00", "11:00"),
+                    _make_scheduled(hotel_poi, "14:00", "14:00"),
+                    _make_scheduled(airport_poi, "18:00", "19:00"),
+                ]
+            elif airport_poi:
+                path = [
+                    _make_scheduled(airport_poi, "10:00", "11:00"),
+                    _make_scheduled(airport_poi, "18:00", "19:00"),
+                ]
+            elif hotel_poi:
+                path = [
+                    _make_scheduled(hotel_poi, "09:00", "09:00"),
+                    _make_scheduled(hotel_poi, "21:00", "21:00"),
+                ]
+        else:
+            if idx == 0:
+                if airport_poi and hotel_poi:
+                    path = [
+                        _make_scheduled(airport_poi, "12:00", "13:00"),
+                        _make_scheduled(hotel_poi, "18:00", "18:00"),
+                    ]
+                elif airport_poi:
+                    path = [_make_scheduled(airport_poi, "12:00", "13:00")]
+                elif hotel_poi:
+                    path = [
+                        _make_scheduled(hotel_poi, "09:00", "09:00"),
+                        _make_scheduled(hotel_poi, "21:00", "21:00"),
+                    ]
+            elif idx == total_days - 1:
+                if airport_poi and hotel_poi:
+                    path = [
+                        _make_scheduled(hotel_poi, "09:00", "09:00"),
+                        _make_scheduled(airport_poi, "17:00", "18:00"),
+                    ]
+                elif airport_poi:
+                    path = [_make_scheduled(airport_poi, "17:00", "18:00")]
+                elif hotel_poi:
+                    path = [
+                        _make_scheduled(hotel_poi, "09:00", "09:00"),
+                        _make_scheduled(hotel_poi, "21:00", "21:00"),
+                    ]
+            else:
+                if hotel_poi:
+                    path = [
+                        _make_scheduled(hotel_poi, "09:00", "09:00"),
+                        _make_scheduled(hotel_poi, "21:00", "21:00"),
+                    ]
+                else:
+                    path = []
+
+        d["itinerary"] = {
+            "day_index": idx,
+            "path": path,
+            "total_cost_eur": 0.0,
+            "total_time_mins": 0,
+        }
+        d["activities"] = [
+            node["poi"] for node in path if isinstance(node, dict) and "poi" in node
+        ]
 
     return itin_data
 
@@ -852,6 +1118,13 @@ async def create_trip(
     session: AsyncSession = Depends(get_db),
 ):
     itin_data = trip.itinerary_data
+    try:
+        itin_data = _populate_initial_anchors(
+            itin_data, trip.destination, trip.start_date, trip.end_date
+        )
+    except Exception as e:
+        logger.warning(f"Could not populate initial anchors in create_trip: {e}")
+
     if itin_data and isinstance(itin_data, dict):
         try:
             from app.services.transit_service import ensure_walking_legs_populated

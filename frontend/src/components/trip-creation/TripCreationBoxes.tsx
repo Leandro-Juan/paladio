@@ -32,7 +32,8 @@ import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
 import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager';
 import { PhotoUploadModal } from './PhotoUploadModal';
 import { ModelSelectorPopover } from '@/components/trip-agent/ModelSelectorPopover';
-import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse } from '@/utils/api';
+import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse, getApiBaseUrl } from '@/utils/api';
+import { resolveAirportIata } from '@/utils/airportResolver';
 import { notify } from '@/utils/notify';
 
 interface TripCreationBoxesProps {
@@ -420,15 +421,151 @@ export function TripCreationBoxes({
 
     try {
       const start = new Date(startDate);
+
+      // Dynamically resolve destination airport anchor
+      let airportPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
+      let effectiveIata = destIata.trim().toUpperCase();
+      if (!effectiveIata) {
+        effectiveIata = (await resolveAirportIata(destination.trim())) || '';
+      }
+      try {
+        const baseUrl = getApiBaseUrl();
+        const apRes = await fetch(`${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destination.trim())}`);
+        if (apRes.ok) {
+          const apData = await apRes.json();
+          if (apData?.iata) {
+            effectiveIata = apData.iata;
+            airportPoi = {
+              id: `airport-${String(apData.iata).toLowerCase()}`,
+              name: apData.name || `${apData.iata} Airport`,
+              city: apData.city || destination.trim(),
+              category: 'AIRPORT',
+              duration_mins: 120,
+              cost_eur: 0,
+              location: {
+                latitude: typeof apData.latitude === 'number' ? apData.latitude : 0,
+                longitude: typeof apData.longitude === 'number' ? apData.longitude : 0,
+              },
+            };
+          }
+        }
+      } catch {
+        // fallback
+      }
+      if (!airportPoi && effectiveIata) {
+        airportPoi = {
+          id: `airport-${effectiveIata.toLowerCase()}`,
+          name: `${effectiveIata} Airport`,
+          city: destination.trim(),
+          category: 'AIRPORT',
+          duration_mins: 120,
+          cost_eur: 0,
+          location: { latitude: 0, longitude: 0 },
+        };
+      }
+
+      // Dynamically resolve hotel anchor
+      let hotelPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
+      if (hotelArea.trim()) {
+        hotelPoi = {
+          id: 'hotel-base',
+          name: hotelArea.trim(),
+          city: destination.trim(),
+          category: 'HOTEL',
+          duration_mins: 0,
+          cost_eur: 0,
+          location: {
+            latitude: typeof hotelLat === 'number' ? hotelLat : 0,
+            longitude: typeof hotelLng === 'number' ? hotelLng : 0,
+          },
+        };
+      }
+
       const days = [];
       for (let i = 1; i <= tripDurationDays; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + (i - 1));
+
+        let dayPath: Array<{
+          poi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } };
+          scheduled_start?: string;
+          scheduled_end?: string;
+          arrival_time?: string;
+          departure_time?: string;
+        }> = [];
+
+        if (tripDurationDays === 1) {
+          if (airportPoi && hotelPoi) {
+            dayPath = [
+              { poi: airportPoi, scheduled_start: '10:00', scheduled_end: '11:00', arrival_time: '10:00', departure_time: '11:00' },
+              { poi: hotelPoi, scheduled_start: hotelCheckInHour || '14:00', scheduled_end: hotelCheckInHour || '14:00', arrival_time: hotelCheckInHour || '14:00', departure_time: hotelCheckInHour || '14:00' },
+              { poi: airportPoi, scheduled_start: '18:00', scheduled_end: '19:00', arrival_time: '18:00', departure_time: '19:00' },
+            ];
+          } else if (airportPoi) {
+            dayPath = [
+              { poi: airportPoi, scheduled_start: '10:00', scheduled_end: '11:00', arrival_time: '10:00', departure_time: '11:00' },
+              { poi: airportPoi, scheduled_start: '18:00', scheduled_end: '19:00', arrival_time: '18:00', departure_time: '19:00' },
+            ];
+          } else if (hotelPoi) {
+            dayPath = [
+              { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
+              { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
+            ];
+          }
+        } else {
+          if (i === 1) {
+            if (airportPoi && hotelPoi) {
+              dayPath = [
+                { poi: airportPoi, scheduled_start: departureHour || '12:00', scheduled_end: '13:00', arrival_time: departureHour || '12:00', departure_time: '13:00' },
+                { poi: hotelPoi, scheduled_start: hotelCheckInHour || '18:00', scheduled_end: hotelCheckInHour || '18:00', arrival_time: hotelCheckInHour || '18:00', departure_time: hotelCheckInHour || '18:00' },
+              ];
+            } else if (airportPoi) {
+              dayPath = [
+                { poi: airportPoi, scheduled_start: departureHour || '12:00', scheduled_end: '13:00', arrival_time: departureHour || '12:00', departure_time: '13:00' },
+              ];
+            } else if (hotelPoi) {
+              dayPath = [
+                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
+                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
+              ];
+            }
+          } else if (i === tripDurationDays) {
+            if (airportPoi && hotelPoi) {
+              dayPath = [
+                { poi: hotelPoi, scheduled_start: hotelCheckOutHour || '09:00', scheduled_end: hotelCheckOutHour || '09:00', arrival_time: hotelCheckOutHour || '09:00', departure_time: hotelCheckOutHour || '09:00' },
+                { poi: airportPoi, scheduled_start: '17:00', scheduled_end: '18:00', arrival_time: '17:00', departure_time: '18:00' },
+              ];
+            } else if (airportPoi) {
+              dayPath = [
+                { poi: airportPoi, scheduled_start: '17:00', scheduled_end: '18:00', arrival_time: '17:00', departure_time: '18:00' },
+              ];
+            } else if (hotelPoi) {
+              dayPath = [
+                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
+                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
+              ];
+            }
+          } else {
+            if (hotelPoi) {
+              dayPath = [
+                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
+                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
+              ];
+            }
+          }
+        }
+
         days.push({
           day: i,
           date: d.toISOString().split('T')[0],
-          activities: [],
           theme: `Day ${i} Exploration`,
+          itinerary: {
+            day_index: i - 1,
+            path: dayPath,
+            total_cost_eur: 0,
+            total_time_mins: 0,
+          },
+          activities: dayPath.map((node) => node.poi).filter(Boolean),
         });
       }
 
@@ -456,9 +593,22 @@ export function TripCreationBoxes({
           holder_name: outboundFlightDoc.holder_name || undefined,
         } : undefined,
         scanned_documents: scannedDocuments,
+        hotel: hotelPoi ? {
+          name: hotelPoi.name,
+          address: hotelAddress || undefined,
+          lat: hotelPoi.location.latitude,
+          lng: hotelPoi.location.longitude,
+          check_in_time: hotelCheckInHour || '15:00',
+          check_out_time: hotelCheckOutHour || '11:00',
+        } : undefined,
+        airport: airportPoi ? {
+          name: airportPoi.name,
+          lat: airportPoi.location.latitude,
+          lng: airportPoi.location.longitude,
+        } : undefined,
         travel_constraints: {
           destination_city: destination.trim(),
-          destination_iata: destIata.trim().toUpperCase() || undefined,
+          destination_iata: destIata.trim().toUpperCase() || effectiveIata || undefined,
           origin_city: origin.trim() || undefined,
           origin_iata: originIata.trim().toUpperCase() || undefined,
           start_date: startDate,
