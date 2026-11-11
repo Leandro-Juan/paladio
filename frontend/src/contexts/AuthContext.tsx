@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   fetchSetupStatus,
   getAuthToken,
+  isNetworkOrServerDownError,
   loginApi,
   removeAuthToken,
   setAuthToken,
@@ -19,6 +20,7 @@ interface AuthContextType {
   token: string | null;
   setupRequired: boolean | null;
   isLoading: boolean;
+  reconnectAttempts: number;
   login: (usernameOrEmail: string, pass: string) => Promise<void>;
   setupAdmin: (data: { email: string; username: string; password: string }) => Promise<void>;
   logout: () => void;
@@ -32,9 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
 
   useEffect(() => {
     let ignore = false;
+    let retryTimer: NodeJS.Timeout | null = null;
 
     async function checkStatus() {
       try {
@@ -51,6 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(currentUser);
               setTokenState(storedToken);
             } catch (err) {
+              if (isNetworkOrServerDownError(err)) {
+                // Backend went down or is restarting; retry rather than resetting session
+                throw err;
+              }
               console.warn('Stored token invalid or expired. Resetting session.', err);
               if (ignore) return;
               removeAuthToken();
@@ -63,18 +71,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setTokenState(null);
         }
-      } catch (err) {
-        console.error('Failed to query Paladio setup status', err);
-      } finally {
+
         if (!ignore) {
+          setReconnectAttempts(0);
           setIsLoading(false);
         }
+      } catch (err) {
+        if (ignore) return;
+        if (isNetworkOrServerDownError(err)) {
+          // Backend is restarting or offline: keep loading state active and retry until fully loaded
+          setReconnectAttempts((prev) => prev + 1);
+          setIsLoading(true);
+          retryTimer = setTimeout(checkStatus, 1200);
+          return;
+        }
+        console.error('Failed to query Paladio setup status', err);
+        setIsLoading(false);
       }
     }
 
     checkStatus();
     return () => {
       ignore = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 
@@ -124,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         setupRequired,
         isLoading,
+        reconnectAttempts,
         login,
         setupAdmin,
         logout,

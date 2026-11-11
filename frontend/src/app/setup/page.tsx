@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function SetupPage() {
   const { setupAdmin } = useAuth();
@@ -15,6 +17,14 @@ export default function SetupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isWaitingForBackend, setIsWaitingForBackend] = useState(false);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +44,38 @@ export default function SetupPage() {
     setSubmitting(true);
     setError(null);
 
-    try {
-      await setupAdmin({
-        username: username.trim(),
-        email: email.trim(),
-        password,
-      });
-      router.push('/dashboard');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Setup failed. Instance may already be initialized.';
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
+    const attemptSetup = async () => {
+      try {
+        await setupAdmin({
+          username: username.trim(),
+          email: email.trim(),
+          password,
+        });
+        router.push('/dashboard');
+      } catch (err: unknown) {
+        if (isNetworkOrServerDownError(err)) {
+          // Backend is restarting or offline: show spinner with logo until fully loaded!
+          setIsWaitingForBackend(true);
+          setError(null);
+          pollTimerRef.current = setTimeout(() => {
+            attemptSetup();
+          }, 1200);
+          return;
+        }
+
+        setIsWaitingForBackend(false);
+        setSubmitting(false);
+        const message = err instanceof Error ? err.message : 'Setup failed. Instance may already be initialized.';
+        setError(message);
+      }
+    };
+
+    attemptSetup();
   };
+
+  if (isWaitingForBackend) {
+    return <PaladioLoader variant="fullscreen" />;
+  }
 
   return (
     <div className="auth-split-layout">

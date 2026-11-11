@@ -93,6 +93,27 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   return res.json();
 }
 
+/**
+ * Checks if an error is caused by the backend server being offline, rebooting, or unreachable.
+ */
+export function isNetworkOrServerDownError(err: unknown): boolean {
+  if (!err) return false;
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('networkerror') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('load failed') ||
+    lower.includes('network request failed') ||
+    lower.includes('fetch failed') ||
+    lower.includes('econnrefused') ||
+    lower.includes('connection refused') ||
+    lower.includes('status 502') ||
+    lower.includes('status 503') ||
+    lower.includes('status 504')
+  );
+}
+
 // API methods
 export const fetchSetupStatus = (): Promise<SetupStatusResponse> => {
   return apiFetch<SetupStatusResponse>('/auth/setup-status');

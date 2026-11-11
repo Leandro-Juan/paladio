@@ -23,6 +23,10 @@ export interface PaladioLoaderProps {
    * Additional custom CSS class name.
    */
   className?: string;
+  /**
+   * Optional status message or component to display beneath spinner.
+   */
+  message?: React.ReactNode;
 }
 
 export function PaladioLoader({
@@ -30,6 +34,7 @@ export function PaladioLoader({
   size,
   showLogo = true,
   className = '',
+  message,
 }: PaladioLoaderProps) {
   // Determine effective size based on variant if not explicitly provided
   const effectiveSize = size || (variant === 'card' ? 'sm' : 'md');
@@ -104,6 +109,12 @@ export function PaladioLoader({
           />
         </svg>
       </div>
+
+      {message && (
+        <div className={styles.messageWrapper}>
+          {message}
+        </div>
+      )}
     </div>
   );
 }

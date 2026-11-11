@@ -12,7 +12,7 @@ import { NotificationBell } from './NotificationBell';
 import { PaladioLoader } from './common/PaladioLoader';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, setupRequired, isLoading } = useAuth();
+  const { user, setupRequired, isLoading, reconnectAttempts } = useAuth();
   const { toggleMobile } = useSidebarStore();
   const { navStyle } = useNavigationStore();
   const pathname = usePathname();
@@ -39,7 +39,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, setupRequired, isLoading, pathname, router]);
 
   if (isLoading) {
-    return <PaladioLoader variant="fullscreen" />;
+    let reconnectMessage: React.ReactNode = null;
+    if (reconnectAttempts >= 3) {
+      reconnectMessage = (
+        <div style={{ textAlign: 'center', maxWidth: '340px' }}>
+          <p className="font-mono text-xs" style={{ opacity: 0.7, letterSpacing: '0.08em', margin: 0 }}>
+            {'// CONNECTING TO PALADIO CORE...'}
+          </p>
+          {reconnectAttempts >= 10 && (
+            <p className="font-mono text-xs" style={{ opacity: 0.5, fontSize: '11px', marginTop: '6px' }}>
+              Engine startup is taking longer than usual. Waiting for container initialization.
+            </p>
+          )}
+        </div>
+      );
+    }
+    return <PaladioLoader variant="fullscreen" message={reconnectMessage} />;
   }
 
   // Auth pages (login, setup) do not render the main app sidebar

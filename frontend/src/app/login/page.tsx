@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeStore } from '@/stores/themeStore';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function LoginPage() {
   const { login, setupRequired } = useAuth();
@@ -15,6 +17,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isWaitingForBackend, setIsWaitingForBackend] = useState(false);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,17 +36,52 @@ export default function LoginPage() {
 
     setSubmitting(true);
     setError(null);
+    setRetryAttempts(0);
 
-    try {
-      await login(identifier.trim(), password);
-      router.push('/dashboard');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Authentication failed. Verify credentials.';
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
+    const attemptLogin = async () => {
+      try {
+        await login(identifier.trim(), password);
+        router.push('/dashboard');
+      } catch (err: unknown) {
+        if (isNetworkOrServerDownError(err)) {
+          // Backend is restarting or offline: show spinner with logo until fully loaded!
+          setIsWaitingForBackend(true);
+          setError(null);
+          setRetryAttempts((prev) => prev + 1);
+          pollTimerRef.current = setTimeout(() => {
+            attemptLogin();
+          }, 1200);
+          return;
+        }
+
+        setIsWaitingForBackend(false);
+        setSubmitting(false);
+        const message = err instanceof Error ? err.message : 'Authentication failed. Verify credentials.';
+        setError(message);
+      }
+    };
+
+    attemptLogin();
   };
+
+  if (isWaitingForBackend) {
+    let reconnectMessage: React.ReactNode = null;
+    if (retryAttempts >= 3) {
+      reconnectMessage = (
+        <div style={{ textAlign: 'center', maxWidth: '340px' }}>
+          <p className="font-mono text-xs" style={{ opacity: 0.7, letterSpacing: '0.08em', margin: 0 }}>
+            {'// CONNECTING TO PALADIO CORE...'}
+          </p>
+          {retryAttempts >= 10 && (
+            <p className="font-mono text-xs" style={{ opacity: 0.5, fontSize: '11px', marginTop: '6px' }}>
+              Engine startup is taking longer than usual. Waiting for container initialization.
+            </p>
+          )}
+        </div>
+      );
+    }
+    return <PaladioLoader variant="fullscreen" message={reconnectMessage} />;
+  }
 
   return (
     <div className="auth-split-layout">

@@ -37,6 +37,7 @@ dependencies = [
     "airportsdata>=20240101",
     "geonamescache>=3.0.0",
     "holidays>=0.60.0",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
