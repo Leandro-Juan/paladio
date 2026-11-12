@@ -11,14 +11,33 @@ import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
 import { Spinner } from '@/components/icons';
 import { notify } from '@/utils/notify';
+import { NotificationTypesCard } from './NotificationTypesCard';
 
 interface NotificationsSettingsCardProps {
   isAdmin: boolean;
+  initialSubTab?: string;
 }
 
-export function NotificationsSettingsCard({ isAdmin }: NotificationsSettingsCardProps) {
+export function NotificationsSettingsCard({ isAdmin, initialSubTab }: NotificationsSettingsCardProps) {
   const [loading, setLoading] = useState(isAdmin);
-  const [subTab, setSubTab] = useState<'pushify' | 'pushover' | 'webhooks' | 'events'>('pushify');
+  const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
+  const [subTab, setSubTab] = useState<'pushify' | 'pushover' | 'webhooks'>(() => {
+    if (initialSubTab === 'pushover' || initialSubTab === 'webhooks') {
+      return initialSubTab;
+    }
+    return 'pushify';
+  });
+
+  if (initialSubTab !== prevInitialSubTab) {
+    setPrevInitialSubTab(initialSubTab);
+    if (
+      initialSubTab === 'pushify' ||
+      initialSubTab === 'pushover' ||
+      initialSubTab === 'webhooks'
+    ) {
+      setSubTab(initialSubTab);
+    }
+  }
 
   const [config, setConfig] = useState<NotificationsConfigData>({
     pushify: {
@@ -140,20 +159,33 @@ export function NotificationsSettingsCard({ isAdmin }: NotificationsSettingsCard
   }
 
   return (
-    <SettingsCardFrame
-      title="Notification Relays & External Alerts"
-      subtitle="Dispatch real-time travel alerts, price drops, and trip updates to Pushify, Pushover, Ntfy, or Webhooks"
-      badge="Admin Configured"
-      badgeTone="teal"
-      subTabs={[
-        { id: 'pushify', label: 'Pushify' },
-        { id: 'pushover', label: 'Pushover & Ntfy' },
-        { id: 'webhooks', label: 'Custom Webhooks' },
-        { id: 'events', label: 'Event Triggers' },
-      ]}
-      activeSubTab={subTab}
-      onSelectSubTab={(id) => setSubTab(id as 'pushify' | 'pushover' | 'webhooks' | 'events')}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. Dedicated Notification Types Card (Before Notification Relays) */}
+      <NotificationTypesCard
+        config={{
+          notify_on_deal_alert: config.notify_on_deal_alert,
+          notify_on_trip_update: config.notify_on_trip_update,
+          notify_on_ticket_parse: config.notify_on_ticket_parse,
+          notify_on_photo_sync: config.notify_on_photo_sync,
+        }}
+        onUpdate={handleUpdate}
+        disabled={loading}
+      />
+
+      {/* 2. Notification Relays Card */}
+      <SettingsCardFrame
+        title="Notification Relays & External Alerts"
+        subtitle="Dispatch real-time travel alerts, price drops, and trip updates to Pushify, Pushover, Ntfy, or Webhooks"
+        badge="Admin Configured"
+        badgeTone="teal"
+        subTabs={[
+          { id: 'pushify', label: 'Pushify' },
+          { id: 'pushover', label: 'Pushover & Ntfy' },
+          { id: 'webhooks', label: 'Custom Webhooks' },
+        ]}
+        activeSubTab={subTab}
+        onSelectSubTab={(id) => setSubTab(id as 'pushify' | 'pushover' | 'webhooks')}
+      >
 
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
@@ -670,80 +702,10 @@ export function NotificationsSettingsCard({ isAdmin }: NotificationsSettingsCard
             </div>
           )}
 
-          {/* 4. Event Triggers Tab */}
-          {subTab === 'events' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Flight & Hotel Price Drop Alerts
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '2px 0 0 0' }}>
-                    Trigger push alerts when the Deal Engine detects fares or hotel prices dropping below threshold
-                  </p>
-                </div>
-                <TacticalToggle
-                  checked={config.notify_on_deal_alert}
-                  onChange={(checked) => handleUpdate({ notify_on_deal_alert: checked })}
-                  tone="teal"
-                  ariaLabel="Toggle deal alert notifications"
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Itinerary & Route Schedule Updates
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '2px 0 0 0' }}>
-                    Send push notification when swarm agents or collaborators modify planned days or routes
-                  </p>
-                </div>
-                <TacticalToggle
-                  checked={config.notify_on_trip_update}
-                  onChange={(checked) => handleUpdate({ notify_on_trip_update: checked })}
-                  tone="teal"
-                  ariaLabel="Toggle trip update notifications"
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Ticket Ingestion & Extraction Complete
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '2px 0 0 0' }}>
-                    Notify when uploaded flight or train ticket PDFs have finished OCR parsing
-                  </p>
-                </div>
-                <TacticalToggle
-                  checked={config.notify_on_ticket_parse}
-                  onChange={(checked) => handleUpdate({ notify_on_ticket_parse: checked })}
-                  tone="gold"
-                  ariaLabel="Toggle ticket parse notifications"
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Vault Photo Sync Completion
-                  </span>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '2px 0 0 0' }}>
-                    Send a push notification when uploaded itinerary media finishes uploading to Immich or Synology
-                  </p>
-                </div>
-                <TacticalToggle
-                  checked={config.notify_on_photo_sync}
-                  onChange={(checked) => handleUpdate({ notify_on_photo_sync: checked })}
-                  tone="coral"
-                  ariaLabel="Toggle photo sync notifications"
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
     </SettingsCardFrame>
-  );
+  </div>
+);
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GtfsRegistryResponse, CityGtfsItem, fetchDomainSettingsApi, updateDomainSettingsApi, EngineConfigData } from '@/utils/api';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
@@ -46,8 +46,6 @@ export function EngineSection({
     deal_scraper_cadence_hours: 24,
     price_alert_threshold_pct: 15.0,
   });
-  const [isSaving, setIsSaving] = useState(false);
-
   useEffect(() => {
     let mounted = true;
     fetchDomainSettingsApi<EngineConfigData>('engine')
@@ -67,14 +65,11 @@ export function EngineSection({
   const handleSaveEngineConfig = async (patch: Partial<EngineConfigData>) => {
     const updated = { ...engineConfig, ...patch };
     setEngineConfig(updated);
-    setIsSaving(true);
     try {
       await updateDomainSettingsApi<EngineConfigData>('engine', patch);
       notify.success('Engine Settings Saved', 'Travel engine configuration updated');
     } catch {
       notify.error('Persistence Error', 'Failed to persist engine settings to backend');
-    } finally {
-      setIsSaving(false);
     }
   };
 

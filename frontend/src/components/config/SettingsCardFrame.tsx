@@ -73,14 +73,14 @@ export function SettingsCardFrame({
     <div
       className={className}
       style={{
-        borderRadius: '18px',
+        borderRadius: '14px',
         backgroundColor: 'var(--color-surface-card, #FFFFFF)',
         border: '1px solid var(--color-border, #E2DDD5)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-        padding: '24px',
+        padding: '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
+        gap: '14px',
         transition: 'border-color 0.18s ease',
       }}
     >
@@ -90,16 +90,16 @@ export function SettingsCardFrame({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          gap: '16px',
+          gap: '14px',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3
               style={{
                 fontFamily: 'var(--font-display, "Jost", sans-serif)',
-                fontSize: '18px',
+                fontSize: '16px',
                 fontWeight: 600,
                 color: 'var(--color-text-primary, #1A202C)',
                 margin: 0,
@@ -246,13 +246,13 @@ export function SettingsCardFrame({
       {/* Nested Tactical Panel (Concentric inner card matching the reference image) */}
       <div
         style={{
-          borderRadius: '12px',
+          borderRadius: '10px',
           backgroundColor: 'var(--color-bg-main, #F7F5F0)',
           border: '1px solid var(--color-border, #E2DDD5)',
-          padding: '18px 20px',
+          padding: '12px 14px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          gap: '12px',
         }}
       >
         {(innerTitle || innerMenuItems) && (
@@ -261,7 +261,7 @@ export function SettingsCardFrame({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingBottom: '12px',
+              paddingBottom: '8px',
               borderBottom: '1px solid var(--color-border, #E2DDD5)',
             }}
           >
@@ -269,7 +269,7 @@ export function SettingsCardFrame({
               <span
                 style={{
                   fontFamily: 'var(--font-ui, sans-serif)',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: 600,
                   color: 'var(--color-text-primary, #1A202C)',
                 }}

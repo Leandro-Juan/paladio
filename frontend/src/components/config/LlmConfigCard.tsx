@@ -5,19 +5,17 @@ import {
   fetchLlmConfigApi,
   updateLlmConfigApi,
   testLlmConfigApi,
-  unloadLlmModelApi,
   LLMConfigResponse,
   SupportedProviderMeta,
   TestLLMConnectionResponse,
 } from '@/utils/api';
-import { Spinner, CheckIcon, ProviderBrandIcon } from '@/components/icons';
+import { Spinner, CheckIcon, ChevronDownIcon, ProviderBrandIcon } from '@/components/icons';
 import { notify } from '@/utils/notify';
 
 export function LlmConfigCard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [unloading, setUnloading] = useState(false);
   const [testResult, setTestResult] = useState<TestLLMConnectionResponse | null>(null);
 
   const [activeConfig, setActiveConfig] = useState<LLMConfigResponse | null>(null);
@@ -28,6 +26,7 @@ export function LlmConfigCard() {
   const [apiKey, setApiKey] = useState<string>('');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [baseUrl, setBaseUrl] = useState<string>('');
+  const [openMenuProvider, setOpenMenuProvider] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -86,9 +85,86 @@ export function LlmConfigCard() {
     };
   }, []);
 
-  const handleProviderSelect = (provKey: string) => {
+  // Close custom model dropdown on outside click or Escape
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('[data-llm-dropdown]')) {
+        setOpenMenuProvider(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpenMenuProvider(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleActivateModel = async (provKey: string, modelName: string) => {
+    setSelectedProvider(provKey);
+    setSelectedModel(modelName);
+    setOpenMenuProvider(null);
+    setTestResult(null);
+
+    setSaving(true);
+    try {
+      const res = await updateLlmConfigApi({
+        provider: provKey,
+        model: modelName,
+      });
+      if (res.status === 'success') {
+        notify.success('LLM Configuration Saved', `Active provider is now ${provKey.toUpperCase()} (${modelName}).`);
+        await loadConfig();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to switch LLM provider/model';
+      notify.error('Activation Failed', msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleProviderSelect = async (provKey: string) => {
     setSelectedProvider(provKey);
     setTestResult(null);
+    setOpenMenuProvider(null);
+
+    const configured = activeConfig?.configured_providers?.[provKey];
+    if (configured) {
+      const targetModel =
+        configured.active_model ||
+        configured.available_models[0] ||
+        activeConfig?.supported_providers?.[provKey]?.default_model ||
+        selectedModel;
+      setSelectedModel(targetModel);
+      setIsCustomModelMode(false);
+      setCustomModel('');
+      setBaseUrl(activeConfig?.supported_providers?.[provKey]?.default_base_url || '');
+
+      setSaving(true);
+      try {
+        const res = await updateLlmConfigApi({
+          provider: provKey,
+          model: targetModel,
+        });
+        if (res.status === 'success') {
+          notify.success('LLM Configuration Saved', `Active provider is now ${provKey.toUpperCase()} (${targetModel}).`);
+          await loadConfig();
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to save LLM configuration';
+        notify.error('Save Failed', msg);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
 
     const meta = activeConfig?.supported_providers?.[provKey];
     if (meta) {
@@ -96,6 +172,37 @@ export function LlmConfigCard() {
       setIsCustomModelMode(false);
       setCustomModel('');
       setBaseUrl(meta.default_base_url || '');
+    }
+  };
+
+  const handleAutoSaveUnconfigured = async (newKey?: string, newModel?: string, newUrl?: string) => {
+    const k = (newKey !== undefined ? newKey : apiKey).trim();
+    const m = (newModel !== undefined ? newModel : (isCustomModelMode ? customModel : selectedModel)).trim();
+    const u = (newUrl !== undefined ? newUrl : baseUrl).trim();
+
+    if (!m) return;
+    const reqKey = activeConfig?.supported_providers?.[selectedProvider]?.requires_key ?? true;
+    if (reqKey && !k) return;
+
+    setSaving(true);
+    try {
+      const res = await updateLlmConfigApi({
+        provider: selectedProvider,
+        model: m,
+        api_key: k ? k : null,
+        base_url: u ? u : null,
+      });
+
+      if (res.status === 'success') {
+        notify.success('LLM Configuration Saved', `Active provider is now ${selectedProvider.toUpperCase()} (${m}).`);
+        setApiKey('');
+        await loadConfig();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save LLM configuration';
+      notify.error('Save Failed', msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,35 +214,7 @@ export function LlmConfigCard() {
     } else {
       setIsCustomModelMode(false);
       setSelectedModel(val);
-    }
-  };
-
-  const handleSave = async () => {
-    const effectiveModel = isCustomModelMode ? customModel.trim() : selectedModel.trim();
-    if (!effectiveModel) {
-      notify.error('Invalid Model', 'Please specify a valid model name.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await updateLlmConfigApi({
-        provider: selectedProvider,
-        model: effectiveModel,
-        api_key: apiKey.trim() ? apiKey.trim() : null,
-        base_url: baseUrl.trim() ? baseUrl.trim() : null,
-      });
-
-      if (res.status === 'success') {
-        notify.success('LLM Configuration Saved', `Active provider is now ${selectedProvider.toUpperCase()} (${effectiveModel}).`);
-        setApiKey('');
-        await loadConfig();
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save LLM configuration';
-      notify.error('Save Failed', msg);
-    } finally {
-      setSaving(false);
+      void handleAutoSaveUnconfigured(apiKey, val, baseUrl);
     }
   };
 
@@ -158,6 +237,9 @@ export function LlmConfigCard() {
       setTestResult(result);
       if (result.success) {
         notify.success('Connection Successful', `Latency: ${result.latency_ms}ms. Response: "${result.response}"`);
+        if (apiKey.trim() || baseUrl.trim() || !activeConfig?.configured_providers?.[selectedProvider]) {
+          void handleAutoSaveUnconfigured(apiKey, effectiveModel, baseUrl);
+        }
       } else {
         notify.error('Connection Failed', result.error || 'LLM API rejected the connection request.');
       }
@@ -172,26 +254,6 @@ export function LlmConfigCard() {
       notify.error('Connection Failed', msg);
     } finally {
       setTesting(false);
-    }
-  };
-
-  const handleUnloadModel = async () => {
-    setUnloading(true);
-    try {
-      const res = await unloadLlmModelApi(selectedModel);
-      if (res.success) {
-        notify.success('Model Unloaded', res.message || 'Local model released from host RAM.');
-        if (res.hardware_profile && activeConfig) {
-          setActiveConfig({ ...activeConfig, hardware_profile: res.hardware_profile });
-        }
-      } else {
-        notify.info('Ollama Status', res.message || 'No resident model to unload.');
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error unloading model';
-      notify.error('Unload Failed', msg);
-    } finally {
-      setUnloading(false);
     }
   };
 
@@ -268,165 +330,6 @@ export function LlmConfigCard() {
         )}
       </div>
 
-      {/* Configured & Ready Engines Visual Confirmation Showcase */}
-      {(() => {
-        const configuredEntries = Object.entries(activeConfig?.configured_providers || {});
-        if (configuredEntries.length === 0) return null;
-
-        return (
-          <div
-            style={{
-              marginBottom: '1.5rem',
-              padding: '1.1rem 1.25rem',
-              borderRadius: '8px',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'var(--color-success, #10B981)',
-                    display: 'inline-block',
-                    boxShadow: '0 0 8px rgba(16, 185, 129, 0.4)',
-                  }}
-                />
-                <span className="font-mono text-xs" style={{ fontWeight: 700, letterSpacing: '0.05em', color: 'var(--color-text-primary)' }}>
-                  CONFIGURED &amp; AVAILABLE ENGINES
-                </span>
-              </div>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-                {configuredEntries.length} Engine{configuredEntries.length > 1 ? 's' : ''} Ready to Dispatch
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '10px',
-              }}
-            >
-              {configuredEntries.map(([provKey, info]) => {
-                const isActive = activeConfig?.provider === provKey;
-                return (
-                  <div
-                    key={provKey}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '6px',
-                      background: isActive
-                        ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.08))'
-                        : 'var(--color-surface)',
-                      border: isActive
-                        ? '1.5px solid var(--color-accent-teal, #0D9488)'
-                        : '1px solid var(--color-border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ProviderBrandIcon provider={provKey} size={16} />
-                        <span
-                          style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            background: isActive ? 'var(--color-accent-teal, #0D9488)' : 'var(--color-success, #10B981)',
-                          }}
-                        />
-                        <strong style={{ fontSize: '13px', fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>
-                          {info.name}
-                        </strong>
-                      </div>
-
-                      {isActive ? (
-                        <span
-                          className="font-mono"
-                          style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            background: 'var(--color-accent-teal, #0D9488)',
-                            color: '#FFFFFF',
-                          }}
-                        >
-                          ACTIVE
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleProviderSelect(provKey)}
-                          className="font-mono"
-                          style={{
-                            fontSize: '10px',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--color-border-subtle)',
-                            background: 'var(--color-surface-card)',
-                            color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          SELECT
-                        </button>
-                      )}
-                    </div>
-
-                    {info.masked_key && (
-                      <div className="font-mono text-muted" style={{ fontSize: '10px' }}>
-                        Key: <code style={{ color: 'var(--color-text-primary)' }}>{info.masked_key}</code>
-                      </div>
-                    )}
-
-                    <div>
-                      <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginBottom: '4px' }}>
-                        AVAILABLE MODELS:
-                      </span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {info.available_models.map((m) => {
-                          const isCurrentActive = isActive && activeConfig?.model === m;
-                          return (
-                            <span
-                              key={m}
-                              className="font-mono"
-                              style={{
-                                fontSize: '10px',
-                                padding: '2px 6px',
-                                borderRadius: '3px',
-                                background: isCurrentActive
-                                  ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.2))'
-                                  : 'var(--color-surface-card)',
-                                border: isCurrentActive
-                                  ? '1px solid var(--color-accent-teal, #0D9488)'
-                                  : '1px solid var(--color-border-subtle)',
-                                color: isCurrentActive
-                                  ? 'var(--color-accent-teal, #0D9488)'
-                                  : 'var(--color-text-secondary)',
-                                fontWeight: isCurrentActive ? 700 : 400,
-                              }}
-                            >
-                              {m} {isCurrentActive && '✓'}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Provider Selector Grid */}
       <div style={{ marginBottom: '1.5rem' }}>
         <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
@@ -444,12 +347,23 @@ export function LlmConfigCard() {
             const configuredMeta = activeConfig?.configured_providers?.[key];
             const isConfigured = Boolean(configuredMeta);
             const isCurrentlyActive = activeConfig?.provider === key;
+            const availableModels =
+              configuredMeta?.available_models && configuredMeta.available_models.length > 0
+                ? configuredMeta.available_models
+                : meta.recommended_models || [];
 
             return (
-              <button
+              <div
                 key={key}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => handleProviderSelect(key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleProviderSelect(key);
+                  }
+                }}
                 style={{
                   padding: '10px 12px',
                   borderRadius: '8px',
@@ -478,7 +392,40 @@ export function LlmConfigCard() {
                       {meta.name}
                     </span>
                   </div>
-                  {isSelected && <CheckIcon size={14} color="var(--color-accent-teal, #0D9488)" />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {isSelected && <CheckIcon size={14} color="var(--color-accent-teal, #0D9488)" />}
+                    {isConfigured && (
+                      <button
+                        type="button"
+                        data-llm-dropdown
+                        aria-label={`Available models for ${meta.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuProvider(openMenuProvider === key ? null : key);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '2px 4px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--color-border-subtle)',
+                          background:
+                            openMenuProvider === key
+                              ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.2))'
+                              : 'var(--color-surface)',
+                          color:
+                            openMenuProvider === key
+                              ? 'var(--color-accent-teal, #0D9488)'
+                              : 'var(--color-text-muted)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <ChevronDownIcon size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -496,34 +443,204 @@ export function LlmConfigCard() {
                     </span>
                   )}
                 </div>
-              </button>
+
+                {/* Custom Model Picker Dropdown Menu */}
+                {isConfigured && openMenuProvider === key && (
+                  <div
+                    data-llm-dropdown
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      left: 0,
+                      right: 0,
+                      zIndex: 60,
+                      background: 'var(--color-surface-card)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                      padding: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {availableModels.map((m) => {
+                      const isCurrentActive =
+                        isCurrentlyActive && (activeConfig?.model === m || selectedModel === m);
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => handleActivateModel(key, m)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            borderRadius: '5px',
+                            border: 'none',
+                            background: isCurrentActive
+                              ? 'var(--color-accent-teal-soft, rgba(13, 148, 136, 0.15))'
+                              : 'transparent',
+                            color: isCurrentActive
+                              ? 'var(--color-accent-teal, #0D9488)'
+                              : 'var(--color-text-primary)',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: isCurrentActive ? 700 : 400,
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            width: '100%',
+                            transition: 'background 0.1s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isCurrentActive) {
+                              e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.05))';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isCurrentActive) {
+                              e.currentTarget.style.background = 'transparent';
+                            }
+                          }}
+                        >
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m}
+                          </span>
+                          {isCurrentActive && <CheckIcon size={12} color="var(--color-accent-teal, #0D9488)" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Configuration Form Rows */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '1rem',
-          background: 'var(--color-surface-card)',
-          padding: '1.25rem',
-          borderRadius: '8px',
-          border: '1px solid var(--color-border-subtle)',
-          marginBottom: '1.25rem',
-        }}
-      >
-        {/* Model Selection */}
-        <div>
-          <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-            MODEL IDENTIFIER:
-          </label>
-          {!isCustomModelMode ? (
-            <select
-              value={selectedModel}
-              onChange={handleModelSelectChange}
+      {/* Configuration Form Rows - only displayed for providers that are not yet configured */}
+      {!activeConfig?.configured_providers?.[selectedProvider] && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1rem',
+            background: 'var(--color-surface-card)',
+            padding: '1.25rem',
+            borderRadius: '8px',
+            border: '1px solid var(--color-border-subtle)',
+            marginBottom: '1.25rem',
+          }}
+        >
+          {/* Model Selection */}
+          <div>
+            <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+              MODEL IDENTIFIER:
+            </label>
+            {!isCustomModelMode ? (
+              <select
+                value={selectedModel}
+                onChange={handleModelSelectChange}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border-subtle)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                }}
+              >
+                {(activeProviderMeta?.recommended_models || [selectedModel]).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+                <option value="__custom__">{'-- Custom Model Name --'}</option>
+              </select>
+            ) : (
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  onBlur={() => void handleAutoSaveUnconfigured(apiKey, customModel, baseUrl)}
+                  placeholder="e.g. gpt-4o, claude-3-7-sonnet"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-text-primary)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '13px',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsCustomModelMode(false)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface)',
+                    color: 'var(--color-text-secondary)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  PRESETS
+                </button>
+              </div>
+            )}
+            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+              Default for {activeProviderMeta?.name || selectedProvider}: {activeProviderMeta?.default_model || 'default'}
+            </span>
+          </div>
+
+          {/* API Key Input */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
+                API KEY {requiresKey ? '(REQUIRED)' : '(OPTIONAL)'}:
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-text-muted)',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                {showApiKey ? 'HIDE' : 'SHOW'}
+              </button>
+            </div>
+            <input
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              onBlur={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
+              placeholder={
+                activeConfig?.configured_providers?.[selectedProvider]?.masked_key
+                  ? `Keeping saved key (${activeConfig.configured_providers[selectedProvider].masked_key})`
+                  : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
+                  ? `Keeping current key (${activeConfig.masked_api_key})`
+                  : requiresKey
+                  ? 'Enter your provider API key (e.g. sk-...)'
+                  : 'Optional for local / non-authenticated endpoints'
+              }
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -534,132 +651,40 @@ export function LlmConfigCard() {
                 fontFamily: 'var(--font-mono)',
                 fontSize: '13px',
               }}
-            >
-              {(activeProviderMeta?.recommended_models || [selectedModel]).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-              <option value="__custom__">{'-- Custom Model Name --'}</option>
-            </select>
-          ) : (
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <input
-                type="text"
-                value={customModel}
-                onChange={(e) => setCustomModel(e.target.value)}
-                placeholder="e.g. gpt-4o, claude-3-7-sonnet"
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-primary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '13px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setIsCustomModelMode(false)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-secondary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                }}
-              >
-                PRESETS
-              </button>
-            </div>
-          )}
-          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-            Default for {activeProviderMeta?.name || selectedProvider}: {activeProviderMeta?.default_model || 'default'}
-          </span>
-        </div>
-
-        {/* API Key Input */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
-              API KEY {requiresKey ? '(REQUIRED)' : '(OPTIONAL)'}:
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowApiKey(!showApiKey)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-text-muted)',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
-            >
-              {showApiKey ? 'HIDE' : 'SHOW'}
-            </button>
+            />
+            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+              Stored locally in your private database. Never exported or shared.
+            </span>
           </div>
-          <input
-            type={showApiKey ? 'text' : 'password'}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={
-              activeConfig?.configured_providers?.[selectedProvider]?.masked_key
-                ? `Keeping saved key (${activeConfig.configured_providers[selectedProvider].masked_key})`
-                : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
-                ? `Keeping current key (${activeConfig.masked_api_key})`
-                : requiresKey
-                ? 'Enter your provider API key (e.g. sk-...)'
-                : 'Optional for local / non-authenticated endpoints'
-            }
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '13px',
-            }}
-          />
-          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-            Stored locally in your private database. Never exported or shared.
-          </span>
-        </div>
 
-        {/* Custom Base URL Input */}
-        <div>
-          <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-            API ENDPOINT BASE URL:
-          </label>
-          <input
-            type="text"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={activeProviderMeta?.default_base_url || 'https://api.example.com/v1'}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '13px',
-            }}
-          />
-          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-            Optional custom proxy, vLLM endpoint, or local server.
-          </span>
+          {/* Custom Base URL Input */}
+          <div>
+            <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+              API ENDPOINT BASE URL:
+            </label>
+            <input
+              type="text"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              onBlur={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
+              placeholder={activeProviderMeta?.default_base_url || 'https://api.example.com/v1'}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+              }}
+            />
+            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+              Optional custom proxy, vLLM endpoint, or local server.
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Test Result Feedback Box (if any) */}
       {testResult && (
@@ -717,7 +742,7 @@ export function LlmConfigCard() {
             </span>
             {activeConfig.hardware_profile.memory_warning && (
               <div style={{ color: '#f59e0b', marginTop: '4px', fontSize: '11px' }}>
-                ⚠️ {activeConfig.hardware_profile.memory_warning}
+                {activeConfig.hardware_profile.memory_warning}
               </div>
             )}
           </div>
@@ -729,31 +754,6 @@ export function LlmConfigCard() {
 
       {/* Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {selectedProvider === 'ollama' && (
-          <button
-            type="button"
-            onClick={handleUnloadModel}
-            disabled={unloading || saving || testing}
-            title="Unload model from host RAM to immediately reclaim memory"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-secondary)',
-              fontSize: '12px',
-              fontFamily: 'var(--font-mono)',
-              cursor: unloading ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {unloading && <Spinner size={12} />}
-            {unloading ? 'UNLOADING...' : 'FREE LOCAL MEMORY'}
-          </button>
-        )}
-
         <button
           type="button"
           onClick={handleTestConnection}
@@ -774,29 +774,6 @@ export function LlmConfigCard() {
         >
           {testing && <Spinner size={12} />}
           {testing ? 'TESTING LLM API...' : 'TEST CONNECTION'}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || testing}
-          style={{
-            padding: '8px 20px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'var(--color-accent-teal, #0D9488)',
-            color: '#FFFFFF',
-            fontSize: '12px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          {saving && <Spinner size={12} color="#FFFFFF" />}
-          {saving ? 'SAVING...' : 'SAVE CONFIGURATION'}
         </button>
       </div>
     </div>

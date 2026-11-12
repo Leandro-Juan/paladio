@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SETTINGS_CATEGORIES, SettingCardItem, SettingsTabId } from './settingsData';
 import { SettingsIconRenderer } from './SettingsIconRenderer';
+import { Modal } from '@/components/Modal';
 import styles from '@/app/config/config.module.css';
 
 interface SettingsOverviewProps {
@@ -10,6 +11,7 @@ interface SettingsOverviewProps {
   isAdmin: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onRestoreDefaults?: () => Promise<void>;
   telemetrySummary?: {
     themeName?: string;
     typographyName?: string;
@@ -28,8 +30,11 @@ export function SettingsOverview({
   isAdmin,
   searchQuery,
   onSearchChange,
+  onRestoreDefaults,
   telemetrySummary,
 }: SettingsOverviewProps) {
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const query = searchQuery.trim().toLowerCase();
 
   const filteredCategories = useMemo(() => {
@@ -54,6 +59,10 @@ export function SettingsOverview({
   const getItemBadge = (id: SettingsTabId): { text: string; active?: boolean } | null => {
     if (!telemetrySummary) return null;
     switch (id) {
+      case 'profile':
+        return telemetrySummary.localeCode && telemetrySummary.currencyCode
+          ? { text: `${telemetrySummary.localeCode.toUpperCase()} · ${telemetrySummary.currencyCode}`, active: true }
+          : { text: 'ACTIVE', active: true };
       case 'appearance':
         return telemetrySummary.themeName ? { text: telemetrySummary.themeName, active: true } : null;
       case 'typography':
@@ -109,10 +118,50 @@ export function SettingsOverview({
     <div className={styles.settingsCanvas}>
       {/* Overview Hero Section */}
       <div className={styles.overviewHero}>
-        <h1 className={styles.overviewTitle}>Settings</h1>
-        <p className={styles.overviewSubtitle}>
-          Configure your workspace, localization, routing engine, swarm intelligence, and sovereign system.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <h1 className={styles.overviewTitle}>Settings</h1>
+            <p className={styles.overviewSubtitle}>
+              Configure your workspace, localization, routing engine, swarm intelligence, and sovereign system.
+            </p>
+          </div>
+          {onRestoreDefaults && (
+            <button
+              type="button"
+              onClick={() => setIsResetModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-surface-card)',
+                color: 'var(--color-text-muted)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-danger, #D32F2F)';
+                e.currentTarget.style.color = 'var(--color-danger, #D32F2F)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-muted)';
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span>Restore Default Settings</span>
+            </button>
+          )}
+        </div>
 
         {/* Big Search Bar */}
         <div className={styles.heroSearchContainer}>
@@ -207,6 +256,29 @@ export function SettingsOverview({
             </div>
           </section>
         ))
+      )}
+
+      {onRestoreDefaults && (
+        <Modal
+          isOpen={isResetModalOpen}
+          variant="warning"
+          title="Restore Default Settings?"
+          message="Are you sure you want to restore all settings to default? This will reset your theme, typography, language, currency, units, and localization settings to sovereign factory defaults. This action cannot be undone."
+          confirmText={isResetting ? "RESTORING..." : "RESTORE DEFAULTS"}
+          cancelText="CANCEL"
+          onConfirm={async () => {
+            setIsResetting(true);
+            try {
+              await onRestoreDefaults();
+              setIsResetModalOpen(false);
+            } finally {
+              setIsResetting(false);
+            }
+          }}
+          onCancel={() => {
+            if (!isResetting) setIsResetModalOpen(false);
+          }}
+        />
       )}
     </div>
   );

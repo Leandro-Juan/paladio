@@ -21,6 +21,7 @@ import {
   triggerUpdateCheckApi,
   triggerUpdateDownloadApi,
   SystemUpdateStatus,
+  updatePreferencesApi,
 } from '@/utils/api';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
@@ -31,8 +32,8 @@ import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { SettingsTabId } from '@/components/config/settingsData';
 import { SettingsSidebar } from '@/components/config/SettingsSidebar';
 import { SettingsOverview } from '@/components/config/SettingsOverview';
+import { PersonalAccountSection } from '@/components/config/sections/PersonalAccountSection';
 import { ExperienceSection } from '@/components/config/sections/ExperienceSection';
-import { LocalizationSection } from '@/components/config/sections/LocalizationSection';
 import { EngineSection } from '@/components/config/sections/EngineSection';
 import { IntelligenceSection } from '@/components/config/sections/IntelligenceSection';
 import { InfrastructureSection } from '@/components/config/sections/InfrastructureSection';
@@ -124,13 +125,14 @@ function ConfigPageInner() {
   const notifiedVersionRef = React.useRef<string | null>(null);
 
   // Tab Selection Handler
-  const handleSelectTab = (tab: SettingsTabId) => {
+  const handleSelectTab = (tab: SettingsTabId, subTab?: string) => {
     setActionError(null);
     setActionSuccess(null);
     if (tab === 'overview') {
       router.push('/config', { scroll: false });
     } else {
-      router.push(`/config?tab=${tab}`, { scroll: false });
+      const url = subTab ? `/config?tab=${tab}&subtab=${subTab}` : `/config?tab=${tab}`;
+      router.push(url, { scroll: false });
     }
   };
 
@@ -632,6 +634,52 @@ function ConfigPageInner() {
     };
   }, [theme, typography, locale, currentUser, gtfsTelemetry, users, updaterStatus]);
 
+  const handleRestoreDefaults = async () => {
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('paladio_unit_distance');
+        localStorage.removeItem('paladio_unit_temperature');
+        localStorage.removeItem('paladio_unit_clock');
+        localStorage.removeItem('paladio_unit_date');
+        localStorage.removeItem('paladio_home_city');
+        localStorage.removeItem('paladio_home_country');
+        localStorage.removeItem('paladio_home_country_name');
+        window.dispatchEvent(new Event('paladio_home_location_changed'));
+        window.dispatchEvent(new Event('paladio_units_changed'));
+      }
+
+      useThemeStore.getState().setTheme('light');
+      useTypographyStore.getState().setTypography('inter');
+      setLocale('en');
+
+      if (currentUser) {
+        await updatePreferencesApi({
+          default_currency: 'EUR',
+          home_city: 'Madrid',
+          home_country: 'ES',
+          home_country_name: 'Spain',
+          distance_unit: 'km',
+          temperature_unit: 'C',
+          clock_format: '24h',
+          date_format: 'YYYY-MM-DD',
+          theme: 'light',
+          typography: 'inter',
+          language: 'en',
+        });
+        await refreshUser();
+      }
+
+      setActionSuccess('All settings have been successfully restored to factory defaults.');
+      notify.success('Settings Restored', 'All settings have been restored to factory defaults.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to restore default settings';
+      setActionError(msg);
+      notify.error('Reset Failed', msg);
+    }
+  };
+
   return (
     <div className={styles.settingsShell}>
       <header className={styles.settingsHeader}>
@@ -702,27 +750,24 @@ function ConfigPageInner() {
             isAdmin={isAdmin}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onRestoreDefaults={handleRestoreDefaults}
             telemetrySummary={telemetrySummary}
           />
         )}
 
-        {(activeTab === 'profile' || activeTab === 'appearance' || activeTab === 'typography' || activeTab === 'navigation' || activeTab === 'maps') && (
-          <ExperienceSection
+        {(activeTab === 'profile' || activeTab === 'language' || activeTab === 'currency' || activeTab === 'units') && (
+          <PersonalAccountSection
             onBackToOverview={() => handleSelectTab('overview')}
-            subTab={activeTab}
             currentUser={currentUser}
-            openEditModal={openEditModal}
+            refreshUser={refreshUser}
             getSafeAvatarUrl={getSafeAvatarUrl}
           />
         )}
 
-        {(activeTab === 'language' || activeTab === 'currency' || activeTab === 'units') && (
-          <LocalizationSection
+        {(activeTab === 'appearance' || activeTab === 'typography' || activeTab === 'navigation' || activeTab === 'maps') && (
+          <ExperienceSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
-            currentUser={currentUser}
-            onUpdateDefaultCurrency={handleUpdateDefaultCurrency}
-            savingCurrency={savingCurrency}
           />
         )}
 
@@ -754,6 +799,7 @@ function ConfigPageInner() {
           <InfrastructureSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
+            initialSubTab={searchParams?.get('subtab') || undefined}
 
             isAdmin={isAdmin}
             currentUser={currentUser}

@@ -15,6 +15,7 @@ import { notify } from '@/utils/notify';
 interface InfrastructureSectionProps {
   onBackToOverview: () => void;
   subTab?: 'users' | 'updates' | 'telemetry' | 'vault' | 'notifications';
+  initialSubTab?: string;
   isAdmin: boolean;
 
   currentUser: User | null;
@@ -95,10 +96,21 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
     handleCheckForUpdates,
     handleDownloadUpdate,
     handleToggleAutoUpdate,
+    initialSubTab,
   } = props;
 
   // Vault config state
-  const [vaultSubTab, setVaultSubTab] = useState<'storage' | 'photo_sync'>('storage');
+  const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
+  const [vaultSubTab, setVaultSubTab] = useState<'storage' | 'photo_sync'>(() => {
+    return initialSubTab === 'photo_sync' ? 'photo_sync' : 'storage';
+  });
+
+  if (initialSubTab !== prevInitialSubTab) {
+    setPrevInitialSubTab(initialSubTab);
+    if (initialSubTab === 'photo_sync' || initialSubTab === 'storage') {
+      setVaultSubTab(initialSubTab);
+    }
+  }
   const [vaultConfig, setVaultConfig] = useState<VaultConfigData>({
     auto_snapshot_enabled: true,
     snapshot_retention_days: 30,
@@ -329,15 +341,15 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
         </>
       )}
 
-      {/* 4. Notification Relays (Admin Only) */}
+      {/* 4. Notification (Admin Only) */}
       {subTab === 'notifications' && (
         <>
           <SettingsHeader
-            title="Notification Relays & Device Alerts"
-            subtitle="Configure push delivery for trip events, flight deal alerts, and ticket processing"
+            title="Notification"
+            subtitle="Configure notification event triggers and push delivery relays"
             onBackToOverview={onBackToOverview}
           />
-          <NotificationsSettingsCard isAdmin={isAdmin} />
+          <NotificationsSettingsCard isAdmin={isAdmin} initialSubTab={initialSubTab} />
         </>
       )}
     </div>
