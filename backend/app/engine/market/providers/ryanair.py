@@ -3,12 +3,13 @@ Ryanair public fare API provider.
 Includes oneWayFares standard query and cheapestPerDay bulk month sweep for day-0 baselines.
 """
 
+import json
 import logging
 from datetime import date, datetime, timezone
 from typing import Any
 import httpx
 from app.engine.market.config import config
-from app.engine.market.ports import FlightQuote
+from app.engine.market.ports import FareObservation, FlightQuote
 from app.engine.market.providers.base import (
     BaseQuoteProvider,
     ParseDriftError,
@@ -33,6 +34,32 @@ class RyanairProvider(BaseQuoteProvider):
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Paladio/1.0",
             "Accept": "application/json",
         }
+
+    def _redis_cache_key(self, origin: str, dest: str, month_str: str) -> str:
+        return f"market:ryanair:raw:{origin.upper()}:{dest.upper()}:{month_str}"
+
+    async def _get_cached_raw_response(self, cache_key: str) -> dict[str, Any] | None:
+        try:
+            from app.core.redis import get_redis
+
+            redis = await get_redis()
+            cached = await redis.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception as e:
+            logger.debug(f"[Ryanair] Redis cache read bypassed: {e}")
+        return None
+
+    async def _set_cached_raw_response(
+        self, cache_key: str, data: dict[str, Any], ttl_sec: int = 86400
+    ) -> None:
+        try:
+            from app.core.redis import get_redis
+
+            redis = await get_redis()
+            await redis.set(cache_key, json.dumps(data), ex=ttl_sec)
+        except Exception as e:
+            logger.debug(f"[Ryanair] Redis cache write bypassed: {e}")
 
     async def is_healthy(self) -> bool:
         return True
@@ -139,12 +166,18 @@ class RyanairProvider(BaseQuoteProvider):
         from app.engine.market.flights.classifier import route_classifier
 
         classification = route_classifier.classify_corridor(origin_iata, dest_iata)
-        if not classification.is_europe:
+        if classification.corridor_region != "intra_europe":
             return []
+        month_str = month_start.strftime("%Y-%m")
+        cache_key = self._redis_cache_key(origin_iata, dest_iata, month_str)
+
+        cached_payload = await self._get_cached_raw_response(cache_key)
+        if cached_payload:
+            return self._parse_cheapest_per_day(cached_payload, origin_iata, dest_iata)
 
         url = f"https://www.ryanair.com/api/farfnd/v4/oneWayFares/{origin_iata}/{dest_iata}/cheapestPerDay"
         params = {
-            "outboundMonthOfDate": month_start.strftime("%Y-%m-01"),
+            "outboundMonthOfDate": f"{month_str}-01",
             "market": "en-gb",
             "language": "en",
         }
@@ -170,52 +203,10 @@ class RyanairProvider(BaseQuoteProvider):
                         f"Ryanair cheapestPerDay returned unexpected JSON type: {type(data)}"
                     )
 
-                outbound = data.get("outbound", {})
-                fares = outbound.get("fares", [])
-                for f in fares:
-                    day_str = f.get("day")
-                    price_obj = f.get("price")
-                    unavailable = f.get("unavailable", False)
-                    if unavailable or not price_obj or not day_str:
-                        continue
-                    val = price_obj.get("value")
-                    curr = price_obj.get("currencyCode", "EUR")
-                    if val is None:
-                        continue
-                    dep_raw = f.get("departureDate")
-                    arr_raw = f.get("arrivalDate")
-                    if dep_raw and arr_raw:
-                        dep_dt = datetime.fromisoformat(dep_raw)
-                        arr_dt = datetime.fromisoformat(arr_raw)
-                    else:
-                        dep_dt = None
-                        arr_dt = None
-                    dep_date_val = date.fromisoformat(day_str)
-                    price_cents = int(round(float(val) * 100))
-                    quotes.append(
-                        FlightQuote(
-                            origin_iata=origin_iata,
-                            destination_iata=dest_iata,
-                            destination_city_id=dest_iata,
-                            depart_date=dep_date_val,
-                            depart_time=dep_dt,
-                            arrival_time=arr_dt,
-                            base_price_cents=price_cents,
-                            currency=curr,
-                            carrier="Ryanair",
-                            flight_number=f.get("flightNumber"),
-                            stops=0,
-                            deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
-                            source="ryanair",
-                            source_class="cache",
-                            observed_at=datetime.now(timezone.utc),
-                            found_at=datetime.now(timezone.utc),
-                            fetched_at=datetime.now(timezone.utc),
-                            is_live=False,
-                            confidence="medium",
-                            ancillaries_excluded=True,
-                        )
-                    )
+                if data and data.get("outbound"):
+                    await self._set_cached_raw_response(cache_key, data, ttl_sec=86400)
+
+                quotes = self._parse_cheapest_per_day(data, origin_iata, dest_iata)
         except (ProviderBlockedError, ParseDriftError):
             raise
         except Exception as e:
@@ -223,6 +214,104 @@ class RyanairProvider(BaseQuoteProvider):
                 f"CheapestPerDay endpoint failed for {origin_iata}->{dest_iata}: {e}"
             )
         return quotes
+
+    def _parse_cheapest_per_day(
+        self, data: dict[str, Any], origin_iata: str, dest_iata: str
+    ) -> list[FlightQuote]:
+        quotes: list[FlightQuote] = []
+        outbound = data.get("outbound", {})
+        fares = outbound.get("fares", [])
+        for f in fares:
+            day_str = f.get("day")
+            price_obj = f.get("price")
+            unavailable = f.get("unavailable", False)
+            if unavailable or not price_obj or not day_str:
+                continue
+            val = price_obj.get("value")
+            curr = price_obj.get("currencyCode", "EUR")
+            if val is None:
+                continue
+            dep_raw = f.get("departureDate")
+            arr_raw = f.get("arrivalDate")
+            if dep_raw and arr_raw:
+                dep_dt = datetime.fromisoformat(dep_raw)
+                arr_dt = datetime.fromisoformat(arr_raw)
+            else:
+                dep_dt = None
+                arr_dt = None
+            dep_date_val = date.fromisoformat(day_str)
+            price_cents = int(round(float(val) * 100))
+            quotes.append(
+                FlightQuote(
+                    origin_iata=origin_iata,
+                    destination_iata=dest_iata,
+                    destination_city_id=dest_iata,
+                    depart_date=dep_date_val,
+                    depart_time=dep_dt,
+                    arrival_time=arr_dt,
+                    base_price_cents=price_cents,
+                    currency=curr,
+                    carrier="Ryanair",
+                    flight_number=f.get("flightNumber"),
+                    stops=0,
+                    deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
+                    source="ryanair",
+                    source_class="cache",
+                    observed_at=datetime.now(timezone.utc),
+                    found_at=datetime.now(timezone.utc),
+                    fetched_at=datetime.now(timezone.utc),
+                    is_live=False,
+                    confidence="medium",
+                    ancillaries_excluded=True,
+                )
+            )
+        return quotes
+
+    async def fetch_month(
+        self, origin: str, dest: str, month: date, trip_type: str = "one_way"
+    ) -> list[FareObservation]:
+        """
+        Implementation of FareProvider port for Ryanair direct carrier.
+        Queries Ryanair cheapestPerDay endpoint, converts quotes into FareObservation models.
+        """
+        from app.engine.market.flights.classifier import route_classifier
+
+        classification = route_classifier.classify_corridor(origin, dest)
+        if classification.corridor_region != "intra_europe":
+            return []
+
+        quotes = await self.fetch_month_cheapest_per_day(origin, dest, month)
+        now = datetime.now(timezone.utc)
+        observations: list[FareObservation] = []
+        for q in quotes:
+            dep_date = q.depart_date or (
+                q.depart_time.date() if q.depart_time else None
+            )
+            if not dep_date:
+                continue
+            obs = FareObservation(
+                origin=origin.upper(),
+                destination=dest.upper(),
+                depart_date=dep_date,
+                depart_time=q.depart_time,
+                arrival_time=q.arrival_time,
+                return_date=None,
+                trip_type=trip_type,
+                price_cents=q.base_price_cents,
+                currency=q.currency,
+                carrier=q.carrier or "Ryanair",
+                flight_number=q.flight_number,
+                stops=q.stops,
+                deep_link=q.deep_link,
+                source="ryanair",
+                source_class="cache",
+                market="es",
+                found_at=q.found_at or now,
+                fetched_at=q.fetched_at or now,
+                flags={"unavailable": False},
+            )
+            observations.append(obs)
+        return observations
 
     async def fetch_calendar_horizon(
         self,

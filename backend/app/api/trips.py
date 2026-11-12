@@ -1276,10 +1276,17 @@ router.include_router(collections_router)
 
 @router.get("/", response_model=list[TripResponse])
 async def get_trips(
+    include_proposals: bool = Query(
+        False, description="Include deal proposals and superseded items"
+    ),
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
     stmt = select(TripModel).order_by(TripModel.start_date.asc())
+    if not include_proposals:
+        stmt = stmt.filter(
+            TripModel.status.not_in(["deal_proposal", "superseded", "discarded"])
+        )
 
     result = await session.execute(stmt)
     trips = result.scalars().all()

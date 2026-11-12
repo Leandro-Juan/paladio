@@ -622,21 +622,37 @@ async def run_deal_detection_scan(
                     )
                     session.add(event)
 
-                # Create proposal in TripModel
-                trip_id = f"trip_proposal_{uuid.uuid4().hex[:8]}"
-                proposal_trip = TripModel(
-                    id=trip_id,
-                    user_id=alert.user_id,
-                    destination=dest,
-                    start_date=dep_date.isoformat(),
-                    end_date=ret_date.isoformat(),
-                    status="deal_proposal",
-                    itinerary_data={
+                # Create or update proposal in TripModel
+                existing_proposal_stmt = select(TripModel).filter(
+                    TripModel.user_id == alert.user_id,
+                    TripModel.destination == dest,
+                    TripModel.start_date == dep_date.isoformat(),
+                    TripModel.end_date == ret_date.isoformat(),
+                    TripModel.status == "deal_proposal",
+                )
+                existing_proposal = (
+                    await session.execute(existing_proposal_stmt)
+                ).scalar_one_or_none()
+                if existing_proposal:
+                    existing_proposal.itinerary_data = {
                         "deal_package": package_payload,
                         "realism_score": gate_realism or 8.5,
-                    },
-                )
-                session.add(proposal_trip)
+                    }
+                else:
+                    trip_id = f"trip_proposal_{uuid.uuid4().hex[:8]}"
+                    proposal_trip = TripModel(
+                        id=trip_id,
+                        user_id=alert.user_id,
+                        destination=dest,
+                        start_date=dep_date.isoformat(),
+                        end_date=ret_date.isoformat(),
+                        status="deal_proposal",
+                        itinerary_data={
+                            "deal_package": package_payload,
+                            "realism_score": gate_realism or 8.5,
+                        },
+                    )
+                    session.add(proposal_trip)
                 await session.commit()
 
                 if event_status == "alerted":

@@ -647,9 +647,14 @@ async def list_monitored_routes(
         _resolve_target_currency(currency_param, current_user, default="") or None
     )
 
+    seen_corridors: set[tuple[str, str]] = set()
     items: list[RouteItemResponse] = []
     for a in alerts:
         dest_code = a.destinations[0] if a.destinations else ""
+        corridor_key = (a.origin_iata.upper().strip(), dest_code.upper().strip())
+        if corridor_key in seen_corridors:
+            continue
+        seen_corridors.add(corridor_key)
         dest_name = await _resolve_city_name(session, dest_code)
 
         tick_stmt = (
@@ -840,6 +845,25 @@ async def create_monitored_route(
         route_classifier.classify_corridor(req.origin_iata, req.destination_code)
     except UnknownAirportError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    origin_code = req.origin_iata.upper().strip()
+    dest_code = req.destination_code.upper().strip()
+
+    # Prevent monitoring the exact same route twice
+    existing_alerts_stmt = select(DealWatchAlertModel).filter(
+        DealWatchAlertModel.origin_iata == origin_code
+    )
+    if user_id:
+        existing_alerts_stmt = existing_alerts_stmt.filter(
+            DealWatchAlertModel.user_id == user_id
+        )
+    existing_alerts_res = await session.execute(existing_alerts_stmt)
+    for ea in existing_alerts_res.scalars().all():
+        if dest_code in [d.upper().strip() for d in (ea.destinations or [])]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Route {origin_code} → {dest_code} is already being monitored.",
+            )
 
     alert = DealWatchAlertModel(
         id=new_id,

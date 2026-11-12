@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRouteMonitoring, DealPackage } from '@/hooks/useRouteMonitoring';
 import { RouteFullScreenView } from '@/components/monitoring/RouteFullScreenView';
@@ -13,9 +13,10 @@ import {
   ChevronRightIcon,
 } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './Monitoring.module.css';
 
-export default function MonitoringPage() {
+function MonitoringPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const routeParam = searchParams?.get('route') || searchParams?.get('route_id');
@@ -241,7 +242,7 @@ export default function MonitoringPage() {
                   <div className={styles.dealSavingsHighlight}>
                     <span className={styles.savingsPill}>
                       <TrendingDownIcon size={14} color="#FFFFFF" />
-                      {deal.discount_pct.toFixed(0)}% OFF
+                      {(deal.discount_pct ?? 0).toFixed(0)}% OFF
                     </span>
                     <span className={styles.savingsAmountText}>Save {formatCurrencyAmount(deal.savings_eur, dealCurrency)} vs median</span>
                   </div>
@@ -260,7 +261,7 @@ export default function MonitoringPage() {
                       Flight Corridor
                     </span>
                     <span className={styles.componentCarrierBadge}>
-                      {deal.flight.airline} {deal.flight.flight_number ? `· ${deal.flight.flight_number}` : ''}
+                      {deal.flight?.airline || 'Direct Carrier'} {deal.flight?.flight_number ? `· ${deal.flight.flight_number}` : ''}
                     </span>
                   </div>
                   <div className={styles.componentDetails}>
@@ -269,11 +270,11 @@ export default function MonitoringPage() {
                         Outbound: {deal.origin_name} → {deal.destination_name}
                       </span>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                        {formatCurrencyAmount(deal.flight.landed_price_eur, dealCurrency)}
+                        {formatCurrencyAmount(deal.flight?.landed_price_eur ?? 0, dealCurrency)}
                       </span>
                     </div>
                     <span className={styles.componentSubText}>
-                      {deal.depart_date} · {deal.flight.depart_time.slice(11, 16)} → {deal.flight.arrival_time.slice(11, 16)} (Direct)
+                      {deal.depart_date} · {deal.flight?.depart_time ? deal.flight.depart_time.slice(11, 16) : '--:--'} → {deal.flight?.arrival_time ? deal.flight.arrival_time.slice(11, 16) : '--:--'} (Direct)
                     </span>
 
                     {deal.return_flight && (
@@ -287,16 +288,16 @@ export default function MonitoringPage() {
                           </span>
                         </div>
                         <span className={styles.componentSubText}>
-                          {deal.return_date} · {deal.return_flight.depart_time.slice(11, 16)} → {deal.return_flight.arrival_time.slice(11, 16)} (Direct)
+                          {deal.return_date} · {deal.return_flight.depart_time ? deal.return_flight.depart_time.slice(11, 16) : '--:--'} → {deal.return_flight.arrival_time ? deal.return_flight.arrival_time.slice(11, 16) : '--:--'} (Direct)
                         </span>
                       </>
                     )}
                   </div>
                   <div className={styles.componentPriceRow}>
                     <span className={styles.componentPrice}>
-                      {formatCurrencyAmount(deal.flight.landed_price_eur + (deal.return_flight?.landed_price_eur ?? 0), dealCurrency)} Landed Flights {deal.travelers && deal.travelers > 1 ? `(${deal.travelers} travelers)` : ''}
+                      {formatCurrencyAmount((deal.flight?.landed_price_eur ?? 0) + (deal.return_flight?.landed_price_eur ?? 0), dealCurrency)} Landed Flights {deal.travelers && deal.travelers > 1 ? `(${deal.travelers} travelers)` : ''}
                     </span>
-                    {deal.flight.booking_url && (
+                    {deal.flight?.booking_url && (
                       <a
                         href={deal.flight.booking_url}
                         target="_blank"
@@ -310,43 +311,72 @@ export default function MonitoringPage() {
                 </div>
 
                 {/* Hotel Ticket Card */}
-                <div className={styles.dealComponentCard}>
-                  <div className={styles.componentHeader}>
-                    <span className={styles.componentTypeTitle}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
-                      </svg>
-                      Accommodation
-                    </span>
-                    <span className={styles.componentCarrierBadge}>
-                      {deal.lodging.badge && deal.lodging.badge !== 'standard' ? `${deal.lodging.badge === 'best_value' ? '⚡ Best Value' : deal.lodging.badge === 'cheapest' ? '🏷 Cheapest' : deal.lodging.badge === 'top_rated' ? '★ Top Rated' : '📍 Central'} · ` : ''}
-                      {deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)}/100 Quality` : (deal.lodging.stars ? `★ ${deal.lodging.stars} Stars` : 'Verified Stay')}
-                    </span>
+                {deal.lodging ? (
+                  <div className={styles.dealComponentCard}>
+                    <div className={styles.componentHeader}>
+                      <span className={styles.componentTypeTitle}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
+                        </svg>
+                        Accommodation
+                      </span>
+                      <span className={styles.componentCarrierBadge}>
+                        {deal.lodging.badge && deal.lodging.badge !== 'standard' ? `${deal.lodging.badge === 'best_value' ? '⚡ Best Value' : deal.lodging.badge === 'cheapest' ? '🏷 Cheapest' : deal.lodging.badge === 'top_rated' ? '★ Top Rated' : '📍 Central'} · ` : ''}
+                        {deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)}/100 Quality` : (deal.lodging.stars ? `★ ${deal.lodging.stars} Stars` : 'Verified Stay')}
+                      </span>
+                    </div>
+                    <div className={styles.componentDetails}>
+                      <span className={styles.componentMainName}>
+                        {deal.lodging.property_name || 'Verified Lodging'}
+                      </span>
+                      <span className={styles.componentSubText}>
+                        {deal.lodging.nightly_base_eur ? `${formatCurrencyAmount(deal.lodging.nightly_base_eur, dealCurrency)}/night · ` : ''}{deal.nights} nights stay
+                      </span>
+                    </div>
+                    <div className={styles.componentPriceRow}>
+                      <span className={styles.componentPrice}>
+                        {deal.lodging.landed_total_eur ? `${formatCurrencyAmount(deal.lodging.landed_total_eur, dealCurrency)} Landed ` : 'Landed Lodging '}{deal.travelers && deal.travelers > 1 ? `· ${deal.travelers} Guests` : ''}
+                      </span>
+                      {deal.lodging.booking_url && (
+                        <a
+                          href={deal.lodging.booking_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.directLinkBtn}
+                        >
+                          Book Hotel ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className={styles.componentDetails}>
-                    <span className={styles.componentMainName}>
-                      {deal.lodging.property_name}
-                    </span>
-                    <span className={styles.componentSubText}>
-                      {formatCurrencyAmount(deal.lodging.nightly_base_eur, dealCurrency)}/night · {deal.nights} nights stay
-                    </span>
+                ) : (
+                  <div className={styles.dealComponentCard} style={{ opacity: 0.85 }}>
+                    <div className={styles.componentHeader}>
+                      <span className={styles.componentTypeTitle}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
+                        </svg>
+                        Accommodation
+                      </span>
+                      <span className={styles.componentCarrierBadge}>
+                        Flexible Stay
+                      </span>
+                    </div>
+                    <div className={styles.componentDetails}>
+                      <span className={styles.componentMainName}>
+                        Direct Flight Deal Corridor
+                      </span>
+                      <span className={styles.componentSubText}>
+                        Lodging quotes are resolved dynamically upon corridor inspection or itinerary initialization.
+                      </span>
+                    </div>
+                    <div className={styles.componentPriceRow}>
+                      <span className={styles.componentPrice}>
+                        {deal.nights} Nights in {deal.destination_name}
+                      </span>
+                    </div>
                   </div>
-                  <div className={styles.componentPriceRow}>
-                    <span className={styles.componentPrice}>
-                      {formatCurrencyAmount(deal.lodging.landed_total_eur, dealCurrency)} Landed {deal.travelers && deal.travelers > 1 ? `· ${deal.travelers} Guests` : ''}
-                    </span>
-                    {deal.lodging.booking_url && (
-                      <a
-                        href={deal.lodging.booking_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={styles.directLinkBtn}
-                      >
-                        Book Hotel ↗
-                      </a>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Action Bar */}
@@ -578,6 +608,7 @@ export default function MonitoringPage() {
       <NewRouteModal
         isOpen={isNewModalOpen}
         userDefaultCurrency={userCurrency}
+        existingRoutes={routes}
         onClose={() => setIsNewModalOpen(false)}
         onSubmit={async (data) => {
           await createRoute(data);
@@ -586,3 +617,12 @@ export default function MonitoringPage() {
     </div>
   );
 }
+
+export default function MonitoringPage() {
+  return (
+    <Suspense fallback={<PaladioLoader variant="fullscreen" />}>
+      <MonitoringPageInner />
+    </Suspense>
+  );
+}
+

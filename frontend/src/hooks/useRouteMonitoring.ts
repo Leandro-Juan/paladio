@@ -241,8 +241,8 @@ export interface RouteEvent {
 export interface DealFlight {
   airline: string;
   flight_number?: string | null;
-  depart_time: string;
-  arrival_time: string;
+  depart_time?: string | null;
+  arrival_time?: string | null;
   base_price_eur: number;
   landed_price_eur: number;
   booking_url?: string | null;
@@ -298,7 +298,7 @@ export interface DealPackage {
   detected_at: string;
   flight: DealFlight;
   return_flight?: DealFlight | null;
-  lodging: DealLodging;
+  lodging?: DealLodging | null;
   travelers?: number;
   participants?: SelectedParticipant[];
   currency?: string;

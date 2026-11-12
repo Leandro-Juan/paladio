@@ -68,10 +68,10 @@ async def backfill_route_corpus(
     await session.commit()
 
     # 2. Execute sweep via unified sweep engine per PLAN.md P3.6
-    from app.engine.market.providers.aviasales import AviasalesProvider
+    from app.engine.market.adapters import CompositeFlightFeed
     from app.engine.market.sweep import sweep_route
 
-    flight_provider = feed if feed is not None else AviasalesProvider()
+    flight_provider = feed if feed is not None else CompositeFlightFeed()
     try:
         sweep_res = await sweep_route(
             session=session,

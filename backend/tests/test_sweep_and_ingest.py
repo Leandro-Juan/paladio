@@ -292,5 +292,5 @@ async def test_daily_sweep_orchestrator():
         s_res = await session.execute(sweep_stmt)
         run_record = s_res.scalar_one_or_none()
         assert run_record is not None
-        assert run_record.provider == "aviasales"
+        assert run_record.provider in ("aviasales", "composite")
         assert run_record.status == "completed"

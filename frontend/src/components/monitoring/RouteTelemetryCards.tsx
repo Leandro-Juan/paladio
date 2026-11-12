@@ -122,7 +122,7 @@ export function RouteTelemetryCards({
 
           <div className={styles.cardValueRow}>
             <span className={styles.cardValue}>
-              {lowestEver !== null ? `${symbol}${lowestEver.toFixed(0)}` : '--'}
+              {lowestEver != null ? `${symbol}${lowestEver.toFixed(0)}` : '--'}
             </span>
             <span className={styles.cardUnit}>
               {savingsPct > 0 ? `(-${savingsPct.toFixed(0)}%)` : 'All-time low'}
@@ -161,7 +161,7 @@ export function RouteTelemetryCards({
 
           <div className={styles.cardValueRow}>
             <span className={styles.cardValue}>
-              {currentPrice !== null ? `${symbol}${currentPrice.toFixed(0)}` : '--'}
+              {currentPrice != null ? `${symbol}${currentPrice.toFixed(0)}` : '--'}
             </span>
             {(history?.verdict?.verdict || stats?.verdict) ? (
               <VerdictBadge
@@ -172,7 +172,7 @@ export function RouteTelemetryCards({
               />
             ) : (
               <span className={styles.cardUnit}>
-                {history?.p50_median_eur ? `Median: ${symbol}${history.p50_median_eur.toFixed(0)}` : 'Active fare'}
+                {history?.p50_median_eur != null ? `Median: ${symbol}${history.p50_median_eur.toFixed(0)}` : 'Active fare'}
               </span>
             )}
           </div>

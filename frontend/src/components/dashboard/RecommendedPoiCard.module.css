@@ -1,5 +1,5 @@
 .card {
-  background-color: var(--color-surface-raised, #FFFFFF);
+  background-color: var(--color-surface-card, #FAF6F0);
   border-radius: 12px;
   border: 1px solid var(--color-border);
   position: relative;
@@ -66,7 +66,7 @@
     to bottom,
     transparent 0%,
     transparent 55%,
-    var(--color-surface-raised, #FFFFFF) 100%
+    var(--color-surface-card, #FAF6F0) 100%
   );
   pointer-events: none;
 }
@@ -77,7 +77,7 @@
   flex-direction: column;
   justify-content: flex-end;
   flex-shrink: 0;
-  background-color: var(--color-surface-raised, #FFFFFF);
+  background-color: var(--color-surface-card, #FAF6F0);
 }
 
 .infoBlock {
@@ -190,14 +190,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: rgba(15, 76, 92, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: var(--color-accent-primary, #0F4C5C);
+  border: 1px solid transparent;
   color: var(--color-btn-primary-text, #FFFFFF);
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 0 2px 8px rgba(15, 76, 92, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(15, 76, 92, 0.2);
   transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
               background-color 140ms ease,
               border-color 140ms ease,
@@ -207,8 +205,7 @@
 .actionButton:hover {
   background-color: var(--color-accent-teal-deep, #0A3642);
   transform: translateY(-1px) scale(1.02);
-  border-color: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 4px 12px rgba(15, 76, 92, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 12px rgba(15, 76, 92, 0.3);
 }
 
 .actionButton:active {
@@ -216,14 +213,14 @@
 }
 
 [data-theme="dark"] .actionButton {
-  background: rgba(20, 120, 141, 0.8);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  background-color: var(--color-accent-primary, #14788D);
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .actionButton:hover {
   background-color: var(--color-accent-teal-deep, #0F3A47);
-  border-color: rgba(255, 255, 255, 0.32);
+  border-color: transparent;
 }
 
 .actionIcon {

@@ -41,6 +41,11 @@ async def test_market_api_lifecycle():
         assert new_route["origin_iata"] == "MAD"
         assert new_route["destination_code"] == "FCO"
 
+        # 3b. Duplicate route creation returns 409
+        dup_res = await client.post("/api/market/routes", json=payload)
+        assert dup_res.status_code == 409
+        assert "already being monitored" in dup_res.json()["detail"]
+
         # 4. Route stats
         stats_res = await client.get(f"/api/market/routes/{route_id}/stats")
         assert stats_res.status_code == 200

@@ -318,11 +318,15 @@ export function useTrips() {
     }
   };
 
-  const completedTrips = useMemo(() => trips.filter(t => isTripCompleted(t)), [trips]);
-  const upcomingTrips = useMemo(() => trips.filter(t => !isTripCompleted(t)), [trips]);
+  const scheduledTrips = useMemo(
+    () => trips.filter(t => t.status !== 'deal_proposal' && t.status !== 'superseded' && t.status !== 'discarded'),
+    [trips]
+  );
+  const completedTrips = useMemo(() => scheduledTrips.filter(t => isTripCompleted(t)), [scheduledTrips]);
+  const upcomingTrips = useMemo(() => scheduledTrips.filter(t => !isTripCompleted(t)), [scheduledTrips]);
 
   return {
-    trips,
+    trips: scheduledTrips,
     completedTrips,
     upcomingTrips,
     loading,

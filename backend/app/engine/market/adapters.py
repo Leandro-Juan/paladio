@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.engine.market.config import config
 from app.engine.market.ports import (
     FareObservation,
+    FareProvider,
     FlightFeed,
     FlightQuote,
     GateResult,
@@ -32,16 +33,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
+class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
     """
     Sovereign Flight Feed backed by verified providers.
-    Uses Ryanair for intra-European routes; Aviasales primary source added in Phase 2.
+    Uses Ryanair first for intra-European routes, layered with Aviasales; Aviasales primary for global.
     """
 
     def __init__(self, timeout_sec: float = 16.0):
         from app.engine.market.providers.aviasales import AviasalesProvider
         from app.engine.market.providers.ryanair import RyanairProvider
 
+        self.name = "composite"
         self.timeout_sec = timeout_sec
         self.aviasales = AviasalesProvider(timeout_sec=timeout_sec)
         self.ryanair = RyanairProvider(timeout_sec=timeout_sec)
@@ -51,9 +53,13 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
         from app.engine.market.providers.router import ProviderRouter
 
         classification = route_classifier.classify_corridor(origin_iata, dest_iata)
-        if classification.is_europe:
-            # Per Decision D11: Aviasales primary, Ryanair direct-carrier secondary in Europe
-            providers = [self.aviasales, self.ryanair]
+        is_intra_europe = (
+            classification.is_europe
+            and classification.corridor_region == "intra_europe"
+        )
+        if is_intra_europe:
+            # Per Decision D11 & prioritized hierarchy: Ryanair direct-carrier primary in Europe, Aviasales secondary
+            providers = [self.ryanair, self.aviasales]
         else:
             providers = [self.aviasales]
         return ProviderRouter(asset_type="flight", providers=providers)
@@ -62,11 +68,51 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
         self, origin: str, dest: str, month: date, trip_type: str = "one_way"
     ) -> list[FareObservation]:
         """
-        Fetches full month fare observations from primary FareProvider.
+        Fetches full month fare observations using prioritized regional hierarchy:
+        - Intra-Europe: Queries Ryanair first for dense daily carrier schedule quotes.
+          Also queries Aviasales to capture legacy full-service carriers (Iberia, TAP, etc.)
+          and seamlessly falls back to Aviasales if Ryanair is blocked or unavailable.
+        - Non-Europe / Intercontinental: Queries Aviasales directly.
         """
-        return await self.aviasales.fetch_month(
-            origin, dest, month, trip_type=trip_type
+        from app.engine.market.flights.classifier import route_classifier
+
+        classification = route_classifier.classify_corridor(origin, dest)
+        is_intra_europe = (
+            classification.is_europe
+            and classification.corridor_region == "intra_europe"
         )
+        if not is_intra_europe:
+            return await self.aviasales.fetch_month(
+                origin, dest, month, trip_type=trip_type
+            )
+
+        # Intra-Europe: Ryanair primary
+        ryanair_obs: list[FareObservation] = []
+        try:
+            ryanair_obs = await self.ryanair.fetch_month(
+                origin, dest, month, trip_type=trip_type
+            )
+        except Exception as e:
+            logger.warning(
+                f"[CompositeFlightFeed] Ryanair fetch_month failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}. Falling back to Aviasales."
+            )
+
+        # Layer in Aviasales for legacy carriers, additional dates, or fallback
+        aviasales_obs: list[FareObservation] = []
+        try:
+            aviasales_obs = await self.aviasales.fetch_month(
+                origin, dest, month, trip_type=trip_type
+            )
+        except Exception as e:
+            logger.warning(
+                f"[CompositeFlightFeed] Aviasales fetch_month failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}."
+            )
+
+        if not ryanair_obs and not aviasales_obs:
+            return []
+
+        # Merge observations from both authentic providers without synthetic fillers
+        return ryanair_obs + aviasales_obs
 
     async def fetch_cached_flights(
         self,

@@ -14,6 +14,7 @@ interface NewRouteModalProps {
   isOpen: boolean;
   onClose: () => void;
   userDefaultCurrency?: string;
+  existingRoutes?: Array<{ origin_iata: string; destination_code: string }>;
   onSubmit: (data: {
     origin_iata: string;
     destination_code: string;
@@ -28,7 +29,7 @@ interface NewRouteModalProps {
   }) => Promise<unknown>;
 }
 
-export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }: NewRouteModalProps) {
+export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRoutes, onSubmit }: NewRouteModalProps) {
   const { user } = useAuth();
   const initialCurrency = userDefaultCurrency || (user?.preferences?.default_currency as string) || 'EUR';
 
@@ -107,12 +108,45 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
       setError('Destination must be a valid airport or city code (e.g. FCO, DUB, OPO)');
       return;
     }
+    if (origCode === destCode) {
+      setError('Origin and destination cannot be the same corridor.');
+      return;
+    }
+    const isDuplicate = existingRoutes?.some(
+      (r) =>
+        r.origin_iata.trim().toUpperCase() === origCode &&
+        r.destination_code.trim().toUpperCase() === destCode
+    );
+    if (isDuplicate) {
+      setError(`Route ${origCode} → ${destCode} is already being monitored.`);
+      return;
+    }
+    if (!earliestDate) {
+      setError('Earliest departure date window is required.');
+      return;
+    }
+    if (!latestDate) {
+      setError('Latest departure date window is required.');
+      return;
+    }
     if (new Date(earliestDate) > new Date(latestDate)) {
-      setError('Earliest departure date must be before latest departure date');
+      setError('Earliest departure date must be before latest departure date.');
+      return;
+    }
+    if (Number(minNights) < 1) {
+      setError('Minimum stay duration must be at least 1 night.');
+      return;
+    }
+    if (Number(maxNights) < Number(minNights)) {
+      setError('Maximum stay duration cannot be less than minimum stay duration.');
       return;
     }
     if (participants.length === 0) {
       setError('At least one traveler or participant must be added to the monitored route.');
+      return;
+    }
+    if (!budget || isNaN(Number(budget)) || Number(budget) <= 0) {
+      setError('Target ceiling budget envelope must be greater than 0.');
       return;
     }
 
@@ -157,8 +191,30 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {error && <div className={styles.errorMessage}>{error}</div>}
+        <form onSubmit={handleSubmit} noValidate className={styles.form}>
+          {error && (
+            <div className={styles.errorMessage} role="alert" aria-live="assertive">
+              <div className={styles.errorIcon}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <div className={styles.errorContent}>
+                <span className={styles.errorTag}>{"// CONSTRAINT_VIOLATION"}</span>
+                <span className={styles.errorText}>{error}</span>
+              </div>
+              <button
+                type="button"
+                className={styles.errorDismissBtn}
+                onClick={() => setError(null)}
+                aria-label="Dismiss error"
+              >
+                <CloseIcon size={12} />
+              </button>
+            </div>
+          )}
 
           {/* Flight Route Corridor Intake from Trip Creation */}
           <div className={styles.sectionGroup}>
@@ -237,8 +293,9 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
                   type="number"
                   min={1}
                   max={maxNights}
-                  value={minNights}
-                  onChange={(e) => setMinNights(Number(e.target.value))}
+                  step={1}
+                  value={minNights || ''}
+                  onChange={(e) => setMinNights(e.target.value === '' ? 1 : Number(e.target.value))}
                   required
                   className={styles.input}
                 />
@@ -248,8 +305,9 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
                   type="number"
                   min={minNights}
                   max={30}
-                  value={maxNights}
-                  onChange={(e) => setMaxNights(Number(e.target.value))}
+                  step={1}
+                  value={maxNights || ''}
+                  onChange={(e) => setMaxNights(e.target.value === '' ? 1 : Number(e.target.value))}
                   required
                   className={styles.input}
                 />
@@ -266,9 +324,9 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, onSubmit }
                   type="number"
                   min={1}
                   max={50000}
-                  step={10}
-                  value={budget}
-                  onChange={(e) => setBudget(Number(e.target.value))}
+                  step={1}
+                  value={budget || ''}
+                  onChange={(e) => setBudget(e.target.value === '' ? 0 : Number(e.target.value))}
                   required
                   className={styles.budgetInput}
                   placeholder="150"

@@ -142,7 +142,7 @@ export function PriceTrendGraph({
 
       return {
         date: f.depart_date,
-        displayTime: f.depart_date.slice(5), // MM-DD
+        displayTime: f.depart_date ? f.depart_date.slice(5) : '', // MM-DD
         outboundPrice: outbound,
         returnPrice: ret,
         flightTotal,

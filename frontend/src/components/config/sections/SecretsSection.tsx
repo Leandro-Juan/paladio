@@ -5,12 +5,11 @@ import {
   fetchSecretsStatusApi,
   updateSecretApi,
   deleteSecretApi,
-  testSecretApi,
   SecretItemResponse,
 } from '@/utils/api';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
-import { Spinner, CheckIcon } from '@/components/icons';
+import { Spinner } from '@/components/icons';
 import { notify } from '@/utils/notify';
 import Link from 'next/link';
 
@@ -26,8 +25,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
   const [inputToken, setInputToken] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showInput, setShowInput] = useState(false);
 
   useEffect(() => {
@@ -65,7 +62,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
     }
 
     setSaving(true);
-    setTestResult(null);
     try {
       const res = await updateSecretApi('aviasales', trimmed);
       setAviasalesSecret(res.secret);
@@ -86,7 +82,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
     }
 
     setDeleting(true);
-    setTestResult(null);
     try {
       const res = await deleteSecretApi('aviasales');
       setAviasalesSecret(res.secret);
@@ -98,26 +93,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
       notify.error('Delete Failed', msg);
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const handleTestConnection = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const res = await testSecretApi('aviasales');
-      setTestResult(res);
-      if (res.success) {
-        notify.success('Connection Verified', res.message);
-      } else {
-        notify.error('Connection Failed', res.message);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Connection test request failed';
-      setTestResult({ success: false, message: msg });
-      notify.error('Test Failed', msg);
-    } finally {
-      setTesting(false);
     }
   };
 
@@ -149,90 +124,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Status indicator row */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                background: isConfigured ? 'rgba(13, 148, 136, 0.08)' : 'rgba(200, 109, 81, 0.08)',
-                border: `1px solid ${isConfigured ? 'rgba(13, 148, 136, 0.25)' : 'rgba(200, 109, 81, 0.25)'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span
-                  style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: isConfigured ? 'var(--color-accent-teal, #0D9488)' : 'var(--color-accent-coral, #C86D51)',
-                    boxShadow: isConfigured ? '0 0 8px rgba(13, 148, 136, 0.6)' : 'none',
-                    display: 'inline-block',
-                  }}
-                />
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    {isConfigured ? 'AVIASALES TOKEN CONFIGURED' : 'NO AVIASALES TOKEN DETECTED'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    {isConfigured
-                      ? 'Live flight market sweeps and fare verification are enabled.'
-                      : 'Flight sweeps require an authentic Travelpayouts / Aviasales token.'}
-                  </div>
-                </div>
-              </div>
-
-              {isConfigured && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={handleTestConnection}
-                    disabled={testing}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--color-border-subtle)',
-                      background: 'var(--color-surface)',
-                      color: 'var(--color-text-secondary)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: testing ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    {testing ? <Spinner size={12} /> : null}
-                    <span>TEST CONNECTION</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Test result message if available */}
-            {testResult && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontFamily: 'var(--font-mono)',
-                  background: testResult.success ? 'rgba(13, 148, 136, 0.1)' : 'rgba(200, 109, 81, 0.1)',
-                  color: testResult.success ? 'var(--color-accent-teal, #0D9488)' : 'var(--color-accent-coral, #C86D51)',
-                  border: `1px solid ${testResult.success ? 'rgba(13, 148, 136, 0.3)' : 'rgba(200, 109, 81, 0.3)'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                {testResult.success ? <CheckIcon size={14} color="currentColor" /> : <span>✕</span>}
-                <span>{testResult.message}</span>
-              </div>
-            )}
-
             {/* Configured State: Obfuscated Display with Delete Action */}
             {isConfigured && !showInput ? (
               <div
@@ -279,18 +170,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--color-text-muted)',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          background: 'var(--color-surface-hover, rgba(0,0,0,0.05))',
-                        }}
-                      >
-                        ENCRYPTED & MASKED
-                      </span>
                       <button
                         type="button"
                         onClick={handleDeleteToken}

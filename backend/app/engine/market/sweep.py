@@ -29,7 +29,6 @@ from app.db.models import (
 from app.db.session import async_session
 from app.engine.market.config import config
 from app.engine.market.ports import FareObservation, FareProvider
-from app.engine.market.providers.aviasales import AviasalesProvider
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +313,17 @@ async def sweep_route_month(
     newest_found = max((obs.found_at for obs in observations), default=None)
     oldest_found = min((obs.found_at for obs in observations), default=None)
 
+    raw_source = getattr(provider, "name", "composite")
+    cov_source = raw_source if isinstance(raw_source, str) else "composite"
+    if observations:
+        sources = {
+            obs.source
+            for obs in observations
+            if obs.source and isinstance(obs.source, str)
+        }
+        if len(sources) == 1:
+            cov_source = sources.pop()
+
     # Upsert route_month_coverage
     cov_stmt = text("""
         INSERT INTO route_month_coverage (
@@ -321,12 +331,13 @@ async def sweep_route_month(
             newest_found_at, oldest_found_at, source, market
         ) VALUES (
             :id, :run_date, :origin, :dest, :month, :days_in_month, :days_with_price,
-            :newest_found_at, :oldest_found_at, 'aviasales', :market
+            :newest_found_at, :oldest_found_at, :source, :market
         )
         ON CONFLICT (id) DO UPDATE SET
             days_with_price = EXCLUDED.days_with_price,
             newest_found_at = EXCLUDED.newest_found_at,
-            oldest_found_at = EXCLUDED.oldest_found_at
+            oldest_found_at = EXCLUDED.oldest_found_at,
+            source = EXCLUDED.source
     """)
     await session.execute(
         cov_stmt,
@@ -340,6 +351,7 @@ async def sweep_route_month(
             "days_with_price": days_with_price,
             "newest_found_at": newest_found,
             "oldest_found_at": oldest_found,
+            "source": cov_source,
             "market": market.lower(),
         },
     )
@@ -429,14 +441,20 @@ async def run_daily_flight_sweep(
     started_at = datetime.now(timezone.utc)
     today = started_at.date()
     horizon = months_ahead or config.CORPUS_HORIZON_MONTHS
-    flight_provider = provider or AviasalesProvider()
+    if provider is not None:
+        flight_provider = provider
+    else:
+        from app.engine.market.adapters import CompositeFlightFeed
+
+        flight_provider = CompositeFlightFeed()
 
     async def _execute_sweep(sess: AsyncSession) -> dict[str, Any]:
-        # 1. Initialize market_sweep_runs row
+        raw_p = getattr(flight_provider, "name", "composite")
+        provider_name = raw_p if isinstance(raw_p, str) else "composite"
         sweep_run = MarketSweepRunModel(
             run_id=run_id,
             started_at=started_at,
-            provider="aviasales",
+            provider=provider_name,
             status="running",
             routes_total=0,
             routes_ok=0,
