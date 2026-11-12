@@ -68,106 +68,50 @@ async def ingest_flight_ticks(
         return 0
 
     now = datetime.now(timezone.utc)
-    inserted_count = 0
+    from app.engine.market.config import config
+    from app.engine.market.ports import FareObservation
+    from app.engine.market.sweep import ingest_fare_observations
 
+    observations: list[FareObservation] = []
     for quote in quotes:
-        dep_date = quote.depart_time.date()
-        ret_date = dep_date + timedelta(days=4)  # Default 4-night stay window
-        nights = (ret_date - dep_date).days
-        lead_time = max((dep_date - now.date()).days, 0)
-        source = quote.source or "flight_feed"
-        source_class = "live" if quote.is_live else "cache"
+        if isinstance(quote, FareObservation):
+            observations.append(quote)
+            continue
 
-        h = compute_content_hash(
-            "flight",
-            origin_iata,
-            dest_code,
-            dep_date,
-            ret_date,
-            quote.base_price_cents,
-            source,
-            source_observed_at=quote.observed_at,
+        dep_date = quote.depart_date or (
+            quote.depart_time.date() if quote.depart_time else None
         )
+        if not dep_date:
+            continue
 
-        meta = {
-            "carrier": quote.carrier,
-            "flight_number": quote.flight_number,
-            "stops": quote.stops,
-            "depart_local": quote.depart_time.isoformat(),
-            "arrival_local": quote.arrival_time.isoformat(),
-            "deep_link": quote.deep_link,
-        }
-
-        # Idempotent insert into market_price_ticks
-        tick_id = str(uuid.uuid4())
-        stmt = text("""
-            INSERT INTO market_price_ticks (
-                id, observed_at, asset_type, origin_iata, destination_code, dest_airport_iata,
-                depart_date, return_date, nights, lead_time_days, currency, base_price_cents,
-                stat, source, source_class, is_aggregated, is_exploration, content_hash,
-                ingest_run_id, metadata_json
-            ) VALUES (
-                :id, :observed_at, 'flight', :origin_iata, :destination_code, :dest_airport_iata,
-                :depart_date, :return_date, :nights, :lead_time_days, :currency, :base_price_cents,
-                'single', :source, :source_class, false, false, :content_hash,
-                :ingest_run_id, :metadata_json
-            ) ON CONFLICT (content_hash, observed_at) DO NOTHING
-        """)
-
-        res = await session.execute(
-            stmt,
-            {
-                "id": tick_id,
-                "observed_at": now,
-                "origin_iata": origin_iata,
-                "destination_code": dest_code,
-                "dest_airport_iata": dest_iata,
-                "depart_date": dep_date,
-                "return_date": ret_date,
-                "nights": nights,
-                "lead_time_days": lead_time,
-                "currency": quote.currency,
-                "base_price_cents": quote.base_price_cents,
-                "source": source,
-                "source_class": source_class,
-                "content_hash": h,
-                "ingest_run_id": effective_run_id,
-                "metadata_json": json.dumps(meta),
-            },
+        found = quote.found_at or quote.observed_at or now
+        obs = FareObservation(
+            origin=quote.origin_iata,
+            destination=dest_code,
+            depart_date=dep_date,
+            depart_time=quote.depart_time,
+            arrival_time=quote.arrival_time,
+            return_date=None,  # One-way observations store NULL return_date
+            trip_type="one_way",
+            price_cents=quote.base_price_cents,
+            currency=quote.currency,
+            carrier=quote.carrier,
+            flight_number=quote.flight_number,
+            stops=quote.stops,
+            deep_link=quote.deep_link,
+            source=quote.source or "flight_feed",
+            source_class="live" if quote.is_live else "cache",
+            market=config.AVIASALES_MARKET,
+            found_at=found,
+            fetched_at=now,
         )
-        if res.rowcount and res.rowcount > 0:
-            inserted_count += 1
+        observations.append(obs)
 
-        # Update price_daily rollup
-        daily_stmt = text("""
-            INSERT INTO price_daily (
-                bucket, asset_type, origin_iata, destination_code, depart_date,
-                nights, source_class, source, currency, min_base, n_ticks
-            ) VALUES (
-                :bucket, 'flight', :origin_iata, :destination_code, :depart_date,
-                :nights, :source_class, :source, :currency, :base_price_cents, 1
-            )
-            ON CONFLICT (bucket, asset_type, origin_iata, destination_code, depart_date, nights, source_class, source, currency)
-            DO UPDATE SET 
-                min_base = LEAST(price_daily.min_base, EXCLUDED.min_base),
-                n_ticks = price_daily.n_ticks + 1
-        """)
-        await session.execute(
-            daily_stmt,
-            {
-                "bucket": now.date(),
-                "origin_iata": origin_iata,
-                "destination_code": dest_code,
-                "depart_date": dep_date,
-                "nights": nights,
-                "source_class": source_class,
-                "source": source,
-                "currency": quote.currency,
-                "base_price_cents": quote.base_price_cents,
-            },
-        )
-
-    await session.commit()
+    inserted_count = await ingest_fare_observations(
+        session=session,
+        observations=observations,
+        ingest_run_id=effective_run_id,
+    )
     logger.info(
         f"Ingested {inserted_count} new flight ticks for {origin_iata}->{dest_code}"
     )

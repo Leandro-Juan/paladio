@@ -16,6 +16,12 @@ from app.services.airport_service import get_airport_service
 logger = logging.getLogger(__name__)
 
 
+class UnknownAirportError(ValueError):
+    """Raised when an IATA code cannot be resolved to a valid airport."""
+
+    pass
+
+
 @dataclass(frozen=True)
 class RouteClassification:
     origin_iata: str
@@ -52,8 +58,15 @@ class FlightRouteClassifier:
         orig_ap = svc.get_airport(orig_clean)
         dest_ap = svc.get_airport(dest_clean)
 
-        orig_country = orig_ap.country if orig_ap else ""
-        dest_country = dest_ap.country if dest_ap else ""
+        if not orig_ap:
+            raise UnknownAirportError(f"Unknown origin airport IATA code: {orig_clean}")
+        if not dest_ap:
+            raise UnknownAirportError(
+                f"Unknown destination airport IATA code: {dest_clean}"
+            )
+
+        orig_country = orig_ap.country or ""
+        dest_country = dest_ap.country or ""
 
         orig_cont = self._countries.get(orig_country, {}).get(
             "continentcode", "UNKNOWN"
@@ -63,8 +76,8 @@ class FlightRouteClassifier:
         )
 
         # Timezones
-        orig_tz = orig_ap.timezone if orig_ap else "UTC"
-        dest_tz = dest_ap.timezone if dest_ap else "UTC"
+        orig_tz = orig_ap.timezone or "UTC"
+        dest_tz = dest_ap.timezone or "UTC"
 
         # Determine corridor classification dynamically
         americas_continents = {"NA", "SA"}

@@ -6,11 +6,13 @@ Pure sovereign implementations of domain protocols using zero external API keys.
 import json
 import logging
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import select
 from app.engine.market.config import config
 from app.engine.market.ports import (
+    FareObservation,
     FlightFeed,
     FlightQuote,
     GateResult,
@@ -32,35 +34,39 @@ logger = logging.getLogger(__name__)
 
 class CompositeFlightFeed(FlightFeed, LiveQuoteProvider):
     """
-    Sovereign Multi-Provider Flight Feed backed by dynamic regional routing.
-    Dispatches to appropriate provider ladders (Americas, Europe, Intercontinental)
-    using Ryanair, Google Flights, Kiwi, and Trip.com with zero API keys.
+    Sovereign Flight Feed backed by verified providers.
+    Uses Ryanair for intra-European routes; Aviasales primary source added in Phase 2.
     """
 
     def __init__(self, timeout_sec: float = 16.0):
-        from app.engine.market.providers.google_flights import GoogleFlightsProvider
-        from app.engine.market.providers.kiwi import KiwiFlightProvider
+        from app.engine.market.providers.aviasales import AviasalesProvider
         from app.engine.market.providers.ryanair import RyanairProvider
-        from app.engine.market.providers.trip_com_flights import TripComFlightProvider
 
         self.timeout_sec = timeout_sec
+        self.aviasales = AviasalesProvider(timeout_sec=timeout_sec)
         self.ryanair = RyanairProvider(timeout_sec=timeout_sec)
-        self.google_flights = GoogleFlightsProvider(timeout_sec=timeout_sec)
-        self.kiwi = KiwiFlightProvider(timeout_sec=timeout_sec)
-        self.trip_com = TripComFlightProvider(timeout_sec=timeout_sec)
 
     def _get_router(self, origin_iata: str, dest_iata: str):
         from app.engine.market.flights.classifier import route_classifier
         from app.engine.market.providers.router import ProviderRouter
 
         classification = route_classifier.classify_corridor(origin_iata, dest_iata)
-        if classification.is_americas and not classification.is_europe:
-            providers = [self.google_flights, self.kiwi, self.trip_com]
-        elif classification.is_europe:
-            providers = [self.ryanair, self.google_flights, self.kiwi, self.trip_com]
+        if classification.is_europe:
+            # Per Decision D11: Aviasales primary, Ryanair direct-carrier secondary in Europe
+            providers = [self.aviasales, self.ryanair]
         else:
-            providers = [self.google_flights, self.kiwi, self.trip_com]
+            providers = [self.aviasales]
         return ProviderRouter(asset_type="flight", providers=providers)
+
+    async def fetch_month(
+        self, origin: str, dest: str, month: date, trip_type: str = "one_way"
+    ) -> list[FareObservation]:
+        """
+        Fetches full month fare observations from primary FareProvider.
+        """
+        return await self.aviasales.fetch_month(
+            origin, dest, month, trip_type=trip_type
+        )
 
     async def fetch_cached_flights(
         self,
@@ -339,83 +345,108 @@ class SovereignItineraryGate(ItineraryGate):
                         },
                     )
 
-        # 3. Construct realistic itinerary payload for evaluate_itinerary_quality
+        # 3. Construct itinerary payload from real POIs for evaluate_itinerary_quality
         dest = package.get("destination_code", "Unknown")
-        base_lat = 41.8902 if dest == "FCO" else 48.8566
-        base_lon = 12.4922 if dest == "FCO" else 2.3522
-        mock_days = []
+        session = package.get("session")
+        if not session:
+            # Synthetic itineraries are strictly forbidden. When real DB session / POIs are unavailable,
+            # the gate returns 'skipped' (never 'passed').
+            return GateResult(
+                gates_passed=False,
+                realism=0.0,
+                status="skipped",
+                details={
+                    "status": "skipped",
+                    "reason": f"No active DB session available to query real POIs for destination {dest}; synthetic itineraries strictly forbidden",
+                },
+            )
+
+        # Query real POIs for destination
+        try:
+            from app.db.models import AttractionModel, DestinationAirportModel
+
+            city_id_stmt = select(DestinationAirportModel.city_id).where(
+                DestinationAirportModel.iata == dest
+            )
+            c_res = await session.execute(city_id_stmt)
+            city_id = c_res.scalar_one_or_none()
+
+            stmt = (
+                select(AttractionModel)
+                .where(
+                    (AttractionModel.city_id == city_id)
+                    | (AttractionModel.city == dest)
+                    | (AttractionModel.city_id == dest.lower())
+                )
+                .limit(nights * 4)
+            )
+            res = await session.execute(stmt)
+            pois = res.scalars().all()
+        except Exception as e:
+            logger.warning(f"Error querying real POIs for {dest}: {e}")
+            pois = []
+
+        if not pois or len(pois) < nights:
+            return GateResult(
+                gates_passed=False,
+                realism=0.0,
+                status="skipped",
+                details={
+                    "status": "skipped",
+                    "reason": f"Insufficient real POIs ({len(pois)}) in database for destination {dest}; synthetic data strictly forbidden",
+                },
+            )
+
+        real_days = []
+        poi_idx = 0
+        dep_d = package.get("depart_date") or date.today()
         for d in range(nights):
-            mock_days.append(
+            day_path = []
+            for slot_idx in range(min(4, len(pois) - poi_idx)):
+                cur_poi = pois[poi_idx]
+                poi_idx += 1
+                lat = cur_poi.location.get("latitude") if cur_poi.location else None
+                lon = cur_poi.location.get("longitude") if cur_poi.location else None
+                if lat is None or lon is None:
+                    continue
+                day_path.append(
+                    {
+                        "poi": {
+                            "id": cur_poi.id,
+                            "name": cur_poi.name,
+                            "category": cur_poi.category or "ATTRACTION",
+                            "cost_source": cur_poi.cost_source or "real_catalog",
+                            "location": {
+                                "latitude": lat,
+                                "longitude": lon,
+                            },
+                        },
+                        "scheduled_start": "10:00" if slot_idx % 2 == 0 else "14:00",
+                        "scheduled_end": "12:00" if slot_idx % 2 == 0 else "16:00",
+                    }
+                )
+            if not day_path:
+                return GateResult(
+                    gates_passed=False,
+                    realism=0.0,
+                    status="skipped",
+                    details={
+                        "status": "skipped",
+                        "reason": f"Could not construct valid day path from real POIs for {dest}",
+                    },
+                )
+            real_days.append(
                 {
                     "day": d + 1,
-                    "date": (package.get("depart_date") or date.today()).isoformat(),
-                    "itinerary": {
-                        "path": [
-                            {
-                                "poi": {
-                                    "id": f"osm_sight_{dest}_{d}_1",
-                                    "name": f"{dest} Historical Site {d + 1}",
-                                    "category": "ATTRACTION",
-                                    "cost_source": "osm",
-                                    "location": {
-                                        "latitude": base_lat,
-                                        "longitude": base_lon,
-                                    },
-                                },
-                                "scheduled_start": "09:30",
-                                "scheduled_end": "11:30",
-                            },
-                            {
-                                "poi": {
-                                    "id": f"osm_resto_{dest}_{d}_lunch",
-                                    "name": f"{dest} Local Trattoria {d + 1}",
-                                    "category": "RESTAURANT",
-                                    "cost_source": "osm",
-                                    "location": {
-                                        "latitude": base_lat + 0.002,
-                                        "longitude": base_lon + 0.002,
-                                    },
-                                },
-                                "scheduled_start": "12:30",
-                                "scheduled_end": "13:30",
-                            },
-                            {
-                                "poi": {
-                                    "id": f"osm_sight_{dest}_{d}_2",
-                                    "name": f"{dest} Cultural Museum {d + 1}",
-                                    "category": "ATTRACTION",
-                                    "cost_source": "osm",
-                                    "location": {
-                                        "latitude": base_lat + 0.004,
-                                        "longitude": base_lon + 0.004,
-                                    },
-                                },
-                                "scheduled_start": "14:30",
-                                "scheduled_end": "16:30",
-                            },
-                            {
-                                "poi": {
-                                    "id": f"osm_resto_{dest}_{d}_dinner",
-                                    "name": f"{dest} Evening Ristorante {d + 1}",
-                                    "category": "RESTAURANT",
-                                    "cost_source": "osm",
-                                    "location": {
-                                        "latitude": base_lat + 0.005,
-                                        "longitude": base_lon + 0.005,
-                                    },
-                                },
-                                "scheduled_start": "19:30",
-                                "scheduled_end": "21:00",
-                            },
-                        ]
-                    },
+                    "date": (dep_d + timedelta(days=d)).isoformat(),
+                    "itinerary": {"path": day_path},
                 }
             )
 
         payload = {
             "id": f"deal_itin_{package.get('candidate_id', 'test')}",
             "destination": dest,
-            "itinerary_data": {"days": mock_days},
+            "itinerary_data": {"days": real_days},
         }
 
         report = evaluate_itinerary_quality(payload)
@@ -425,6 +456,7 @@ class SovereignItineraryGate(ItineraryGate):
         return GateResult(
             gates_passed=passed,
             realism=report.overall_realism_score,
+            status="passed" if passed else "failed",
             details={"gate_failures": report.gate_failures, "report": report.__dict__},
         )
 

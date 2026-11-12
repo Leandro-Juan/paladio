@@ -2148,45 +2148,196 @@ def derive_city_transit_task(
     return _run_async(_derive())
 
 
-@app.task(name="app.tasks.periodic_market_scan_task")
-def periodic_market_scan_task() -> dict[str, Any]:
-    """
-    Periodic Celery Beat task scanning and ingesting live flight & lodging ticks
-    for active deal watch alerts, and running statistical deal detection.
-    """
-    from app.engine.market.detector import run_deal_detection_scan
-    from app.engine.market.ingest import scan_and_ingest_watched_routes
+@app.task(name="app.tasks.daily_flight_sweep_task")
+def daily_flight_sweep_task(
+    pilot_routes: list[list[str]] | None = None,
+) -> dict[str, Any]:
+    """Celery task running daily forward calendar flight sweep."""
+    from app.engine.market.config import config
+    from app.engine.market.sweep import run_daily_flight_sweep
 
-    async def _scan():
+    if not config.ENABLE_SWEEP:
+        logger.info(
+            "[Daily Sweep] Flight sweep stage disabled by kill switch (MARKET_ENABLE_SWEEP)."
+        )
+        return {"status": "disabled", "routes_ok": 0, "ticks_inserted": 0}
+
+    async def _sweep():
         session_maker, engine = _get_task_session_maker()
         async with session_maker() as session:
             try:
-                ingest_res = await scan_and_ingest_watched_routes(session)
-                detected = await run_deal_detection_scan(session)
-                return {
-                    "ingested": ingest_res,
-                    "deals_detected": len(detected),
-                }
+                converted = [tuple(p) for p in pilot_routes] if pilot_routes else None
+                return await run_daily_flight_sweep(
+                    session=session, pilot_routes=converted
+                )
             finally:
                 await engine.dispose()
 
-    return _run_async(_scan())
+    return _run_async(_sweep())
 
 
-@app.task(name="app.tasks.periodic_baseline_compute_task")
-def periodic_baseline_compute_task() -> int:
-    """Nightly Celery Beat task calculating route statistical baselines and fee ratios."""
+@app.task(name="app.tasks.daily_baseline_compute_task")
+def daily_baseline_compute_task(*args, **kwargs) -> dict[str, Any]:
+    """Celery task computing statistical route baselines."""
     from app.engine.market.baselines import compute_route_baselines
+    from app.engine.market.config import config
+
+    if not config.ENABLE_BASELINES:
+        logger.info(
+            "[Daily Baselines] Baseline stage disabled by kill switch (MARKET_ENABLE_BASELINES)."
+        )
+        return {"status": "disabled", "baselines_computed": 0}
 
     async def _compute():
         session_maker, engine = _get_task_session_maker()
         async with session_maker() as session:
             try:
-                return await compute_route_baselines(session)
+                count = await compute_route_baselines(session)
+                return {"status": "completed", "baselines_computed": count}
             finally:
                 await engine.dispose()
 
     return _run_async(_compute())
+
+
+@app.task(name="app.tasks.daily_deal_detection_task")
+def daily_deal_detection_task(*args, **kwargs) -> dict[str, Any]:
+    """Celery task executing deal detection, live verification, and lodging gates."""
+    from app.engine.market.config import config
+    from app.engine.market.detector import run_deal_detection_scan
+
+    if not config.ENABLE_DETECTION:
+        logger.info(
+            "[Daily Detection] Detection stage disabled by kill switch (MARKET_ENABLE_DETECTION)."
+        )
+        return {"status": "disabled", "deals_detected": 0}
+
+    async def _detect():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                deals = await run_deal_detection_scan(session)
+                return {"status": "completed", "deals_detected": len(deals)}
+            finally:
+                await engine.dispose()
+
+    return _run_async(_detect())
+
+
+@app.task(name="app.tasks.daily_market_pipeline_task")
+def daily_market_pipeline_task(
+    pilot_routes: list[list[str]] | None = None,
+) -> dict[str, Any]:
+    """
+    Daily orchestrated market pipeline task:
+    sweep -> baselines -> detection (including verification & hotels).
+    Guarded by Redis lock 'paladio:market:daily_chain_lock' to prevent overlapping runs.
+    """
+    import redis
+    from app.celery_app import redis_url
+    from app.engine.market.baselines import compute_route_baselines
+    from app.engine.market.config import config
+    from app.engine.market.detector import run_deal_detection_scan
+    from app.engine.market.sweep import run_daily_flight_sweep
+
+    r = redis.Redis.from_url(redis_url)
+    lock = r.lock("paladio:market:daily_chain_lock", timeout=7200, blocking=False)
+    acquired = lock.acquire()
+    if not acquired:
+        logger.warning(
+            "[Daily Pipeline] Another market pipeline run is currently in progress. "
+            "Skipping to prevent overlapping execution."
+        )
+        return {"status": "skipped", "reason": "lock_acquired"}
+
+    try:
+
+        async def _run_pipeline():
+            session_maker, engine = _get_task_session_maker()
+            try:
+                # Stage 1: Sweep
+                sweep_res: dict[str, Any] = {}
+                if not config.ENABLE_SWEEP:
+                    logger.info("[Daily Pipeline] Sweep disabled by kill switch.")
+                    sweep_res = {
+                        "status": "disabled",
+                        "routes_ok": 0,
+                        "ticks_inserted": 0,
+                    }
+                else:
+                    converted = (
+                        [tuple(p) for p in pilot_routes] if pilot_routes else None
+                    )
+                    try:
+                        async with session_maker() as session:
+                            sweep_res = await run_daily_flight_sweep(
+                                session=session, pilot_routes=converted
+                            )
+                    except Exception as sweep_err:
+                        logger.error(f"[Daily Pipeline] Sweep stage error: {sweep_err}")
+                        sweep_res = {"status": "failed", "error": str(sweep_err)}
+
+                # Stage 2: Baselines
+                baselines_res: dict[str, Any] = {}
+                if not config.ENABLE_BASELINES:
+                    logger.info("[Daily Pipeline] Baselines disabled by kill switch.")
+                    baselines_res = {"status": "disabled", "baselines_computed": 0}
+                else:
+                    try:
+                        async with session_maker() as session:
+                            b_count = await compute_route_baselines(session)
+                            baselines_res = {
+                                "status": "completed",
+                                "baselines_computed": b_count,
+                            }
+                    except Exception as base_err:
+                        logger.error(
+                            f"[Daily Pipeline] Baselines stage error: {base_err}"
+                        )
+                        baselines_res = {"status": "failed", "error": str(base_err)}
+
+                # Stage 3: Detection & Verification & Hotels
+                detection_res: dict[str, Any] = {}
+                if not config.ENABLE_DETECTION:
+                    logger.info("[Daily Pipeline] Detection disabled by kill switch.")
+                    detection_res = {"status": "disabled", "deals_detected": 0}
+                else:
+                    try:
+                        async with session_maker() as session:
+                            deals = await run_deal_detection_scan(session)
+                            detection_res = {
+                                "status": "completed",
+                                "deals_detected": len(deals),
+                            }
+                    except Exception as det_err:
+                        logger.error(
+                            f"[Daily Pipeline] Detection stage error: {det_err}"
+                        )
+                        detection_res = {"status": "failed", "error": str(det_err)}
+
+                pipeline_status = (
+                    "failed"
+                    if (
+                        sweep_res.get("status") == "failed"
+                        and baselines_res.get("status") == "failed"
+                    )
+                    else "completed"
+                )
+                return {
+                    "status": pipeline_status,
+                    "sweep": sweep_res,
+                    "baselines": baselines_res,
+                    "detection": detection_res,
+                }
+            finally:
+                await engine.dispose()
+
+        return _run_async(_run_pipeline())
+    finally:
+        try:
+            lock.release()
+        except Exception as lock_err:
+            logger.warning(f"[Daily Pipeline] Failed to release Redis lock: {lock_err}")
 
 
 @app.task(name="app.tasks.backfill_route_corpus_task")

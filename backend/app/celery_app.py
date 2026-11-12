@@ -2,6 +2,7 @@ import logging
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_ready
 from kombu import Queue
 
@@ -46,13 +47,9 @@ app.conf.update(
     },
     # Configure periodic tasks (Celery Beat)
     beat_schedule={
-        "periodic-route-market-scan": {
-            "task": "app.tasks.periodic_market_scan_task",
-            "schedule": 7200.0,  # every 2 hours
-        },
-        "periodic-route-baselines-rollup": {
-            "task": "app.tasks.periodic_baseline_compute_task",
-            "schedule": 86400.0,  # daily
+        "daily-market-pipeline": {
+            "task": "app.tasks.daily_market_pipeline_task",
+            "schedule": crontab(hour=3, minute=0),  # Daily at 03:00 UTC
         },
         "periodic-autoupdate-check": {
             "task": "app.tasks.periodic_autoupdate_check_task",

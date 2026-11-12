@@ -4,21 +4,19 @@ Orchestrates multi-month forward calendar sweeps (300+ real daily market prices)
 to generate instant day-zero route baselines without synthetic mocks or waiting weeks.
 """
 
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from app.db.models import (
+    MarketPriceTickModel,
     RouteBaselineModel,
     RouteCorpusStatusModel,
 )
-from app.engine.market.adapters import CompositeFlightFeed
 from app.engine.market.baselines import compute_route_baseline
 from app.engine.market.config import config
-from app.engine.market.ingest import compute_content_hash
-from sqlalchemy import select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -69,16 +67,22 @@ async def backfill_route_corpus(
         corpus_status.last_backfill_at = now
     await session.commit()
 
-    # 2. Fetch forward calendar horizon of real daily fares
-    if feed is None:
-        feed = CompositeFlightFeed()
+    # 2. Execute sweep via unified sweep engine per PLAN.md P3.6
+    from app.engine.market.providers.aviasales import AviasalesProvider
+    from app.engine.market.sweep import sweep_route
 
+    flight_provider = feed if feed is not None else AviasalesProvider()
     try:
-        quotes = await feed.fetch_calendar_horizon(
-            origin, dest, months_ahead=months_ahead
+        sweep_res = await sweep_route(
+            session=session,
+            provider=flight_provider,
+            origin=origin,
+            dest=dest,
+            months_ahead=months_ahead,
+            run_id=ingest_run_id,
         )
     except Exception as e:
-        logger.error(f"Error fetching calendar horizon for {origin}->{dest}: {e}")
+        logger.error(f"Error in unified route sweep for {origin}->{dest}: {e}")
         corpus_status.status = "failed"
         corpus_status.error_message = str(e)
         await session.commit()
@@ -90,125 +94,29 @@ async def backfill_route_corpus(
             "destination_code": dest,
         }
 
-    if not quotes:
-        logger.warning(f"No calendar fares returned for {origin}->{dest}")
-        corpus_status.status = "failed"
-        corpus_status.error_message = "No calendar fares returned from flight feed"
-        await session.commit()
-        return {
-            "status": "failed",
-            "error": "No fares found",
-            "ticks_ingested": 0,
-            "origin_iata": origin,
-            "destination_code": dest,
-        }
+    inserted_ticks = sweep_res["ticks_inserted"]
 
-    # 3. Ingest real quotes into market_price_ticks & price_daily
-    inserted_ticks = 0
-    unique_dates = set()
-    prices = []
-
-    for q in quotes:
-        dep_date = q.depart_time.date()
-        ret_date = dep_date  # single-leg one-way observation
-        lead_time = max((dep_date - now.date()).days, 0)
-        unique_dates.add(dep_date)
-        prices.append(q.base_price_cents)
-
-        q_source = q.source or "flight_feed"
-        h = compute_content_hash(
-            "flight",
-            origin,
-            dest,
-            dep_date,
-            ret_date,
-            q.base_price_cents,
-            q_source,
-            source_observed_at=q.observed_at,
-        )
-
-        meta = {
-            "carrier": q.carrier,
-            "flight_number": q.flight_number,
-            "stops": q.stops,
-            "depart_local": q.depart_time.isoformat(),
-            "arrival_local": q.arrival_time.isoformat(),
-            "deep_link": q.deep_link,
-            "horizon_sweep": True,
-        }
-
-        tick_stmt = text("""
-            INSERT INTO market_price_ticks (
-                id, observed_at, asset_type, origin_iata, destination_code, dest_airport_iata,
-                depart_date, return_date, nights, lead_time_days, currency, base_price_cents,
-                stat, sample_n, quality_tier, source, source_class, is_aggregated, is_exploration,
-                content_hash, metadata_json, ingest_run_id
-            ) VALUES (
-                :id, :observed_at, 'flight', :origin_iata, :dest_code, :dest_iata,
-                :depart_date, :return_date, 0, :lead_time_days, :currency, :base_price_cents,
-                'min', 1, 'standard', :source, 'calendar_sweep', false, false,
-                :content_hash, :metadata_json, :ingest_run_id
-            ) ON CONFLICT (content_hash, observed_at) DO NOTHING
-        """)
-        await session.execute(
-            tick_stmt,
-            {
-                "id": str(uuid.uuid4()),
-                "observed_at": now,
-                "origin_iata": origin,
-                "dest_code": dest,
-                "dest_iata": dest,
-                "depart_date": dep_date,
-                "return_date": ret_date,
-                "lead_time_days": lead_time,
-                "currency": q.currency,
-                "base_price_cents": q.base_price_cents,
-                "source": q_source,
-                "content_hash": h,
-                "metadata_json": json.dumps(meta),
-                "ingest_run_id": ingest_run_id,
-            },
-        )
-
-        # Rollup into price_daily
-        daily_stmt = text("""
-            INSERT INTO price_daily (
-                bucket, asset_type, origin_iata, destination_code, depart_date,
-                nights, source_class, source, currency, min_base, n_ticks
-            ) VALUES (
-                :bucket, 'flight', :origin_iata, :dest_code, :depart_date,
-                0, 'calendar_sweep', :source, :currency, :base_price_cents, 1
-            )
-            ON CONFLICT (bucket, asset_type, origin_iata, destination_code, depart_date, nights, source_class, source, currency)
-            DO UPDATE SET 
-                min_base = LEAST(price_daily.min_base, EXCLUDED.min_base),
-                n_ticks = price_daily.n_ticks + 1
-        """)
-        await session.execute(
-            daily_stmt,
-            {
-                "bucket": now.date(),
-                "origin_iata": origin,
-                "dest_code": dest,
-                "depart_date": dep_date,
-                "source": q_source,
-                "currency": q.currency,
-                "base_price_cents": q.base_price_cents,
-            },
-        )
-        inserted_ticks += 1
-
-    await session.commit()
-
-    # 4. Compute route baselines immediately
+    # 3. Compute route baselines immediately
     baselines_count = await compute_route_baseline(session, origin, dest)
 
-    # 5. Determine overall corpus metrics and confidence
-    min_cents = min(prices) if prices else None
-    max_cents = max(prices) if prices else None
-    import numpy as np
-
-    median_cents = int(round(float(np.median(prices)))) if prices else None
+    # 4. Determine overall corpus metrics and confidence from real stored observations
+    summary_stmt = select(
+        func.min(MarketPriceTickModel.base_price_cents),
+        func.max(MarketPriceTickModel.base_price_cents),
+        func.count(MarketPriceTickModel.id),
+        func.count(func.distinct(MarketPriceTickModel.depart_date)),
+    ).where(
+        MarketPriceTickModel.origin_iata == origin,
+        MarketPriceTickModel.destination_code == dest,
+        MarketPriceTickModel.asset_type == "flight",
+    )
+    s_res = await session.execute(summary_stmt)
+    min_cents, max_cents, total_ticks_db, distinct_dates_db = s_res.first() or (
+        None,
+        None,
+        0,
+        0,
+    )
 
     # Check baseline confidence
     b_stmt = (
@@ -226,17 +134,19 @@ async def backfill_route_corpus(
 
     corpus_status.status = "ready"
     corpus_status.confidence = derived_conf
-    corpus_status.ticks_ingested = inserted_ticks
-    corpus_status.depart_dates_count = len(unique_dates)
+    corpus_status.ticks_ingested = total_ticks_db
+    corpus_status.depart_dates_count = distinct_dates_db
     corpus_status.min_price_cents = min_cents
     corpus_status.max_price_cents = max_cents
-    corpus_status.median_price_cents = median_cents
+    corpus_status.median_price_cents = (
+        int(round((min_cents + max_cents) / 2)) if min_cents and max_cents else None
+    )
     corpus_status.error_message = None
     corpus_status.last_backfill_at = now
     await session.commit()
 
     logger.info(
-        f"[Corpus Sweep] Backfilled {inserted_ticks} ticks across {len(unique_dates)} dates for {origin}->{dest}. Baseline conf: {derived_conf}"
+        f"[Corpus Sweep] Backfilled {inserted_ticks} new ticks (total {total_ticks_db}) across {distinct_dates_db} dates for {origin}->{dest}. Baseline conf: {derived_conf}"
     )
 
     return_leg_res = None
@@ -253,11 +163,13 @@ async def backfill_route_corpus(
         except Exception as e:
             logger.warning(f"Could not backfill return leg {dest}->{origin}: {e}")
 
+    median_cents = corpus_status.median_price_cents
+
     return {
         "status": "ready",
         "confidence": derived_conf,
         "ticks_ingested": inserted_ticks,
-        "depart_dates_count": len(unique_dates),
+        "depart_dates_count": distinct_dates_db,
         "min_price_eur": round(min_cents / 100.0, 2) if min_cents else None,
         "max_price_eur": round(max_cents / 100.0, 2) if max_cents else None,
         "median_price_eur": round(median_cents / 100.0, 2) if median_cents else None,

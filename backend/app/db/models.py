@@ -855,12 +855,18 @@ class MarketPriceTickModel(Base):
     destination_code = Column(String, nullable=False, index=True)
     dest_airport_iata = Column(String(3), nullable=True)
     depart_date = Column(Date, nullable=False)
-    return_date = Column(Date, nullable=False)
-    nights = Column(Integer, nullable=False)
+    return_date = Column(Date, nullable=True)
+    nights = Column(Integer, nullable=True)
+    trip_type = Column(String(16), nullable=False, default="one_way")
     lead_time_days = Column(Integer, nullable=False)
+    market = Column(String(16), nullable=False, default="es")
     currency = Column(String(3), nullable=False, default="EUR")
     base_price_cents = Column(BigInteger, nullable=False)
     landed_price_cents = Column(BigInteger, nullable=True)
+    original_price_cents = Column(BigInteger, nullable=True)
+    original_currency = Column(String(3), nullable=True)
+    fx_rate = Column(Float, nullable=True)
+    fx_rate_date = Column(Date, nullable=True)
     stat = Column(String, nullable=False, default="single")
     sample_n = Column(Integer, nullable=True)
     quality_tier = Column(String, nullable=True)
@@ -868,6 +874,7 @@ class MarketPriceTickModel(Base):
     source_class = Column(String, nullable=False, default="cache")
     is_aggregated = Column(Boolean, nullable=False, default=False)
     source_observed_at = Column(DateTime(timezone=True), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
     content_hash = Column(LargeBinary, nullable=False)
     ingest_run_id = Column(String, nullable=True)
     is_exploration = Column(Boolean, nullable=False, default=False)
@@ -1179,6 +1186,10 @@ class ProviderHealthModel(Base):
     last_ok_at = Column(DateTime(timezone=True), nullable=True)
     failure_count = Column(Integer, default=0, nullable=False)
     consecutive_failures = Column(Integer, default=0, nullable=False)
+    consecutive_failure_days = Column(Integer, default=0, nullable=False)
+    last_failure_date = Column(Date, nullable=True)
+    last_coverage = Column(Float, nullable=True)
+    last_run_id = Column(String, nullable=True)
     last_error = Column(Text, nullable=True)
     updated_at = Column(
         DateTime(timezone=True),
@@ -1387,4 +1398,52 @@ class SystemConfigModel(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+
+class MarketSweepRunModel(Base):
+    """
+    Log of a scheduled or manual route sweep run across providers.
+    """
+
+    __tablename__ = "market_sweep_runs"
+
+    run_id = Column(String, primary_key=True)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    provider = Column(String, nullable=False)
+    routes_total = Column(Integer, nullable=False, default=0)
+    routes_ok = Column(Integer, nullable=False, default=0)
+    calls_made = Column(Integer, nullable=False, default=0)
+    calls_failed = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False, default="running")
+
+
+class RouteMonthCoverageModel(Base):
+    """
+    Daily audit record of flight price coverage per route and departure month.
+    """
+
+    __tablename__ = "route_month_coverage"
+
+    id = Column(String, primary_key=True)
+    run_date = Column(Date, nullable=False)
+    origin = Column(String(3), nullable=False)
+    dest = Column(String(3), nullable=False)
+    month = Column(String(7), nullable=False)
+    days_in_month = Column(Integer, nullable=False)
+    days_with_price = Column(Integer, nullable=False)
+    newest_found_at = Column(DateTime(timezone=True), nullable=True)
+    oldest_found_at = Column(DateTime(timezone=True), nullable=True)
+    source = Column(String, nullable=False)
+    market = Column(String, nullable=False, default="es")
+
+    __table_args__ = (
+        Index(
+            "ix_route_month_coverage_lookup",
+            "origin",
+            "dest",
+            "month",
+            "run_date",
+        ),
     )

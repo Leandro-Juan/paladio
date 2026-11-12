@@ -5,17 +5,35 @@ overridable by environment variables named MARKET_<FIELD>.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
 class MarketConfig:
+    # Travelpayouts / Aviasales data API configuration (Phase 0 / Phase 2)
+    # Token is never printed in repr or logged
+    TRAVELPAYOUTS_TOKEN: str = field(
+        default_factory=lambda: os.getenv("TRAVELPAYOUTS_TOKEN")
+        or os.getenv("AVIASALES_TOKEN", ""),
+        repr=False,
+    )
+    AVIASALES_MARKET: str = os.getenv("AVIASALES_MARKET", "es")
+    AVIASALES_CURRENCY: str = os.getenv("AVIASALES_CURRENCY", "EUR")
+    AVIASALES_MAX_RPM: int = int(os.getenv("AVIASALES_MAX_RPM", "60"))
+    MARKET_DAILY_TOP_N: int = int(os.getenv("MARKET_DAILY_TOP_N", "3"))
+    MARKET_MAX_OBSERVATION_AGE_DAYS: int = int(
+        os.getenv("MARKET_MAX_OBSERVATION_AGE_DAYS", "7")
+    )
+    FX_MAX_AGE_DAYS: int = int(os.getenv("MARKET_FX_MAX_AGE_DAYS", "7"))
+
     # Baselines and detector (Phase 3)
     LEAD_BUCKETS: tuple[tuple[int, int | None], ...] = (
         (0, 7),
         (8, 21),
         (22, 60),
-        (61, None),
+        (61, 120),
+        (121, 240),
+        (241, None),
     )
     BASELINE_QUANTILES: tuple[float, ...] = (0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)
     CORPUS_HORIZON_MONTHS: int = int(os.getenv("MARKET_CORPUS_HORIZON_MONTHS", "11"))
@@ -33,8 +51,45 @@ class MarketConfig:
     )  # 30.00 EUR
     K_PER_SCAN: int = int(os.getenv("MARKET_K_PER_SCAN", "20"))
     MAX_PER_ROUTE_PER_SCAN: int = int(os.getenv("MARKET_MAX_PER_ROUTE_PER_SCAN", "2"))
-    SCAN_HORIZON_DAYS: int = int(os.getenv("MARKET_SCAN_HORIZON_DAYS", "90"))
+    SCAN_HORIZON_DAYS: int = int(
+        os.getenv("MARKET_SCAN_HORIZON_DAYS", "330")
+    )  # 11-month horizon
     SCAN_INTERVAL_MIN: int = int(os.getenv("MARKET_SCAN_INTERVAL_MIN", "15"))
+
+    # Pipeline & Provider Kill Switches (Phase 6)
+    ENABLE_SWEEP: bool = os.getenv("MARKET_ENABLE_SWEEP", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    ENABLE_BASELINES: bool = os.getenv("MARKET_ENABLE_BASELINES", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    ENABLE_DETECTION: bool = os.getenv("MARKET_ENABLE_DETECTION", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    ENABLE_VERIFICATION: bool = os.getenv(
+        "MARKET_ENABLE_VERIFICATION", "true"
+    ).lower() in ("true", "1", "yes")
+    ENABLE_AVIASALES: bool = os.getenv("MARKET_ENABLE_AVIASALES", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    ENABLE_RYANAIR: bool = os.getenv("MARKET_ENABLE_RYANAIR", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    ENABLE_LODGING: bool = os.getenv("MARKET_ENABLE_LODGING", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
     # Cheap feasibility (Phase 5B)
     DEAD_WINDOW_LOCAL: tuple[tuple[int, int], tuple[int, int]] = ((0, 0), (5, 0))
@@ -48,7 +103,7 @@ class MarketConfig:
     REALISM_MIN: float = float(os.getenv("MARKET_REALISM_MIN", "8.0"))
     GATE_CACHE_TTL_HOURS: int = int(os.getenv("MARKET_GATE_CACHE_TTL_HOURS", "24"))
 
-    # Budgets and provider hygiene (Phase 5A)
+    # Budgets and provider hygiene (Phase 5A / Phase 6)
     LIVE_DAILY_BUDGET_TIER2: int = int(
         os.getenv("MARKET_LIVE_DAILY_BUDGET_TIER2", "200")
     )
@@ -57,7 +112,10 @@ class MarketConfig:
     )
     BUDGET_WARN_FRACTION: float = float(os.getenv("MARKET_BUDGET_WARN_FRACTION", "0.8"))
     BREAKER_FAILURES: int = int(os.getenv("MARKET_BREAKER_FAILURES", "5"))
-    BREAKER_COOLDOWN_SEC: int = int(os.getenv("MARKET_BREAKER_COOLDOWN_SEC", "900"))
+    BREAKER_COOLDOWN_HOURS: int = int(os.getenv("MARKET_BREAKER_COOLDOWN_HOURS", "24"))
+    BREAKER_COOLDOWN_SEC: int = int(
+        os.getenv("MARKET_BREAKER_COOLDOWN_SEC", str(24 * 3600))
+    )
     BACKOFF_BASE: int = int(os.getenv("MARKET_BACKOFF_BASE", "2"))
     MAX_RETRIES: int = int(os.getenv("MARKET_MAX_RETRIES", "4"))
     MAX_ALERTS_PER_USER_PER_DAY: int = int(
@@ -97,3 +155,19 @@ class MarketConfig:
 
 config = MarketConfig()
 CORPUS_HORIZON_MONTHS = config.CORPUS_HORIZON_MONTHS
+
+_runtime_aviasales_token: str | None = None
+
+
+def get_travelpayouts_token() -> str:
+    """Returns runtime configured Aviasales/Travelpayouts token if set, otherwise falls back to config."""
+    global _runtime_aviasales_token
+    if _runtime_aviasales_token is not None:
+        return _runtime_aviasales_token
+    return config.TRAVELPAYOUTS_TOKEN
+
+
+def set_runtime_aviasales_token(token: str | None) -> None:
+    """Sets or clears the runtime Aviasales/Travelpayouts token dynamically."""
+    global _runtime_aviasales_token
+    _runtime_aviasales_token = token

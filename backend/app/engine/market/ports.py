@@ -9,22 +9,49 @@ from typing import Any, Protocol
 
 
 @dataclass
+class FareObservation:
+    origin: str
+    destination: str
+    depart_date: date
+    depart_time: datetime | None
+    arrival_time: datetime | None
+    return_date: date | None
+    trip_type: str  # "one_way" or "round_trip"
+    price_cents: int
+    currency: str
+    carrier: str | None
+    flight_number: str | None
+    stops: int | None
+    deep_link: str | None
+    source: str
+    source_class: str  # "cache" or "live"
+    market: str
+    found_at: datetime
+    fetched_at: datetime
+    flags: dict[str, Any] | None = None
+
+
+@dataclass
 class FlightQuote:
     origin_iata: str
     destination_iata: str
     destination_city_id: str
-    depart_time: datetime
-    arrival_time: datetime
     base_price_cents: int
     currency: str
     carrier: str
+    depart_time: datetime | None = None
+    arrival_time: datetime | None = None
+    depart_date: date | None = None
     flight_number: str | None = None
     stops: int = 0
     deep_link: str | None = None
     source: str = "carrier"
+    source_class: str = "cache"
     observed_at: datetime | None = None
-    is_live: bool = True
-    confidence: str = "high"
+    found_at: datetime | None = None
+    fetched_at: datetime | None = None
+    is_live: bool = False
+    confidence: str = "medium"
     ancillaries_excluded: bool = True
 
 
@@ -57,6 +84,7 @@ class GateResult:
     gates_passed: bool
     realism: float
     details: dict[str, Any]
+    status: str = "skipped"  # "passed", "failed", "skipped"
 
 
 class LodgingScorer(Protocol):
@@ -122,3 +150,17 @@ class LiveQuoteProvider(Protocol):
     async def verify_lodging(
         self, quote: LodgingQuote
     ) -> tuple[bool, int, dict[str, Any]]: ...
+
+
+class FareProvider(Protocol):
+    """Fare Provider port per PLAN.md section 4."""
+
+    async def fetch_month(
+        self, origin: str, dest: str, month: date, trip_type: str = "one_way"
+    ) -> list[FareObservation]: ...
+
+
+class LiveFareVerifier(Protocol):
+    """Live fare verifier interface per PLAN.md section 5 Phase 5."""
+
+    async def verify(self, candidate: Any) -> tuple[bool, int, dict[str, Any]]: ...

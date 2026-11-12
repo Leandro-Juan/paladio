@@ -23,7 +23,8 @@ export type SettingsTabId =
   | 'updates'
   | 'telemetry'
   | 'vault'
-  | 'notifications';
+  | 'notifications'
+  | 'secrets';
 
 export interface SettingCardItem {
   id: SettingsTabId;
@@ -48,7 +49,8 @@ export interface SettingCardItem {
     | 'tag'
     | 'brain'
     | 'database'
-    | 'bell';
+    | 'bell'
+    | 'key';
   iconTone?: 'coral' | 'teal' | 'gold';
 
   keywords: string[];
@@ -281,6 +283,16 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
           { id: 'pushover', label: 'Pushover & Ntfy' },
           { id: 'webhooks', label: 'Custom Webhooks' },
         ],
+      },
+      {
+        id: 'secrets',
+        title: 'API Keys & Secrets',
+        description: 'Configure Travelpayouts/Aviasales token, live fare verifier keys, and external service credentials',
+        category: 'infrastructure',
+        iconName: 'key',
+        iconTone: 'gold',
+        keywords: ['secrets', 'api', 'keys', 'token', 'aviasales', 'travelpayouts', 'credentials', 'verification', 'flights'],
+        statusBadge: 'Credentials',
       },
     ],
   },

@@ -1,0 +1,40 @@
+{
+  "data": {
+    "2027-04-14": {
+      "flight_number": "8115",
+      "link": "/search/BCN1404EZE1?t=LA18077082001807751700001025BCNGRUEZE_51c9166ec28c184e609b0a25500e956b_48533&search_date=08112026&expected_price_uuid=01a1bafb-d6c9-8031-277b-7bd66e5194f0&static_fare_key=TY%7CP1%7CH1%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=tPypaFJrXty2g7tQMsNlJg&destination_airports=0&expected_price_source=share&expected_price_currency=eur&expected_price=532",
+      "origin_airport": "BCN",
+      "destination_airport": "EZE",
+      "departure_at": "2027-04-14T13:10:00+02:00",
+      "airline": "LA",
+      "destination": "BUE",
+      "origin": "BCN",
+      "price": 532,
+      "gate": "Trip.com",
+      "return_transfers": 0,
+      "duration": 1025,
+      "duration_to": 840,
+      "duration_back": 0,
+      "transfers": 1
+    },
+    "2027-04-24": {
+      "flight_number": "079",
+      "link": "/search/BCN2404EZE1?t=AZ18085854001808638200001180BCNFCOEZE_2da8dfc6b07f6e96fb959b6127129694_47748&search_date=10112026&expected_price_uuid=01a1c4b7-f377-8030-6b1c-55327b0f19ec&static_fare_key=TY%7CP1%7CH1%7CL0%7CCH1%7CR0%7CTBC0&itinerary_key=7S5ZgxJ7aHenWI1RuwF5yQ&destination_airports=0&expected_price_source=share&expected_price_currency=eur&expected_price=518",
+      "origin_airport": "BCN",
+      "destination_airport": "EZE",
+      "departure_at": "2027-04-24T16:50:00+02:00",
+      "airline": "AZ",
+      "destination": "BUE",
+      "origin": "BCN",
+      "price": 518,
+      "gate": "Wingie",
+      "return_transfers": 0,
+      "duration": 1180,
+      "duration_to": 945,
+      "duration_back": 0,
+      "transfers": 1
+    }
+  },
+  "currency": "eur",
+  "success": true
+}

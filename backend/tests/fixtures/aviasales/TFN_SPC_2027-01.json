@@ -1,0 +1,23 @@
+{
+  "data": {
+    "2027-01-30": {
+      "flight_number": "2155",
+      "link": "/search/TFN3001SPC1?t=PM18013290001801330800000030TFNSPC_ea1e6cb8fc07c5ac765f68217bb13e2e_4222&search_date=09112026&expected_price_uuid=01a1c0c4-2eff-8030-afd9-eabfa255a3f5&static_fare_key=TY%7CP0%7CH1%7CL1_1_23%7CCH0%7CR0%7CTBC1&itinerary_key=ByYOP3E-IIbW40R8yTfNjg&origin_airports=0&expected_price_source=share&expected_price_currency=eur&expected_price=46",
+      "origin_airport": "TFN",
+      "destination_airport": "SPC",
+      "departure_at": "2027-01-30T17:10:00Z",
+      "airline": "PM",
+      "destination": "SPC",
+      "origin": "TCI",
+      "price": 46,
+      "gate": "Trip.com",
+      "return_transfers": 0,
+      "duration": 30,
+      "duration_to": 30,
+      "duration_back": 0,
+      "transfers": 0
+    }
+  },
+  "currency": "eur",
+  "success": true
+}

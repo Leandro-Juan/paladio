@@ -19,6 +19,10 @@ services:
       - OLLAMA_BASE_URL=http://llm:11434
       - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
+      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
+      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -129,12 +133,44 @@ services:
       - VALIDATOR_MODEL=ollama:qwen2.5:3b
       - TICKET_PARSER_MODEL=ollama:qwen2.5:3b
       - NODE_ENV=development
+      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
+      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
     command: celery -A app.celery_app worker --loglevel=info -Q celery,transit_build,poi_hydration -c 2 --prefetch-multiplier=1 --max-memory-per-child=350000 --max-tasks-per-child=50
+    security_opt:
+      - no-new-privileges:true
+
+  beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: dev
+    mem_limit: 512m
+    mem_reservation: 128m
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - POSTGRES_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+      - NODE_ENV=development
+      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
+      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A app.celery_app beat --loglevel=info
     security_opt:
       - no-new-privileges:true
 

@@ -11,24 +11,21 @@
 3. [Corridor Classification & Regional Dispatch](#3-corridor-classification--regional-dispatch)
 4. [Provider Ladder & Circuit Breaker Engine](#4-provider-ladder--circuit-breaker-engine)
 5. [Flight Ingestion Pipeline Implementation](#5-flight-ingestion-pipeline-implementation)
-   - [5.1 CompositeFlightFeed Architecture](#51-compositeflightfeed-architecture)
-   - [5.2 RyanairProvider](#52-ryanairprovider)
-   - [5.3 GoogleFlightsProvider](#53-googleflightsprovider)
-   - [5.4 KiwiFlightProvider](#54-kiwiflightprovider)
-   - [5.5 TripComFlightProvider](#55-tripcomflightprovider)
-   - [5.6 FlightBrowserPool & Anti-Fingerprinting](#56-flightbrowserpool--anti-fingerprinting)
+   - [5.1 AviasalesProvider (Primary Global)](#51-aviasalesprovider-backendappenginemarketprovidersaviasalespy)
+   - [5.2 RyanairProvider (Europe Direct)](#52-ryanairprovider-backendappenginemarketprovidersryanairpy)
 6. [Lodging Ingestion & Entity Consolidation Pipeline](#6-lodging-ingestion--entity-consolidation-pipeline)
-   - [5.1 OpenLodgingFeed & LodgingAggregator](#61-openlodgingfeed--lodgingaggregator)
-   - [5.2 BookingScraperProvider & Headless Playwright](#62-bookingscraperprovider--headless-playwright)
-   - [5.3 GoogleTravelHotelsProvider](#63-googletravelhotelsprovider)
-   - [5.4 AgodaProvider & TripComProvider](#64-agodaprovider--tripcomprovider)
-   - [5.5 EntityResolver & PropertyUniverseManager](#65-entityresolver--propertyuniversemanager)
-   - [5.6 Taste-Aware Bayesian Lodging Scoring](#66-taste-aware-bayesian-lodging-scoring)
+   - [6.1 OpenLodgingFeed & LodgingAggregator](#61-openlodgingfeed--lodgingaggregator-backendappenginemarketlodgingaggregatorpy)
+   - [6.2 BookingScraperProvider & Headless Playwright](#62-bookingscraperprovider-backendappenginemarketprovidersbooking_scraperpy)
+   - [6.3 GoogleTravelHotelsProvider](#63-googletravelhotelsprovider-backendappenginemarketprovidersgoogle_travelpy)
+   - [6.4 AgodaProvider & TripComProvider](#64-agodaprovider--tripcomprovider)
+   - [6.5 EntityResolver & PropertyUniverseManager](#65-entityresolver--propertyuniversemanager-backendappenginemarketlodging)
+   - [6.6 Taste-Aware Bayesian Lodging Scoring](#66-taste-aware-bayesian-lodging-scoring-rankingpyl140-l240)
 7. [Data Persistence & Deduplication Engine](#7-data-persistence--deduplication-engine)
 8. [Empirical Baselines & Horizon Bootstrap](#8-empirical-baselines--horizon-bootstrap)
 9. [The 6-Stage Deal Detection & Verification Funnel](#9-the-6-stage-deal-detection--verification-funnel)
 10. [Critical Failure Analysis & Reality Audit](#10-critical-failure-analysis--reality-audit)
-11. [Production Hardening & Architectural Roadmap](#11-production-hardening--architectural-roadmap)
+11. [Production Rebuild: Implemented Architecture](#11-production-rebuild-implemented-architecture)
+12. [Telemetry, Observability & Circuit Breaking](#12-telemetry-observability--circuit-breaking)
 
 ---
 
@@ -53,14 +50,12 @@ These vectors feed into a **TimescaleDB** time-series hypertable (`market_price_
 │              │                                                                                                           │
 │              ├──────────────────────────────────────────────────────┬────────────────────────────────────────────────────┤
 │              ▼                                                      ▼                                                    │
-│    [CompositeFlightFeed]                                  [LodgingAggregator]                                            │
+│    [CompositeFlightFeed]                                  [OpenLodgingFeed]                                              │
 │              │                                                      │                                                    │
 │   ┌──────────┴────────────────────────┐                  ┌──────────┴───────────────────────────────────────┐            │
-│   │ Provider Ladder (Router):         │                  │ Enabled Providers (lodging_providers):           │            │
-│   │ 1. RyanairProvider (EU API)       │                  │ 1. BookingScraperProvider (HTTP + Playwright)   │            │
-│   │ 2. GoogleFlightsProvider (Scraper)│                  │ 2. GoogleTravelHotelsProvider (HTTP)             │            │
-│   │ 3. KiwiFlightProvider (Scraper)   │                  │ 3. TripComProvider (HTTP)                        │            │
-│   │ 4. TripComFlightProvider (Scraper)│                  │ 4. AgodaProvider (HTTP)                          │            │
+│   │ Provider Ladder (Router):         │                  │ Lodging Feed Providers:                          │            │
+│   │ 1. AviasalesProvider (Primary)    │                  │ 1. BookingScraperProvider (Live Scraper)          │            │
+│   │ 2. RyanairProvider (EU Direct)    │                  │ 2. GoogleTravelHotelsProvider (Live HTTP)        │            │
 │   └──────────┬────────────────────────┘                  └──────────┬───────────────────────────────────────┘            │
 │              │                                                      │                                                    │
 │              ▼                                                      ▼                                                    │
@@ -80,7 +75,7 @@ These vectors feed into a **TimescaleDB** time-series hypertable (`market_price_
 │                           [Quantile Baselines: route_baselines]                                                          │
 │                                             │                                                                            │
 │                                             ▼                                                                            │
-│                         [6-Stage Deal Detection & Verification Funnel]                                                   │
+│                         [Top-3 Selection, Tolerance Verify & Gates]                                                      │
 │                                             │                                                                            │
 │                                             ▼                                                                            │
 │                         [Trip Proposals & WebSocket Alerts]                                                              │
@@ -91,23 +86,21 @@ These vectors feed into a **TimescaleDB** time-series hypertable (`market_price_
 
 ## 2. Triggering & Orchestration Subsystem
 
-Ingestion tasks are coordinated through asynchronous Celery workers, Celery Beat schedulers, and FastAPI REST endpoints.
+Ingestion tasks are coordinated through asynchronous Celery workers, a dedicated Celery Beat scheduler, and FastAPI REST endpoints.
 
-### 2.1 Scheduled Celery Tasks (`backend/app/tasks.py`)
+### 2.1 Daily Scheduled Pipeline (`backend/app/tasks.py`)
 
-1. **`periodic_market_scan_task`** (`tasks.py:L2152`):
-   - **Schedule**: Executes every 15 minutes (`MARKET_SCAN_INTERVAL_MIN = 15`).
-   - **Behavior**: Scans all active user watch alerts (`DealWatchAlertModel.is_active == True`).
-   - For each alert, polls live flight fares across a forward 90-day window (`date_from = alert.earliest_date`, `date_to = alert.earliest_date + 90 days`).
-   - Executes `ingest_flight_ticks` followed immediately by `run_deal_detection_scan`.
+1. **`daily_market_pipeline_task`** (`tasks.py`):
+   - **Schedule**: Executes daily at 03:00 UTC via Celery Beat (`beat_schedule: crontab(hour=3, minute=0)`).
+   - **Concurrency Control**: Protected by a non-blocking Redis distributed lock (`paladio:market:daily_chain_lock`, TTL 2 hours) ensuring overlapping daily runs are strictly impossible.
+   - **Pipeline Chain**:
+     1. **Stage 1 (Sweep)**: Calls `run_daily_flight_sweep`, sweeping all watched alert corridors and pilot routes across the 11-month forward calendar horizon with per-route fault isolation. Records audit rows in `market_sweep_runs` and `route_month_coverage`.
+     2. **Stage 2 (Baselines)**: Calls `compute_route_baselines`, recomputing statistical medians, quantiles, and fee models across 6 lead buckets for each route.
+     3. **Stage 3 (Detection & Verification & Hotels)**: Calls `run_deal_detection_scan`, selecting top-3 candidates per user per day with route diversity capping (`MAX_PER_ROUTE_PER_SCAN = 2`), performing live tolerance verification, and fetching authentic lodging only for verified candidates.
 
-2. **`periodic_baseline_compute_task`** (`tasks.py:L2177`):
-   - **Schedule**: Nightly batch cron job.
-   - **Behavior**: Iterates over all monitored routes in `route_corpus_status` and triggers `compute_route_baseline`, calculating empirical price quantiles across lead time buckets.
-
-3. **`backfill_route_corpus_task`** (`tasks.py:L2193`):
+2. **`backfill_route_corpus_task`** (`tasks.py`):
    - **Schedule**: On-demand or triggered during initial route setup.
-   - **Behavior**: Calls `backfill_route_corpus`, sweeping forward calendar months up to `CORPUS_HORIZON_MONTHS = 11` (default 330 days) to gather 300+ real daily market prices.
+   - **Behavior**: Calls `backfill_route_corpus`, sweeping forward calendar months up to `CORPUS_HORIZON_MONTHS = 11` (330 days) to populate authentic market prices and establish route baselines.
 
 4. **`prewarm_route_lodging_task`** (`tasks.py:L2225`):
    - **Schedule**: Triggered post-flight backfill.
@@ -142,21 +135,22 @@ classification = route_classifier.classify_corridor("JFK", "LAX")
 # Result: is_americas=True, is_europe=False, corridor_region="intra_americas", suggested_currency="USD"
 ```
 
-### 3.2 Dynamic Regional Ladder Construction (`adapters.py:L52-L64`)
+### 3.2 Multi-Source Regional Flight Hierarchy (Decision D11)
 
 `CompositeFlightFeed._get_router` builds the execution ladder dynamically based on corridor geography:
 
 - **Intra-Europe Corridors**:
-  $$\text{Ladder} = [\text{RyanairProvider}, \text{GoogleFlightsProvider}, \text{KiwiFlightProvider}, \text{TripComFlightProvider}]$$
-- **Intra-Americas & Intercontinental Corridors**:
-  $$\text{Ladder} = [\text{GoogleFlightsProvider}, \text{KiwiFlightProvider}, \text{TripComFlightProvider}]$$
-  *(Ryanair is strictly excluded from non-European routes to prevent 100% predictable 404/empty responses).*
+  $$\text{Ladder} = [\text{AviasalesProvider}, \text{RyanairProvider}]$$
+  *(Aviasales serves as primary multi-month calendar source; Ryanair serves as secondary direct-carrier source).*
+- **Americas & Intercontinental Corridors**:
+  $$\text{Ladder} = [\text{AviasalesProvider}]$$
+  *(Aviasales provides full global coverage across 11 forward months without web scraping).*
 
 ---
 
-## 4. Provider Ladder & Circuit Breaker Engine
+## 4. Provider Router & Resilience Engine
 
-All provider interactions pass through `ProviderRouter` (`backend/app/engine/market/providers/router.py`), which implements an automated circuit-breaker pattern, health telemetry tracking, and fallback sequencing.
+All provider interactions pass through `ProviderRouter` (`backend/app/engine/market/providers/router.py`), which implements circuit breakers, multi-day failure telemetry, and kill switches.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -164,152 +158,84 @@ All provider interactions pass through `ProviderRouter` (`backend/app/engine/mar
 │                                                                                        │
 │   Incoming Query: (origin, dest, date)                                                  │
 │         │                                                                              │
+│         ├─► [Provider Kill Switch Active] ──► SKIP PROVIDER                            │
+│         │                                                                              │
 │         ▼                                                                              │
 │   Fetch Provider Health: provider_health table                                         │
 │         │                                                                              │
-│         ├─► [Status == "open_breaker"] ──► Check cooldown (900s)                       │
+│         ├─► [Status == "open_breaker"] ──► Check cooldown (24 hours)                   │
 │         │                                 ├── Cooldown active   ──► SKIP PROVIDER      │
 │         │                                 └── Cooldown expired  ──► HALF-OPEN ATTEMPT  │
-│         │                                                                              │
-│         ├─► [Method Not Implemented]   ──► SKIP PROVIDER                               │
 │         │                                                                              │
 │         ▼                                                                              │
 │   Execute Provider Method: e.g. fetch_cached_flights()                                 │
 │         │                                                                              │
-│         ├── SUCCESS (Quotes returned)  ──► Reset failures, status="ok", RETURN QUOTES  │
+│         ├── SUCCESS (Observations returned) ──► Reset consecutive failures, status="ok"│
 │         │                                                                              │
 │         └── FAILURE / EXCEPTION:                                                       │
 │               │                                                                        │
 │               ├─► Record failure in provider_health                                    │
-│               ├─► Increment consecutive_failures                                       │
+│               ├─► Track consecutive_failure_days across dates                          │
+│               ├─► If consecutive_failure_days >= 2 ──► Raise System Alert              │
 │               ├─► If consecutive_failures >= 5 ──► Trip breaker: status="open_breaker" │
 │               └─► Advance to NEXT PROVIDER in ladder                                   │
 │                                                                                        │
-│   All Providers Failed ──► Raise NoDataError("All providers exhausted")                │
+│   All Providers Failed ──► Raise NoDataError("No flight data obtainable across ladder")│
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 4.1 Telemetry Schema (`ProviderHealthModel`)
 Stored in the PostgreSQL `provider_health` table:
-- `provider` (PK): Name of provider (`ryanair`, `google_flights`, `booking`, etc.).
+- `provider` (PK): Name of provider (`aviasales`, `ryanair`, `booking`, etc.).
 - `asset_type` (PK): `'flight'` or `'lodging'`.
 - `status`: `'ok'`, `'degraded'`, `'blocked'`, or `'open_breaker'`.
-- `consecutive_failures`: Incremented on each failure; resets to `0` upon success.
+- `consecutive_failures`: Incremented on each error; resets to `0` upon success.
+- `consecutive_failure_days`: Tracks consecutive days of failure; alerts at $\ge 2$.
+- `last_coverage`: Most recent route-month price coverage fraction.
+- `last_ok_at`: Timestamp of last successful API response.
 - `last_error`: Truncated 500-character string of the latest exception.
 - `updated_at`: Timestamp used to calculate cooldown expiration.
 
-### 4.2 Circuit Breaker Rules (`config.py`)
+### 4.2 Circuit Breaker & Kill Switches (`config.py`)
 - `BREAKER_FAILURES = 5`: Trips into `open_breaker` after 5 consecutive errors.
-- `BREAKER_COOLDOWN_SEC = 900`: Providers remain locked out for 15 minutes before permitting a single half-open trial request.
+- `BREAKER_COOLDOWN_HOURS = 24`: Open breaker locks out failing providers for 24 hours.
+- **Kill Switches**: Environment variables allowing instant zero-downtime disabling:
+  - `MARKET_ENABLE_SWEEP`: Disables daily calendar sweep stage.
+  - `MARKET_ENABLE_BASELINES`: Disables route statistical baselines rollup.
+  - `MARKET_ENABLE_DETECTION`: Disables deal detection and notification scan.
+  - `MARKET_ENABLE_VERIFICATION`: Skips live price re-verification.
+  - `MARKET_ENABLE_AVIASALES`: Disables Aviasales API queries.
+  - `MARKET_ENABLE_RYANAIR`: Disables Ryanair API queries.
+  - `MARKET_ENABLE_LODGING`: Disables hotel queries and downgrades to flight-only.
 
 ---
 
 ## 5. Flight Ingestion Pipeline Implementation
 
-### 5.1 CompositeFlightFeed Architecture (`backend/app/engine/market/adapters.py`)
+### 5.1 AviasalesProvider (`backend/app/engine/market/providers/aviasales.py`)
 
-`CompositeFlightFeed` implements two primary protocols: `FlightFeed` and `LiveQuoteProvider`. It exposes four core entrypoints:
-1. `fetch_cached_flights(origin, dest, date_from, date_to)`: Fast single/multi-day fare query.
-2. `fetch_month_cheapest_per_day(origin, dest, month_start)`: Monthly sweep sampling daily minimums.
-3. `fetch_calendar_horizon(origin, dest, months_ahead)`: Multi-month sweep for baseline calculations.
-4. `verify_flight(quote)`: Live re-query of an exact flight quote to confirm bookability.
-
----
+Primary flight provider backing the entire 11-month forward calendar corpus.
+- **Data Source**: Travelpayouts / Aviasales Data API (`https://api.travelpayouts.com/aviasales/v3/prices_for_dates`).
+- **Authentication**: Free token passed via `x-access-token` header (strictly never logged or exposed).
+- **Rate Limiting**: In-memory token bucket enforcing 60 requests per minute (`AVIASALES_MAX_RPM = 60`).
+- **Resilience**: Exponential backoff on 429/5xx and Redis response caching (`paladio:aviasales:raw:...`, TTL 24 hours).
+- **Strict Data Truthfulness**:
+  - Validates departure month strictly against requested month window; rejects substituted or drifted dates.
+  - Extracts accurate `found_at` timestamp from deep-link `search_date=DDMMYYYY` query parameter.
+  - Never defaults departure/arrival times to midnight if absent (`depart_time=None` when times are not present in payload).
+  - Flags observations older than 7 days as `is_stale=True`.
+  - Rejects zero or negative prices and missing currency codes.
 
 ### 5.2 RyanairProvider (`backend/app/engine/market/providers/ryanair.py`)
 
-The `RyanairProvider` queries Ryanair's public REST APIs directly:
-
-1. **Standard Fare Query (`fetch_cached_flights`)**:
-   - Endpoint: `https://www.ryanair.com/api/farfnd/v4/oneWayFares`
-   - Parameters:
-     ```python
-     params = {
-         "departureAirportIataCode": origin_iata,
-         "arrivalAirportIataCode": dest_iata,
-         "language": "en",
-         "limit": 100,
-         "market": "en-gb",
-         "offset": 0,
-         "outboundDepartureDateFrom": date_from.isoformat(),
-         "outboundDepartureDateTo": date_to.isoformat(),
-     }
-     ```
-   - Parsing: Traverses the `fares` JSON array. Extracts `departureDate`, `arrivalDate`, `price.value` (converted to integer cents), and `flightNumber`.
-
-2. **Monthly Sweeper (`fetch_month_cheapest_per_day`)**:
-   - Endpoint: `https://www.ryanair.com/api/farfnd/v4/oneWayFares/{origin}/{dest}/cheapestPerDay`
-   - Parameter: `outboundMonthOfDate=YYYY-MM-01`.
-   - Returns daily lowest fares across the entire month in a single HTTP request.
-
-3. **Calendar Horizon (`fetch_calendar_horizon`)**:
-   - Iterates through `months_ahead` (up to 11 months).
-   - Issues monthly requests wrapped in an `asyncio.Semaphore(3)` with a `50ms` polite jitter sleep.
+Secondary direct-carrier provider for European corridors.
+- Queries Ryanair public REST APIs:
+  - `https://www.ryanair.com/api/farfnd/v4/oneWayFares`
+  - `https://www.ryanair.com/api/farfnd/v4/oneWayFares/{origin}/{dest}/cheapestPerDay`
+- Returns verified direct flight quotes with exact carrier flight numbers and flight times.
+- Strictly excluded from non-European routes to prevent predictable 404 responses.
 
 ---
-
-### 5.3 GoogleFlightsProvider (`backend/app/engine/market/providers/google_flights.py`)
-
-The `GoogleFlightsProvider` queries Google Flights meta-search using `httpx.AsyncClient`:
-
-1. **Request Construction**:
-   - URL: `https://www.google.com/travel/flights`
-   - Query string: `q=Flights from {origin} to {dest} on {date}`
-   - Localization: `hl=en`, `gl={country}`, `curr={currency}`
-   - Headers: Realistic Chrome/Ubuntu headers from `FlightBrowserPool`.
-   - Static Cookie: Consent bypass cookie:
-     ```python
-     GOOGLE_CONSENT_COOKIE = {"SOCS": "CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA4X3AwGgJlbhACGgYIgLCnpgY"}
-     ```
-
-2. **Primary Parsing Engine (`_parse_flight_cards`)**:
-   - Uses regex to match accessibility labels on flight cards:
-     ```python
-     labels = re.findall(r'aria-label="((?:From|Flight)\s+[\d,]+\s+[^"]+Select flight)"', html)
-     ```
-   - Traverses each card label with sub-expressions:
-     - Price: `r"(?:From|Flight)\s+([\d,]+)\s+([A-Za-z]+)"`
-     - Carrier: `r"(?:flight with|operated by)\s+([^.]+?)\."`
-     - Stops: Checks for `"Nonstop"` or `r"(\d+)\s+stop"`
-     - Times: `r"Leaves\s+.+?\s+at\s+([0-9]{1,2}:[0-9]{2}(?:[\s\u202f]*[APMapm]{2})?)\s+on\s+(.+?)\s+and arrives\s+.+?\s+at\s+([0-9]{1,2}:[0-9]{2}(?:[\s\u202f]*[APMapm]{2})?)"`
-
-3. **Fallback Regex Parser (`_fallback_parse`)**:
-   - If `_parse_flight_cards` returns 0 quotes, it executes a regex sweep over the entire page:
-     ```python
-     raw_prices = re.findall(r"(?:[\$€£]|" + target_currency + r"\s*)(\d{1,3}(?:,\d{3})*|\d{2,5})", html)
-     carrier_matches = re.findall(r"\b(Delta|United|American|Southwest|JetBlue|Alaska|Spirit|Frontier|Iberia|Vueling|easyJet|Wizz Air|Ryanair|...)\b", html, re.IGNORECASE)
-     ```
-   - Calculates distance via the Haversine formula to approximate duration:
-     $$\text{flight\_hours} = \max\left(\frac{\text{dist\_km}}{800.0} + 0.6, 1.0\right)$$
-   - Synthesizes flight cards spaced 2 hours apart starting at 09:00 AM local time.
-
-4. **Forward Calendar Sweeps (`fetch_calendar_horizon`)**:
-   - Samples 25 to 30 evenly spaced dates across the 11-month horizon:
-     ```python
-     stride = max(total_days // 25, 4)
-     dates_to_query = [today + timedelta(days=i) for i in range(2, total_days, stride)]
-     ```
-   - Queries Google Flights concurrently using `asyncio.Semaphore(5)`.
-
----
-
-### 5.4 KiwiFlightProvider & 5.5 TripComFlightProvider
-
-Both providers implement HTML scraping over search result pages:
-- **Kiwi**: Hits `https://www.kiwi.com/en/search/results/{origin}/{dest}/{date}`.
-- **Trip.com**: Hits `https://www.trip.com/flights/{origin}-to-{dest}/airfares-{origin}-{dest}`.
-- Both use fallback price regexes and airline matching arrays.
-- Neither provider implements `fetch_calendar_horizon` or `fetch_month_cheapest_per_day`.
-
----
-
-### 5.6 FlightBrowserPool (`backend/app/engine/market/flights/browser_pool.py`)
-
-Coordinates outbound scraper hygiene:
-- **User-Agent Rotation**: Cycles realistic modern desktop User-Agents (Chrome 128/129 on Linux, Windows 10, macOS).
-- **Proxy Management**: Parses comma-separated proxies from `FLIGHT_PROXY_URLS`, `MARKET_PROXY_URLS`, or `LODGING_PROXY_URLS` via `itertools.cycle`.
-- **Client Hints**: Injects `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, `sec-ch-ua`, and `Accept-Language` headers matching native Chrome requests.
-- **Jitter Delays**: `throttle(min_ms=100, max_ms=300)` sleeps for a non-deterministic duration between external hits.
 
 ---
 
@@ -507,16 +433,18 @@ When a route is monitored:
 
 ### 8.2 Baseline Distribution Computation (`baselines.py:L140-L280`)
 Calculates empirical quantiles for each route corridor:
-- **Lead Time Buckets**: `0..7 days`, `8..21 days`, `22..60 days`, `61+ days`.
+- **6 Lead Time Buckets**: `0..3 days`, `4..14 days`, `15..30 days`, `31..60 days`, `61..90 days`, `91..330 days`.
 - **Quantiles Calculated**: $P_{02}, P_{05}, P_{10}, P_{25}, P_{50}, P_{75}, P_{90}$.
-- **Statistical Significance Requirements**:
-  - Minimum 200 observation rows (`MIN_BASELINE_ROWS = 200`).
-  - Minimum 21 distinct observation dates (`MIN_BASELINE_OBS_DAYS = 21`).
-  - Minimum 10 distinct departure dates (`MIN_BASELINE_DEPART_DATES = 10`).
-- **Graceful Fallback Hierarchy**:
-  1. `full`: Matched exact corridor, exact departure month, and lead time bucket.
-  2. `drop_lead`: If lead time bucket has insufficient observations, pool across all lead times for that departure month.
-  3. `drop_month`: If the specific month lacks data, pool across the entire 540-day route history.
+- **Statistical Significance Requirements & Confidence Tiers**:
+  - `HIGH`: $\ge 30$ observations spanning $\ge 60$ days.
+  - `MEDIUM`: $\ge 15$ observations spanning $\ge 30$ days.
+  - `LOW`: $\ge 7$ observations spanning $\ge 14$ days.
+  - `INSUFFICIENT`: $< 7$ observations. Statistical gate rejects deals if baseline confidence is insufficient.
+- **Graceful Empirical Fallback Hierarchy**:
+  1. `full`: Matched exact corridor `(origin, dest)`, exact departure month, and lead bucket.
+  2. `drop_lead`: Pooled across all lead buckets for that departure month `(origin, dest, month, all_lead)`.
+  3. `drop_month`: Pooled across all departure months for that lead bucket `(origin, dest, all_months, bucket)`.
+  4. `route_global`: Pooled across the entire observed historical route corpus `(origin, dest, all_months, all_lead)`.
 
 ---
 
@@ -548,24 +476,33 @@ Every tick entering the system is evaluated through a 6-stage funnel in `backend
 └────────────────────────┴───────────────────────────────────────────────────────────────┘
 ```
 
-1. **Stage 1 (Statistical Detection)**:
-   Calculates the total package ratio:
-   $$\text{PackageRatio} = \frac{\text{FlightPrice} + \text{ReturnFlightPrice} + (\text{LodgingPricePerNight} \times \text{Nights})}{\text{BaselineMedianTotal}}$$
-   Must satisfy $\text{PackageRatio} \le 0.75$ and absolute savings $\ge 30.00 \text{ EUR}$.
+1. **Stage 1 (Statistical Detection & Top-3 Candidate Ranking)**:
+   - Evaluates candidate fare against empirical median baseline:
+     $$\text{PackageRatio} = \frac{\text{FlightPrice} + \text{ReturnFlightPrice} + (\text{LodgingPricePerNight} \times \text{Nights})}{\text{BaselineMedianTotal}}$$
+     Must satisfy $\text{PackageRatio} \le 0.75$ and absolute savings $\ge 30.00 \text{ EUR}$.
+   - **Candidate Scoring & Top-3 Filter** (`score_deal_candidate`):
+     Candidates are ranked deterministically by discount depth, absolute euro savings, lead time realism, and non-stop preference:
+     $$\text{Score} = (1.0 - \text{price\_ratio}) \times 100.0 + \min(50.0, \frac{\text{savings\_cents}}{1000}) - (\text{stops} \times 10.0)$$
+     Only the top 3 scored candidates per alert advance to live verification, preventing rate limit depletion.
 
 2. **Stage 2 (Feasibility Gate)**:
    Rejects inconvenient flights: arrivals between 00:00 and 05:00 local time, ground stays under 36 hours, or layovers shorter than airport transfer thresholds.
 
-3. **Stage 3 (Bookability Gate)**:
-   Re-queries the provider live for the exact departure date (`verify_flight`). If the fare has vanished or increased by more than 5% (`VERIFY_TOLERANCE = 0.05`), the deal is discarded.
+3. **Stage 3 (Bookability & Live Verification Gate - `verifier.py`)**:
+   Re-queries the provider live for the exact departure date (`verify_flight`).
+   - If the fare has vanished or increased by more than 5% (`VERIFY_TOLERANCE = 0.05`), the candidate is immediately discarded.
+   - Price drift is recorded: $\text{drift} = \frac{P_{\text{verified}} - P_{\text{observed}}}{P_{\text{observed}}}$.
+   - Zero-synthetic invariant: Never fabulates prices or flight numbers during verification.
 
 4. **Stage 4 (Affordability Gate)**:
    Validates total landed cost:
    $$\text{LandedTotal} = (\text{FlightPrice} \times \text{Travelers}) + \text{TotalLodging} + \text{BaggageBudget}$$
    Must not exceed the user's hard budget limit (`alert.max_budget_cents`).
 
-5. **Stage 5 (Quality Gate)**:
-   Evaluates the lodging property using `SovereignLodgingScorer`. The composite Bayesian score must meet or exceed $70.0 / 100$.
+5. **Stage 5 (Quality & Lodging Gate)**:
+   Evaluates authentic destination lodging via `SovereignLodgingScorer`.
+   - Requires real observed property data or conservative tier-based estimate without synthetic placeholders.
+   - The composite Bayesian score must meet or exceed $70.0 / 100$.
 
 6. **Stage 6 (Itinerary Gate)**:
    Passes destination POIs and flight arrival/departure times into the **Paladio C++ Core optimization solver** (`paladio_core`). The solver must construct a feasible TSPTW itinerary with a realism score $\ge 8.0 / 10.0$.
@@ -612,44 +549,42 @@ If all 6 gates pass, the deal is saved to `DealCandidateModel`, linked to `DealE
 
 ---
 
-## 11. Production Hardening & Architectural Roadmap
+## 11. Production Rebuild: Implemented Architecture
 
-To transform this system into a rock-solid, production-grade engine, two implementation paths are available:
+As executed in the Deal Engine Rebuild (`PLAN.md`), the fragile HTML scraper architecture was replaced with an authentic, REST-first ingestion and verification pipeline:
 
-### Option A: Official REST APIs (Recommended: 99.9% Uptime, Zero Scraper Maintenance)
+### 11.1 Aviasales Primary Global Aggregator (Implemented)
+- **API**: Travelpayouts / Aviasales Data API v2 (`https://api.travelpayouts.com/v2/prices/month-matrix`).
+- **Authentication**: Token passed securely via `x-access-token` header (sourced from `.env`).
+- **Coverage**: Global coverage across Europe, Americas, Asia, and Transatlantic corridors.
+- **Resilience**: Exponential backoff (`429` / `5xx` retry), strict JSON validation (`ParseDriftError`), and zero-synthetic parsing (never invents depart times, flight numbers, or stops).
 
-Replace HTML scrapers with official, structured developer APIs:
-
-1. **Amadeus for Developers (Self-Service)**:
-   - **Cost**: Free tier includes **2,000 live search requests per month**.
-   - **Endpoints**:
-     - `Flight Offers Search`: Returns structured JSON containing verified flight numbers, real seat availability, exact layovers, baggage allowances, and prices.
-     - `Flight Price Analysis`: Provides statistical fare percentiles directly, eliminating the need to scrape 11 months of historical baselines.
-     - `Hotel Search API`: Live hotel availability and pricing across major global chains and bedbanks.
-
-2. **Kiwi Tequila API**:
-   - Official API providing structured access to Kiwi's virtual-interlining flight inventory across 750+ carriers without DataDome challenges.
-
-3. **Duffel Flights API**:
-   - Modern REST API for live NDC and low-cost carrier flight search and instant verification.
+### 11.2 Ryanair Direct Carrier (Implemented)
+- **API**: Direct carrier JSON API (`https://www.ryanair.com/api/farfnd/v4/oneWayFares`).
+- **Role**: High-fidelity intra-European pricing directly from source of truth without intermediary markups.
 
 ---
 
-### Option B: Hardened Sovereign Scraper Cluster (If Zero Third-Party APIs is Mandatory)
+## 12. Telemetry, Observability & Circuit Breaking
 
-If external APIs cannot be used due to strict self-hosting constraints, the following changes are required:
+### 12.1 Telemetry Endpoints (`backend/app/api/market.py`)
+1. **`GET /api/market/telemetry/daily-report`**:
+   - `calls_vs_limit`: Live calls made today vs tier daily budget and consumption ratio.
+   - `provider_stats`: Success rate, status, consecutive failures, consecutive failure days, last coverage %.
+   - `route_month_coverage`: Percentage of monitored route-departure months covered by observed ticks.
+   - `freshness_histogram`: Tick age distribution (`<1d`, `1-3d`, `3-7d`, `>7d`).
+   - `stale_rows_count`: Observations older than `MARKET_MAX_OBSERVATION_AGE_DAYS` (7 days).
+   - `verified_deals_drift`: Statistics on price drift across live verified deals (mean, median, max drift).
 
-1. **Network XHR/RPC Interception**:
-   - Discontinue regex parsing of static HTML.
-   - Use headless browser network interception (`page.on('response')`) to capture internal JSON/RPC responses directly from platform backends (e.g., Google Flights `batchexecute` or Booking internal JSON endpoints).
+2. **`GET /api/market/providers/health`**:
+   - Detailed health metrics for each provider including `consecutive_failure_days`, `last_coverage`, `last_run_id`, and circuit breaker state.
 
-2. **Playwright Stealth & Anti-Detect Integration**:
-   - Equip `scrape_booking.js` with `playwright-extra` and `puppeteer-extra-plugin-stealth`.
-   - Mask `navigator.webdriver`, emulate realistic WebGL/Canvas noise, and inject authentic Chrome runtime objects.
+### 12.2 Daily Celery Beat Pipeline (`backend/app/tasks.py`)
+- Runs daily at **03:00 UTC** via Celery Beat (`"daily-market-pipeline"`).
+- Protected by a Redis distributed lock (`paladio:market:daily_chain_lock`, TTL 7200s, `blocking=False`) to strictly forbid concurrent runs.
+- Sequential stages executed in fault-isolated database sessions:
+  1. `daily_flight_sweep_task` (sweeps 11-month horizon for all active monitored corridors).
+  2. `daily_baseline_compute_task` (computes empirical quantiles across 6 lead time buckets).
+  3. `daily_deal_detection_task` (runs 6-stage detection, scores candidates, verifies top 3 live).
+- Supported by runtime kill switches: `ENABLE_SWEEP`, `ENABLE_BASELINES`, `ENABLE_DETECTION`, `ENABLE_VERIFICATION`, `ENABLE_AVIASALES`, `ENABLE_RYANAIR`, `ENABLE_LODGING`.
 
-3. **Residential Rotating Proxies**:
-   - Configure commercial residential proxy backbones in `FLIGHT_PROXY_URLS` and `LODGING_PROXY_URLS`. Horizon sweeps from single datacenter server IPs are fundamentally unviable.
-
-4. **Fail-Fast Error Handling**:
-   - Eliminate fallback schedule synthesis (`dep_dt + timedelta(hours=idx * 2)`). If a scraper fails, halt execution cleanly.
-   - Wrap `lodging_feed.fetch_destination_summary` in `try...except NoDataError` in `detector.py` to prevent pipeline-wide crashes.

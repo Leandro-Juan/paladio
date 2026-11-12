@@ -432,3 +432,243 @@ async def relay_notification_endpoint(
         action_url=payload.action_url,
         event_type=payload.event_type,
     )
+
+
+# ---------------------------------------------------------------------------
+# API Keys & Secrets Management
+# ---------------------------------------------------------------------------
+
+
+class UpdateSecretPayload(BaseModel):
+    secret_type: str = Field(..., description="Secret type identifier ('aviasales')")
+    token: str = Field(..., description="API key or token to save")
+
+
+class TestSecretPayload(BaseModel):
+    token: str | None = Field(
+        None, description="Optional raw token to test before saving"
+    )
+
+
+def mask_secret_token(token: str | None) -> str | None:
+    if not token:
+        return None
+    token = token.strip()
+    if len(token) <= 8:
+        return "•" * len(token)
+    return f"{'•' * (len(token) - 4)}{token[-4:]}"
+
+
+@router.get("/secrets")
+async def get_system_secrets(
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Retrieve status and obfuscated values of configured external API secrets."""
+    from app.db.models import SystemConfigModel
+    from app.engine.market.config import get_travelpayouts_token, config
+    from sqlalchemy import select
+
+    stmt = select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+    secrets_dict = record.value if record and isinstance(record.value, dict) else {}
+
+    db_aviasales = secrets_dict.get("aviasales", {})
+    db_token = db_aviasales.get("token")
+    updated_at = db_aviasales.get("updated_at")
+
+    if db_token is not None:
+        active_token = db_token
+        source = "database" if db_token else "not_configured"
+    else:
+        active_token = get_travelpayouts_token() or config.TRAVELPAYOUTS_TOKEN
+        source = "env" if active_token else "not_configured"
+
+    is_configured = bool(active_token and active_token.strip())
+
+    return {
+        "status": "success",
+        "secrets": {
+            "aviasales": {
+                "provider": "aviasales",
+                "label": "Aviasales / Travelpayouts Data API",
+                "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
+                "configured": is_configured,
+                "masked_token": mask_secret_token(active_token)
+                if is_configured
+                else None,
+                "source": source,
+                "updated_at": updated_at,
+            }
+        },
+    }
+
+
+@router.post("/secrets")
+async def update_system_secret(
+    payload: UpdateSecretPayload,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Persist or update an external API secret and update runtime engine state."""
+    from app.db.models import SystemConfigModel
+    from app.engine.market.config import set_runtime_aviasales_token
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+
+    secret_type = payload.secret_type.strip().lower()
+    raw_token = payload.token.strip()
+
+    if secret_type != "aviasales":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported secret type: '{payload.secret_type}'. Supported: 'aviasales'",
+        )
+
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token cannot be empty. Use DELETE to remove a configured token.",
+        )
+
+    stmt = select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    secrets_dict = (
+        dict(record.value) if record and isinstance(record.value, dict) else {}
+    )
+
+    secrets_dict["aviasales"] = {
+        "token": raw_token,
+        "updated_at": now_iso,
+    }
+
+    if record:
+        record.value = secrets_dict
+    else:
+        record = SystemConfigModel(key="secrets", value=secrets_dict)
+        session.add(record)
+
+    await session.commit()
+    await session.refresh(record)
+
+    # Immediately activate in memory for running engine
+    set_runtime_aviasales_token(raw_token)
+
+    return {
+        "status": "success",
+        "secret": {
+            "provider": "aviasales",
+            "label": "Aviasales / Travelpayouts Data API",
+            "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
+            "configured": True,
+            "masked_token": mask_secret_token(raw_token),
+            "source": "database",
+            "updated_at": now_iso,
+        },
+    }
+
+
+@router.delete("/secrets/{secret_type}")
+async def delete_system_secret(
+    secret_type: str,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Delete a configured external API secret and clear it from the runtime engine."""
+    from app.db.models import SystemConfigModel
+    from app.engine.market.config import set_runtime_aviasales_token
+    from sqlalchemy import select
+
+    stype = secret_type.strip().lower()
+    if stype != "aviasales":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported secret type: '{secret_type}'. Supported: 'aviasales'",
+        )
+
+    stmt = select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+
+    if record and isinstance(record.value, dict):
+        secrets_dict = dict(record.value)
+        secrets_dict["aviasales"] = {"token": "", "updated_at": None}
+        record.value = secrets_dict
+        await session.commit()
+
+    # Clear runtime token
+    set_runtime_aviasales_token("")
+
+    return {
+        "status": "success",
+        "secret": {
+            "provider": "aviasales",
+            "label": "Aviasales / Travelpayouts Data API",
+            "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
+            "configured": False,
+            "masked_token": None,
+            "source": "not_configured",
+            "updated_at": None,
+        },
+    }
+
+
+@router.post("/secrets/test/{secret_type}")
+async def test_system_secret(
+    secret_type: str,
+    payload: TestSecretPayload | None = None,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Test connectivity of an API secret with live provider validation."""
+    from app.db.models import SystemConfigModel
+    from app.engine.market.config import get_travelpayouts_token
+    from app.engine.market.providers.aviasales import AviasalesProvider
+    from sqlalchemy import select
+
+    stype = secret_type.strip().lower()
+    if stype != "aviasales":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported secret type: '{secret_type}'. Supported: 'aviasales'",
+        )
+
+    test_token = payload.token.strip() if payload and payload.token else None
+    if not test_token:
+        stmt = select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
+        res = await session.execute(stmt)
+        record = res.scalar_one_or_none()
+        if record and isinstance(record.value, dict):
+            test_token = record.value.get("aviasales", {}).get("token")
+        if not test_token:
+            test_token = get_travelpayouts_token()
+
+    if not test_token:
+        return {
+            "success": False,
+            "message": "No Aviasales token configured to test.",
+        }
+
+    provider = AviasalesProvider(token=test_token)
+    try:
+        is_healthy = await provider.is_healthy()
+        if not is_healthy:
+            return {
+                "success": False,
+                "message": "Aviasales token is invalid or missing.",
+            }
+
+        return {
+            "success": True,
+            "message": "Successfully validated Aviasales token format and connectivity.",
+        }
+    except Exception as e:
+        logger.warning(f"Aviasales connection test failed: {e}")
+        return {
+            "success": False,
+            "message": f"Connection test failed: {e}",
+        }

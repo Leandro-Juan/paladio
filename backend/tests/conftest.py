@@ -351,6 +351,15 @@ async def db_engine():
                 "ALTER TABLE deal_watch_alerts DROP CONSTRAINT IF EXISTS ck_deal_watch_alerts_travelers;",
                 "ALTER TABLE deal_watch_alerts ADD CONSTRAINT ck_deal_watch_alerts_travelers CHECK (travelers >= 1 AND travelers <= 16);",
                 "ALTER TABLE deal_watch_alerts ADD COLUMN IF NOT EXISTS participants JSONB;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS trip_type VARCHAR(16) DEFAULT 'one_way' NOT NULL;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS market VARCHAR(16) DEFAULT 'es' NOT NULL;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS original_price_cents BIGINT;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS original_currency VARCHAR(3);",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS fx_rate DOUBLE PRECISION;",
+                "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS fx_rate_date DATE;",
+                "ALTER TABLE market_price_ticks ALTER COLUMN return_date DROP NOT NULL;",
+                "ALTER TABLE market_price_ticks ALTER COLUMN nights DROP NOT NULL;",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(

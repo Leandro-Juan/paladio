@@ -1,0 +1,57 @@
+{
+  "data": {
+    "2027-02-24": {
+      "flight_number": "7675",
+      "link": "/search/LIS2402RAK1?t=U218034764001803482400000100LISRAK_7bc0a2a6c2ace4145eadf569748ffdfc_2608&search_date=08112026&expected_price_uuid=01a1bc52-7275-8030-2d9f-baa21e43682b&static_fare_key=TY%7CP1%7CH0%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=P0iystqgmoPuldReMc8n5g&expected_price_source=share&expected_price_currency=eur&expected_price=29",
+      "origin_airport": "LIS",
+      "destination_airport": "RAK",
+      "departure_at": "2027-02-24T13:40:00Z",
+      "airline": "EC",
+      "destination": "RAK",
+      "origin": "LIS",
+      "price": 29,
+      "gate": "EasyJet",
+      "return_transfers": 0,
+      "duration": 100,
+      "duration_to": 100,
+      "duration_back": 0,
+      "transfers": 0
+    },
+    "2027-02-27": {
+      "flight_number": "7675",
+      "link": "/search/LIS2702RAK1?t=U218037527001803758700000100LISRAK_588486b30479ba9d934cf3f2b0f66dae_2567&search_date=11112026&expected_price_uuid=01a1cb73-a601-8030-6fba-4bb55c93e4f8&static_fare_key=TY%7CP0%7CH0%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=CaksKL7b5dP-BQnYwhel4Q&expected_price_source=share&expected_price_currency=eur&expected_price=28",
+      "origin_airport": "LIS",
+      "destination_airport": "RAK",
+      "departure_at": "2027-02-27T18:25:00Z",
+      "airline": "EC",
+      "destination": "RAK",
+      "origin": "LIS",
+      "price": 28,
+      "gate": "Tickets.kz",
+      "return_transfers": 0,
+      "duration": 100,
+      "duration_to": 100,
+      "duration_back": 0,
+      "transfers": 0
+    },
+    "2027-02-28": {
+      "flight_number": "7675",
+      "link": "/search/LIS2802RAK1?t=U218037971001803803100000100LISRAK_d58e6bc3694b3821f9ecaecc03308ec2_2577&search_date=11112026&expected_price_uuid=01a1cc08-5e3c-8030-6cab-343e59cf7893&static_fare_key=TY%7CP0%7CH0%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=wh9ad-Whq7PMUEQq-u93jg&expected_price_source=share&expected_price_currency=eur&expected_price=28",
+      "origin_airport": "LIS",
+      "destination_airport": "RAK",
+      "departure_at": "2027-02-28T06:45:00Z",
+      "airline": "EC",
+      "destination": "RAK",
+      "origin": "LIS",
+      "price": 28,
+      "gate": "Tickets.kz",
+      "return_transfers": 0,
+      "duration": 100,
+      "duration_to": 100,
+      "duration_back": 0,
+      "transfers": 0
+    }
+  },
+  "currency": "eur",
+  "success": true
+}

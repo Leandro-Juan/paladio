@@ -424,16 +424,26 @@ async def resolve_route_baseline_quantiles(
                 "q25": row.q25,
                 "q50": row.q50,
                 "q75": row.q75,
-                "q90": row.q90
-                if row.q90 is not None
-                else int(row.q75 + (row.q75 - row.q50) * 0.8),
+                "q90": row.q90,
             }
             conf = row.confidence or (
                 "established"
-                if row.n_obs_days >= config.MIN_BASELINE_OBS_DAYS
-                else "provisional"
+                if (
+                    row.n_obs_days >= config.MIN_BASELINE_OBS_DAYS
+                    and row.n_depart_dates >= config.MIN_BASELINE_DEPART_DATES
+                    and row.n_rows >= config.MIN_BASELINE_ROWS
+                )
+                else (
+                    "provisional"
+                    if (
+                        row.n_obs_days >= 3
+                        and row.n_depart_dates >= 3
+                        and row.n_rows >= 15
+                    )
+                    else "building"
+                )
             )
-            if row.n_rows >= 15:
+            if conf != "building":
                 return q_dict, level, conf
             if best_candidate is None or row.n_rows > best_candidate[3]:
                 best_candidate = (q_dict, level, conf, row.n_rows)
@@ -452,12 +462,13 @@ async def resolve_baseline_median(
     depart_date: date,
     observation_date: date,
     currency: str = "EUR",
-) -> tuple[int | None, str | None]:
+) -> tuple[int | None, str | None, str]:
     """
-    Finds the appropriate statistical baseline median (q50) following the fallback hierarchy:
+    Finds empirical baseline median (q50) following hierarchy:
     full -> drop_lead -> drop_month.
+    Returns (median_price_cents, fallback_level, confidence).
     """
-    q_dict, level, _ = await resolve_route_baseline_quantiles(
+    q_dict, level, conf = await resolve_route_baseline_quantiles(
         session,
         origin_iata=origin_iata,
         destination_code=destination_code,
@@ -467,5 +478,5 @@ async def resolve_baseline_median(
         currency=currency,
     )
     if q_dict and "q50" in q_dict:
-        return q_dict["q50"], level
-    return None, None
+        return q_dict["q50"], level, conf
+    return None, None, conf

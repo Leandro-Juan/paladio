@@ -4,12 +4,16 @@ Includes oneWayFares standard query and cheapestPerDay bulk month sweep for day-
 """
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 import httpx
 from app.engine.market.config import config
 from app.engine.market.ports import FlightQuote
-from app.engine.market.providers.base import BaseQuoteProvider, ProviderBlockedError
+from app.engine.market.providers.base import (
+    BaseQuoteProvider,
+    ParseDriftError,
+    ProviderBlockedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +75,18 @@ class RyanairProvider(BaseQuoteProvider):
                     logger.warning(
                         f"Ryanair feed returned HTTP {resp.status_code} for {origin_iata}->{dest_iata}"
                     )
-                    return []
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception as e:
+                    raise ParseDriftError(
+                        f"Ryanair returned invalid/non-JSON response: {e}"
+                    )
+
+                if not isinstance(data, dict):
+                    raise ParseDriftError(
+                        f"Ryanair returned unexpected JSON root type: {type(data)}"
+                    )
+
                 for fare in data.get("fares", []):
                     out = fare.get("outbound", {})
                     p_info = out.get("price", {})
@@ -110,7 +124,7 @@ class RyanairProvider(BaseQuoteProvider):
                             ancillaries_excluded=True,
                         )
                     )
-        except ProviderBlockedError:
+        except (ProviderBlockedError, ParseDriftError):
             raise
         except Exception as e:
             logger.error(f"Error querying Ryanair flight feed: {e}")
@@ -144,7 +158,18 @@ class RyanairProvider(BaseQuoteProvider):
                     )
                 if resp.status_code != 200:
                     return []
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception as e:
+                    raise ParseDriftError(
+                        f"Ryanair cheapestPerDay returned non-JSON response: {e}"
+                    )
+
+                if not isinstance(data, dict):
+                    raise ParseDriftError(
+                        f"Ryanair cheapestPerDay returned unexpected JSON type: {type(data)}"
+                    )
+
                 outbound = data.get("outbound", {})
                 fares = outbound.get("fares", [])
                 for f in fares:
@@ -163,14 +188,16 @@ class RyanairProvider(BaseQuoteProvider):
                         dep_dt = datetime.fromisoformat(dep_raw)
                         arr_dt = datetime.fromisoformat(arr_raw)
                     else:
-                        dep_dt = datetime.fromisoformat(f"{day_str}T10:00:00")
-                        arr_dt = dep_dt + timedelta(hours=2, minutes=30)
+                        dep_dt = None
+                        arr_dt = None
+                    dep_date_val = date.fromisoformat(day_str)
                     price_cents = int(round(float(val) * 100))
                     quotes.append(
                         FlightQuote(
                             origin_iata=origin_iata,
                             destination_iata=dest_iata,
                             destination_city_id=dest_iata,
+                            depart_date=dep_date_val,
                             depart_time=dep_dt,
                             arrival_time=arr_dt,
                             base_price_cents=price_cents,
@@ -180,13 +207,16 @@ class RyanairProvider(BaseQuoteProvider):
                             stops=0,
                             deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
                             source="ryanair",
+                            source_class="cache",
                             observed_at=datetime.now(timezone.utc),
-                            is_live=True,
-                            confidence="high",
+                            found_at=datetime.now(timezone.utc),
+                            fetched_at=datetime.now(timezone.utc),
+                            is_live=False,
+                            confidence="medium",
                             ancillaries_excluded=True,
                         )
                     )
-        except ProviderBlockedError:
+        except (ProviderBlockedError, ParseDriftError):
             raise
         except Exception as e:
             logger.debug(
@@ -248,7 +278,9 @@ class RyanairProvider(BaseQuoteProvider):
         self, quote: FlightQuote, session: Any = None
     ) -> tuple[bool, int, dict[str, Any]]:
         """Live verification check for exact departure date."""
-        dep_date = quote.depart_time.date()
+        dep_date = quote.depart_time.date() if quote.depart_time else quote.depart_date
+        if not dep_date:
+            return False, 0, {"reason": "Missing departure date on quote"}
         live_quotes = await self.fetch_cached_flights(
             quote.origin_iata,
             quote.destination_iata,
@@ -262,7 +294,9 @@ class RyanairProvider(BaseQuoteProvider):
         matching = [
             q
             for q in live_quotes
-            if abs((q.depart_time - quote.depart_time).total_seconds()) < 7200
+            if quote.depart_time
+            and q.depart_time
+            and abs((q.depart_time - quote.depart_time).total_seconds()) < 7200
         ]
         if not matching:
             matching = live_quotes

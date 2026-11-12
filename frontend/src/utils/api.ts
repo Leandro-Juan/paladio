@@ -569,6 +569,61 @@ export const testNotificationRelayApi = (payload: {
   });
 };
 
+// ---------------------------------------------------------------------------
+// External API Keys & Secrets API
+// ---------------------------------------------------------------------------
+
+export interface SecretItemResponse {
+  provider: string;
+  label: string;
+  description: string;
+  configured: boolean;
+  masked_token: string | null;
+  source: 'database' | 'env' | 'not_configured';
+  updated_at?: string | null;
+}
+
+export interface SecretsStatusResponse {
+  status: string;
+  secrets: {
+    aviasales: SecretItemResponse;
+    [key: string]: SecretItemResponse;
+  };
+}
+
+export const fetchSecretsStatusApi = (): Promise<SecretsStatusResponse> => {
+  return apiFetch<SecretsStatusResponse>('/system/secrets');
+};
+
+export const updateSecretApi = (
+  secretType: string,
+  token: string
+): Promise<{ status: string; secret: SecretItemResponse }> => {
+  return apiFetch<{ status: string; secret: SecretItemResponse }>('/system/secrets', {
+    method: 'POST',
+    body: JSON.stringify({ secret_type: secretType, token }),
+  });
+};
+
+export const deleteSecretApi = (
+  secretType: string
+): Promise<{ status: string; secret: SecretItemResponse }> => {
+  return apiFetch<{ status: string; secret: SecretItemResponse }>(`/system/secrets/${secretType}`, {
+    method: 'DELETE',
+  });
+};
+
+export const testSecretApi = (
+  secretType: string,
+  token?: string
+): Promise<{ success: boolean; message: string }> => {
+  return apiFetch<{ success: boolean; message: string }>(`/system/secrets/test/${secretType}`, {
+    method: 'POST',
+    body: JSON.stringify({ token: token || null }),
+  });
+};
+
+
 
 
 

@@ -81,6 +81,28 @@ async def lifespan(app: FastAPI):
             f"Could not initialize LLM configuration from DB on startup: {e}"
         )
 
+    # Dynamically initialize external API secrets from PostgreSQL
+    try:
+        from app.db.session import async_session
+        from app.db.models import SystemConfigModel
+        from app.engine.market.config import set_runtime_aviasales_token
+        from sqlalchemy import select
+
+        async with async_session() as db_session:
+            res = await db_session.execute(
+                select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
+            )
+            rec = res.scalar_one_or_none()
+            if rec and isinstance(rec.value, dict):
+                av_token = rec.value.get("aviasales", {}).get("token")
+                if av_token is not None:
+                    set_runtime_aviasales_token(av_token)
+                    logger.info(
+                        "Dynamically initialized Aviasales API token from database"
+                    )
+    except Exception as e:
+        logger.warning(f"Could not initialize secrets from DB on startup: {e}")
+
     yield
     # Cleanup here
     logger.info("Shutting down Semantic Gateway...")

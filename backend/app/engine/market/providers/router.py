@@ -4,7 +4,7 @@ and health telemetry across providers.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from app.db.models import ProviderHealthModel
 from app.engine.market.config import config
@@ -56,6 +56,7 @@ class ProviderRouter:
         health = await self._get_health(session, provider_name)
         health.status = "ok"
         health.consecutive_failures = 0
+        health.consecutive_failure_days = 0
         health.last_ok_at = datetime.now(timezone.utc)
         health.last_error = None
         await session.commit()
@@ -63,7 +64,24 @@ class ProviderRouter:
     async def _record_failure(
         self, session: AsyncSession, provider_name: str, error_msg: str
     ) -> None:
+        now = datetime.now(timezone.utc)
+        today = now.date()
         health = await self._get_health(session, provider_name)
+
+        # Track consecutive failure days across runs
+        if health.last_failure_date is None or health.last_failure_date != today:
+            if health.last_failure_date == today - timedelta(days=1):
+                health.consecutive_failure_days += 1
+            else:
+                health.consecutive_failure_days = 1
+            health.last_failure_date = today
+
+            if health.consecutive_failure_days >= 2:
+                logger.critical(
+                    f"[ALERT] Provider {provider_name} ({self.asset_type}) has failed for "
+                    f"{health.consecutive_failure_days} consecutive days! Raising system alert."
+                )
+
         health.failure_count += 1
         health.consecutive_failures += 1
         health.last_error = error_msg[:500]
@@ -76,25 +94,58 @@ class ProviderRouter:
             health.status = "degraded"
         await session.commit()
 
+    async def record_coverage(
+        self,
+        session: AsyncSession,
+        provider_name: str,
+        coverage: float,
+        run_id: str | None = None,
+    ) -> None:
+        """Records last coverage percentage and sweep run ID."""
+        health = await self._get_health(session, provider_name)
+        health.last_coverage = coverage
+        if run_id:
+            health.last_run_id = run_id
+        await session.commit()
+
     async def execute_ladder(
         self, session: AsyncSession, operation_name: str, *args, **kwargs
     ) -> Any:
         """
         Iterates over providers in ladder priority order.
-        Skips broken or exhausted providers and fails fast if all fail.
+        Skips broken, disabled, or exhausted providers and fails fast if all fail.
         """
         now = datetime.now(timezone.utc)
         errors: list[str] = []
 
         for provider in self.providers:
+            # Check provider kill switch (Phase 6)
+            p_name_lower = provider.name.lower()
+            if p_name_lower == "aviasales" and not config.ENABLE_AVIASALES:
+                logger.info(
+                    f"[Router] Skipping {provider.name}: disabled by MARKET_ENABLE_AVIASALES"
+                )
+                continue
+            if p_name_lower == "ryanair" and not config.ENABLE_RYANAIR:
+                logger.info(
+                    f"[Router] Skipping {provider.name}: disabled by MARKET_ENABLE_RYANAIR"
+                )
+                continue
+            if not getattr(config, f"ENABLE_{provider.name.upper()}", True):
+                logger.info(
+                    f"[Router] Skipping {provider.name}: disabled by kill switch"
+                )
+                continue
+
             health = await self._get_health(session, provider.name)
 
-            # Check circuit breaker
+            # Check circuit breaker with hourly cooldown (Phase 6)
             if health.status == "open_breaker":
-                time_since_update = (now - health.updated_at).total_seconds()
-                if time_since_update < config.BREAKER_COOLDOWN_SEC:
+                time_since_update_sec = (now - health.updated_at).total_seconds()
+                cooldown_sec = config.BREAKER_COOLDOWN_HOURS * 3600
+                if time_since_update_sec < cooldown_sec:
                     logger.debug(
-                        f"[Router] Skipping {provider.name}: breaker open (cooldown {int(config.BREAKER_COOLDOWN_SEC - time_since_update)}s remaining)"
+                        f"[Router] Skipping {provider.name}: breaker open (cooldown {int(cooldown_sec - time_since_update_sec)}s remaining)"
                     )
                     continue
                 else:

@@ -1,0 +1,23 @@
+{
+  "data": {
+    "2027-05-18": {
+      "flight_number": "9674",
+      "link": "/search/MAD1805FCO1?t=FR18106611001810669800000145MADFCO_050c14797d5e77aaa2b934f94ca325d1_3869&search_date=10112026&expected_price_uuid=01a1c682-1c6c-8030-24f3-892dd5c97b9b&static_fare_key=TY%7CP0%7CH0%7CL0%7CCH0%7CR0%7CTBC0&itinerary_key=iY-uYtqNkEWdB74dlssshQ&destination_airports=0&expected_price_source=share&expected_price_currency=eur&expected_price=42",
+      "origin_airport": "MAD",
+      "destination_airport": "FCO",
+      "departure_at": "2027-05-18T17:25:00+02:00",
+      "airline": "FR",
+      "destination": "ROM",
+      "origin": "MAD",
+      "price": 42,
+      "gate": "Clickavia",
+      "return_transfers": 0,
+      "duration": 145,
+      "duration_to": 145,
+      "duration_back": 0,
+      "transfers": 0
+    }
+  },
+  "currency": "eur",
+  "success": true
+}

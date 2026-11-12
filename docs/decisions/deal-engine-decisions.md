@@ -76,5 +76,41 @@ Record of foundational decisions made prior to Deal Engine implementation, adher
 
 ---
 
+### D9: Approved Sources & Free API Tokens
+- **Answer**: Approved sources may use free tokens (e.g., Aviasales Data API via Travelpayouts token). All secrets live exclusively in environment variables and are strictly never committed or logged.
+- **Date**: 2026-11-12
+- **Who Decided**: PLAN.md specification / Human Owner.
+- **Evidence**: The Aviasales Data API provides global cached price coverage across 11 months under a free Travelpayouts developer token. D3 is extended to allow approved token-authenticated data feeds while keeping secrets out of code.
+- **Open Questions**: None.
+
+---
+
+### D10: Live Verification & Spend Caps
+- **Answer**: Keep €0.00 for the daily 11-month sweep. The live-verify and hotel steps may use a pay-per-call source under a hard daily spend cap (configured by owner). Until a verified source is chosen and configured, the pipeline emits unverified deals (`flight_deal_unverified`) only.
+- **Date**: 2026-11-12
+- **Who Decided**: PLAN.md specification / Human Owner.
+- **Evidence**: Prevents unbounded live-query costs while providing explicit transparency on verification state.
+- **Open Questions**: None.
+
+---
+
+### D11: Multi-Source Flight Pipeline Hierarchy
+- **Answer**: Aviasales is the primary flight source for all corridors across the 11-month horizon. Ryanair is an additional source for intra-Europe routes. Each source is stored, tagged with source and source_class (cache or live), and baselined separately without mixing pools.
+- **Date**: 2026-11-12
+- **Who Decided**: PLAN.md specification / Human Owner.
+- **Evidence**: Aviasales covers global routes; Ryanair provides high-density intra-Europe fares. Separate baselines ensure accurate statistical comparisons.
+- **Open Questions**: None.
+
+---
+
+### D12: Strict Zero-Synthetic Data Standard & CI Tripwire
+- **Answer**: Strictly zero synthetic data across the entire pipeline. Any price, date, time, carrier, flight number, property name, itinerary or percentile that code fabricated instead of observing from a source is prohibited. Unknown values are stored as NULL and reported as unknown. Never default, pad, interpolate, extrapolate or cycle through rows. Enforced by automated CI tripwire test guards.
+- **Date**: 2026-11-12
+- **Who Decided**: PLAN.md specification / Human Owner.
+- **Evidence**: Eliminates hallucinated deals, false bookability assertions, and skewed statistical baselines.
+- **Open Questions**: None.
+
+---
+
 ### Database Infrastructure Note
 - **TimescaleDB Image**: Pinned to `timescale/timescaledb:latest-pg16` (PostgreSQL 16.4, TimescaleDB 2.29.1, pgvector 0.8.1).

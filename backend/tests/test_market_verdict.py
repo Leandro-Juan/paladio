@@ -72,3 +72,38 @@ def test_verdict_to_dict():
     assert "percentile" in d
     assert "price_eur" in d
     assert d["baseline_p50_eur"] == 50.0
+
+
+def test_insufficient_data_no_synthesis():
+    # Missing q50 -> must return INSUFFICIENT_DATA with percentile=None (no synthesis!)
+    quantiles_no_median = {"q10": 2000, "q25": 3000}
+    v = classify_price(2500, quantiles_no_median, confidence="building")
+    assert v.verdict == "INSUFFICIENT_DATA"
+    assert v.percentile is None
+
+    # Empty quantiles -> INSUFFICIENT_DATA
+    v_empty = classify_price(2500, {}, confidence="building")
+    assert v_empty.verdict == "INSUFFICIENT_DATA"
+    assert v_empty.percentile is None
+
+
+def test_clamping_flag():
+    quantiles = {
+        "q10": 3000,
+        "q50": 6000,
+        "q90": 12000,
+    }
+    # Below lowest observed quantile -> clamped at 10.0
+    v_low = classify_price(1000, quantiles)
+    assert v_low.is_clamped is True
+    assert v_low.percentile == 10.0
+
+    # Above highest observed quantile -> clamped at 90.0
+    v_high = classify_price(25000, quantiles)
+    assert v_high.is_clamped is True
+    assert v_high.percentile == 90.0
+
+    # Inside range -> not clamped
+    v_mid = classify_price(6000, quantiles)
+    assert v_mid.is_clamped is False
+    assert v_mid.percentile == 50.0

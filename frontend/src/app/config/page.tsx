@@ -37,6 +37,7 @@ import { ExperienceSection } from '@/components/config/sections/ExperienceSectio
 import { EngineSection } from '@/components/config/sections/EngineSection';
 import { IntelligenceSection } from '@/components/config/sections/IntelligenceSection';
 import { InfrastructureSection } from '@/components/config/sections/InfrastructureSection';
+import { SecretsSection } from '@/components/config/sections/SecretsSection';
 import styles from './config.module.css';
 
 /**
@@ -858,6 +859,12 @@ function ConfigPageInner() {
             handleCheckForUpdates={handleCheckForUpdates}
             handleDownloadUpdate={handleDownloadUpdate}
             handleToggleAutoUpdate={handleToggleAutoUpdate}
+          />
+        )}
+
+        {activeTab === 'secrets' && (
+          <SecretsSection
+            onBackToOverview={() => handleSelectTab('overview')}
           />
         )}
       </main>

@@ -60,15 +60,11 @@ def test_composite_flight_feed_regional_dispatch():
     americas_router = feed._get_router("JFK", "LAX")
     americas_provider_names = [p.name for p in americas_router.providers]
     assert "ryanair" not in americas_provider_names
-    assert "google_flights" in americas_provider_names
-    assert "kiwi" in americas_provider_names
-    assert "trip_com_flights" in americas_provider_names
 
     # Europe ladder includes Ryanair as primary
     europe_router = feed._get_router("MAD", "FCO")
     europe_provider_names = [p.name for p in europe_router.providers]
     assert europe_provider_names[0] == "ryanair"
-    assert "google_flights" in europe_provider_names
 
 
 @pytest.mark.asyncio

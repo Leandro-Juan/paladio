@@ -164,6 +164,15 @@ export function SettingsIconRenderer({ name, size = 16, color = 'currentColor', 
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
       );
+    case 'key':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+          <circle cx="7.5" cy="15.5" r="5.5" />
+          <path d="m21 2-9.6 9.6" />
+          <path d="m15.5 7.5 2.5 2.5" />
+          <path d="m18.5 4.5 2 2" />
+        </svg>
+      );
 
     default:
       return (
