@@ -15,7 +15,7 @@ const QUICK_PROMPTS = [
   { label: 'Fit Budget', prompt: 'Review our stops and recommend cheaper alternatives to fit our budget.' },
   { label: 'Fix Issues', prompt: 'Check our itinerary for opening hour conflicts and pacing issues, then propose fixes.' },
   { label: 'Rainy Day', prompt: 'Suggest indoor cultural stops for a rainy day.' },
-  { label: 'Add Dinner', prompt: 'Recommend and add an authentic local dinner spot near our last stop.' },
+  { label: 'Add Dinner', prompt: 'Find an authentic local dinner spot near our last stop and add it to our schedule.' },
 ];
 
 export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: AgentComposerProps) {

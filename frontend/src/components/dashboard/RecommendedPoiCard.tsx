@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { classifyPoiCategory } from '@/utils/poiCategory';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
 import styles from './RecommendedPoiCard.module.css';
@@ -42,6 +42,7 @@ export function RecommendedPoiCard({
   tripId,
   onDismiss,
 }: RecommendedPoiCardProps) {
+  const router = useRouter();
   const [imgFailed, setImgFailed] = React.useState(false);
   const categoryMeta = useMemo(() => {
     return classifyPoiCategory(category, name);
@@ -59,6 +60,16 @@ export function RecommendedPoiCard({
     e.preventDefault();
     e.stopPropagation();
     onDismiss?.(id || name, name);
+  };
+
+  const handleInspect = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.button === 1 || e.metaKey || e.ctrlKey) {
+      window.open(destinationHref, '_blank');
+    } else {
+      router.push(destinationHref);
+    }
   };
 
   const searchParams = new URLSearchParams();
@@ -147,8 +158,6 @@ export function RecommendedPoiCard({
               <span
                 className={`${styles.badgePill} ${styles.categoryIconPill} ${styles.tooltipTrigger}`}
                 data-testid="poi-category-pill"
-                data-tooltip={formatCategoryLabel(categoryMeta.label)}
-                data-tooltip-position="top"
                 aria-label={categoryMeta.label}
               >
                 <CategoryIcon type={categoryMeta.type} size={12} className={styles.badgeIcon} />
@@ -168,8 +177,6 @@ export function RecommendedPoiCard({
               className={`${styles.actionButton} ${styles.dismissButton}`}
               onClick={handleDismiss}
               aria-label="Dismiss waypoint and find next best match"
-              data-tooltip="Dismiss waypoint"
-              data-tooltip-position="top"
               data-testid="poi-dismiss-btn"
             >
               <svg
@@ -191,13 +198,13 @@ export function RecommendedPoiCard({
           </div>
 
           <div className={styles.heartButtonWrapper}>
-            <Link
-              href={destinationHref}
+            <button
+              type="button"
               className={`${styles.actionButton} ${styles.heartButton}`}
+              onClick={handleInspect}
               aria-label="View waypoint in trip details"
-              data-tooltip="View waypoint in trip details"
-              data-tooltip-position="top"
               data-testid="poi-heart-btn"
+              data-href={destinationHref}
             >
               <svg
                 className={styles.actionIcon}
@@ -208,7 +215,7 @@ export function RecommendedPoiCard({
               >
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
-            </Link>
+            </button>
             <span className={styles.customTooltip} role="tooltip">
               View waypoint in trip details
             </span>

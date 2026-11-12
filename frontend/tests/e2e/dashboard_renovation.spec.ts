@@ -320,7 +320,7 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(firstDismissTooltip).toHaveText('Dismiss waypoint');
 
     // Verify heart button deep links to trip workspace with POI parameter
-    const firstHeartHref = await heartButtons.first().getAttribute('href');
+    const firstHeartHref = (await heartButtons.first().getAttribute('data-href')) || (await heartButtons.first().getAttribute('href'));
     expect(firstHeartHref).toMatch(/\/trips\/.*poi=/);
 
     // Hover to capture screenshot of clean white box tooltip
