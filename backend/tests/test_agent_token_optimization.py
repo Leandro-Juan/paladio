@@ -1,11 +1,11 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from app.agent.runner import TripAgentRunner
 from app.agent.toolsets import (
+    CORE_TOOLS,
     detect_domain_toolsets,
     get_allowed_tool_names,
-    CORE_TOOLS,
 )
 from app.mcp.tools.pois import _extract_poi_items
 from pydantic_ai.models.test import TestModel
@@ -19,7 +19,7 @@ def test_detect_domain_toolsets_does_not_overactivate_on_dining():
 
     allowed = get_allowed_tool_names(domains)
     assert allowed == set(CORE_TOOLS)
-    assert len(allowed) <= 17
+    assert len(allowed) <= 18
 
 
 def test_poi_extraction_compacts_payload():
@@ -91,20 +91,25 @@ async def test_agent_runner_configures_model_settings_max_tokens(monkeypatch):
 
     mock_session = AsyncMock()
 
-    with patch("app.agent.runner.acquire_turn_lock", return_value=True), patch(
-        "app.agent.runner.release_turn_lock", return_value=None
-    ), patch(
-        "app.application.trip_editing.trip_service.TripService.get_trip",
-        return_value=mock_trip,
-    ), patch(
-        "app.application.trip_editing.trip_service.TripService.get_document",
-        return_value=mock_doc,
-    ), patch(
-        "app.application.trip_editing.expense_service.ExpenseService.list_expenses",
-        return_value=[],
-    ), patch("app.agent.runner.get_session_history", return_value=[]), patch(
-        "app.agent.runner.append_session_message", return_value=None
-    ), patch("app.agent.runner.Agent", side_effect=MockAgent):
+    with (
+        patch("app.agent.runner.acquire_turn_lock", return_value=True),
+        patch("app.agent.runner.release_turn_lock", return_value=None),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_trip",
+            return_value=mock_trip,
+        ),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_document",
+            return_value=mock_doc,
+        ),
+        patch(
+            "app.application.trip_editing.expense_service.ExpenseService.list_expenses",
+            return_value=[],
+        ),
+        patch("app.agent.runner.get_session_history", return_value=[]),
+        patch("app.agent.runner.append_session_message", return_value=None),
+        patch("app.agent.runner.Agent", side_effect=MockAgent),
+    ):
         events = []
         async for ev in runner.run_turn(
             trip_id="test_trip",
@@ -140,18 +145,23 @@ async def test_agent_runner_handles_rate_limit_error():
 
     mock_session = AsyncMock()
 
-    with patch("app.agent.runner.acquire_turn_lock", return_value=True), patch(
-        "app.agent.runner.release_turn_lock", return_value=None
-    ), patch(
-        "app.application.trip_editing.trip_service.TripService.get_trip",
-        return_value=mock_trip,
-    ), patch(
-        "app.application.trip_editing.trip_service.TripService.get_document",
-        return_value=mock_doc,
-    ), patch(
-        "app.application.trip_editing.expense_service.ExpenseService.list_expenses",
-        return_value=[],
-    ), patch("app.agent.runner.get_session_history", return_value=[]):
+    with (
+        patch("app.agent.runner.acquire_turn_lock", return_value=True),
+        patch("app.agent.runner.release_turn_lock", return_value=None),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_trip",
+            return_value=mock_trip,
+        ),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_document",
+            return_value=mock_doc,
+        ),
+        patch(
+            "app.application.trip_editing.expense_service.ExpenseService.list_expenses",
+            return_value=[],
+        ),
+        patch("app.agent.runner.get_session_history", return_value=[]),
+    ):
 
         class FailingAgent:
             def __init__(self, *args, **kwargs):

@@ -1,23 +1,29 @@
 from __future__ import annotations
 
-from typing import Any, Optional
-from app.domain.schemas.itinerary_document import ItineraryDocument
+from typing import Any
+
 from app.application.trip_editing.schemas import ChangeWarning
 from app.db.models import TripModel
-
+from app.domain.schemas.itinerary_document import ItineraryDocument
 
 SYSTEM_PROMPT = """You are Paladio Trip Agent, an expert tactical itinerary co-pilot.
 Your mission is to assist travelers in planning, adjusting, optimizing, and organizing their trips with mathematical precision.
 
 Core Invariants:
 1. Sovereign & Dynamic: All data is dynamic. Never invent mock data, fake stop IDs, or synthetic coordinates.
-2. Tool Grounding: Always use tools to inspect or mutate trip state.
-   - To find, recommend, explore, or search for attractions, restaurants, food (ramen, dinner, lunch, cafes), sights, or points of interest in the destination or POI database, always call `search_pois` (or `find_nearby` for proximity searches). Paladio has a local database of curated POIs for the destination; never claim you cannot access the POI database or ask the user to provide place lists.
+2. Tool Grounding & Strict Anti-Hallucination:
+   - Always use tools to inspect or mutate trip state.
+   - When asked to recommend, find, or suggest attractions, restaurants, food (dinner, lunch, breakfast, cafes), or places:
+     YOU MUST CALL `find_nearby` (for proximity searches near a stop/coordinate) or `search_pois` (for destination-wide search) BEFORE making any recommendation.
+     NEVER invent, hallucinate, or recall restaurant or venue names from memory. Only recommend real places returned by `find_nearby` or `search_pois`.
+   - When asked to add, schedule, or modify a meal or stop:
+     YOU MUST CALL `add_meal` (e.g. `add_meal(trip_id=..., day=..., meal_type="dinner", name="...")`) or `add_stop`.
+     NEVER write out simulated route updates, text arrow chains (`->`), or fabricated stop IDs/UUIDs in chat text. The system and UI update the schedule automatically when tools execute.
    - To inspect logged expenses or costs, always call `list_expenses`.
-   - To operate on a stop, identify its exact `stop_id`. If the user refers to a place by name, use `resolve_stop` first.
-   - Never attempt to call pseudo-tools or special functions like `commentary`, `thought`, or `notes`. To communicate, summarize, or explain recommendations, always respond directly with standard markdown text.
+   - To operate on an existing stop, identify its exact `stop_id`. If the user refers to a place by name, use `resolve_stop` first.
+   - Never attempt to call pseudo-tools or special functions like `commentary`, `thought`, or `notes`. To communicate, summarize, or explain recommendations, respond directly with standard markdown text.
 3. Minimalist & Tactical: Communicate with extreme clarity and high information density. No conversational fluff, no greetings, and NEVER use emojis.
-   - Format with clean standard Markdown. Wrap recommended place names in bold **Place Name** so they link to interactive map chips.
+   - Format with clean standard Markdown. Wrap recommended place names in bold **Place Name** so they link to interactive map chips in the UI.
    - Use standard markdown for lists (`- ` or `1. `) and bold for attribute labels (e.g. **Location:**, **Why it's great:**). Never output literal bullet characters (•) or mix asterisks with colons.
 4. Safe Mutations: Destructive or large-scale actions (such as removing stops, swapping entire days, or re-optimizing the entire trip) will trigger a proposal for the user to confirm.
 5. Context Awareness: Pay attention to the injected trip digest and UI context (e.g. selected day or stop). Resolve relative phrases like "move this to tomorrow" using the active selection.
@@ -26,7 +32,7 @@ When an operation completes, summarize the outcome in 1-2 concise sentences.
 """
 
 
-def build_system_prompt(trip_id: Optional[str] = None) -> str:
+def build_system_prompt(trip_id: str | None = None) -> str:
     """Returns the core system prompt for the trip agent."""
     prompt = SYSTEM_PROMPT.strip()
     if trip_id:
@@ -41,9 +47,9 @@ def build_system_prompt(trip_id: Optional[str] = None) -> str:
 def build_trip_digest(
     doc: ItineraryDocument,
     trip: TripModel,
-    issues: Optional[list[ChangeWarning]] = None,
+    issues: list[ChangeWarning] | None = None,
     expenses_total: float = 0.0,
-    ui_context: Optional[dict[str, Any]] = None,
+    ui_context: dict[str, Any] | None = None,
 ) -> str:
     """
     Builds a token-efficient compact digest of the trip state and active UI selection
@@ -78,26 +84,43 @@ def build_trip_digest(
 
     # Days and stops
     lines.append(f"Days ({len(doc.days)} total):")
+    selected_day = ui_context.get("selected_day") if ui_context else None
+    selected_day_num: int | None = None
+    if selected_day not in (None, "", "all", 0, "ALL DAYS"):
+        try:
+            selected_day_num = int(selected_day)
+        except (ValueError, TypeError):
+            selected_day_num = None
+
     for d in doc.days:
         day_date = d.date or f"Day {d.day}"
         stops = d.itinerary.path
-        stop_strs = []
-        for s in stops:
-            s_name = (
-                getattr(s, "name", None)
-                or (s.poi.get("name") if isinstance(s.poi, dict) else None)
-                or "Stop"
-            )
-            time_str = s.scheduled_start or "TBD"
-            lock_flag = " [LOCKED]" if s.is_locked else ""
-            stop_strs.append(
-                f"[{s.stop_id}] {s_name} ({time_str}, {s.duration or 60}m){lock_flag}"
-            )
+        is_focused_day = (selected_day_num is None) or (d.day == selected_day_num)
 
-        if stop_strs:
-            lines.append(f"  Day {d.day} ({day_date}): " + " -> ".join(stop_strs))
+        if not is_focused_day:
+            # Compact summary for unselected days to save context tokens and focus the model
+            lines.append(f"  Day {d.day} ({day_date}): {len(stops)} stops scheduled")
+            continue
+
+        if stops:
+            lines.append(f"  Day {d.day} ({day_date}):")
+            for idx, s in enumerate(stops, start=1):
+                s_name = (
+                    getattr(s, "name", None)
+                    or (s.poi.get("name") if isinstance(s.poi, dict) else None)
+                    or "Stop"
+                )
+                time_str = s.scheduled_start or "TBD"
+                lock_flag = " [LOCKED]" if s.is_locked else ""
+                lines.append(
+                    f"    {idx}. {s_name} ({time_str}, {s.duration or 60}m) [id: {s.stop_id}]{lock_flag}"
+                )
         else:
             lines.append(f"  Day {d.day} ({day_date}): (No stops scheduled)")
+
+    lines.append(
+        "  [Note: 'id' values above are internal identifiers for tool arguments; never output raw IDs to the user.]"
+    )
 
     # Budget
     currency = (

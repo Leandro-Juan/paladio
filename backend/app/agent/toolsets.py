@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from typing import Set
 
 CORE_TOOLS = {
     "get_trip_overview",
@@ -15,6 +14,7 @@ CORE_TOOLS = {
     "search_places",
     "suggest_additions",
     "add_stop",
+    "add_meal",
     "remove_stop",
     "move_stop",
     "optimize_day",
@@ -98,7 +98,6 @@ DOMAIN_TOOLSETS: dict[str, list[str]] = {
         "set_stop_duration",
         "lock_stop",
         "unlock_stop",
-        "add_meal",
         "add_free_time",
         "set_stop_notes",
         "add_day",
@@ -230,18 +229,18 @@ INTENT_KEYWORDS: dict[str, list[str]] = {
         "re-route",
         "add day",
         "remove day",
-        "meal",
+        "free time",
     ],
 }
 
 
-def detect_domain_toolsets(prompt: str) -> Set[str]:
+def detect_domain_toolsets(prompt: str) -> set[str]:
     """
     Performs fast token-free keyword pre-routing to automatically load relevant
     toolsets for small local LLMs without wasting reasoning steps.
     """
     p_lower = prompt.lower()
-    active_sets: Set[str] = set()
+    active_sets: set[str] = set()
 
     for domain, kws in INTENT_KEYWORDS.items():
         for kw in kws:
@@ -252,7 +251,7 @@ def detect_domain_toolsets(prompt: str) -> Set[str]:
     return active_sets
 
 
-def get_allowed_tool_names(additional_toolsets: Set[str] | None = None) -> Set[str]:
+def get_allowed_tool_names(additional_toolsets: set[str] | None = None) -> set[str]:
     """Combines core tools with any activated domain toolsets."""
     allowed = set(CORE_TOOLS)
     if additional_toolsets:
