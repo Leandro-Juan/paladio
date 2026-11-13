@@ -18,6 +18,7 @@ interface ParticipantsManagerProps {
   onChange: (participants: SelectedParticipant[]) => void;
   disabled?: boolean;
   currentUserId?: string;
+  hideHeader?: boolean;
 }
 
 export function ParticipantsManager({
@@ -25,6 +26,7 @@ export function ParticipantsManager({
   onChange,
   disabled = false,
   currentUserId,
+  hideHeader = false,
 }: ParticipantsManagerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [guestName, setGuestName] = useState('');
@@ -129,23 +131,25 @@ export function ParticipantsManager({
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '11px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          Travelers & Participants ({participants.length})
-        </label>
-        <span className="font-mono text-xs text-muted">
-          {participants.length === 1 ? '1 Guest' : `${participants.length} Guests`}
-        </span>
-      </div>
+      {!hideHeader && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            Travelers & Participants ({participants.length})
+          </label>
+          <span className="font-mono text-xs text-muted">
+            {participants.length === 1 ? '1 Guest' : `${participants.length} Guests`}
+          </span>
+        </div>
+      )}
 
       {/* Chips bar showing current participants + Plus button */}
       <div

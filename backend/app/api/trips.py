@@ -1998,6 +1998,46 @@ async def get_trip(
     )
 
 
+def _itinerary_paths_changed(
+    before: dict[str, Any] | None, after: dict[str, Any] | None
+) -> bool:
+    """
+    Returns True if the days or POI waypoint sequences have changed between itineraries.
+    Returns False if only metadata (e.g. description, notes, photos, travel_constraints) changed,
+    allowing us to bypass expensive external transit solvers and corridor calculations.
+    """
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return True
+
+    before_days = before.get("days", [])
+    after_days = after.get("days", [])
+    if not isinstance(before_days, list) or not isinstance(after_days, list):
+        return True
+    if len(before_days) != len(after_days):
+        return True
+
+    for b_day, a_day in zip(before_days, after_days):
+        if not isinstance(b_day, dict) or not isinstance(a_day, dict):
+            return True
+        b_path = (b_day.get("itinerary") or {}).get("path", [])
+        a_path = (a_day.get("itinerary") or {}).get("path", [])
+        if not isinstance(b_path, list) or not isinstance(a_path, list):
+            return True
+        if len(b_path) != len(a_path):
+            return True
+        for b_step, a_step in zip(b_path, a_path):
+            if not isinstance(b_step, dict) or not isinstance(a_step, dict):
+                return True
+            b_poi = b_step.get("poi") or {}
+            a_poi = a_step.get("poi") or {}
+            b_id = b_poi.get("id") or b_poi.get("name")
+            a_id = a_poi.get("id") or a_poi.get("name")
+            if b_id != a_id:
+                return True
+
+    return False
+
+
 @router.put("/{trip_id}", response_model=TripResponse)
 async def update_trip(
     trip_id: str,
@@ -2017,6 +2057,7 @@ async def update_trip(
         )
 
     before_itinerary = trip.itinerary_data
+    before_dest = trip.destination
 
     if update_data.destination is not None:
         trip.destination = update_data.destination
@@ -2026,19 +2067,26 @@ async def update_trip(
         trip.end_date = update_data.end_date
     if update_data.status is not None:
         trip.status = update_data.status
+
+    paths_changed = False
     if update_data.itinerary_data is not None:
         itin_data = update_data.itinerary_data
-        try:
-            from app.services.transit_service import ensure_walking_legs_populated
+        paths_changed = _itinerary_paths_changed(before_itinerary, itin_data)
+        if paths_changed:
+            try:
+                from app.services.transit_service import ensure_walking_legs_populated
 
-            itin_data = await ensure_walking_legs_populated(
-                itin_data, city=trip.destination or ""
-            )
-        except Exception as e:
-            logger.warning(f"Could not ensure walking legs in update_trip: {e}")
+                itin_data = await ensure_walking_legs_populated(
+                    itin_data, city=trip.destination or ""
+                )
+            except Exception as e:
+                logger.warning(f"Could not ensure walking legs in update_trip: {e}")
         trip.itinerary_data = itin_data
 
-    if update_data.destination is not None or update_data.itinerary_data is not None:
+    dest_changed = (
+        update_data.destination is not None and update_data.destination != before_dest
+    )
+    if dest_changed or (update_data.itinerary_data is not None and paths_changed):
         try:
             trip.itinerary_data = _populate_corridor_constraints(
                 trip.itinerary_data, trip.destination

@@ -1372,7 +1372,6 @@ async def ensure_walking_legs_populated(
                 isinstance(existing_transit, dict)
                 and bool(existing_transit.get("steps"))
                 and bool(existing_transit.get("geometry"))
-                and not existing_transit.get("cost_is_estimated", False)
             ):
                 # Ensure a distant or airport leg was not mistakenly preserved as a pedestrian walk
                 is_erroneous_walk = existing_transit.get("mode") in (

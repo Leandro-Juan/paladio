@@ -62,17 +62,6 @@ export function PastTripTabs({
     setIsEditing(true);
   };
 
-  const handleCopyLink = () => {
-    if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(window.location.href);
-      addNotification({
-        type: 'success',
-        title: 'Mission Link Copied',
-        message: 'The URL for this vault recap has been copied to your clipboard.',
-      });
-    }
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -198,43 +187,8 @@ export function PastTripTabs({
           })}
         </div>
 
-        {/* Action icons on right (matching mockup share & more buttons) */}
+        {/* Action icons on right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            title="Share Vault Recap"
-            aria-label="Share Vault Recap"
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '6px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted, #566B76)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s ease, color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--color-accent-primary, #0F4C5C)';
-              e.currentTarget.style.background = 'rgba(15, 76, 92, 0.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--color-text-muted, #566B76)';
-              e.currentTarget.style.background = 'none';
-            }}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-            </svg>
-          </button>
-
           {activeTab === 'about' && !isEditing && (
             <button
               type="button"

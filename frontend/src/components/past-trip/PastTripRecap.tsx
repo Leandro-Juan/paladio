@@ -18,6 +18,7 @@ import { PastTripDayDots } from './PastTripDayDots';
 import { PastTripTabs, PastTripTabId } from './PastTripTabs';
 import { PastTripSummaryPanel } from './PastTripSummaryPanel';
 import type { DisplayExpenseItem } from '@/components/trip-workspace/costs/ExpenseRow';
+import { TripShareModal } from '@/components/trip-workspace/TripShareModal';
 
 interface PastTripRecapProps {
   trip: Trip;
@@ -31,6 +32,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
 
   const [activeTab, setActiveTab] = useState<PastTripTabId>('about');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const [expenses, setExpenses] = useState<TripExpense[]>([]);
   const [settlement, setSettlement] = useState<TripSettlement | null>(null);
@@ -362,6 +364,45 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             </h1>
           </div>
         </div>
+
+        {/* Right: Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              background: 'var(--color-bg-main)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-accent-teal-deep, #0F4C5C)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span>Share Expedition</span>
+          </button>
+        </div>
       </header>
 
       {/* Main Full-Screen Layout Grid */}
@@ -446,6 +487,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               onDayChange={(d) => setSelectedDay(d === 'all' ? null : d)}
               isSidebarOpen={false}
               destinationCity={trip.destination}
+              readOnly={true}
             />
           </div>
 
@@ -522,6 +564,18 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
           }
         }
       `}</style>
+
+      {trip.id && (
+        <TripShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          tripId={trip.id}
+          destination={trip.destination}
+          startDate={trip.start_date}
+          endDate={trip.end_date}
+          itineraryData={trip.itinerary_data}
+        />
+      )}
     </div>
   );
 }

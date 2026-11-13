@@ -1089,19 +1089,56 @@ a {
   }
 }
 
+/* Printable Travel Dossier Styles */
+.print-only {
+  display: none !important;
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+
   header,
   nav,
   button,
   [role="dialog"],
-  .no-print {
+  .no-print,
+  .trip-workspace-screen {
     display: none !important;
   }
 
-  body {
+  body, html {
     background: #FFFFFF !important;
-    color: #000000 !important;
+    color: #0F172A !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
+
+  .print-only,
+  #trip-print-dossier {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+  }
+
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
+
 
 

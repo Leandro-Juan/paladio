@@ -190,7 +190,7 @@ export function TripSpeedDial({
       `}</style>
 
       {/* Origin wrapper for radial buttons and trigger */}
-      <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+      <div style={{ position: 'relative', width: '44px', height: '44px', pointerEvents: 'auto' }}>
         {/* Radiating Action Buttons (Quarter-Circle Arc) */}
         {actions.map((act) => {
           const isHovered = hoveredAction === act.id;
@@ -339,6 +339,9 @@ export function TripSpeedDial({
             width: '44px',
             height: '44px',
             borderRadius: '50%',
+            overflow: 'hidden',
+            clipPath: 'circle(50% at 50% 50%)',
+            WebkitClipPath: 'circle(50% at 50% 50%)',
             background: 'var(--color-surface-card)',
             border: `1.5px solid ${isOpen || isTriggerHovered ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
             boxShadow: isOpen
@@ -350,13 +353,15 @@ export function TripSpeedDial({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: isOpen ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+            color: isOpen || isTriggerHovered ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
             transform: isTriggerHovered ? 'scale(1.06)' : 'scale(1)',
             transformOrigin: 'center center',
-            transition: 'transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.18s ease, box-shadow 0.22s ease',
+            transition: 'transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.18s ease, color 0.18s ease, box-shadow 0.22s ease',
             outline: 'none',
             pointerEvents: 'auto',
             zIndex: 1070,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
             willChange: 'transform',
@@ -371,12 +376,14 @@ export function TripSpeedDial({
               transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
               transformOrigin: 'center center',
               transition: 'transform 0.25s cubic-bezier(0.23, 1, 0.32, 1)',
+              pointerEvents: 'none',
+              userSelect: 'none',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               willChange: 'transform',
             }}
           >
-            <PlusIcon size={18} color="currentColor" />
+            <PlusIcon size={18} color="currentColor" style={{ pointerEvents: 'none' }} />
           </div>
         </button>
       </div>

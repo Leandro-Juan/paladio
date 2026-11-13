@@ -274,3 +274,72 @@ async def test_trip_service_apply_mutation_and_undo(db_session: AsyncSession):
         trip_after_undo.itinerary_data["days"][0]["itinerary"]["path"][0]["stop_id"]
         == "stop_init_1"
     )
+
+
+def test_itinerary_paths_changed_detection():
+    from app.api.trips import _itinerary_paths_changed
+
+    itin_a = {
+        "days": [
+            {
+                "day": 1,
+                "itinerary": {
+                    "path": [
+                        {"poi": {"id": "p1", "name": "Prado"}},
+                        {"poi": {"id": "p2", "name": "Retiro"}},
+                    ]
+                },
+            }
+        ],
+        "description": "Original summary",
+        "notes": "Original notes",
+    }
+
+    # Same stops, only notes/summary edited -> False (paths did NOT change)
+    itin_b = {
+        "days": [
+            {
+                "day": 1,
+                "itinerary": {
+                    "path": [
+                        {"poi": {"id": "p1", "name": "Prado"}},
+                        {"poi": {"id": "p2", "name": "Retiro"}},
+                    ]
+                },
+            }
+        ],
+        "description": "Updated summary",
+        "notes": "Updated field notes",
+    }
+    assert _itinerary_paths_changed(itin_a, itin_b) is False
+
+    # Stop removed -> True
+    itin_c = {
+        "days": [
+            {
+                "day": 1,
+                "itinerary": {
+                    "path": [
+                        {"poi": {"id": "p1", "name": "Prado"}},
+                    ]
+                },
+            }
+        ],
+    }
+    assert _itinerary_paths_changed(itin_a, itin_c) is True
+
+    # Stop changed -> True
+    itin_d = {
+        "days": [
+            {
+                "day": 1,
+                "itinerary": {
+                    "path": [
+                        {"poi": {"id": "p1", "name": "Prado"}},
+                        {"poi": {"id": "p3", "name": "Reina Sofia"}},
+                    ]
+                },
+            }
+        ],
+    }
+    assert _itinerary_paths_changed(itin_a, itin_d) is True

@@ -4,6 +4,8 @@ Validates live data ingestion with zero API keys, idempotent TimescaleDB storage
 baseline generation, and full 6-stage deal detection producing real trip proposals.
 """
 
+import os
+import sys
 import uuid
 from datetime import date, timedelta
 
@@ -34,6 +36,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 pytestmark = [pytest.mark.live_integration]
 
 
+def _is_explicitly_called() -> bool:
+    """Check if test is explicitly requested via environment variable, -k, specific node (::), or -m live_integration."""
+    if os.getenv("RUN_LIVE_API_TESTS") == "1" or os.getenv("RUN_LIVE_TESTS") == "1":
+        return True
+    args = sys.argv
+    if any(a == "live_integration" or "live_integration" in a for a in args):
+        return True
+    if any(a == "-k" or a.startswith("-k=") for a in args):
+        return True
+    if any("::" in a for a in args):
+        return True
+    return False
+
+
+explicitly_called_only = pytest.mark.skipif(
+    not _is_explicitly_called(),
+    reason="Real API test querying external live flight/hotel endpoints. Executes ONLY when explicitly called (via -k <name>, ::<name>, -m live_integration, or RUN_LIVE_API_TESTS=1).",
+)
+
+
+@pytest.mark.live_integration
+@explicitly_called_only
 @pytest.mark.asyncio
 async def test_ryanair_feed_live_without_api_keys():
     """Verifies that flight feed returns live, unauthenticated flight quotes."""
@@ -57,6 +81,8 @@ async def test_ryanair_feed_live_without_api_keys():
     assert quote.arrival_time > quote.depart_time
 
 
+@pytest.mark.live_integration
+@explicitly_called_only
 @pytest.mark.asyncio
 async def test_open_lodging_feed_destination_summary():
     """Verifies destination-level lodging summary sampling without API keys."""
@@ -73,6 +99,8 @@ async def test_open_lodging_feed_destination_summary():
     assert quote.estimated_fee_ratio >= 1.0
 
 
+@pytest.mark.live_integration
+@explicitly_called_only
 @pytest.mark.asyncio
 async def test_real_flight_and_lodging_ingestion_and_daily_rollup(
     db_session: AsyncSession,
@@ -124,6 +152,8 @@ async def test_real_flight_and_lodging_ingestion_and_daily_rollup(
     assert lg_ingested == 1
 
 
+@pytest.mark.live_integration
+@explicitly_called_only
 @pytest.mark.asyncio
 async def test_end_to_end_deal_detection_and_proposal_creation(
     db_session: AsyncSession,

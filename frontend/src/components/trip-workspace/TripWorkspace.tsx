@@ -22,6 +22,7 @@ import { TripConfigView } from './TripConfigView';
 import { TripPhotosView } from './TripPhotosView';
 import { TripWalletView } from './wallet/TripWalletView';
 import { WorkspaceContextData } from '@/components/trip-agent';
+import { TripPrintDossier } from './TripPrintDossier';
 
 interface TripWorkspaceProps {
   trip: Trip;
@@ -635,8 +636,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   );
 
   return (
-    <div
-      style={{
+    <>
+      <div
+        className="trip-workspace-screen"
+        style={{
         position: 'fixed',
         inset: 0,
         display: 'flex',
@@ -943,6 +946,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           pointerEvents: 'none',
         }}
       />
-    </div>
+      </div>
+
+      {/* Full Expedition Printable Dossier for Print & PDF Download */}
+      <TripPrintDossier trip={trip} />
+    </>
   );
 }

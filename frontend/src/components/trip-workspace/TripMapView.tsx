@@ -119,6 +119,7 @@ interface TripMapViewProps {
   isDroppingWaypoint?: boolean;
   onCancelDropWaypoint?: () => void;
   onClearSpatialCircle?: () => void;
+  readOnly?: boolean;
 }
 
 export interface SpatialCircleFilter {
@@ -725,6 +726,7 @@ interface TeardropPinConfig {
   poiPayload?: string;
   animationClass?: string;
   animationDelayMs?: number;
+  readOnly?: boolean;
 }
 
 function renderTeardropPinHtml({
@@ -737,6 +739,7 @@ function renderTeardropPinHtml({
   poiPayload = '',
   animationClass = '',
   animationDelayMs,
+  readOnly = false,
 }: TeardropPinConfig): string {
   const meta = classifyPoiCategory(categoryType, name);
   const svg = getCategorySvg(meta.type);
@@ -762,12 +765,13 @@ function renderTeardropPinHtml({
     : '';
 
   const animStyle = typeof animationDelayMs === 'number' ? `animation-delay: ${animationDelayMs}ms;` : '';
+  const canDrag = !readOnly && Boolean(poiPayload);
 
   return `
     <div 
-      ${poiPayload ? `draggable="true" data-paladio-draggable-poi="${poiPayload}"` : ''}
+      ${canDrag ? `draggable="true" data-paladio-draggable-poi="${poiPayload}"` : 'draggable="false"'}
       class="${animationClass}"
-      style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:grab;user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));${animStyle}"
+      style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:${canDrag ? 'grab' : 'pointer'};user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));${animStyle}"
     >
       ${focusGlow}
       <svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:34px;height:44px;z-index:1;">
@@ -811,7 +815,8 @@ function createWaypointIcon(
   photoUrl?: string,
   isFocused = false,
   animationClass?: string,
-  animationDelayMs?: number
+  animationDelayMs?: number,
+  readOnly = false
 ): L.DivIcon {
   const poiPayload = poi
     ? JSON.stringify({
@@ -838,6 +843,7 @@ function createWaypointIcon(
       poiPayload,
       animationClass,
       animationDelayMs,
+      readOnly,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -864,7 +870,8 @@ function createHotelIcon(
   isFocused = false,
   animationClass?: string,
   animationDelayMs?: number,
-  dayNumber?: number
+  dayNumber?: number,
+  readOnly = false
 ): L.DivIcon {
   const poiPayload = hotel
     ? JSON.stringify({
@@ -890,6 +897,7 @@ function createHotelIcon(
       poiPayload,
       animationClass,
       animationDelayMs,
+      readOnly,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -903,7 +911,8 @@ function createAirportIcon(
   isFocused = false,
   animationClass?: string,
   animationDelayMs?: number,
-  dayNumber?: number
+  dayNumber?: number,
+  readOnly = false
 ): L.DivIcon {
   const poiPayload = airport
     ? JSON.stringify({
@@ -929,6 +938,7 @@ function createAirportIcon(
       poiPayload,
       animationClass,
       animationDelayMs,
+      readOnly,
     }),
     iconSize: [34, 44],
     iconAnchor: [17, 44],
@@ -1046,10 +1056,12 @@ function MapViewportController({
   activePoints,
   focusedPlace,
   leftPadding = 60,
+  readOnly = false,
 }: {
   activePoints: LatLngPoint[];
   focusedPlace?: FocusedWaypointPlace | null;
   leftPadding?: number;
+  readOnly?: boolean;
 }) {
   const map = useMap();
 
@@ -1126,7 +1138,7 @@ function MapViewportController({
 
   // Allow dragging any POI marker directly from the map into route day slots
   useEffect(() => {
-    if (!map) return;
+    if (!map || readOnly) return;
     const handleDragStart = (e: DragEvent) => {
       const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
       if (!target) return;
@@ -1193,7 +1205,7 @@ function MapViewportController({
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
     };
-  }, [map]);
+  }, [map, readOnly]);
 
   return null;
 }
@@ -1295,6 +1307,7 @@ export default function TripMapView({
   isDroppingWaypoint = false,
   onCancelDropWaypoint,
   onClearSpatialCircle,
+  readOnly = false,
 }: TripMapViewProps) {
   const [internalDirectionsRoute, setInternalDirectionsRoute] = useState<{
     activeLeg: TransitLeg;
@@ -1499,8 +1512,8 @@ export default function TripMapView({
       exitCleanupTimerRef.current = setTimeout(() => {
         setDisplayedHoveredDay(null);
         setIsHoverExiting(false);
-      }, 120);
-    }, 70);
+      }, 150);
+    }, 300);
   }, [activeDay]);
 
   useEffect(() => {
@@ -2022,6 +2035,7 @@ export default function TripMapView({
           activePoints={activeBoundsPoints}
           focusedPlace={focusedPlace}
           leftPadding={effectiveLeftPadding}
+          readOnly={readOnly}
         />
         <MapBboxSync
           enabled={sidebarTab === 'transit'}
@@ -2079,13 +2093,6 @@ export default function TripMapView({
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e);
-                  const polyMap = (e.target as unknown as { _map?: L.Map })?._map;
-                  if (polyMap && cluster.polygon && cluster.polygon.length > 0) {
-                    const bounds = L.latLngBounds(cluster.polygon.map(([lat, lng]) => [lat, lng]));
-                    if (bounds.isValid()) {
-                      polyMap.fitBounds(bounds, { padding: [60, 60], maxZoom: 16, animate: true });
-                    }
-                  }
                   onDayChange(cluster.dayNumber);
                 },
                 mouseover: () => {
@@ -2461,15 +2468,15 @@ export default function TripMapView({
           </Polyline>
         ) : null}
 
-        {/* 4. Hotel Base Camp Anchor Marker (Only in single day view) */}
-        {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && (() => {
+        {/* 4. Hotel Base Camp Anchor Marker (Only in single day view, if not already in day waypoints) */}
+        {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && !activeDayData?.pois?.some((p) => isPlaceMatch(p, hotel)) && (() => {
           const isHotelFocused = isPlaceMatch(hotel, focusedPlace);
           const hotelId = (hotel as { id?: string }).id || hotel.name;
           return (
             <Marker
               key={`hotel-anchor-d${activeDay}-${hotel.lat}-${hotel.lng}`}
               position={[hotel.lat, hotel.lng]}
-              icon={createHotelIcon(hotel, getPhoto(hotel.name), isHotelFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined)}
+              icon={createHotelIcon(hotel, getPhoto(hotel.name), isHotelFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined, readOnly)}
               zIndexOffset={isHotelFocused ? 2500 : 600}
               eventHandlers={{
                 click: (e) => {
@@ -2503,15 +2510,15 @@ export default function TripMapView({
           );
         })()}
 
-        {/* 5. Airport Transit Gate Anchor Marker (Only in single day view) */}
-        {activeDay !== 'all' && airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && (() => {
+        {/* 5. Airport Transit Gate Anchor Marker (Only in single day view, if not already in day waypoints) */}
+        {activeDay !== 'all' && airport && typeof airport.lat === 'number' && !isNaN(airport.lat) && !activeDayData?.pois?.some((p) => isPlaceMatch(p, airport)) && (() => {
           const isAirportFocused = isPlaceMatch(airport, focusedPlace);
           const airportId = (airport as { id?: string }).id || airport.name;
           return (
             <Marker
               key={`airport-anchor-d${activeDay}-${airport.lat}-${airport.lng}`}
               position={[airport.lat, airport.lng]}
-              icon={createAirportIcon(airport, getPhoto(airport.name), isAirportFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined)}
+              icon={createAirportIcon(airport, getPhoto(airport.name), isAirportFocused, 'paladio-waypoint-pin-pop-in', 0, typeof activeDay === 'number' ? activeDay : undefined, readOnly)}
               zIndexOffset={isAirportFocused ? 2500 : 600}
               eventHandlers={{
                 click: (e) => {
@@ -2583,7 +2590,8 @@ export default function TripMapView({
                     isPoiFocused,
                     animationClass,
                     animDelay,
-                    dayData.dayNumber
+                    dayData.dayNumber,
+                    readOnly
                   )
                 : isAirport
                 ? createAirportIcon(
@@ -2592,7 +2600,8 @@ export default function TripMapView({
                     isPoiFocused,
                     animationClass,
                     animDelay,
-                    dayData.dayNumber
+                    dayData.dayNumber,
+                    readOnly
                   )
                 : createWaypointIcon(
                     categoryType,
@@ -2602,7 +2611,8 @@ export default function TripMapView({
                     photoUrl,
                     isPoiFocused,
                     animationClass,
-                    animDelay
+                    animDelay,
+                    readOnly
                   );
 
               const poiId = poi.id || poi.name;
@@ -2622,11 +2632,6 @@ export default function TripMapView({
                     mousemove: () => {
                       if (isAllDays) {
                         handleDayHoverStart(dayData.dayNumber);
-                      }
-                    },
-                    mouseout: () => {
-                      if (isAllDays) {
-                        handleDayHoverEnd();
                       }
                     },
                     click: (e) => {
