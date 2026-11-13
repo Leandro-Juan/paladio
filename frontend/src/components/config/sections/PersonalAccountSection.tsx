@@ -147,6 +147,8 @@ export function PersonalAccountSection({
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; country: string; country_name: string; display_name: string; airport_iata: string }>>([]);
   const [isSearchingCity, setIsSearchingCity] = useState(false);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const isCityFocusedRef = useRef(false);
+  const [isCityFocused, setIsCityFocused] = useState(false);
   const [supportedCountries, setSupportedCountries] = useState<Array<{ code: string; name: string }>>([]);
   const cityContainerRef = useRef<HTMLDivElement>(null);
 
@@ -206,7 +208,9 @@ export function PersonalAccountSection({
         );
         if (Array.isArray(results)) {
           setCitySuggestions(results);
-          setIsCityDropdownOpen(results.length > 0);
+          if (isCityFocusedRef.current) {
+            setIsCityDropdownOpen(results.length > 0);
+          }
         }
       } catch {
         setCitySuggestions([]);
@@ -222,6 +226,8 @@ export function PersonalAccountSection({
     const handleClickOutside = (e: MouseEvent) => {
       if (cityContainerRef.current && !cityContainerRef.current.contains(e.target as Node)) {
         setIsCityDropdownOpen(false);
+        setIsCityFocused(false);
+        isCityFocusedRef.current = false;
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -232,11 +238,13 @@ export function PersonalAccountSection({
     const cCity = item.city;
     const cCountry = item.country.toUpperCase();
     const cCountryName = item.country_name || item.country.toUpperCase();
+    setIsCityDropdownOpen(false);
+    setIsCityFocused(false);
+    isCityFocusedRef.current = false;
     setHomeCity(cCity);
     setCityQuery(cCity);
     setHomeCountry(cCountry);
     setHomeCountryName(cCountryName);
-    setIsCityDropdownOpen(false);
     void handleAutoSaveProfile({ city: cCity, country: cCountry, countryName: cCountryName });
   };
 
@@ -357,19 +365,10 @@ export function PersonalAccountSection({
     }
   };
 
+  const isPasswordValid = Boolean(password && confirmPassword && password.length >= 6 && password === confirmPassword);
+
   const handleUpdatePassword = async () => {
-    if (!password) {
-      notify.error('Validation Error', 'Password cannot be empty.');
-      return;
-    }
-    if (password.length < 6) {
-      notify.error('Validation Error', 'Password must be at least 6 characters long.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      notify.error('Validation Error', 'Password and confirmation do not match.');
-      return;
-    }
+    if (!isPasswordValid) return;
     setIsUpdatingPassword(true);
     try {
       await updateProfileApi({ password });
@@ -395,10 +394,7 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Personal Account Profile"
         subtitle="Your sovereign traveler identity, avatar, display credentials, and session credentials"
-        badge={currentUser?.role ? currentUser.role.toUpperCase() : 'USER'}
-        badgeTone="teal"
         innerTitle="Active Account Identity"
-        innerBadge="Primary"
         menuItems={[
           {
             id: 'export_data',
@@ -436,19 +432,6 @@ export function PersonalAccountSection({
               <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                 {currentUser?.username || 'Authenticated Traveler'}
               </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'rgba(42, 140, 130, 0.12)',
-                  color: 'var(--color-accent-teal)',
-                }}
-              >
-                {currentUser?.role === 'admin' ? 'Master Admin' : 'Standard Traveler'}
-              </span>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
               {currentUser?.email || 'No email attached'}
@@ -461,8 +444,6 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Traveler Credentials & Security"
         subtitle="Manage your authentication credentials, login email, security passphrase, and avatar representation"
-        badge="Credentials"
-        badgeTone="coral"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Avatar Edit Controls */}
@@ -673,28 +654,35 @@ export function PersonalAccountSection({
               />
             </div>
           </div>
-          {password.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button
-                type="button"
-                onClick={handleUpdatePassword}
-                disabled={isUpdatingPassword}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '9999px',
-                  border: '1px solid var(--color-border)',
-                  backgroundColor: 'var(--color-surface-hover, rgba(42, 140, 130, 0.12))',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: isUpdatingPassword ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {isUpdatingPassword ? 'Updating Passphrase...' : 'Update Passphrase'}
-              </button>
-            </div>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={handleUpdatePassword}
+              disabled={!isPasswordValid || isUpdatingPassword}
+              style={{
+                padding: '8px 24px',
+                borderRadius: '8px',
+                border: isPasswordValid
+                  ? '1px solid var(--color-accent-primary, #0F4C5C)'
+                  : '1px solid var(--color-border, #E2DDD5)',
+                backgroundColor: isPasswordValid
+                  ? 'var(--color-accent-primary, #0F4C5C)'
+                  : 'var(--color-surface-sunken, #CAD2D3)',
+                color: isPasswordValid
+                  ? '#FFFFFF'
+                  : 'var(--color-text-muted, #718096)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                cursor: isPasswordValid && !isUpdatingPassword ? 'pointer' : 'not-allowed',
+                transition: 'all 0.18s ease',
+                boxShadow: isPasswordValid ? '0 2px 6px rgba(15, 76, 92, 0.25)' : 'none',
+              }}
+            >
+              SAVE
+            </button>
+          </div>
         </div>
       </SettingsCardFrame>
 
@@ -702,10 +690,7 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Display Language & Locales"
         subtitle="Configure your interface display language, script direction, and locale formatting"
-        badge={locale.toUpperCase()}
-        badgeTone="coral"
         innerTitle="Active Interface Language"
-        innerBadge={activeLocaleInfo?.name || locale}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -755,10 +740,7 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Home Jurisdiction & Statutory Holidays"
         subtitle="Configure your home city and country to automatically resolve and sync official public holidays in the calendar"
-        badge={`${homeCity ? `${homeCity}, ` : ''}${homeCountry}`}
-        badgeTone="teal"
         innerTitle="Statutory Holiday Calendar"
-        innerBadge={homeCountry}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
@@ -774,6 +756,8 @@ export function PersonalAccountSection({
                   onChange={(e) => {
                     setCityQuery(e.target.value);
                     setHomeCity(e.target.value);
+                    isCityFocusedRef.current = true;
+                    setIsCityFocused(true);
                   }}
                   onBlur={() => {
                     if (cityQuery.trim() && cityQuery.trim() !== homeCity) {
@@ -782,6 +766,8 @@ export function PersonalAccountSection({
                     }
                   }}
                   onFocus={() => {
+                    isCityFocusedRef.current = true;
+                    setIsCityFocused(true);
                     if (citySuggestions.length > 0) setIsCityDropdownOpen(true);
                   }}
                   placeholder="e.g. Madrid, Paris, Tokyo..."
@@ -814,7 +800,7 @@ export function PersonalAccountSection({
                 )}
               </div>
 
-              {isCityDropdownOpen && citySuggestions.length > 0 && (
+              {isCityDropdownOpen && isCityFocused && citySuggestions.length > 0 && (
                 <div
                   style={{
                     position: 'absolute',
@@ -908,10 +894,7 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Currency & Monetary Conventions"
         subtitle="Your sovereign calculation currency for travel itineraries, expenses, budgeting, and live conversions"
-        badge={selectedCurrency}
-        badgeTone="gold"
         innerTitle="Traveler Base Currency"
-        innerBadge={`${activeCurrencyInfo.code} (${activeCurrencyInfo.symbol})`}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -951,10 +934,7 @@ export function PersonalAccountSection({
       <SettingsCardFrame
         title="Units & Time Standards"
         subtitle="Configure distance measurements, temperature telemetry, 24h tactical clock, and calendar date display conventions"
-        badge={`${distanceUnit.toUpperCase()} · °${tempUnit} · ${clockFormat.toUpperCase()}`}
-        badgeTone="teal"
         innerTitle="Measurement & Time Conventions"
-        innerBadge={`${distanceUnit === 'km' ? 'Metric' : 'Imperial'} · °${tempUnit}`}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Distance Standard */}

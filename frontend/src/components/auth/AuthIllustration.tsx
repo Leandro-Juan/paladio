@@ -1,12 +1,24 @@
 import React from 'react';
 
-export function WaveAndSunIllustration() {
+export function WaveAndSunIllustration({
+  maxWidth = '320px',
+  style,
+}: {
+  maxWidth?: string | number;
+  style?: React.CSSProperties;
+} = {}) {
   return (
     <svg
       viewBox="0 0 320 200"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ width: '100%', maxWidth: '320px', height: 'auto', display: 'block' }}
+      style={{
+        width: '100%',
+        maxWidth: maxWidth ?? '320px',
+        height: 'auto',
+        display: 'block',
+        ...style,
+      }}
       aria-hidden="true"
     >
       {/* Japanese Sun Disc Motif */}

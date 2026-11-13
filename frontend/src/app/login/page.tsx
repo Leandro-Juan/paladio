@@ -3,14 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useThemeStore } from '@/stores/themeStore';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function LoginPage() {
   const { login, setupRequired } = useAuth();
-  const { theme, setTheme, toggleTheme } = useThemeStore();
   const router = useRouter();
 
   const [identifier, setIdentifier] = useState('');
@@ -86,25 +84,27 @@ export default function LoginPage() {
   return (
     <div className="auth-split-layout">
       {/* Left Hero Panel (Desktop) */}
-      <div className="auth-hero-panel">
-        <div>
-          <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-            PALADIO
-          </div>
-          <p className="font-mono text-xs" style={{ margin: '4px 0 0', opacity: 0.75, letterSpacing: '0.08em' }}>
-            {'// DETERMINISTIC TRAVEL COCKPIT'}
-          </p>
+      <div
+        className="auth-hero-panel"
+        style={{
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <div style={{ padding: '3.5rem 3rem 0' }}>
+          <img
+            src="/logo_horizontal_dark.png"
+            alt="Paladio"
+            style={{ height: '60px', width: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
-        <div style={{ margin: 'auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1.5rem' }}>
-          <WaveAndSunIllustration />
-          <p className="font-mono text-xs" style={{ maxWidth: '280px', lineHeight: 1.6, opacity: 0.85 }}>
-            Autonomous multi-agent itinerary solver powered by deterministic C++20 algorithms.
-          </p>
-        </div>
-
-        <div className="font-mono text-xs" style={{ opacity: 0.65, fontSize: '10px' }}>
-          100% SELF-HOSTED // ZERO CLOUD APIS // PRIVATE &amp; AIR-GAPPABLE
+        <div style={{ width: '100%', marginTop: 'auto', lineHeight: 0 }}>
+          <WaveAndSunIllustration maxWidth="none" />
         </div>
       </div>
 
@@ -126,69 +126,10 @@ export default function LoginPage() {
             <SunMark size={38} />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img
-                src="/logo.png"
-                alt="Paladio Logo"
-                style={{ width: '42px', height: '42px', objectFit: 'contain' }}
-              />
-              <div>
-                <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--color-text-primary)' }}>
-                  PALADIO
-                </h1>
-                <p className="font-mono text-muted" style={{ fontSize: '11px', margin: 0 }}>
-                  {'// SOVEREIGN GATEWAY ACCESS'}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (theme === 'silent-waters') {
-                  setTheme('light');
-                } else {
-                  toggleTheme();
-                }
-              }}
-              title={theme === 'silent-waters' ? 'Restore Pacific Jazz original colors' : `Theme: ${theme}`}
-              aria-label="Toggle theme"
-              style={{
-                background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.08))',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                padding: '6px 10px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '11px',
-                color: 'var(--color-text-primary)',
-              }}
-            >
-              {theme === 'silent-waters' ? (
-                <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-accent-secondary, #D42A2F)', fontWeight: 600 }}>
-                  RESTORE ORIGINAL
-                </span>
-              ) : theme === 'dark' ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-              )}
-            </button>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--color-text-primary)' }}>
+              PALADIO
+            </h1>
           </div>
 
           {setupRequired && (
@@ -318,26 +259,9 @@ export default function LoginPage() {
                 transition: 'opacity 0.2s',
               }}
             >
-              {submitting ? 'AUTHENTICATING...' : 'AUTHENTICATE // ACCESS COCKPIT'}
+              {submitting ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
             </button>
           </form>
-
-          <div
-            className="font-mono text-muted"
-            style={{
-              marginTop: '2rem',
-              paddingTop: '1.25rem',
-              borderTop: '1px solid var(--color-border-subtle)',
-              fontSize: '11px',
-              lineHeight: 1.6,
-              textAlign: 'center',
-            }}
-          >
-            <p>100% SELF-HOSTED SOVEREIGN DEPLOYMENT</p>
-            <p style={{ marginTop: '4px', fontSize: '10px' }}>
-              Registration is closed. Additional users are managed in the Configuration console.
-            </p>
-          </div>
         </div>
       </div>
     </div>
