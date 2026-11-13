@@ -1019,10 +1019,10 @@ class DealWatchAlertModel(Base):
     )
     origin_iata = Column(String(3), nullable=False)
     destinations = Column(ARRAY(String), nullable=False)
-    earliest_date = Column(Date, nullable=False)
-    latest_date = Column(Date, nullable=False)
+    earliest_date = Column(Date, nullable=True)
+    latest_date = Column(Date, nullable=True)
     min_nights = Column(Integer, default=1, nullable=False)
-    max_nights = Column(Integer, default=7, nullable=False)
+    max_nights = Column(Integer, default=30, nullable=False)
     travelers = Column(Integer, default=1, nullable=False)
     participants = Column(JSONB, nullable=True)
     bags_needed = Column(Integer, default=0, nullable=False)
@@ -1218,6 +1218,8 @@ class HotelPropertyModel(Base):
     property_type = Column(String(32), default="hotel", nullable=False)
     osm_id = Column(String(64), nullable=True)
     address = Column(Text, nullable=True)
+    photo_url = Column(Text, nullable=True)
+    amenities = Column(ARRAY(String), nullable=True)
     first_seen = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

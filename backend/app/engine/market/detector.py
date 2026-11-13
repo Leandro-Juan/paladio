@@ -164,9 +164,10 @@ async def run_deal_detection_scan(
                                     MarketPriceTickModel.origin_iata == dest,
                                     MarketPriceTickModel.destination_code == orig,
                                     MarketPriceTickModel.depart_date
-                                    >= dep_date + timedelta(days=alert.min_nights),
+                                    >= dep_date + timedelta(days=alert.min_nights or 1),
                                     MarketPriceTickModel.depart_date
-                                    <= dep_date + timedelta(days=alert.max_nights),
+                                    <= dep_date
+                                    + timedelta(days=alert.max_nights or 30),
                                 )
                                 .order_by(MarketPriceTickModel.base_price_cents.asc())
                                 .limit(1)
@@ -280,10 +281,23 @@ async def run_deal_detection_scan(
             if not candidates_for_user:
                 continue
 
-            # P5.1: Rank candidates by flight-only ratio, then savings
-            candidates_for_user.sort(
-                key=lambda c: (c["flight_ratio"], -c["flight_savings"])
-            )
+            # P5.1: Rank candidates by in-range priority, flight-only ratio, then savings
+            def _rank_key(c: dict[str, Any]):
+                al = c["alert"]
+                in_stay = (
+                    (al.min_nights <= c["nights"] <= al.max_nights)
+                    if al.min_nights and al.max_nights
+                    else True
+                )
+                in_window = (
+                    (al.earliest_date <= c["dep_date"] <= al.latest_date)
+                    if al.earliest_date and al.latest_date
+                    else True
+                )
+                tier = 0 if (in_stay and in_window) else 1
+                return (tier, c["flight_ratio"], -c["flight_savings"])
+
+            candidates_for_user.sort(key=_rank_key)
 
             # P5.1: Cap per destination for diversity (max config.MAX_PER_ROUTE_PER_SCAN per dest)
             dest_counts: dict[str, int] = {}
@@ -579,7 +593,7 @@ async def run_deal_detection_scan(
 
                     if not is_better:
                         logger.info(
-                            f"Skipping deal {orig}->{dest} (€{total_deal_cents/100:.2f}): existing active package (€{best_price/100:.2f}) is already superior."
+                            f"Skipping deal {orig}->{dest} (€{total_deal_cents / 100:.2f}): existing active package (€{best_price / 100:.2f}) is already superior."
                         )
                         continue
 

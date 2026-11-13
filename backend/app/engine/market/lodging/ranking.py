@@ -61,6 +61,10 @@ class HotelCandidate:
     provider: str = "aggregator"
     confidence: str = "high"
     area_tags: dict[str, float] | None = None
+    photo_url: str | None = None
+    amenities: list[str] | None = None
+    room_type: str | None = None
+    address: str | None = None
 
 
 @dataclass

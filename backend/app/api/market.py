@@ -34,6 +34,7 @@ from app.engine.market.baselines import (
 )
 from app.engine.market.config import CORPUS_HORIZON_MONTHS
 from app.engine.market.corpus import backfill_route_corpus, get_route_corpus_status
+from app.engine.market.deal_package_service import deal_package_service
 from app.engine.market.detector import run_deal_detection_scan
 from app.engine.market.ingest import ingest_flight_ticks
 from app.engine.market.verdict import classify_price
@@ -138,10 +139,10 @@ def _resolve_target_currency(
 class RouteCreateRequest(BaseModel):
     origin_iata: str = Field(..., min_length=3, max_length=3)
     destination_code: str = Field(..., min_length=3, max_length=10)
-    earliest_date: str
-    latest_date: str
+    earliest_date: str | None = None
+    latest_date: str | None = None
     min_nights: int = 1
-    max_nights: int = 7
+    max_nights: int = 30
     travelers: int = 1
     participants: list[dict[str, Any]] | None = None
     max_budget_eur: float = Field(..., gt=0)
@@ -158,8 +159,8 @@ class RouteItemResponse(BaseModel):
     origin_iata: str
     destination_code: str
     destination_name: str
-    earliest_date: str
-    latest_date: str
+    earliest_date: str | None = None
+    latest_date: str | None = None
     min_nights: int
     max_nights: int
     travelers: int = 1
@@ -385,6 +386,7 @@ class DealFlightItem(BaseModel):
     arrival_time: str | None = None
     base_price_eur: float
     landed_price_eur: float
+    unit_price_eur: float | None = None
     booking_url: str | None = None
     source: str = "cache"
     is_live: bool = False
@@ -404,6 +406,12 @@ class DealLodgingItem(BaseModel):
     is_live: bool = False
     taxes_included: bool = True
     badge: str | None = None
+    photo_url: str | None = None
+    amenities: list[str] = Field(default_factory=list)
+    room_type: str | None = None
+    free_cancellation: bool | None = None
+    board: str | None = None
+    address: str | None = None
 
 
 class DealPackageItem(BaseModel):
@@ -418,8 +426,11 @@ class DealPackageItem(BaseModel):
     return_date: str
     nights: int
     total_price_eur: float
+    price_per_traveler_eur: float | None = None
     baseline_median_eur: float
+    median_per_traveler_eur: float | None = None
     savings_eur: float
+    savings_per_traveler_eur: float | None = None
     discount_pct: float
     package_ratio: float
     realism_score: float
@@ -452,10 +463,25 @@ def _convert_deal_package_item(
     item.total_price_eur = (
         _cvt_money(item.total_price_eur, target_curr) or item.total_price_eur
     )
+    if item.price_per_traveler_eur is not None:
+        item.price_per_traveler_eur = (
+            _cvt_money(item.price_per_traveler_eur, target_curr)
+            or item.price_per_traveler_eur
+        )
     item.baseline_median_eur = (
         _cvt_money(item.baseline_median_eur, target_curr) or item.baseline_median_eur
     )
+    if item.median_per_traveler_eur is not None:
+        item.median_per_traveler_eur = (
+            _cvt_money(item.median_per_traveler_eur, target_curr)
+            or item.median_per_traveler_eur
+        )
     item.savings_eur = _cvt_money(item.savings_eur, target_curr) or item.savings_eur
+    if item.savings_per_traveler_eur is not None:
+        item.savings_per_traveler_eur = (
+            _cvt_money(item.savings_per_traveler_eur, target_curr)
+            or item.savings_per_traveler_eur
+        )
     if item.flight:
         item.flight.base_price_eur = (
             _cvt_money(item.flight.base_price_eur, target_curr) or 0.0
@@ -463,6 +489,11 @@ def _convert_deal_package_item(
         item.flight.landed_price_eur = (
             _cvt_money(item.flight.landed_price_eur, target_curr) or 0.0
         )
+        if item.flight.unit_price_eur is not None:
+            item.flight.unit_price_eur = (
+                _cvt_money(item.flight.unit_price_eur, target_curr)
+                or item.flight.unit_price_eur
+            )
     if item.return_flight:
         item.return_flight.base_price_eur = (
             _cvt_money(item.return_flight.base_price_eur, target_curr) or 0.0
@@ -470,6 +501,11 @@ def _convert_deal_package_item(
         item.return_flight.landed_price_eur = (
             _cvt_money(item.return_flight.landed_price_eur, target_curr) or 0.0
         )
+        if item.return_flight.unit_price_eur is not None:
+            item.return_flight.unit_price_eur = (
+                _cvt_money(item.return_flight.unit_price_eur, target_curr)
+                or item.return_flight.unit_price_eur
+            )
     if item.lodging:
         item.lodging.nightly_base_eur = (
             _cvt_money(item.lodging.nightly_base_eur, target_curr) or 0.0
@@ -675,7 +711,7 @@ async def list_monitored_routes(
             session=session,
             origin_iata=a.origin_iata,
             destination_code=dest_code,
-            depart_date=a.earliest_date,
+            depart_date=a.earliest_date or today,
             observation_date=today,
         )
 
@@ -771,8 +807,8 @@ async def list_monitored_routes(
                 origin_iata=a.origin_iata,
                 destination_code=dest_code,
                 destination_name=dest_name,
-                earliest_date=a.earliest_date.isoformat(),
-                latest_date=a.latest_date.isoformat(),
+                earliest_date=a.earliest_date.isoformat() if a.earliest_date else None,
+                latest_date=a.latest_date.isoformat() if a.latest_date else None,
                 min_nights=a.min_nights,
                 max_nights=a.max_nights,
                 travelers=a.travelers or 1,
@@ -810,12 +846,26 @@ async def create_monitored_route(
 ):
     user_id = await _get_or_create_user_id(session, current_user)
     new_id = str(uuid.uuid4())
-    try:
-        e_date = date.fromisoformat(req.earliest_date)
-        l_date = date.fromisoformat(req.latest_date)
-    except ValueError:
+    e_date: date | None = None
+    l_date: date | None = None
+    if req.earliest_date and req.earliest_date.strip():
+        try:
+            e_date = date.fromisoformat(req.earliest_date.strip())
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid earliest_date format. Use YYYY-MM-DD"
+            )
+    if req.latest_date and req.latest_date.strip():
+        try:
+            l_date = date.fromisoformat(req.latest_date.strip())
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid latest_date format. Use YYYY-MM-DD"
+            )
+    if e_date and l_date and e_date > l_date:
         raise HTTPException(
-            status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
+            status_code=400,
+            detail="earliest_date must be before or equal to latest_date",
         )
 
     target_currency = (
@@ -912,13 +962,18 @@ async def create_monitored_route(
 
     # Also ingest specific monitored window ticks
     try:
+        today = datetime.now(timezone.utc).date()
         window_ticks = await ingest_flight_ticks(
             session=session,
             origin_iata=alert.origin_iata,
             dest_iata=alert.destinations[0],
             dest_code=alert.destinations[0],
-            date_from=alert.earliest_date,
-            date_to=min(alert.earliest_date + timedelta(days=45), alert.latest_date),
+            date_from=alert.earliest_date or today,
+            date_to=(
+                min(alert.earliest_date + timedelta(days=45), alert.latest_date)
+                if alert.earliest_date and alert.latest_date
+                else (alert.earliest_date or today) + timedelta(days=45)
+            ),
             run_id=f"init-{new_id[:8]}",
         )
         ticks_ingested += window_ticks
@@ -947,7 +1002,7 @@ async def create_monitored_route(
         session=session,
         origin_iata=alert.origin_iata,
         destination_code=alert.destinations[0],
-        depart_date=alert.earliest_date,
+        depart_date=alert.earliest_date or today,
         observation_date=today,
     )
     p50_eur = (
@@ -974,8 +1029,8 @@ async def create_monitored_route(
         origin_iata=alert.origin_iata,
         destination_code=alert.destinations[0],
         destination_name=dest_name,
-        earliest_date=alert.earliest_date.isoformat(),
-        latest_date=alert.latest_date.isoformat(),
+        earliest_date=alert.earliest_date.isoformat() if alert.earliest_date else None,
+        latest_date=alert.latest_date.isoformat() if alert.latest_date else None,
         min_nights=alert.min_nights,
         max_nights=alert.max_nights,
         travelers=alert.travelers or 1,
@@ -2143,9 +2198,14 @@ async def get_route_calendar(
     )
 
     feed = CompositeFlightFeed()
-    date_from = alert.earliest_date
+    today = datetime.now(timezone.utc).date()
+    date_from = alert.earliest_date or today
     horizon_days = effective_months * 31
-    date_to = max(alert.latest_date, alert.earliest_date + timedelta(days=horizon_days))
+    date_to = (
+        max(alert.latest_date, date_from + timedelta(days=horizon_days))
+        if alert.latest_date
+        else date_from + timedelta(days=horizon_days)
+    )
 
     # Fetch quotes according to requested view
     outbound_quotes: dict[str, dict[str, Any]] = {}
@@ -2738,160 +2798,10 @@ async def get_route_events(
 async def _format_deal_package_item(
     session: AsyncSession, ev: DealEventModel
 ) -> DealPackageItem | None:
-    pkg = ev.package_json or {}
-    orig = pkg.get("origin_iata") or ""
-    dest = pkg.get("destination_code") or ""
-    if not orig or not dest:
+    raw = await deal_package_service.format_deal_event(session, ev)
+    if not raw:
         return None
-
-    alert = None
-    if ev.alert_id:
-        alert = await session.scalar(
-            select(DealWatchAlertModel).where(DealWatchAlertModel.id == ev.alert_id)
-        )
-    travelers = getattr(alert, "travelers", 1) or pkg.get("travelers", 1) or 1
-    participants = getattr(alert, "participants", None) or pkg.get("participants")
-
-    orig_name = pkg.get("origin_name") or await _resolve_city_name(session, orig)
-    dest_name = pkg.get("destination_name") or await _resolve_city_name(session, dest)
-
-    dep_date = pkg.get("depart_date") or ""
-    ret_date = pkg.get("return_date") or ""
-    nights = pkg.get("nights", 3)
-
-    flight_info = pkg.get("flight") or {}
-    fl_airline = flight_info.get("airline") or "Carrier"
-    fl_number = flight_info.get("flight_number") or ""
-    fl_dep_time = flight_info.get("depart_time") or ""
-    fl_arr_time = flight_info.get("arrival_time") or ""
-    fl_base_unit = flight_info.get("base_price_cents", 0)
-    fl_landed_unit = flight_info.get("landed_price_cents") or fl_base_unit
-    fl_base_cents = int(fl_base_unit * travelers)
-    fl_landed_cents = int(fl_landed_unit * travelers)
-    fl_url = (
-        flight_info.get("deep_link")
-        or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={orig}&destinationIata={dest}&dateOut={dep_date}"
-    )
-
-    lodging_info = pkg.get("lodging")
-    lodging_item = None
-    lg_landed_cents = 0
-    if lodging_info and lodging_info.get("property_name"):
-        lg_name = lodging_info.get("property_name")
-        if travelers > 1 and "Guest" not in lg_name and "people" not in lg_name:
-            lg_name = f"{lg_name} ({travelers} Guests)"
-        lg_nightly_cents = lodging_info.get("base_nightly_cents", 0)
-        lg_landed_cents = lodging_info.get("landed_total_cents") or (
-            lg_nightly_cents * nights
-        )
-        lg_quality = lodging_info.get("quality_score")
-        lodging_item = DealLodgingItem(
-            property_name=lg_name,
-            nightly_base_eur=round(lg_nightly_cents / 100.0, 2),
-            landed_total_eur=round(lg_landed_cents / 100.0, 2),
-            quality_score=float(lg_quality) if lg_quality is not None else None,
-            stars=lodging_info.get("stars"),
-            review_score=lodging_info.get("review_score"),
-            review_count=lodging_info.get("review_count"),
-            booking_url=lodging_info.get("deep_link"),
-            source=lodging_info.get("source", "lodging"),
-            is_live=lodging_info.get("is_live", False),
-            taxes_included=lodging_info.get("taxes_included", True),
-        )
-
-    ret_flight_info = pkg.get("return_flight")
-    ret_flight_item = None
-    ret_landed_cents = 0
-    if ret_flight_info:
-        ret_base_unit = ret_flight_info.get("base_price_cents", 0)
-        ret_landed_unit = ret_flight_info.get("landed_price_cents") or ret_base_unit
-        ret_base_cents = int(ret_base_unit * travelers)
-        ret_landed_cents = int(ret_landed_unit * travelers)
-        ret_flight_item = DealFlightItem(
-            airline=ret_flight_info.get("airline") or "Flight",
-            flight_number=ret_flight_info.get("flight_number"),
-            depart_time=ret_flight_info.get("depart_time"),
-            arrival_time=ret_flight_info.get("arrival_time"),
-            base_price_eur=round(ret_base_cents / 100.0, 2),
-            landed_price_eur=round(ret_landed_cents / 100.0, 2),
-            booking_url=ret_flight_info.get("deep_link"),
-            source=ret_flight_info.get("source", "carrier"),
-            is_live=ret_flight_info.get("is_live", False),
-            ancillaries_excluded=True,
-        )
-
-    total_landed_cents = pkg.get("total_landed_cents")
-    if total_landed_cents is None or travelers > 1:
-        total_landed_cents = fl_landed_cents + ret_landed_cents + lg_landed_cents
-
-    savings_cents = pkg.get("landed_savings_cents") or 0
-    package_ratio = pkg.get("package_ratio") or 0.75
-    realism = pkg.get("realism_score") or 8.5
-
-    total_price_eur = round(total_landed_cents / 100.0, 2)
-    savings_eur = pkg.get("savings_eur") or round(savings_cents / 100.0, 2)
-    baseline_median_eur = pkg.get("baseline_median_eur") or round(
-        (total_landed_cents + savings_cents) / 100.0, 2
-    )
-    discount_pct = pkg.get("discount_pct") or round(
-        max((1.0 - package_ratio) * 100, 0.0), 1
-    )
-
-    deal_status = (
-        pkg.get("deal_status") or pkg.get("status") or "flight_deal_unverified"
-    )
-    is_bookable = bool(pkg.get("is_bookable", False))
-    if deal_status == "flight_deal_unverified":
-        is_bookable = False
-
-    return DealPackageItem(
-        id=ev.id,
-        alert_id=ev.alert_id or "",
-        candidate_id=ev.candidate_id or "",
-        origin_iata=orig,
-        destination_code=dest,
-        origin_name=orig_name,
-        destination_name=dest_name,
-        depart_date=dep_date,
-        return_date=ret_date,
-        nights=nights,
-        total_price_eur=total_price_eur,
-        baseline_median_eur=baseline_median_eur,
-        savings_eur=savings_eur,
-        discount_pct=discount_pct,
-        package_ratio=package_ratio,
-        realism_score=realism,
-        status=ev.status.upper(),
-        detected_at=ev.alerted_at.isoformat()
-        if ev.alerted_at
-        else datetime.now(timezone.utc).isoformat(),
-        flight=DealFlightItem(
-            airline=fl_airline,
-            flight_number=fl_number,
-            depart_time=fl_dep_time or None,
-            arrival_time=fl_arr_time or None,
-            base_price_eur=round(fl_base_cents / 100.0, 2),
-            landed_price_eur=round(fl_landed_cents / 100.0, 2),
-            booking_url=fl_url
-            if "ryanair.com" not in fl_url
-            else flight_info.get("deep_link"),
-            source=flight_info.get("source", "carrier"),
-            is_live=flight_info.get("is_live", False),
-            ancillaries_excluded=True,
-        ),
-        return_flight=ret_flight_item,
-        lodging=lodging_item,
-        travelers=travelers,
-        participants=participants,
-        deal_status=deal_status,
-        is_bookable=is_bookable,
-        explanation=pkg.get("explanation"),
-        source=pkg.get("source") or flight_info.get("source"),
-        source_class=pkg.get("source_class") or flight_info.get("source_class"),
-        found_at=pkg.get("found_at") or flight_info.get("found_at"),
-        baseline_level_used=pkg.get("baseline_level_used"),
-        feasibility=pkg.get("feasibility"),
-    )
+    return DealPackageItem(**raw)
 
 
 @router.get("/deals", response_model=list[DealPackageItem])
@@ -2904,50 +2814,11 @@ async def list_active_deals(
     user_model = current_user if isinstance(current_user, UserModel) else None
     target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
 
-    stmt = (
-        select(DealEventModel)
-        .where(DealEventModel.status.in_(["alerted", "pending", "active"]))
-        .order_by(desc(DealEventModel.alerted_at))
-        .limit(limit)
+    raw_items = await deal_package_service.get_active_deals(
+        session=session, limit=limit, user_model=user_model
     )
-    res = await session.execute(stmt)
-    events = res.scalars().all()
-
-    items: list[DealPackageItem] = []
-    for ev in events:
-        item = await _format_deal_package_item(session, ev)
-        if item:
-            items.append(item)
-
-    if not items:
-        # Check active alerts and gather top deals
-        alerts = (
-            (
-                await session.execute(
-                    select(DealWatchAlertModel).where(
-                        DealWatchAlertModel.is_active.is_(True)
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        if not alerts:
-            alerts = (
-                (await session.execute(select(DealWatchAlertModel))).scalars().all()
-            )
-        for a in alerts:
-            route_pkgs = await list_route_deals(
-                a.id,
-                session=session,
-                limit=3,
-                currency_param="EUR",
-                current_user=user_model,
-            )
-            items.extend(route_pkgs)
-
-    items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
-    return [_convert_deal_package_item(item, target_curr) for item in items[:limit]]
+    items = [DealPackageItem(**item) for item in raw_items]
+    return [_convert_deal_package_item(item, target_curr) for item in items]
 
 
 @router.get("/routes-best-deals", response_model=list[DealPackageItem])
@@ -2983,314 +2854,10 @@ async def list_route_deals(
 ):
     user_model = current_user if isinstance(current_user, UserModel) else None
     target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
-    stmt = (
-        select(DealEventModel)
-        .where(
-            DealEventModel.alert_id == route_id,
-            DealEventModel.status.in_(["alerted", "pending", "active"]),
-        )
-        .order_by(desc(DealEventModel.alerted_at))
-        .limit(limit)
+    raw_items = await deal_package_service.get_route_deals(
+        session=session, route_id=route_id, limit=limit, user_model=user_model
     )
-    res = await session.execute(stmt)
-    events = res.scalars().all()
-
-    items: list[DealPackageItem] = []
-    for ev in events:
-        item = await _format_deal_package_item(session, ev)
-        if item:
-            items.append(item)
-
-    if not items:
-        # Generate top verified deal packages directly from forward calendar horizon
-        alert = await session.scalar(
-            select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
-        )
-        if alert:
-            dest_code = alert.destinations[0] if alert.destinations else ""
-            orig_name = await _resolve_city_name(session, alert.origin_iata)
-            dest_name = await _resolve_city_name(session, dest_code)
-            today = datetime.now(timezone.utc).date()
-
-            # Find cheapest roundtrips across the horizon
-            fwd_out_stmt = (
-                select(
-                    PriceDailyModel.depart_date,
-                    PriceDailyModel.min_base,
-                    PriceDailyModel.source,
-                )
-                .where(
-                    PriceDailyModel.origin_iata == alert.origin_iata,
-                    PriceDailyModel.destination_code == dest_code,
-                    PriceDailyModel.depart_date >= max(alert.earliest_date, today),
-                    PriceDailyModel.depart_date <= alert.latest_date,
-                )
-                .order_by(PriceDailyModel.min_base.asc())
-                .limit(15)
-            )
-            fwd_out = (await session.execute(fwd_out_stmt)).all()
-
-            fwd_ret_stmt = select(
-                PriceDailyModel.depart_date,
-                PriceDailyModel.min_base,
-                PriceDailyModel.source,
-            ).where(
-                PriceDailyModel.origin_iata == dest_code,
-                PriceDailyModel.destination_code == alert.origin_iata,
-                PriceDailyModel.depart_date >= max(alert.earliest_date, today),
-            )
-            fwd_ret_map = {
-                row[0]: (row[1], row[2])
-                for row in (await session.execute(fwd_ret_stmt)).all()
-            }
-
-            from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
-            from collections import defaultdict
-
-            city_stmt = (
-                select(CityModel)
-                .where(
-                    (CityModel.id == dest_code.upper())
-                    | (CityModel.country_code == dest_code.upper())
-                    | (CityModel.name.ilike(f"%{dest_code}%"))
-                )
-                .limit(1)
-            )
-            city_obj = (await session.execute(city_stmt)).scalar_one_or_none()
-            center_lat = city_obj.center_lat if city_obj else None
-            center_lon = city_obj.center_lon if city_obj else None
-
-            user_prefs = (
-                (user_model.preferences or {})
-                if user_model and user_model.preferences
-                else {}
-            )
-            if not user_prefs and alert.user_id:
-                u_row = await session.scalar(
-                    select(UserModel).where(UserModel.id == alert.user_id)
-                )
-                if u_row and u_row.preferences:
-                    user_prefs = u_row.preferences
-
-            prop_stmt = (
-                select(
-                    HotelRateObservationModel.check_in,
-                    HotelRateObservationModel.price_nightly_cents,
-                    HotelRateObservationModel.property_id,
-                    HotelPropertyModel.name,
-                    HotelPropertyModel.stars,
-                    HotelRateObservationModel.review_score,
-                    HotelRateObservationModel.review_count,
-                    HotelRateObservationModel.deep_link,
-                    HotelRateObservationModel.provider,
-                    HotelPropertyModel.latitude,
-                    HotelPropertyModel.longitude,
-                    HotelPropertyModel.property_type,
-                    HotelRateObservationModel.free_cancellation,
-                    HotelRateObservationModel.board,
-                    HotelRateObservationModel.taxes_included,
-                    HotelRateObservationModel.confidence,
-                )
-                .join(
-                    HotelPropertyModel,
-                    HotelPropertyModel.id == HotelRateObservationModel.property_id,
-                )
-                .where(
-                    HotelRateObservationModel.destination_code == dest_code,
-                    HotelRateObservationModel.check_in >= today,
-                )
-                .order_by(
-                    HotelRateObservationModel.check_in.asc(),
-                    HotelRateObservationModel.price_nightly_cents.asc(),
-                )
-            )
-            prop_rows = (await session.execute(prop_stmt)).all()
-            cands_by_date = defaultdict(list)
-            for p_row in prop_rows:
-                cin = p_row[0]
-                cands_by_date[cin].append(
-                    HotelCandidate(
-                        property_id=p_row[2],
-                        name=p_row[3],
-                        nightly_cents=p_row[1],
-                        stars=float(p_row[4]) if p_row[4] else None,
-                        review_score=float(p_row[5]) if p_row[5] is not None else None,
-                        review_count=int(p_row[6]) if p_row[6] is not None else None,
-                        deep_link=p_row[7],
-                        provider=p_row[8],
-                        latitude=float(p_row[9]) if p_row[9] is not None else None,
-                        longitude=float(p_row[10]) if p_row[10] is not None else None,
-                        property_type=p_row[11] or "hotel",
-                        free_cancellation=p_row[12],
-                        board=p_row[13],
-                        taxes_included=p_row[14] if p_row[14] is not None else True,
-                        confidence=p_row[15] or "high",
-                    )
-                )
-
-            best_hotel_by_date = {}
-            for cin, cl in cands_by_date.items():
-                ranked_d = rank_hotels(
-                    cl,
-                    user_preferences=user_prefs,
-                    center_lat=center_lat,
-                    center_lon=center_lon,
-                )
-                if ranked_d:
-                    best_hotel_by_date[cin] = ranked_d[0]
-
-            quantiles, _, _ = await resolve_route_baseline_quantiles(
-                session=session,
-                origin_iata=alert.origin_iata,
-                destination_code=dest_code,
-                depart_date=alert.earliest_date,
-                observation_date=today,
-            )
-            median_fl_cents = quantiles.get("q50") if quantiles else None
-            if median_fl_cents is None:
-                median_fl_cents = (
-                    int(sum(r[1] for r in fwd_out) / len(fwd_out)) if fwd_out else 0
-                )
-
-            cand_packages = []
-            seen_dates: set[tuple[date, date]] = set()
-            for out_row in fwd_out:
-                dep_dt = out_row[0]
-                out_cents = out_row[1]
-                out_src = out_row[2] or "Flight"
-
-                best_ret = None
-                best_nights = alert.min_nights
-                for n in range(alert.min_nights, alert.max_nights + 1):
-                    cand_ret_dt = dep_dt + timedelta(days=n)
-                    if cand_ret_dt in fwd_ret_map:
-                        ret_cents, ret_src = fwd_ret_map[cand_ret_dt]
-                        if best_ret is None or ret_cents < best_ret[0]:
-                            best_ret = (ret_cents, ret_src, cand_ret_dt)
-                            best_nights = n
-
-                if not best_ret or (dep_dt, best_ret[2]) in seen_dates:
-                    continue
-                seen_dates.add((dep_dt, best_ret[2]))
-
-                chosen_ranked = best_hotel_by_date.get(dep_dt)
-                cand_travelers = getattr(alert, "travelers", 1) or 1
-                cand_participants = getattr(alert, "participants", None)
-
-                lodging_item = None
-                hotel_nightly_cents = 0
-                total_hotel_cents = 0
-                if chosen_ranked:
-                    cand = chosen_ranked.candidate
-                    hotel_nightly_cents = cand.nightly_cents
-                    prop_name = cand.name
-                    if (
-                        cand_travelers > 1
-                        and "Guest" not in prop_name
-                        and "people" not in prop_name
-                    ):
-                        prop_name = f"{prop_name} ({cand_travelers} Guests)"
-                    total_hotel_cents = hotel_nightly_cents * best_nights
-                    lodging_item = DealLodgingItem(
-                        property_name=prop_name,
-                        nightly_base_eur=round(hotel_nightly_cents / 100.0, 2),
-                        landed_total_eur=round(total_hotel_cents / 100.0, 2),
-                        quality_score=round(cand.review_score * 20.0, 1)
-                        if cand.review_score
-                        else None,
-                        stars=cand.stars,
-                        review_score=cand.review_score,
-                        review_count=cand.review_count,
-                        booking_url=cand.deep_link,
-                        source=cand.provider or "lodging",
-                        is_live=False,
-                        taxes_included=cand.taxes_included,
-                        badge=chosen_ranked.badge,
-                    )
-
-                total_fl_cents = (out_cents + best_ret[0]) * cand_travelers
-                total_package_cents = total_fl_cents + total_hotel_cents
-
-                baseline_pkg_cents = (
-                    (
-                        (median_fl_cents * 2 * cand_travelers)
-                        + (
-                            int(hotel_nightly_cents * best_nights * 1.5)
-                            if lodging_item
-                            else 0
-                        )
-                    )
-                    if median_fl_cents
-                    else total_package_cents
-                )
-                savings_cents = max(0, int(baseline_pkg_cents - total_package_cents))
-                discount_pct = round(
-                    (savings_cents / max(baseline_pkg_cents, 1)) * 100, 1
-                )
-
-                ret_src_name = best_ret[1] or "Flight"
-                cand_packages.append(
-                    DealPackageItem(
-                        id=f"deal-{route_id[:8]}-{dep_dt.isoformat()}",
-                        alert_id=route_id,
-                        candidate_id=f"cand-{dep_dt.isoformat()}",
-                        origin_iata=alert.origin_iata,
-                        destination_code=dest_code,
-                        origin_name=orig_name,
-                        destination_name=dest_name,
-                        depart_date=dep_dt.isoformat(),
-                        return_date=best_ret[2].isoformat(),
-                        nights=best_nights,
-                        total_price_eur=round(total_package_cents / 100.0, 2),
-                        baseline_median_eur=round(baseline_pkg_cents / 100.0, 2),
-                        savings_eur=round(savings_cents / 100.0, 2),
-                        discount_pct=discount_pct,
-                        package_ratio=round(
-                            total_package_cents / max(baseline_pkg_cents, 1), 3
-                        ),
-                        realism_score=9.4,
-                        status="ACTIVE",
-                        detected_at=datetime.now(timezone.utc).isoformat(),
-                        flight=DealFlightItem(
-                            airline=out_src,
-                            flight_number=None,
-                            depart_time=None,
-                            arrival_time=None,
-                            base_price_eur=round(out_cents * cand_travelers / 100.0, 2),
-                            landed_price_eur=round(
-                                out_cents * cand_travelers / 100.0, 2
-                            ),
-                            booking_url=None,
-                            source=out_src.lower(),
-                            is_live=False,
-                            ancillaries_excluded=True,
-                        ),
-                        return_flight=DealFlightItem(
-                            airline=ret_src_name,
-                            flight_number=None,
-                            depart_time=None,
-                            arrival_time=None,
-                            base_price_eur=round(
-                                best_ret[0] * cand_travelers / 100.0, 2
-                            ),
-                            landed_price_eur=round(
-                                best_ret[0] * cand_travelers / 100.0, 2
-                            ),
-                            booking_url=None,
-                            source=ret_src_name.lower(),
-                            is_live=False,
-                            ancillaries_excluded=True,
-                        ),
-                        lodging=lodging_item,
-                        travelers=cand_travelers,
-                        participants=cand_participants,
-                    )
-                )
-
-            cand_packages.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
-            items = cand_packages[:limit]
-
-    items.sort(key=lambda d: (-d.discount_pct, d.total_price_eur))
+    items = [DealPackageItem(**item) for item in raw_items]
     return [_convert_deal_package_item(item, target_curr) for item in items]
 
 

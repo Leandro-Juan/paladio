@@ -297,18 +297,21 @@ async def scan_and_ingest_watched_routes(session: AsyncSession) -> dict[str, int
         return {"flights_ingested": 0, "lodging_ingested": 0}
 
     # Demand union
+    today = datetime.now(timezone.utc).date()
     route_pairs: dict[tuple[str, str], tuple[date, date]] = {}
     for alert in alerts:
         orig = alert.origin_iata
+        e_date = alert.earliest_date or today
+        l_date = alert.latest_date or (today + timedelta(days=180))
         for dest in alert.destinations:
             key = (orig, dest)
             if key not in route_pairs:
-                route_pairs[key] = (alert.earliest_date, alert.latest_date)
+                route_pairs[key] = (e_date, l_date)
             else:
                 cur_earliest, cur_latest = route_pairs[key]
                 route_pairs[key] = (
-                    min(cur_earliest, alert.earliest_date),
-                    max(cur_latest, alert.latest_date),
+                    min(cur_earliest, e_date),
+                    max(cur_latest, l_date),
                 )
 
     flight_feed = CompositeFlightFeed()

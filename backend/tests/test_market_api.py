@@ -5,7 +5,13 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_market_api_lifecycle():
+async def test_market_api_lifecycle(db_session):
+    from sqlalchemy import text
+
+    await db_session.execute(
+        text("DELETE FROM deal_watch_alerts WHERE origin_iata = 'MAD'")
+    )
+    await db_session.commit()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Check summary
@@ -236,3 +242,36 @@ async def test_get_or_create_user_id_creates_operator(db_session):
     operator_uid = await _get_or_create_user_id(db_session, None)
     assert isinstance(operator_uid, str)
     assert len(operator_uid) > 0
+
+
+@pytest.mark.asyncio
+async def test_create_route_flexible_dates_and_duration():
+    from httpx import ASGITransport, AsyncClient
+    from app.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/market/routes")
+        for r in res.json():
+            if r.get("origin_iata") == "MAD" and r.get("destination_code") == "LIS":
+                await client.delete(f"/api/market/routes/{r['id']}")
+
+        payload = {
+            "origin_iata": "MAD",
+            "destination_code": "LIS",
+            "earliest_date": None,
+            "latest_date": None,
+            "min_nights": 1,
+            "max_nights": 30,
+            "travelers": 1,
+            "max_budget_eur": 200.0,
+        }
+        create_res = await client.post("/api/market/routes", json=payload)
+        assert create_res.status_code == 201
+        data = create_res.json()
+        assert data["earliest_date"] is None
+        assert data["latest_date"] is None
+        assert data["min_nights"] == 1
+        assert data["max_nights"] == 30
+
+        await client.delete(f"/api/market/routes/{data['id']}")

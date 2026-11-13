@@ -360,6 +360,8 @@ async def db_engine():
                 "ALTER TABLE market_price_ticks ADD COLUMN IF NOT EXISTS fx_rate_date DATE;",
                 "ALTER TABLE market_price_ticks ALTER COLUMN return_date DROP NOT NULL;",
                 "ALTER TABLE market_price_ticks ALTER COLUMN nights DROP NOT NULL;",
+                "ALTER TABLE deal_watch_alerts ALTER COLUMN earliest_date DROP NOT NULL;",
+                "ALTER TABLE deal_watch_alerts ALTER COLUMN latest_date DROP NOT NULL;",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(
