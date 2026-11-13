@@ -75,8 +75,11 @@ export function RouteFullScreenView({
           <button
             type="button"
             className={styles.backBtn}
-            onClick={onBack}
-            aria-label="Back to monitored routes list"
+            onClick={() => {
+              onBack?.();
+              router.push('/monitoring');
+            }}
+            aria-label="Back to Fleet Overview"
           >
             <ChevronLeftIcon size={14} aria-hidden="true" />
             <span>Fleet Overview</span>
@@ -103,7 +106,7 @@ export function RouteFullScreenView({
               </span>
             </div>
             <span className={styles.routeSub}>
-              {route.destination_name} · RID-{route.id.slice(0, 8)}
+              {route.destination_name} · {route.earliest_date && route.latest_date ? `${route.earliest_date} → ${route.latest_date}` : 'Flexible Dates'} · {route.min_nights}–{route.max_nights}N · RID-{route.id.slice(0, 8)}
             </span>
           </div>
         </div>
@@ -159,6 +162,10 @@ export function RouteFullScreenView({
             currency={activeCurrency}
             onTriggerBackfill={onTriggerBackfill ? () => onTriggerBackfill(route.id) : undefined}
             isBackfilling={isBackfilling}
+            earliestDate={route?.earliest_date}
+            latestDate={route?.latest_date}
+            minNights={route?.min_nights}
+            maxNights={route?.max_nights}
           />
         </div>
 

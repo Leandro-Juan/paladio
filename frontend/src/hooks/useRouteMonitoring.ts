@@ -10,8 +10,8 @@ export interface RouteItem {
   origin_iata: string;
   destination_code: string;
   destination_name: string;
-  earliest_date: string;
-  latest_date: string;
+  earliest_date: string | null;
+  latest_date: string | null;
   min_nights: number;
   max_nights: number;
   travelers?: number;
@@ -245,6 +245,7 @@ export interface DealFlight {
   arrival_time?: string | null;
   base_price_eur: number;
   landed_price_eur: number;
+  unit_price_eur?: number | null;
   booking_url?: string | null;
   source?: string;
   is_live?: boolean;
@@ -264,6 +265,12 @@ export interface DealLodging {
   is_live?: boolean;
   taxes_included?: boolean;
   badge?: string | null;
+  photo_url?: string | null;
+  amenities?: string[];
+  room_type?: string | null;
+  free_cancellation?: boolean | null;
+  board?: string | null;
+  address?: string | null;
 }
 
 export interface ProviderHealth {
@@ -289,8 +296,11 @@ export interface DealPackage {
   return_date: string;
   nights: number;
   total_price_eur: number;
+  price_per_traveler_eur?: number | null;
   baseline_median_eur: number;
+  median_per_traveler_eur?: number | null;
   savings_eur: number;
+  savings_per_traveler_eur?: number | null;
   discount_pct: number;
   package_ratio: number;
   realism_score: number;
@@ -482,15 +492,15 @@ export function useRouteMonitoring(overrideCurrency?: string) {
     };
   }, [selectedRouteId, activeCurrency]);
 
-  const selectRoute = (id: string | null) => {
+  const selectRoute = useCallback((id: string | null) => {
     setSelectedRouteId(id);
-  };
+  }, []);
 
   const createRoute = async (data: {
     origin_iata: string;
     destination_code: string;
-    earliest_date: string;
-    latest_date: string;
+    earliest_date?: string | null;
+    latest_date?: string | null;
     min_nights: number;
     max_nights: number;
     travelers: number;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
 import { TrendingDownIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { HotelTicketCard } from './HotelTicketCard';
 import styles from './DealPackageNavigator.module.css';
 
 interface DealPackageNavigatorProps {
@@ -24,6 +25,21 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
   const safeIndex = Math.min(Math.max(0, currentIndex), deals.length - 1);
   const deal = deals[safeIndex];
   const activeCurrency = deal?.currency || currency || 'EUR';
+
+  const travelerCount = deal?.travelers || 1;
+  const isMultiTraveler = travelerCount > 1;
+  const unitPrice = deal?.price_per_traveler_eur ?? (deal ? deal.total_price_eur / travelerCount : 0);
+  const unitMedian = deal?.median_per_traveler_eur ?? (deal ? deal.baseline_median_eur / travelerCount : 0);
+  const unitSavings = deal?.savings_per_traveler_eur ?? (deal ? deal.savings_eur / travelerCount : 0);
+
+  const outboundTotal = deal?.flight?.landed_price_eur ?? 0;
+  const outboundUnit = deal?.flight?.unit_price_eur ?? (outboundTotal / travelerCount);
+
+  const returnTotal = deal?.return_flight?.landed_price_eur ?? 0;
+  const returnUnit = deal?.return_flight?.unit_price_eur ?? (returnTotal / travelerCount);
+
+  const flightsTotal = outboundTotal + returnTotal;
+  const flightsUnit = outboundUnit + returnUnit;
 
   const handlePrev = () => {
     setCurrentIndex((prev) => Math.max(0, prev - 1));
@@ -108,18 +124,41 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
           <div className={styles.priceComparisonBox}>
             <div className={styles.priceItem}>
               <span className={styles.priceLabel}>Landed Package</span>
-              <span className={styles.currentPrice}>{formatCurrencyAmount(deal.total_price_eur, activeCurrency)}</span>
+              <span className={styles.currentPrice}>
+                {formatCurrencyAmount(isMultiTraveler ? unitPrice : deal.total_price_eur, activeCurrency)}
+                {isMultiTraveler && <span className={styles.unitSuffix}> / person</span>}
+              </span>
+              {isMultiTraveler && (
+                <span className={styles.totalPriceSub}>
+                  {formatCurrencyAmount(deal.total_price_eur, activeCurrency)} total
+                </span>
+              )}
             </div>
             <div className={styles.priceItem}>
               <span className={styles.priceLabel}>Typical Benchmark</span>
-              <span className={styles.medianPrice}>{formatCurrencyAmount(deal.baseline_median_eur, activeCurrency)}</span>
+              <span className={styles.medianPrice}>
+                {formatCurrencyAmount(isMultiTraveler ? unitMedian : deal.baseline_median_eur, activeCurrency)}
+                {isMultiTraveler && <span className={styles.unitSuffix}> / pers</span>}
+              </span>
+              {isMultiTraveler && (
+                <span className={styles.totalPriceSub}>
+                  {formatCurrencyAmount(deal.baseline_median_eur, activeCurrency)} total
+                </span>
+              )}
             </div>
             <div className={styles.savingsBox}>
               <span className={styles.savingsPill}>
                 <TrendingDownIcon size={13} color="#FFFFFF" />
                 {(deal.discount_pct ?? 0).toFixed(0)}% OFF
               </span>
-              <span className={styles.savingsAmountText}>Save {formatCurrencyAmount(deal.savings_eur, activeCurrency)} vs typical</span>
+              <span className={styles.savingsAmountText}>
+                Save {formatCurrencyAmount(isMultiTraveler ? unitSavings : deal.savings_eur, activeCurrency)} {isMultiTraveler ? '/ person' : 'vs typical'}
+              </span>
+              {isMultiTraveler && (
+                <span className={styles.totalSavingsSub}>
+                  ({formatCurrencyAmount(deal.savings_eur, activeCurrency)} total savings)
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -145,9 +184,20 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                 <span className={styles.componentMainName}>
                   Outbound: {deal.origin_name} ({deal.origin_iata}) → {deal.destination_name} ({deal.destination_code})
                 </span>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                  {formatCurrencyAmount(deal.flight?.landed_price_eur ?? 0, activeCurrency)}
-                </span>
+                {isMultiTraveler ? (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                      {formatCurrencyAmount(outboundUnit, activeCurrency)} <span className={styles.unitSuffix}>/ pers</span>
+                    </div>
+                    <div className={styles.totalPriceSub}>
+                      {formatCurrencyAmount(outboundTotal, activeCurrency)} total
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                    {formatCurrencyAmount(outboundTotal, activeCurrency)}
+                  </span>
+                )}
               </div>
               <span className={styles.componentSubText}>
                 {deal.depart_date} · {deal.flight?.depart_time ? deal.flight.depart_time.slice(11, 16) : '--:--'} → {deal.flight?.arrival_time ? deal.flight.arrival_time.slice(11, 16) : '--:--'} · Direct ({deal.flight?.airline || 'Direct'})
@@ -160,9 +210,20 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                     <span className={styles.componentMainName}>
                       Return: {deal.destination_name} ({deal.destination_code}) → {deal.origin_name} ({deal.origin_iata})
                     </span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                      {formatCurrencyAmount(deal.return_flight?.landed_price_eur ?? 0, activeCurrency)}
-                    </span>
+                    {isMultiTraveler ? (
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                          {formatCurrencyAmount(returnUnit, activeCurrency)} <span className={styles.unitSuffix}>/ pers</span>
+                        </div>
+                        <div className={styles.totalPriceSub}>
+                          {formatCurrencyAmount(returnTotal, activeCurrency)} total
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
+                        {formatCurrencyAmount(returnTotal, activeCurrency)}
+                      </span>
+                    )}
                   </div>
                   <span className={styles.componentSubText}>
                     {deal.return_date} · {deal.return_flight?.depart_time ? deal.return_flight.depart_time.slice(11, 16) : '--:--'} → {deal.return_flight?.arrival_time ? deal.return_flight.arrival_time.slice(11, 16) : '--:--'} · Direct ({deal.return_flight?.airline || 'Direct'})
@@ -172,7 +233,9 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             </div>
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
-                {formatCurrencyAmount((deal.flight?.landed_price_eur ?? 0) + (deal.return_flight?.landed_price_eur ?? 0), activeCurrency)} Roundtrip Flights{deal.travelers && deal.travelers > 1 ? ` (${deal.travelers} travelers)` : ''}
+                {isMultiTraveler
+                  ? `${formatCurrencyAmount(flightsUnit, activeCurrency)} / pers · ${formatCurrencyAmount(flightsTotal, activeCurrency)} total (${travelerCount} travelers)`
+                  : `${formatCurrencyAmount(flightsTotal, activeCurrency)} Roundtrip Flights`}
               </span>
               {deal.flight?.booking_url && (
                 <a
@@ -187,72 +250,8 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             </div>
           </div>
 
-          {/* Hotel Card */}
-          {deal.lodging ? (
-            <div className={styles.componentCard}>
-              <div className={styles.componentHeader}>
-                <span className={styles.componentTypeTitle}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
-                  </svg>
-                  Accommodation
-                </span>
-                <span className={styles.carrierBadge}>
-                  {deal.lodging.stars ? `★ ${deal.lodging.stars}-Star Hotel` : (deal.lodging.quality_score ? `★ ${deal.lodging.quality_score.toFixed(0)} Quality` : '★ Verified Stay')}
-                </span>
-              </div>
-              <div className={styles.componentDetails}>
-                <span className={styles.componentMainName}>
-                  {deal.lodging.property_name || 'Verified Lodging'}
-                </span>
-                <span className={styles.componentSubText}>
-                  {deal.lodging.review_score ? `★ ${deal.lodging.review_score}/5 ` : ''}{deal.lodging.review_count ? `(${deal.lodging.review_count} reviews) · ` : ''}{deal.lodging.nightly_base_eur ? `${formatCurrencyAmount(deal.lodging.nightly_base_eur, activeCurrency)}/night` : ''}
-                </span>
-              </div>
-              <div className={styles.componentPriceRow}>
-                <span className={styles.componentPrice}>
-                  {deal.lodging.landed_total_eur ? `${formatCurrencyAmount(deal.lodging.landed_total_eur, activeCurrency)} Landed ` : 'Landed Lodging '}({deal.nights} Nights{deal.travelers && deal.travelers > 1 ? ` · ${deal.travelers} Guests` : ''})
-                </span>
-                {deal.lodging.booking_url && (
-                  <a
-                    href={deal.lodging.booking_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.directLinkBtn}
-                  >
-                    Book Hotel ↗
-                  </a>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className={styles.componentCard} style={{ opacity: 0.85 }}>
-              <div className={styles.componentHeader}>
-                <span className={styles.componentTypeTitle}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9h1M9 13h1M9 17h1M15 13h1M15 17h1" />
-                  </svg>
-                  Accommodation
-                </span>
-                <span className={styles.carrierBadge}>
-                  Flexible Stay
-                </span>
-              </div>
-              <div className={styles.componentDetails}>
-                <span className={styles.componentMainName}>
-                  Flight Deal Corridor
-                </span>
-                <span className={styles.componentSubText}>
-                  {deal.nights} Nights in {deal.destination_name} · Lodging can be selected dynamically.
-                </span>
-              </div>
-              <div className={styles.componentPriceRow}>
-                <span className={styles.componentPrice}>
-                  Direct Airfare Package
-                </span>
-              </div>
-            </div>
-          )}
+          {/* Hotel Ticket Card */}
+          <HotelTicketCard deal={deal} dealCurrency={activeCurrency} />
         </div>
 
         {/* Footer Actions */}

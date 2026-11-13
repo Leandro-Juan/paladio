@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
   CartesianGrid,
 } from 'recharts';
 import {
@@ -39,6 +40,10 @@ interface PriceTrendGraphProps {
   isBackfilling?: boolean;
   onRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
   onTriggerBackfill?: () => void;
+  earliestDate?: string | null;
+  latestDate?: string | null;
+  minNights?: number | null;
+  maxNights?: number | null;
 }
 
 interface ChartDataItem {
@@ -76,6 +81,10 @@ export function PriceTrendGraph({
   isScanning = false,
   isBackfilling = false,
   onTriggerBackfill,
+  earliestDate,
+  latestDate,
+  minNights,
+  maxNights,
 }: PriceTrendGraphProps) {
   const isBusy = isBackfilling || isScanning;
   const [directionView, setDirectionView] = useState<'both' | 'outbound' | 'return'>('both');
@@ -174,6 +183,35 @@ export function PriceTrendGraph({
 
   const minFlightVal = flightPrices.length > 0 ? Math.floor(Math.min(...flightPrices) * 0.85) : 0;
   const maxFlightVal = flightPrices.length > 0 ? Math.ceil(Math.max(...flightPrices, activeP90 || 100) * 1.1) : 100;
+
+  const earliestDisplayTime = useMemo(() => {
+    if (!earliestDate) return null;
+    const match = chartData.find((d) => d.date === earliestDate);
+    return match ? match.displayTime : null;
+  }, [chartData, earliestDate]);
+
+  const latestDisplayTime = useMemo(() => {
+    if (!latestDate) return null;
+    const match = chartData.find((d) => d.date === latestDate);
+    return match ? match.displayTime : null;
+  }, [chartData, latestDate]);
+
+  const returnHorizonDateStr = useMemo(() => {
+    if (!latestDate) return null;
+    try {
+      const d = new Date(latestDate);
+      d.setDate(d.getDate() + (maxNights || 7));
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return null;
+    }
+  }, [latestDate, maxNights]);
+
+  const returnHorizonDisplayTime = useMemo(() => {
+    if (!returnHorizonDateStr) return null;
+    const match = chartData.find((d) => d.date === returnHorizonDateStr);
+    return match ? match.displayTime : null;
+  }, [chartData, returnHorizonDateStr]);
 
   // Shared tooltip renderer for synchronized scrubber
   const renderSharedTooltip = ({ active, payload }: any) => {
@@ -357,6 +395,64 @@ export function PriceTrendGraph({
               />
             )}
 
+            {/* User Target Travel Window & Return Horizon */}
+            {earliestDisplayTime && latestDisplayTime && (
+              <ReferenceArea
+                x1={earliestDisplayTime}
+                x2={latestDisplayTime}
+                fill="#0284C7"
+                fillOpacity={0.08}
+                stroke="#0284C7"
+                strokeOpacity={0.35}
+                strokeDasharray="3 3"
+              />
+            )}
+            {earliestDisplayTime && (
+              <ReferenceLine
+                x={earliestDisplayTime}
+                stroke="#0284C7"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{
+                  value: 'Earliest Dep',
+                  position: 'insideTopLeft',
+                  fill: '#0284C7',
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                }}
+              />
+            )}
+            {latestDisplayTime && (
+              <ReferenceLine
+                x={latestDisplayTime}
+                stroke="#0284C7"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{
+                  value: 'Latest Dep',
+                  position: 'insideTopLeft',
+                  fill: '#0284C7',
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                }}
+              />
+            )}
+            {returnHorizonDisplayTime && (
+              <ReferenceLine
+                x={returnHorizonDisplayTime}
+                stroke="#D97706"
+                strokeWidth={1.5}
+                strokeDasharray="3 3"
+                label={{
+                  value: `Max Return (${maxNights || 7}N)`,
+                  position: 'insideTopRight',
+                  fill: '#D97706',
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                }}
+              />
+            )}
+
             <Area
               type="monotone"
               dataKey="outboundPrice"
@@ -412,6 +508,18 @@ export function PriceTrendGraph({
           <div className={styles.legendItem}>
             <span className={styles.legendLinePeak} style={{ backgroundColor: '#EF4444' }} />
             <span>P90 Peak Ceiling ({symbol}{activeP90.toFixed(0)})</span>
+          </div>
+        )}
+        {earliestDate && latestDate && (
+          <div className={styles.legendItem}>
+            <span style={{ width: '12px', height: '10px', background: 'rgba(2, 132, 199, 0.25)', border: '1px dashed #0284C7', borderRadius: '2px', display: 'inline-block' }} />
+            <span>Target Window ({earliestDate.slice(5)} – {latestDate.slice(5)})</span>
+          </div>
+        )}
+        {returnHorizonDateStr && (
+          <div className={styles.legendItem}>
+            <span style={{ width: '12px', height: '2px', background: '#D97706', display: 'inline-block', borderTop: '2px dashed #D97706' }} />
+            <span>Max Stay Limit ({maxNights || 7}N)</span>
           </div>
         )}
       </div>

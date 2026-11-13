@@ -27,6 +27,7 @@
   flex-direction: column;
   position: relative;
   max-height: 92vh;
+  overflow: hidden;
   animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -88,6 +89,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .errorMessage {
@@ -199,17 +202,209 @@
   box-shadow: 0 0 0 2px rgba(15, 76, 92, 0.12);
 }
 
-.rangeInputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.datePickerAnchor {
+  position: relative;
+  width: 100%;
 }
 
-.rangeSeparator {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #64748B);
+.dateTriggerBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 8px;
+  background: var(--color-surface-card, #FFFFFF);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 40px;
+}
+
+.dateTriggerBtn:hover {
+  border-color: var(--color-accent-primary, #0F4C5C);
+  background: var(--color-bg-main, #FAF8F5);
+}
+
+.dateTriggerEmpty {
+  border-style: dashed;
+}
+
+.dateTriggerContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateTriggerValue {
   font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
   font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.dateTriggerPlaceholder {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #64748B);
+}
+
+.clearDateInlineBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-bg-main, #F1F5F9);
+  color: var(--color-text-muted, #64748B);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clearDateInlineBtn:hover {
+  background: rgba(212, 42, 47, 0.12);
+  color: var(--color-accent-secondary, #D42A2F);
+}
+
+.datePickerPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  animation: popIn 0.15s ease;
+}
+
+.datePickerPopoverRight {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  animation: popIn 0.15s ease;
+}
+
+@media (max-width: 680px) {
+  .datePickerPopoverRight {
+    left: 0;
+    right: auto;
+  }
+}
+
+.clearDatesBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-accent-secondary, #D42A2F);
+  text-decoration: underline;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.clearDatesBtn:hover {
+  opacity: 0.8;
+}
+
+.flexibleStatusTag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-accent-primary, #0F4C5C);
+  background: rgba(15, 76, 92, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.durationHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.durationValueDisplay {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.resetDurationBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #64748B);
+  text-decoration: underline;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.resetDurationBtn:hover {
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.presetsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .presetsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.presetCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #E2E8F0);
+  background: var(--color-surface-card, #FFFFFF);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.presetCard:hover {
+  border-color: var(--color-accent-primary, #0F4C5C);
+  background: var(--color-bg-main, #FAF8F5);
+}
+
+.presetCardActive {
+  background: var(--color-accent-primary, #0F4C5C) !important;
+  border-color: var(--color-accent-primary, #0F4C5C) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(15, 76, 92, 0.25);
+}
+
+.presetTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+}
+
+.presetCardActive .presetTitle {
+  color: #FFFFFF;
+}
+
+.presetSub {
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #64748B);
+  margin-top: 2px;
+}
+
+.presetCardActive .presetSub {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .sectionGroup {

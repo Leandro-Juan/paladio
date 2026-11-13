@@ -275,6 +275,26 @@
   font-weight: 600;
 }
 
+.unitSuffix {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748B;
+}
+
+.totalPriceSub {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.totalSavingsSub {
+  font-size: 0.625rem;
+  color: #059669;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+}
+
 .componentsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -282,13 +302,14 @@
 }
 
 .componentCard {
-  background: #F8FAFC;
+  background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 8px;
   padding: 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .componentHeader {
