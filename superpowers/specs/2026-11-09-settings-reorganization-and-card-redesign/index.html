@@ -1,0 +1,1867 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+      
+      
+        <meta name="author" content="Leandro Juan">
+      
+      
+        <link rel="canonical" href="https://leandro-juan.github.io/paladio/superpowers/specs/2026-11-09-settings-reorganization-and-card-redesign/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Design Specification: Settings Categories Reorganization, Tactical Card Redesign & Backend Persistence - Paladio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    
+      <link rel="stylesheet" href="../../../css/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-specification-settings-categories-reorganization-tactical-card-redesign-backend-persistence" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Paladio" class="md-header__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Paladio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Specification: Settings Categories Reorganization, Tactical Card Redesign &amp; Backend Persistence
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tutorials/quickstart-docker/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../how-to/run-offline-swarm/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/langgraph-swarm-architecture/" class="md-tabs__link">
+          
+  
+  
+  Technical Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../explanation/system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architectural Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Paladio" class="md-nav__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    Paladio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/quickstart-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart with Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Autonomous Swarm Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-offline-swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Offline Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Custom LangGraph Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/modify-engine-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify Engine Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/tune-ml-taste-learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tune ML Taste Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Hybrid Scoring Weights
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/handle-human-in-the-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Handle Human-in-the-Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydrate POI Embeddings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/langgraph-swarm-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/ml-feature-tensor-16d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16-D Feature Tensor (PoiEncoder)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/semantic-learning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Learning Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/poi-database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POI Database & Vault Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/frontend-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Frontend Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/websocket-gateway-telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Gateway Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fastapi-gateway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Gateway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/scraper_json_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scraper JSON Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/core-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Combinatorial Core (paladio-core)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architectural Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architectural Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macro System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/langgraph-vs-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm vs Linear Chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/sovereign-ml-and-semantic-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sovereign ML & Dense Semantic RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/continuous-to-discrete-harmonics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Continuous-to-Discrete Harmonics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/resilient-scraping-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resilient Scraping Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/roadmap-and-future-horizons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategic Roadmap & Future Horizons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview &amp; Motivation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-category-taxonomy-settings-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Category Taxonomy &amp; Settings Directory
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Category Taxonomy &amp; Settings Directory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#detailed-card-definitions-backend-persistence-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed Card Definitions &amp; Backend Persistence Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-card-archetype-visual-anatomy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Card Archetype &amp; Visual Anatomy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Card Archetype &amp; Visual Anatomy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visual-token-aesthetic-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visual Token &amp; Aesthetic Translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-backend-implementation-api-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Backend Implementation &amp; API Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Backend Implementation &amp; API Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pydantic-schemas-backendappschemassettingspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pydantic Schemas (backend/app/schemas/settings.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rest-endpoints-backendappapisystempy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        REST Endpoints (backend/app/api/system.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-preferences-model-backendappschemasuserpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Preferences Model (backend/app/schemas/user.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verification-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verification Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Leandro-Juan/Paladio/edit/main/docs/superpowers/specs/2026-11-09-settings-reorganization-and-card-redesign.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="design-specification-settings-categories-reorganization-tactical-card-redesign-backend-persistence">Design Specification: Settings Categories Reorganization, Tactical Card Redesign &amp; Backend Persistence<a class="headerlink" href="#design-specification-settings-categories-reorganization-tactical-card-redesign-backend-persistence" title="Permanent link">&para;</a></h1>
+<p><strong>Date</strong>: 2026-11-09<br />
+<strong>Author</strong>: Antigravity<br />
+<strong>Status</strong>: Specification Complete — Pending User Review Before Implementation<br />
+<strong>Canonical Spec Path</strong>: <code>docs/superpowers/specs/2026-11-09-settings-reorganization-and-card-redesign.md</code>  </p>
+<hr />
+<h2 id="1-overview-motivation">1. Overview &amp; Motivation<a class="headerlink" href="#1-overview-motivation" title="Permanent link">&para;</a></h2>
+<p>The configuration workstation (<code>/config</code>) was recently extracted from a monolithic page into modular subcomponents, but the category taxonomy and card layouts still suffer from structural friction:
+1. <strong>Asymmetric &amp; Fragmented Taxonomy</strong>: <code>Regional &amp; Currency</code> exists as an orphaned single-item category, while <code>Language &amp; Locales</code> is placed under <code>Workspace &amp; Interface</code>. Meanwhile, personal profile settings and administrative user provisioning are mixed together under <code>Governance &amp; Security</code>.
+2. <strong>Missing Travel &amp; Engine Domain Representation</strong>: As a sovereign travel intelligence platform powered by LangGraph multi-agent swarms, deterministic C++20 combinatorial routing, and continuous ML taste learning, settings for solver constraints, map cartography, agent critic behaviors, units of measurement, and data vault backups have had no formal persistence layer or UI home.
+3. <strong>Card Presentation Upgrade</strong>: Settings cards need to transition to a modern, tactile card archetype inspired by the user-provided reference design (clean outer cards, segmented sub-tab pills, nested tactical panels with rounded controls, toggle switches, and 3-dot contextual action menus) fully unified with Paladio's <strong>Pacific Jazz &amp; Japanese Minimalist Tactical</strong> aesthetic.
+4. <strong>Unified Backend Persistence</strong>: Both user-level travel preferences and instance-level system configurations must be persisted cleanly without mock fallbacks:
+   - Personal travel settings (<code>maps</code>, <code>units</code>, <code>solver_preferences</code>) persist to <code>UserModel.preferences</code> (JSONB) via <code>PATCH /users/me</code>.
+   - Instance/admin settings (<code>engine</code>, <code>swarm</code>, <code>vault</code>) persist to <code>SystemConfigModel</code> (<code>system_config</code> table) via typed <code>GET/POST /system/settings/{domain}</code> endpoints with strict Pydantic validation.</p>
+<hr />
+<h2 id="2-category-taxonomy-settings-directory">2. Category Taxonomy &amp; Settings Directory<a class="headerlink" href="#2-category-taxonomy-settings-directory" title="Permanent link">&para;</a></h2>
+<p>The settings architecture is reorganized from scratch into <strong>5 balanced domain pillars</strong> in <code>frontend/src/components/config/settingsData.ts</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                        PALADIO CONFIGURATION WORKSPACE                 │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├──────────────┬──────────────┬──────────────┬─────────────┬─────────────┤
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│ 1. Workspace │ 2. Regional  │ 3. Travel    │ 4. AI &amp;     │ 5. Sovereign│
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│      &amp;       │      &amp;       │ Engine &amp;     │   Swarm     │ System &amp;    │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  Experience  │ Localization │ Optimization │Intelligence │    Admin    │
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│ (experience) │(localization)│   (engine)   │(intelligence│(infrastruct)│
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├──────────────┼──────────────┼──────────────┼─────────────┼─────────────┤
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│ • Profile    │ • Language   │ • Solver     │ • LLM Engine│ • Users [A] │
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│ • Appearance │ • Currency   │ • Transit    │ • Swarm     │ • Updates[A]│
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│ • Typography │ • Units      │ • Deals      │ • Memory    │ • Telemetry │
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│ • Navigation │              │              │             │ • Vault     │
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│ • Maps       │              │              │             │             │
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>└──────────────┴──────────────┴──────────────┴─────────────┴─────────────┘
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>[A] = Requires Administrator Role
+</span></code></pre></div>
+<h3 id="detailed-card-definitions-backend-persistence-mapping">Detailed Card Definitions &amp; Backend Persistence Mapping<a class="headerlink" href="#detailed-card-definitions-backend-persistence-mapping" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Category</th>
+<th style="text-align: left;">Card ID</th>
+<th style="text-align: left;">Title</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Persistence Target</th>
+<th style="text-align: left;">Admin Only</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong><code>experience</code></strong></td>
+<td style="text-align: left;"><code>profile</code></td>
+<td style="text-align: left;">Personal Account</td>
+<td style="text-align: left;">Avatar upload, display name, email, credentials</td>
+<td style="text-align: left;"><code>UserModel</code> via <code>PATCH /users/me</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>appearance</code></td>
+<td style="text-align: left;">Visual Themes</td>
+<td style="text-align: left;">Pacific Jazz theme engine (Light, Slate Dark, Silent Waters)</td>
+<td style="text-align: left;"><code>themeStore</code> + <code>UserModel.preferences</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>typography</code></td>
+<td style="text-align: left;">Interface Typography</td>
+<td style="text-align: left;">Modern Inter vs Classic Jost editorial, JetBrains Mono</td>
+<td style="text-align: left;"><code>typographyStore</code> + <code>UserModel.preferences</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>navigation</code></td>
+<td style="text-align: left;">Navigation Layout</td>
+<td style="text-align: left;">Floating Tactical Dock vs Desktop Sidebar Rail</td>
+<td style="text-align: left;"><code>localStorage</code> + <code>UserModel.preferences</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>maps</code></td>
+<td style="text-align: left;">Cartography &amp; Layers</td>
+<td style="text-align: left;">Default map layer, transit route overlays, home city</td>
+<td style="text-align: left;"><code>UserModel.preferences.map_preferences</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>localization</code></strong></td>
+<td style="text-align: left;"><code>language</code></td>
+<td style="text-align: left;">Display Language</td>
+<td style="text-align: left;">English, Español, 日本語, العربية (RTL), translation audits</td>
+<td style="text-align: left;"><code>UserModel.preferences.preferred_language</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>currency</code></td>
+<td style="text-align: left;">Currency &amp; Conversions</td>
+<td style="text-align: left;">Instance calculation currency, exchange rates, symbols</td>
+<td style="text-align: left;"><code>UserModel.preferences.default_currency</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>units</code></td>
+<td style="text-align: left;">Units &amp; Time Standards</td>
+<td style="text-align: left;">Metric vs Imperial (km/mi, °C/°F), 24h/12h clock, dates</td>
+<td style="text-align: left;"><code>UserModel.preferences.units_preferences</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>engine</code></strong></td>
+<td style="text-align: left;"><code>solver</code></td>
+<td style="text-align: left;">Solver Constraints</td>
+<td style="text-align: left;">Max walking km/day, pacing tempo, meal intervals, fatigue</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='engine'</code> / User override</td>
+<td style="text-align: left;">System/User</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>transit</code></td>
+<td style="text-align: left;">Public Transit &amp; GTFS</td>
+<td style="text-align: left;">Compiled GTFS feeds, Valhalla routing tiles, station sync</td>
+<td style="text-align: left;"><code>TransitCacheModel</code> + GTFS registry</td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>deals</code></td>
+<td style="text-align: left;">Deal Engine &amp; Scraping</td>
+<td style="text-align: left;">Scraper cadence, price alert thresholds, ticket parsing</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='engine'</code></td>
+<td style="text-align: left;">Admin</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>intelligence</code></strong></td>
+<td style="text-align: left;"><code>llm</code></td>
+<td style="text-align: left;">AI &amp; LLM Engine</td>
+<td style="text-align: left;">Multi-provider AI (Gemini, Claude, OpenAI, Groq, Ollama)</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='llm_config'</code></td>
+<td style="text-align: left;">Admin</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>swarm</code></td>
+<td style="text-align: left;">Swarm Agents &amp; Critic</td>
+<td style="text-align: left;">Critic strictness, thinking token budget, approval gates</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='swarm'</code></td>
+<td style="text-align: left;">Admin</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>memory</code></td>
+<td style="text-align: left;">ML Taste Learning &amp; RAG</td>
+<td style="text-align: left;">16-D POI feature tensor weights, continuous taste learning</td>
+<td style="text-align: left;"><code>UserModel.embedding</code> + <code>SemanticLearning</code></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>infrastructure</code></strong></td>
+<td style="text-align: left;"><code>users</code></td>
+<td style="text-align: left;">Authorized Users</td>
+<td style="text-align: left;">Provision user accounts, roles (<code>admin</code>/<code>user</code>), active flags</td>
+<td style="text-align: left;"><code>UserModel</code> via <code>/users/</code></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>updates</code></td>
+<td style="text-align: left;">System Updates</td>
+<td style="text-align: left;">GitHub sync, auto-updater daemon, branch tracking</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='updater_preferences'</code></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>telemetry</code></td>
+<td style="text-align: left;">Container Telemetry</td>
+<td style="text-align: left;">Live health &amp; ports for FastAPI, Timescale, Redis, Valhalla</td>
+<td style="text-align: left;">Live socket / heartbeat endpoints</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><code>vault</code></td>
+<td style="text-align: left;">Data Vault &amp; Backups</td>
+<td style="text-align: left;">Trip JSON/PDF exports, DB snapshot backups, cache purge</td>
+<td style="text-align: left;"><code>SystemConfigModel.key='vault'</code> + export APIs</td>
+<td style="text-align: left;">No</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-card-archetype-visual-anatomy">3. Card Archetype &amp; Visual Anatomy<a class="headerlink" href="#3-card-archetype-visual-anatomy" title="Permanent link">&para;</a></h2>
+<p>The settings cards are unified under a reusable tactical card archetype reflecting the reference mockup:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>┌────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>│  Card Header: Title + Subtitle / Badge             [+ Action] [ ⋮ ]    │
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  Segmented Sub-Tab Switcher: [ Pill 1 (Active) ] [ Pill 2 ] [ Pill 3 ] │
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├────────────────────────────────────────────────────────────────────────┤
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│  ┌──────────────────────────────────────────────────────────────────┐  │
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│  │ Nested Tactical Panel                                            │  │
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  │ Item Header: "Starlink ★ Primary"                           [ ⋮ ] │  │
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│  │                                                                  │  │
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  │ ┌───────────────────────────┐   ┌──────────────────────────────┐ │  │
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│  │ │ 🔍 Dropdown / Selector   ▼│   │ 📅 Context Parameter        ▼│ │  │
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>│  │ └───────────────────────────┘   └──────────────────────────────┘ │  │
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>│  │ ┌──────────────────────────────────────────────────────────────┐ │  │
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>│  │ │ 📍 Meta Indicator / Tag / Route Target                       │ │  │
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│  │ └──────────────────────────────────────────────────────────────┘ │  │
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│  │                                                                  │  │
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│  │ ((•)) Live Status: Connected                        [ Toggle ON ] │  │
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│  └──────────────────────────────────────────────────────────────────┘  │
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>└────────────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<h3 id="visual-token-aesthetic-translation">Visual Token &amp; Aesthetic Translation<a class="headerlink" href="#visual-token-aesthetic-translation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Element</th>
+<th style="text-align: left;">Reference Mockup Feature</th>
+<th style="text-align: left;">Paladio Pacific Jazz &amp; Japanese Tactical Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Outer Card Surface</strong></td>
+<td style="text-align: left;">Clean rounded card container</td>
+<td style="text-align: left;"><code>--color-surface-card</code> (<code>#FAF6F0</code> light, <code>#0D2631</code> dark), <code>border: 1px solid var(--color-border)</code>, <code>border-radius: 18px</code>, <code>padding: 24px</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Header Typography</strong></td>
+<td style="text-align: left;">Sans header with subtle action</td>
+<td style="text-align: left;">Jost 600 (<code>font-family: var(--font-jost)</code>), letter-spacing <code>-0.01em</code>, muted subtitle in Inter 400.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Top Right Action</strong></td>
+<td style="text-align: left;"><code>+ Add provider</code> / secondary button</td>
+<td style="text-align: left;">Clean pill button with <code>+</code> icon, petrol or teal tint, <code>border-radius: 9999px</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Segmented Tabs</strong></td>
+<td style="text-align: left;">Pill toggle bar beneath title</td>
+<td style="text-align: left;">Recessed background capsule (<code>var(--color-bg-main)</code>), inner rounded pill tabs with active elevated shadow, crisp contrast.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Nested Inner Panel</strong></td>
+<td style="text-align: left;">Rounded nested unit</td>
+<td style="text-align: left;">Elevated sub-surface with <code>border-radius: 12px</code>, subtle hairline border (<code>var(--color-border)</code>), concentric with outer 18px radius (<code>18 = 12 + 6</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Input &amp; Selector Pills</strong></td>
+<td style="text-align: left;">Rounded inputs with icons</td>
+<td style="text-align: left;">Dropdown inputs with left glyph, custom chevron down, focus ring in Warm Coral (<code>#C86D51</code>), JetBrains Mono for codes/values.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Tactical Switch</strong></td>
+<td style="text-align: left;">Smooth toggle switch</td>
+<td style="text-align: left;">Accessible switch component using Paladio accent colors (Warm Coral <code>#C86D51</code> or Teal <code>#2A8C82</code>), high contrast pill thumb with spring physics.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Context Menu Popover</strong></td>
+<td style="text-align: left;"><code>...</code> dropdown menu</td>
+<td style="text-align: left;">Floating popover with <code>backdrop-filter: blur(14px)</code>, <code>border-radius: 12px</code>, shadow <code>--shadow-lg</code>, clean icon items, hover highlight, and red danger item.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-backend-implementation-api-design">4. Backend Implementation &amp; API Design<a class="headerlink" href="#4-backend-implementation-api-design" title="Permanent link">&para;</a></h2>
+<h3 id="pydantic-schemas-backendappschemassettingspy">Pydantic Schemas (<code>backend/app/schemas/settings.py</code>)<a class="headerlink" href="#pydantic-schemas-backendappschemassettingspy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>EngineConfigPayload</code>:</li>
+<li><code>default_max_walking_km: float</code> (1.0 to 50.0, default: 12.0)</li>
+<li><code>pacing_tempo: str</code> ("leisurely" | "balanced" | "intense", default: "balanced")</li>
+<li><code>attraction_burnout_limit: int</code> (default: 6)</li>
+<li><code>deal_scraper_cadence_hours: int</code> (default: 24)</li>
+<li><code>price_alert_threshold_pct: float</code> (default: 15.0)</li>
+<li><code>SwarmConfigPayload</code>:</li>
+<li><code>critic_strictness: float</code> (0.0 to 1.0, default: 0.75)</li>
+<li><code>thinking_token_budget: int</code> (default: 2048)</li>
+<li><code>auto_ticket_ingestion: bool</code> (default: true)</li>
+<li><code>require_human_approval_on_repair: bool</code> (default: false)</li>
+<li><code>VaultConfigPayload</code>:</li>
+<li><code>auto_snapshot_enabled: bool</code> (default: true)</li>
+<li><code>snapshot_retention_days: int</code> (default: 30)</li>
+</ul>
+<h3 id="rest-endpoints-backendappapisystempy">REST Endpoints (<code>backend/app/api/system.py</code>)<a class="headerlink" href="#rest-endpoints-backendappapisystempy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>GET /system/settings/{domain}</code>:</li>
+<li>Fetches the validated domain configuration dictionary from <code>SystemConfigModel</code>.</li>
+<li>Allowed domains: <code>engine</code>, <code>swarm</code>, <code>vault</code>.</li>
+<li><code>POST /system/settings/{domain}</code>:</li>
+<li>Validates payload against the domain schema and writes directly to <code>SystemConfigModel(key=domain, value=data)</code>.</li>
+<li>Requires admin role for instance-wide parameters.</li>
+</ul>
+<h3 id="user-preferences-model-backendappschemasuserpy">User Preferences Model (<code>backend/app/schemas/user.py</code>)<a class="headerlink" href="#user-preferences-model-backendappschemasuserpy" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Extends <code>UserPreferences</code> with <code>map_preferences</code>, <code>units_preferences</code>, and <code>user_solver_overrides</code>.</li>
+</ul>
+<hr />
+<h2 id="5-verification-plan">5. Verification Plan<a class="headerlink" href="#5-verification-plan" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Backend Persistence Verification</strong>:</li>
+<li><code>pytest backend/tests/test_settings_service.py backend/tests/test_users.py -q</code></li>
+<li><strong>Frontend Playwright E2E</strong>:</li>
+<li><code>npx playwright test frontend/tests/e2e/theme.spec.ts</code></li>
+<li><code>npx playwright test frontend/tests/e2e/typography.spec.ts</code></li>
+<li><code>npx playwright test frontend/tests/e2e/autoupdater_config.spec.ts</code></li>
+<li><code>npx playwright test frontend/tests/e2e/gtfs_config.spec.ts</code></li>
+<li><strong>Visual &amp; Interactive Inspection</strong>:</li>
+<li>Verify card nesting, concentric radii (<code>18px</code> outer, <code>12px</code> inner), toggle animations, and 3-dot dropdown popovers across Light, Dark, and Silent Waters themes.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+      
+        <script src="../../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../../js/mermaid.js"></script>
+      
+    
+  </body>
+</html>

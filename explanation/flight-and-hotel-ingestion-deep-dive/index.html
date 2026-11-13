@@ -1,0 +1,2492 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+      
+      
+        <meta name="author" content="Leandro Juan">
+      
+      
+        <link rel="canonical" href="https://leandro-juan.github.io/paladio/explanation/flight-and-hotel-ingestion-deep-dive/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Paladio Flight & Hotel Ingestion Pipeline: Comprehensive Technical Deep-Dive - Paladio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#paladio-flight-hotel-ingestion-pipeline-comprehensive-technical-deep-dive" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Paladio" class="md-header__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Paladio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Paladio Flight &amp; Hotel Ingestion Pipeline: Comprehensive Technical Deep-Dive
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/quickstart-docker/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/run-offline-swarm/" class="md-tabs__link">
+          
+  
+  
+  How-To Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/langgraph-swarm-architecture/" class="md-tabs__link">
+          
+  
+  
+  Technical Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architectural Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Paladio" class="md-nav__button md-logo" aria-label="Paladio" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Paladio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Leandro-Juan/Paladio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Leandro-Juan/Paladio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/quickstart-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart with Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Autonomous Swarm Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-To Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-offline-swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Offline Swarm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Custom LangGraph Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/modify-engine-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify Engine Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/tune-ml-taste-learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tune ML Taste Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Hybrid Scoring Weights
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/handle-human-in-the-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Handle Human-in-the-Loop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydrate POI Embeddings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/langgraph-swarm-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ml-feature-tensor-16d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16-D Feature Tensor (PoiEncoder)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/semantic-learning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Learning Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/poi-database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POI Database & Vault Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/frontend-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Frontend Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/websocket-gateway-telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Gateway Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/fastapi-gateway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Gateway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/scraper_json_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scraper JSON Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/core-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Combinatorial Core (paladio-core)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architectural Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architectural Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macro System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../langgraph-vs-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangGraph Swarm vs Linear Chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sovereign-ml-and-semantic-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sovereign ML & Dense Semantic RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../continuous-to-discrete-harmonics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Continuous-to-Discrete Harmonics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resilient-scraping-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resilient Scraping Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap-and-future-horizons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategic Roadmap & Future Horizons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-overview-system-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Overview &amp; System Topology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-triggering-orchestration-subsystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Triggering &amp; Orchestration Subsystem
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Triggering &amp; Orchestration Subsystem">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-daily-scheduled-pipeline-backendapptaskspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Daily Scheduled Pipeline (backend/app/tasks.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-on-demand-rest-api-endpoints-backendappapimarketpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 On-Demand REST API Endpoints (backend/app/api/market.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-corridor-classification-regional-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Corridor Classification &amp; Regional Dispatch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Corridor Classification &amp; Regional Dispatch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-routeclassifier-backendappenginemarketflightsclassifierpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 RouteClassifier (backend/app/engine/market/flights/classifier.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-multi-source-regional-flight-hierarchy-decision-d11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Multi-Source Regional Flight Hierarchy (Decision D11)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-provider-router-resilience-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Provider Router &amp; Resilience Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Provider Router &amp; Resilience Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-telemetry-schema-providerhealthmodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Telemetry Schema (ProviderHealthModel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-circuit-breaker-kill-switches-configpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Circuit Breaker &amp; Kill Switches (config.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-flight-ingestion-pipeline-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Flight Ingestion Pipeline Implementation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Flight Ingestion Pipeline Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-aviasalesprovider-backendappenginemarketprovidersaviasalespy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 AviasalesProvider (backend/app/engine/market/providers/aviasales.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-ryanairprovider-backendappenginemarketprovidersryanairpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 RyanairProvider (backend/app/engine/market/providers/ryanair.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-lodging-ingestion-entity-consolidation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Lodging Ingestion &amp; Entity Consolidation Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Lodging Ingestion &amp; Entity Consolidation Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-openlodgingfeed-lodgingaggregator-backendappenginemarketlodgingaggregatorpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 OpenLodgingFeed &amp; LodgingAggregator (backend/app/engine/market/lodging/aggregator.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-bookingscraperprovider-backendappenginemarketprovidersbooking_scraperpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 BookingScraperProvider (backend/app/engine/market/providers/booking_scraper.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-googletravelhotelsprovider-backendappenginemarketprovidersgoogle_travelpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 GoogleTravelHotelsProvider (backend/app/engine/market/providers/google_travel.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-agodaprovider-tripcomprovider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 AgodaProvider &amp; TripComProvider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-entityresolver-propertyuniversemanager-backendappenginemarketlodging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 EntityResolver &amp; PropertyUniverseManager (backend/app/engine/market/lodging/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-taste-aware-bayesian-lodging-scoring-rankingpyl140-l240" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 Taste-Aware Bayesian Lodging Scoring (ranking.py:L140-L240)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-data-persistence-deduplication-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Data Persistence &amp; Deduplication Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Data Persistence &amp; Deduplication Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-deterministic-content-hashing-ingestpyl25-l38" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Deterministic Content Hashing (ingest.py:L25-L38)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-timescaledb-hypertables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 TimescaleDB Hypertables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-empirical-baselines-horizon-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Empirical Baselines &amp; Horizon Bootstrap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Empirical Baselines &amp; Horizon Bootstrap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-forward-calendar-sweeps-corpuspyl27-l120" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Forward Calendar Sweeps (corpus.py:L27-L120)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-baseline-distribution-computation-baselinespyl140-l280" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Baseline Distribution Computation (baselines.py:L140-L280)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-the-6-stage-deal-detection-verification-funnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. The 6-Stage Deal Detection &amp; Verification Funnel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-critical-failure-analysis-reality-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Critical Failure Analysis &amp; Reality Audit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Critical Failure Analysis &amp; Reality Audit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-real-world-failure-probabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Real-World Failure Probabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-technical-root-causes-of-pipeline-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Technical Root Causes of Pipeline Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-production-rebuild-implemented-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Production Rebuild: Implemented Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Production Rebuild: Implemented Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-aviasales-primary-global-aggregator-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 Aviasales Primary Global Aggregator (Implemented)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-ryanair-direct-carrier-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.2 Ryanair Direct Carrier (Implemented)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-telemetry-observability-circuit-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Telemetry, Observability &amp; Circuit Breaking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Telemetry, Observability &amp; Circuit Breaking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#121-telemetry-endpoints-backendappapimarketpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.1 Telemetry Endpoints (backend/app/api/market.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#122-daily-celery-beat-pipeline-backendapptaskspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.2 Daily Celery Beat Pipeline (backend/app/tasks.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Leandro-Juan/Paladio/edit/main/docs/explanation/flight-and-hotel-ingestion-deep-dive.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="paladio-flight-hotel-ingestion-pipeline-comprehensive-technical-deep-dive">Paladio Flight &amp; Hotel Ingestion Pipeline: Comprehensive Technical Deep-Dive<a class="headerlink" href="#paladio-flight-hotel-ingestion-pipeline-comprehensive-technical-deep-dive" title="Permanent link">&para;</a></h1>
+<p><strong>Authoritative Architecture &amp; Implementation Specification</strong><br />
+<strong>Paladio Autonomous Travel Engine — Market Ingestion &amp; Deal Detection Subsystems</strong></p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-executive-overview--system-topology">Executive Overview &amp; System Topology</a></li>
+<li><a href="#2-triggering--orchestration-subsystem">Triggering &amp; Orchestration Subsystem</a></li>
+<li><a href="#3-corridor-classification--regional-dispatch">Corridor Classification &amp; Regional Dispatch</a></li>
+<li><a href="#4-provider-ladder--circuit-breaker-engine">Provider Ladder &amp; Circuit Breaker Engine</a></li>
+<li><a href="#5-flight-ingestion-pipeline-implementation">Flight Ingestion Pipeline Implementation</a></li>
+<li><a href="#51-aviasalesprovider-backendappenginemarketprovidersaviasalespy">5.1 AviasalesProvider (Primary Global)</a></li>
+<li><a href="#52-ryanairprovider-backendappenginemarketprovidersryanairpy">5.2 RyanairProvider (Europe Direct)</a></li>
+<li><a href="#6-lodging-ingestion--entity-consolidation-pipeline">Lodging Ingestion &amp; Entity Consolidation Pipeline</a></li>
+<li><a href="#61-openlodgingfeed--lodgingaggregator-backendappenginemarketlodgingaggregatorpy">6.1 OpenLodgingFeed &amp; LodgingAggregator</a></li>
+<li><a href="#62-bookingscraperprovider-backendappenginemarketprovidersbooking_scraperpy">6.2 BookingScraperProvider &amp; Headless Playwright</a></li>
+<li><a href="#63-googletravelhotelsprovider-backendappenginemarketprovidersgoogle_travelpy">6.3 GoogleTravelHotelsProvider</a></li>
+<li><a href="#64-agodaprovider--tripcomprovider">6.4 AgodaProvider &amp; TripComProvider</a></li>
+<li><a href="#65-entityresolver--propertyuniversemanager-backendappenginemarketlodging">6.5 EntityResolver &amp; PropertyUniverseManager</a></li>
+<li><a href="#66-taste-aware-bayesian-lodging-scoring-rankingpyl140-l240">6.6 Taste-Aware Bayesian Lodging Scoring</a></li>
+<li><a href="#7-data-persistence--deduplication-engine">Data Persistence &amp; Deduplication Engine</a></li>
+<li><a href="#8-empirical-baselines--horizon-bootstrap">Empirical Baselines &amp; Horizon Bootstrap</a></li>
+<li><a href="#9-the-6-stage-deal-detection--verification-funnel">The 6-Stage Deal Detection &amp; Verification Funnel</a></li>
+<li><a href="#10-critical-failure-analysis--reality-audit">Critical Failure Analysis &amp; Reality Audit</a></li>
+<li><a href="#11-production-rebuild-implemented-architecture">Production Rebuild: Implemented Architecture</a></li>
+<li><a href="#12-telemetry-observability--circuit-breaking">Telemetry, Observability &amp; Circuit Breaking</a></li>
+</ol>
+<hr />
+<h2 id="1-executive-overview-system-topology">1. Executive Overview &amp; System Topology<a class="headerlink" href="#1-executive-overview-system-topology" title="Permanent link">&para;</a></h2>
+<p>The Paladio Market Deal Engine is designed as a continuous, sovereign ingestion pipeline that discovers anomalous travel deals (flights and hotels) across user-monitored corridors without relying on paid commercial SaaS aggregators.</p>
+<p>The pipeline comprises two parallel intake vectors:
+1. <strong>Flight Ingestion Vector</strong>: Gathers scheduled and dynamic flight quotes across intra-Europe, intra-Americas, and intercontinental corridors.
+2. <strong>Lodging Ingestion Vector</strong>: Gathers live hotel, hostel, and apartment availability, night rates, star ratings, and review distributions for destination municipalities.</p>
+<p>These vectors feed into a <strong>TimescaleDB</strong> time-series hypertable (<code>market_price_ticks</code>), aggregate into daily rollups (<code>price_daily</code>), calculate empirical price distributions (<code>route_baselines</code>), and execute a <strong>6-stage detection funnel</strong> to notify users of high-confidence, bookable vacation packages.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                                                 PALADIO INGESTION TOPOLOGY                                                │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│                                                                                                                          │
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   [Celery Beat / API Trigger]                                                                                            │
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│              │                                                                                                           │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│              ▼                                                                                                           │
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   [Corridor Classifier] ────────► Resolves Origin/Dest IATA, Region (Americas/Europe), Timezones, Local Currency         │
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│              │                                                                                                           │
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│              ├──────────────────────────────────────────────────────┬────────────────────────────────────────────────────┤
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│              ▼                                                      ▼                                                    │
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│    [CompositeFlightFeed]                                  [OpenLodgingFeed]                                              │
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│              │                                                      │                                                    │
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ┌──────────┴────────────────────────┐                  ┌──────────┴───────────────────────────────────────┐            │
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   │ Provider Ladder (Router):         │                  │ Lodging Feed Providers:                          │            │
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   │ 1. AviasalesProvider (Primary)    │                  │ 1. BookingScraperProvider (Live Scraper)          │            │
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   │ 2. RyanairProvider (EU Direct)    │                  │ 2. GoogleTravelHotelsProvider (Live HTTP)        │            │
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   └──────────┬────────────────────────┘                  └──────────┬───────────────────────────────────────┘            │
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│              │                                                      │                                                    │
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│              ▼                                                      ▼                                                    │
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│    [Flight Quotes Stream]                                 [EntityResolver &amp; Deduplication]                               │
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│              │                                                      │                                                    │
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│              └──────────────────────────────┬───────────────────────┘                                                    │
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│                                  [Content Hashing SHA-256]                                                               │
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│                                             │                                                                            │
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│                             [TimescaleDB: market_price_ticks]                                                            │
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│                                             │                                                                            │
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│                               [Daily Rollups: price_daily]                                                               │
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│                                             │                                                                            │
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│                           [Quantile Baselines: route_baselines]                                                          │
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>│                                             │                                                                            │
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>│                         [Top-3 Selection, Tolerance Verify &amp; Gates]                                                      │
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>│                                             │                                                                            │
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>│                                             ▼                                                                            │
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>│                         [Trip Proposals &amp; WebSocket Alerts]                                                              │
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<hr />
+<h2 id="2-triggering-orchestration-subsystem">2. Triggering &amp; Orchestration Subsystem<a class="headerlink" href="#2-triggering-orchestration-subsystem" title="Permanent link">&para;</a></h2>
+<p>Ingestion tasks are coordinated through asynchronous Celery workers, a dedicated Celery Beat scheduler, and FastAPI REST endpoints.</p>
+<h3 id="21-daily-scheduled-pipeline-backendapptaskspy">2.1 Daily Scheduled Pipeline (<code>backend/app/tasks.py</code>)<a class="headerlink" href="#21-daily-scheduled-pipeline-backendapptaskspy" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>daily_market_pipeline_task</code></strong> (<code>tasks.py</code>):</li>
+<li><strong>Schedule</strong>: Executes daily at 03:00 UTC via Celery Beat (<code>beat_schedule: crontab(hour=3, minute=0)</code>).</li>
+<li><strong>Concurrency Control</strong>: Protected by a non-blocking Redis distributed lock (<code>paladio:market:daily_chain_lock</code>, TTL 2 hours) ensuring overlapping daily runs are strictly impossible.</li>
+<li>
+<p><strong>Pipeline Chain</strong>:</p>
+<ol>
+<li><strong>Stage 1 (Sweep)</strong>: Calls <code>run_daily_flight_sweep</code>, sweeping all watched alert corridors and pilot routes across the 11-month forward calendar horizon with per-route fault isolation. Records audit rows in <code>market_sweep_runs</code> and <code>route_month_coverage</code>.</li>
+<li><strong>Stage 2 (Baselines)</strong>: Calls <code>compute_route_baselines</code>, recomputing statistical medians, quantiles, and fee models across 6 lead buckets for each route.</li>
+<li><strong>Stage 3 (Detection &amp; Verification &amp; Hotels)</strong>: Calls <code>run_deal_detection_scan</code>, selecting top-3 candidates per user per day with route diversity capping (<code>MAX_PER_ROUTE_PER_SCAN = 2</code>), performing live tolerance verification, and fetching authentic lodging only for verified candidates.</li>
+</ol>
+</li>
+<li>
+<p><strong><code>backfill_route_corpus_task</code></strong> (<code>tasks.py</code>):</p>
+</li>
+<li><strong>Schedule</strong>: On-demand or triggered during initial route setup.</li>
+<li>
+<p><strong>Behavior</strong>: Calls <code>backfill_route_corpus</code>, sweeping forward calendar months up to <code>CORPUS_HORIZON_MONTHS = 11</code> (330 days) to populate authentic market prices and establish route baselines.</p>
+</li>
+<li>
+<p><strong><code>prewarm_route_lodging_task</code></strong> (<code>tasks.py:L2225</code>):</p>
+</li>
+<li><strong>Schedule</strong>: Triggered post-flight backfill.</li>
+<li><strong>Behavior</strong>: Sweeps 4-night lodging stays across representative weekends in the forward horizon to populate baseline lodging costs.</li>
+</ol>
+<h3 id="22-on-demand-rest-api-endpoints-backendappapimarketpy">2.2 On-Demand REST API Endpoints (<code>backend/app/api/market.py</code>)<a class="headerlink" href="#22-on-demand-rest-api-endpoints-backendappapimarketpy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>POST /api/market/routes/{route_id}/scan</code> (<code>market.py:L950</code>): Manually triggers a live scan for a specific route alert.</li>
+<li><code>POST /api/market/routes/{route_id}/backfill</code> (<code>market.py:L1577</code>): Triggers a background Celery task to sweep the 11-month forward calendar corpus.</li>
+<li><code>GET /api/market/routes/{route_id}/lodging</code> (<code>market.py:L1624</code>): Live queries destination lodging options and returns ranked property candidates.</li>
+<li><code>GET /api/market/routes/{route_id}/calendar</code> (<code>market.py:L1944</code>): Returns historical and projected daily minimum fare curves.</li>
+</ul>
+<hr />
+<h2 id="3-corridor-classification-regional-dispatch">3. Corridor Classification &amp; Regional Dispatch<a class="headerlink" href="#3-corridor-classification-regional-dispatch" title="Permanent link">&para;</a></h2>
+<p>Before any network request is issued, Paladio inspects the flight route to ensure regional compliance, select the optimal currency, and assemble the correct provider ladder.</p>
+<h3 id="31-routeclassifier-backendappenginemarketflightsclassifierpy">3.1 RouteClassifier (<code>backend/app/engine/market/flights/classifier.py</code>)<a class="headerlink" href="#31-routeclassifier-backendappenginemarketflightsclassifierpy" title="Permanent link">&para;</a></h3>
+<p>The <code>RouteClassifier</code> inspects origin and destination IATA codes using <code>AirportService</code>:
+- Resolves latitude, longitude, country code, timezone, and continent.
+- Classifies corridors into:
+  - <code>intra_europe</code>: Both airports reside within the European continent.
+  - <code>intra_americas</code>: Both airports reside in North, Central, or South America.
+  - <code>transatlantic</code>: One airport in Europe, one in the Americas.
+  - <code>intercontinental</code>: Cross-continental corridors outside the above buckets.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># classifier.py: Corridor Classification Logic</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">classification</span> <span class="o">=</span> <span class="n">route_classifier</span><span class="o">.</span><span class="n">classify_corridor</span><span class="p">(</span><span class="s2">"JFK"</span><span class="p">,</span> <span class="s2">"LAX"</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Result: is_americas=True, is_europe=False, corridor_region="intra_americas", suggested_currency="USD"</span>
+</span></code></pre></div>
+<h3 id="32-multi-source-regional-flight-hierarchy-decision-d11">3.2 Multi-Source Regional Flight Hierarchy (Decision D11)<a class="headerlink" href="#32-multi-source-regional-flight-hierarchy-decision-d11" title="Permanent link">&para;</a></h3>
+<p><code>CompositeFlightFeed._get_router</code> builds the execution ladder dynamically based on corridor geography:</p>
+<ul>
+<li><strong>Intra-Europe Corridors</strong>:
+  $<span class="arithmatex">\(\text{Ladder} = [\text{AviasalesProvider}, \text{RyanairProvider}]\)</span>$
+  <em>(Aviasales serves as primary multi-month calendar source; Ryanair serves as secondary direct-carrier source).</em></li>
+<li><strong>Americas &amp; Intercontinental Corridors</strong>:
+  $<span class="arithmatex">\(\text{Ladder} = [\text{AviasalesProvider}]\)</span>$
+  <em>(Aviasales provides full global coverage across 11 forward months without web scraping).</em></li>
+</ul>
+<hr />
+<h2 id="4-provider-router-resilience-engine">4. Provider Router &amp; Resilience Engine<a class="headerlink" href="#4-provider-router-resilience-engine" title="Permanent link">&para;</a></h2>
+<p>All provider interactions pass through <code>ProviderRouter</code> (<code>backend/app/engine/market/providers/router.py</code>), which implements circuit breakers, multi-day failure telemetry, and kill switches.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>┌────────────────────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>│                              PROVIDER ROUTER EXECUTION LADDER                          │
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│                                                                                        │
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   Incoming Query: (origin, dest, date)                                                  │
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│         │                                                                              │
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>│         ├─► [Provider Kill Switch Active] ──► SKIP PROVIDER                            │
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>│         │                                                                              │
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>│         ▼                                                                              │
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>│   Fetch Provider Health: provider_health table                                         │
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>│         │                                                                              │
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>│         ├─► [Status == "open_breaker"] ──► Check cooldown (24 hours)                   │
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>│         │                                 ├── Cooldown active   ──► SKIP PROVIDER      │
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>│         │                                 └── Cooldown expired  ──► HALF-OPEN ATTEMPT  │
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>│         │                                                                              │
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>│         ▼                                                                              │
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>│   Execute Provider Method: e.g. fetch_cached_flights()                                 │
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>│         │                                                                              │
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>│         ├── SUCCESS (Observations returned) ──► Reset consecutive failures, status="ok"│
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>│         │                                                                              │
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>│         └── FAILURE / EXCEPTION:                                                       │
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>│               │                                                                        │
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>│               ├─► Record failure in provider_health                                    │
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>│               ├─► Track consecutive_failure_days across dates                          │
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>│               ├─► If consecutive_failure_days &gt;= 2 ──► Raise System Alert              │
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>│               ├─► If consecutive_failures &gt;= 5 ──► Trip breaker: status="open_breaker" │
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>│               └─► Advance to NEXT PROVIDER in ladder                                   │
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>│                                                                                        │
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>│   All Providers Failed ──► Raise NoDataError("No flight data obtainable across ladder")│
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>└────────────────────────────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<h3 id="41-telemetry-schema-providerhealthmodel">4.1 Telemetry Schema (<code>ProviderHealthModel</code>)<a class="headerlink" href="#41-telemetry-schema-providerhealthmodel" title="Permanent link">&para;</a></h3>
+<p>Stored in the PostgreSQL <code>provider_health</code> table:
+- <code>provider</code> (PK): Name of provider (<code>aviasales</code>, <code>ryanair</code>, <code>booking</code>, etc.).
+- <code>asset_type</code> (PK): <code>'flight'</code> or <code>'lodging'</code>.
+- <code>status</code>: <code>'ok'</code>, <code>'degraded'</code>, <code>'blocked'</code>, or <code>'open_breaker'</code>.
+- <code>consecutive_failures</code>: Incremented on each error; resets to <code>0</code> upon success.
+- <code>consecutive_failure_days</code>: Tracks consecutive days of failure; alerts at <span class="arithmatex">\(\ge 2\)</span>.
+- <code>last_coverage</code>: Most recent route-month price coverage fraction.
+- <code>last_ok_at</code>: Timestamp of last successful API response.
+- <code>last_error</code>: Truncated 500-character string of the latest exception.
+- <code>updated_at</code>: Timestamp used to calculate cooldown expiration.</p>
+<h3 id="42-circuit-breaker-kill-switches-configpy">4.2 Circuit Breaker &amp; Kill Switches (<code>config.py</code>)<a class="headerlink" href="#42-circuit-breaker-kill-switches-configpy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>BREAKER_FAILURES = 5</code>: Trips into <code>open_breaker</code> after 5 consecutive errors.</li>
+<li><code>BREAKER_COOLDOWN_HOURS = 24</code>: Open breaker locks out failing providers for 24 hours.</li>
+<li><strong>Kill Switches</strong>: Environment variables allowing instant zero-downtime disabling:</li>
+<li><code>MARKET_ENABLE_SWEEP</code>: Disables daily calendar sweep stage.</li>
+<li><code>MARKET_ENABLE_BASELINES</code>: Disables route statistical baselines rollup.</li>
+<li><code>MARKET_ENABLE_DETECTION</code>: Disables deal detection and notification scan.</li>
+<li><code>MARKET_ENABLE_VERIFICATION</code>: Skips live price re-verification.</li>
+<li><code>MARKET_ENABLE_AVIASALES</code>: Disables Aviasales API queries.</li>
+<li><code>MARKET_ENABLE_RYANAIR</code>: Disables Ryanair API queries.</li>
+<li><code>MARKET_ENABLE_LODGING</code>: Disables hotel queries and downgrades to flight-only.</li>
+</ul>
+<hr />
+<h2 id="5-flight-ingestion-pipeline-implementation">5. Flight Ingestion Pipeline Implementation<a class="headerlink" href="#5-flight-ingestion-pipeline-implementation" title="Permanent link">&para;</a></h2>
+<h3 id="51-aviasalesprovider-backendappenginemarketprovidersaviasalespy">5.1 AviasalesProvider (<code>backend/app/engine/market/providers/aviasales.py</code>)<a class="headerlink" href="#51-aviasalesprovider-backendappenginemarketprovidersaviasalespy" title="Permanent link">&para;</a></h3>
+<p>Primary flight provider backing the entire 11-month forward calendar corpus.
+- <strong>Data Source</strong>: Travelpayouts / Aviasales Data API (<code>https://api.travelpayouts.com/aviasales/v3/prices_for_dates</code>).
+- <strong>Authentication</strong>: Free token passed via <code>x-access-token</code> header (strictly never logged or exposed).
+- <strong>Rate Limiting</strong>: In-memory token bucket enforcing 60 requests per minute (<code>AVIASALES_MAX_RPM = 60</code>).
+- <strong>Resilience</strong>: Exponential backoff on 429/5xx and Redis response caching (<code>paladio:aviasales:raw:...</code>, TTL 24 hours).
+- <strong>Strict Data Truthfulness</strong>:
+  - Validates departure month strictly against requested month window; rejects substituted or drifted dates.
+  - Extracts accurate <code>found_at</code> timestamp from deep-link <code>search_date=DDMMYYYY</code> query parameter.
+  - Never defaults departure/arrival times to midnight if absent (<code>depart_time=None</code> when times are not present in payload).
+  - Flags observations older than 7 days as <code>is_stale=True</code>.
+  - Rejects zero or negative prices and missing currency codes.</p>
+<h3 id="52-ryanairprovider-backendappenginemarketprovidersryanairpy">5.2 RyanairProvider (<code>backend/app/engine/market/providers/ryanair.py</code>)<a class="headerlink" href="#52-ryanairprovider-backendappenginemarketprovidersryanairpy" title="Permanent link">&para;</a></h3>
+<p>Secondary direct-carrier provider for European corridors.
+- Queries Ryanair public REST APIs:
+  - <code>https://www.ryanair.com/api/farfnd/v4/oneWayFares</code>
+  - <code>https://www.ryanair.com/api/farfnd/v4/oneWayFares/{origin}/{dest}/cheapestPerDay</code>
+- Returns verified direct flight quotes with exact carrier flight numbers and flight times.
+- Strictly excluded from non-European routes to prevent predictable 404 responses.</p>
+<hr />
+<hr />
+<h2 id="6-lodging-ingestion-entity-consolidation-pipeline">6. Lodging Ingestion &amp; Entity Consolidation Pipeline<a class="headerlink" href="#6-lodging-ingestion-entity-consolidation-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="61-openlodgingfeed-lodgingaggregator-backendappenginemarketlodgingaggregatorpy">6.1 OpenLodgingFeed &amp; LodgingAggregator (<code>backend/app/engine/market/lodging/aggregator.py</code>)<a class="headerlink" href="#61-openlodgingfeed-lodgingaggregator-backendappenginemarketlodgingaggregatorpy" title="Permanent link">&para;</a></h3>
+<p><code>LodgingAggregator</code> coordinates parallel provider queries, applies entity resolution, and saves verified observations to the database.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌────────────────────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│                              LODGING AGGREGATOR PIPELINE                               │
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>│                                                                                        │
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│   Input: destination_code (IATA / City ID), check_in, check_out, adults                │
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│         │                                                                              │
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│         ▼                                                                              │
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│   Resolve Bounding Box &amp; Universe Size: PropertyUniverseManager                        │
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│         │                                                                              │
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>│         ▼                                                                              │
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>│   Load Enabled Providers: lodging_providers table                                      │
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>│         │                                                                              │
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>│         ▼                                                                              │
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>│   Execute Concurrent Provider Scans (asyncio.gather):                                  │
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>│         ├── BookingScraperProvider                                                     │
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>│         ├── GoogleTravelHotelsProvider                                                 │
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>│         ├── TripComProvider                                                            │
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>│         └── AgodaProvider                                                              │
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>│         │                                                                              │
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>│         ▼                                                                              │
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>│   Normalize Currency: convert_to_eur()                                                 │
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>│         │                                                                              │
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>│         ▼                                                                              │
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>│   Entity Resolution &amp; Deduplication: EntityResolver                                    │
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>│         ├── Cluster by geographic coordinates (lat/lng &lt;= 0.001)                       │
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>│         └── Match by normalized string tokens (Levenshtein similarity &gt;= 0.85)         │
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>│         │                                                                              │
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>│         ▼                                                                              │
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>│   Persist Append-Only Observations: lodging_offers &amp; hotel_rate_observations           │
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>│         │                                                                              │
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>│         ▼                                                                              │
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>│   Taste-Aware Bayesian Ranking: rank_hotels()                                          │
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>│         │                                                                              │
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>│         ▼                                                                              │
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>│   Return Canonical Verified Lodging Quotes                                             │
+</span><span id="__span-3-35"><a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>└────────────────────────────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<hr />
+<h3 id="62-bookingscraperprovider-backendappenginemarketprovidersbooking_scraperpy">6.2 BookingScraperProvider (<code>backend/app/engine/market/providers/booking_scraper.py</code>)<a class="headerlink" href="#62-bookingscraperprovider-backendappenginemarketprovidersbooking_scraperpy" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>HTTP Fast-Path</strong>:</li>
+<li>URL: <code>https://www.booking.com/searchresults.html</code></li>
+<li>Parameters: <code>ss={city}</code>, <code>checkin={date}</code>, <code>checkout={date}</code>, <code>group_adults=2</code>, <code>selected_currency=EUR</code>.</li>
+<li>Parsing: Extracts JSON-LD scripts (<code>&lt;script type="application/ld+json"&gt;</code>). Traverses <code>itemListElement</code> arrays for objects of type <code>Hotel</code>, <code>LodgingBusiness</code>, or <code>Hostel</code>.</li>
+<li>
+<p>Secondary Regex: If JSON-LD is absent, parses HTML cards with <code>data-testid="property-card"</code>.</p>
+</li>
+<li>
+<p><strong>Headless Playwright Escalation</strong>:</p>
+</li>
+<li>If HTTP returns status <code>202</code>, <code>403</code>, <code>429</code>, or header <code>x-amzn-waf-action: challenge</code>, or if 0 quotes are parsed, it escalates to <code>_scrape_with_playwright</code>.</li>
+<li>Subprocess Call:
+     <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>node<span class="w"> </span>backend/app/engine/market/scripts/scrape_booking.js<span class="w"> </span><span class="s2">"{city}"</span><span class="w"> </span><span class="s2">"{checkin}"</span><span class="w"> </span><span class="s2">"{checkout}"</span><span class="w"> </span><span class="s2">"{adults}"</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="s2">"{proxy}"</span>
+</span></code></pre></div></li>
+<li><strong><code>scrape_booking.js</code> Mechanics</strong>:<ul>
+<li>Launches Chromium via Playwright:
+   <div class="language-javascript highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">const</span><span class="w"> </span><span class="nx">browser</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">chromium</span><span class="p">.</span><span class="nx">launch</span><span class="p">({</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nx">headless</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nx">args</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">'--no-sandbox'</span><span class="p">,</span><span class="w"> </span><span class="s1">'--disable-setuid-sandbox'</span><span class="p">,</span><span class="w"> </span><span class="s1">'--disable-dev-shm-usage'</span><span class="p">,</span><span class="w"> </span><span class="s1">'--disable-gpu'</span><span class="p">]</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">});</span>
+</span></code></pre></div></li>
+<li>Navigates to Booking search results with <code>waitUntil: 'domcontentloaded'</code>.</li>
+<li>Scrolls twice by <code>1200px</code> with <code>1500ms</code> delays to trigger lazy card rendering.</li>
+<li>Evaluates <code>[data-testid="property-card"]</code> elements and outputs structured JSON to <code>stdout</code>.</li>
+</ul>
+</li>
+</ol>
+<hr />
+<h3 id="63-googletravelhotelsprovider-backendappenginemarketprovidersgoogle_travelpy">6.3 GoogleTravelHotelsProvider (<code>backend/app/engine/market/providers/google_travel.py</code>)<a class="headerlink" href="#63-googletravelhotelsprovider-backendappenginemarketprovidersgoogle_travelpy" title="Permanent link">&para;</a></h3>
+<ul>
+<li>URL: <code>https://www.google.com/travel/search</code></li>
+<li>Parameters: <code>q=Hotels in {city}</code>, <code>checkin={date}</code>, <code>checkout={date}</code>, <code>hl=en</code>, <code>gl=es</code>.</li>
+<li>Parsing: Uses regex on Google Travel card container classes:
+  <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">card_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="sa">r</span><span class="s2">"&lt;div class=</span><span class="se">\"</span><span class="s2">[^</span><span class="se">\"</span><span class="s2">]*AF5RIe</span><span class="se">\"</span><span class="s2">&gt;([^&lt;]+)&lt;/div&gt;\s*&lt;div class=</span><span class="se">\"</span><span class="s2">[^</span><span class="se">\"</span><span class="s2">]*</span><span class="se">\"</span><span class="s2">&gt;([^&lt;]+)&lt;/div&gt;(.*?)(?=&lt;div class=</span><span class="se">\"</span><span class="s2">[^</span><span class="se">\"</span><span class="s2">]*AF5RIe</span><span class="se">\"</span><span class="s2">|\Z)"</span><span class="p">,</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">,</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">)</span>
+</span></code></pre></div></li>
+<li>Extracts property name, total price, review rating (<code>aria-label="{x} out of 5 stars from {y} reviews"</code>), and star category (<code>(\d)-star hotel</code>).</li>
+</ul>
+<hr />
+<h3 id="64-agodaprovider-tripcomprovider">6.4 AgodaProvider &amp; TripComProvider<a class="headerlink" href="#64-agodaprovider-tripcomprovider" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Agoda</strong> (<code>providers/agoda.py</code>): Hits <code>https://www.agoda.com/search</code> and matches <code>data-selenium="hotel-item"</code>, <code>hotel-name</code>, and <code>display-price</code>.</li>
+<li><strong>Trip.com</strong> (<code>providers/trip_com.py</code>): Hits <code>https://uk.trip.com/hotels/list</code> and matches <code>hotel-name</code> and price tags.</li>
+</ul>
+<hr />
+<h3 id="65-entityresolver-propertyuniversemanager-backendappenginemarketlodging">6.5 EntityResolver &amp; PropertyUniverseManager (<code>backend/app/engine/market/lodging/</code>)<a class="headerlink" href="#65-entityresolver-propertyuniversemanager-backendappenginemarketlodging" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>PropertyUniverseManager</code></strong> (<code>universe.py</code>): Queries OpenStreetMap / City bounding boxes and calculates the total known property count for the municipality to gauge scan completeness.</li>
+<li><strong><code>EntityResolver</code></strong> (<code>resolver.py</code>): Consolidates quotes across Booking, Google, Agoda, and Trip.com:</li>
+<li><strong>Coordinate Proximity</strong>: If both quotes contain GPS coordinates, properties within <strong>50 meters</strong> are merged.</li>
+<li><strong>Normalized Name Matching</strong>: Removes common hotel stopwords (<code>hotel</code>, <code>resort</code>, <code>suites</code>, <code>spa</code>, <code>hostel</code>, <code>inn</code>, <code>the</code>), strips punctuation, and computes token intersection similarity:
+     $<span class="arithmatex">\(\text{Similarity} = \frac{|T_A \cap T_B|}{\max(|T_A|, |T_B|)} \ge 0.85\)</span>$</li>
+</ul>
+<hr />
+<h3 id="66-taste-aware-bayesian-lodging-scoring-rankingpyl140-l240">6.6 Taste-Aware Bayesian Lodging Scoring (<code>ranking.py:L140-L240</code>)<a class="headerlink" href="#66-taste-aware-bayesian-lodging-scoring-rankingpyl140-l240" title="Permanent link">&para;</a></h3>
+<p>Candidate hotels are evaluated using a multi-objective scoring function:</p>
+<ol>
+<li><strong>Bayesian Review Score Smoothing</strong>:
+   Adjusts raw review scores against the global mean to avoid biasing hotels with 1 review at 10.0 over hotels with 5,000 reviews at 9.2:
+   $<span class="arithmatex">\(\bar{R} = \frac{v \cdot R + m \cdot C}{v + m}\)</span>$</li>
+<li><span class="arithmatex">\(v\)</span>: Hotel review count.</li>
+<li><span class="arithmatex">\(R\)</span>: Hotel raw review score (normalized to <span class="arithmatex">\(0..10\)</span>).</li>
+<li><span class="arithmatex">\(m\)</span>: Minimum prior review confidence (<span class="arithmatex">\(m = 50\)</span>).</li>
+<li>
+<p><span class="arithmatex">\(C\)</span>: Prior baseline rating (<span class="arithmatex">\(C = 7.5\)</span>).</p>
+</li>
+<li>
+<p><strong>Weighted Scoring Vector</strong>:
+   $<span class="arithmatex">\(\text{FinalScore} = w_p S_{\text{price}} + w_q S_{\text{quality}} + w_l S_{\text{loc}} + w_t S_{\text{taste}} + w_f S_{\text{flex}} + w_{tr} S_{\text{trust}}\)</span>$</p>
+</li>
+<li><strong>Price</strong> (<span class="arithmatex">\(w_p = 0.30\)</span>): Relative savings compared to destination median.</li>
+<li><strong>Quality</strong> (<span class="arithmatex">\(w_q = 0.25\)</span>): Smoothed Bayesian review score and star rating.</li>
+<li><strong>Location</strong> (<span class="arithmatex">\(w_l = 0.20\)</span>): Distance penalty from historic city center (decay beyond 12km).</li>
+<li><strong>Taste</strong> (<span class="arithmatex">\(w_t = 0.15\)</span>): Cosine match against user profile tags (boutique, luxury, budget, central).</li>
+<li><strong>Flexibility</strong> (<span class="arithmatex">\(w_f = 0.05\)</span>): Free cancellation / pay-at-stay bonus.</li>
+<li><strong>Trust</strong> (<span class="arithmatex">\(w_{tr} = 0.05\)</span>): Number of independent providers quoting the same property.</li>
+</ol>
+<hr />
+<h2 id="7-data-persistence-deduplication-engine">7. Data Persistence &amp; Deduplication Engine<a class="headerlink" href="#7-data-persistence-deduplication-engine" title="Permanent link">&para;</a></h2>
+<p>Raw quotes from flights and hotels are written to PostgreSQL / TimescaleDB via <code>backend/app/engine/market/ingest.py</code>.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>┌────────────────────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>│                              PERSISTENCE &amp; DEDUPLICATION                               │
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>│                                                                                        │
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>│   Flight / Lodging Quote                                                               │
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>│         │                                                                              │
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>│         ▼                                                                              │
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>│   Compute Content Hash: compute_content_hash()                                         │
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>│   SHA-256(asset_type : origin : dest : depart : return : price_cents : source)         │
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>│         │                                                                              │
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>│         ▼                                                                              │
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>│   INSERT INTO market_price_ticks                                                       │
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>│   ON CONFLICT (content_hash, observed_at) DO NOTHING                                   │
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>│         │                                                                              │
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>│         ▼                                                                              │
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>│   INSERT INTO price_daily                                                              │
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>│   ON CONFLICT (bucket, asset_type, origin, dest, depart_date, nights, source, currency)    │
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>│   DO UPDATE SET                                                                        │
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>│       min_base = LEAST(price_daily.min_base, EXCLUDED.min_base),                       │
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>│       n_ticks  = price_daily.n_ticks + 1                                               │
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>└────────────────────────────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<h3 id="71-deterministic-content-hashing-ingestpyl25-l38">7.1 Deterministic Content Hashing (<code>ingest.py:L25-L38</code>)<a class="headerlink" href="#71-deterministic-content-hashing-ingestpyl25-l38" title="Permanent link">&para;</a></h3>
+<p>Prevents duplicate row explosion across recurring 15-minute scans:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_content_hash</span><span class="p">(</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">asset_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">origin_iata</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">dest_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">depart_date</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">return_date</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">base_price_cents</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="n">source_observed_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">key_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">asset_type</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">origin_iata</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">dest_code</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">depart_date</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">return_date</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">base_price_cents</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">"</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="k">if</span> <span class="n">source_observed_at</span><span class="p">:</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>        <span class="n">key_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">":</span><span class="si">{</span><span class="n">source_observed_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">key_str</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+</span></code></pre></div></p>
+<h3 id="72-timescaledb-hypertables">7.2 TimescaleDB Hypertables<a class="headerlink" href="#72-timescaledb-hypertables" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>market_price_ticks</code></strong>: Raw time-series partitioned on <code>observed_at</code>. Indexed on <code>(asset_type, origin_iata, destination_code, depart_date, observed_at DESC)</code>.</li>
+<li><strong><code>price_daily</code></strong>: Daily summary table storing <code>min_base</code> (lowest observed fare for that travel window) and <code>n_ticks</code> (frequency count).</li>
+</ul>
+<hr />
+<h2 id="8-empirical-baselines-horizon-bootstrap">8. Empirical Baselines &amp; Horizon Bootstrap<a class="headerlink" href="#8-empirical-baselines-horizon-bootstrap" title="Permanent link">&para;</a></h2>
+<p>A deal cannot be evaluated without knowing the normal market price. Paladio enforces an empirical baseline policy: <strong>synthetic prices and hardcoded averages are strictly prohibited</strong>.</p>
+<h3 id="81-forward-calendar-sweeps-corpuspyl27-l120">8.1 Forward Calendar Sweeps (<code>corpus.py:L27-L120</code>)<a class="headerlink" href="#81-forward-calendar-sweeps-corpuspyl27-l120" title="Permanent link">&para;</a></h3>
+<p>When a route is monitored:
+1. <code>backfill_route_corpus</code> sweeps the forward calendar horizon (up to 11 months).
+2. It queries daily lowest fares across seasons, days of the week, and lead times.
+3. Ingests all quotes into <code>market_price_ticks</code> and <code>price_daily</code>.
+4. Immediately computes the baseline model.</p>
+<h3 id="82-baseline-distribution-computation-baselinespyl140-l280">8.2 Baseline Distribution Computation (<code>baselines.py:L140-L280</code>)<a class="headerlink" href="#82-baseline-distribution-computation-baselinespyl140-l280" title="Permanent link">&para;</a></h3>
+<p>Calculates empirical quantiles for each route corridor:
+- <strong>6 Lead Time Buckets</strong>: <code>0..3 days</code>, <code>4..14 days</code>, <code>15..30 days</code>, <code>31..60 days</code>, <code>61..90 days</code>, <code>91..330 days</code>.
+- <strong>Quantiles Calculated</strong>: <span class="arithmatex">\(P_{02}, P_{05}, P_{10}, P_{25}, P_{50}, P_{75}, P_{90}\)</span>.
+- <strong>Statistical Significance Requirements &amp; Confidence Tiers</strong>:
+  - <code>HIGH</code>: <span class="arithmatex">\(\ge 30\)</span> observations spanning <span class="arithmatex">\(\ge 60\)</span> days.
+  - <code>MEDIUM</code>: <span class="arithmatex">\(\ge 15\)</span> observations spanning <span class="arithmatex">\(\ge 30\)</span> days.
+  - <code>LOW</code>: <span class="arithmatex">\(\ge 7\)</span> observations spanning <span class="arithmatex">\(\ge 14\)</span> days.
+  - <code>INSUFFICIENT</code>: <span class="arithmatex">\(&lt; 7\)</span> observations. Statistical gate rejects deals if baseline confidence is insufficient.
+- <strong>Graceful Empirical Fallback Hierarchy</strong>:
+  1. <code>full</code>: Matched exact corridor <code>(origin, dest)</code>, exact departure month, and lead bucket.
+  2. <code>drop_lead</code>: Pooled across all lead buckets for that departure month <code>(origin, dest, month, all_lead)</code>.
+  3. <code>drop_month</code>: Pooled across all departure months for that lead bucket <code>(origin, dest, all_months, bucket)</code>.
+  4. <code>route_global</code>: Pooled across the entire observed historical route corpus <code>(origin, dest, all_months, all_lead)</code>.</p>
+<hr />
+<h2 id="9-the-6-stage-deal-detection-verification-funnel">9. The 6-Stage Deal Detection &amp; Verification Funnel<a class="headerlink" href="#9-the-6-stage-deal-detection-verification-funnel" title="Permanent link">&para;</a></h2>
+<p>Every tick entering the system is evaluated through a 6-stage funnel in <code>backend/app/engine/market/detector.py</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>┌────────────────────────────────────────────────────────────────────────────────────────┐
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>│                              THE 6-STAGE DETECTION FUNNEL                              │
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>├────────────────────────┬───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>│ Stage 1: Statistical   │ PackageRatio &lt;= R_MAX (0.75) AND Savings &gt;= 30.00 EUR         │
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>│          Detection     │ Evaluates candidate fare against empirical median baseline    │
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>├────────────────────────┼───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>│ Stage 2: Feasibility   │ Flight times outside Dead Window (00:00 - 05:00)              │
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>│          Gate          │ Arrival buffer &gt;= 120m, Departure buffer &gt;= 180m, Stay &gt;= 36h │
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>├────────────────────────┼───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>│ Stage 3: Bookability   │ Live re-verification of flight quote via verify_flight()      │
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>│          Gate          │ Price within 5% tolerance of original observation             │
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>├────────────────────────┼───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>│ Stage 4: Affordability │ Total landed price (flight + lodging + baggage) &lt;= max_budget │
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>│          Gate          │ Net package savings &gt;= 30.00 EUR                              │
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>├────────────────────────┼───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>│ Stage 5: Quality Gate  │ Destination lodging quality score &gt;= 70.0                     │
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>│                        │ Verified review rating, safe central location                 │
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>├────────────────────────┼───────────────────────────────────────────────────────────────┤
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>│ Stage 6: Itinerary     │ Paladio C++ Core solver successfully synthesizes full schedule│
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>│          Gate          │ Realism score &gt;= 8.0/10 via itinerary quality metrics         │
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>└────────────────────────┴───────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<ol>
+<li><strong>Stage 1 (Statistical Detection &amp; Top-3 Candidate Ranking)</strong>:</li>
+<li>Evaluates candidate fare against empirical median baseline:
+     $<span class="arithmatex">\(\text{PackageRatio} = \frac{\text{FlightPrice} + \text{ReturnFlightPrice} + (\text{LodgingPricePerNight} \times \text{Nights})}{\text{BaselineMedianTotal}}\)</span>$
+     Must satisfy <span class="arithmatex">\(\text{PackageRatio} \le 0.75\)</span> and absolute savings <span class="arithmatex">\(\ge 30.00 \text{ EUR}\)</span>.</li>
+<li>
+<p><strong>Candidate Scoring &amp; Top-3 Filter</strong> (<code>score_deal_candidate</code>):
+     Candidates are ranked deterministically by discount depth, absolute euro savings, lead time realism, and non-stop preference:
+     $<span class="arithmatex">\(\text{Score} = (1.0 - \text{price\_ratio}) \times 100.0 + \min(50.0, \frac{\text{savings\_cents}}{1000}) - (\text{stops} \times 10.0)\)</span>$
+     Only the top 3 scored candidates per alert advance to live verification, preventing rate limit depletion.</p>
+</li>
+<li>
+<p><strong>Stage 2 (Feasibility Gate)</strong>:
+   Rejects inconvenient flights: arrivals between 00:00 and 05:00 local time, ground stays under 36 hours, or layovers shorter than airport transfer thresholds.</p>
+</li>
+<li>
+<p><strong>Stage 3 (Bookability &amp; Live Verification Gate - <code>verifier.py</code>)</strong>:
+   Re-queries the provider live for the exact departure date (<code>verify_flight</code>).</p>
+</li>
+<li>If the fare has vanished or increased by more than 5% (<code>VERIFY_TOLERANCE = 0.05</code>), the candidate is immediately discarded.</li>
+<li>Price drift is recorded: <span class="arithmatex">\(\text{drift} = \frac{P_{\text{verified}} - P_{\text{observed}}}{P_{\text{observed}}}\)</span>.</li>
+<li>
+<p>Zero-synthetic invariant: Never fabulates prices or flight numbers during verification.</p>
+</li>
+<li>
+<p><strong>Stage 4 (Affordability Gate)</strong>:
+   Validates total landed cost:
+   $<span class="arithmatex">\(\text{LandedTotal} = (\text{FlightPrice} \times \text{Travelers}) + \text{TotalLodging} + \text{BaggageBudget}\)</span>$
+   Must not exceed the user's hard budget limit (<code>alert.max_budget_cents</code>).</p>
+</li>
+<li>
+<p><strong>Stage 5 (Quality &amp; Lodging Gate)</strong>:
+   Evaluates authentic destination lodging via <code>SovereignLodgingScorer</code>.</p>
+</li>
+<li>Requires real observed property data or conservative tier-based estimate without synthetic placeholders.</li>
+<li>
+<p>The composite Bayesian score must meet or exceed <span class="arithmatex">\(70.0 / 100\)</span>.</p>
+</li>
+<li>
+<p><strong>Stage 6 (Itinerary Gate)</strong>:
+   Passes destination POIs and flight arrival/departure times into the <strong>Paladio C++ Core optimization solver</strong> (<code>paladio_core</code>). The solver must construct a feasible TSPTW itinerary with a realism score <span class="arithmatex">\(\ge 8.0 / 10.0\)</span>.</p>
+</li>
+</ol>
+<p>If all 6 gates pass, the deal is saved to <code>DealCandidateModel</code>, linked to <code>DealEventModel</code>, and broadcast to the user via WebSockets.</p>
+<hr />
+<h2 id="10-critical-failure-analysis-reality-audit">10. Critical Failure Analysis &amp; Reality Audit<a class="headerlink" href="#10-critical-failure-analysis-reality-audit" title="Permanent link">&para;</a></h2>
+<h3 id="101-real-world-failure-probabilities">10.1 Real-World Failure Probabilities<a class="headerlink" href="#101-real-world-failure-probabilities" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Component / Flow</th>
+<th style="text-align: left;">Primary Mechanism</th>
+<th style="text-align: center;">Real Failure Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Europe Flights (Ryanair direct)</strong></td>
+<td style="text-align: left;">Direct REST JSON API</td>
+<td style="text-align: center;"><strong>30% – 50%</strong> <em>(Akamai TLS blocks)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Americas / Transatlantic Flights</strong></td>
+<td style="text-align: left;">Google Flights / Kiwi raw HTTP GET</td>
+<td style="text-align: center;"><strong>90% – 100%</strong> <em>(SPA, no SSR data)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>11-Month Horizon Sweeps</strong></td>
+<td style="text-align: left;">Burst of 25–30 rapid requests per route</td>
+<td style="text-align: center;"><strong>95% – 100%</strong> <em>(IP rate-limiting)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Lodging Ingestion (Booking)</strong></td>
+<td style="text-align: left;">AWS WAF blocks vanilla Playwright</td>
+<td style="text-align: center;"><strong>85% – 95%</strong> <em>(CAPTCHA / puzzle)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Lodging Ingestion (Google/Agoda)</strong></td>
+<td style="text-align: left;">Hashed CSS classes &amp; client-side SPAs</td>
+<td style="text-align: center;"><strong>95% – 100%</strong> <em>(Zero parsed cards)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Continuous Operation (&gt;2 Hours)</strong></td>
+<td style="text-align: left;">Circuit breaker lockout cascade</td>
+<td style="text-align: center;"><strong>100%</strong> <em>(All breakers open)</em></td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-technical-root-causes-of-pipeline-failures">10.2 Technical Root Causes of Pipeline Failures<a class="headerlink" href="#102-technical-root-causes-of-pipeline-failures" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>The SPA &amp; Dynamic Rendering Illusion</strong>:</li>
+<li><code>GoogleFlightsProvider</code>, <code>KiwiFlightProvider</code>, <code>TripComFlightProvider</code>, <code>AgodaProvider</code>, and <code>GoogleTravelHotelsProvider</code> issue raw <code>httpx.get</code> requests.</li>
+<li>These platforms are modern dynamic Single-Page Applications built on React, Next.js, and Google Boq. The initial HTML payload returned to <code>httpx</code> does <strong>not</strong> contain flight or hotel cards. Cards are populated via client-side JavaScript batch RPCs.</li>
+<li>
+<p>Regex patterns searching for <code>aria-label</code> or <code>data-selenium="hotel-item"</code> find 0 matches on the raw HTML shell.</p>
+</li>
+<li>
+<p><strong>The Fallback Schedule Fabricator</strong>:</p>
+</li>
+<li>In <code>KiwiFlightProvider</code> and <code>TripComFlightProvider</code>, when parsing yields 0 structured quotes, the fallback regex extracts arbitrary numbers and airline names from footers or scripts.</li>
+<li>
+<p>It synthesizes departure times by adding <code>idx * 2</code> hours to 10:00 AM. This generates <strong>hallucinated, non-existent flights</strong> that pass downstream filters but fail live booking verification.</p>
+</li>
+<li>
+<p><strong>Vanilla Playwright Detection in <code>scrape_booking.js</code></strong>:</p>
+</li>
+<li><code>scrape_booking.js</code> launches vanilla Chromium without anti-detect patches (<code>playwright-stealth</code>).</li>
+<li>
+<p>Enterprise bot mitigations (AWS WAF, Kasada, PerimeterX) instantly flag the process via <code>navigator.webdriver === true</code>, missing audio codecs, and CDP signatures, serving a puzzle challenge that causes the script to time out after 30 seconds.</p>
+</li>
+<li>
+<p><strong>Resource Exhaustion &amp; Kernel OOM Crashes</strong>:</p>
+</li>
+<li>Spawning Node.js + Chromium subprocesses for lodging searches consumes 300–500MB of RAM and 1 CPU core per search.</li>
+<li>
+<p>Concurrent scans in Celery rapidly exhaust memory on typical self-hosted VPS instances (2GB–4GB RAM), causing the Linux kernel <code>oom-killer</code> to terminate PostgreSQL, Redis, or Celery.</p>
+</li>
+<li>
+<p><strong>Unhandled Exception in Deal Detection Funnel</strong>:</p>
+</li>
+<li>In <a href="file:///home/leandro/Code/Projects/Paladio/backend/app/engine/market/detector.py#L137"><code>detector.py</code> Line 137</a>, <code>fetch_destination_summary</code> is called without a <code>try...except NoDataError</code> wrapper.</li>
+<li>When lodging providers fail, <code>NoDataError</code> propagates uncaught, crashing the entire detection scan and aborting checks for all other active alerts.</li>
+</ol>
+<hr />
+<h2 id="11-production-rebuild-implemented-architecture">11. Production Rebuild: Implemented Architecture<a class="headerlink" href="#11-production-rebuild-implemented-architecture" title="Permanent link">&para;</a></h2>
+<p>As executed in the Deal Engine Rebuild (<code>PLAN.md</code>), the fragile HTML scraper architecture was replaced with an authentic, REST-first ingestion and verification pipeline:</p>
+<h3 id="111-aviasales-primary-global-aggregator-implemented">11.1 Aviasales Primary Global Aggregator (Implemented)<a class="headerlink" href="#111-aviasales-primary-global-aggregator-implemented" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>API</strong>: Travelpayouts / Aviasales Data API v2 (<code>https://api.travelpayouts.com/v2/prices/month-matrix</code>).</li>
+<li><strong>Authentication</strong>: Token passed securely via <code>x-access-token</code> header (sourced from <code>.env</code>).</li>
+<li><strong>Coverage</strong>: Global coverage across Europe, Americas, Asia, and Transatlantic corridors.</li>
+<li><strong>Resilience</strong>: Exponential backoff (<code>429</code> / <code>5xx</code> retry), strict JSON validation (<code>ParseDriftError</code>), and zero-synthetic parsing (never invents depart times, flight numbers, or stops).</li>
+</ul>
+<h3 id="112-ryanair-direct-carrier-implemented">11.2 Ryanair Direct Carrier (Implemented)<a class="headerlink" href="#112-ryanair-direct-carrier-implemented" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>API</strong>: Direct carrier JSON API (<code>https://www.ryanair.com/api/farfnd/v4/oneWayFares</code>).</li>
+<li><strong>Role</strong>: High-fidelity intra-European pricing directly from source of truth without intermediary markups.</li>
+</ul>
+<hr />
+<h2 id="12-telemetry-observability-circuit-breaking">12. Telemetry, Observability &amp; Circuit Breaking<a class="headerlink" href="#12-telemetry-observability-circuit-breaking" title="Permanent link">&para;</a></h2>
+<h3 id="121-telemetry-endpoints-backendappapimarketpy">12.1 Telemetry Endpoints (<code>backend/app/api/market.py</code>)<a class="headerlink" href="#121-telemetry-endpoints-backendappapimarketpy" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>GET /api/market/telemetry/daily-report</code></strong>:</li>
+<li><code>calls_vs_limit</code>: Live calls made today vs tier daily budget and consumption ratio.</li>
+<li><code>provider_stats</code>: Success rate, status, consecutive failures, consecutive failure days, last coverage %.</li>
+<li><code>route_month_coverage</code>: Percentage of monitored route-departure months covered by observed ticks.</li>
+<li><code>freshness_histogram</code>: Tick age distribution (<code>&lt;1d</code>, <code>1-3d</code>, <code>3-7d</code>, <code>&gt;7d</code>).</li>
+<li><code>stale_rows_count</code>: Observations older than <code>MARKET_MAX_OBSERVATION_AGE_DAYS</code> (7 days).</li>
+<li>
+<p><code>verified_deals_drift</code>: Statistics on price drift across live verified deals (mean, median, max drift).</p>
+</li>
+<li>
+<p><strong><code>GET /api/market/providers/health</code></strong>:</p>
+</li>
+<li>Detailed health metrics for each provider including <code>consecutive_failure_days</code>, <code>last_coverage</code>, <code>last_run_id</code>, and circuit breaker state.</li>
+</ol>
+<h3 id="122-daily-celery-beat-pipeline-backendapptaskspy">12.2 Daily Celery Beat Pipeline (<code>backend/app/tasks.py</code>)<a class="headerlink" href="#122-daily-celery-beat-pipeline-backendapptaskspy" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Runs daily at <strong>03:00 UTC</strong> via Celery Beat (<code>"daily-market-pipeline"</code>).</li>
+<li>Protected by a Redis distributed lock (<code>paladio:market:daily_chain_lock</code>, TTL 7200s, <code>blocking=False</code>) to strictly forbid concurrent runs.</li>
+<li>Sequential stages executed in fault-isolated database sessions:</li>
+<li><code>daily_flight_sweep_task</code> (sweeps 11-month horizon for all active monitored corridors).</li>
+<li><code>daily_baseline_compute_task</code> (computes empirical quantiles across 6 lead time buckets).</li>
+<li><code>daily_deal_detection_task</code> (runs 6-stage detection, scores candidates, verifies top 3 live).</li>
+<li>Supported by runtime kill switches: <code>ENABLE_SWEEP</code>, <code>ENABLE_BASELINES</code>, <code>ENABLE_DETECTION</code>, <code>ENABLE_VERIFICATION</code>, <code>ENABLE_AVIASALES</code>, <code>ENABLE_RYANAIR</code>, <code>ENABLE_LODGING</code>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+      
+        <script src="../../js/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../../js/mermaid.js"></script>
+      
+    
+  </body>
+</html>
