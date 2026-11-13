@@ -449,6 +449,29 @@ class TripAgentRunner:
                     message=user_msg,
                     code="RATE_LIMIT_EXCEEDED",
                 )
+            elif (
+                "403" in err_str
+                or "access denied" in err_lower
+                or "network settings" in err_lower
+                or "forbidden" in err_lower
+            ):
+                yield AgentServerEvent(
+                    event="error",
+                    turn_id=turn_id,
+                    message=err_str,
+                    code="ACCESS_DENIED",
+                )
+            elif (
+                "401" in err_str
+                or "unauthorized" in err_lower
+                or "invalid api key" in err_lower
+            ):
+                yield AgentServerEvent(
+                    event="error",
+                    turn_id=turn_id,
+                    message=err_str,
+                    code="AUTH_FAILED",
+                )
             else:
                 yield AgentServerEvent(
                     event="error",

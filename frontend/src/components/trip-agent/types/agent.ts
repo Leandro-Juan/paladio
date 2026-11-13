@@ -74,6 +74,27 @@ export interface ProposalItem {
   created_at: number;
 }
 
+export type AgentErrorCategory =
+  | 'access_denied'
+  | 'rate_limit'
+  | 'auth_failure'
+  | 'context_overflow'
+  | 'connection_error'
+  | 'internal';
+
+export interface AgentErrorInfo {
+  category: AgentErrorCategory;
+  title: string;
+  description: string;
+  statusCode?: number;
+  modelName?: string;
+  code?: string;
+  rawMessage?: string;
+  suggestedFix?: string;
+  canRetry?: boolean;
+  canSwitchModel?: boolean;
+}
+
 export interface AgentChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -82,6 +103,7 @@ export interface AgentChatMessage {
   toolCalls?: ToolCallItem[];
   proposal?: ProposalItem;
   isStreaming?: boolean;
+  error?: AgentErrorInfo;
 }
 
 export interface WorkspaceContextData {

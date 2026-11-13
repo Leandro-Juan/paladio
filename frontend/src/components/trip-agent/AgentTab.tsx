@@ -190,6 +190,8 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
           onRejectProposal={rejectProposal}
           onAddPoi={handleAddPoiFromChat}
           onInspectPoi={onInspectPoi}
+          onSwitchModel={() => setIsSwitcherOpen(true)}
+          onRetryTurn={(prompt) => sendMessage(prompt)}
         />
       </div>
 

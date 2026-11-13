@@ -234,6 +234,8 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             onApproveProposal={approveProposal}
             onRejectProposal={rejectProposal}
             onAddPoi={handleAddPoiFromChat}
+            onSwitchModel={() => setIsSwitcherOpen(true)}
+            onRetryTurn={(prompt) => sendMessage(prompt)}
           />
 
           {/* Composer */}

@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AgentChatMessage, ToolCallItem } from './types/agent';
 import { ProposalCard } from './ProposalCard';
 import { AgentPoiCards, AgentPoiItem } from './AgentPoiCards';
+import { AgentErrorCard } from './AgentErrorCard';
+import { parseAgentError } from './errorParser';
 import styles from './AgentDock.module.css';
 
 interface AgentMessageListProps {
@@ -12,6 +14,8 @@ interface AgentMessageListProps {
   onRejectProposal: (proposalId: string) => void;
   onAddPoi?: (poi: AgentPoiItem) => void;
   onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
+  onSwitchModel?: () => void;
+  onRetryTurn?: (userPrompt: string) => void;
 }
 
 /**
@@ -425,6 +429,8 @@ export function AgentMessageList({
   onRejectProposal,
   onAddPoi,
   onInspectPoi,
+  onSwitchModel,
+  onRetryTurn,
 }: AgentMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -454,7 +460,7 @@ export function AgentMessageList({
 
   return (
     <div className={styles.messageListContainer} ref={scrollRef}>
-      {messages.map((msg) => {
+      {messages.map((msg, index) => {
         const isAssistant = msg.role === 'assistant';
         const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const discovered = isAssistant ? extractPoisFromMessage(msg) : { pois: [] };
@@ -467,13 +473,32 @@ export function AgentMessageList({
           ? getToolActionDescription(activeTool.tool, activeTool.args)
           : 'Thinking...';
 
+        // Check for structured error or legacy raw error text
+        const isRawError =
+          isAssistant &&
+          (msg.content.startsWith('⚠️') ||
+            msg.content.includes('status_code: 403') ||
+            msg.content.includes('Access denied. Please check your network settings.'));
+        const effectiveError = msg.error || (isRawError ? parseAgentError(msg.content) : undefined);
+        const displayContent = isRawError ? '' : msg.content;
+
+        // Find the last user message prompt preceding this message for 1-click retry
+        const priorUserPrompt = messages
+          .slice(0, index)
+          .findLast((m) => m.role === 'user')?.content ||
+          messages.findLast((m) => m.role === 'user')?.content;
+
+        const handleRetry = onRetryTurn && priorUserPrompt
+          ? () => onRetryTurn(priorUserPrompt)
+          : undefined;
+
         return (
           <div
             key={msg.id}
             className={`${styles.messageBubble} ${isAssistant ? styles.assistantMessage : styles.userMessage}`}
           >
             {/* Thinking State: Dynamic text describing what the model is currently executing */}
-            {isAssistant && msg.isStreaming && !msg.content ? (
+            {isAssistant && msg.isStreaming && !msg.content && !effectiveError ? (
               <div className={styles.thinkingIndicator}>
                 <div className={styles.thinkingDots}>
                   <span className={styles.dot} />
@@ -490,16 +515,29 @@ export function AgentMessageList({
                 )}
 
                 {/* Content with interactive POI highlighting */}
-                <div style={{ wordBreak: 'break-word' }}>
-                  {renderMarkdownContent(msg.content, discovered.pois, onInspectPoi)}
-                  {msg.isStreaming && <span className={styles.cursor} />}
-                  {!msg.isStreaming &&
-                    !msg.content &&
-                    (!msg.toolCalls || msg.toolCalls.length === 0) &&
-                    !msg.proposal && (
-                      <span style={{ fontStyle: 'italic', opacity: 0.6 }}>No response generated.</span>
-                    )}
-                </div>
+                {displayContent && (
+                  <div style={{ wordBreak: 'break-word' }}>
+                    {renderMarkdownContent(displayContent, discovered.pois, onInspectPoi)}
+                    {msg.isStreaming && <span className={styles.cursor} />}
+                  </div>
+                )}
+
+                {/* Structured Visual Error Card (strictly no emojis) */}
+                {effectiveError && (
+                  <AgentErrorCard
+                    error={effectiveError}
+                    onSwitchModel={onSwitchModel}
+                    onRetry={handleRetry}
+                  />
+                )}
+
+                {!msg.isStreaming &&
+                  !displayContent &&
+                  !effectiveError &&
+                  (!msg.toolCalls || msg.toolCalls.length === 0) &&
+                  !msg.proposal && (
+                    <span style={{ fontStyle: 'italic', opacity: 0.6 }}>No response generated.</span>
+                  )}
 
                 {/* Discovered POIs Interactive Deck */}
                 {discovered.pois.length > 0 && (

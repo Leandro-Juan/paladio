@@ -9,6 +9,7 @@ import {
   ToolCallItem,
   WorkspaceContextData,
 } from './types/agent';
+import { parseAgentError } from './errorParser';
 import { notify } from '@/utils/notify';
 import { getAuthToken, getWsBaseUrl } from '@/utils/api';
 
@@ -233,9 +234,21 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
 
         case 'error': {
           setIsWorking(false);
-          notify.error('Trip Agent Error', ev.message || 'Operation failed');
+          const parsedError = parseAgentError(ev.message, ev.code);
+          notify.error(parsedError.title, parsedError.description);
           setMessages((prev) => {
-            if (prev.length === 0) return prev;
+            if (prev.length === 0) {
+              return [
+                {
+                  id: ev.turn_id || `err_${Date.now()}`,
+                  role: 'assistant',
+                  content: '',
+                  timestamp: Date.now(),
+                  error: parsedError,
+                  isStreaming: false,
+                },
+              ];
+            }
             const targetIdx = ev.turn_id
               ? prev.findLastIndex((m) => m.id === ev.turn_id)
               : prev.findLastIndex((m) => m.role === 'assistant');
@@ -244,7 +257,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
               if (idx === targetIdx || (idx === prev.length - 1 && m.role === 'assistant')) {
                 return {
                   ...m,
-                  content: m.content || `⚠️ ${ev.message || 'Operation failed'}`,
+                  error: parsedError,
                   isStreaming: false,
                 };
               }
