@@ -2,8 +2,10 @@ import pytest
 from app.engine.retrieval.query_rewriter import QueryRewriter
 from app.engine.retrieval.hybrid_retriever import (
     HybridRetriever,
+    _effective_facets,
     compute_facet_match_score,
     compute_doc_quality_bonus,
+    compute_info_richness_score,
     apply_spatial_semantic_mmr,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +56,54 @@ def test_facet_match_and_doc_quality():
     assert compute_doc_quality_bonus("A") == 1.0
     assert compute_doc_quality_bonus("B") == 0.6
     assert compute_doc_quality_bonus("C") == 0.0
+
+    # Info richness score
+    rich_poi = {
+        "doc_quality": "A",
+        "description": "A" * 100,
+        "neighborhood": "Centro",
+        "hours_known": True,
+        "facets": {"indoor_outdoor": "indoor"},
+        "wikidata_id": "Q160112",
+    }
+    medium_poi = {
+        "doc_quality": "B",
+        "description": "Short summary",
+        "neighborhood": "Centro",
+        "hours_known": False,
+    }
+    sparse_poi = {
+        "doc_quality": "C",
+    }
+    assert compute_info_richness_score(rich_poi) == 1.0
+    assert 0.4 < compute_info_richness_score(medium_poi) < 0.6
+    assert compute_info_richness_score(sparse_poi) == 0.0
+
+
+def test_effective_facets_fallback_when_unenriched():
+    # Populated facets take precedence
+    explicit = {"rain_friendly": False, "indoor_outdoor": "outdoor"}
+    assert _effective_facets({"category": "museum", "facets": explicit}) == explicit
+
+    # Empty facets infer indoor/rain_friendly for indoor categories
+    museum_eff = _effective_facets({"category": "museum", "facets": {}})
+    assert museum_eff == {"indoor_outdoor": "indoor", "rain_friendly": True}
+    assert (
+        compute_facet_match_score(
+            museum_eff, {"rain_friendly": True, "indoor_outdoor": "indoor"}
+        )
+        == 1.0
+    )
+
+    # Empty facets infer outdoor/non-rain_friendly for outdoor categories
+    park_eff = _effective_facets({"category": "park", "facets": None})
+    assert park_eff == {"indoor_outdoor": "outdoor", "rain_friendly": False}
+    assert (
+        compute_facet_match_score(
+            park_eff, {"rain_friendly": True, "indoor_outdoor": "indoor"}
+        )
+        == 0.0
+    )
 
 
 def test_spatial_semantic_mmr_diversification():

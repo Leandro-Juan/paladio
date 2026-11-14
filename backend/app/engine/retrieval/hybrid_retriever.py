@@ -67,6 +67,57 @@ def _cosine_similarity(vec1: Any, vec2: Any) -> float:
     return max(-1.0, min(1.0, dot / (norm1 * norm2)))
 
 
+_INDOOR_CATEGORIES = frozenset(
+    {
+        "museum",
+        "gallery",
+        "theatre",
+        "theater",
+        "cinema",
+        "library",
+        "restaurant",
+        "cafe",
+        "bar",
+        "pub",
+        "nightlife",
+        "shop",
+        "shopping",
+        "mall",
+        "market",
+        "church",
+        "cathedral",
+        "basilica",
+    }
+)
+
+_OUTDOOR_CATEGORIES = frozenset(
+    {
+        "park",
+        "garden",
+        "viewpoint",
+        "beach",
+        "plaza",
+        "square",
+        "monument",
+        "nature",
+        "trail",
+    }
+)
+
+
+def _effective_facets(candidate: dict[str, Any]) -> dict[str, Any] | None:
+    """Returns hydrated POI facets, or infers indoor/outdoor/rain_friendly from category when empty."""
+    facets = candidate.get("facets")
+    if facets:
+        return facets
+    cat = str(candidate.get("category") or "").lower().strip()
+    if cat in _INDOOR_CATEGORIES:
+        return {"indoor_outdoor": "indoor", "rain_friendly": True}
+    if cat in _OUTDOOR_CATEGORIES:
+        return {"indoor_outdoor": "outdoor", "rain_friendly": False}
+    return None
+
+
 def compute_facet_match_score(
     poi_facets: dict[str, Any] | None,
     required_facets: dict[str, Any] | None,
@@ -122,6 +173,54 @@ def compute_doc_quality_bonus(doc_quality: str | None) -> float:
     elif grade == "B":
         return 0.6
     return 0.0
+
+
+def compute_info_richness_score(poi: Any) -> float:
+    """Computes a normalized [0.0, 1.0] information richness score for a POI.
+
+    Combines doc_quality grade with concrete metadata completeness signals
+    (description length, neighborhood, known opening hours, facets, and external links).
+    """
+
+    def _get(field: str, default: Any = None) -> Any:
+        if isinstance(poi, dict):
+            return poi.get(field, default)
+        return getattr(poi, field, default)
+
+    doc_bonus = compute_doc_quality_bonus(_get("doc_quality"))
+
+    desc = _get("description")
+    desc_len = len(desc.strip()) if isinstance(desc, str) else 0
+    desc_score = 1.0 if desc_len >= 80 else (0.5 if desc_len > 0 else 0.0)
+
+    neighborhood = _get("neighborhood")
+    neighborhood_score = (
+        1.0 if isinstance(neighborhood, str) and neighborhood.strip() else 0.0
+    )
+
+    osm_hours = _get("osm_opening_hours")
+    hours_known = bool(_get("hours_known", False)) or (
+        isinstance(osm_hours, str) and bool(osm_hours.strip())
+    )
+    hours_score = 1.0 if hours_known else 0.0
+
+    facets = _get("facets")
+    has_facets = isinstance(facets, dict) and len(facets) > 0
+    has_links = any(
+        isinstance(_get(k), str) and bool(_get(k).strip())
+        for k in ("website", "wikidata_id", "wikipedia_title")
+    )
+    extra_count = int(has_facets) + int(has_links)
+    extra_score = 1.0 if extra_count >= 2 else (0.5 if extra_count == 1 else 0.0)
+
+    score = (
+        0.45 * doc_bonus
+        + 0.25 * desc_score
+        + 0.10 * neighborhood_score
+        + 0.10 * hours_score
+        + 0.10 * extra_score
+    )
+    return round(min(1.0, max(0.0, score)), 4)
 
 
 def apply_spatial_semantic_mmr(
@@ -249,7 +348,7 @@ class HybridRetriever:
           WHERE (CAST(:city_id AS text) IS NOT NULL AND city_id = CAST(:city_id AS text) OR lower(city) = lower(CAST(:city AS text)))
             AND (CAST(:max_tier AS integer) IS NULL OR tier <= CAST(:max_tier AS integer))
             AND (CAST(:max_cost_eur AS float) IS NULL OR cost_eur <= CAST(:max_cost_eur AS float))
-            AND (CAST(:require_rain_friendly AS boolean) = FALSE OR (facets->>'rain_friendly')::boolean = TRUE)
+            AND (CAST(:require_rain_friendly AS boolean) = FALSE OR (facets->>'rain_friendly')::boolean IS NOT FALSE)
             AND (CAST(:exclude_transit AS boolean) = FALSE OR (lower(category) NOT IN ('transit', 'metro', 'train', 'bus_stop', 'tram', 'subway') AND id NOT LIKE 'OSM-transit-%'))
         ),
         semantic_rank AS (
@@ -355,20 +454,24 @@ class HybridRetriever:
             )
 
             iconicity = float(c.get("iconicity_score") or 0.0)
-            facet_match = compute_facet_match_score(c.get("facets"), required_facets)
+            facet_match = compute_facet_match_score(
+                _effective_facets(c), required_facets
+            )
             doc_bonus = compute_doc_quality_bonus(c.get("doc_quality"))
+            richness = compute_info_richness_score(c)
 
-            # Composite Score formula with Iconicity as a really important factor (35% iconicity + 50% query relevance)
+            # Composite Score formula: query relevance (48%), iconicity (34%), facet match (10%), info richness (8%)
             comp_score = (
-                0.50 * norm_rrf
-                + 0.35 * iconicity
+                0.48 * norm_rrf
+                + 0.34 * iconicity
                 + 0.10 * facet_match
-                + 0.05 * doc_bonus
+                + 0.08 * richness
             )
             c["composite_score"] = round(comp_score, 4)
             c["norm_rrf"] = round(norm_rrf, 4)
             c["facet_match"] = round(facet_match, 4)
             c["doc_quality_bonus"] = doc_bonus
+            c["info_richness_score"] = richness
 
         candidates.sort(key=lambda x: x.get("composite_score", 0.0), reverse=True)
 
