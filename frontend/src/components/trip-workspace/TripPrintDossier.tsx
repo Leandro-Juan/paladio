@@ -77,7 +77,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
     ])
       .then(([expList, settl]) => {
         if (!isMounted) return;
-        setExpenses(expList || []);
+        setExpenses(Array.isArray(expList) ? expList : []);
         setSettlement(settl || null);
       })
       .catch((err) => {
@@ -92,6 +92,8 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
           setTickets(res);
         } else if (res && Array.isArray(res.tickets)) {
           setTickets(res.tickets);
+        } else {
+          setTickets([]);
         }
       })
       .catch((err) => {
@@ -171,6 +173,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
       general: { label: 'General & Miscellaneous', total: 0, count: 0 },
     };
 
+    if (!Array.isArray(expenses)) return [];
     expenses.forEach((exp) => {
       const catKey = (exp.category || 'general').toLowerCase();
       const target = cats[catKey] || cats.general;
@@ -182,6 +185,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
   }, [expenses]);
 
   const totalSpentExpenses = useMemo(() => {
+    if (!Array.isArray(expenses)) return 0;
     return expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   }, [expenses]);
 

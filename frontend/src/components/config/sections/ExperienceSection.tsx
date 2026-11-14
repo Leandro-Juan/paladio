@@ -305,6 +305,8 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setNavStyle('dock')}
+            aria-label="Set navigation to Floating Bottom Dock"
+            aria-pressed={navStyle === 'dock'}
             style={{
               padding: '16px',
               borderRadius: '12px',
@@ -327,6 +329,8 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setNavStyle('sidebar')}
+            aria-label="Set navigation to Sidebar"
+            aria-pressed={navStyle === 'sidebar'}
             style={{
               padding: '16px',
               borderRadius: '12px',

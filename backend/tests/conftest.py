@@ -362,6 +362,8 @@ async def db_engine():
                 "ALTER TABLE market_price_ticks ALTER COLUMN nights DROP NOT NULL;",
                 "ALTER TABLE deal_watch_alerts ALTER COLUMN earliest_date DROP NOT NULL;",
                 "ALTER TABLE deal_watch_alerts ALTER COLUMN latest_date DROP NOT NULL;",
+                "ALTER TABLE hotel_properties ADD COLUMN IF NOT EXISTS photo_url TEXT;",
+                "ALTER TABLE hotel_properties ADD COLUMN IF NOT EXISTS amenities VARCHAR[];",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(

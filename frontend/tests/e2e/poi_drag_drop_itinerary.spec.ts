@@ -589,6 +589,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await expect(warningModal).not.toBeVisible();
 
     // Verify Meiji Jingu Shrine was NOT added
+    await page.getByTestId('tab-route').click();
     const allStopsText = await sidebar.innerText();
     expect(allStopsText.includes('Meiji Jingu Shrine')).toBe(false);
     expect(allStopsText.includes('Senso-ji Temple')).toBe(true);
@@ -679,7 +680,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     // 3. Verify details drawer is open
     const inspectorDrawer = page.getByTestId('trip-poi-inspector-drawer');
     await expect(inspectorDrawer).toBeVisible({ timeout: 5000 });
-    await expect(inspectorDrawer.getByText('Meiji Jingu Shrine')).toBeVisible();
+    await expect(inspectorDrawer.getByRole('heading', { name: 'Meiji Jingu Shrine' })).toBeVisible();
 
     // 4. Switch to Route Tab
     const routeTab = page.getByTestId('tab-route');
@@ -688,7 +689,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
 
     // 5. Verify the details drawer did NOT close and still shows Meiji Jingu Shrine
     await expect(inspectorDrawer).toBeVisible();
-    await expect(inspectorDrawer.getByText('Meiji Jingu Shrine')).toBeVisible();
+    await expect(inspectorDrawer.getByRole('heading', { name: 'Meiji Jingu Shrine' })).toBeVisible();
   });
 });
 

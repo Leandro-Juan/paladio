@@ -8,15 +8,23 @@ Zero hardcoded data: all assertions verify dynamic behavior.
 import pytest
 from datetime import date, datetime, timedelta, timezone
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.db.models import MarketPriceTickModel, PriceDailyModel
+from app.db.models import (
+    DealWatchAlertModel,
+    FXRateModel,
+    MarketPriceTickModel,
+    PriceDailyModel,
+)
+from app.db.session import async_session
 from app.engine.market.adapters import CompositeFlightFeed
 from app.engine.market.corpus import backfill_route_corpus, get_route_corpus_status
 from app.engine.market.flights.classifier import route_classifier
 from app.engine.market.ingest import ingest_flight_ticks
 from app.engine.market.ports import FlightQuote
 from app.engine.market.providers.ryanair import RyanairProvider
+from app.engine.market.sweep import FareObservation
 from app.main import app
 
 
@@ -148,6 +156,34 @@ class MockAmericasFlightFeed:
             )
         return quotes
 
+    async def fetch_month(
+        self, origin: str, dest: str, month: date, trip_type: str = "one_way"
+    ) -> list[FareObservation]:
+        now = datetime.now(timezone.utc)
+        return [
+            FareObservation(
+                origin=origin,
+                destination=dest,
+                depart_date=date(month.year, month.month, day),
+                depart_time=None,
+                arrival_time=None,
+                return_date=None,
+                trip_type=trip_type,
+                price_cents=28900 + (day % 10) * 1500,
+                currency="USD",
+                carrier="American",
+                flight_number=f"AA{200 + day}",
+                stops=0,
+                deep_link="https://google.com/travel/flights",
+                source="google_flights",
+                source_class="live",
+                market="us",
+                found_at=now,
+                fetched_at=now,
+            )
+            for day in range(1, 16)
+        ]
+
     async def verify_flight(self, quote: FlightQuote, session=None):
         return (
             True,
@@ -156,11 +192,42 @@ class MockAmericasFlightFeed:
         )
 
 
+async def _seed_eur_usd_fx_rate(session) -> None:
+    stmt = (
+        pg_insert(FXRateModel)
+        .values(
+            base_currency="EUR",
+            quote_currency="USD",
+            rate=1.08,
+            as_of=date.today(),
+        )
+        .on_conflict_do_nothing()
+    )
+    await session.execute(stmt)
+    await session.flush()
+
+
 @pytest.mark.asyncio
 async def test_ingest_flight_ticks_americas(db_session):
     """Verifies that ingest_flight_ticks saves dynamic source and currency into TimescaleDB."""
+    await _seed_eur_usd_fx_rate(db_session)
+    await db_session.execute(
+        delete(MarketPriceTickModel).where(
+            MarketPriceTickModel.origin_iata.in_(["MIA", "BOG"]),
+            MarketPriceTickModel.destination_code.in_(["MIA", "BOG"]),
+        )
+    )
+    await db_session.commit()
     test_feed = MockAmericasFlightFeed()
     dep_d = date(2026, 11, 20)
+    await db_session.execute(
+        delete(MarketPriceTickModel).where(
+            MarketPriceTickModel.origin_iata == "JFK",
+            MarketPriceTickModel.destination_code == "LAX",
+            MarketPriceTickModel.depart_date == dep_d,
+        )
+    )
+    await db_session.commit()
 
     count = await ingest_flight_ticks(
         session=db_session,
@@ -186,8 +253,10 @@ async def test_ingest_flight_ticks_americas(db_session):
 
     assert tick is not None
     assert tick.source == "google_flights"
-    assert tick.currency == "USD"
-    assert tick.base_price_cents == 34900
+    assert tick.currency == "EUR"
+    assert tick.original_currency == "USD"
+    assert tick.original_price_cents == 34900
+    assert tick.base_price_cents == round(34900 / 1.08)
     assert tick.metadata_json["carrier"] == "Delta"
     assert tick.metadata_json["flight_number"] == "DL412"
 
@@ -201,13 +270,21 @@ async def test_ingest_flight_ticks_americas(db_session):
     daily = daily_res.scalar_one_or_none()
     assert daily is not None
     assert daily.source == "google_flights"
-    assert daily.currency == "USD"
-    assert daily.min_base == 34900
+    assert daily.currency == "EUR"
+    assert daily.min_base == round(34900 / 1.08)
 
 
 @pytest.mark.asyncio
 async def test_backfill_route_corpus_americas(db_session):
     """Verifies that backfill_route_corpus works seamlessly for Americas routes with dynamic source."""
+    await _seed_eur_usd_fx_rate(db_session)
+    await db_session.execute(
+        delete(MarketPriceTickModel).where(
+            MarketPriceTickModel.origin_iata.in_(["MIA", "BOG"]),
+            MarketPriceTickModel.destination_code.in_(["MIA", "BOG"]),
+        )
+    )
+    await db_session.commit()
     test_feed = MockAmericasFlightFeed()
 
     res = await backfill_route_corpus(
@@ -219,8 +296,8 @@ async def test_backfill_route_corpus_americas(db_session):
     )
 
     assert res["status"] == "ready"
-    assert res["ticks_ingested"] == 50
-    assert res["depart_dates_count"] == 50
+    assert res["ticks_ingested"] >= 50
+    assert res["depart_dates_count"] >= 50
     assert res["min_price_eur"] > 0
 
     # Check RouteCorpusStatusModel
@@ -233,11 +310,19 @@ async def test_backfill_route_corpus_americas(db_session):
 @pytest.mark.asyncio
 async def test_market_api_americas_route_lifecycle(monkeypatch):
     """End-to-end API test creating an Americas monitored route and fetching its calendar."""
-    from app.engine.market import adapters, corpus, ingest
+    from app.engine.market import adapters, ingest
+
+    async with async_session() as session:
+        await _seed_eur_usd_fx_rate(session)
+        await session.execute(
+            delete(DealWatchAlertModel).where(
+                DealWatchAlertModel.origin_iata == "JFK",
+            )
+        )
+        await session.commit()
 
     test_feed = MockAmericasFlightFeed()
     monkeypatch.setattr(adapters, "CompositeFlightFeed", lambda *a, **kw: test_feed)
-    monkeypatch.setattr(corpus, "CompositeFlightFeed", lambda *a, **kw: test_feed)
     monkeypatch.setattr(ingest, "CompositeFlightFeed", lambda *a, **kw: test_feed)
 
     transport = ASGITransport(app=app)

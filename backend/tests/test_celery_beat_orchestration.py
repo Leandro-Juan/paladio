@@ -249,7 +249,7 @@ async def test_gate_two_consecutive_unattended_daily_runs_with_injected_failures
 
     mock_provider = InjectedMockProvider()
     monkeypatch.setattr(
-        "app.engine.market.sweep.AviasalesProvider", lambda *a, **kw: mock_provider
+        "app.engine.market.adapters.CompositeFlightFeed", lambda *a, **kw: mock_provider
     )
 
     # RUN 1

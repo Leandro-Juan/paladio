@@ -160,7 +160,9 @@ test.describe('Authentication & User Management Flow', () => {
     await expect(page.getByText('traveler2', { exact: true })).toBeVisible();
     await expect(page.getByText('traveler2@paladio.internal')).toBeVisible();
 
-    // 8. Sign Out via User Menu
+    // 8. Return to Dashboard and Sign Out via User Menu
+    await page.getByRole('link', { name: /Back to App/i }).click();
+    await expect(page).toHaveURL(/.*\/dashboard/);
     await userMenuBtn.click();
     const signoutBtn = page.getByRole('menuitem', { name: /(sign out|log out)/i });
     await expect(signoutBtn).toBeVisible();
