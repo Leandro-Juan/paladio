@@ -112,7 +112,13 @@ def test_repair_injects_lunch_on_meal_gap():
         }
     ]
 
-    repaired, modified = apply_repairs(daily_pois, issues)
+    candidate_restaurants = [
+        {"name": "Lunch Bistro", "category": "RESTAURANT", "duration_mins": 60}
+    ]
+
+    repaired, modified = apply_repairs(
+        daily_pois, issues, candidate_restaurants=candidate_restaurants
+    )
 
     assert modified is True
     assert len(repaired[0]) == 5
@@ -144,7 +150,13 @@ def test_repair_relocates_sight_on_overloaded_day():
         }
     ]
 
-    repaired, modified = apply_repairs(daily_pois, issues)
+    candidate_restaurants = [
+        {"name": "Lunch Bistro", "category": "RESTAURANT", "duration_mins": 60}
+    ]
+
+    repaired, modified = apply_repairs(
+        daily_pois, issues, candidate_restaurants=candidate_restaurants
+    )
 
     assert modified is True
     # Sight 5 relocated from day 0 to day 1

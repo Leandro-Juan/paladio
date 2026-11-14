@@ -177,6 +177,7 @@ async def list_all_saved_collections(
             selectinload(TripCollectionModel.items),
             selectinload(TripCollectionModel.trip),
         )
+        .execution_options(populate_existing=True)
         .order_by(TripCollectionModel.updated_at.desc())
     )
     res = await session.execute(stmt)
@@ -216,6 +217,7 @@ async def list_trip_collections(
             selectinload(TripCollectionModel.items),
             selectinload(TripCollectionModel.trip),
         )
+        .execution_options(populate_existing=True)
         .order_by(TripCollectionModel.created_at.asc())
     )
     res = await session.execute(stmt)

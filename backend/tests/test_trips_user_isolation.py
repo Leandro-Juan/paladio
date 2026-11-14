@@ -79,6 +79,9 @@ async def test_trips_user_isolation(async_client: AsyncClient):
     assert get_res.status_code == 200
     assert get_res.json()["destination"] == "Rome"
 
-    # Universal access: User B deletes trip -> succeeds
-    del_res = await async_client.delete(f"/api/trips/{trip_a_id}", headers=headers_b)
-    assert del_res.status_code == 200
+    # Only the owner can delete a trip: User B gets 403, User A succeeds
+    del_res_b = await async_client.delete(f"/api/trips/{trip_a_id}", headers=headers_b)
+    assert del_res_b.status_code == 403
+
+    del_res_a = await async_client.delete(f"/api/trips/{trip_a_id}", headers=headers_a)
+    assert del_res_a.status_code == 200
