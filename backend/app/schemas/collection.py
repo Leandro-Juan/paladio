@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -16,6 +18,9 @@ class PoiSummary(BaseModel):
     rating: float | None = None
     formatted_address: str | None = None
     description: str | None = None
+    city: str | None = None
+    country: str | None = None
+    country_code: str | None = None
 
 
 class CollectionItemResponse(BaseModel):
@@ -25,9 +30,15 @@ class CollectionItemResponse(BaseModel):
     collection_id: str
     poi_id: str
     notes: str | None = None
+    visit_status: Literal["want_to_go", "visited"] = "want_to_go"
     order_index: int = 0
     created_at: str
     poi: PoiSummary | None = None
+
+
+class UpdateCollectionItemRequest(BaseModel):
+    visit_status: Literal["want_to_go", "visited"] | None = None
+    notes: str | None = None
 
 
 class CollectionCreate(BaseModel):

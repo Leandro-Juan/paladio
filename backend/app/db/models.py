@@ -377,6 +377,9 @@ class TripCollectionItemModel(Base):
     )
     poi_id = Column(String, nullable=False, index=True)
     notes = Column(Text, nullable=True)
+    visit_status = Column(
+        String, default="want_to_go", server_default="want_to_go", nullable=False
+    )
     order_index = Column(Integer, default=0, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

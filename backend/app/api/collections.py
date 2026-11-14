@@ -27,6 +27,7 @@ from app.schemas.collection import (
     PoiSummary,
     ToggleCollectionRequest,
     ToggleCollectionResponse,
+    UpdateCollectionItemRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,11 @@ async def _hydrate_poi_summaries(
     if not poi_ids:
         return {}
 
-    stmt = select(AttractionModel).where(AttractionModel.id.in_(poi_ids))
+    stmt = (
+        select(AttractionModel)
+        .options(selectinload(AttractionModel.city_rel))
+        .where(AttractionModel.id.in_(poi_ids))
+    )
     res = await session.execute(stmt)
     attractions = res.scalars().all()
 
@@ -72,6 +77,19 @@ async def _hydrate_poi_summaries(
         )
         thumb = meta.get("thumbnail_url") or photo
 
+        city_name = (
+            (attr.city_rel.name if attr.city_rel else None)
+            or attr.city
+            or loc.get("city")
+            or meta.get("city")
+        )
+        country_code = (
+            (attr.city_rel.country_code if attr.city_rel else None)
+            or loc.get("country_code")
+            or meta.get("country_code")
+        )
+        country_name = loc.get("country") or meta.get("country")
+
         poi_map[attr.id] = PoiSummary(
             id=attr.id,
             name=attr.name,
@@ -87,6 +105,11 @@ async def _hydrate_poi_summaries(
             else None,
             formatted_address=loc.get("address") or loc.get("formatted_address"),
             description=meta.get("description"),
+            city=city_name,
+            country=country_name,
+            country_code=country_code.upper()
+            if isinstance(country_code, str) and country_code.strip()
+            else None,
         )
 
     # For any POI not found in attractions (e.g. transit stations or custom IDs)
@@ -127,6 +150,7 @@ def _collection_to_response(
                 collection_id=item.collection_id,
                 poi_id=item.poi_id,
                 notes=item.notes,
+                visit_status=getattr(item, "visit_status", None) or "want_to_go",
                 order_index=item.order_index,
                 created_at=(
                     item.created_at.isoformat()
@@ -391,6 +415,7 @@ async def add_item_to_collection(
             collection_id=existing_item.collection_id,
             poi_id=existing_item.poi_id,
             notes=existing_item.notes,
+            visit_status=getattr(existing_item, "visit_status", None) or "want_to_go",
             order_index=existing_item.order_index,
             created_at=(
                 existing_item.created_at.isoformat()
@@ -425,6 +450,57 @@ async def add_item_to_collection(
         collection_id=item.collection_id,
         poi_id=item.poi_id,
         notes=item.notes,
+        visit_status=getattr(item, "visit_status", None) or "want_to_go",
+        order_index=item.order_index,
+        created_at=(
+            item.created_at.isoformat()
+            if item.created_at
+            else datetime.now(timezone.utc).isoformat()
+        ),
+        poi=poi_map.get(item.poi_id),
+    )
+
+
+@router.patch(
+    "/{trip_id}/collections/{collection_id}/items/{poi_id}",
+    response_model=CollectionItemResponse,
+)
+async def update_collection_item(
+    trip_id: str,
+    collection_id: str,
+    poi_id: str,
+    payload: UpdateCollectionItemRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    await _get_trip_or_404(trip_id, session, current_user)
+
+    item_stmt = select(TripCollectionItemModel).where(
+        TripCollectionItemModel.collection_id == collection_id,
+        TripCollectionItemModel.poi_id == poi_id,
+    )
+    item = (await session.execute(item_stmt)).scalar_one_or_none()
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found in collection",
+        )
+
+    if payload.visit_status is not None:
+        item.visit_status = payload.visit_status
+    if payload.notes is not None:
+        item.notes = payload.notes
+
+    await session.commit()
+    await session.refresh(item)
+
+    poi_map = await _hydrate_poi_summaries({item.poi_id}, session)
+    return CollectionItemResponse(
+        id=item.id,
+        collection_id=item.collection_id,
+        poi_id=item.poi_id,
+        notes=item.notes,
+        visit_status=getattr(item, "visit_status", None) or "want_to_go",
         order_index=item.order_index,
         created_at=(
             item.created_at.isoformat()

@@ -1,10 +1,21 @@
 import uuid
+from unittest.mock import AsyncMock
 import pytest
 from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_trip_collections_lifecycle(async_client: AsyncClient):
+async def test_trip_collections_lifecycle(
+    async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        "app.tasks.async_trigger_city_gtfs_download_if_needed",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        "app.engine.city_readiness.ensure_city_ready",
+        AsyncMock(return_value=None),
+    )
     uid = uuid.uuid4().hex[:8]
 
     # 1. Register a test user
@@ -90,7 +101,17 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
     assert add_item1.status_code == 201
     assert add_item1.json()["poi_id"] == "rome-colosseum-01"
     assert add_item1.json()["notes"] == "Book morning slot"
+    assert add_item1.json()["visit_status"] == "want_to_go"
     assert add_item1.json()["poi"] is not None
+
+    # 7b. Update visit_status to 'visited' and verify persistence
+    patch_visited = await async_client.patch(
+        f"/api/trips/{trip_id}/collections/{col1_id}/items/rome-colosseum-01",
+        json={"visit_status": "visited"},
+        headers=headers,
+    )
+    assert patch_visited.status_code == 200
+    assert patch_visited.json()["visit_status"] == "visited"
 
     add_item2 = await async_client.post(
         f"/api/trips/{trip_id}/collections/{col1_id}/items",
@@ -120,6 +141,10 @@ async def test_trip_collections_lifecycle(async_client: AsyncClient):
     c1 = next(c for c in cols if c["id"] == col1_id)
     assert c1["items_count"] == 2
     assert len(c1["items"]) == 2
+    colosseum_item = next(
+        it for it in c1["items"] if it["poi_id"] == "rome-colosseum-01"
+    )
+    assert colosseum_item["visit_status"] == "visited"
 
     c2 = next(c for c in cols if c["id"] == col2_id)
     assert c2["items_count"] == 1
