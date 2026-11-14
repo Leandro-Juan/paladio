@@ -245,7 +245,7 @@ async def test_trip_participants_and_expenses(async_client: AsyncClient):
         f"/api/trips/{trip_id}/participants/{alice_p_id}", headers=headers_a
     )
     assert del_last_res.status_code == 400
-    assert "at least one participant" in del_last_res.text
+    assert "Cannot remove the last participant" in del_last_res.text
 
     # Verify Alice is still in participants
     remaining_res = await async_client.get(

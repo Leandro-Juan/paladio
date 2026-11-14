@@ -57,7 +57,14 @@ async def test_get_detailed_transit_leg_success():
         request=httpx.Request("POST", "http://localhost:8002/route"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with (
+        patch(
+            "app.services.transitous_service.TransitousService.plan_transit_route",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+    ):
         mock_post.return_value = mock_resp
 
         leg = await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")
@@ -110,7 +117,14 @@ async def test_get_detailed_transit_leg_unindexed_city_estimate():
         request=httpx.Request("POST", "http://localhost:8002/route"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with (
+        patch(
+            "app.services.transitous_service.TransitousService.plan_transit_route",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+    ):
         mock_post.return_value = mock_resp
 
         leg = await get_detailed_transit_leg(origin, dest, "2026-09-10T10:00")
@@ -153,7 +167,14 @@ async def test_get_detailed_transit_leg_pedestrian_only():
         request=httpx.Request("POST", "http://localhost:8002/route"),
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with (
+        patch(
+            "app.services.transitous_service.TransitousService.plan_transit_route",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+    ):
         mock_post.return_value = mock_resp
 
         leg = await get_detailed_transit_leg(origin, dest)
@@ -170,7 +191,14 @@ async def test_get_detailed_transit_leg_network_failure_raises():
     origin = {"name": "Sol", "location": {"latitude": 40.4168, "longitude": -3.7038}}
     dest = {"name": "Prado", "location": {"latitude": 40.4138, "longitude": -3.6922}}
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with (
+        patch(
+            "app.services.transitous_service.TransitousService.plan_transit_route",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+    ):
         mock_post.side_effect = httpx.ConnectError("Connection refused")
 
         with pytest.raises(TransitRoutingError) as exc_info:

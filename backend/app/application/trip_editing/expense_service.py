@@ -413,6 +413,17 @@ class ExpenseService:
                                     "currency": target_currency,
                                 }
                             )
+                        elif net < -0.009:
+                            transfers.append(
+                                {
+                                    "sender_id": p2.id,
+                                    "sender_name": p_names.get(p2.id, "Unknown"),
+                                    "receiver_id": p1.id,
+                                    "receiver_name": p_names.get(p1.id, "Unknown"),
+                                    "amount": round(-net, 2),
+                                    "currency": target_currency,
+                                }
+                            )
 
         total_expenses = sum(to_target(e.amount, e.currency) for e in expenses)
         return {
