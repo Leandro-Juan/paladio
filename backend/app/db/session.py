@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -21,6 +22,13 @@ is_test = bool(
     or os.getenv("TESTING") == "1"
     or "pytest" in sys.modules
 )
+
+# Never let test runs connect to the live paladio database
+if is_test:
+    guarded_url = re.sub(r"/paladio($|\?)", r"/paladio_test\1", DATABASE_URL)
+    if guarded_url != DATABASE_URL:
+        DATABASE_URL = guarded_url
+        os.environ["DATABASE_URL"] = DATABASE_URL
 
 # Create the async engine
 if is_test:

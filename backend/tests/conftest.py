@@ -2,6 +2,7 @@ import asyncio
 import importlib
 import logging
 import os
+import re
 import sys
 from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock
@@ -287,15 +288,37 @@ except ImportError:
 
 
 postgres_host = os.getenv("POSTGRES_HOST", "127.0.0.1")
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    f"postgresql+asyncpg://postgres:postgres@{postgres_host}:5432/paladio_test",
-)
-if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+_raw_env_db_url = os.getenv("DATABASE_URL")
+if os.getenv("TEST_DATABASE_URL"):
+    TEST_DATABASE_URL = os.environ["TEST_DATABASE_URL"]
+elif _raw_env_db_url:
+    _norm_env_db_url = (
+        _raw_env_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if _raw_env_db_url.startswith("postgresql://")
+        else _raw_env_db_url
+    )
+    TEST_DATABASE_URL = re.sub(r"/paladio($|\?)", r"/paladio_test\1", _norm_env_db_url)
+else:
+    TEST_DATABASE_URL = (
+        f"postgresql+asyncpg://postgres:postgres@{postgres_host}:5432/paladio_test"
+    )
+
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+os.environ["TESTING"] = "1"
 if "REDIS_URL" not in os.environ:
     os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/0"
 os.environ["ALLOW_PUBLIC_REGISTRATION"] = "true"
+
+_app_db_session = importlib.import_module("app.db.session")
+
+if _app_db_session.DATABASE_URL != TEST_DATABASE_URL:
+    _app_db_session.DATABASE_URL = TEST_DATABASE_URL
+    _app_db_session.engine = create_async_engine(
+        TEST_DATABASE_URL, echo=False, future=True, poolclass=NullPool
+    )
+    _app_db_session.async_session = async_sessionmaker(
+        _app_db_session.engine, class_=AsyncSession, expire_on_commit=False
+    )
 
 
 # ---------------------------------------------------------
