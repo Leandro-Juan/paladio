@@ -9,6 +9,7 @@ interface CustomHourPickerModalProps {
   value: string; // HH:mm format, e.g. "09:00"
   onChange: (newValue: string) => void;
   anchorLabel?: string;
+  zIndex?: number;
 }
 
 export function CustomHourPickerModal({
@@ -17,6 +18,7 @@ export function CustomHourPickerModal({
   value,
   onChange,
   anchorLabel = 'Select Time',
+  zIndex = 100,
 }: CustomHourPickerModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -75,10 +77,13 @@ export function CustomHourPickerModal({
 
   return (
     <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100,
+        zIndex,
         background: 'rgba(0, 0, 0, 0.25)',
         backdropFilter: 'blur(3px)',
         display: 'flex',

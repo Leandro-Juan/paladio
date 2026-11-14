@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarIcon } from '@/components/icons';
 
 interface PaladioSingleDatePickerProps {
+  title?: string;
   selectedDate: string; // YYYY-MM-DD or empty
   onChange: (dateStr: string) => void;
   onClose?: () => void;
@@ -50,6 +51,7 @@ function formatDateStr(d: Date): string {
 }
 
 export function PaladioSingleDatePicker({
+  title,
   selectedDate,
   onChange,
   onClose,
@@ -121,6 +123,22 @@ export function PaladioSingleDatePicker({
         fontFamily: 'var(--font-sans)',
       }}
     >
+      {title && (
+        <div
+          className="font-mono text-xs"
+          style={{
+            letterSpacing: '0.08em',
+            fontWeight: 700,
+            fontSize: '11px',
+            color: 'var(--color-text-muted, #6B7280)',
+            marginBottom: '10px',
+            textTransform: 'uppercase',
+          }}
+        >
+          {title}
+        </div>
+      )}
+
       {/* Month Navigation Header */}
       <div
         style={{

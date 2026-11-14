@@ -187,10 +187,14 @@ export function TripSpeedDial({
           50% { transform: scale(1.14); }
           100% { transform: scale(1); }
         }
+        [data-testid="speed-dial-trigger"],
+        [data-testid="speed-dial-trigger"] * {
+          cursor: pointer !important;
+        }
       `}</style>
 
       {/* Origin wrapper for radial buttons and trigger */}
-      <div style={{ position: 'relative', width: '44px', height: '44px', pointerEvents: 'auto' }}>
+      <div style={{ position: 'relative', width: '44px', height: '44px', pointerEvents: 'auto', cursor: 'pointer', borderRadius: '50%' }}>
         {/* Radiating Action Buttons (Quarter-Circle Arc) */}
         {actions.map((act) => {
           const isHovered = hoveredAction === act.id;
@@ -300,11 +304,13 @@ export function TripSpeedDial({
                     : 'var(--color-surface-card)',
                   color: act.isActive ? '#FFFFFF' : 'var(--color-text-primary)',
                   border: `1.5px solid ${act.isActive ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
-                  boxShadow: act.isActive
+                  boxShadow: !isOpen
+                    ? 'none'
+                    : act.isActive
                     ? '0 0 0 3px rgba(15, 76, 92, 0.22), 0 4px 14px rgba(15, 76, 92, 0.38)'
                     : '0 3px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
+                  backdropFilter: isOpen ? 'blur(16px)' : 'none',
+                  WebkitBackdropFilter: isOpen ? 'blur(16px)' : 'none',
                   cursor: act.disabled ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -339,9 +345,7 @@ export function TripSpeedDial({
             width: '44px',
             height: '44px',
             borderRadius: '50%',
-            overflow: 'hidden',
-            clipPath: 'circle(50% at 50% 50%)',
-            WebkitClipPath: 'circle(50% at 50% 50%)',
+            padding: 0,
             background: 'var(--color-surface-card)',
             border: `1.5px solid ${isOpen || isTriggerHovered ? 'var(--color-accent-primary)' : 'var(--color-border)'}`,
             boxShadow: isOpen
@@ -354,17 +358,12 @@ export function TripSpeedDial({
             alignItems: 'center',
             justifyContent: 'center',
             color: isOpen || isTriggerHovered ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
-            transform: isTriggerHovered ? 'scale(1.06)' : 'scale(1)',
-            transformOrigin: 'center center',
-            transition: 'transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.18s ease, color 0.18s ease, box-shadow 0.22s ease',
+            transition: 'border-color 0.18s ease, color 0.18s ease, box-shadow 0.22s ease, background 0.18s ease',
             outline: 'none',
             pointerEvents: 'auto',
             zIndex: 1070,
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            willChange: 'transform',
           }}
         >
           {/* Plus icon rotating 45deg seamlessly becomes an X */}
@@ -378,9 +377,6 @@ export function TripSpeedDial({
               transition: 'transform 0.25s cubic-bezier(0.23, 1, 0.32, 1)',
               pointerEvents: 'none',
               userSelect: 'none',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              willChange: 'transform',
             }}
           >
             <PlusIcon size={18} color="currentColor" style={{ pointerEvents: 'none' }} />

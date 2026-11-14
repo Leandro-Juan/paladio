@@ -39,6 +39,23 @@ import {
   HotelIcon,
   PlaneIcon,
   KeyIcon,
+  PhoneIcon,
+  WifiIcon,
+  PawIcon,
+  ParkingIcon,
+  AcIcon,
+  SunIcon,
+  CalendarIcon,
+  UtensilsIcon,
+  TicketIcon,
+  MuseumIcon,
+  WheelchairIcon,
+  TakeawayIcon,
+  DeliveryIcon,
+  CreditCardIcon,
+  LeafIcon,
+  NoSmokingIcon,
+  RestroomIcon,
 } from '@/components/icons';
 import { startCustomDragPreview } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
@@ -425,6 +442,7 @@ export function PoiDetailView({
   const [editCost, setEditCost] = useState(0);
   const [editDescription, setEditDescription] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editPhone, setEditPhone] = useState('');
 
   const startEditing = useCallback(() => {
     if (!poi) return;
@@ -434,6 +452,7 @@ export function PoiDetailView({
     setEditCost(poi.cost_eur ?? 0);
     setEditDescription(poi.description || '');
     setEditWebsite(poi.website || '');
+    setEditPhone(poi.phone || '');
     setIsEditing(true);
   }, [poi]);
 
@@ -449,6 +468,7 @@ export function PoiDetailView({
         cost_eur: Number(editCost) || 0,
         description: editDescription.trim(),
         website: editWebsite.trim() || undefined,
+        phone: editPhone.trim() || null,
       };
 
       const baseUrl = getApiBaseUrl();
@@ -463,6 +483,7 @@ export function PoiDetailView({
             cost_eur: updatedPoiData.cost_eur,
             description: updatedPoiData.description,
             website: updatedPoiData.website,
+            phone: editPhone.trim(),
             lat: updatedPoiData.lat,
             lng: updatedPoiData.lng,
           }),
@@ -1490,7 +1511,7 @@ export function PoiDetailView({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        flex: '1 1 auto',
         maxHeight: '100%',
         minHeight: 0,
         width: '100%',
@@ -2357,6 +2378,54 @@ export function PoiDetailView({
                     )
                   )}
                 </div>
+                {(isEditing || (poi.phone && poi.phone.trim())) && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '11.5px',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    <PhoneIcon size={12} color="var(--color-text-muted)" />
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        data-testid="edit-poi-phone-input"
+                        placeholder="Phone (+34 913 ...)"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        style={{
+                          width: '180px',
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          fontSize: '11px',
+                          color: 'var(--color-text-primary)',
+                          fontFamily: 'var(--font-code, monospace)',
+                          outline: 'none',
+                        }}
+                      />
+                    ) : (
+                      <a
+                        href={`tel:${(poi.phone || '').split(/[;,]/)[0].trim().replace(/[^+\d]/g, '')}`}
+                        data-testid="poi-phone-link"
+                        style={{
+                          color: 'var(--color-text-secondary)',
+                          fontSize: '11px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          textDecoration: 'none',
+                          fontWeight: 500,
+                        }}
+                        title={`Call ${poi.phone}`}
+                      >
+                        {poi.phone}
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Feature Chips Row */}
@@ -2663,6 +2732,77 @@ export function PoiDetailView({
                   </div>
                 ) : null
               )}
+
+              {/* Amenity / Info Icon Pills Row (matching HotelTicketCard pill style) */}
+              {!isTransit && ((poi.amenities && poi.amenities.length > 0) || Boolean(poi.cuisine)) && (() => {
+                const AMENITY_META: Record<string, { label: string; icon: React.ReactNode }> = {
+                  wheelchair: { label: 'Wheelchair Accessible', icon: <WheelchairIcon size={12} /> },
+                  wifi: { label: 'Wi-Fi Available', icon: <WifiIcon size={12} /> },
+                  outdoor_seating: { label: 'Outdoor Seating', icon: <SunIcon size={12} /> },
+                  takeaway: { label: 'Takeaway Available', icon: <TakeawayIcon size={12} /> },
+                  delivery: { label: 'Delivery Available', icon: <DeliveryIcon size={12} /> },
+                  reservation: { label: 'Reservations Accepted', icon: <CalendarIcon size={12} /> },
+                  air_conditioning: { label: 'Air Conditioning', icon: <AcIcon size={12} /> },
+                  toilets: { label: 'Restrooms Available', icon: <RestroomIcon size={12} /> },
+                  cards: { label: 'Cards Accepted', icon: <CreditCardIcon size={12} /> },
+                  vegetarian: { label: 'Vegetarian Options', icon: <LeafIcon size={12} /> },
+                  vegan: { label: 'Vegan Options', icon: <LeafIcon size={12} /> },
+                  pets: { label: 'Pet-Friendly', icon: <PawIcon size={12} /> },
+                  parking: { label: 'Parking Available', icon: <ParkingIcon size={12} /> },
+                  non_smoking: { label: 'Non-Smoking', icon: <NoSmokingIcon size={12} /> },
+                  heritage: { label: 'Heritage / Historic Site', icon: <MuseumIcon size={12} /> },
+                  free_entry: { label: 'Free Entry', icon: <TicketIcon size={12} /> },
+                };
+                const items: Array<{ key: string; label: string; icon: React.ReactNode }> = [];
+                if (poi.cuisine) {
+                  items.push({
+                    key: 'cuisine',
+                    label: `Cuisine: ${poi.cuisine}`,
+                    icon: <UtensilsIcon size={12} />,
+                  });
+                }
+                for (const key of poi.amenities || []) {
+                  const meta = AMENITY_META[key];
+                  if (meta) {
+                    items.push({ key, label: meta.label, icon: meta.icon });
+                  }
+                }
+                if (items.length === 0) return null;
+                return (
+                  <div
+                    data-testid="poi-amenities-row"
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {items.map((item) => (
+                      <span
+                        key={item.key}
+                        title={item.label}
+                        aria-label={item.label}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '5px',
+                          background: 'var(--color-surface-card, #FFFFFF)',
+                          border: '1px solid var(--color-border, #E2E8F0)',
+                          color: 'var(--color-text-secondary, #475569)',
+                          cursor: 'default',
+                          transition: 'border-color 0.12s ease, color 0.12s ease',
+                        }}
+                      >
+                        {item.icon}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Description Overview */}
               {(overviewDescription || isEditing) && (

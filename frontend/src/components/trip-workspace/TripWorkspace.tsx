@@ -52,6 +52,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [inspectedPoiId, setInspectedPoiId] = useState<string | null>(null);
   const [inspectedPoiFallback, setInspectedPoiFallback] = useState<Partial<PoiDetail> | null>(null);
   const [renderedPoi, setRenderedPoi] = useState<{ id: string; fallback: Partial<PoiDetail> | null } | null>(null);
+  const shouldFocusInspectedPoiRef = useRef<boolean>(true);
   const [activeTransitLine, setActiveTransitLine] = useState<ActiveTransitLineData | null>(null);
   const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
   const [spatialCircle, setSpatialCircle] = useState<SpatialCircleFilter | null>(null);
@@ -327,6 +328,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   }, [itinerary]);
 
   const handlePlaceClick = useCallback((place: PlaceItem) => {
+    shouldFocusInspectedPoiRef.current = true;
     setFocusedPlace({
       ...place,
       timestamp: Date.now(),
@@ -365,27 +367,36 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   const isInspectorOpen = Boolean(inspectedPoiId);
 
-  const handleInspectPoi = useCallback((id: string, fallbackData?: Partial<PoiDetail>) => {
-    setInspectedPoiId(id);
-    setInspectedPoiFallback(fallbackData || null);
-    setRenderedPoi({ id, fallback: fallbackData || null });
-    setIsSidebarOpen(true);
+  const handleInspectPoi = useCallback(
+    (id: string, fallbackData?: Partial<PoiDetail>, options?: { focusMap?: boolean }) => {
+      const shouldFocus = options?.focusMap !== false;
+      shouldFocusInspectedPoiRef.current = shouldFocus;
+      setInspectedPoiId(id);
+      setInspectedPoiFallback(fallbackData || null);
+      setRenderedPoi({ id, fallback: fallbackData || null });
+      setIsSidebarOpen(true);
 
-    const lat = fallbackData?.lat ?? (fallbackData as unknown as { location?: { latitude?: number } })?.location?.latitude;
-    const lng = fallbackData?.lng ?? (fallbackData as unknown as { location?: { longitude?: number } })?.location?.longitude;
-    if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
-      setFocusedPlace({
-        id,
-        name: fallbackData?.name || id,
-        lat,
-        lng,
-        category: (fallbackData?.category as string) || 'attraction',
-        durationMins: fallbackData?.duration_mins,
-        costEur: fallbackData?.cost_eur,
-        timestamp: Date.now(),
-      });
-    }
-  }, []);
+      if (!shouldFocus) {
+        return;
+      }
+
+      const lat = fallbackData?.lat ?? (fallbackData as unknown as { location?: { latitude?: number } })?.location?.latitude;
+      const lng = fallbackData?.lng ?? (fallbackData as unknown as { location?: { longitude?: number } })?.location?.longitude;
+      if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+        setFocusedPlace({
+          id,
+          name: fallbackData?.name || id,
+          lat,
+          lng,
+          category: (fallbackData?.category as string) || 'attraction',
+          durationMins: fallbackData?.duration_mins,
+          costEur: fallbackData?.cost_eur,
+          timestamp: Date.now(),
+        });
+      }
+    },
+    []
+  );
 
   // Check for deep-linked POI inspection via query parameters
   const deepLinkPoi = searchParams?.get('poi');
@@ -460,6 +471,12 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setInspectedPoiFallback(null);
   }, []);
 
+  const handleClearFocus = useCallback(() => {
+    setFocusedPlace(null);
+    setInspectedPoiId(null);
+    setInspectedPoiFallback(null);
+  }, []);
+
   useEffect(() => {
     const handleSwitchToRoute = () => {
       setIsSidebarOpen(true);
@@ -520,6 +537,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   );
 
   const handlePoiLoaded = useCallback((loadedPoi: PoiDetail) => {
+    if (!shouldFocusInspectedPoiRef.current) return;
     if (
       typeof loadedPoi.lat === 'number' &&
       typeof loadedPoi.lng === 'number' &&
@@ -683,6 +701,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             activeDay={selectedDay}
             onDayChange={handleSelectDay}
             focusedPlace={focusedPlace}
+            onClearFocus={handleClearFocus}
             categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
             onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
@@ -797,7 +816,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 width: 'min(380px, calc(100vw - 32px))',
                 zIndex: 1040,
                 display: 'flex',
-                alignItems: 'stretch',
+                alignItems: 'flex-start',
                 pointerEvents: 'none',
                 transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% - 10px))',
                 transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -854,7 +873,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   pointerEvents: isInspectorOpen ? 'auto' : 'none',
                   flex: '1 1 auto',
                   minWidth: 0,
-                  height: '100%',
                   maxHeight: '100%',
                   background: 'var(--color-surface-card, #FFFFFF)',
                   backdropFilter: 'blur(28px)',

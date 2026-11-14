@@ -94,6 +94,7 @@ interface TripMapViewProps {
   activeDay: number | 'all';
   onDayChange: (day: number | 'all') => void;
   focusedPlace?: FocusedWaypointPlace | null;
+  onClearFocus?: () => void;
   categoryFilter?: PoiCategoryType | null;
   onCategoryFilterChange?: (cat: PoiCategoryType | null) => void;
   transitMode?: 'simple' | 'detailed';
@@ -1045,10 +1046,76 @@ function FocusedWaypointMarker({
       icon={icon}
       zIndexOffset={2000}
       eventHandlers={{
-        click: handleInspect,
+        click: (e) => {
+          L.DomEvent.stopPropagation(e);
+          handleInspect();
+        },
       }}
     />
   );
+}
+
+function MapFocusDismissHandler({
+  isFocused,
+  onClearFocus,
+  disabled = false,
+}: {
+  isFocused: boolean;
+  onClearFocus?: () => void;
+  disabled?: boolean;
+}) {
+  const isDraggingRef = useRef(false);
+  const lastDragEndAtRef = useRef(0);
+  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  useMapEvents({
+    mousedown: (e) => {
+      const orig = e.originalEvent as MouseEvent | undefined;
+      if (orig && typeof orig.clientX === 'number' && typeof orig.clientY === 'number') {
+        mouseDownPosRef.current = { x: orig.clientX, y: orig.clientY };
+      } else {
+        mouseDownPosRef.current = null;
+      }
+    },
+    dragstart: () => {
+      isDraggingRef.current = true;
+    },
+    dragend: () => {
+      isDraggingRef.current = false;
+      lastDragEndAtRef.current = Date.now();
+    },
+    click: (e) => {
+      if (!isFocused || disabled || !onClearFocus) return;
+      if (isDraggingRef.current) return;
+      if (Date.now() - lastDragEndAtRef.current < 250) return;
+
+      const orig = e.originalEvent as MouseEvent | undefined;
+      const target = orig?.target as HTMLElement | null;
+      if (target && target.closest('.leaflet-control-container')) {
+        mouseDownPosRef.current = null;
+        return;
+      }
+
+      if (
+        mouseDownPosRef.current &&
+        orig &&
+        typeof orig.clientX === 'number' &&
+        typeof orig.clientY === 'number'
+      ) {
+        const dx = orig.clientX - mouseDownPosRef.current.x;
+        const dy = orig.clientY - mouseDownPosRef.current.y;
+        if (Math.hypot(dx, dy) > 4) {
+          mouseDownPosRef.current = null;
+          return;
+        }
+      }
+
+      mouseDownPosRef.current = null;
+      onClearFocus();
+    },
+  });
+
+  return null;
 }
 
 // Controller for bounds fitting and pan-to-focus
@@ -1096,6 +1163,7 @@ function MapViewportController({
       !(focusedPlace.lat === 0 && focusedPlace.lng === 0)
     ) {
       const focusKey = `${focusedPlace.lat.toFixed(5)},${focusedPlace.lng.toFixed(5)},${focusedPlace.timestamp || 0}`;
+      lastBoundsKeyRef.current = null;
       if (focusKey !== lastFocusedKeyRef.current) {
         lastFocusedKeyRef.current = focusKey;
         if (!isDraggingRef.current) {
@@ -1104,6 +1172,7 @@ function MapViewportController({
       }
       return;
     }
+    lastFocusedKeyRef.current = null;
     if (activePoints.length > 0 && !isDraggingRef.current) {
       const boundsKey = `${activePoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|')}#pad:${leftPadding}`;
       if (boundsKey !== lastBoundsKeyRef.current) {
@@ -1288,6 +1357,7 @@ export default function TripMapView({
   activeDay,
   onDayChange,
   focusedPlace,
+  onClearFocus,
   categoryFilter,
   onCategoryFilterChange,
   transitMode = 'simple',
@@ -2037,6 +2107,11 @@ export default function TripMapView({
           leftPadding={effectiveLeftPadding}
           readOnly={readOnly}
         />
+        <MapFocusDismissHandler
+          isFocused={Boolean(focusedPlace)}
+          onClearFocus={onClearFocus}
+          disabled={Boolean(activeMapPickField || isDroppingWaypoint)}
+        />
         <MapBboxSync
           enabled={sidebarTab === 'transit'}
           city={destinationCity}
@@ -2092,6 +2167,9 @@ export default function TripMapView({
               }
               eventHandlers={{
                 click: (e) => {
+                  if (activeDay !== 'all' && activeDay === cluster.dayNumber) {
+                    return;
+                  }
                   L.DomEvent.stopPropagation(e);
                   onDayChange(cluster.dayNumber);
                 },
@@ -2768,7 +2846,8 @@ export default function TripMapView({
                   weight: 2.5,
                 }}
                 eventHandlers={{
-                  click: () => {
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e);
                     const stableId = st.id.startsWith('gtfs:') ? st.id : `gtfs:${destinationCity}:${st.id}`;
                     const payload = {
                       id: stableId,
@@ -2828,7 +2907,8 @@ export default function TripMapView({
                   weight: 2.5,
                 }}
                 eventHandlers={{
-                  click: () => {
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e);
                     onInspectPoi?.(stableId, {
                       id: stableId,
                       name: st.name,
@@ -2921,7 +3001,8 @@ export default function TripMapView({
                       position={[pos[0], pos[1]]}
                       icon={createDirectionsStationIcon(role)}
                       eventHandlers={{
-                        click: () => {
+                        click: (e) => {
+                          L.DomEvent.stopPropagation(e);
                           const stableId = `gtfs:${destinationCity}:${s.station_name}`;
                           onInspectPoi?.(stableId, {
                             id: stableId,
@@ -2974,7 +3055,8 @@ export default function TripMapView({
                       position={[stop.lat, stop.lon]}
                       icon={createIntermediateStopIcon(lineColor)}
                       eventHandlers={{
-                        click: () => {
+                        click: (e) => {
+                          L.DomEvent.stopPropagation(e);
                           const stableId = `gtfs:${destinationCity}:${stop.name}`;
                           onInspectPoi?.(stableId, {
                             id: stableId,
@@ -3068,7 +3150,8 @@ export default function TripMapView({
                           eventHandlers={
                             s.transit_line
                               ? {
-                                  click: () => {
+                                  click: (e) => {
+                                    L.DomEvent.stopPropagation(e);
                                     handleTransitLineClick(
                                       s.transit_line,
                                       transitColor,

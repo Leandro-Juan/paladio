@@ -257,6 +257,13 @@ export interface PoiDetail {
   wikipedia_title?: string | null;
   wikidata_id?: string | null;
   website?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  email?: string | null;
+  wheelchair_accessible?: boolean | null;
+  reservation_required?: boolean | null;
+  cuisine?: string | null;
+  amenities?: string[];
   neighborhood?: string | null;
   doc_quality?: string;
   hours_known?: boolean;

@@ -42,7 +42,6 @@ import {
   CheckIcon,
   ClockIcon,
   AlertTriangleIcon,
-  InfoIcon,
   BookmarkIcon,
   CloseIcon,
   Spinner,
@@ -169,7 +168,11 @@ export interface TripUnifiedSidebarProps {
   onCategoryPoisChange?: (pois: PoiApiItem[]) => void;
   hotelAnchor?: { name: string; lat: number; lng: number };
   airportAnchor?: { name: string; lat: number; lng: number };
-  onInspectPoi?: (poiId: string, fallbackData?: Record<string, unknown>) => void;
+  onInspectPoi?: (
+    poiId: string,
+    fallbackData?: Record<string, unknown>,
+    options?: { focusMap?: boolean }
+  ) => void;
   inspectedPoiId?: string | null;
   onCloseInspect?: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
@@ -2526,14 +2529,6 @@ export function TripUnifiedSidebar({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: selectedDay === 'all' ? '#0F4C5C' : getDayColor(selectedDay as number),
-                      }}
-                    />
                     {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
                   </div>
                 ) : isEditMode && onReoptimizeDay ? (
@@ -3382,16 +3377,13 @@ export function TripUnifiedSidebar({
                         marginTop: '4px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                          {searchQuery
-                            ? `Results for "${searchQuery}"`
-                            : activeCategory === 'all'
-                            ? 'Recommended for you'
-                            : `Top ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} in ${destinationCity || 'City'}`}
-                        </span>
-                        <InfoIcon size={13} color="var(--color-text-muted)" />
-                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                        {searchQuery
+                          ? `Results for "${searchQuery}"`
+                          : activeCategory === 'all'
+                          ? 'Recommended for you'
+                          : `Top ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} in ${destinationCity || 'City'}`}
+                      </span>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
                         {filteredSearchResults.length === 0
                           ? '0 PLACES'
@@ -3763,6 +3755,7 @@ export function TripUnifiedSidebar({
                 >
                   <CollectionsTab
                     tripId={tripId || ''}
+                    destinationCity={destinationCity}
                     onPlaceClick={onPlaceClick}
                     onInspectPoi={onInspectPoi}
                     onAddToDay={onAddToDay}

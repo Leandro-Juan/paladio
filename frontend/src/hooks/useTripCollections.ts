@@ -14,13 +14,19 @@ export interface CollectionPoiSummary {
   rating?: number | null;
   formatted_address?: string | null;
   description?: string | null;
+  city?: string | null;
+  country?: string | null;
+  country_code?: string | null;
 }
+
+export type CollectionItemVisitStatus = 'want_to_go' | 'visited';
 
 export interface CollectionItem {
   id: string;
   collection_id: string;
   poi_id: string;
   notes?: string | null;
+  visit_status?: CollectionItemVisitStatus;
   order_index: number;
   created_at: string;
   poi?: CollectionPoiSummary | null;
@@ -232,6 +238,38 @@ export function useTripCollections(tripId?: string) {
     [tripId, fetchCollections]
   );
 
+  // Update item visit status ('want_to_go' | 'visited')
+  const updateItemVisitStatus = useCallback(
+    async (collectionId: string, poiId: string, visitStatus: CollectionItemVisitStatus): Promise<boolean> => {
+      if (!tripId) return false;
+      const previous = sharedCollectionsCache;
+      sharedCollectionsCache = (previous || []).map((col) => {
+        if (col.id !== collectionId) return col;
+        return {
+          ...col,
+          items: col.items.map((it) =>
+            it.poi_id === poiId ? { ...it, visit_status: visitStatus } : it
+          ),
+        };
+      });
+      notifyAllListeners();
+
+      try {
+        await apiFetch<CollectionItem>(`/trips/${tripId}/collections/${collectionId}/items/${poiId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ visit_status: visitStatus }),
+        });
+        return true;
+      } catch (err: unknown) {
+        sharedCollectionsCache = previous;
+        notifyAllListeners();
+        console.error('Failed to update item visit status:', err);
+        throw err;
+      }
+    },
+    [tripId]
+  );
+
   // Remove item from a collection
   const removeItemFromCollection = useCallback(
     async (collectionId: string, poiId: string): Promise<boolean> => {
@@ -301,6 +339,7 @@ export function useTripCollections(tripId?: string) {
     deleteCollection,
     togglePoiInCollection,
     removeItemFromCollection,
+    updateItemVisitStatus,
     getPoiCollectionIds,
     isPoiSaved,
     poiCollectionMap,
