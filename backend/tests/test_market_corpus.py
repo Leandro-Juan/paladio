@@ -2,8 +2,11 @@
 
 import pytest
 from datetime import date, datetime, timedelta, timezone
+from sqlalchemy import delete
+from app.db.models import MarketPriceTickModel
 from app.engine.market.corpus import backfill_route_corpus, get_route_corpus_status
 from app.engine.market.ports import FlightQuote
+from app.engine.market.sweep import FareObservation
 
 
 class MockTestFlightFeed:
@@ -44,9 +47,46 @@ class MockTestFlightFeed:
             )
         return quotes
 
+    async def fetch_month(
+        self, origin: str, dest: str, month: date, trip_type: str = "one_way"
+    ) -> list[FareObservation]:
+        if origin != "MAD":
+            return []
+        now = datetime.now(timezone.utc)
+        return [
+            FareObservation(
+                origin=origin,
+                destination=dest,
+                depart_date=date(month.year, month.month, day),
+                depart_time=None,
+                arrival_time=None,
+                return_date=None,
+                trip_type=trip_type,
+                price_cents=2000 + ((day - 1) % 15) * 400,
+                currency="EUR",
+                carrier="TestAir",
+                flight_number=f"TA{100 + day}",
+                stops=0,
+                deep_link=f"https://test.com/flight/{month.strftime('%Y%m')}-{day}",
+                source="test_feed",
+                source_class="live",
+                market="es",
+                found_at=now,
+                fetched_at=now,
+            )
+            for day in range(1, 16)
+        ]
+
 
 @pytest.mark.asyncio
 async def test_backfill_route_corpus(db_session):
+    await db_session.execute(
+        delete(MarketPriceTickModel).where(
+            MarketPriceTickModel.origin_iata == "MAD",
+            MarketPriceTickModel.destination_code == "FCO",
+        )
+    )
+    await db_session.commit()
     test_feed = MockTestFlightFeed()
     res = await backfill_route_corpus(
         session=db_session,

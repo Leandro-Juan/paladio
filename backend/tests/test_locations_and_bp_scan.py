@@ -100,13 +100,17 @@ async def test_scan_boarding_pass_past_date_rejected(async_client: AsyncClient):
 async def test_scan_boarding_pass_invalid_date_range_rejected(
     async_client: AsyncClient,
 ):
+    from datetime import date, timedelta
+
+    dep_date = (date.today() + timedelta(days=20)).isoformat()
+    ret_date = (date.today() + timedelta(days=10)).isoformat()
     # Return date preceding departure date must be rejected with 400
-    flight_text = """
+    flight_text = f"""
     AIRLINE CONFIRMATION - FLIGHT AF1234
     Booking Ref: PNR789
-    Departure: 2026-11-20 Departs: 07:30 MAD Madrid
+    Departure: {dep_date} Departs: 07:30 MAD Madrid
     Arrival: Lands: 09:45 CDG Paris
-    Return flight: 2026-11-10 Departure: 19:15 CDG Paris to MAD
+    Return flight: {ret_date} Departure: 19:15 CDG Paris to MAD
     """
     res = await async_client.post(
         "/api/trips/scan-boarding-pass",
@@ -150,12 +154,16 @@ async def test_create_trip_with_participants(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_scan_flight_with_landing_and_takeoff_hours(async_client: AsyncClient):
-    flight_text = """
+    from datetime import date, timedelta
+
+    dep_date = (date.today() + timedelta(days=10)).isoformat()
+    ret_date = (date.today() + timedelta(days=15)).isoformat()
+    flight_text = f"""
     AIRLINE CONFIRMATION - FLIGHT AF1234
     Booking Ref: PNR789
-    Departure: 2026-11-10 Departs: 07:30 MAD Madrid
+    Departure: {dep_date} Departs: 07:30 MAD Madrid
     Arrival: Lands: 09:45 CDG Paris
-    Return flight: 2026-11-15 Departure: 19:15 CDG Paris to MAD
+    Return flight: {ret_date} Departure: 19:15 CDG Paris to MAD
     """
     res = await async_client.post(
         "/api/trips/scan-boarding-pass",
@@ -166,8 +174,8 @@ async def test_scan_flight_with_landing_and_takeoff_hours(async_client: AsyncCli
     assert data["document_type"] == "flight"
     assert data["origin_iata"] == "MAD"
     assert data["destination_iata"] == "CDG"
-    assert data["departure_date"] == "2026-11-10"
-    assert data["return_date"] == "2026-11-15"
+    assert data["departure_date"] == dep_date
+    assert data["return_date"] == ret_date
     assert data["flight_departure_hour"] == "07:30"
     assert data["flight_arrival_hour"] == "09:45"
     # User rule verification:

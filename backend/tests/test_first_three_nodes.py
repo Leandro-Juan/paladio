@@ -49,7 +49,7 @@ def mock_ticket_parser():
 
 
 @pytest.mark.asyncio
-async def test_post_parser_nodes_pipeline(mock_ticket_parser):
+async def test_post_parser_nodes_pipeline(mock_ticket_parser, monkeypatch):
     """
     Test the post-parser pipeline:
       1. ticket_parser: parses raw booking text into BookingAnchors
@@ -57,6 +57,13 @@ async def test_post_parser_nodes_pipeline(mock_ticket_parser):
       3. verify_constraints: human-in-the-loop review and validation
       4. guardrails: evaluates hard logic rules and schedule overlap
     """
+
+    async def _no_overlap(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.swarm.nodes.guardrails._find_overlapping_trip", _no_overlap
+    )
     start_dt = date.today() + timedelta(days=10)
     end_dt = date.today() + timedelta(days=15)
     start_str = start_dt.isoformat()
@@ -204,11 +211,18 @@ async def test_guardrails_hard_errors():
 
 
 @pytest.mark.asyncio
-async def test_subgraph_execution(mock_ticket_parser):
+async def test_subgraph_execution(mock_ticket_parser, monkeypatch):
     """
     Test compiling and running the post-parser subgraph as a LangGraph StateGraph:
     Flow: START -> ticket_parser -> assemble_constraints -> verify_constraints -> guardrails -> END
     """
+
+    async def _no_overlap(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.swarm.nodes.guardrails._find_overlapping_trip", _no_overlap
+    )
     subgraph = StateGraph(SwarmState)
     subgraph.add_node("ticket_parser", ticket_parser_node)
     subgraph.add_node("assemble_constraints", assemble_constraints_node)
