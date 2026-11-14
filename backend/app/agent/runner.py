@@ -9,6 +9,7 @@ import uuid
 from typing import Any, AsyncGenerator, Optional, Set
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.models.ollama import OllamaModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.mcp import MCPToolset
 from app.services.llm_service import LLMService
@@ -326,26 +327,30 @@ class TripAgentRunner:
             active_model = self._explicit_model or await LLMService.get_model_async(
                 session=session, model_name=self.model_name
             )
-            hardware = HardwareService.get_hardware_profile()
             max_tokens = int(os.getenv("TRIP_AGENT_MAX_TOKENS", "1024"))
-            model_extra_body = {
-                "options": {
-                    "num_ctx": hardware.recommended_num_ctx,
-                    "num_thread": hardware.recommended_num_thread,
-                },
-                "keep_alive": hardware.keep_alive,
+            model_settings_kwargs: dict[str, Any] = {
+                "max_tokens": max_tokens,
+                "parallel_tool_calls": False,
             }
+            if (
+                isinstance(active_model, OllamaModel)
+                or type(active_model).__name__ == "OllamaModel"
+            ):
+                hardware = HardwareService.get_hardware_profile()
+                model_settings_kwargs["extra_body"] = {
+                    "options": {
+                        "num_ctx": hardware.recommended_num_ctx,
+                        "num_thread": hardware.recommended_num_thread,
+                    },
+                    "keep_alive": hardware.keep_alive,
+                }
 
             agent = Agent(
                 model=active_model,
                 system_prompt=system_prompt,
                 toolsets=[filtered_toolset],
                 retries=2,
-                model_settings=ModelSettings(
-                    max_tokens=max_tokens,
-                    parallel_tool_calls=False,
-                    extra_body=model_extra_body,
-                ),
+                model_settings=ModelSettings(**model_settings_kwargs),
             )
 
             async def _agent_worker() -> str:

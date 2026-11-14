@@ -121,6 +121,94 @@ async def test_agent_runner_configures_model_settings_max_tokens(monkeypatch):
 
         assert captured_settings is not None
         assert captured_settings.get("max_tokens") == 768
+        assert (
+            "extra_body" not in captured_settings
+            or captured_settings.get("extra_body") is None
+        )
+
+
+@pytest.mark.asyncio
+async def test_agent_runner_configures_extra_body_for_ollama():
+    """Verifies TripAgentRunner passes extra_body with options and keep_alive ONLY for OllamaModel."""
+    from pydantic_ai.models.ollama import OllamaModel
+    from pydantic_ai.providers.ollama import OllamaProvider
+
+    ollama_model = OllamaModel(
+        "qwen2.5:3b", provider=OllamaProvider(base_url="http://localhost:11434")
+    )
+    runner = TripAgentRunner(model=ollama_model)
+
+    captured_settings = None
+
+    class MockAgent:
+        def __init__(self, *args, **kwargs):
+            nonlocal captured_settings
+            captured_settings = kwargs.get("model_settings")
+
+        def run_stream(self, *args, **kwargs):
+            class StreamCtx:
+                async def __aenter__(self):
+                    class StreamRes:
+                        async def stream_text(self, delta=True):
+                            if False:
+                                yield ""
+
+                    return StreamRes()
+
+                async def __aexit__(self, *exc):
+                    pass
+
+            return StreamCtx()
+
+    mock_trip = MagicMock()
+    mock_trip.id = "test_trip_ollama"
+    mock_trip.destination = "Madrid"
+    mock_trip.revision = 0
+    mock_trip.start_date = "2026-11-01"
+    mock_trip.end_date = "2026-11-02"
+
+    mock_user = MagicMock()
+    mock_user.id = "u_1"
+
+    mock_doc = MagicMock()
+    mock_doc.days = []
+    mock_doc.currency = "EUR"
+
+    mock_session = AsyncMock()
+
+    with (
+        patch("app.agent.runner.acquire_turn_lock", return_value=True),
+        patch("app.agent.runner.release_turn_lock", return_value=None),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_trip",
+            return_value=mock_trip,
+        ),
+        patch(
+            "app.application.trip_editing.trip_service.TripService.get_document",
+            return_value=mock_doc,
+        ),
+        patch(
+            "app.application.trip_editing.expense_service.ExpenseService.list_expenses",
+            return_value=[],
+        ),
+        patch("app.agent.runner.get_session_history", return_value=[]),
+        patch("app.agent.runner.append_session_message", return_value=None),
+        patch("app.agent.runner.Agent", side_effect=MockAgent),
+    ):
+        events = []
+        async for ev in runner.run_turn(
+            trip_id="test_trip_ollama",
+            user=mock_user,
+            session=mock_session,
+            user_message="Hello",
+        ):
+            events.append(ev)
+
+        assert captured_settings is not None
+        assert "extra_body" in captured_settings
+        extra_body = captured_settings["extra_body"]
+        assert "options" in extra_body
+        assert "keep_alive" in extra_body
 
 
 @pytest.mark.asyncio
