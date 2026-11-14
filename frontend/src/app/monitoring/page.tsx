@@ -14,6 +14,7 @@ import {
 } from '@/components/icons';
 import { HotelTicketCard } from '@/components/monitoring/HotelTicketCard';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { prepareDealTripNavigation } from '@/utils/dealToTrip';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import styles from './Monitoring.module.css';
 
@@ -91,10 +92,12 @@ function MonitoringPageInner() {
   const activeCount = routes.filter((r) => r.is_active && r.status !== 'DEAL').length;
   const pausedCount = routes.filter((r) => !r.is_active).length;
 
-  // Overview page displays at most ONE deal (the single best deal) per route
+  // Overview page displays at most ONE deal (the single best deal) per route,
+  // and only when both outbound and return flights are present.
   const bestDealsByRoute = useMemo(() => {
     const map = new Map<string, DealPackage>();
     for (const deal of deals) {
+      if (!deal.flight || !deal.return_flight) continue;
       const key = deal.alert_id || `${deal.origin_iata}-${deal.destination_code}`;
       const prev = map.get(key);
       if (!prev || deal.discount_pct > prev.discount_pct) {
@@ -118,9 +121,9 @@ function MonitoringPageInner() {
     }
   };
 
-  const handleViewChange = (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => {
+  const handleViewChange = (view: 'outbound' | 'inbound' | 'roundtrip', monthsCount: number) => {
     if (selectedRoute) {
-      fetchCalendar(selectedRoute.id, view, pricing, monthsCount);
+      fetchCalendar(selectedRoute.id, view, 'flights', monthsCount);
     }
   };
 
@@ -134,7 +137,7 @@ function MonitoringPageInner() {
       {selectedRoute ? (
         <RouteFullScreenView
           route={selectedRoute}
-          deal={deals.find((d) => d.alert_id === selectedRoute.id || d.destination_code === selectedRoute.destination_code) || null}
+          deal={deals.find((d) => Boolean(d.flight && d.return_flight) && (d.alert_id === selectedRoute.id || d.destination_code === selectedRoute.destination_code)) || null}
           routeDeals={routeDeals}
           stats={stats}
           history={history}
@@ -245,12 +248,12 @@ function MonitoringPageInner() {
                   <h2 className={styles.dealRouteTitle}>
                     <span>{deal.origin_name}</span>
                     <span className={styles.dealRouteIata}>({deal.origin_iata})</span>
-                    <ChevronRightIcon size={14} style={{ opacity: 0.6 }} />
+                    <span style={{ opacity: 0.6 }} aria-hidden="true">→</span>
                     <span>{deal.destination_name}</span>
                     <span className={styles.dealRouteIata}>({deal.destination_code})</span>
                   </h2>
                   <span className={styles.dealDatesSub}>
-                    {deal.depart_date} → {deal.return_date} · {deal.nights} Nights Stay & Flight{isMultiTraveler ? ` · ${travelerCount} Travelers` : ''}
+                    {deal.depart_date} → {deal.return_date} · {deal.nights} Nights · {deal.lodging ? 'Stay & Flight' : 'Flights Only'}{isMultiTraveler ? ` · ${travelerCount} Travelers` : ''}
                   </span>
                 </div>
 
@@ -332,7 +335,9 @@ function MonitoringPageInner() {
                       )}
                     </div>
                     <span className={styles.componentSubText}>
-                      {deal.depart_date} · {deal.flight?.depart_time ? deal.flight.depart_time.slice(11, 16) : '--:--'} → {deal.flight?.arrival_time ? deal.flight.arrival_time.slice(11, 16) : '--:--'} (Direct)
+                      {deal.flight?.depart_time && deal.flight?.arrival_time
+                        ? `${deal.depart_date} · ${deal.flight.depart_time.slice(11, 16)} → ${deal.flight.arrival_time.slice(11, 16)} (Direct)`
+                        : deal.depart_date}
                     </span>
 
                     {deal.return_flight && (
@@ -357,7 +362,9 @@ function MonitoringPageInner() {
                           )}
                         </div>
                         <span className={styles.componentSubText}>
-                          {deal.return_date} · {deal.return_flight.depart_time ? deal.return_flight.depart_time.slice(11, 16) : '--:--'} → {deal.return_flight.arrival_time ? deal.return_flight.arrival_time.slice(11, 16) : '--:--'} (Direct)
+                          {deal.return_flight.depart_time && deal.return_flight.arrival_time
+                            ? `${deal.return_date} · ${deal.return_flight.depart_time.slice(11, 16)} → ${deal.return_flight.arrival_time.slice(11, 16)} (Direct)`
+                            : deal.return_date}
                         </span>
                       </>
                     )}
@@ -398,13 +405,7 @@ function MonitoringPageInner() {
                   <button
                     type="button"
                     className={styles.makeTripBtn}
-                    onClick={() =>
-                      router.push(
-                        `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
-                          deal.origin_name
-                        )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}&travelers=${deal.travelers || 1}`
-                      )
-                    }
+                    onClick={() => router.push(prepareDealTripNavigation(deal, dealCurrency))}
                   >
                     Make it a Trip <ChevronRightIcon size={14} />
                   </button>
@@ -503,7 +504,6 @@ function MonitoringPageInner() {
                 <tr>
                   <th scope="col">Corridor / Route</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Cadence</th>
                   <th scope="col" className={styles.alignRight}>Current Fare</th>
                   <th scope="col" className={styles.alignRight}>30D Median</th>
                   <th scope="col" className={styles.alignRight}>Target P10</th>
@@ -530,7 +530,7 @@ function MonitoringPageInner() {
                       <td className={styles.corridorCell}>
                         <div className={styles.routeCodes}>
                           <span className={styles.iataCode}>{r.origin_iata}</span>
-                          <ChevronRightIcon size={14} className={styles.arrow} aria-hidden="true" />
+                          <span className={styles.arrow} aria-hidden="true">→</span>
                           <span className={styles.iataCode}>{r.destination_code}</span>
                         </div>
                         <span className={styles.citySub}>
@@ -558,10 +558,6 @@ function MonitoringPageInner() {
                             />
                           )}
                         </div>
-                      </td>
-
-                      <td className={styles.scheduleCell}>
-                        <span className={styles.scheduleText}>{r.schedule}</span>
                       </td>
 
                       <td className={`${styles.priceCell} ${styles.alignRight}`}>

@@ -209,6 +209,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
   const monitoredDealsByDepartDate = useMemo(() => {
     const map: Record<string, DealPackage[]> = {};
     monitoredDeals.forEach((deal) => {
+      if (!deal.flight || !deal.return_flight) return;
       if (!map[deal.depart_date]) {
         map[deal.depart_date] = [];
       }

@@ -31,22 +31,22 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
 
   if (!lodging) {
     return (
-      <div className={styles.dealComponentCard} style={{ opacity: 0.85 }}>
+      <div className={styles.dealComponentCard} style={{ opacity: 0.9 }}>
         <div className={styles.componentHeader}>
           <span className={styles.componentTypeTitle}>
             <HotelIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
             Accommodation
           </span>
-          <span className={styles.componentCarrierBadge}>Flexible Stay</span>
+          <span className={styles.hotelNotIncludedBadge}>HOTEL NOT INCLUDED</span>
         </div>
         <div className={styles.componentDetails}>
-          <span className={styles.componentMainName}>Flight Deal Corridor</span>
+          <span className={styles.componentMainName}>No accommodation included</span>
           <span className={styles.componentSubText}>
-            {deal.nights} Nights in {deal.destination_name} · Lodging can be selected dynamically.
+            {deal.nights} Nights in {deal.destination_name} · Select lodging when building your trip.
           </span>
         </div>
         <div className={styles.componentPriceRow}>
-          <span className={styles.componentPrice}>Direct Airfare Package</span>
+          <span className={styles.componentPrice}>Flights Only</span>
         </div>
       </div>
     );

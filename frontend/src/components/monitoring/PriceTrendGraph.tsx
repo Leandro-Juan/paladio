@@ -213,6 +213,12 @@ export function PriceTrendGraph({
     return match ? match.displayTime : null;
   }, [chartData, returnHorizonDateStr]);
 
+  const isNearRightEdge = (displayTime: string | null) => {
+    if (!displayTime || chartData.length === 0) return false;
+    const idx = chartData.findIndex((d) => d.displayTime === displayTime);
+    return idx >= 0 && idx > chartData.length * 0.8;
+  };
+
   // Shared tooltip renderer for synchronized scrubber
   const renderSharedTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -297,9 +303,6 @@ export function PriceTrendGraph({
       {/* Top Header */}
       <div className={styles.header}>
         <div className={styles.titleArea}>
-          <span className={styles.telemetryTag} aria-hidden="true">
-            {"// 11_MONTH_CALENDAR_SWEEP"}
-          </span>
           <div className={styles.titleRow}>
             <h4 className={styles.title}>
               Calendar Horizon Price Spread
@@ -327,9 +330,6 @@ export function PriceTrendGraph({
 
       {/* Chart 1: Flight Fares */}
       <div className={styles.chartWrapper}>
-        <div className={styles.subChartLabelRow}>
-          <span className={styles.subChartFlightTag}>AIRFARE CORRIDOR (OUTBOUND / RETURN)</span>
-        </div>
         <ResponsiveContainer width="100%" height={240}>
           <AreaChart syncId="paladioPriceSync" data={chartData} margin={{ top: 12, right: 20, left: 5, bottom: 0 }}>
             <defs>
@@ -415,10 +415,12 @@ export function PriceTrendGraph({
                 strokeDasharray="4 4"
                 label={{
                   value: 'Earliest Dep',
-                  position: 'insideTopLeft',
+                  position: isNearRightEdge(earliestDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#0284C7',
                   fontSize: 10,
                   fontFamily: 'monospace',
+                  dx: isNearRightEdge(earliestDisplayTime) ? -4 : 4,
+                  dy: 4,
                 }}
               />
             )}
@@ -430,10 +432,12 @@ export function PriceTrendGraph({
                 strokeDasharray="4 4"
                 label={{
                   value: 'Latest Dep',
-                  position: 'insideTopLeft',
+                  position: isNearRightEdge(latestDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#0284C7',
                   fontSize: 10,
                   fontFamily: 'monospace',
+                  dx: isNearRightEdge(latestDisplayTime) ? -4 : 4,
+                  dy: 18,
                 }}
               />
             )}
@@ -445,10 +449,12 @@ export function PriceTrendGraph({
                 strokeDasharray="3 3"
                 label={{
                   value: `Max Return (${maxNights || 7}N)`,
-                  position: 'insideTopRight',
+                  position: isNearRightEdge(returnHorizonDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#D97706',
                   fontSize: 10,
                   fontFamily: 'monospace',
+                  dx: isNearRightEdge(returnHorizonDisplayTime) ? -4 : 4,
+                  dy: 32,
                 }}
               />
             )}

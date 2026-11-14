@@ -42,6 +42,19 @@
   border-radius: 4px;
 }
 
+.hotelNotIncludedBadge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #92400E;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
 /* Horizontal Body: Photo Left + Details Right */
 .hotelHorizontalBody {
   display: flex;

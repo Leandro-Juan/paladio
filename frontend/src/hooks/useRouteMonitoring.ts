@@ -380,7 +380,7 @@ export function useRouteMonitoring(overrideCurrency?: string) {
   const fetchCalendar = useCallback(async (
     routeId?: string,
     view: 'outbound' | 'inbound' | 'roundtrip' = 'roundtrip',
-    pricing: 'flights' | 'package' = 'package',
+    pricing: 'flights' | 'package' = 'flights',
     monthsCount = 4
   ) => {
     const targetId = routeId || selectedRouteId;

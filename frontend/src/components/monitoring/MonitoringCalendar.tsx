@@ -12,7 +12,7 @@ interface MonitoringCalendarProps {
   calendar: RouteCalendar | null;
   currency?: string;
   onMonthsCountChange?: (count: number) => void;
-  onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => void;
+  onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', monthsCount: number) => void;
   onPlanItinerary?: (day: CalendarDay) => void;
   onFetchLodging?: (checkIn: string, nights: number) => Promise<LodgingSummary | null>;
 }
@@ -34,9 +34,6 @@ export function MonitoringCalendar({
   const [monthsCount, setMonthsCount] = useState<number>(4);
   const [currentView, setCurrentView] = useState<'outbound' | 'inbound' | 'roundtrip'>(
     calendar?.view || 'roundtrip'
-  );
-  const [currentPricing, setCurrentPricing] = useState<'flights' | 'package'>(
-    calendar?.pricing || 'package'
   );
   const [isFetchingLodging, setIsFetchingLodging] = useState<boolean>(false);
   const [dayLodgingMap, setDayLodgingMap] = useState<Record<string, LodgingSummary>>({});
@@ -108,7 +105,7 @@ export function MonitoringCalendar({
       onMonthsCountChange(count);
     }
     if (onViewChange) {
-      onViewChange(currentView, currentPricing, count);
+      onViewChange(currentView, count);
     }
   };
 
@@ -116,21 +113,13 @@ export function MonitoringCalendar({
     setCurrentView(v);
     setSelectedDay(null);
     if (onViewChange) {
-      onViewChange(v, currentPricing, monthsCount);
-    }
-  };
-
-  const handlePricingChange = (p: 'flights' | 'package') => {
-    setCurrentPricing(p);
-    setSelectedDay(null);
-    if (onViewChange) {
-      onViewChange(currentView, p, monthsCount);
+      onViewChange(v, monthsCount);
     }
   };
 
   // Dynamic on-demand lodging fetching for selected day
   useEffect(() => {
-    if (!selectedDay || currentPricing !== 'package' || !onFetchLodging) return;
+    if (!selectedDay || currentView !== 'roundtrip' || !onFetchLodging) return;
     const dateKey = selectedDay.date;
     // Skip if already observed with authentic property details
     if (dayLodgingMap[dateKey]?.property_name || selectedDay.lodging?.property_name) return;
@@ -158,7 +147,7 @@ export function MonitoringCalendar({
     return () => {
       isMounted = false;
     };
-  }, [selectedDay?.date, selectedDay?.nights, currentPricing, onFetchLodging]);
+  }, [selectedDay?.date, selectedDay?.nights, currentView, onFetchLodging]);
 
   const effectiveLodging: LodgingSummary | null = useMemo(() => {
     if (!selectedDay) return null;
@@ -167,7 +156,7 @@ export function MonitoringCalendar({
 
   const dynamicCombinedPrice = useMemo(() => {
     if (!selectedDay || selectedDay.price_eur === null) return null;
-    if (currentPricing === 'package' && effectiveLodging) {
+    if (currentView === 'roundtrip' && effectiveLodging) {
       const outP = selectedDay.outbound_flight?.price_eur;
       const retP = selectedDay.return_flight?.price_eur;
       if (typeof outP === 'number' && typeof retP === 'number') {
@@ -175,7 +164,7 @@ export function MonitoringCalendar({
       }
     }
     return selectedDay.price_eur;
-  }, [selectedDay, currentPricing, effectiveLodging]);
+  }, [selectedDay, currentView, effectiveLodging]);
 
   if (!calendar || !calendar.months || calendar.months.length === 0) {
     return (
@@ -228,26 +217,6 @@ export function MonitoringCalendar({
               </button>
             ))}
           </div>
-
-          {/* Pricing Mode (only visible in roundtrip mode) */}
-          {currentView === 'roundtrip' && (
-            <div className={styles.viewSelector}>
-              <button
-                type="button"
-                className={`${styles.toggleBtn} ${currentPricing === 'flights' ? styles.activeToggleBtn : ''}`}
-                onClick={() => handlePricingChange('flights')}
-              >
-                FLIGHTS ONLY
-              </button>
-              <button
-                type="button"
-                className={`${styles.toggleBtn} ${currentPricing === 'package' ? styles.activeToggleBtn : ''}`}
-                onClick={() => handlePricingChange('package')}
-              >
-                FLIGHT + HOTEL
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -461,7 +430,7 @@ export function MonitoringCalendar({
             <div className={styles.inspectorFare}>
               <span className={styles.inspectorFareLabel}>
                 {selectedDay.nights
-                  ? (currentPricing === 'package' ? 'Combined Package Estimate' : 'Total Round-Trip Fare')
+                  ? (effectiveLodging ? 'Combined Package Estimate' : 'Total Round-Trip Fare')
                   : 'Observed Fare'}
               </span>
               <span className={styles.inspectorFareValue}>

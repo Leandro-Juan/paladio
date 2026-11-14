@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
 import { TrendingDownIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
+import { prepareDealTripNavigation } from '@/utils/dealToTrip';
 import { HotelTicketCard } from './HotelTicketCard';
 import styles from './DealPackageNavigator.module.css';
 
@@ -18,12 +19,14 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
-  if (!deals || deals.length === 0) {
+  const validDeals = (deals || []).filter((d) => Boolean(d.flight && d.return_flight));
+
+  if (validDeals.length === 0) {
     return null;
   }
 
-  const safeIndex = Math.min(Math.max(0, currentIndex), deals.length - 1);
-  const deal = deals[safeIndex];
+  const safeIndex = Math.min(Math.max(0, currentIndex), validDeals.length - 1);
+  const deal = validDeals[safeIndex];
   const activeCurrency = deal?.currency || currency || 'EUR';
 
   const travelerCount = deal?.travelers || 1;
@@ -46,16 +49,11 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => Math.min(deals.length - 1, prev + 1));
+    setCurrentIndex((prev) => Math.min(validDeals.length - 1, prev + 1));
   };
 
   const handleMakeTrip = () => {
-    const travelersParam = deal.travelers && deal.travelers > 1 ? `&travelers=${deal.travelers}` : '';
-    router.push(
-      `/engine?destination=${encodeURIComponent(deal.destination_name)}&origin=${encodeURIComponent(
-        deal.origin_name
-      )}&start_date=${deal.depart_date}&end_date=${deal.return_date}&budget=${deal.total_price_eur}${travelersParam}`
-    );
+    router.push(prepareDealTripNavigation(deal, activeCurrency));
   };
 
   return (
@@ -64,7 +62,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
       <div className={styles.navTopBar}>
         <div className={styles.badgeGroup}>
           <span className={styles.rankBadge}>
-            {safeIndex === 0 ? `★ TOP DEAL 1 OF ${deals.length} · BEST VALUE` : `OPTION ${safeIndex + 1} OF ${deals.length}`}
+            {safeIndex === 0 ? `★ TOP DEAL 1 OF ${validDeals.length} · BEST VALUE` : `OPTION ${safeIndex + 1} OF ${validDeals.length}`}
           </span>
         </div>
 
@@ -85,14 +83,14 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
           </button>
 
           <span className={styles.counterText}>
-            <strong>{safeIndex + 1}</strong> / {deals.length}
+            <strong>{safeIndex + 1}</strong> / {validDeals.length}
           </span>
 
           <button
             type="button"
             className={styles.carouselArrowBtn}
             onClick={handleNext}
-            disabled={safeIndex === deals.length - 1}
+            disabled={safeIndex === validDeals.length - 1}
             aria-label="Next deal package"
             data-tooltip="Next deal package"
             data-tooltip-position="top"
@@ -112,7 +110,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             <h3 className={styles.dealRouteTitle}>
               <span>{deal.origin_name}</span>
               <span className={styles.routeIata}>({deal.origin_iata})</span>
-              <ChevronRightIcon size={14} className={styles.arrowSep} aria-hidden="true" />
+              <span className={styles.arrowSep} aria-hidden="true">→</span>
               <span>{deal.destination_name}</span>
               <span className={styles.routeIata}>({deal.destination_code})</span>
             </h3>
@@ -200,7 +198,9 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                 )}
               </div>
               <span className={styles.componentSubText}>
-                {deal.depart_date} · {deal.flight?.depart_time ? deal.flight.depart_time.slice(11, 16) : '--:--'} → {deal.flight?.arrival_time ? deal.flight.arrival_time.slice(11, 16) : '--:--'} · Direct ({deal.flight?.airline || 'Direct'})
+                {deal.flight?.depart_time && deal.flight?.arrival_time
+                  ? `${deal.depart_date} · ${deal.flight.depart_time.slice(11, 16)} → ${deal.flight.arrival_time.slice(11, 16)} · Direct (${deal.flight?.airline || 'Direct'})`
+                  : deal.depart_date}
               </span>
 
               {/* Return Flight */}
@@ -226,7 +226,9 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                     )}
                   </div>
                   <span className={styles.componentSubText}>
-                    {deal.return_date} · {deal.return_flight?.depart_time ? deal.return_flight.depart_time.slice(11, 16) : '--:--'} → {deal.return_flight?.arrival_time ? deal.return_flight.arrival_time.slice(11, 16) : '--:--'} · Direct ({deal.return_flight?.airline || 'Direct'})
+                    {deal.return_flight?.depart_time && deal.return_flight?.arrival_time
+                      ? `${deal.return_date} · ${deal.return_flight.depart_time.slice(11, 16)} → ${deal.return_flight.arrival_time.slice(11, 16)} · Direct (${deal.return_flight?.airline || 'Direct'})`
+                      : deal.return_date}
                   </span>
                 </>
               )}

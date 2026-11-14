@@ -16,7 +16,7 @@ import { RouteTelemetryCards } from './RouteTelemetryCards';
 import { MonitoringCalendar } from './MonitoringCalendar';
 import { DealPackageNavigator } from './DealPackageNavigator';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { ChevronLeftIcon } from '@/components/icons';
 import styles from './RouteFullScreenView.module.css';
 
 interface RouteFullScreenViewProps {
@@ -37,7 +37,7 @@ interface RouteFullScreenViewProps {
   onDiscardDeal?: (id: string) => Promise<void> | void;
   onHistoryRangeChange?: (range: '24h' | '7d' | '30d' | '90d') => void;
   onMonthsCountChange?: (count: number) => void;
-  onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', pricing: 'flights' | 'package', monthsCount: number) => void;
+  onViewChange?: (view: 'outbound' | 'inbound' | 'roundtrip', monthsCount: number) => void;
   onFetchLodging?: (checkIn: string, nights: number) => Promise<LodgingSummary | null>;
 }
 
@@ -88,7 +88,7 @@ export function RouteFullScreenView({
           <div className={styles.routeTitleBlock}>
             <div className={styles.routeHeadingRow}>
               <h2 className={styles.routeIata}>
-                {route.origin_iata} <ChevronRightIcon size={14} style={{ opacity: 0.5 }} aria-hidden="true" /> {route.destination_code}
+                {route.origin_iata} <span style={{ opacity: 0.5 }} aria-hidden="true">→</span> {route.destination_code}
               </h2>
 
               <span

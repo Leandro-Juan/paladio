@@ -430,12 +430,6 @@
   gap: 0.25rem;
 }
 
-.scheduleCell {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #64748B);
-}
-
 .priceCell {
   font-family: var(--font-mono, monospace);
 }

@@ -75,6 +75,13 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
   const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRateLimitWarning, setShowRateLimitWarning] = useState<boolean>(false);
+
+  const handleClose = () => {
+    setShowRateLimitWarning(false);
+    setError(null);
+    onClose();
+  };
 
   // Close date pickers on outside click
   useEffect(() => {
@@ -176,6 +183,11 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
       return;
     }
 
+    if ((existingRoutes?.length ?? 0) >= 3 && !showRateLimitWarning) {
+      setShowRateLimitWarning(true);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -190,24 +202,25 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
         max_budget_eur: Number(budget),
         currency: selectedCurrency,
       });
-      onClose();
+      handleClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create route monitor';
       setError(msg);
+      setShowRateLimitWarning(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
+    <div className={styles.backdrop} onClick={handleClose} role="dialog" aria-modal="true">
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Track New Airfare Route</h3>
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close modal"
           >
             <CloseIcon size={16} />
@@ -543,30 +556,77 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
             </div>
           </div>
 
+          {showRateLimitWarning && (
+            <div className={styles.warningMessage} role="alertdialog" aria-live="assertive" aria-label="API Rate Limit Warning">
+              <div className={styles.warningIcon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div className={styles.warningContent}>
+                <span className={styles.warningTag}>{"// API_RATE_LIMIT_ADVISORY"}</span>
+                <span className={styles.warningText}>
+                  You already have {existingRoutes?.length ?? 0} monitored routes. Monitoring more than 3 routes increases daily request volume, so external flight and hotel APIs may hit rate limits or work less reliably. Do you want to proceed anyway?
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Modal Actions */}
           <div className={styles.modalFooter}>
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={styles.submitBtn}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Spinner size={14} />
-                  <span>Configuring Target...</span>
-                </>
-              ) : (
-                <span>Activate Route Monitor</span>
-              )}
-            </button>
+            {showRateLimitWarning ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setShowRateLimitWarning(false)}
+                  disabled={isSubmitting}
+                >
+                  Go Back
+                </button>
+                <button
+                  type="submit"
+                  className={styles.proceedWarningBtn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Spinner size={14} />
+                      <span>Configuring Target...</span>
+                    </>
+                  ) : (
+                    <span>Proceed Anyway</span>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.submitBtn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Spinner size={14} />
+                      <span>Configuring Target...</span>
+                    </>
+                  ) : (
+                    <span>Activate Route Monitor</span>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </form>
 
