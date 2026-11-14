@@ -29,6 +29,7 @@ app.conf.update(
     worker_prefetch_multiplier=1,
     # Configure dedicated queues and rate limits to prevent memory exhaustion (Guardrail 4)
     task_routes={
+        "app.tasks.cleanup_city_gtfs_task": {"queue": "transit_build"},
         "app.tasks.build_city_gtfs_task": {"queue": "transit_build"},
         "app.tasks.derive_city_transit_task": {"queue": "transit_build"},
         "app.tasks.hydrate_city_pipeline_task": {"queue": "poi_hydration"},

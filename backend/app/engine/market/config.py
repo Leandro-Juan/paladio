@@ -55,6 +55,13 @@ class MarketConfig:
         os.getenv("MARKET_SCAN_HORIZON_DAYS", "330")
     )  # 11-month horizon
     SCAN_INTERVAL_MIN: int = int(os.getenv("MARKET_SCAN_INTERVAL_MIN", "15"))
+    SWEEP_DAILY_BUDGET_SECONDS: float = float(
+        os.getenv("MARKET_SWEEP_DAILY_BUDGET_SECONDS", str(22 * 3600))
+    )
+    SWEEP_NEXT_RUN_BUFFER_SECONDS: float = float(
+        os.getenv("MARKET_SWEEP_NEXT_RUN_BUFFER_SECONDS", str(2 * 3600))
+    )
+    SWEEP_JITTER_RATIO: float = float(os.getenv("MARKET_SWEEP_JITTER_RATIO", "0.35"))
 
     # Pipeline & Provider Kill Switches (Phase 6)
     ENABLE_SWEEP: bool = os.getenv("MARKET_ENABLE_SWEEP", "true").lower() in (

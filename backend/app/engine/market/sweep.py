@@ -8,12 +8,14 @@ Complies with PLAN.md Phases 2 and 3 and Strict Token Conservation Protocol.
 
 from __future__ import annotations
 
+import asyncio
 import calendar
 import hashlib
 import json
 import logging
+import random
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Sequence
 
 from sqlalchemy import select, text, update
@@ -368,6 +370,85 @@ async def sweep_route_month(
     return inserted, days_with_price
 
 
+def compute_next_sweep_budget_seconds(
+    now: datetime,
+    next_run_hour_utc: int = 3,
+    next_run_minute_utc: int = 0,
+    buffer_seconds: float | None = None,
+    max_budget_seconds: float | None = None,
+) -> float:
+    """
+    Computes the available seconds from `now` until the next scheduled daily sweep,
+    minus a safety buffer so the current sweep finishes cleanly before the next day's run.
+    """
+    utc_now = (
+        now.astimezone(timezone.utc) if now.tzinfo else now.replace(tzinfo=timezone.utc)
+    )
+    next_run = utc_now.replace(
+        hour=next_run_hour_utc,
+        minute=next_run_minute_utc,
+        second=0,
+        microsecond=0,
+    )
+    if next_run <= utc_now:
+        next_run += timedelta(days=1)
+
+    buf = (
+        config.SWEEP_NEXT_RUN_BUFFER_SECONDS
+        if buffer_seconds is None
+        else max(0.0, buffer_seconds)
+    )
+    cap = (
+        config.SWEEP_DAILY_BUDGET_SECONDS
+        if max_budget_seconds is None
+        else max(0.0, max_budget_seconds)
+    )
+    available = max(0.0, (next_run - utc_now).total_seconds() - buf)
+    return min(available, cap)
+
+
+def compute_sparse_jitter_delays(
+    total_calls: int,
+    budget_seconds: float,
+    jitter_ratio: float | None = None,
+    rng: random.Random | None = None,
+) -> list[float]:
+    """
+    Distributes `total_calls` as sparsely as possible across `budget_seconds`
+    using stratified jittered timestamps so API calls never burst and never
+    exceed the daily budget before the next day's run.
+    Returns a list of `total_calls` non-negative sleep durations (in seconds)
+    to wait before each call, with sum(delays) <= budget_seconds.
+    """
+    if total_calls <= 0:
+        return []
+    if total_calls == 1 or budget_seconds <= 0.0:
+        return [0.0] * total_calls
+
+    ratio = (
+        config.SWEEP_JITTER_RATIO
+        if jitter_ratio is None
+        else max(0.0, min(jitter_ratio, 0.5))
+    )
+    rand = rng or random.Random()
+    slot_width = budget_seconds / total_calls
+
+    timestamps: list[float] = []
+    for idx in range(total_calls):
+        center = (idx + 0.5) * slot_width
+        jitter = rand.uniform(-ratio * slot_width, ratio * slot_width)
+        ts = max(0.0, min(budget_seconds, center + jitter))
+        timestamps.append(ts)
+
+    timestamps.sort()
+    delays: list[float] = []
+    prev = 0.0
+    for ts in timestamps:
+        delays.append(max(0.0, ts - prev))
+        prev = ts
+    return delays
+
+
 async def sweep_route(
     session: AsyncSession,
     provider: FareProvider,
@@ -377,6 +458,7 @@ async def sweep_route(
     run_date: date | None = None,
     run_id: str | None = None,
     market: str = "es",
+    inter_month_delays: Sequence[float] | None = None,
 ) -> dict[str, Any]:
     """
     Sweeps up to months_ahead forward calendar months for directed corridor origin->dest.
@@ -394,7 +476,11 @@ async def sweep_route(
         m = (today.month - 1 + i) % 12 + 1
         month_dates.append(date(y, m, 1))
 
-    for m_date in month_dates:
+    for idx, m_date in enumerate(month_dates):
+        if inter_month_delays and idx < len(inter_month_delays):
+            delay_s = inter_month_delays[idx]
+            if delay_s > 0:
+                await asyncio.sleep(delay_s)
         try:
             inserted, days_cnt = await sweep_route_month(
                 session=session,
@@ -431,6 +517,8 @@ async def run_daily_flight_sweep(
     provider: FareProvider | None = None,
     pilot_routes: Sequence[tuple[str, str]] | None = None,
     months_ahead: int | None = None,
+    spread_across_day: bool = False,
+    budget_seconds: float | None = None,
 ) -> dict[str, Any]:
     """
     Top-level daily orchestrator per PLAN.md Phase 2.7 & 2.8.
@@ -503,7 +591,30 @@ async def run_daily_flight_sweep(
         total_ticks_inserted = 0
 
         # 3. Sweep each directed route with per-route fault isolation
-        for orig, dst in sorted(directed_routes):
+        route_list = sorted(directed_routes)
+        all_delays: list[float] = []
+        if spread_across_day and route_list:
+            random.shuffle(route_list)
+            effective_budget = (
+                budget_seconds
+                if budget_seconds is not None
+                else compute_next_sweep_budget_seconds(started_at)
+            )
+            all_delays = compute_sparse_jitter_delays(
+                total_calls=len(route_list) * horizon,
+                budget_seconds=effective_budget,
+            )
+            logger.info(
+                f"[Daily Sweep] Spreading {len(all_delays)} API calls across "
+                f"{effective_budget / 3600:.2f}h (with jitter) before next day's run."
+            )
+
+        for route_idx, (orig, dst) in enumerate(route_list):
+            route_delays = (
+                all_delays[route_idx * horizon : (route_idx + 1) * horizon]
+                if all_delays
+                else None
+            )
             try:
                 res = await sweep_route(
                     session=sess,
@@ -513,6 +624,7 @@ async def run_daily_flight_sweep(
                     months_ahead=horizon,
                     run_date=today,
                     run_id=run_id,
+                    inter_month_delays=route_delays,
                 )
                 calls_made += res["months_ok"]
                 calls_failed += len(res["errors"])

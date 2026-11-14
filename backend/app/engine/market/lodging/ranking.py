@@ -219,6 +219,8 @@ def compute_subscores(
     m = getattr(config, "LODGING_PRIOR_REVIEWS_M", 50.0)
     c_prior = getattr(config, "LODGING_PRIOR_RATING_C", 7.5)
     raw_r = candidate.review_score if candidate.review_score is not None else c_prior
+    if candidate.review_score is not None and raw_r <= 5.0:
+        raw_r = raw_r * 2.0
     v = candidate.review_count if candidate.review_count is not None else 0
 
     # Bayesian smoothing: (v*R + m*C) / (v+m)
@@ -260,6 +262,12 @@ def compute_subscores(
         u_score += 0.2
     if candidate.taxes_included:
         u_score += 0.1
+    if candidate.photo_url:
+        u_score += 0.15
+    if candidate.address:
+        u_score += 0.10
+    if candidate.amenities:
+        u_score += 0.05
     u_score = min(u_score, 1.0)
 
     # 6. Taste Affinity Fit (T)
@@ -353,10 +361,11 @@ def rank_hotels(
         val_score = round(val * 100.0, 1)
         ranked_items.append((c, val_score, sub))
 
-    # 4. Sort: ValueScore DESC, nightly_cents ASC, review_count DESC
+    # 4. Sort: ValueScore DESC, photo_url presence, nightly_cents ASC, review_count DESC
     ranked_items.sort(
         key=lambda item: (
             -item[1],
+            0 if item[0].photo_url else 1,
             item[0].nightly_cents,
             -(item[0].review_count or 0),
         )

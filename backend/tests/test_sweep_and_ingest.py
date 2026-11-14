@@ -294,3 +294,41 @@ async def test_daily_sweep_orchestrator():
         assert run_record is not None
         assert run_record.provider in ("aviasales", "composite")
         assert run_record.status == "completed"
+
+
+def test_sparse_jitter_delays_respect_budget_and_spread():
+    import random
+    from app.engine.market.sweep import compute_sparse_jitter_delays
+
+    rng = random.Random(42)
+    budget = 22 * 3600.0
+    delays = compute_sparse_jitter_delays(
+        total_calls=66, budget_seconds=budget, jitter_ratio=0.35, rng=rng
+    )
+
+    assert len(delays) == 66
+    assert all(d >= 0.0 for d in delays)
+    assert sum(delays) <= budget
+    # Ensure calls are genuinely spread across most of the budget (not clustered at 0)
+    assert sum(delays) > budget * 0.9
+
+    assert compute_sparse_jitter_delays(0, budget) == []
+    assert compute_sparse_jitter_delays(1, budget) == [0.0]
+    assert compute_sparse_jitter_delays(5, 0.0) == [0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+def test_next_sweep_budget_accounts_for_next_day():
+    from datetime import datetime, timezone
+    from app.engine.market.sweep import compute_next_sweep_budget_seconds
+
+    # Started right on schedule at 03:00 UTC -> next day's 03:00 UTC is 24h away, minus 2h buffer = 22h
+    at_schedule = datetime(2026, 11, 14, 3, 0, 0, tzinfo=timezone.utc)
+    assert compute_next_sweep_budget_seconds(at_schedule) == 22 * 3600.0
+
+    # Started late at 23:00 UTC -> next 03:00 UTC is 4h away, minus 2h buffer = 2h
+    late_start = datetime(2026, 11, 14, 23, 0, 0, tzinfo=timezone.utc)
+    assert compute_next_sweep_budget_seconds(late_start) == 2 * 3600.0
+
+    # Started 1h before next 03:00 UTC -> 0s budget (no overflow into next day's run)
+    too_close = datetime(2026, 11, 15, 2, 0, 0, tzinfo=timezone.utc)
+    assert compute_next_sweep_budget_seconds(too_close) == 0.0

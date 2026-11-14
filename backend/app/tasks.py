@@ -1689,7 +1689,6 @@ def cleanup_city_gtfs_resources(city_clean: str) -> None:
 @app.task(
     bind=True,
     name="app.tasks.cleanup_city_gtfs_task",
-    queue="transit_build",
 )
 def cleanup_city_gtfs_task(self, city_name: str):
     """Celery task to execute full GTFS cleanup for a city on the worker container."""
@@ -1701,7 +1700,6 @@ def cleanup_city_gtfs_task(self, city_name: str):
 @app.task(
     bind=True,
     name="app.tasks.build_city_gtfs_task",
-    queue="transit_build",
     autoretry_for=(httpx.RequestError,),
     retry_backoff=True,
     max_retries=1,
@@ -2075,7 +2073,6 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
 @app.task(
     bind=True,
     name="app.tasks.derive_city_transit_task",
-    queue="transit_build",
     max_retries=2,
     default_retry_delay=10,
 )
@@ -2168,7 +2165,9 @@ def daily_flight_sweep_task(
             try:
                 converted = [tuple(p) for p in pilot_routes] if pilot_routes else None
                 return await run_daily_flight_sweep(
-                    session=session, pilot_routes=converted
+                    session=session,
+                    pilot_routes=converted,
+                    spread_across_day=True,
                 )
             finally:
                 await engine.dispose()
@@ -2241,7 +2240,7 @@ def daily_market_pipeline_task(
     from app.engine.market.sweep import run_daily_flight_sweep
 
     r = redis.Redis.from_url(redis_url)
-    lock = r.lock("paladio:market:daily_chain_lock", timeout=7200, blocking=False)
+    lock = r.lock("paladio:market:daily_chain_lock", timeout=82800, blocking=False)
     acquired = lock.acquire()
     if not acquired:
         logger.warning(
@@ -2271,7 +2270,9 @@ def daily_market_pipeline_task(
                     try:
                         async with session_maker() as session:
                             sweep_res = await run_daily_flight_sweep(
-                                session=session, pilot_routes=converted
+                                session=session,
+                                pilot_routes=converted,
+                                spread_across_day=True,
                             )
                     except Exception as sweep_err:
                         logger.error(f"[Daily Pipeline] Sweep stage error: {sweep_err}")
@@ -2429,7 +2430,6 @@ def prewarm_route_lodging_task(
 @app.task(
     bind=True,
     name="app.tasks.reconcile_interrupted_transit_builds",
-    queue="transit_build",
 )
 def reconcile_interrupted_transit_builds(self):
     """
