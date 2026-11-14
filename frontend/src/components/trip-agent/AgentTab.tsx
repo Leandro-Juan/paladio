@@ -103,7 +103,6 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
               <circle cx="12" cy="12" r="10" />
               <polygon points="12 8 8 16 12 14 16 16 12 8" />
             </svg>
-            {isWorking && <span className={styles.pulseDot} />}
           </div>
 
           <div className={styles.agentHeading}>
@@ -133,7 +132,6 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
             title="Switch AI model family"
             data-testid="agent-model-selector-btn"
           >
-            <span className={styles.engineDot} />
             <span className={styles.engineModelText}>
               {llmInfo?.model.split(':')[0] || 'qwen2.5'}
             </span>

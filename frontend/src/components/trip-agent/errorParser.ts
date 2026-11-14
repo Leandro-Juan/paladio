@@ -35,9 +35,10 @@ function extractModelName(text: string): string | undefined {
  */
 function extractCleanMessage(text: string): string {
   // Try extracting from {'message': '...'} or {"message": "..."}
-  const bodyMatch = text.match(/['"]message['"]:\s*['"]([^'"]+)['"]/i);
-  if (bodyMatch && bodyMatch[1]) {
-    return bodyMatch[1].trim();
+  // Match matching outer quotes so nested quotes (e.g. "property 'keep_alive' is unsupported") are not truncated
+  const bodyMatch = text.match(/['"]message['"]:\s*(["'])((?:\\.|(?!\1).)*)\1/i);
+  if (bodyMatch && bodyMatch[2]) {
+    return bodyMatch[2].trim();
   }
 
   // Strip leading warning symbols or prefixes if any

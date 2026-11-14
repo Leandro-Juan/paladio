@@ -29,6 +29,15 @@ test.describe('AgentErrorCard and errorParser', () => {
     expect(authErr.title).toBe('Authentication Failed');
   });
 
+  test('parses error with nested quotes without truncating message', () => {
+    const raw =
+      'status_code: 400, model_name: openai/gpt-oss-120b, body: {\'message\': "property \'keep_alive\' is unsupported", \'type\': \'invalid_request_error\'}';
+    const parsed = parseAgentError(raw);
+    expect(parsed.statusCode).toBe(400);
+    expect(parsed.modelName).toBe('openai/gpt-oss-120b');
+    expect(parsed.description).toBe("property 'keep_alive' is unsupported");
+  });
+
   test('renders AgentErrorCard without any emojis and triggers actions', async ({ mount }) => {
     let switched = false;
     let retried = false;
