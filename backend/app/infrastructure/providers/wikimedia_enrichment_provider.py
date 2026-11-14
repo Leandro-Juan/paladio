@@ -172,6 +172,13 @@ class WikimediaEnrichmentProvider:
                         mainsnak = claims_raw["P18"][0].get("mainsnak", {})
                         image_name = mainsnak.get("datavalue", {}).get("value")
 
+                    # P1329 phone number
+                    if "P1329" in claims_raw and claims_raw["P1329"]:
+                        mainsnak = claims_raw["P1329"][0].get("mainsnak", {})
+                        phone_val = mainsnak.get("datavalue", {}).get("value")
+                        if isinstance(phone_val, str) and phone_val.strip():
+                            extracted_claims["phone"] = phone_val.strip()
+
                     # P571 inception
                     if "P571" in claims_raw and claims_raw["P571"]:
                         mainsnak = claims_raw["P571"][0].get("mainsnak", {})

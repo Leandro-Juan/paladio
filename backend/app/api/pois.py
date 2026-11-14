@@ -8,6 +8,7 @@ Powered by HybridRetriever:
 """
 
 import asyncio
+from difflib import SequenceMatcher
 import json
 import logging
 import math
@@ -27,7 +28,10 @@ from app.db.models import (
     UserModel,
 )
 from app.db.session import get_db
-from app.engine.retrieval.hybrid_retriever import HybridRetriever
+from app.engine.retrieval.hybrid_retriever import (
+    HybridRetriever,
+    compute_info_richness_score,
+)
 from app.engine.retrieval.query_rewriter import QueryRewriter
 from app.infrastructure.providers.ollama_embedding_provider import (
     OllamaEmbeddingProvider,
@@ -118,6 +122,13 @@ class PoiDetailResponse(BaseModel):
     wikipedia_title: str | None = None
     wikidata_id: str | None = None
     website: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    email: str | None = None
+    wheelchair_accessible: bool | None = None
+    reservation_required: bool | None = None
+    cuisine: str | None = None
+    amenities: list[str] = Field(default_factory=list)
     neighborhood: str | None = None
     doc_quality: str = "C"
     hours_known: bool = False
@@ -125,6 +136,18 @@ class PoiDetailResponse(BaseModel):
     daily_windows: list[Any] = Field(default_factory=list)
     photos: list[PoiPhotoItem] = Field(default_factory=list)
     transit_info: dict[str, Any] | None = None
+
+
+class DailyHoursInput(BaseModel):
+    is_open: bool = True
+    open_time: str | None = None
+    close_time: str | None = None
+
+
+class PoiPhotoInput(BaseModel):
+    url: str
+    thumbnail_url: str | None = None
+    caption: str | None = None
 
 
 class PoiCreateRequest(BaseModel):
@@ -137,9 +160,35 @@ class PoiCreateRequest(BaseModel):
     cost_eur: float = 0.0
     description: str | None = None
     website: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    neighborhood: str | None = None
+    email: str | None = None
+    wheelchair_accessible: bool | None = None
+    reservation_required: bool | None = None
     opening_time: str | None = None
     closing_time: str | None = None
+    weekly_hours: list[DailyHoursInput] | None = None
+    photos: list[PoiPhotoInput] | None = None
     rating: float | None = None
+
+
+class DuplicatePoiCandidate(BaseModel):
+    id: str
+    name: str
+    category: str
+    city: str
+    lat: float
+    lng: float
+    neighborhood: str | None = None
+    rating: float | None = None
+    distance_meters: float | None = None
+    match_reason: str
+
+
+class PoiDuplicateCheckResponse(BaseModel):
+    has_duplicates: bool
+    candidates: list[DuplicatePoiCandidate] = Field(default_factory=list)
 
 
 class PoiUpdateRequest(BaseModel):
@@ -149,8 +198,141 @@ class PoiUpdateRequest(BaseModel):
     cost_eur: float | None = None
     description: str | None = None
     website: str | None = None
+    phone: str | None = None
     lat: float | None = None
     lng: float | None = None
+
+
+def _extract_poi_attributes(
+    poi: AttractionModel,
+    meta: dict[str, Any],
+    tags: dict[str, Any],
+) -> dict[str, Any]:
+    """Derives contact info, structured address, cuisine, and amenity keys from OSM tags and metadata."""
+    raw_phone = (
+        meta.get("phone")
+        or tags.get("phone")
+        or tags.get("contact:phone")
+        or tags.get("contact:mobile")
+        or tags.get("telephone")
+        or (meta.get("wikidata_claims") or {}).get("phone")
+    )
+    phone = str(raw_phone).strip() if raw_phone and str(raw_phone).strip() else None
+
+    raw_email = meta.get("email") or tags.get("email") or tags.get("contact:email")
+    email = str(raw_email).strip() if raw_email and str(raw_email).strip() else None
+
+    address = meta.get("address") or tags.get("addr:full")
+    if not address:
+        street = str(tags.get("addr:street") or "").strip()
+        housenumber = str(tags.get("addr:housenumber") or "").strip()
+        if street:
+            street_part = f"{street} {housenumber}".strip() if housenumber else street
+            postcode = str(tags.get("addr:postcode") or "").strip()
+            city_part = str(tags.get("addr:city") or "").strip()
+            locality = " ".join(p for p in (postcode, city_part) if p)
+            address = f"{street_part}, {locality}" if locality else street_part
+        else:
+            address = poi.neighborhood
+
+    wheelchair_tag = str(tags.get("wheelchair") or "").strip().lower()
+    wheelchair_accessible = meta.get("wheelchair_accessible")
+    if wheelchair_accessible is None and wheelchair_tag:
+        if wheelchair_tag in ("yes", "designated", "limited"):
+            wheelchair_accessible = True
+        elif wheelchair_tag == "no":
+            wheelchair_accessible = False
+
+    reservation_tag = str(tags.get("reservation") or "").strip().lower()
+    reservation_required = meta.get("reservation_required")
+    if reservation_required is None and reservation_tag:
+        if reservation_tag in ("yes", "required", "recommended"):
+            reservation_required = True
+        elif reservation_tag == "no":
+            reservation_required = False
+
+    raw_cuisine = meta.get("cuisine") or tags.get("cuisine")
+    cuisine: str | None = None
+    if raw_cuisine and str(raw_cuisine).strip():
+        parts = [
+            p.strip().replace("_", " ").title()
+            for p in re.split(r"[;,]", str(raw_cuisine))
+            if p.strip()
+        ]
+        if parts:
+            cuisine = ", ".join(parts[:3])
+
+    amenities: list[str] = []
+    internet_tag = str(tags.get("internet_access") or "").strip().lower()
+    wifi_tag = str(tags.get("wifi") or "").strip().lower()
+    if internet_tag in ("wlan", "yes", "free") or wifi_tag in ("yes", "free"):
+        amenities.append("wifi")
+    if wheelchair_accessible is True:
+        amenities.append("wheelchair")
+    if str(tags.get("outdoor_seating") or "").strip().lower() in (
+        "yes",
+        "terrace",
+        "garden",
+        "patio",
+        "street",
+    ):
+        amenities.append("outdoor_seating")
+    if str(tags.get("takeaway") or "").strip().lower() in ("yes", "only"):
+        amenities.append("takeaway")
+    if str(tags.get("delivery") or "").strip().lower() == "yes":
+        amenities.append("delivery")
+    if reservation_required is True:
+        amenities.append("reservation")
+    if str(tags.get("air_conditioning") or "").strip().lower() == "yes":
+        amenities.append("air_conditioning")
+    if (
+        str(tags.get("toilets") or "").strip().lower() == "yes"
+        or str(tags.get("toilets:wheelchair") or "").strip().lower() == "yes"
+    ):
+        amenities.append("toilets")
+    if any(
+        str(tags.get(k) or "").strip().lower() == "yes"
+        for k in (
+            "payment:credit_cards",
+            "payment:cards",
+            "payment:debit_cards",
+            "payment:contactless",
+        )
+    ):
+        amenities.append("cards")
+    if str(tags.get("diet:vegetarian") or "").strip().lower() in ("yes", "only"):
+        amenities.append("vegetarian")
+    if str(tags.get("diet:vegan") or "").strip().lower() in ("yes", "only"):
+        amenities.append("vegan")
+    if (
+        str(tags.get("dog") or "").strip().lower() == "yes"
+        or str(tags.get("pets") or "").strip().lower() == "yes"
+    ):
+        amenities.append("pets")
+    parking_tag = str(tags.get("parking") or "").strip().lower()
+    if parking_tag and parking_tag != "no":
+        amenities.append("parking")
+    if str(tags.get("smoking") or "").strip().lower() == "no":
+        amenities.append("non_smoking")
+    if bool(
+        tags.get("heritage")
+        or tags.get("historic")
+        or tags.get("unesco")
+        or (meta.get("wikidata_claims") or {}).get("unesco")
+    ):
+        amenities.append("heritage")
+    if str(tags.get("fee") or "").strip().lower() == "no":
+        amenities.append("free_entry")
+
+    return {
+        "phone": phone,
+        "email": email,
+        "address": address,
+        "wheelchair_accessible": wheelchair_accessible,
+        "reservation_required": reservation_required,
+        "cuisine": cuisine,
+        "amenities": amenities,
+    }
 
 
 def _normalize_text(s: str) -> str:
@@ -448,6 +630,54 @@ def haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> 
     return 6371000.0 * c
 
 
+def _sql_info_richness_expr():
+    """SQL expression mirroring compute_info_richness_score in [0.0, 1.0] for AttractionModel."""
+    doc_expr = case(
+        (func.upper(func.coalesce(AttractionModel.doc_quality, "C")) == "A", 1.0),
+        (func.upper(func.coalesce(AttractionModel.doc_quality, "C")) == "B", 0.6),
+        else_=0.0,
+    )
+    desc_len = func.length(func.trim(func.coalesce(AttractionModel.description, "")))
+    desc_expr = case(
+        (desc_len >= 80, 1.0),
+        (desc_len > 0, 0.5),
+        else_=0.0,
+    )
+    neighborhood_expr = case(
+        (
+            func.length(func.trim(func.coalesce(AttractionModel.neighborhood, ""))) > 0,
+            1.0,
+        ),
+        else_=0.0,
+    )
+    hours_expr = case(
+        (
+            or_(
+                AttractionModel.hours_known.is_(True),
+                func.length(
+                    func.trim(func.coalesce(AttractionModel.osm_opening_hours, ""))
+                )
+                > 0,
+            ),
+            1.0,
+        ),
+        else_=0.0,
+    )
+    has_links_expr = or_(
+        func.length(func.trim(func.coalesce(AttractionModel.website, ""))) > 0,
+        func.length(func.trim(func.coalesce(AttractionModel.wikidata_id, ""))) > 0,
+        func.length(func.trim(func.coalesce(AttractionModel.wikipedia_title, ""))) > 0,
+    )
+    extra_expr = case((has_links_expr, 1.0), else_=0.0)
+    return (
+        0.45 * doc_expr
+        + 0.25 * desc_expr
+        + 0.10 * neighborhood_expr
+        + 0.10 * hours_expr
+        + 0.10 * extra_expr
+    )
+
+
 def _model_to_search_item(
     p: AttractionModel,
     match_type: str = "category_browse",
@@ -489,8 +719,8 @@ def _model_to_search_item(
         description=getattr(p, "description", None) or meta.get("description"),
         neighborhood=getattr(p, "neighborhood", None) or meta.get("neighborhood"),
         facets=meta.get("facets") or {},
-        doc_quality=meta.get("doc_quality") or "C",
-        hours_known=bool(p.osm_opening_hours),
+        doc_quality=getattr(p, "doc_quality", None) or meta.get("doc_quality") or "C",
+        hours_known=bool(getattr(p, "hours_known", False) or p.osm_opening_hours),
         transit_info=_extract_transit_info(p, meta),
     )
 
@@ -855,12 +1085,15 @@ async def search_pois(
                 order_clauses.append(case((in_day_clause, 1), else_=0).desc())
             order_clauses.append(AttractionModel.tier.asc())
 
+            richness_expr = _sql_info_richness_expr()
+
             if user_embedding is not None:
                 cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
                 sim_expr = (1.0 - func.coalesce(cos_dist, 1.0)).label("sim")
                 comp_quality = (
-                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.70
-                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.30
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.65
+                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.27
+                    + richness_expr * 0.08
                 )
                 order_clauses.append(comp_quality.desc())
 
@@ -897,7 +1130,11 @@ async def search_pois(
                     for row in db_rows
                 ]
             else:
-                order_clauses.append(AttractionModel.iconicity_score.desc())
+                comp_browse = (
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.92
+                    + richness_expr * 0.08
+                )
+                order_clauses.append(comp_browse.desc())
                 fetch_limit = (
                     max(100, limit + offset) if (polygon_pts or has_circle) else limit
                 )
@@ -945,6 +1182,7 @@ async def search_pois(
                         )
                         else 0,
                         x.similarity,
+                        compute_info_richness_score(x),
                     ),
                     reverse=True,
                 )
@@ -987,12 +1225,15 @@ async def search_pois(
             fetch_limit = max(100, limit + offset) if has_circle else limit
             fetch_offset = 0 if has_circle else offset
 
+            richness_expr = _sql_info_richness_expr()
+
             if user_embedding is not None:
                 cos_dist = AttractionModel.embedding.cosine_distance(user_embedding)
                 sim_expr = (1.0 - func.coalesce(cos_dist, 1.0)).label("sim")
                 comp_quality = (
-                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.70
-                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.30
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.65
+                    + (1.0 - func.coalesce(cos_dist, 1.0)) * 0.27
+                    + richness_expr * 0.08
                 )
                 order_clauses.append(comp_quality.desc())
 
@@ -1044,7 +1285,11 @@ async def search_pois(
                     total=total_count,
                 )
             else:
-                order_clauses.append(AttractionModel.iconicity_score.desc())
+                comp_browse = (
+                    func.coalesce(AttractionModel.iconicity_score, 0.0) * 0.92
+                    + richness_expr * 0.08
+                )
+                order_clauses.append(comp_browse.desc())
                 stmt = (
                     select(AttractionModel)
                     .where(
@@ -1334,8 +1579,11 @@ async def search_pois(
             tier = int(cand.get("tier") or 3)
             tier_bonus = 0.15 if tier == 1 else (0.08 if tier == 2 else 0.0)
 
-            # Weighted rank score: iconicity is a really important factor (40%) alongside base lexical match (45%) and tier authority (15%)
-            rank_score = base_score * 0.45 + iconicity * 0.40 + tier_bonus
+            # Weighted rank score: iconicity is a really important factor (40%) alongside base lexical match (45%) and tier authority (15%), plus a slight info richness tie-breaker
+            richness = compute_info_richness_score(cand)
+            rank_score = (
+                base_score * 0.45 + iconicity * 0.40 + tier_bonus + richness * 0.05
+            )
 
             if rank_score > best_match_score:
                 best_match_score = rank_score
@@ -1517,10 +1765,11 @@ async def search_pois(
     results: list[PoiSearchItem] = []
     for c in candidates:
         raw_sim = c.get("vec_sim")
+        richness = compute_info_richness_score(c)
         if raw_sim is not None and not (
             isinstance(raw_sim, float) and math.isnan(raw_sim)
         ):
-            sim_val = float(raw_sim)
+            sim_val = float(raw_sim) * 0.94 + richness * 0.06
         else:
             raw_comp = c.get("composite_score")
             sim_val = (
@@ -1631,6 +1880,12 @@ async def batch_resolve_photos(
             async with sem:
                 try:
                     att = attraction_map.get(it.id) if it.id else None
+                    custom_photos = (
+                        (att.metadata_field or {}).get("photos") if att else None
+                    )
+                    if isinstance(custom_photos, list) and len(custom_photos) > 0:
+                        resolved[key] = PoiPhotoItem(**custom_photos[0])
+                        return
                     tags = (
                         dict((att.metadata_field or {}).get("tags") or {})
                         if att
@@ -1928,6 +2183,116 @@ def _generate_poi_overview(
         parts.append(f"{'. '.join(extras).capitalize()}.")
 
     return " ".join(parts)
+
+
+def _haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Computes great-circle distance in meters between two WGS84 coordinates."""
+    r = 6371000.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(d_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    )
+    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+@router.get("/check-duplicate", response_model=PoiDuplicateCheckResponse)
+async def check_duplicate_poi(
+    city: str = Query(..., description="Destination city name"),
+    name: str = Query(..., min_length=1, description="Proposed POI name"),
+    lat: float | None = Query(None, description="Proposed latitude"),
+    lng: float | None = Query(None, description="Proposed longitude"),
+    session: AsyncSession = Depends(get_db),
+) -> PoiDuplicateCheckResponse:
+    """Checks if a similar POI already exists in the database by name or proximity."""
+    clean_city = city.strip()
+    clean_name = name.strip()
+    norm_target = _normalize_text(clean_name)
+    stripped_target = _strip_articles(clean_name)
+
+    if not norm_target:
+        return PoiDuplicateCheckResponse(has_duplicates=False, candidates=[])
+
+    stmt = select(AttractionModel)
+    if clean_city:
+        stmt = stmt.where(func.lower(AttractionModel.city) == clean_city.lower())
+
+    res = await session.execute(stmt)
+    rows = res.scalars().all()
+
+    scored_matches: list[tuple[float, DuplicatePoiCandidate]] = []
+    for att in rows:
+        cand_norm = _normalize_text(att.name or "")
+        cand_stripped = _strip_articles(att.name or "")
+        if not cand_norm:
+            continue
+
+        c_lat, c_lng = _extract_coords(att.location)
+        dist_m: float | None = None
+        if lat is not None and lng is not None and (c_lat != 0.0 or c_lng != 0.0):
+            dist_m = round(_haversine_meters(lat, lng, c_lat, c_lng), 1)
+
+        match_reason: str | None = None
+        score = 0.0
+
+        if cand_norm == norm_target or cand_stripped == stripped_target:
+            match_reason = "Exact name match"
+            score = 1.0
+        else:
+            ratio = max(
+                SequenceMatcher(None, norm_target, cand_norm).ratio(),
+                SequenceMatcher(None, stripped_target, cand_stripped).ratio(),
+            )
+            is_substring = (
+                len(stripped_target) >= 4
+                and len(cand_stripped) >= 4
+                and (
+                    stripped_target in cand_stripped or cand_stripped in stripped_target
+                )
+            )
+            if ratio >= 0.78 or (is_substring and ratio >= 0.6):
+                match_reason = "Similar name"
+                score = ratio
+            elif dist_m is not None and dist_m <= 60.0:
+                match_reason = f"Same location ({int(dist_m)}m away)"
+                score = 0.75 + (60.0 - dist_m) / 240.0
+            elif dist_m is not None and dist_m <= 150.0 and ratio >= 0.55:
+                match_reason = f"Similar name & nearby ({int(dist_m)}m)"
+                score = 0.7 + ratio * 0.2
+
+        if match_reason:
+            rating_val = None
+            if isinstance(att.scoring, dict) and att.scoring.get("rating") is not None:
+                try:
+                    rating_val = float(att.scoring["rating"])
+                except (TypeError, ValueError):
+                    rating_val = None
+            scored_matches.append(
+                (
+                    score,
+                    DuplicatePoiCandidate(
+                        id=att.id,
+                        name=att.name,
+                        category=att.category,
+                        city=att.city,
+                        lat=c_lat,
+                        lng=c_lng,
+                        neighborhood=att.neighborhood,
+                        rating=rating_val,
+                        distance_meters=dist_m,
+                        match_reason=match_reason,
+                    ),
+                )
+            )
+
+    scored_matches.sort(key=lambda x: x[0], reverse=True)
+    top_candidates = [item for _, item in scored_matches[:5]]
+    return PoiDuplicateCheckResponse(
+        has_duplicates=len(top_candidates) > 0,
+        candidates=top_candidates,
+    )
 
 
 @router.get("/{poi_id}", response_model=PoiDetailResponse)
@@ -2296,15 +2661,20 @@ async def get_poi_details(
     if not poi.wikipedia_title and tags.get("wikipedia"):
         poi.wikipedia_title = tags["wikipedia"]
 
-    photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
-        poi_id=poi.id,
-        name=poi.name,
-        city=poi.city,
-        wikipedia_title=poi.wikipedia_title,
-        wikidata_id=poi.wikidata_id,
-        osm_tags=tags,
-        target_lang=effective_lang,
-    )
+    custom_photos = meta.get("photos")
+    if isinstance(custom_photos, list) and len(custom_photos) > 0:
+        photos_data = custom_photos
+        lead_extract = None
+    else:
+        photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
+            poi_id=poi.id,
+            name=poi.name,
+            city=poi.city,
+            wikipedia_title=poi.wikipedia_title,
+            wikidata_id=poi.wikidata_id,
+            osm_tags=tags,
+            target_lang=effective_lang,
+        )
 
     localized_osm_name = (
         tags.get(f"name:{effective_lang}") if effective_lang != "en" else None
@@ -2361,6 +2731,7 @@ async def get_poi_details(
         except Exception as e:
             logger.debug(f"Failed to persist description for poi {poi.id}: {e}")
 
+    attrs = _extract_poi_attributes(poi, meta, tags)
     res = PoiDetailResponse(
         id=poi.id,
         name=poi_display_name,
@@ -2378,6 +2749,13 @@ async def get_poi_details(
         wikipedia_title=poi.wikipedia_title,
         wikidata_id=poi.wikidata_id,
         website=poi.website or tags.get("website") or tags.get("contact:website"),
+        phone=attrs["phone"],
+        address=attrs["address"],
+        email=attrs["email"],
+        wheelchair_accessible=attrs["wheelchair_accessible"],
+        reservation_required=attrs["reservation_required"],
+        cuisine=attrs["cuisine"],
+        amenities=attrs["amenities"],
         neighborhood=poi.neighborhood,
         doc_quality=getattr(poi, "doc_quality", "C") or "C",
         hours_known=bool(getattr(poi, "hours_known", False)),
@@ -2422,25 +2800,90 @@ async def create_poi(
 
     open_time_mins_by_day: list[int] = []
     close_time_mins_by_day: list[int] = []
+    daily_windows: list[list[list[int]]] = []
     osm_hours: str | None = None
     hours_known = False
 
-    if poi_in.opening_time and poi_in.closing_time:
+    def _parse_hhmm(val: str | None) -> int | None:
+        if not val or ":" not in val:
+            return None
         try:
-            oh, om = map(int, poi_in.opening_time.strip().split(":"))
-            ch, cm = map(int, poi_in.closing_time.strip().split(":"))
-            open_min = max(0, min(1440, oh * 60 + om))
-            close_min = max(0, min(1440, ch * 60 + cm))
-            open_time_mins_by_day = [open_min] * 7
-            close_time_mins_by_day = [close_min] * 7
+            hh, mm = map(int, val.strip().split(":"))
+            return max(0, min(1440, hh * 60 + mm))
+        except Exception:
+            return None
+
+    if poi_in.weekly_hours and len(poi_in.weekly_hours) == 7:
+        day_codes = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        osm_parts: list[str] = []
+        any_configured = False
+        for idx, day_item in enumerate(poi_in.weekly_hours):
+            if day_item.is_open:
+                o_min = _parse_hhmm(day_item.open_time)
+                c_min = _parse_hhmm(day_item.close_time)
+                if o_min is not None and c_min is not None:
+                    open_time_mins_by_day.append(o_min)
+                    close_time_mins_by_day.append(c_min)
+                    daily_windows.append([[o_min, c_min]])
+                    osm_parts.append(
+                        f"{day_codes[idx]} {day_item.open_time.strip()}-{day_item.close_time.strip()}"
+                    )
+                    any_configured = True
+                else:
+                    open_time_mins_by_day.append(0)
+                    close_time_mins_by_day.append(0)
+                    daily_windows.append([])
+            else:
+                open_time_mins_by_day.append(0)
+                close_time_mins_by_day.append(0)
+                daily_windows.append([])
+                osm_parts.append(f"{day_codes[idx]} off")
+                any_configured = True
+
+        if any_configured:
+            hours_known = True
+            osm_hours = "; ".join(osm_parts) if osm_parts else None
+    elif poi_in.opening_time and poi_in.closing_time:
+        o_min = _parse_hhmm(poi_in.opening_time)
+        c_min = _parse_hhmm(poi_in.closing_time)
+        if o_min is not None and c_min is not None:
+            open_time_mins_by_day = [o_min] * 7
+            close_time_mins_by_day = [c_min] * 7
+            daily_windows = [[[o_min, c_min]] for _ in range(7)]
             osm_hours = f"{poi_in.opening_time.strip()}-{poi_in.closing_time.strip()}"
             hours_known = True
-        except Exception:
-            pass
 
     rating_val: float | None = None
     if poi_in.rating is not None:
-        rating_val = round(max(1.0, min(5.0, float(poi_in.rating))), 1)
+        rating_val = round(max(0.5, min(5.0, float(poi_in.rating))), 1)
+
+    tags: dict[str, Any] = {}
+    if poi_in.website:
+        tags["website"] = poi_in.website.strip()
+    if poi_in.phone:
+        tags["phone"] = poi_in.phone.strip()
+    if poi_in.address:
+        tags["addr:full"] = poi_in.address.strip()
+    if poi_in.email:
+        tags["email"] = poi_in.email.strip()
+    if poi_in.wheelchair_accessible is True:
+        tags["wheelchair"] = "yes"
+    elif poi_in.wheelchair_accessible is False:
+        tags["wheelchair"] = "no"
+
+    photos_list: list[dict[str, Any]] = []
+    if poi_in.photos:
+        for ph in poi_in.photos:
+            clean_url = (ph.url or "").strip()
+            if not clean_url:
+                continue
+            photos_list.append(
+                {
+                    "url": clean_url,
+                    "thumbnail_url": (ph.thumbnail_url or clean_url).strip(),
+                    "caption": ph.caption.strip() if ph.caption else None,
+                }
+            )
 
     meta: dict[str, Any] = {
         "source": "user_created",
@@ -2448,15 +2891,31 @@ async def create_poi(
     }
     if rating_val is not None:
         meta["rating"] = rating_val
-    if poi_in.website:
-        meta["tags"] = {"website": poi_in.website}
+    if tags:
+        meta["tags"] = tags
     if osm_hours:
         meta["opening_hours"] = osm_hours
+    if poi_in.phone:
+        meta["phone"] = poi_in.phone.strip()
+    if poi_in.address:
+        meta["address"] = poi_in.address.strip()
+    if poi_in.email:
+        meta["email"] = poi_in.email.strip()
+    if poi_in.wheelchair_accessible is not None:
+        meta["wheelchair_accessible"] = poi_in.wheelchair_accessible
+    if poi_in.reservation_required is not None:
+        meta["reservation_required"] = poi_in.reservation_required
+    if photos_list:
+        meta["photos"] = photos_list
 
     scoring_data: dict[str, Any] = {}
     if rating_val is not None:
         scoring_data["rating"] = rating_val
         scoring_data["reviews"] = 1
+
+    resolved_neighborhood = (
+        (poi_in.neighborhood or "").strip() or (poi_in.address or "").strip() or None
+    )
 
     attraction = AttractionModel(
         id=new_id,
@@ -2473,21 +2932,17 @@ async def create_poi(
         metadata_field=meta,
         description=poi_in.description,
         website=poi_in.website,
+        neighborhood=resolved_neighborhood,
         doc_quality="A",
         hours_known=hours_known,
         osm_opening_hours=osm_hours,
+        daily_windows=daily_windows,
         open_time_mins_by_day=open_time_mins_by_day,
         close_time_mins_by_day=close_time_mins_by_day,
     )
     session.add(attraction)
     await session.commit()
     await session.refresh(attraction)
-
-    daily_windows = (
-        [[[open_time_mins_by_day[0], close_time_mins_by_day[0]]]] * 7
-        if hours_known
-        else []
-    )
 
     return PoiDetailResponse(
         id=attraction.id,
@@ -2503,11 +2958,17 @@ async def create_poi(
         scoring=scoring_data,
         description=attraction.description,
         website=attraction.website,
+        phone=meta.get("phone"),
+        address=meta.get("address"),
+        email=meta.get("email"),
+        wheelchair_accessible=meta.get("wheelchair_accessible"),
+        reservation_required=meta.get("reservation_required"),
+        neighborhood=attraction.neighborhood,
         doc_quality="A",
         hours_known=hours_known,
         osm_opening_hours=osm_hours,
         daily_windows=daily_windows,
-        photos=[],
+        photos=[PoiPhotoItem(**p) for p in photos_list],
     )
 
 
@@ -2565,6 +3026,18 @@ async def update_poi(
         tags["website"] = update_in.website
         meta["tags"] = tags
         attraction.metadata_field = meta
+    if update_in.phone is not None:
+        meta = dict(attraction.metadata_field or {})
+        tags = dict(meta.get("tags") or {})
+        clean_phone = update_in.phone.strip()
+        if clean_phone:
+            meta["phone"] = clean_phone
+            tags["phone"] = clean_phone
+        else:
+            meta.pop("phone", None)
+            tags.pop("phone", None)
+        meta["tags"] = tags
+        attraction.metadata_field = meta
     if update_in.lat is not None and update_in.lng is not None:
         attraction.location = {
             "latitude": float(update_in.lat),
@@ -2577,6 +3050,9 @@ async def update_poi(
     loc = attraction.location or {}
     lat = float(loc.get("latitude") or loc.get("lat") or (update_in.lat or 0.0))
     lng = float(loc.get("longitude") or loc.get("lng") or (update_in.lng or 0.0))
+    meta = dict(attraction.metadata_field or {})
+    tags = dict(meta.get("tags") or {})
+    attrs = _extract_poi_attributes(attraction, meta, tags)
 
     return PoiDetailResponse(
         id=attraction.id,
@@ -2592,6 +3068,14 @@ async def update_poi(
         scoring=dict(attraction.scoring or {}),
         description=attraction.description,
         website=attraction.website,
+        phone=attrs["phone"],
+        address=attrs["address"],
+        email=attrs["email"],
+        wheelchair_accessible=attrs["wheelchair_accessible"],
+        reservation_required=attrs["reservation_required"],
+        cuisine=attrs["cuisine"],
+        amenities=attrs["amenities"],
+        neighborhood=attraction.neighborhood,
         doc_quality=getattr(attraction, "doc_quality", "C") or "C",
         hours_known=bool(getattr(attraction, "hours_known", False)),
         daily_windows=list(getattr(attraction, "daily_windows", []) or []),

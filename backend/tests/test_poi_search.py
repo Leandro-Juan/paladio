@@ -301,3 +301,93 @@ async def test_poi_search_circle_radius_filter(async_client: AsyncClient):
     # Prado is ~18km away, so exact match and results must be empty
     assert data_far.get("exact_match") is None
     assert not any("Prado" in r["name"] for r in data_far.get("results", []))
+
+
+@pytest.mark.asyncio
+async def test_poi_search_prioritizes_richer_info(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """Verifies that POIs with richer metadata are slightly prioritized over sparse POIs."""
+    vec_gallery = [0.0] * 768
+    vec_gallery[6] = 1.0
+
+    sparse_gallery = AttractionModel(
+        id="OSM-node-madrid-sparse-gallery",
+        city="Madrid",
+        city_id="madrid_es",
+        name="Galería Minimal",
+        category="gallery",
+        embedding=vec_gallery,
+        location={"latitude": 40.4400, "longitude": -3.6800},
+        scoring={"google_rating": 4.2},
+        metadata_field={"source": "test"},
+        tier=2,
+        iconicity_score=0.50,
+        doc_quality="C",
+        description=None,
+        neighborhood=None,
+        hours_known=False,
+        duration_mins=45,
+        cost_eur=0.0,
+    )
+    rich_gallery = AttractionModel(
+        id="OSM-node-madrid-rich-gallery",
+        city="Madrid",
+        city_id="madrid_es",
+        name="Galería Completa",
+        category="gallery",
+        embedding=vec_gallery,
+        location={"latitude": 40.4210, "longitude": -3.7010},
+        scoring={"google_rating": 4.2},
+        metadata_field={"source": "test"},
+        tier=2,
+        iconicity_score=0.50,
+        doc_quality="A",
+        description=(
+            "Contemporary art gallery in central Madrid featuring rotating exhibitions "
+            "from Iberian and international artists across three historic floors."
+        ),
+        neighborhood="Justicia",
+        hours_known=True,
+        wikidata_id="Q999999",
+        facets={"indoor_outdoor": "indoor", "rain_friendly": True},
+        duration_mins=60,
+        cost_eur=10.0,
+    )
+    await db_session.merge(sparse_gallery)
+    await db_session.merge(rich_gallery)
+    await db_session.commit()
+
+    # 1. Category browse (equal tier & iconicity): rich POI should rank ahead of sparse POI
+    resp_browse = await async_client.get(
+        "/api/pois/search",
+        params={"city": "Madrid", "query": "", "category": "gallery", "limit": 10},
+    )
+    assert resp_browse.status_code == 200
+    browse_names = [r["name"] for r in resp_browse.json()["results"]]
+    assert "Galería Completa" in browse_names
+    assert "Galería Minimal" in browse_names
+    assert browse_names.index("Galería Completa") < browse_names.index(
+        "Galería Minimal"
+    )
+
+    # 2. Semantic RAG (equal vector similarity): rich POI should rank ahead of sparse POI
+    with patch(
+        "app.api.pois.OllamaEmbeddingProvider.embed_text",
+        new=AsyncMock(return_value=vec_gallery),
+    ):
+        resp_rag = await async_client.get(
+            "/api/pois/search",
+            params={
+                "city": "Madrid",
+                "query": "contemporary art gallery exhibitions",
+                "category": "gallery",
+                "limit": 10,
+            },
+        )
+        assert resp_rag.status_code == 200
+        rag_results = resp_rag.json()["results"]
+        rag_names = [r["name"] for r in rag_results]
+        assert "Galería Completa" in rag_names
+        assert "Galería Minimal" in rag_names
+        assert rag_names.index("Galería Completa") < rag_names.index("Galería Minimal")

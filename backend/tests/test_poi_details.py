@@ -326,3 +326,166 @@ async def test_delete_non_custom_poi_forbidden(async_client: AsyncClient):
 async def test_delete_nonexistent_poi_not_found(async_client: AsyncClient):
     del_res = await async_client.delete("/api/pois/custom-nonexistent-1234")
     assert del_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_poi_with_weekly_hours_photos_and_contact(
+    async_client: AsyncClient,
+):
+    payload = {
+        "name": "Museo Sorolla Custom",
+        "category": "museum",
+        "city": "Madrid",
+        "lat": 40.4355,
+        "lng": -3.6925,
+        "duration_mins": 75,
+        "cost_eur": 3.0,
+        "description": "Historic house museum of painter Joaquín Sorolla.",
+        "website": "https://museosorolla.es",
+        "phone": "+34 913 10 15 84",
+        "address": "Paseo del General Martínez Campos, 37",
+        "email": "info@museosorolla.es",
+        "wheelchair_accessible": True,
+        "reservation_required": True,
+        "rating": 4.5,
+        "weekly_hours": [
+            {"is_open": False},
+            {"is_open": True, "open_time": "09:30", "close_time": "20:00"},
+            {"is_open": True, "open_time": "09:30", "close_time": "20:00"},
+            {"is_open": True, "open_time": "09:30", "close_time": "20:00"},
+            {"is_open": True, "open_time": "09:30", "close_time": "20:00"},
+            {"is_open": True, "open_time": "09:30", "close_time": "20:00"},
+            {"is_open": True, "open_time": "10:00", "close_time": "15:00"},
+        ],
+        "photos": [
+            {"url": "https://example.com/sorolla.jpg", "caption": "Garden courtyard"}
+        ],
+    }
+
+    res = await async_client.post("/api/pois", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    poi_id = data["id"]
+    assert data["hours_known"] is True
+    assert data["daily_windows"][0] == []
+    assert data["daily_windows"][1] == [[570, 1200]]
+    assert data["daily_windows"][6] == [[600, 900]]
+    assert data["phone"] == "+34 913 10 15 84"
+    assert data["address"] == "Paseo del General Martínez Campos, 37"
+    assert data["email"] == "info@museosorolla.es"
+    assert data["wheelchair_accessible"] is True
+    assert data["reservation_required"] is True
+    assert len(data["photos"]) == 1
+    assert data["photos"][0]["url"] == "https://example.com/sorolla.jpg"
+
+    detail_res = await async_client.get(f"/api/pois/{poi_id}")
+    assert detail_res.status_code == 200
+    detail = detail_res.json()
+    assert detail["phone"] == "+34 913 10 15 84"
+    assert detail["photos"][0]["url"] == "https://example.com/sorolla.jpg"
+    assert detail["daily_windows"][0] == []
+
+    batch_res = await async_client.post(
+        "/api/pois/batch-photos",
+        json={
+            "pois": [{"id": poi_id, "name": "Museo Sorolla Custom", "city": "Madrid"}]
+        },
+    )
+    assert batch_res.status_code == 200
+    assert (
+        batch_res.json()["photos"][poi_id]["url"] == "https://example.com/sorolla.jpg"
+    )
+
+
+@pytest.mark.asyncio
+async def test_check_duplicate_poi(async_client: AsyncClient):
+    dup_res = await async_client.get(
+        "/api/pois/check-duplicate",
+        params={"city": "Madrid", "name": "Museo del Prado"},
+    )
+    assert dup_res.status_code == 200
+    dup_data = dup_res.json()
+    assert dup_data["has_duplicates"] is True
+    assert any("Prado" in c["name"] for c in dup_data["candidates"])
+
+    unique_res = await async_client.get(
+        "/api/pois/check-duplicate",
+        params={
+            "city": "Madrid",
+            "name": "Completely Unique Underground Jazz Club 999",
+            "lat": 40.499,
+            "lng": -3.799,
+        },
+    )
+    assert unique_res.status_code == 200
+    assert unique_res.json()["has_duplicates"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_poi_details_extracts_osm_phone_and_amenities(
+    async_client: AsyncClient, db_session
+):
+    from app.db.models import AttractionModel
+
+    poi = AttractionModel(
+        id="OSM-node-test-bistro-amenities",
+        city="Madrid",
+        name="Bistro Retiro",
+        category="restaurant",
+        location={"latitude": 40.4168, "longitude": -3.688},
+        scoring={"rating": 4.5, "reviews": 120},
+        duration_mins=60,
+        cost_eur=25.0,
+        cost_is_estimated=False,
+        metadata_field={
+            "source": "osm_pbf_v2",
+            "tags": {
+                "contact:phone": "+34 915 00 11 22",
+                "addr:street": "Calle de Alfonso XII",
+                "addr:housenumber": "14",
+                "addr:postcode": "28014",
+                "addr:city": "Madrid",
+                "cuisine": "spanish;tapas",
+                "wheelchair": "yes",
+                "internet_access": "wlan",
+                "outdoor_seating": "yes",
+                "payment:credit_cards": "yes",
+                "diet:vegetarian": "yes",
+            },
+        },
+        doc_quality="B",
+        hours_known=False,
+    )
+    db_session.add(poi)
+    await db_session.commit()
+
+    with patch(
+        "app.api.pois.WikimediaPhotoResolver.resolve_photos",
+        new_callable=AsyncMock,
+        return_value=([], "Cozy bistro near Retiro Park."),
+    ), patch(
+        "app.services.google_maps_rating_resolver.GoogleMapsRatingResolver.resolve_rating",
+        new_callable=AsyncMock,
+        return_value={"rating": 4.5, "reviews": 120},
+    ):
+        res = await async_client.get("/api/pois/OSM-node-test-bistro-amenities")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["phone"] == "+34 915 00 11 22"
+        assert data["address"] == "Calle de Alfonso XII 14, 28014 Madrid"
+        assert data["cuisine"] == "Spanish, Tapas"
+        assert data["wheelchair_accessible"] is True
+        assert set(data["amenities"]) >= {
+            "wheelchair",
+            "wifi",
+            "outdoor_seating",
+            "cards",
+            "vegetarian",
+        }
+
+        upd = await async_client.put(
+            "/api/pois/OSM-node-test-bistro-amenities",
+            json={"phone": "+34 915 00 99 88"},
+        )
+        assert upd.status_code == 200
+        assert upd.json()["phone"] == "+34 915 00 99 88"
