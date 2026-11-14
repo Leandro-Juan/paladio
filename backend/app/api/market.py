@@ -1851,37 +1851,30 @@ async def get_route_lodging_for_date(
     center_lat = city_obj.center_lat if city_obj else None
     center_lon = city_obj.center_lon if city_obj else None
 
-    obs_stmt = (
-        select(
-            HotelRateObservationModel.price_nightly_cents,
-            HotelPropertyModel.name,
-            HotelPropertyModel.stars,
-            HotelRateObservationModel.review_score,
-            HotelRateObservationModel.review_count,
-            HotelRateObservationModel.deep_link,
-            HotelRateObservationModel.provider,
-            HotelPropertyModel.id,
-            HotelPropertyModel.latitude,
-            HotelPropertyModel.longitude,
-            HotelPropertyModel.property_type,
-            HotelRateObservationModel.free_cancellation,
-            HotelRateObservationModel.board,
-            HotelRateObservationModel.taxes_included,
-            HotelRateObservationModel.confidence,
-        )
-        .join(
-            HotelPropertyModel,
-            HotelPropertyModel.id == HotelRateObservationModel.property_id,
-        )
-        .where(
-            HotelRateObservationModel.destination_code == dest_code,
-            HotelRateObservationModel.check_in == check_in,
-        )
-        .order_by(HotelRateObservationModel.price_nightly_cents.asc())
+    obs_cols = (
+        HotelRateObservationModel.price_nightly_cents,
+        HotelPropertyModel.name,
+        HotelPropertyModel.stars,
+        HotelRateObservationModel.review_score,
+        HotelRateObservationModel.review_count,
+        HotelRateObservationModel.deep_link,
+        HotelRateObservationModel.provider,
+        HotelPropertyModel.id,
+        HotelPropertyModel.latitude,
+        HotelPropertyModel.longitude,
+        HotelPropertyModel.property_type,
+        HotelRateObservationModel.free_cancellation,
+        HotelRateObservationModel.board,
+        HotelRateObservationModel.taxes_included,
+        HotelRateObservationModel.confidence,
+        HotelPropertyModel.photo_url,
+        HotelPropertyModel.amenities,
+        HotelPropertyModel.address,
+        HotelRateObservationModel.check_in,
     )
-    obs_rows = (await session.execute(obs_stmt)).all()
-    if obs_rows:
-        candidates = [
+
+    def _rank_obs_rows(rows: Any):
+        cands = [
             HotelCandidate(
                 property_id=r[7],
                 name=r[1],
@@ -1898,15 +1891,34 @@ async def get_route_lodging_for_date(
                 board=r[12],
                 taxes_included=r[13] if r[13] is not None else True,
                 confidence=r[14] or "high",
+                photo_url=r[15],
+                amenities=r[16] or [],
+                address=r[17],
             )
-            for r in obs_rows
+            for r in rows
         ]
-        ranked = rank_hotels(
-            candidates,
+        return rank_hotels(
+            cands,
             user_preferences=user_prefs,
             center_lat=center_lat,
             center_lon=center_lon,
         )
+
+    obs_stmt = (
+        select(*obs_cols)
+        .join(
+            HotelPropertyModel,
+            HotelPropertyModel.id == HotelRateObservationModel.property_id,
+        )
+        .where(
+            HotelRateObservationModel.destination_code == dest_code,
+            HotelRateObservationModel.check_in == check_in,
+        )
+        .order_by(HotelRateObservationModel.price_nightly_cents.asc())
+    )
+    obs_rows = (await session.execute(obs_stmt)).all()
+    if obs_rows:
+        ranked = _rank_obs_rows(obs_rows)
         if ranked:
             best = ranked[0]
             return _build_lodging_summary(
@@ -1950,56 +1962,38 @@ async def get_route_lodging_for_date(
             reasons=["Tick baseline estimate"],
         )
 
-    # 3. Live on-demand multi-provider ingest if no observations cached
-    from app.engine.market.adapters import OpenLodgingFeed
-    from app.engine.market.ingest import ingest_lodging_ticks
-
-    feed = OpenLodgingFeed(timeout_sec=10.0)
-    check_out = check_in + timedelta(days=nights)
-    try:
-        await ingest_lodging_ticks(
-            session=session,
-            destination_code=dest_code,
-            check_in=check_in,
-            check_out=check_out,
-            feed=feed,
+    # 3. Fallback to closest cached observed date for this destination (never live-scrape on read)
+    obs_all_stmt = (
+        select(*obs_cols)
+        .join(
+            HotelPropertyModel,
+            HotelPropertyModel.id == HotelRateObservationModel.property_id,
         )
-    except Exception as e:
-        logger.warning(
-            f"[OnDemandLodging] Live ingest failed for {dest_code} {check_in}: {e}"
-        )
-
-    # Re-query after ingestion
-    obs_rows_after = (await session.execute(obs_stmt)).all()
-    if obs_rows_after:
-        candidates_after = [
-            HotelCandidate(
-                property_id=r[7],
-                name=r[1],
-                nightly_cents=r[0],
-                stars=float(r[2]) if r[2] else None,
-                review_score=float(r[3]) if r[3] is not None else None,
-                review_count=int(r[4]) if r[4] is not None else None,
-                deep_link=r[5],
-                provider=r[6],
-                latitude=float(r[8]) if r[8] is not None else None,
-                longitude=float(r[9]) if r[9] is not None else None,
-                property_type=r[10] or "hotel",
-                free_cancellation=r[11],
-                board=r[12],
-                taxes_included=r[13] if r[13] is not None else True,
-                confidence=r[14] or "high",
-            )
-            for r in obs_rows_after
+        .where(HotelRateObservationModel.destination_code == dest_code)
+        .order_by(HotelRateObservationModel.price_nightly_cents.asc())
+    )
+    all_obs_rows = (await session.execute(obs_all_stmt)).all()
+    if all_obs_rows:
+        by_date: dict[date, list[Any]] = {}
+        for row in all_obs_rows:
+            by_date.setdefault(row[18], []).append(row)
+        enriched_dates = [
+            d
+            for d, d_rows in by_date.items()
+            if any(row[15] or row[16] or row[17] for row in d_rows)
         ]
-        ranked_after = rank_hotels(
-            candidates_after,
-            user_preferences=user_prefs,
-            center_lat=center_lat,
-            center_lon=center_lon,
-        )
-        if ranked_after:
-            best = ranked_after[0]
+        pool_dates = enriched_dates if enriched_dates else list(by_date.keys())
+        closest_date = min(pool_dates, key=lambda d: abs((d - check_in).days))
+        ranked_fb = _rank_obs_rows(by_date[closest_date])
+        if ranked_fb:
+            enriched_ranked = [
+                rh
+                for rh in ranked_fb
+                if rh.candidate.photo_url
+                or rh.candidate.address
+                or rh.candidate.amenities
+            ]
+            best = enriched_ranked[0] if enriched_ranked else ranked_fb[0]
             return _build_lodging_summary(
                 best.candidate.nightly_cents,
                 best.candidate.name,
@@ -2009,8 +2003,8 @@ async def get_route_lodging_for_date(
                 best.candidate.deep_link,
                 best.candidate.provider,
                 val_score=best.value_score,
-                badge_str=best.badge,
-                reasons=best.rank_reasons,
+                badge_str=best.badge or "Destination Best",
+                reasons=best.rank_reasons or [f"Closest cached date ({closest_date})"],
             )
 
     # ZERO synthetic data fallback: raise 404 if no authentic provider data could be fetched
@@ -2025,60 +2019,93 @@ async def _fetch_corridor_quotes(
     dest: str,
     date_from: date,
     date_to: date,
-    feed: CompositeFlightFeed,
+    feed: CompositeFlightFeed | None,
     session: AsyncSession,
 ) -> dict[str, dict[str, Any]]:
     quotes_by_date: dict[str, dict[str, Any]] = {}
-    now = datetime.now(timezone.utc)
-    try:
-        live = await feed.fetch_cached_flights(
-            origin_iata=origin,
-            dest_iata=dest,
-            date_from=date_from,
-            date_to=date_to,
-        )
-        for q in live:
-            d_str = q.depart_time.date().isoformat()
-            fare = round(q.base_price_cents / 100.0, 2)
-            if d_str not in quotes_by_date or fare < quotes_by_date[d_str]["price_eur"]:
-                quotes_by_date[d_str] = {
-                    "price_eur": fare,
-                    "flight_number": q.flight_number,
-                    "duration_mins": int(
-                        (q.arrival_time - q.depart_time).total_seconds() // 60
-                    ),
-                    "departure_time": q.depart_time.strftime("%H:%M"),
-                    "booking_url": q.deep_link
-                    or f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
-                    "carrier": q.carrier,
-                }
-    except Exception as e:
-        logger.warning(
-            f"Could not fetch live quotes for corridor {origin}->{dest}: {e}"
-        )
 
-    # Also query stored ticks from DB for days not returned by live feed
     stored_ticks_stmt = select(MarketPriceTickModel).where(
+        MarketPriceTickModel.asset_type == "flight",
         MarketPriceTickModel.origin_iata == origin,
         MarketPriceTickModel.destination_code == dest,
-        MarketPriceTickModel.depart_date >= now.date(),
+        MarketPriceTickModel.depart_date >= date_from,
+        MarketPriceTickModel.depart_date <= date_to,
+        MarketPriceTickModel.source != "injected_aviasales",
+        MarketPriceTickModel.base_price_cents > 0,
     )
     stored_res = await session.execute(stored_ticks_stmt)
     stored_ticks = stored_res.scalars().all()
     for st in stored_ticks:
         d_str = st.depart_date.isoformat()
         fare = round(st.base_price_cents / 100.0, 2)
-        if d_str not in quotes_by_date or fare < quotes_by_date[d_str]["price_eur"]:
-            st_meta = st.metadata_json or {}
+        st_meta = st.metadata_json if isinstance(st.metadata_json, dict) else {}
+        dep_time_str = st_meta.get("departure_time") or st_meta.get("depart_time")
+        dur_mins = st_meta.get("duration_mins")
+        dep_local_raw = st_meta.get("depart_local")
+        arr_local_raw = st_meta.get("arrival_local")
+        if dep_local_raw:
+            try:
+                dep_dt_parsed = datetime.fromisoformat(str(dep_local_raw))
+                dep_time_str = dep_dt_parsed.strftime("%H:%M")
+                if arr_local_raw:
+                    arr_dt_parsed = datetime.fromisoformat(str(arr_local_raw))
+                    dur_mins = max(
+                        0, int((arr_dt_parsed - dep_dt_parsed).total_seconds() // 60)
+                    )
+            except Exception:
+                pass
+        fl_num = st_meta.get("flightNumber") or st_meta.get("flight_number")
+        carrier = st_meta.get("airline") or st_meta.get("carrier") or st.source
+
+        existing = quotes_by_date.get(d_str)
+        has_meta = bool(dep_time_str or fl_num)
+        existing_has_meta = bool(
+            existing
+            and (existing.get("departure_time") or existing.get("flight_number"))
+        )
+        if (
+            existing is None
+            or fare < existing["price_eur"]
+            or (fare == existing["price_eur"] and has_meta and not existing_has_meta)
+        ):
             quotes_by_date[d_str] = {
                 "price_eur": fare,
-                "flight_number": st_meta.get("flight_number"),
-                "duration_mins": None,
-                "departure_time": None,
+                "flight_number": fl_num,
+                "duration_mins": dur_mins,
+                "departure_time": dep_time_str,
                 "booking_url": st_meta.get("deep_link")
                 or f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
-                "carrier": st.source,
+                "carrier": carrier,
             }
+
+    # Backfill any missing dates from price_daily (already populated by sweeps/backfills)
+    daily_stmt = select(PriceDailyModel).where(
+        PriceDailyModel.asset_type == "flight",
+        PriceDailyModel.origin_iata == origin,
+        PriceDailyModel.destination_code == dest,
+        PriceDailyModel.depart_date >= date_from,
+        PriceDailyModel.depart_date <= date_to,
+        PriceDailyModel.source != "injected_aviasales",
+        PriceDailyModel.min_base > 0,
+    )
+    daily_res = await session.execute(daily_stmt)
+    daily_best: dict[str, dict[str, Any]] = {}
+    for pd_row in daily_res.scalars().all():
+        d_str = pd_row.depart_date.isoformat()
+        if d_str in quotes_by_date:
+            continue
+        fare = round(pd_row.min_base / 100.0, 2)
+        prev = daily_best.get(d_str)
+        if prev is None or fare < prev["price_eur"]:
+            daily_best[d_str] = {
+                "price_eur": fare,
+                "flight_number": None,
+                "duration_mins": None,
+                "departure_time": None,
+                "booking_url": f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
+                "carrier": pd_row.source,
+            }
+    quotes_by_date.update(daily_best)
     return quotes_by_date
 
 
@@ -2087,7 +2114,7 @@ async def get_route_calendar(
     route_id: str,
     months_count: int = Query(4, ge=1, le=12, alias="months"),
     view: str = Query("roundtrip", pattern="^(outbound|inbound|roundtrip)$"),
-    pricing: str = Query("package", pattern="^(flights|package)$"),
+    pricing: str = Query("flights", pattern="^(flights|package)$"),
     currency_param: str | None = Query(None, alias="currency"),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
@@ -2231,8 +2258,10 @@ async def get_route_calendar(
             session=session,
         )
 
-    # If package pricing, estimate lodging benchmark per night
+    # If package pricing, estimate lodging benchmark per night & load cached hotels by date
     hotel_rate_eur = 0.0
+    best_cal_hotel_by_date: dict[date, Any] = {}
+    best_cal_enriched_by_date: dict[date, Any] = {}
     if view == "roundtrip" and pricing == "package":
         lodging_median, _, _ = await resolve_baseline_median(
             session, "lodging", "", dest_code, alert.earliest_date, now.date(), "EUR"
@@ -2262,6 +2291,140 @@ async def get_route_calendar(
                     hotel_rate_eur = round(float(tick_avg) / 100.0, 2)
                 else:
                     hotel_rate_eur = 0.0
+
+        from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
+
+        cal_user_prefs = (
+            (current_user.preferences or {})
+            if isinstance(current_user, UserModel) and current_user.preferences
+            else {}
+        )
+        if not cal_user_prefs and alert.user_id:
+            cal_u_row = await session.scalar(
+                select(UserModel).where(UserModel.id == alert.user_id)
+            )
+            if cal_u_row and cal_u_row.preferences:
+                cal_user_prefs = cal_u_row.preferences
+
+        cal_city_obj = (
+            await session.execute(
+                select(CityModel)
+                .where(
+                    (CityModel.id == dest_code.upper())
+                    | (CityModel.country_code == dest_code.upper())
+                    | (CityModel.name.ilike(f"%{dest_code}%"))
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        cal_center_lat = cal_city_obj.center_lat if cal_city_obj else None
+        cal_center_lon = cal_city_obj.center_lon if cal_city_obj else None
+
+        cal_obs_stmt = (
+            select(
+                HotelRateObservationModel.check_in,
+                HotelRateObservationModel.price_nightly_cents,
+                HotelPropertyModel.id,
+                HotelPropertyModel.name,
+                HotelPropertyModel.stars,
+                HotelRateObservationModel.review_score,
+                HotelRateObservationModel.review_count,
+                HotelRateObservationModel.deep_link,
+                HotelRateObservationModel.provider,
+                HotelPropertyModel.latitude,
+                HotelPropertyModel.longitude,
+                HotelPropertyModel.property_type,
+                HotelRateObservationModel.free_cancellation,
+                HotelRateObservationModel.board,
+                HotelRateObservationModel.taxes_included,
+                HotelRateObservationModel.confidence,
+                HotelPropertyModel.photo_url,
+                HotelPropertyModel.amenities,
+                HotelPropertyModel.address,
+            )
+            .join(
+                HotelPropertyModel,
+                HotelPropertyModel.id == HotelRateObservationModel.property_id,
+            )
+            .where(
+                HotelRateObservationModel.destination_code == dest_code,
+                HotelRateObservationModel.check_in >= now.date(),
+            )
+            .order_by(
+                HotelRateObservationModel.check_in.asc(),
+                HotelRateObservationModel.price_nightly_cents.asc(),
+            )
+        )
+        cal_obs_rows = (await session.execute(cal_obs_stmt)).all()
+        cal_cands_by_date: dict[date, list[HotelCandidate]] = {}
+        for row in cal_obs_rows:
+            cal_cands_by_date.setdefault(row[0], []).append(
+                HotelCandidate(
+                    property_id=row[2],
+                    name=row[3],
+                    nightly_cents=row[1],
+                    stars=float(row[4]) if row[4] else None,
+                    review_score=float(row[5]) if row[5] is not None else None,
+                    review_count=int(row[6]) if row[6] is not None else None,
+                    deep_link=row[7],
+                    provider=row[8],
+                    latitude=float(row[9]) if row[9] is not None else None,
+                    longitude=float(row[10]) if row[10] is not None else None,
+                    property_type=row[11] or "hotel",
+                    free_cancellation=row[12],
+                    board=row[13],
+                    taxes_included=row[14] if row[14] is not None else True,
+                    confidence=row[15] or "high",
+                    photo_url=row[16],
+                    amenities=row[17] or [],
+                    address=row[18],
+                )
+            )
+        for cin, cl in cal_cands_by_date.items():
+            ranked_cal = rank_hotels(
+                cl,
+                user_preferences=cal_user_prefs,
+                center_lat=cal_center_lat,
+                center_lon=cal_center_lon,
+            )
+            if ranked_cal:
+                best_cal_hotel_by_date[cin] = ranked_cal[0]
+                enriched_cal = [
+                    rh
+                    for rh in ranked_cal
+                    if rh.candidate.photo_url
+                    or rh.candidate.address
+                    or rh.candidate.amenities
+                ]
+                if enriched_cal:
+                    best_cal_enriched_by_date[cin] = enriched_cal[0]
+
+    def _resolve_day_cal_hotel(target_day: date) -> Any | None:
+        exact = best_cal_hotel_by_date.get(target_day)
+        if exact and (
+            exact.candidate.photo_url
+            or exact.candidate.address
+            or exact.candidate.amenities
+            or not best_cal_enriched_by_date
+        ):
+            return exact
+        if target_day in best_cal_enriched_by_date:
+            return best_cal_enriched_by_date[target_day]
+        if best_cal_enriched_by_date:
+            closest_d = min(
+                best_cal_enriched_by_date.keys(),
+                key=lambda d: abs((d - target_day).days),
+            )
+            return best_cal_enriched_by_date[closest_d]
+        if exact:
+            return exact
+        if best_cal_hotel_by_date:
+            closest_d = min(
+                best_cal_hotel_by_date.keys(),
+                key=lambda d: abs((d - target_day).days),
+            )
+            return best_cal_hotel_by_date[closest_d]
+        return None
 
     # Effective quantiles for tiering
     cal_travelers = getattr(alert, "travelers", 1) or 1
@@ -2316,6 +2479,16 @@ async def get_route_calendar(
                 # Check outbound departure on day_date and pair with cheapest return in [min_nights, max_nights]
                 if date_str in outbound_quotes:
                     out_q = outbound_quotes[date_str]
+                    day_ranked_hotel = (
+                        _resolve_day_cal_hotel(day_date)
+                        if pricing == "package"
+                        else None
+                    )
+                    day_hotel_rate_eur = (
+                        round(day_ranked_hotel.candidate.nightly_cents / 100.0, 2)
+                        if day_ranked_hotel
+                        else hotel_rate_eur
+                    )
                     best_total = None
                     best_ret_date_str = None
                     best_nights = None
@@ -2331,7 +2504,7 @@ async def get_route_calendar(
                             ) * cal_travelers
                             total_fare = flight_part
                             if pricing == "package":
-                                total_fare += hotel_rate_eur * n
+                                total_fare += day_hotel_rate_eur * n
 
                             if best_total is None or total_fare < best_total:
                                 best_total = round(total_fare, 2)
@@ -2346,7 +2519,7 @@ async def get_route_calendar(
                     ):
                         price = best_total
                         night_hotel = (
-                            (hotel_rate_eur * best_nights)
+                            (day_hotel_rate_eur * best_nights)
                             if pricing == "package"
                             else 0.0
                         )
@@ -2412,10 +2585,40 @@ async def get_route_calendar(
                                 ),
                                 lodging=LodgingSummary(
                                     nights=best_nights,
-                                    price_per_night_eur=hotel_rate_eur,
+                                    price_per_night_eur=day_hotel_rate_eur,
                                     total_lodging_eur=round(
-                                        hotel_rate_eur * best_nights, 2
+                                        day_hotel_rate_eur * best_nights, 2
                                     ),
+                                    property_name=day_ranked_hotel.candidate.name
+                                    if day_ranked_hotel
+                                    else None,
+                                    stars=int(day_ranked_hotel.candidate.stars)
+                                    if (
+                                        day_ranked_hotel
+                                        and day_ranked_hotel.candidate.stars
+                                    )
+                                    else None,
+                                    review_score=day_ranked_hotel.candidate.review_score
+                                    if day_ranked_hotel
+                                    else None,
+                                    review_count=day_ranked_hotel.candidate.review_count
+                                    if day_ranked_hotel
+                                    else None,
+                                    booking_url=day_ranked_hotel.candidate.deep_link
+                                    if day_ranked_hotel
+                                    else None,
+                                    source=day_ranked_hotel.candidate.provider
+                                    if day_ranked_hotel
+                                    else None,
+                                    value_score=day_ranked_hotel.value_score
+                                    if day_ranked_hotel
+                                    else None,
+                                    badge=day_ranked_hotel.badge
+                                    if day_ranked_hotel
+                                    else None,
+                                    rank_reasons=day_ranked_hotel.rank_reasons
+                                    if day_ranked_hotel
+                                    else [],
                                 )
                                 if pricing == "package"
                                 else None,

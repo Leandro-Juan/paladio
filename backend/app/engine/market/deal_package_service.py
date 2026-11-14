@@ -23,6 +23,7 @@ from app.db.models import (
     HotelPropertyModel,
     HotelRateObservationModel,
     MarketPriceTickModel,
+    PriceDailyModel,
     UserModel,
 )
 from app.engine.market.baselines import resolve_route_baseline_quantiles
@@ -50,7 +51,7 @@ class DealPackageService:
         return self._lodging_feed
 
     async def resolve_city_name(self, session: AsyncSession, code: str) -> str:
-        """Dynamically resolves city display name from DestinationAirportModel or CityModel."""
+        """Dynamically resolves city display name from DestinationAirportModel, CityModel, or AirportService."""
         code_clean = (code or "").strip().upper()
         if not code_clean:
             return code
@@ -70,14 +71,22 @@ class DealPackageService:
         stmt_city = (
             select(CityModel.name)
             .where(
-                (CityModel.id == code_clean)
-                | (CityModel.country_code == code_clean)
-                | (CityModel.name.ilike(f"%{code_clean}%"))
+                (CityModel.id.ilike(f"{code_clean}%"))
+                | (CityModel.name.ilike(f"{code_clean}%"))
             )
             .limit(1)
         )
         city_name = (await session.execute(stmt_city)).scalar_one_or_none()
-        return city_name or code_clean
+        if city_name:
+            return city_name
+
+        from app.services.airport_service import get_airport_service
+
+        city = get_airport_service().get_city_from_iata(code_clean)
+        if city and city != "Unknown":
+            return city
+
+        return code_clean
 
     def _extract_meta(self, tick: MarketPriceTickModel) -> dict[str, Any]:
         """Safely parses metadata_json from a market price tick."""
@@ -90,6 +99,85 @@ class DealPackageService:
                 pass
         return {}
 
+    @staticmethod
+    def _has_rich_lodging_meta(cand: HotelCandidate) -> bool:
+        """Returns True when a hotel candidate carries photo, address, or amenities."""
+        return bool(cand.photo_url or cand.address or cand.amenities)
+
+    @staticmethod
+    def _build_lodging_item(
+        ranked_hotel: Any,
+        nights: int,
+        travelers: int,
+        fallback_badge: str = "Best Value",
+    ) -> tuple[dict[str, Any], int]:
+        """Formats a RankedHotel into the deal package lodging payload."""
+        cand = ranked_hotel.candidate
+        hotel_nightly_cents = cand.nightly_cents
+        prop_name = cand.name
+        if travelers > 1 and "Guest" not in prop_name and "people" not in prop_name:
+            prop_name = f"{prop_name} ({travelers} Guests)"
+        total_hotel_cents = hotel_nightly_cents * nights
+        q_score = (
+            round(
+                cand.review_score * 20.0
+                if cand.review_score <= 5.0
+                else cand.review_score * 10.0,
+                1,
+            )
+            if cand.review_score
+            else None
+        )
+        return (
+            {
+                "property_name": prop_name,
+                "nightly_base_eur": round(hotel_nightly_cents / 100.0, 2),
+                "landed_total_eur": round(total_hotel_cents / 100.0, 2),
+                "quality_score": q_score,
+                "stars": cand.stars,
+                "review_score": cand.review_score,
+                "review_count": cand.review_count,
+                "booking_url": cand.deep_link,
+                "source": cand.provider or "lodging",
+                "is_live": False,
+                "taxes_included": cand.taxes_included,
+                "badge": ranked_hotel.badge or fallback_badge,
+                "photo_url": cand.photo_url,
+                "amenities": cand.amenities or [],
+                "room_type": cand.room_type,
+                "free_cancellation": cand.free_cancellation,
+                "board": cand.board,
+                "address": cand.address,
+            },
+            total_hotel_cents,
+        )
+
+    @staticmethod
+    def _tick_from_price_daily(
+        pd_row: PriceDailyModel, today: date
+    ) -> MarketPriceTickModel:
+        """Synthesizes an in-memory tick from a PriceDailyModel rollup row."""
+        obs_dt = datetime.combine(
+            pd_row.bucket, datetime.min.time(), tzinfo=timezone.utc
+        )
+        return MarketPriceTickModel(
+            id=f"daily-{pd_row.origin_iata}-{pd_row.destination_code}-{pd_row.depart_date.isoformat()}",
+            observed_at=obs_dt,
+            asset_type="flight",
+            origin_iata=pd_row.origin_iata,
+            destination_code=pd_row.destination_code,
+            depart_date=pd_row.depart_date,
+            nights=pd_row.nights,
+            lead_time_days=max((pd_row.depart_date - today).days, 0),
+            currency=pd_row.currency,
+            base_price_cents=pd_row.min_base,
+            source=pd_row.source,
+            source_class=pd_row.source_class,
+            source_observed_at=obs_dt,
+            content_hash=b"",
+            metadata_json={},
+        )
+
     async def format_deal_event(
         self, session: AsyncSession, ev: DealEventModel
     ) -> dict[str, Any] | None:
@@ -97,7 +185,9 @@ class DealPackageService:
         pkg = ev.package_json or {}
         orig = pkg.get("origin_iata") or ""
         dest = pkg.get("destination_code") or ""
-        if not orig or not dest:
+        flight_info = pkg.get("flight")
+        ret_flight_info = pkg.get("return_flight")
+        if not orig or not dest or not flight_info or not ret_flight_info:
             return None
 
         alert = None
@@ -108,11 +198,17 @@ class DealPackageService:
         travelers = getattr(alert, "travelers", 1) or pkg.get("travelers", 1) or 1
         participants = getattr(alert, "participants", None) or pkg.get("participants")
 
-        orig_name = pkg.get("origin_name") or await self.resolve_city_name(
-            session, orig
+        raw_orig_name = pkg.get("origin_name")
+        orig_name = (
+            raw_orig_name
+            if raw_orig_name and raw_orig_name.strip().upper() != orig.strip().upper()
+            else await self.resolve_city_name(session, orig)
         )
-        dest_name = pkg.get("destination_name") or await self.resolve_city_name(
-            session, dest
+        raw_dest_name = pkg.get("destination_name")
+        dest_name = (
+            raw_dest_name
+            if raw_dest_name and raw_dest_name.strip().upper() != dest.strip().upper()
+            else await self.resolve_city_name(session, dest)
         )
 
         dep_date = pkg.get("depart_date") or ""
@@ -391,6 +487,7 @@ class DealPackageService:
                 MarketPriceTickModel.destination_code == dest_code,
                 MarketPriceTickModel.depart_date >= e_date,
                 MarketPriceTickModel.depart_date <= l_date,
+                MarketPriceTickModel.source != "injected_aviasales",
                 MarketPriceTickModel.observed_at >= oldest_valid_obs,
             )
             .order_by(
@@ -400,6 +497,24 @@ class DealPackageService:
             )
         )
         all_out_ticks = (await session.execute(fwd_out_stmt)).scalars().all()
+        if not all_out_ticks:
+            fwd_out_fallback = (
+                select(MarketPriceTickModel)
+                .where(
+                    MarketPriceTickModel.asset_type == "flight",
+                    MarketPriceTickModel.origin_iata == orig,
+                    MarketPriceTickModel.destination_code == dest_code,
+                    MarketPriceTickModel.depart_date >= e_date,
+                    MarketPriceTickModel.depart_date <= l_date,
+                    MarketPriceTickModel.source != "injected_aviasales",
+                )
+                .order_by(
+                    MarketPriceTickModel.depart_date.asc(),
+                    MarketPriceTickModel.base_price_cents.asc(),
+                    desc(MarketPriceTickModel.observed_at),
+                )
+            )
+            all_out_ticks = (await session.execute(fwd_out_fallback)).scalars().all()
 
         # Deduplicate to cheapest observation per depart_date
         best_out_by_date: dict[date, MarketPriceTickModel] = {}
@@ -411,19 +526,44 @@ class DealPackageService:
             ):
                 best_out_by_date[dep_d] = ot
 
+        # Fill missing outbound dates from PriceDailyModel rollup
+        out_daily_stmt = (
+            select(PriceDailyModel)
+            .where(
+                PriceDailyModel.asset_type == "flight",
+                PriceDailyModel.origin_iata == orig,
+                PriceDailyModel.destination_code == dest_code,
+                PriceDailyModel.depart_date >= e_date,
+                PriceDailyModel.depart_date <= l_date,
+                PriceDailyModel.source != "injected_aviasales",
+            )
+            .order_by(
+                PriceDailyModel.depart_date.asc(),
+                PriceDailyModel.min_base.asc(),
+                desc(PriceDailyModel.bucket),
+            )
+        )
+        for pd_row in (await session.execute(out_daily_stmt)).scalars().all():
+            if pd_row.depart_date not in best_out_by_date:
+                best_out_by_date[pd_row.depart_date] = self._tick_from_price_daily(
+                    pd_row, today
+                )
+
         sorted_out_dates = sorted(
             best_out_by_date.keys(), key=lambda d: best_out_by_date[d].base_price_cents
         )[:15]
 
         # Query return ticks
+        min_ret_date = e_date + timedelta(days=alert.min_nights or 1)
+        max_ret_date = l_date + timedelta(days=alert.max_nights or 30)
         fwd_ret_stmt = (
             select(MarketPriceTickModel)
             .where(
                 MarketPriceTickModel.asset_type == "flight",
                 MarketPriceTickModel.origin_iata == dest_code,
                 MarketPriceTickModel.destination_code == orig,
-                MarketPriceTickModel.depart_date
-                >= e_date + timedelta(days=alert.min_nights or 1),
+                MarketPriceTickModel.depart_date >= min_ret_date,
+                MarketPriceTickModel.source != "injected_aviasales",
                 MarketPriceTickModel.observed_at >= oldest_valid_obs,
             )
             .order_by(
@@ -433,6 +573,23 @@ class DealPackageService:
             )
         )
         all_ret_ticks = (await session.execute(fwd_ret_stmt)).scalars().all()
+        if not all_ret_ticks:
+            fwd_ret_fallback = (
+                select(MarketPriceTickModel)
+                .where(
+                    MarketPriceTickModel.asset_type == "flight",
+                    MarketPriceTickModel.origin_iata == dest_code,
+                    MarketPriceTickModel.destination_code == orig,
+                    MarketPriceTickModel.depart_date >= min_ret_date,
+                    MarketPriceTickModel.source != "injected_aviasales",
+                )
+                .order_by(
+                    MarketPriceTickModel.depart_date.asc(),
+                    MarketPriceTickModel.base_price_cents.asc(),
+                    desc(MarketPriceTickModel.observed_at),
+                )
+            )
+            all_ret_ticks = (await session.execute(fwd_ret_fallback)).scalars().all()
 
         best_ret_by_date: dict[date, MarketPriceTickModel] = {}
         for rt in all_ret_ticks:
@@ -442,6 +599,29 @@ class DealPackageService:
                 or rt.base_price_cents < best_ret_by_date[r_dep].base_price_cents
             ):
                 best_ret_by_date[r_dep] = rt
+
+        # Fill missing return dates from PriceDailyModel rollup
+        ret_daily_stmt = (
+            select(PriceDailyModel)
+            .where(
+                PriceDailyModel.asset_type == "flight",
+                PriceDailyModel.origin_iata == dest_code,
+                PriceDailyModel.destination_code == orig,
+                PriceDailyModel.depart_date >= min_ret_date,
+                PriceDailyModel.depart_date <= max_ret_date,
+                PriceDailyModel.source != "injected_aviasales",
+            )
+            .order_by(
+                PriceDailyModel.depart_date.asc(),
+                PriceDailyModel.min_base.asc(),
+                desc(PriceDailyModel.bucket),
+            )
+        )
+        for pd_row in (await session.execute(ret_daily_stmt)).scalars().all():
+            if pd_row.depart_date not in best_ret_by_date:
+                best_ret_by_date[pd_row.depart_date] = self._tick_from_price_daily(
+                    pd_row, today
+                )
 
         # Setup destination coordinates and user preferences for lodging ranking
         city_stmt = (
@@ -537,6 +717,7 @@ class DealPackageService:
             )
 
         best_hotel_by_date = {}
+        best_enriched_by_date = {}
         for cin, cl in cands_by_date.items():
             ranked_d = rank_hotels(
                 cl,
@@ -546,6 +727,11 @@ class DealPackageService:
             )
             if ranked_d:
                 best_hotel_by_date[cin] = ranked_d[0]
+                enriched = [
+                    rh for rh in ranked_d if self._has_rich_lodging_meta(rh.candidate)
+                ]
+                if enriched:
+                    best_enriched_by_date[cin] = enriched[0]
 
         # Route statistical baselines
         quantiles, _, _ = await resolve_route_baseline_quantiles(
@@ -567,8 +753,6 @@ class DealPackageService:
 
         cand_travelers = getattr(alert, "travelers", 1) or 1
         cand_participants = getattr(alert, "participants", None)
-
-        feed = self._get_lodging_feed()
 
         for dep_dt in sorted_out_dates:
             out_tick = best_out_by_date[dep_dt]
@@ -623,133 +807,55 @@ class DealPackageService:
                 or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={dest_code}&destinationIata={orig}&dateOut={best_ret_tick.depart_date.isoformat()}"
             )
 
-            # Dynamic Lodging Resolution:
-            # First check pre-scraped best hotel for this departure date
+            # Dynamic Lodging Resolution (cached DB observations only; never live-scrape on read):
             chosen_ranked = best_hotel_by_date.get(dep_dt)
             lodging_item: dict[str, Any] | None = None
             total_hotel_cents = 0
 
-            if chosen_ranked:
-                cand = chosen_ranked.candidate
-                hotel_nightly_cents = cand.nightly_cents
-                prop_name = cand.name
-                if (
-                    cand_travelers > 1
-                    and "Guest" not in prop_name
-                    and "people" not in prop_name
-                ):
-                    prop_name = f"{prop_name} ({cand_travelers} Guests)"
-                total_hotel_cents = hotel_nightly_cents * best_nights
-                lodging_item = {
-                    "property_name": prop_name,
-                    "nightly_base_eur": round(hotel_nightly_cents / 100.0, 2),
-                    "landed_total_eur": round(total_hotel_cents / 100.0, 2),
-                    "quality_score": round(cand.review_score * 20.0, 1)
-                    if cand.review_score
-                    else None,
-                    "stars": cand.stars,
-                    "review_score": cand.review_score,
-                    "review_count": cand.review_count,
-                    "booking_url": cand.deep_link,
-                    "source": cand.provider or "lodging",
-                    "is_live": False,
-                    "taxes_included": cand.taxes_included,
-                    "badge": chosen_ranked.badge or "Best Value",
-                    "photo_url": cand.photo_url,
-                    "amenities": cand.amenities or [],
-                    "room_type": cand.room_type,
-                    "free_cancellation": cand.free_cancellation,
-                    "board": cand.board,
-                    "address": cand.address,
-                }
-            elif feed and sum(
-                1 for cp in cand_packages if cp.get("lodging") is not None
-            ) < max(limit, 5):
-                # On-Demand Lodging Fetch: If date has no cached hotels, resolve dynamically!
-                try:
-                    quote = await feed.fetch_destination_summary(
-                        dest_code,
-                        dep_dt,
-                        best_ret_tick.depart_date,
-                        session=session,
-                        taste=user_prefs,
-                    )
-                    if quote and quote.property_name:
-                        hotel_nightly_cents = quote.base_price_per_night_cents
-                        prop_name = quote.property_name
-                        if (
-                            cand_travelers > 1
-                            and "Guest" not in prop_name
-                            and "people" not in prop_name
-                        ):
-                            prop_name = f"{prop_name} ({cand_travelers} Guests)"
-                        total_hotel_cents = hotel_nightly_cents * best_nights
-                        lodging_item = {
-                            "property_name": prop_name,
-                            "nightly_base_eur": round(hotel_nightly_cents / 100.0, 2),
-                            "landed_total_eur": round(total_hotel_cents / 100.0, 2),
-                            "quality_score": quote.quality_score,
-                            "stars": quote.stars,
-                            "review_score": quote.review_score,
-                            "review_count": quote.review_count,
-                            "booking_url": quote.deep_link,
-                            "source": quote.source or "lodging",
-                            "is_live": True,
-                            "taxes_included": quote.taxes_included,
-                            "badge": "Top Value",
-                            "photo_url": getattr(quote, "photo_url", None),
-                            "amenities": getattr(quote, "amenities", []) or [],
-                            "room_type": getattr(quote, "room_type", None),
-                            "free_cancellation": getattr(
-                                quote, "free_cancellation", None
-                            ),
-                            "board": getattr(quote, "board", None),
-                            "address": getattr(quote, "address", None),
-                        }
-                except Exception as e:
-                    logger.debug(
-                        f"[DealPackageService] On-demand lodging fetch skipped for {dest_code}: {e}"
-                    )
-
-            # Destination Benchmark Fallback: If no exact date quote was found but destination has observations
-            if not lodging_item and best_hotel_by_date:
-                # Find closest observed date in this destination
+            if chosen_ranked and (
+                self._has_rich_lodging_meta(chosen_ranked.candidate)
+                or not best_enriched_by_date
+            ):
+                lodging_item, total_hotel_cents = self._build_lodging_item(
+                    chosen_ranked,
+                    best_nights,
+                    cand_travelers,
+                    fallback_badge="Best Value",
+                )
+            elif dep_dt in best_enriched_by_date:
+                lodging_item, total_hotel_cents = self._build_lodging_item(
+                    best_enriched_by_date[dep_dt],
+                    best_nights,
+                    cand_travelers,
+                    fallback_badge="Best Value",
+                )
+            elif best_enriched_by_date:
+                closest_date = min(
+                    best_enriched_by_date.keys(), key=lambda d: abs((d - dep_dt).days)
+                )
+                lodging_item, total_hotel_cents = self._build_lodging_item(
+                    best_enriched_by_date[closest_date],
+                    best_nights,
+                    cand_travelers,
+                    fallback_badge="Destination Best",
+                )
+            elif chosen_ranked:
+                lodging_item, total_hotel_cents = self._build_lodging_item(
+                    chosen_ranked,
+                    best_nights,
+                    cand_travelers,
+                    fallback_badge="Best Value",
+                )
+            elif best_hotel_by_date:
                 closest_date = min(
                     best_hotel_by_date.keys(), key=lambda d: abs((d - dep_dt).days)
                 )
-                closest_ranked = best_hotel_by_date[closest_date]
-                c_cand = closest_ranked.candidate
-                h_nightly = c_cand.nightly_cents
-                p_name = c_cand.name
-                if (
-                    cand_travelers > 1
-                    and "Guest" not in p_name
-                    and "people" not in p_name
-                ):
-                    p_name = f"{p_name} ({cand_travelers} Guests)"
-                total_hotel_cents = h_nightly * best_nights
-                lodging_item = {
-                    "property_name": p_name,
-                    "nightly_base_eur": round(h_nightly / 100.0, 2),
-                    "landed_total_eur": round(total_hotel_cents / 100.0, 2),
-                    "quality_score": round(c_cand.review_score * 20.0, 1)
-                    if c_cand.review_score
-                    else None,
-                    "stars": c_cand.stars,
-                    "review_score": c_cand.review_score,
-                    "review_count": c_cand.review_count,
-                    "booking_url": c_cand.deep_link,
-                    "source": c_cand.provider or "lodging",
-                    "is_live": False,
-                    "taxes_included": c_cand.taxes_included,
-                    "badge": closest_ranked.badge or "Destination Best",
-                    "photo_url": c_cand.photo_url,
-                    "amenities": c_cand.amenities or [],
-                    "room_type": c_cand.room_type,
-                    "free_cancellation": c_cand.free_cancellation,
-                    "board": c_cand.board,
-                    "address": c_cand.address,
-                }
+                lodging_item, total_hotel_cents = self._build_lodging_item(
+                    best_hotel_by_date[closest_date],
+                    best_nights,
+                    cand_travelers,
+                    fallback_badge="Destination Best",
+                )
 
             total_fl_cents = (out_cents + ret_cents) * cand_travelers
             total_package_cents = total_fl_cents + total_hotel_cents
@@ -859,6 +965,12 @@ class DealPackageService:
         cand_packages.sort(
             key=lambda d: (
                 0 if d.get("lodging") is not None else 1,
+                0
+                if (
+                    d.get("lodging")
+                    and (d["lodging"].get("photo_url") or d["lodging"].get("address"))
+                )
+                else 1,
                 -d["discount_pct"],
                 d["total_price_eur"],
             )

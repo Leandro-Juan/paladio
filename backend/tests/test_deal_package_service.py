@@ -197,3 +197,42 @@ async def test_deal_package_service_fallback_to_previous_day(db_session):
     assert top["lodging"]["nightly_base_eur"] == 75.0
     assert top["lodging"]["stars"] == 4.0
     assert top["lodging"]["review_score"] == 9.1
+
+
+@pytest.mark.asyncio
+async def test_format_deal_event_requires_both_flights(db_session):
+    """Deals missing either outbound or return flight must not be returned."""
+    from app.db.models import DealEventModel
+
+    service = DealPackageService()
+    event_missing_return = DealEventModel(
+        id=f"deal_{uuid.uuid4().hex[:8]}",
+        candidate_id=f"cand_{uuid.uuid4().hex[:8]}",
+        alert_id=f"alert_{uuid.uuid4().hex[:8]}",
+        status="alerted",
+        package_json={
+            "origin_iata": "MAD",
+            "destination_code": "FCO",
+            "depart_date": "2026-11-24",
+            "return_date": "2026-11-27",
+            "nights": 3,
+            "flight": {"airline": "Aviasales", "base_price_cents": 1000},
+        },
+    )
+    assert await service.format_deal_event(db_session, event_missing_return) is None
+
+    event_missing_outbound = DealEventModel(
+        id=f"deal_{uuid.uuid4().hex[:8]}",
+        candidate_id=f"cand_{uuid.uuid4().hex[:8]}",
+        alert_id=f"alert_{uuid.uuid4().hex[:8]}",
+        status="alerted",
+        package_json={
+            "origin_iata": "MAD",
+            "destination_code": "FCO",
+            "depart_date": "2026-11-24",
+            "return_date": "2026-11-27",
+            "nights": 3,
+            "return_flight": {"airline": "Aviasales", "base_price_cents": 1000},
+        },
+    )
+    assert await service.format_deal_event(db_session, event_missing_outbound) is None
