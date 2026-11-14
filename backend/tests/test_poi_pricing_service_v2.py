@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -93,21 +93,23 @@ def test_resolve_price_wikivoyage():
 
 @pytest.mark.asyncio
 async def test_official_website_literal_verification_success():
+    from app.services.poi_pricing_service import POIPriceExtraction
+
     html_content = "<html><body><h1>Welcome to Modern Art</h1><p>General admission ticket: 14.50 EUR for adults.</p></body></html>"
     mock_resp = httpx.Response(
         200,
         text=html_content,
         request=httpx.Request("GET", "https://modernart.example.com"),
     )
-    ollama_resp = httpx.Response(
-        200,
-        json={"response": '{"price_eur": 14.50, "is_free": false}'},
-        request=httpx.Request("POST", "http://localhost:11434/api/generate"),
-    )
+    mock_extraction = POIPriceExtraction(price_eur=14.50, is_free=False)
 
     with (
         patch("httpx.AsyncClient.get", return_value=mock_resp),
-        patch("httpx.AsyncClient.post", return_value=ollama_resp),
+        patch(
+            "app.services.poi_pricing_service.LLMService.run_structured_extraction",
+            new_callable=AsyncMock,
+            return_value=mock_extraction,
+        ),
     ):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",
@@ -121,7 +123,9 @@ async def test_official_website_literal_verification_success():
 
 @pytest.mark.asyncio
 async def test_official_website_literal_verification_rejection():
-    # Ollama returns a hallucinated price that does not appear in source text!
+    from app.services.poi_pricing_service import POIPriceExtraction
+
+    # LLM returns a hallucinated price that does not appear in source text!
     html_content = "<html><body><h1>Welcome to Modern Art</h1><p>Enjoy our exhibits with a day ticket.</p></body></html>"
     mock_resp = httpx.Response(
         200,
@@ -129,15 +133,15 @@ async def test_official_website_literal_verification_rejection():
         request=httpx.Request("GET", "https://modernart.example.com"),
     )
     # 25.00 never appears in HTML!
-    ollama_resp = httpx.Response(
-        200,
-        json={"response": '{"price_eur": 25.00, "is_free": false}'},
-        request=httpx.Request("POST", "http://localhost:11434/api/generate"),
-    )
+    mock_extraction = POIPriceExtraction(price_eur=25.00, is_free=False)
 
     with (
         patch("httpx.AsyncClient.get", return_value=mock_resp),
-        patch("httpx.AsyncClient.post", return_value=ollama_resp),
+        patch(
+            "app.services.poi_pricing_service.LLMService.run_structured_extraction",
+            new_callable=AsyncMock,
+            return_value=mock_extraction,
+        ),
     ):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",

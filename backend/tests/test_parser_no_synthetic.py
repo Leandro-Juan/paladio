@@ -30,7 +30,15 @@ async def test_ryanair_html_shell_raises_drift_or_empty():
         request=httpx.Request("GET", "https://example.com"),
     )
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp):
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp),
+        patch.object(
+            provider,
+            "_get_cached_raw_response",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
         with pytest.raises(ParseDriftError):
             await provider.fetch_cached_flights("MAD", "FCO", d1, d2)
 
@@ -51,7 +59,15 @@ async def test_ryanair_empty_json_returns_no_quotes():
         request=httpx.Request("GET", "https://example.com"),
     )
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp):
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp),
+        patch.object(
+            provider,
+            "_get_cached_raw_response",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
         quotes = await provider.fetch_cached_flights("MAD", "FCO", d1, d2)
         assert quotes == []
 
@@ -72,7 +88,15 @@ async def test_ryanair_malformed_body_raises_drift_or_empty():
         request=httpx.Request("GET", "https://example.com"),
     )
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp):
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=fake_resp),
+        patch.object(
+            provider,
+            "_get_cached_raw_response",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
         with pytest.raises(ParseDriftError):
             await provider.fetch_cached_flights("MAD", "FCO", d1, d2)
 
