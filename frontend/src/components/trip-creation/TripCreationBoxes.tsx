@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTrips } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,9 +42,20 @@ interface TripCreationBoxesProps {
   disabled?: boolean;
   initialDestination?: string;
   initialOrigin?: string;
+  initialOriginIata?: string;
+  initialDestIata?: string;
   initialStartDate?: string;
   initialEndDate?: string;
   initialBudget?: number;
+  initialCurrency?: string;
+  initialDepartureHour?: string;
+  initialArrivalHour?: string;
+  initialHotelArea?: string;
+  initialHotelAddress?: string;
+  initialTravelers?: number;
+  hasQueryPrefill?: boolean;
+  querySource?: string;
+  queryPrefillKey?: string;
   status?: string;
   onReconnect?: () => void;
 }
@@ -55,9 +66,20 @@ export function TripCreationBoxes({
   disabled = false,
   initialDestination = '',
   initialOrigin = '',
+  initialOriginIata,
+  initialDestIata,
   initialStartDate,
   initialEndDate,
   initialBudget = 1500,
+  initialCurrency,
+  initialDepartureHour,
+  initialArrivalHour,
+  initialHotelArea,
+  initialHotelAddress,
+  initialTravelers,
+  hasQueryPrefill = false,
+  querySource,
+  queryPrefillKey,
   status = 'connected',
   onReconnect,
 }: TripCreationBoxesProps) {
@@ -108,8 +130,61 @@ export function TripCreationBoxes({
     }
   }, [currentUser, initializeWithUser]);
 
-  // Synchronize initial query props if the user hasn't explicitly customized yet
+  const lastAppliedPrefillRef = useRef<string | null>(null);
+
+  // Synchronize initial query props:
+  // - When explicit query prefill params are present (e.g., from a Deal Package "Make it a Trip"),
+  //   always apply them once per unique query string, overriding any stale draft in localStorage.
+  // - Otherwise, only populate fallback defaults if the user hasn't modified the draft yet.
   useEffect(() => {
+    if (hasQueryPrefill) {
+      const key =
+        queryPrefillKey ||
+        `${initialDestination}|${initialOrigin}|${initialStartDate}|${initialEndDate}|${initialBudget}`;
+      if (lastAppliedPrefillRef.current === key) return;
+      lastAppliedPrefillRef.current = key;
+
+      const updates: Partial<typeof draft> = {};
+      if (initialDestination) updates.destination = initialDestination;
+      if (initialOrigin) updates.origin = initialOrigin;
+      if (initialOriginIata !== undefined) updates.originIata = initialOriginIata;
+      if (initialDestIata !== undefined) updates.destIata = initialDestIata;
+      if (initialStartDate) updates.startDate = initialStartDate;
+      if (initialEndDate) updates.endDate = initialEndDate;
+      if (initialBudget) updates.budgetUsd = initialBudget;
+      if (initialCurrency) updates.currency = initialCurrency;
+      if (initialDepartureHour) updates.departureHour = initialDepartureHour;
+      if (initialArrivalHour) updates.arrivalHour = initialArrivalHour;
+
+      if (querySource === 'deal') {
+        updates.hotelArea = initialHotelArea || '';
+        updates.hotelAddress = initialHotelAddress || '';
+        updates.hotelLat = undefined;
+        updates.hotelLng = undefined;
+        if (initialTravelers && initialTravelers > 1 && participants.length < initialTravelers) {
+          const nextParticipants = [...participants];
+          while (nextParticipants.length < initialTravelers) {
+            const idx = nextParticipants.length + 1;
+            nextParticipants.push({
+              id: `deal-guest-${idx}`,
+              name: `Guest ${idx}`,
+              is_guest: true,
+              is_organizer: false,
+            });
+          }
+          updates.participants = nextParticipants;
+        }
+      } else {
+        if (initialHotelArea !== undefined) updates.hotelArea = initialHotelArea;
+        if (initialHotelAddress !== undefined) updates.hotelAddress = initialHotelAddress;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updateDraft(updates);
+      }
+      return;
+    }
+
     if (!hasUserModified) {
       const updates: Partial<typeof draft> = {};
       if (initialDestination && initialDestination !== destination) updates.destination = initialDestination;
@@ -121,7 +196,25 @@ export function TripCreationBoxes({
         updateDraft(updates);
       }
     }
-  }, [initialDestination, initialOrigin, initialStartDate, initialEndDate, initialBudget, hasUserModified]);
+  }, [
+    hasQueryPrefill,
+    queryPrefillKey,
+    querySource,
+    initialDestination,
+    initialOrigin,
+    initialOriginIata,
+    initialDestIata,
+    initialStartDate,
+    initialEndDate,
+    initialBudget,
+    initialCurrency,
+    initialDepartureHour,
+    initialArrivalHour,
+    initialHotelArea,
+    initialHotelAddress,
+    initialTravelers,
+    hasUserModified,
+  ]);
 
   // Document upload modal state
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);

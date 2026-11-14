@@ -53,9 +53,31 @@ export default function EnginePage() {
   const searchParams = useSearchParams();
   const queryDest = searchParams.get('destination') || undefined;
   const queryOrigin = searchParams.get('origin') || undefined;
+  const queryOriginIata = searchParams.get('origin_iata') || undefined;
+  const queryDestIata = searchParams.get('dest_iata') || undefined;
   const queryStart = searchParams.get('start_date') || undefined;
   const queryEnd = searchParams.get('end_date') || undefined;
   const queryBudget = searchParams.get('budget') ? Math.round(Number(searchParams.get('budget'))) : undefined;
+  const queryCurrency = searchParams.get('currency') || undefined;
+  const queryDepartureHour = searchParams.get('departure_hour') || undefined;
+  const queryArrivalHour = searchParams.get('arrival_hour') || undefined;
+  const queryHotelName = searchParams.get('hotel_name') || undefined;
+  const queryHotelAddress = searchParams.get('hotel_address') || undefined;
+  const queryTravelers = searchParams.get('travelers') ? Math.max(1, Math.round(Number(searchParams.get('travelers')))) : undefined;
+  const querySource = searchParams.get('source') || undefined;
+  const hasQueryPrefill = Boolean(
+    queryDest ||
+      queryOrigin ||
+      queryOriginIata ||
+      queryDestIata ||
+      queryStart ||
+      queryEnd ||
+      queryBudget ||
+      queryCurrency ||
+      queryHotelName ||
+      querySource
+  );
+  const queryPrefillKey = searchParams.toString();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blankCreationStatus, setBlankCreationStatus] = useState<string | null>(null);
@@ -261,15 +283,26 @@ export default function EnginePage() {
       </div>
 
       <TripCreationBoxes
-        key={`${queryDest}-${queryOrigin}-${queryStart}-${queryEnd}-${queryBudget}`}
+        key={queryPrefillKey || 'default'}
         onPersonalizedSubmit={handlePrepSubmit}
         onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || 'Creating blank trip workspace...')}
         disabled={false}
         initialDestination={queryDest || 'Paris'}
         initialOrigin={queryOrigin || 'Madrid'}
+        initialOriginIata={queryOriginIata}
+        initialDestIata={queryDestIata}
         initialStartDate={queryStart}
         initialEndDate={queryEnd}
         initialBudget={queryBudget ? Number(queryBudget) : 1500}
+        initialCurrency={queryCurrency}
+        initialDepartureHour={queryDepartureHour}
+        initialArrivalHour={queryArrivalHour}
+        initialHotelArea={queryHotelName}
+        initialHotelAddress={queryHotelAddress}
+        initialTravelers={queryTravelers}
+        hasQueryPrefill={hasQueryPrefill}
+        querySource={querySource}
+        queryPrefillKey={queryPrefillKey}
         status={status}
         onReconnect={connect}
       />
