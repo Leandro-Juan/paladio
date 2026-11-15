@@ -155,12 +155,15 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
                 city_entity = await city_repo.find_by_name_or_alias(name)
 
         state = await _count_state(name, poi_repo)
+        need_sights = (state.tier1 + state.tier2) < MIN_TIERED_SIGHTS or state.tier1 < 2
+        need_dining = state.dining < MIN_DINING_VENUES
+        need_hydrate = state.embedded_tier12_ratio < 0.95
+
         if (
             city_entity is not None
-            and state.tier1 >= 2
-            and (state.tier1 + state.tier2) >= MIN_TIERED_SIGHTS
-            and state.dining >= MIN_DINING_VENUES
-            and state.embedded_tier12_ratio >= 0.95
+            and not need_sights
+            and not need_dining
+            and not need_hydrate
         ):
             if city_entity.timezone:
                 cache_city_timezone(city_entity.name, city_entity.timezone)
@@ -179,49 +182,73 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
         logger.info(
             f"City '{name}' not ready (entity={city_entity is not None} T1={state.tier1} T2={state.tier2} dining={state.dining} emb_t12={state.embedded_tier12_ratio:.2f}); ingesting/hydrating."
         )
-        need_sights = (state.tier1 + state.tier2) < MIN_TIERED_SIGHTS or state.tier1 < 2
-        need_dining = state.dining < MIN_DINING_VENUES
-        geo = await geocode_city(city)
+        geo: CityGeo | None = None
+        city_obj = city_entity
+        canon_id = city_entity.id if city_entity is not None else ""
+        ingested_now = False
 
-        country = (geo.country_code or "XX").upper()
-        tz = (_tf.timezone_at(lat=geo.lat, lng=geo.lon) if _tf else None) or "UTC"
-        currency = get_country_currency(country)
-        canon_id = f"{city_lower}_{country.lower()}"
+        if city_entity is None or need_sights or need_dining:
+            geo = await geocode_city(city)
 
-        city_obj = City(
-            id=canon_id,
-            name=name,
-            aliases=[city_lower, name, geo.display_name],
-            country_code=country,
-            center_lat=geo.lat,
-            center_lon=geo.lon,
-            bbox=geo.bbox,
-            radius_km=geo.radius_km,
-            timezone=tz,
-            currency=currency,
-            profile={"source": "nominatim_osm"},
-        )
-        if active_session is not None:
-            city_repo = SqlCityRepository(active_session)
-            await city_repo.save_city(city_obj)
-        else:
-            async with async_session() as session:
-                city_repo = SqlCityRepository(session)
+            country = (geo.country_code or "XX").upper()
+            tz = (_tf.timezone_at(lat=geo.lat, lng=geo.lon) if _tf else None) or "UTC"
+            currency = get_country_currency(country)
+            canon_id = f"{city_lower}_{country.lower()}"
+
+            city_obj = City(
+                id=canon_id,
+                name=name,
+                aliases=[city_lower, name, geo.display_name],
+                country_code=country,
+                center_lat=geo.lat,
+                center_lon=geo.lon,
+                bbox=geo.bbox,
+                radius_km=geo.radius_km,
+                timezone=tz,
+                currency=currency,
+                profile={"source": "nominatim_osm"},
+            )
+            if active_session is not None:
+                city_repo = SqlCityRepository(active_session)
                 await city_repo.save_city(city_obj)
+            else:
+                async with async_session() as session:
+                    city_repo = SqlCityRepository(session)
+                    await city_repo.save_city(city_obj)
 
-        records = await fetch_city_records(
-            geo,
-            max_sights=220 if need_sights else 0,
-            max_dining=200 if need_dining else 0,
-        )
-        for r in records:
-            r["city_id"] = canon_id
+            records = await fetch_city_records(
+                geo,
+                max_sights=None if (need_sights or city_entity is None) else 0,
+                max_dining=None if (need_dining or city_entity is None) else 0,
+            )
+            for r in records:
+                r["city_id"] = canon_id
 
-        tiered = tier_city_attractions(records, name)
-        for t in tiered:
-            t["city_id"] = canon_id
+            tiered = tier_city_attractions(records, name)
+            for t in tiered:
+                t["city_id"] = canon_id
 
-        await poi_repo.save_tiered_for_city(name, tiered)
+            await poi_repo.save_tiered_for_city(name, tiered)
+            ingested_now = True
+
+        # Ensure Tier 1/2 sights have 768D semantic embeddings without re-streaming PBFs
+        post_ingest_state = await _count_state(name, poi_repo)
+        if post_ingest_state.embedded_tier12_ratio < 0.95:
+            try:
+                from app.cli.hydrate_pois import hydrate_attractions
+
+                await hydrate_attractions(
+                    city=name,
+                    tier_max=2,
+                    batch_size=32,
+                    session=active_session,
+                )
+                if active_session is not None:
+                    await active_session.commit()
+            except Exception as exc:
+                logger.warning(
+                    f"City readiness Tier 1/2 hydration failed for '{name}': {exc}"
+                )
 
         final_state = await _count_state(name, poi_repo)
         notes: list[str] = []
@@ -233,7 +260,7 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
             cache_city_timezone(city_obj.name, city_obj.timezone)
         return CityReadiness(
             city=name,
-            ingested=True,
+            ingested=ingested_now,
             tier1=final_state.tier1,
             tier2=final_state.tier2,
             dining=final_state.dining,

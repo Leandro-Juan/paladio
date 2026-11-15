@@ -127,3 +127,30 @@ async def test_prompt_intent_extractor_gold_set_benchmark():
     assert freq_acc >= 0.90, f"Cuisine frequency accuracy {freq_acc:.2f} < 0.90"
     assert top_tag_acc >= 0.85, f"Top tag accuracy {top_tag_acc:.2f} < 0.85"
     assert facet_acc >= 0.85, f"Facet accuracy {facet_acc:.2f} < 0.85"
+
+
+@pytest.mark.asyncio
+async def test_prompt_intent_history_relaxed_offbeat_and_taxonomy():
+    from app.engine.nlp.intent_extractor import PromptIntentExtractor
+    from app.engine.taxonomy import classify_poi_taxonomy
+
+    prompt = (
+        "Plan a relaxed 4-day history trip to Bangkok with street food "
+        "and off the beaten path local neighborhoods"
+    )
+    res = await PromptIntentExtractor.extract(prompt, destination_city="Bangkok")
+
+    assert res.pace == "leisurely"
+    assert res.prefers_offbeat is True
+    assert "history" in (res.required_facets.get("themes") or [])
+    assert float(res.tag_affinities.get("history_heritage", 0.0)) >= 0.6
+    mandatory_lower = {m.lower() for m in res.mandatory_pois}
+    assert "bangkok" not in mandatory_lower
+    assert "street food" not in mandatory_lower
+
+    tax_cat, _ = classify_poi_taxonomy(
+        "Tower of London",
+        "HISTORIC",
+        {"historic": "castle", "tourism": "attraction", "name": "Tower of London"},
+    )
+    assert tax_cat == "history_heritage"

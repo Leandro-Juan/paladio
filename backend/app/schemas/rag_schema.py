@@ -34,3 +34,11 @@ class RAGPromptAnalysis(BaseModel):
         default_factory=dict,
         description="Extracted facet constraints (e.g., indoor_outdoor, rain_friendly, themes, vibes, audience, neighborhoods).",
     )
+    pace: str | None = Field(
+        default=None,
+        description="Extracted travel pace preference ('leisurely', 'balanced', 'intense') if explicitly indicated.",
+    )
+    prefers_offbeat: bool = Field(
+        default=False,
+        description="True when prompt favors neighborhoods, hidden gems, or less-crowded local spots over iconic landmarks.",
+    )

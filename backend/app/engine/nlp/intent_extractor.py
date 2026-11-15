@@ -66,6 +66,30 @@ _GENERIC_SINGLE_WORDS = {
     "hall",
 }
 
+_GENERIC_DINING_PHRASES = {
+    "street food",
+    "local food",
+    "fast food",
+    "food court",
+    "food market",
+    "night market",
+    "street market",
+}
+
+_LEISURELY_PACE_RE = re.compile(
+    r"\b(?:leisurely|relaxed|relaxing|slow(?:\s+pace)?|chill|unhurried|easy\s+pace|no\s+rush|take\s+it\s+easy|low[- ]key)\b",
+    re.IGNORECASE,
+)
+_INTENSE_PACE_RE = re.compile(
+    r"\b(?:packed|intense|fast[- ]paced|whirlwind|marathon|non[- ]stop|see\s+everything|as\s+much\s+as\s+possible)\b",
+    re.IGNORECASE,
+)
+_BALANCED_PACE_RE = re.compile(r"\bbalanced(?:\s+pace)?\b", re.IGNORECASE)
+_OFFBEAT_PREF_RE = re.compile(
+    r"\b(?:hidden\s+gems?|off\s+the\s+beaten\s+path|non[- ]touristy|less\s+crowded|local\s+secrets?|authentic\s+local|neighborhoods?|neighbourhoods?)\b",
+    re.IGNORECASE,
+)
+
 _FALLBACK_CUISINE_TERMS = {
     "french",
     "tapas",
@@ -97,7 +121,7 @@ _EXTRA_TAG_PATTERNS: dict[str, re.Pattern] = {
         re.IGNORECASE,
     ),
     "history_heritage": re.compile(
-        r"\b(?:historic(?:al)?|heritage|ruins?|monuments?|cathedrals?|churches|monasteries|palaces?|castles?|shrines?|temples?|ancient|medieval)\b",
+        r"\b(?:history|historic(?:al)?|heritage|ruins?|monuments?|cathedrals?|churches|monasteries|palaces?|castles?|shrines?|temples?|ancient|medieval)\b",
         re.IGNORECASE,
     ),
     "nature_outdoors": re.compile(
@@ -149,6 +173,7 @@ _VIBE_TASTE_WORDS = (
     "cultural",
     "art",
     "bar",
+    "history",
     "historic",
     "outdoor",
     "scenic",
@@ -357,6 +382,7 @@ class PromptIntentExtractor:
         norm_negated = " ".join(_normalize_text(s) for s in negated_spans)
         pos_words = norm_positive.split()
         has_trigger = bool(_MANDATORY_TRIGGER_RE.search(positive_prompt))
+        dest_norm = _normalize_text(destination_city)
 
         matched: list[tuple[int, str]] = []
         seen_names: set[str] = set()
@@ -364,9 +390,24 @@ class PromptIntentExtractor:
         if catalog:
             for poi in catalog:
                 canonical = str(poi.get("name") or "").strip()
-                if not canonical or canonical.lower() in seen_names:
+                norm_canon = _normalize_text(canonical)
+                if (
+                    not canonical
+                    or canonical.lower() in seen_names
+                    or (dest_norm and norm_canon == dest_norm)
+                    or norm_canon in _GENERIC_DINING_PHRASES
+                ):
                     continue
 
+                poi_cat = str(poi.get("category") or "").upper()
+                is_dining_cat = poi_cat in (
+                    "RESTAURANT",
+                    "CAFE",
+                    "FOOD",
+                    "BAR",
+                    "BAKERY",
+                    "BISTROT",
+                )
                 surfaces = [canonical] + [
                     str(a).strip() for a in (poi.get("aliases") or []) if a
                 ]
@@ -385,6 +426,11 @@ class PromptIntentExtractor:
                 # Check positive prompt match across canonical name & aliases
                 best_pos: int | None = None
                 for s in surfaces:
+                    ns = _normalize_text(s)
+                    if not ns or (dest_norm and ns == dest_norm):
+                        continue
+                    if is_dining_cat and ns in _GENERIC_DINING_PHRASES:
+                        continue
                     pos = cls._match_surface_in_text(
                         s, norm_positive, pos_words, has_trigger
                     )
@@ -400,7 +446,6 @@ class PromptIntentExtractor:
 
         # Fallback when city catalog is empty (e.g. offline unit tests without DB):
         # Extract explicitly named proper-noun entities directly following mandatory triggers.
-        dest_norm = _normalize_text(destination_city)
         trigger_entity_re = re.compile(
             r"\b(?:must\s+(?:visit|see)|need\s+to\s+(?:visit|see)|have\s+to\s+(?:visit|see)|want\s+to\s+(?:visit|see)|visit)\s+"
             r"(?:the\s+)?([A-Z][A-Za-z0-9'’-]+(?:\s+(?:of|the|de|del|du|d'|and\s+the)?\s*[A-Z][A-Za-z0-9'’-]+){0,4})",
@@ -592,6 +637,41 @@ class PromptIntentExtractor:
             negated_tags=negated_tags,
         )
 
+        # Merge long-term learned taste_profile if provided in state (prompt overrides win for session)
+        taste_profile = state.get("taste_profile") if isinstance(state, dict) else None
+        if (
+            isinstance(taste_profile, dict)
+            and taste_profile.get("active_profile_count", 0) > 0
+        ):
+            profile_affs = taste_profile.get("tag_affinities") or {}
+            vetoed = set(taste_profile.get("vetoed_categories") or [])
+            explicit_tags = {
+                tag
+                for tag in TAG_KEYS
+                if TAG_REGEX_MAP[tag].search(positive_prompt)
+                or _EXTRA_TAG_PATTERNS[tag].search(positive_prompt)
+            }
+            merged_affs: dict[str, float] = {}
+            for tag in TAG_KEYS:
+                p_val = float(tag_affinities.get(tag, 0.5))
+                if tag in negated_tags:
+                    merged_affs[tag] = 0.10
+                elif tag in explicit_tags:
+                    prof_v = float(profile_affs.get(tag, 0.5))
+                    merged_affs[tag] = round(0.75 * p_val + 0.25 * prof_v, 2)
+                elif tag in vetoed:
+                    merged_affs[tag] = 0.05
+                elif tag in profile_affs:
+                    merged_affs[tag] = round(
+                        0.30 * p_val + 0.70 * float(profile_affs[tag]), 2
+                    )
+                else:
+                    merged_affs[tag] = p_val
+            tag_affinities = merged_affs
+
+            if not preferred_cuisines and taste_profile.get("preferred_cuisines"):
+                preferred_cuisines = list(taste_profile["preferred_cuisines"])[:3]
+
         sq = QueryRewriter.rewrite_query(
             positive_prompt.strip() or prompt,
             destination_city="" if destination_city == "Unknown" else destination_city,
@@ -609,6 +689,19 @@ class PromptIntentExtractor:
             required_facets=required_facets,
         )
 
+        extracted_pace: str | None = None
+        if _LEISURELY_PACE_RE.search(positive_prompt):
+            extracted_pace = "leisurely"
+        elif _INTENSE_PACE_RE.search(positive_prompt):
+            extracted_pace = "intense"
+        elif _BALANCED_PACE_RE.search(positive_prompt):
+            extracted_pace = "balanced"
+
+        prefers_offbeat = bool(
+            _OFFBEAT_PREF_RE.search(positive_prompt)
+            or required_facets.get("neighborhoods")
+        )
+
         return RAGPromptAnalysis(
             mandatory_pois=mandatory_pois,
             preferred_cuisines=preferred_cuisines,
@@ -617,4 +710,6 @@ class PromptIntentExtractor:
             cuisine_target_frequency=cuisine_freq,
             semantic_subqueries=sq.semantic_subqueries,
             required_facets=required_facets,
+            pace=extracted_pace,
+            prefers_offbeat=prefers_offbeat,
         )

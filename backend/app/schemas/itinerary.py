@@ -1,5 +1,6 @@
 import json
 from datetime import date, time
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -177,6 +178,22 @@ class TravelConstraints(BaseModel):
     plan_mode: str = Field(
         default="real",
         description="Routing mode: 'real' (strict Valhalla) or 'estimated' (offline transit calculation).",
+    )
+    taste_profile: dict[str, Any] | None = Field(
+        default=None,
+        description="Merged multi-traveler taste profile for personalized retrieval, scoring, and selection.",
+    )
+    trip_id: str | None = Field(
+        default=None,
+        description="Associated persisted trip ID when optimizing or refining an existing trip.",
+    )
+    participants: list[dict[str, Any]] | None = Field(
+        default_factory=list,
+        description="Trip participants for multi-traveler taste aggregation.",
+    )
+    prefers_offbeat: bool = Field(
+        default=False,
+        description="Prefer local neighborhoods, cultural spots, and off-the-beaten-path venues over crowded iconic sights.",
     )
 
     @model_validator(mode="before")
