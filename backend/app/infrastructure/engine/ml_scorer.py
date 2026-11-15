@@ -124,7 +124,9 @@ class MLScorer:
             prov = await self._get_embedding_provider()
             v_prompt = await prov.embed_text(prompt_text, input_type="query")
             engine = await self._get_semantic_engine()
-            v_new = engine.apply_ema_update(user_768d, v_prompt, gamma=0.20)
+            v_new = engine.apply_signed_ema_update(
+                user_768d, v_prompt, polarity=1.0, weight=1.0, base_gamma=0.20
+            )
             user_768d = v_new
 
             # Update harmonic 8D telemetry in preferences for the UI
@@ -223,8 +225,12 @@ class MLScorer:
                 try:
                     engine = await self._get_semantic_engine()
                     v_prompt_768d = engine.synthesize_768d_from_harmonics(w_new)
-                    v_new = engine.apply_ema_update(
-                        user_768d, v_prompt_768d, gamma=alpha
+                    v_new = engine.apply_signed_ema_update(
+                        user_768d,
+                        v_prompt_768d,
+                        polarity=1.0,
+                        weight=1.0,
+                        base_gamma=alpha,
                     )
                     user_768d = v_new
                 except Exception as e:

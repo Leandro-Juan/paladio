@@ -78,6 +78,54 @@ class SemanticLearningEngine:
         updated = cls.normalize_vector(blended)
         return updated.tolist()
 
+    @classmethod
+    def apply_signed_ema_update(
+        cls,
+        v_history: list[float] | np.ndarray | None,
+        v_signal: list[float] | np.ndarray,
+        polarity: float,
+        weight: float = 1.0,
+        base_gamma: float = DEFAULT_GAMMA,
+        age_days: float = 0.0,
+        half_life_days: float = 180.0,
+    ) -> list[float]:
+        """
+        Signed, time-decayed EMA update on the 768D unit hypersphere.
+        Positive polarity pulls toward v_signal; negative polarity pushes away.
+        """
+        s_arr = cls.normalize_vector(v_signal)
+        dim = len(s_arr)
+        decay = 0.5 ** (max(0.0, float(age_days)) / max(1.0, float(half_life_days)))
+        eff_gamma = float(
+            np.clip(base_gamma * max(0.0, float(weight)) * decay, 0.01, 0.45)
+        )
+        pol = float(np.clip(polarity, -1.0, 1.0))
+
+        if abs(pol) < 1e-6:
+            if v_history is not None and len(v_history) == dim:
+                return cls.normalize_vector(v_history).tolist()
+            return cls.get_neutral_768d_prior(dim)
+
+        if v_history is None or len(v_history) != dim:
+            if pol > 0:
+                return s_arr.tolist()
+            h_arr = np.asarray(cls.get_neutral_768d_prior(dim), dtype=np.float32)
+            blended = (1.0 - 0.5 * eff_gamma) * h_arr - (eff_gamma * abs(pol)) * s_arr
+            return cls.normalize_vector(blended).tolist()
+
+        h_arr = cls.normalize_vector(v_history)
+        if pol > 0:
+            step = float(np.clip(eff_gamma * pol, 0.0, 0.55))
+            blended = (1.0 - step) * h_arr + step * s_arr
+        else:
+            step = float(np.clip(eff_gamma * abs(pol), 0.0, 0.55))
+            blended = (1.0 - 0.5 * step) * h_arr - step * s_arr
+            if np.linalg.norm(blended) < 1e-5:
+                neutral = np.asarray(cls.get_neutral_768d_prior(dim), dtype=np.float32)
+                blended = neutral - float(np.dot(neutral, s_arr)) * s_arr
+
+        return cls.normalize_vector(blended).tolist()
+
     def project_to_8d_harmonics(
         self, user_768d: list[float] | np.ndarray
     ) -> dict[str, float]:

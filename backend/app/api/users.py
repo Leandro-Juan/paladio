@@ -3,6 +3,7 @@ from typing import Any
 
 from app.adapters.repositories.sql_user_repository import SqlUserRepository
 from app.api.deps import get_current_admin_user, get_current_user, get_optional_user
+from app.application.taste.taste_service import TasteService
 from app.core.security import hash_password
 from app.db.models import UserModel
 from app.db.session import get_db
@@ -316,6 +317,9 @@ async def update_preferences(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+    await TasteService.sync_from_user_preferences(
+        session, current_user.id, updated_user.preferences
+    )
     return _user_to_response(updated_user)
 
 
@@ -331,10 +335,13 @@ async def get_embedding(
         if hasattr(embedding, "tolist")
         else (list(embedding) if embedding is not None else None)
     )
+    taste_prof = await TasteService.get_or_create_profile(session, current_user.id)
     return {
         "user_id": current_user.id,
         "embedding": emb_list,
         "dimension": len(emb_list) if emb_list is not None else 0,
+        "taste_profile_version": taste_prof.version,
+        "event_count": taste_prof.event_count,
     }
 
 
@@ -347,8 +354,40 @@ async def update_embedding(
     repo = SqlUserRepository(session)
     user_id = current_user.id
     await repo.save_embedding(user_id, body.embedding)
+    await TasteService.sync_from_user_embedding(session, user_id, body.embedding)
     return {
         "status": "success",
         "user_id": user_id,
         "dimension": len(body.embedding),
     }
+
+
+@router.get("/me/taste")
+async def export_my_taste_profile(
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Any:
+    return await TasteService.export_user_taste_data(session, current_user.id)
+
+
+@router.post("/me/taste/reset")
+async def reset_my_taste_profile(
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Any:
+    prof = await TasteService.reset_user_taste_profile(session, current_user.id)
+    return {
+        "status": "reset",
+        "user_id": current_user.id,
+        "version": prof.version,
+        "is_neutral": prof.is_neutral,
+    }
+
+
+@router.delete("/me/taste")
+async def delete_my_taste_data(
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Any:
+    await TasteService.delete_user_taste_data(session, current_user.id)
+    return {"status": "deleted", "user_id": current_user.id}

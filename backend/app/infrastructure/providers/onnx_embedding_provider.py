@@ -1,4 +1,5 @@
 import asyncio
+import ctypes
 import gc
 import logging
 import os
@@ -114,6 +115,10 @@ class OnnxEmbeddingProvider(IEmbeddingProvider):
                 removed += 1
         if removed:
             gc.collect()
+            try:
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except Exception:
+                pass
         return removed
 
     @classmethod
@@ -123,6 +128,10 @@ class OnnxEmbeddingProvider(IEmbeddingProvider):
             cls._shared_models.clear()
             cls._last_used.clear()
         gc.collect()
+        try:
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass
 
     def _prefix_text(
         self, text: str, input_type: Literal["document", "query"] = "document"

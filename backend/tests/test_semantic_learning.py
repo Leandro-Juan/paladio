@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 from app.engine.scoring.features import TAG_KEYS
@@ -46,3 +48,35 @@ async def test_semantic_projection_to_8d():
     # Art & culture should be significantly higher than nightlife or shopping
     assert harmonics["art_culture"] >= 0.85
     assert harmonics["art_culture"] > harmonics["nightlife"]
+
+
+def test_signed_ema_positive_negative_decay_and_norm():
+    dim = 768
+    base = [1.0] + [0.0] * (dim - 1)
+    target_vec = [0.0, 1.0] + [0.0] * (dim - 2)
+
+    # Positive polarity pulls toward target vector and remains unit-normalized
+    pulled = SemanticLearningEngine.apply_signed_ema_update(
+        base, target_vec, polarity=1.0, weight=1.0, base_gamma=0.5
+    )
+    assert math.isclose(sum(x * x for x in pulled), 1.0, rel_tol=1e-5)
+    assert pulled[1] > 0.0
+
+    # Negative polarity pushes away from target vector without destabilizing unit norm
+    pushed = SemanticLearningEngine.apply_signed_ema_update(
+        pulled, target_vec, polarity=-1.0, weight=1.0, base_gamma=0.5
+    )
+    assert math.isclose(sum(x * x for x in pushed), 1.0, rel_tol=1e-5)
+    assert pushed[1] < pulled[1]
+
+    # Elapsed time decay keeps unit norm safely when polarity=0
+    decayed = SemanticLearningEngine.apply_signed_ema_update(
+        base,
+        target_vec,
+        polarity=0.0,
+        weight=0.0,
+        base_gamma=0.25,
+        age_days=360.0,
+        half_life_days=180.0,
+    )
+    assert math.isclose(sum(x * x for x in decayed), 1.0, rel_tol=1e-5)
