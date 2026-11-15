@@ -33,8 +33,8 @@ from app.engine.retrieval.hybrid_retriever import (
     compute_info_richness_score,
 )
 from app.engine.retrieval.query_rewriter import QueryRewriter
-from app.infrastructure.providers.ollama_embedding_provider import (
-    OllamaEmbeddingProvider,
+from app.infrastructure.providers.onnx_embedding_provider import (
+    OnnxEmbeddingProvider,
 )
 from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
 from app.utils.opening_hours_parser import parse_osm_opening_hours
@@ -1672,7 +1672,7 @@ async def search_pois(
 
     # 4. Natural Language Semantic RAG & Hybrid Retrieval
     sq = QueryRewriter.rewrite_query(clean_query, city_name)
-    embedding_provider = OllamaEmbeddingProvider()
+    embedding_provider = OnnxEmbeddingProvider()
     try:
         query_vector = await embedding_provider.embed_text(
             clean_query, input_type="query"

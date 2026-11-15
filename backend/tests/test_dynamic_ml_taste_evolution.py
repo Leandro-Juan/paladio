@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.schemas.rag_schema import RAGPromptAnalysis
 from app.schemas.itinerary import TravelConstraints, NodeConstraint
@@ -51,24 +51,30 @@ def test_travel_constraints_tag_affinities_deserialization():
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
-async def test_prompt_analyzer_node_extracts_tag_affinities_and_preserves_mandatory_pois(
-    mock_agent,
-):
-    mock_run_result = MagicMock()
-    mock_run_result.output = RAGPromptAnalysis(
-        mandatory_pois=["Prado Museum"],
-        preferred_cuisines=["spanish"],
-        travel_tastes=["museums"],
-        tag_affinities={"art_culture": 0.92, "history_heritage": 0.88},
-    )
-    mock_agent.run = AsyncMock(return_value=mock_run_result)
-
+async def test_prompt_analyzer_node_extracts_tag_affinities_and_preserves_mandatory_pois():
     state: SwarmState = {
         "messages": [
-            MagicMock(content="I must visit Prado Museum. I love art and history.")
+            MagicMock(
+                content="I must visit Prado Museum. I love spanish food, art, and history."
+            )
         ],
         "validated_itinerary": {"destination_city": "Madrid"},
+        "city_pois": [
+            {
+                "name": "Prado Museum",
+                "aliases": ["Museo del Prado"],
+                "category": "MUSEUM",
+                "cuisine": None,
+                "tags": ["art_culture"],
+            },
+            {
+                "name": "Sobrino de Botin",
+                "aliases": [],
+                "category": "RESTAURANT",
+                "cuisine": "spanish",
+                "tags": ["food_culinary"],
+            },
+        ],
         "error_count": 0,
         "final_itinerary": None,
         "test_data": None,
@@ -89,8 +95,8 @@ async def test_prompt_analyzer_node_extracts_tag_affinities_and_preserves_mandat
         n["poi_id"] == "Prado Museum" and n["mandatory"] for n in val_it["nodes"]
     )
     # Assert tag affinities populated
-    assert val_it["tag_affinities"]["art_culture"] == 0.92
-    assert val_it["tag_affinities"]["history_heritage"] == 0.88
+    assert val_it["tag_affinities"]["art_culture"] >= 0.65
+    assert val_it["tag_affinities"]["history_heritage"] >= 0.65
 
 
 @pytest.mark.asyncio

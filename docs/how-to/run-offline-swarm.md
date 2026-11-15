@@ -7,7 +7,7 @@ By the end of this guide, you will have a fully functional, 100% offline travel 
 ## Prerequisites
 
 Before starting, ensure you have the following installed:
-- **Docker & Docker Compose**: Required for running the Valhalla, PostgreSQL, Ollama, and Redis containers.
+- **Docker & Docker Compose**: Required for running the Valhalla, PostgreSQL, and Redis containers.
 - **Python 3.10+**: Required for running the FastAPI backend.
 - **CMake & a C++20 Compiler** (Optional, but recommended): Required if you need to recompile the `paladio_core` Python bindings.
 
@@ -29,7 +29,7 @@ The entire infrastructure is defined in the root `docker-compose.yml`.
    ```bash
    docker-compose ps
    ```
-   You should see `db`, `redis`, `valhalla`, and `llm` (Ollama) running. The `init-llm` service will run once and exit gracefully after pulling the `llama3.1` and `nomic-embed-text` models.
+   You should see `db`, `redis`, `valhalla`, `api`, `worker`, and `beat` running (embeddings run in-process inside the backend image with no external LLM container required).
 
 ---
 
@@ -46,7 +46,7 @@ Paladio uses `pgvector` to store Points of Interest (POIs) and perform semantic 
    ```bash
    python scripts/seed_pois.py
    ```
-   You should see output indicating a successful connection to Postgres, Ollama, and the successful insertion of 17 Madrid POIs into the `madrid_pois` collection.
+   You should see output indicating a successful connection to Postgres and the insertion/hydration of seeded POIs with in-process ONNX embeddings.
 
 ---
 

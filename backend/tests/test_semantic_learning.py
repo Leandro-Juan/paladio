@@ -1,6 +1,3 @@
-import os
-
-import httpx
 import numpy as np
 import pytest
 from app.engine.scoring.features import TAG_KEYS
@@ -8,40 +5,8 @@ from app.engine.scoring.semantic_learning import (
     CATEGORY_ANCHORS,
     SemanticLearningEngine,
 )
-from app.infrastructure.providers.ollama_embedding_provider import (
-    OllamaEmbeddingProvider,
-)
-
-
-def is_ollama_online() -> bool:
-    """Checks if Ollama is accessible and has nomic-embed-text ready across host or Docker container."""
-    env_base = os.getenv("OLLAMA_BASE_URL")
-    if env_base:
-        urls_to_try = [env_base.rstrip("/")]
-    else:
-        urls_to_try = [
-            "http://127.0.0.1:11435",
-            "http://localhost:11435",
-            "http://llm:11434",
-            "http://localhost:11434",
-        ]
-    for base in urls_to_try:
-        if not base:
-            continue
-        try:
-            resp = httpx.get(f"{base}/api/tags", timeout=1.5)
-            if resp.status_code == 200:
-                models = [m.get("name", "") for m in resp.json().get("models", [])]
-                if any("nomic-embed-text" in m for m in models):
-                    return True
-        except (httpx.HTTPError, OSError):
-            continue
-    return False
-
-
-ollama_required = pytest.mark.skipif(
-    not is_ollama_online(),
-    reason="Requires live Ollama container running nomic-embed-text embedding model",
+from app.infrastructure.providers.onnx_embedding_provider import (
+    OnnxEmbeddingProvider,
 )
 
 
@@ -59,10 +24,9 @@ def test_ema_formula_and_normalization():
     assert arr[0] > arr[1]  # Historical bias preserved
 
 
-@ollama_required
 @pytest.mark.asyncio
 async def test_semantic_projection_to_8d():
-    provider = OllamaEmbeddingProvider()
+    provider = OnnxEmbeddingProvider()
     anchors = {}
     for k, text in CATEGORY_ANCHORS.items():
         anchors[k] = await provider.embed_text(text)

@@ -1,7 +1,6 @@
 import asyncio
-import json
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -85,8 +84,10 @@ async def test_preseeded_cities_o1_cache_hits():
         ),
         patch.object(
             TransitFareService,
-            "extract_fare_with_llm",
-            side_effect=AssertionError("LLM called on cached city!"),
+            "extract_fare_from_text",
+            side_effect=AssertionError(
+                "Deterministic extraction called on cached city!"
+            ),
         ),
     ):
         start_time = time.perf_counter()
@@ -114,7 +115,7 @@ async def test_preseeded_cities_o1_cache_hits():
 
 
 # ============================================================================
-# 2. Resilient Fallback Policy under Network & LLM Failures
+# 2. Resilient Fallback Policy under Network & Extraction Failures
 # ============================================================================
 
 
@@ -179,33 +180,29 @@ async def test_fallback_on_wikivoyage_failures(failure_patch, side_effect_or_ret
 
 
 @pytest.mark.parametrize(
-    "ollama_outcome",
+    "context_text",
     [
-        ("side_effect", httpx.ConnectTimeout("Ollama server unreachable")),
-        ("side_effect", httpx.ReadTimeout("Ollama inference timed out")),
-        ("return_value", None),
-        ("side_effect", ValueError("JSONDecodeError: Unterminated string")),
+        "",
+        "Valid wikitext about city transit without any numeric tariff.",
+        "Municipal bus service runs daily from 6am to midnight.",
     ],
 )
 @pytest.mark.asyncio
-async def test_fallback_on_ollama_extraction_failures(ollama_outcome):
+async def test_fallback_on_unparseable_extraction_context(context_text):
     """
-    Test that Ollama timeouts, invalid JSON, or exceptions trigger graceful baseline estimation.
+    Test that Wikivoyage texts lacking grounded fares trigger graceful baseline estimation.
     """
-    city = "adversarial_ollama_fail_city"
+    city = "adversarial_unparseable_city"
     cache = get_fare_cache()
     cache.invalidate(city)
-
-    kwargs = {ollama_outcome[0]: ollama_outcome[1]}
 
     with (
         patch.object(TransitFareService, "_lookup_db", return_value=None),
         patch.object(
             TransitFareService,
             "fetch_wikivoyage_transit_text",
-            return_value="Valid wikitext about city transit...",
+            return_value=context_text,
         ),
-        patch.object(TransitFareService, "extract_fare_with_llm", **kwargs),
     ):
         fare = await TransitFareService.resolve_city_transit_fare(city)
 
@@ -218,74 +215,52 @@ async def test_fallback_on_ollama_extraction_failures(ollama_outcome):
 
 
 # ============================================================================
-# 3. LLM Structured Extraction with Mocked Payloads
+# 3. Deterministic Structured Extraction from Prose
 # ============================================================================
 
 
-@pytest.mark.asyncio
-async def test_llm_structured_extraction_success():
+def test_deterministic_fare_extraction_success():
     """
-    Test extract_fare_with_llm correctly parses structured response into schema.
+    Test extract_fare_from_text correctly parses structured details from prose.
     """
-    mock_extracted = TransitFareExtractionSchema(
-        agency_name="BVG",
-        single_fare=3.50,
-        currency="EUR",
-        evidence_quote="A single ticket for Berlin AB costs 3.50 EUR.",
-        day_pass_name="24-Stunden-Karte Berlin AB",
-        day_pass_fare=9.90,
-        airport_surcharge=0.0,
-        airport_station_keywords=["flughafen ber", "terminal 1-2"],
-        source_url="https://www.bvg.de",
+    context = (
+        "In Berlin, BVG operates the subway and bus network. "
+        "A single ticket for Berlin AB costs 3.50 EUR. "
+        "A 24-hour pass (24-Stunden-Karte Berlin AB) is 9.90 EUR. "
+        "Official info at https://www.bvg.de near flughafen ber airport."
     )
+    extracted = TransitFareService.extract_fare_from_text("Berlin", context)
 
-    with patch(
-        "app.services.transit_fare_service.LLMService.run_structured_extraction",
-        new_callable=AsyncMock,
-    ) as mock_run:
-        mock_run.return_value = mock_extracted
-        extracted = await TransitFareService.extract_fare_with_llm(
-            "Berlin", "Public transport context"
-        )
-
-        assert extracted is not None
-        assert isinstance(extracted, TransitFareExtractionSchema)
-        assert extracted.agency_name == "BVG"
-        assert extracted.single_fare == 3.50
-        assert extracted.currency == "EUR"
-        assert extracted.day_pass_fare == 9.90
-        assert extracted.day_pass_name == "24-Stunden-Karte Berlin AB"
-        assert extracted.airport_surcharge == 0.0
-        assert "flughafen ber" in extracted.airport_station_keywords
-        assert extracted.source_url == "https://www.bvg.de"
+    assert extracted is not None
+    assert isinstance(extracted, TransitFareExtractionSchema)
+    assert extracted.agency_name == "BVG"
+    assert extracted.single_fare == 3.50
+    assert extracted.currency == "EUR"
+    assert extracted.evidence_quote in context
+    assert extracted.day_pass_fare == 9.90
+    assert extracted.day_pass_name == "24-Stunden-Karte Berlin AB"
+    assert extracted.airport_surcharge == 0.0
+    assert "airport" in extracted.airport_station_keywords
+    assert extracted.source_url == "https://www.bvg.de"
 
 
 @pytest.mark.parametrize(
-    "bad_result",
+    "bad_context",
     [
-        None,
-        TransitFareExtractionSchema(
-            agency_name="X", single_fare=0.0, currency="EUR", evidence_quote="free"
-        ),
-        TransitFareExtractionSchema(
-            agency_name="X", single_fare=-2.5, currency="EUR", evidence_quote="bad"
-        ),
+        "",
+        "Public transport connects the railway station to the old town.",
+        "Single ticket costs 0.00 EUR.",
+        "Single ticket costs -2.50 EUR.",
     ],
 )
-@pytest.mark.asyncio
-async def test_llm_structured_extraction_invalid_payloads(bad_result):
+def test_deterministic_fare_extraction_invalid_payloads(bad_context):
     """
-    Test extract_fare_with_llm handles non-conforming, negative, or corrupt payloads safely.
+    Test extract_fare_from_text handles empty, non-fare, zero, or negative payloads safely.
     """
-    with patch(
-        "app.services.transit_fare_service.LLMService.run_structured_extraction",
-        new_callable=AsyncMock,
-    ) as mock_run:
-        mock_run.return_value = bad_result
-        extracted = await TransitFareService.extract_fare_with_llm("CityX", "Context")
-        assert (
-            extracted is None
-        ), "Should gracefully return None on invalid LLM payloads"
+    extracted = TransitFareService.extract_fare_from_text("CityX", bad_context)
+    assert (
+        extracted is None
+    ), "Should gracefully return None on invalid or unparseable contexts"
 
 
 # ============================================================================
@@ -303,22 +278,6 @@ async def test_dynamic_discovery_hydrates_cache():
     cache = get_fare_cache()
     cache.invalidate(city)
 
-    mock_schema = {
-        "agency_name": "MVV",
-        "single_fare": 3.70,
-        "currency": "EUR",
-        "evidence_quote": "Single Tageskarte costs 8.80 EUR.",
-        "day_pass_name": "Single Tageskarte",
-        "day_pass_fare": 8.80,
-        "airport_surcharge": 6.80,
-        "airport_station_keywords": ["flughafen münchen", "munich airport"],
-        "source_url": "https://www.mvv-muenchen.de",
-    }
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {"response": json.dumps(mock_schema)}
-
     with (
         patch.object(TransitFareService, "_lookup_db", return_value=None),
         patch.object(
@@ -328,14 +287,12 @@ async def test_dynamic_discovery_hydrates_cache():
             TransitFareService,
             "fetch_wikivoyage_transit_text",
             new_callable=AsyncMock,
-            return_value="Wikitext about MVV Munich: single fare 3.70 EUR. Single Tageskarte costs 8.80 EUR.",
+            return_value=(
+                "Wikitext about MVV Munich: single fare 3.70 EUR. "
+                "Single Tageskarte costs 8.80 EUR. "
+                "Airport supplement of 6.80 EUR applies to Munich airport."
+            ),
         ) as mock_fetch,
-        patch.object(
-            TransitFareService,
-            "extract_fare_with_llm",
-            new_callable=AsyncMock,
-            return_value=TransitFareExtractionSchema(**mock_schema),
-        ),
     ):
         # 1st call: Hits Tier 3
         fare = await TransitFareService.resolve_city_transit_fare(city)

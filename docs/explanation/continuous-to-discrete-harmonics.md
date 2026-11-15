@@ -59,7 +59,7 @@ The resulting vector $\mathbf{a} \in [0, 1]^8$ is transmitted directly over WebS
 
 ```mermaid
 graph LR
-    P[User Prompt] -->|Ollama nomic-embed-text| V[768-D Vector]
+    P[User Prompt] -->|OnnxEmbeddingProvider fastembed| V[768-D Vector]
     V -->|EMA Update| U[Permanent User Vector]
     U -->|Harmonic Projection| A[8-D Vector]
     A -->|WebSocket /ws/stream| R[SVG PreferenceRadar Component]

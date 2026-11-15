@@ -6,7 +6,6 @@ from app.domain.entities.poi import TransitStep
 from app.services.poi_pricing_service import PoiPricingService
 from app.services.transit_fare_service import (
     CityTransitFare,
-    TransitFareExtractionSchema,
     TransitFareService,
     get_fare_cache,
 )
@@ -385,23 +384,12 @@ def test_calculate_transit_leg_fare_mad_airport_to_sol():
 
 
 @pytest.mark.asyncio
-async def test_ollama_json_schema_parsing_mocked():
-    """Verify Ollama JSON schema parsing using a mocked web context response for deterministic CI runs."""
+async def test_deterministic_fare_extraction_from_context():
+    """Verify deterministic transit tariff extraction from Wikivoyage/web context."""
     sample_context = (
         "In Munich, the MVV operates the transit system. A single ticket for Zone M costs 3.90 EUR. "
         "A single day ticket (Tageskarte) is 9.20 EUR. The airport is located in zone 5 and requires "
         "an Airport-City-Day-Ticket or an airport supplement of 13.00 EUR. Keyword: Flughafen."
-    )
-    mock_extracted = TransitFareExtractionSchema(
-        agency_name="MVV",
-        single_fare=3.90,
-        currency="EUR",
-        evidence_quote="A single ticket for Zone M costs 3.90 EUR.",
-        day_pass_name="Tageskarte",
-        day_pass_fare=9.20,
-        airport_surcharge=13.00,
-        airport_station_keywords=["Flughafen München", "Airport"],
-        source_url="https://www.mvv-muenchen.de",
     )
 
     with (
@@ -409,16 +397,12 @@ async def test_ollama_json_schema_parsing_mocked():
             TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
         ) as mock_fetch,
         patch.object(
-            TransitFareService, "extract_fare_with_llm", new_callable=AsyncMock
-        ) as mock_extract,
-        patch.object(
             TransitFareService, "_lookup_db", new_callable=AsyncMock
         ) as mock_lookup_db,
         patch.object(TransitFareService, "persist_fare_to_db", new_callable=AsyncMock),
     ):
         mock_lookup_db.return_value = None
         mock_fetch.return_value = sample_context
-        mock_extract.return_value = mock_extracted
 
         test_city = "mock_munich_extract"
         TransitFareService.get_cache().invalidate(test_city)
@@ -428,6 +412,7 @@ async def test_ollama_json_schema_parsing_mocked():
             assert fare.agency_name == "MVV"
             assert fare.single_fare == 3.90
             assert fare.pass_24h_price == 9.20
+            assert fare.pass_24h_name == "Tageskarte"
             assert fare.airport_surcharge == 13.00
             assert fare.is_estimated is False
             assert fare.source == "official_mvv"
@@ -467,25 +452,14 @@ async def test_database_persistence_and_cache_hits_on_repeated_lookups():
             TransitFareService, "fetch_wikivoyage_transit_text", new_callable=AsyncMock
         ) as mock_fetch,
         patch.object(
-            TransitFareService, "extract_fare_with_llm", new_callable=AsyncMock
-        ) as mock_extract,
-        patch.object(
             TransitFareService, "_lookup_db", new_callable=AsyncMock
         ) as mock_lookup_db,
         patch.object(TransitFareService, "persist_fare_to_db", new_callable=AsyncMock),
     ):
         mock_lookup_db.return_value = None
-        mock_fetch.return_value = "Transit text for Valencia: single fare 1.50 EUR."
-        mock_extract.return_value = TransitFareExtractionSchema(
-            agency_name="EMT Valencia",
-            single_fare=1.50,
-            currency="EUR",
-            evidence_quote="single fare 1.50 EUR",
-            day_pass_name="Valencia Card",
-            day_pass_fare=15.00,
-            airport_surcharge=3.00,
-            airport_station_keywords=["Aeroport"],
-            source_url="https://www.emtvalencia.es",
+        mock_fetch.return_value = (
+            "The EMT operates buses in Valencia. Transit single fare 1.50 EUR. "
+            "A 24h day pass is 15.00 EUR and airport supplement is 3.00 EUR."
         )
 
         try:

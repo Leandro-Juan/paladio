@@ -80,6 +80,6 @@ def test_document_builder_hash_trigger():
 
     # If hash matches and version matches, doesn't need reembedding
     poi_obj["embedding_text_hash"] = h
-    poi_obj["embedding_version"] = 2
-    poi_obj["embedding_model"] = "nomic-embed-text"
+    poi_obj["embedding_version"] = 3
+    poi_obj["embedding_model"] = "nomic-ai/nomic-embed-text-v1.5-Q"
     assert PoiDocumentBuilder.needs_reembedding(poi_obj) is False

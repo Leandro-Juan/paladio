@@ -1,15 +1,16 @@
+import argparse
 import asyncio
 import logging
-import sys
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
 from app.db.models import AttractionModel
 from app.db.session import async_session
+from app.engine.hydration.document_builder import DOCUMENT_VERSION
 from app.engine.hydration.poi_synthesizer import PoiNaturalLanguageSynthesizer
-from app.infrastructure.providers.ollama_embedding_provider import (
-    OllamaEmbeddingProvider,
+from app.infrastructure.providers.onnx_embedding_provider import (
+    OnnxEmbeddingProvider,
 )
 
 logging.basicConfig(
@@ -18,13 +19,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def hydrate_attractions(batch_size: int = 24, force_all: bool = False):
-    provider = OllamaEmbeddingProvider()
+async def hydrate_attractions(
+    batch_size: int = 24,
+    force_all: bool = False,
+    city: str | None = None,
+):
+    provider = OnnxEmbeddingProvider()
     async with async_session() as session:
         poi_repo = SqlPoiRepository(session)
         stmt = select(AttractionModel)
+        if city:
+            stmt = stmt.where(AttractionModel.city.ilike(city.strip()))
         if not force_all:
-            stmt = stmt.where(AttractionModel.embedding.is_(None))
+            stmt = stmt.where(
+                or_(
+                    AttractionModel.embedding.is_(None),
+                    AttractionModel.embedding_model.is_(None),
+                    AttractionModel.embedding_model != provider.model,
+                    AttractionModel.embedding_version < DOCUMENT_VERSION,
+                )
+            )
 
         result = await session.execute(stmt)
         models = list(result.scalars().all())
@@ -64,5 +78,19 @@ async def hydrate_attractions(batch_size: int = 24, force_all: bool = False):
 
 
 if __name__ == "__main__":
-    force = "--force" in sys.argv
-    asyncio.run(hydrate_attractions(force_all=force))
+    parser = argparse.ArgumentParser(
+        description="Hydrate 768D POI embeddings in PostgreSQL via CPU ONNX."
+    )
+    parser.add_argument(
+        "--city",
+        type=str,
+        default=None,
+        help="Restrict hydration to a single city name (case-insensitive).",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-embed all matching POIs regardless of existing model or version.",
+    )
+    args = parser.parse_args()
+    asyncio.run(hydrate_attractions(force_all=args.force, city=args.city))

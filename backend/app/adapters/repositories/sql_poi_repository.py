@@ -475,6 +475,7 @@ class SqlPoiRepository(IPoiRepository):
             poi = dict_to_poi(d)
             sim = float(d.get("vec_sim", d.get("composite_score", 0.0)))
             candidates.append((poi, sim))
+        candidates.sort(key=lambda x: x[1], reverse=True)
         return candidates
 
     async def find_hybrid_candidates(
@@ -515,17 +516,23 @@ class SqlPoiRepository(IPoiRepository):
     async def update_poi_embeddings(
         self, updates: list[tuple[str, list[float]]]
     ) -> None:
-        """Updates 768D semantic embeddings for attractions in batch."""
+        """Updates 768D semantic embeddings and model provenance for attractions in batch."""
         if not updates:
             return
 
-        from sqlalchemy import update
+        from app.engine.hydration.document_builder import DOCUMENT_VERSION
+        from sqlalchemy import func, update
 
         for poi_id, emb in updates:
             stmt = (
                 update(AttractionModel)
                 .where(AttractionModel.id == poi_id)
-                .values(embedding=emb)
+                .values(
+                    embedding=emb,
+                    embedding_model="nomic-ai/nomic-embed-text-v1.5-Q",
+                    embedding_version=DOCUMENT_VERSION,
+                    embedded_at=func.now(),
+                )
             )
             await self.session.execute(stmt)
         await self.session.commit()

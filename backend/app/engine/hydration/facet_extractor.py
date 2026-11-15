@@ -1,18 +1,16 @@
 """Controlled Facet Extractor & Document Quality Grader.
 
 Derives controlled themes, vibes, audience, schedule tags, and dietary options
-from OSM tags, Wikidata claims, and description text. Provides a strictly grounded
-local LLM generation pass for sparse Tier 1-2 POIs and calculates doc_quality (A/B/C).
+deterministically from OSM tags, Wikidata claims, and description text,
+and calculates doc_quality (A/B/C).
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import re
 from typing import Any
 
-import httpx
 from app.core.taxonomy_config import (
     VALID_AUDIENCE,
     VALID_THEMES,
@@ -27,9 +25,6 @@ from app.core.taxonomy_config import (
 )
 
 logger = logging.getLogger(__name__)
-
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_EXTRACTION_MODEL", "qwen2.5:7b-instruct")
 
 
 def extract_facets(
@@ -421,77 +416,6 @@ def compute_doc_quality(
         return "B"
     # Grade C: Sparse tags
     return "C"
-
-
-async def generate_grounded_description(
-    name: str,
-    category: str,
-    neighborhood: str | None,
-    tags: dict[str, str],
-    claims: dict[str, Any] | None = None,
-    client: httpx.AsyncClient | None = None,
-) -> str | None:
-    """Runs a strictly grounded local Ollama call for sparse Tier 1-2 POIs.
-
-    Rejects any text containing numbers, years, or dates not present in the input facts.
-    """
-    facts = [f"Name: {name}", f"Category: {category}"]
-    if neighborhood:
-        facts.append(f"Neighborhood: {neighborhood}")
-    for k in (
-        "tourism",
-        "historic",
-        "building",
-        "amenity",
-        "cuisine",
-        "architect",
-        "style",
-    ):
-        if k in tags and tags[k]:
-            facts.append(f"{k.title()}: {tags[k]}")
-    if claims:
-        for k, v in claims.items():
-            if v:
-                facts.append(f"{k.title()}: {v}")
-
-    prompt = (
-        "Write a concise, factual 1-sentence description for this point of interest. "
-        "Strict rule: You MUST only use the given facts. Do NOT add history, dates, "
-        "years, or numeric facts that are not explicitly provided.\n\n"
-        "Facts:\n" + "\n".join(facts) + "\n\nDescription:"
-    )
-
-    own_client = client is None
-    client = client or httpx.AsyncClient(timeout=10.0)
-    try:
-        resp = await client.post(
-            f"{OLLAMA_HOST}/api/generate",
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0.0, "num_predict": 60, "num_ctx": 2048},
-            },
-        )
-        if resp.status_code == 200:
-            result = resp.json().get("response", "").strip()
-            # Strict hallucination gate: verify numbers/years
-            prompt_numbers = set(re.findall(r"\b\d+\b", prompt))
-            result_numbers = set(re.findall(r"\b\d+\b", result))
-            hallucinated_numbers = result_numbers - prompt_numbers
-            if hallucinated_numbers:
-                logger.warning(
-                    f"Rejected LLM description for {name} due to hallucinated numbers: {hallucinated_numbers}"
-                )
-                return None
-            return result
-    except Exception as exc:
-        logger.debug(f"Local LLM grounded generation skipped for {name}: {exc}")
-        return None
-    finally:
-        if own_client:
-            await client.aclose()
-    return None
 
 
 class FacetExtractor:

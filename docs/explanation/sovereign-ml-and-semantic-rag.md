@@ -21,7 +21,7 @@ In a sovereign, air-gapped system, this architecture fails three non-negotiable 
 ## 2. The Local 768-D Semantic Hypersphere
 
 Paladio standardizes on local dense vector representations:
-- **Embedding Model:** `nomic-embed-text` (768 dimensions), quantized and executed locally via Ollama.
+- **Embedding Model:** `nomic-ai/nomic-embed-text-v1.5-Q` (768 dimensions), quantized and executed in-process on CPU via `fastembed` (ONNX Runtime).
 - **Vector Database:** PostgreSQL 16 equipped with `pgvector`, utilizing HNSW (Hierarchical Navigable Small World) indexing for sub-millisecond approximate nearest neighbor searches.
 
 ### Why 768 Dimensions?
@@ -35,8 +35,7 @@ Paladio standardizes on local dense vector representations:
 
 Early prototypes explored training lightweight Multi-Layer Perceptrons (MLPs) using PyTorch or JAX to calculate POI scores. However, introducing PyTorch to the backend:
 - Bloated Docker image sizes by over 2.5 GB.
-- Introduced non-deterministic GPU memory spikes that competed with local Ollama inference.
-- Created cold-start latency during worker initialization.
+- Created cold-start latency and high memory pressure during worker initialization.
 
 Paladio replaced the neural network with **`HybridSovereignScorer`**, implemented entirely in **pure NumPy**:
 - **Bayesian Rating Smoothing:** Eliminates rating bias on venues with few reviews.

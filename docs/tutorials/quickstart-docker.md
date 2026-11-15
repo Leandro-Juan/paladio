@@ -36,7 +36,7 @@ cp .env.example .env
 The default `.env` is pre-configured to communicate seamlessly across the Docker network:
 - `POSTGRES_HOST=postgres`
 - `REDIS_URL=redis://redis:6379/0`
-- `OLLAMA_BASE_URL=http://ollama:11434/v1`
+- `FASTEMBED_CACHE_PATH=/opt/models/fastembed`
 
 ---
 
@@ -51,9 +51,8 @@ docker compose up -d
 Docker will start the following coordinated services:
 1. **`postgres`:** PostgreSQL 16 with `pgvector` and `TimescaleDB` extensions.
 2. **`redis`:** Redis 7 for task queuing, caching, and LangGraph checkpointer persistence.
-3. **`ollama`:** Local LLM runtime hosting quantized models (`qwen2.5` / `llama3.1`).
-4. **`backend`:** FastAPI Semantic Gateway and Celery worker threads.
-5. **`frontend`:** Next.js 15 web client with interactive maps and telemetry.
+3. **`backend`:** FastAPI Semantic Gateway, Celery worker threads, and in-process CPU ONNX embeddings (`fastembed` `nomic-ai/nomic-embed-text-v1.5-Q` baked into the image).
+4. **`frontend`:** Next.js web client with interactive maps and telemetry.
 
 Verify that all containers are healthy:
 

@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import asyncpg
-import httpx
 import numpy as np
 import pytest
 import pytest_asyncio
@@ -16,8 +15,8 @@ from app.engine.scoring.semantic_learning import (
     SemanticLearningEngine,
 )
 from app.infrastructure.engine.ml_scorer import MLScorer
-from app.infrastructure.providers.ollama_embedding_provider import (
-    OllamaEmbeddingProvider,
+from app.infrastructure.providers.onnx_embedding_provider import (
+    OnnxEmbeddingProvider,
 )
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -32,32 +31,6 @@ if MAIN_DATABASE_URL.startswith("postgresql://"):
     MAIN_DATABASE_URL = MAIN_DATABASE_URL.replace(
         "postgresql://", "postgresql+asyncpg://", 1
     )
-
-
-def is_ollama_online() -> bool:
-    """Checks if Ollama is accessible and has nomic-embed-text ready across host or Docker container."""
-    env_base = os.getenv("OLLAMA_BASE_URL")
-    if env_base:
-        urls_to_try = [env_base.rstrip("/")]
-    else:
-        urls_to_try = [
-            "http://127.0.0.1:11435",
-            "http://localhost:11435",
-            "http://llm:11434",
-            "http://localhost:11434",
-        ]
-    for base in urls_to_try:
-        if not base:
-            continue
-        try:
-            resp = httpx.get(f"{base}/api/tags", timeout=1.5)
-            if resp.status_code == 200:
-                models = [m.get("name", "") for m in resp.json().get("models", [])]
-                if any("nomic-embed-text" in m for m in models):
-                    return True
-        except (httpx.HTTPError, OSError):
-            continue
-    return False
 
 
 def is_live_seeded_db_ready() -> bool:
@@ -86,20 +59,15 @@ def is_live_seeded_db_ready() -> bool:
         return False
 
 
-ollama_required = pytest.mark.skipif(
-    not is_ollama_online(),
-    reason="Requires live Ollama container running nomic-embed-text embedding model",
-)
-
-live_db_and_ollama_required = pytest.mark.skipif(
-    not is_live_seeded_db_ready() or not is_ollama_online(),
-    reason="Requires live Docker PostgreSQL with seeded attractions table and live Ollama container",
+live_db_required = pytest.mark.skipif(
+    not is_live_seeded_db_ready(),
+    reason="Requires live Docker PostgreSQL with seeded attractions table",
 )
 
 
 @pytest.fixture(scope="module")
 def embedding_provider():
-    return OllamaEmbeddingProvider()
+    return OnnxEmbeddingProvider()
 
 
 @pytest_asyncio.fixture
@@ -123,9 +91,8 @@ class TestVectorMathematicalInvariantsAndStress:
     and numerical stability under extreme inputs and drift.
     """
 
-    @ollama_required
     @pytest.mark.asyncio
-    async def test_ollama_vector_dimensionality_and_l2_norm(self, embedding_provider):
+    async def test_onnx_vector_dimensionality_and_l2_norm(self, embedding_provider):
         """Arrange, Act, Assert: Verify strict 768D size and exact L2-norm."""
         prompts = [
             "short prompt",
@@ -140,7 +107,6 @@ class TestVectorMathematicalInvariantsAndStress:
             norm = np.linalg.norm(vec)
             assert abs(norm - 1.0) < 1e-4, f"Vector not unit-normalized: {norm}"
 
-    @ollama_required
     @pytest.mark.asyncio
     async def test_extreme_and_adversarial_text_inputs(self, embedding_provider):
         """Stress-tests Ollama with extreme lengths, unicode, emojis, and injection strings."""
@@ -206,7 +172,7 @@ class TestVectorMathematicalInvariantsAndStress:
 # ---------------------------------------------------------------------------
 # 2. Semantic Discrimination & Contrastive Separation
 # ---------------------------------------------------------------------------
-@live_db_and_ollama_required
+@live_db_required
 class TestSemanticDiscriminationAndContrastiveSeparation:
     """
     Tests that distinct invented semantic taste vectors accurately extract
@@ -338,7 +304,6 @@ class TestSemanticDiscriminationAndContrastiveSeparation:
 # ---------------------------------------------------------------------------
 # 3. Hybrid Scorer & Taste Evolution Integration Tests
 # ---------------------------------------------------------------------------
-@ollama_required
 class TestEndToEndScorerAndTasteEvolution:
     """
     Tests end-to-end integration: User taste vector directly steers the MLScorer

@@ -38,6 +38,9 @@ dependencies = [
     "geonamescache>=3.0.0",
     "holidays>=0.60.0",
     "psutil>=5.9.0",
+    "fastembed>=0.9.0",
+    "rapidfuzz>=3.0.0",
+    "dateparser>=1.2.0",
 ]
 
 [project.optional-dependencies]

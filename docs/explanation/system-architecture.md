@@ -9,8 +9,8 @@ This document explains the "why" behind Paladio's architectural decisions.
 A core architectural principle of Paladio is that it must be capable of running entirely offline, isolated from the public internet. This "sovereign" mandate was chosen to guarantee privacy, eliminate cloud API subscription costs, and ensure absolute resilience regardless of network availability.
 
 To achieve this without compromising capability, the entire intelligence stack is localized:
-- **Language Comprehension:** Powered by local quantization via Ollama (e.g., `llama3.1`), avoiding external API round-trips.
-- **Semantic Search:** Achieved using `pgvector` alongside local embeddings (`nomic-embed-text`).
+- **Language Comprehension:** Deterministic NLP extractors (`PromptIntentExtractor`, `parse_booking_text`, JSON-LD/regex scrapers) handle trip generation with zero LLM calls, while optional user-configured LLMs (`LLMService`) power only the interactive chat agent (`TripAgentRunner`).
+- **Semantic Search:** Achieved using `pgvector` alongside in-process CPU ONNX embeddings (`fastembed` `nomic-ai/nomic-embed-text-v1.5-Q`).
 - **Geospatial Routing:** Handled by an offline Valhalla instance packed with OpenStreetMap data, calculating transit matrices without pinging Google Maps or Mapbox.
 
 ## 2. The Semantic Gateway (WebSockets)
@@ -21,20 +21,19 @@ If Paladio relied on standard HTTP requests, the connection would frequently tim
 
 To solve this, the API layer is designed as a **Semantic Gateway** using WebSockets. When a user submits a natural language request, the gateway holds a persistent, bi-directional connection open. As the internal system works, it streams granular state events (`ROUTING_INTENT`, `EXTRACTING_CONSTRAINTS`, `EVALUATING_ROUTES`) back to the client. This architectural choice dramatically improves the perceived performance of the system by providing immediate and continuous feedback, even when the underlying math takes several seconds to converge.
 
-## 3. The Multi-Agent Swarm (LangGraph)
+## 3. The Orchestration Graph (LangGraph)
 
-Instead of relying on a single, monolithic LLM prompt to solve the entire problem—a strategy prone to hallucinations and failure—Paladio orchestrates multiple specialized AI agents using a directed state graph (**LangGraph**).
+Instead of relying on a single monolithic prompt to plan routes, Paladio orchestrates deterministic ingestion, validation, intent extraction, and C++ optimization nodes using a directed state graph (**LangGraph**).
 
-Why a cyclic state graph instead of a linear chain?
-- **Cyclic Retries:** LLMs frequently fail to adhere to strict JSON schemas. Because LangGraph supports cycles, if an agent hallucinates invalid JSON, the system can automatically route backward, feeding the error back to the LLM to correct itself.
-- **Human-in-the-loop:** The state graph can be paused mid-execution. If a user asks for a route that exceeds their budget, the graph can pause, emit an event over the WebSocket, and wait for the user to confirm a budget increase before resuming.
-- **Isolated Responsibilities:** The **Router** determines intent, the **RAG Node** fetches context, and the **Validator** parses data. Fencing these responsibilities significantly increases the reliability of smaller, locally hosted models.
+Why a directed state graph with human-in-the-loop checkpoints?
+- **Human-in-the-loop:** The state graph can be paused mid-execution (`verify_constraints`, `guardrails`). If a schedule overlaps or extracted constraints need confirmation, the graph pauses, emits an event over the WebSocket, and waits for user confirmation before resuming.
+- **Isolated Responsibilities:** The **Ticket Parser** handles free-text confirmations deterministically, the **Prompt Analyzer** (`PromptIntentExtractor`) projects intent into `RAGPromptAnalysis` + 768-D taste vectors, and the **C++ Core** handles combinatorial optimization.
 
 ## 4. The Pydantic Guardrail
 
-The most critical boundary in the Paladio architecture is the bridge between the AI and the C++ engine. The C++ solver expects rigid, typed integers and floats (e.g., `budget = 500.0`, `duration_mins = 120`). If the LLM produces unstructured or conflicting data, the C++ engine will crash or produce invalid routes.
+The most critical boundary in the Paladio architecture is the bridge between extracted constraints and the C++ engine. The C++ solver expects rigid, typed integers and floats (e.g., `budget = 500.0`, `duration_mins = 120`).
 
-Paladio uses **Pydantic AI** as a non-negotiable guardrail. The Validator agent is forced to map the LLM's natural language understanding into a strict `TravelConstraints` Pydantic model. The stochastic, creative nature of the AI is securely fenced off from the deterministic math engine. If the data doesn't pass Pydantic validation, it never reaches C++.
+Paladio enforces **Pydantic** validation (`TravelConstraints`, `RAGPromptAnalysis`, `BookingAnchors`) as a non-negotiable guardrail before any data reaches the deterministic C++ math engine.
 
 ## 5. Reactive vs. Proactive Orchestration
 
@@ -51,7 +50,7 @@ Paladio offloads the computationally intensive Time-Constrained Orienteering Pro
 
 ## 7. Continuous Differentiable Taste Learning
 
-Recommendation in Paladio avoids heavy fine-tuning of neural networks. Instead, the system maintains a 768-dimensional continuous vector space mapped by local Ollama embeddings (`nomic-embed-text`) and stored in PostgreSQL with `pgvector`.
+Recommendation in Paladio avoids heavy fine-tuning of neural networks. Instead, the system maintains a 768-dimensional continuous vector space mapped in-process via quantized ONNX embeddings (`fastembed` `nomic-ai/nomic-embed-text-v1.5-Q`) and stored in PostgreSQL with `pgvector`.
 
 On every conversational turn, the user's permanent latent taste vector is updated via an Exponential Moving Average (EMA):
 

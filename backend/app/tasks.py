@@ -200,8 +200,8 @@ async def _run_enrich_tier12_city_pois(
     from app.engine.hydration.document_builder import PoiDocumentBuilder
     from app.engine.hydration.facet_extractor import FacetExtractor
     from app.infrastructure.providers.neighborhood_resolver import NeighborhoodResolver
-    from app.infrastructure.providers.ollama_embedding_provider import (
-        OllamaEmbeddingProvider,
+    from app.infrastructure.providers.onnx_embedding_provider import (
+        OnnxEmbeddingProvider,
     )
     from app.infrastructure.providers.wikimedia_enrichment_provider import (
         WikimediaEnrichmentProvider,
@@ -339,7 +339,7 @@ async def _run_enrich_tier12_city_pois(
                 except Exception as we:
                     logger.debug(f"Wikipedia extracts error: {we}")
 
-            embed_provider = OllamaEmbeddingProvider()
+            embed_provider = OnnxEmbeddingProvider()
             texts_to_embed = []
             models_to_embed = []
 
@@ -488,7 +488,7 @@ async def _run_enrich_tier12_city_pois(
 
             if texts_to_embed:
                 logger.info(
-                    f"Batch embedding {len(texts_to_embed)} priority POIs via /api/embed (batch_size=128)"
+                    f"Batch embedding {len(texts_to_embed)} priority POIs via OnnxEmbeddingProvider (batch_size=128)"
                 )
                 vectors = await embed_provider.embed_batch(
                     texts_to_embed, batch_size=128
@@ -529,8 +529,8 @@ async def _run_enrich_long_tail_city_pois(
     from app.db.models import AttractionModel, CityModel
     from app.engine.hydration.document_builder import PoiDocumentBuilder
     from app.engine.hydration.facet_extractor import FacetExtractor
-    from app.infrastructure.providers.ollama_embedding_provider import (
-        OllamaEmbeddingProvider,
+    from app.infrastructure.providers.onnx_embedding_provider import (
+        OnnxEmbeddingProvider,
     )
     from app.infrastructure.providers.wikimedia_enrichment_provider import (
         WikimediaEnrichmentProvider,
@@ -612,7 +612,7 @@ async def _run_enrich_long_tail_city_pois(
                     "status": "completed",
                 }
 
-            embed_provider = OllamaEmbeddingProvider()
+            embed_provider = OnnxEmbeddingProvider()
             chunk_size = 500
             total_chunks = (total_remaining + chunk_size - 1) // chunk_size
 

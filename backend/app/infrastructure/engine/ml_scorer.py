@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class MLScorer:
     """
     Service responsible for orchestrating ML inference on POIs.
-    Supports 768-dimensional dense semantic RAG via Ollama and pgvector,
+    Supports 768-dimensional dense semantic RAG via local ONNX (fastembed) and pgvector,
     permanent EMA user taste learning, and calibrated multi-attribute scoring.
     """
 
@@ -35,11 +35,11 @@ class MLScorer:
 
     async def _get_embedding_provider(self) -> IEmbeddingProvider:
         if self.embedding_provider is None:
-            from app.infrastructure.providers.ollama_embedding_provider import (
-                OllamaEmbeddingProvider,
+            from app.infrastructure.providers.onnx_embedding_provider import (
+                OnnxEmbeddingProvider,
             )
 
-            self.embedding_provider = OllamaEmbeddingProvider()
+            self.embedding_provider = OnnxEmbeddingProvider()
         return self.embedding_provider
 
     async def _get_semantic_engine(self) -> SemanticLearningEngine:

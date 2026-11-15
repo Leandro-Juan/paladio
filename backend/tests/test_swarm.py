@@ -11,25 +11,6 @@ from app.swarm.graph import graph
 from langchain_core.messages import HumanMessage
 
 
-@pytest.fixture(autouse=True)
-def mock_prompt_analyzer():
-    """Mock out the Prompt Analyzer Agent so tests don't require the LLM backend."""
-    mock_run_result = MagicMock()
-    from app.schemas.rag_schema import RAGPromptAnalysis
-
-    mock_run_result.output = RAGPromptAnalysis(
-        mandatory_pois=["Louvre"],
-        preferred_cuisines=[],
-        travel_tastes=[],
-    )
-    with patch(
-        "app.swarm.agents.prompt_analyzer.prompt_analysis_agent.run",
-        new_callable=AsyncMock,
-        return_value=mock_run_result,
-    ):
-        yield
-
-
 @pytest.mark.asyncio
 async def test_reactive_planning_generates_itinerary():
     """

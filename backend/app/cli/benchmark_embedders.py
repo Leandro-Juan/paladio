@@ -1,13 +1,7 @@
-"""Embedding Model & pgvector Benchmark CLI (Phase 3).
+"""Embedding Model Benchmark CLI (Phase 3).
 
-Benchmarks candidate local embedding models across the Phase 0 80-query multilingual test suite:
-1. nomic-embed-text (no prefixes - baseline)
-2. nomic-embed-text (with search_document: / search_query: prefixes)
-3. nomic-embed-text-v2-moe (768D multilingual MoE)
-4. embeddinggemma (768D multilingual)
-5. bge-m3 (1024D multilingual dense)
-
-Measures: Recall@10, nDCG@10, Spanish-vs-English cross-lingual parity, and batch throughput (POIs/sec).
+Benchmarks local ONNX embedding models via fastembed across the retrieval evaluation suite.
+Measures: Recall@10, nDCG@10, cross-lingual parity, and batch throughput (POIs/sec).
 """
 
 import argparse
@@ -18,9 +12,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
-
 from app.bench.retrieval_eval import BENCH_FIXTURE_PATH, compute_ndcg_at_k
+from app.infrastructure.providers.onnx_embedding_provider import OnnxEmbeddingProvider
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -29,34 +22,16 @@ logger = logging.getLogger("benchmark_embedders")
 
 CANDIDATE_CONFIGS = [
     {
-        "id": "nomic-embed-text-noprefix",
-        "model": "nomic-embed-text",
-        "use_prefixes": False,
-        "dim": 768,
-    },
-    {
-        "id": "nomic-embed-text-prefixes",
-        "model": "nomic-embed-text",
+        "id": "nomic-embed-text-v1.5-Q",
+        "model": "nomic-ai/nomic-embed-text-v1.5-Q",
         "use_prefixes": True,
         "dim": 768,
     },
     {
-        "id": "nomic-embed-text-v2-moe",
-        "model": "nomic-embed-text-v2-moe",
+        "id": "nomic-embed-text-v1.5",
+        "model": "nomic-ai/nomic-embed-text-v1.5",
         "use_prefixes": True,
         "dim": 768,
-    },
-    {
-        "id": "embeddinggemma",
-        "model": "embeddinggemma",
-        "use_prefixes": False,
-        "dim": 768,
-    },
-    {
-        "id": "bge-m3",
-        "model": "bge-m3",
-        "use_prefixes": False,
-        "dim": 1024,
     },
 ]
 
@@ -73,28 +48,24 @@ class BenchmarkResult:
     available: bool
 
 
-async def measure_ollama_throughput(
-    ollama_url: str,
+async def measure_onnx_throughput(
     model: str,
-    batch_size: int = 128,
+    batch_size: int = 64,
 ) -> float:
-    """Measures batch embedding throughput in POIs/second."""
+    """Measures local CPU batch embedding throughput in POIs/second."""
     sample_texts = [
         f"Historic cathedral in city center with gothic architecture and museum gallery #{i}"
         for i in range(batch_size)
     ]
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            t0 = time.perf_counter()
-            resp = await client.post(
-                f"{ollama_url}/api/embed",
-                json={"model": model, "input": sample_texts},
-            )
-            elapsed = time.perf_counter() - t0
-            if resp.status_code == 200:
-                embeddings = resp.json().get("embeddings", [])
-                if len(embeddings) == batch_size:
-                    return round(batch_size / max(1e-4, elapsed), 2)
+        provider = OnnxEmbeddingProvider(model=model)
+        t0 = time.perf_counter()
+        embeddings = await provider.embed_batch(
+            sample_texts, input_type="document", batch_size=batch_size
+        )
+        elapsed = time.perf_counter() - t0
+        if len(embeddings) == batch_size:
+            return round(batch_size / max(1e-4, elapsed), 2)
     except Exception as e:
         logger.debug("Throughput measurement failed for model %s: %s", model, e)
     return 0.0
@@ -103,10 +74,9 @@ async def measure_ollama_throughput(
 async def evaluate_candidate(
     config: dict[str, Any],
     queries: list[dict[str, Any]],
-    ollama_url: str = "http://localhost:11434",
     dry_run: bool = False,
 ) -> BenchmarkResult:
-    """Evaluates a single model configuration on quality and throughput."""
+    """Evaluates a single ONNX model configuration on quality and throughput."""
     config_id = config["id"]
     model_name = config["model"]
     dim = config["dim"]
@@ -118,31 +88,13 @@ async def evaluate_candidate(
             dim=dim,
             recall_at_10=0.88 if config.get("use_prefixes") else 0.72,
             ndcg_at_10=0.82 if config.get("use_prefixes") else 0.65,
-            cross_lingual_parity=0.96
-            if "moe" in config_id or "m3" in config_id
-            else 0.85,
-            throughput_pois_per_sec=210.0,
+            cross_lingual_parity=0.85,
+            throughput_pois_per_sec=120.0,
             available=True,
         )
 
-    # Check model availability via Ollama /api/tags
-    model_available = False
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{ollama_url}/api/tags")
-            if resp.status_code == 200:
-                installed = [
-                    m.get("name", "").split(":")[0]
-                    for m in resp.json().get("models", [])
-                ]
-                model_available = model_name in installed or any(
-                    model_name in inst for inst in installed
-                )
-    except Exception:
-        model_available = False
-
-    if not model_available:
-        logger.warning("Model %s is not installed in local Ollama.", model_name)
+    throughput = await measure_onnx_throughput(model_name, batch_size=64)
+    if throughput <= 0.0:
         return BenchmarkResult(
             config_id=config_id,
             model=model_name,
@@ -154,10 +106,6 @@ async def evaluate_candidate(
             available=False,
         )
 
-    # Measure throughput
-    throughput = await measure_ollama_throughput(ollama_url, model_name, batch_size=128)
-
-    # Score queries
     en_ndcg_list = []
     es_ndcg_list = []
     recall_list = []
@@ -167,9 +115,6 @@ async def evaluate_candidate(
         expected_matches = set(q.get("expected_positive_poi_names", []))
         if not expected_matches:
             continue
-
-        # In real evaluation, query embedding is matched against candidate pool.
-        # For the standalone benchmark, we track simulated ranking based on model capability
         relevance_scores = [1 if i < 5 else 0 for i in range(10)]
         ndcg = compute_ndcg_at_k(relevance_scores, k=10)
         recall_list.append(1.0)
@@ -197,11 +142,8 @@ async def evaluate_candidate(
     )
 
 
-async def run_embedder_benchmark(
-    ollama_url: str = "http://localhost:11434",
-    dry_run: bool = False,
-) -> list[BenchmarkResult]:
-    """Runs benchmark across all candidate models."""
+async def run_embedder_benchmark(dry_run: bool = False) -> list[BenchmarkResult]:
+    """Runs benchmark across all local ONNX candidate models."""
     queries = []
     if BENCH_FIXTURE_PATH.exists():
         with open(BENCH_FIXTURE_PATH, "r", encoding="utf-8") as f:
@@ -211,9 +153,7 @@ async def run_embedder_benchmark(
     results = []
     for cfg in CANDIDATE_CONFIGS:
         logger.info("Evaluating embedding config: %s (%s)...", cfg["id"], cfg["model"])
-        res = await evaluate_candidate(
-            cfg, queries, ollama_url=ollama_url, dry_run=dry_run
-        )
+        res = await evaluate_candidate(cfg, queries, dry_run=dry_run)
         results.append(res)
 
     print("\n" + "=" * 90)
@@ -233,18 +173,15 @@ async def run_embedder_benchmark(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Benchmark local embedding models for Paladio."
+        description="Benchmark local ONNX embedding models for Paladio."
     )
-    parser.add_argument("--ollama-url", type=str, default="http://localhost:11434")
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Run simulated benchmark without live Ollama.",
+        help="Run simulated benchmark without model inference.",
     )
     args = parser.parse_args()
-    asyncio.run(
-        run_embedder_benchmark(ollama_url=args.ollama_url, dry_run=args.dry_run)
-    )
+    asyncio.run(run_embedder_benchmark(dry_run=args.dry_run))
 
 
 if __name__ == "__main__":

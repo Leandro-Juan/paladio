@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-from app.infrastructure.providers.ollama_embedding_provider import (
-    OllamaEmbeddingProvider,
+from app.infrastructure.providers.onnx_embedding_provider import (
+    OnnxEmbeddingProvider,
 )
 
 DATABASE_URL = os.getenv(
@@ -195,14 +195,14 @@ async def generate_health_report(city: str | None = None) -> None:
 async def verify_invented_vector(
     city: str, query_label: str, query_prompt: str, limit: int = 6
 ):
-    provider = OllamaEmbeddingProvider()
+    provider = OnnxEmbeddingProvider()
     print(f"\n{'=' * 80}")
     print(f"🎯 INVENTED TASTE VECTOR: [{query_label}]")
     print(f"   City Scope:    {city}")
     print(f'   Prompt Text:   "{query_prompt}"')
     print(f"{'=' * 80}")
 
-    print("⚡ Generating 768D dense embedding via Ollama (nomic-embed-text)...")
+    print("⚡ Generating 768D dense embedding via OnnxEmbeddingProvider (fastembed)...")
     vector = await provider.embed_text(query_prompt, input_type="query")
     print(
         f"✓ Vector generated: dim={len(vector)}, L2-norm={sum(x*x for x in vector)**0.5:.4f}"

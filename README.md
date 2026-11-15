@@ -106,7 +106,7 @@ graph TD
 Recommendation in Paladio is neither static nor reliant on heavy external fine-tuning. It utilizes a continuous vector-space model operating directly on local hardware.
 
 ### 1. 768-D Semantic Hypersphere & pgvector RAG
-- Unstructured user requests and POI descriptions are mapped into a dense 768-dimensional space via local Ollama instances running `nomic-embed-text`.
+- Unstructured user requests and POI descriptions are mapped into a dense 768-dimensional space in-process on CPU via `fastembed` (`nomic-ai/nomic-embed-text-v1.5-Q` ONNX).
 - Attractions are indexed using `pgvector` with HNSW/IVFFlat cosine indexing (`<=>`), enabling sub-millisecond semantic retrieval across thousands of venues.
 
 ### 2. Online Exponential Moving Average (EMA) Taste Learning

@@ -4,13 +4,10 @@ Rewrites user travel queries into dense semantic subqueries (multilingual) and
 structured facet constraints for single-roundtrip hybrid retrieval.
 """
 
-import json
 import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
-
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -247,80 +244,3 @@ class QueryRewriter:
             max_tier=max_tier,
             require_rain_friendly=require_rain_friendly,
         )
-
-    @classmethod
-    async def rewrite_query_async(
-        cls,
-        query: str,
-        destination_city: str = "",
-        ollama_url: str = "http://localhost:11434",
-        model: str = "qwen2.5:3b",
-    ) -> StructuredQuery:
-        """Attempts LLM-based query understanding via local Ollama, falling back gracefully to rule-based."""
-        rule_based = cls.rewrite_query(query, destination_city)
-        if not query.strip():
-            return rule_based
-
-        prompt = (
-            f"Analyze this travel search query for destination: '{destination_city}'.\n"
-            f"Query: '{query}'\n\n"
-            "Extract:\n"
-            "- clean_query: simplified search keywords\n"
-            "- semantic_subqueries: 2 to 4 expanded search phrases in English and destination language\n"
-            "- required_facets: object containing any explicit constraints (e.g., rain_friendly, indoor_outdoor, themes, vibes)\n"
-            "- max_cost_eur: maximum budget in EUR if mentioned, else null\n"
-            "- max_tier: 1 (iconic must-see) or 2 (major sights) if requested, else null\n"
-            "- require_rain_friendly: boolean if indoor/rain activity explicitly needed\n\n"
-            "Respond ONLY in valid JSON matching schema:\n"
-            '{"clean_query": "...", "semantic_subqueries": ["...", "..."], "required_facets": {}, "max_cost_eur": null, "max_tier": null, "require_rain_friendly": false}'
-        )
-
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.post(
-                    f"{ollama_url}/api/generate",
-                    json={
-                        "model": model,
-                        "prompt": prompt,
-                        "format": "json",
-                        "stream": False,
-                        "options": {"num_ctx": 2048, "num_predict": 128},
-                    },
-                )
-                if resp.status_code == 200:
-                    data = json.loads(resp.json().get("response", "{}"))
-                    clean = data.get("clean_query") or rule_based.clean_query
-                    subqs = (
-                        data.get("semantic_subqueries")
-                        or rule_based.semantic_subqueries
-                    )
-                    facets = data.get("required_facets") or rule_based.required_facets
-                    max_cost = (
-                        data.get("max_cost_eur")
-                        if data.get("max_cost_eur") is not None
-                        else rule_based.max_cost_eur
-                    )
-                    max_t = (
-                        data.get("max_tier")
-                        if data.get("max_tier") is not None
-                        else rule_based.max_tier
-                    )
-                    rain = bool(
-                        data.get(
-                            "require_rain_friendly", rule_based.require_rain_friendly
-                        )
-                    )
-
-                    return StructuredQuery(
-                        raw_query=query,
-                        clean_query=cls.clean_query_text(clean),
-                        semantic_subqueries=subqs[:4],
-                        required_facets=facets,
-                        max_cost_eur=max_cost,
-                        max_tier=max_t,
-                        require_rain_friendly=rain,
-                    )
-        except Exception as e:
-            logger.debug("Ollama query rewriter fallback to rule-based: %s", e)
-
-        return rule_based

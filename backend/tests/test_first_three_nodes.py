@@ -1,55 +1,16 @@
 from datetime import date, timedelta
 import pytest
 from app.schemas.itinerary import TravelConstraints
-from app.swarm.agents.ticket_parser import ticket_parser_agent, ticket_parser_node
+from app.swarm.agents.ticket_parser import ticket_parser_node
 from app.swarm.nodes.constraint_builder import assemble_constraints_node
 from app.swarm.nodes.verify_constraints import verify_constraints_node
 from app.swarm.nodes.guardrails import guardrails_node
 from app.swarm.state import SwarmState
 from langgraph.graph import END, START, StateGraph
-from pydantic_ai.models.test import TestModel
-
-
-@pytest.fixture
-def mock_ticket_parser():
-    """Mock the ticket parser LLM agent using Pydantic AI's TestModel."""
-    start_dt = date.today() + timedelta(days=10)
-    end_dt = date.today() + timedelta(days=15)
-    start_str = start_dt.isoformat()
-    end_str = end_dt.isoformat()
-    test_model = TestModel(
-        custom_output_args={
-            "outbound_flight": {
-                "origin_iata": "JFK",
-                "destination_iata": "CDG",
-                "departure_time": f"{start_str} 10:00",
-                "flight_duration_minutes": 420,
-                "airline": "Air France",
-                "flight_number": "AF007",
-            },
-            "return_flight": {
-                "origin_iata": "CDG",
-                "destination_iata": "JFK",
-                "departure_time": f"{end_str} 14:00",
-                "flight_duration_minutes": 480,
-                "airline": "Air France",
-                "flight_number": "AF008",
-            },
-            "hotel": {
-                "name": "Hotel Plaza Athenee",
-                "address": "25 Avenue Montaigne, 75008 Paris",
-                "city": "Paris",
-                "check_in_date": start_str,
-                "check_out_date": end_str,
-            },
-        }
-    )
-    with ticket_parser_agent.override(model=test_model):
-        yield
 
 
 @pytest.mark.asyncio
-async def test_post_parser_nodes_pipeline(mock_ticket_parser, monkeypatch):
+async def test_post_parser_nodes_pipeline(monkeypatch):
     """
     Test the post-parser pipeline:
       1. ticket_parser: parses raw booking text into BookingAnchors
@@ -211,7 +172,7 @@ async def test_guardrails_hard_errors():
 
 
 @pytest.mark.asyncio
-async def test_subgraph_execution(mock_ticket_parser, monkeypatch):
+async def test_subgraph_execution(monkeypatch):
     """
     Test compiling and running the post-parser subgraph as a LangGraph StateGraph:
     Flow: START -> ticket_parser -> assemble_constraints -> verify_constraints -> guardrails -> END
@@ -237,8 +198,10 @@ async def test_subgraph_execution(mock_ticket_parser, monkeypatch):
 
     compiled = subgraph.compile()
 
+    future_start = (date.today() + timedelta(days=10)).isoformat()
+    future_end = (date.today() + timedelta(days=15)).isoformat()
     state = {
-        "booking_text": "Flight from MAD to FCO on 2026-11-01. Return 2026-11-05. Hotel Hassler in Rome.",
+        "booking_text": f"Flight from MAD to FCO on {future_start}. Return {future_end}. Hotel Hassler in Rome.",
         "manual_constraints": {
             "test_mode": True,
             "budget_usd": 2000.0,
@@ -257,7 +220,7 @@ async def test_subgraph_execution(mock_ticket_parser, monkeypatch):
     assert result.get("guardrail_status") == "PROCEED"
     constraints = TravelConstraints(**result["validated_itinerary"])
 
-    assert constraints.destination_city == "Paris"
-    assert constraints.origin_city == "New York"
+    assert constraints.destination_city == "Rome"
+    assert constraints.origin_city == "Madrid"
     assert constraints.budget_usd == 2000.0
     assert len(constraints.meals) == 2

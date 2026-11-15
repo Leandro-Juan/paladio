@@ -16,7 +16,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://llm:11434
+      - FASTEMBED_CACHE_PATH=/opt/models/fastembed
+      - FASTEMBED_THREADS=2
       - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
       - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
@@ -73,25 +74,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  llm:
-    image: ollama/ollama:latest
-    ports:
-      - "127.0.0.1:11435:11434"
-    volumes:
-      - ollamadata:/root/.ollama
-    security_opt:
-      - no-new-privileges:true
-
-  init-llm:
-    image: ollama/ollama:latest
-    depends_on:
-      llm:
-        condition: service_started
-    environment:
-      - OLLAMA_HOST=http://llm:11434
-    entrypoint: /bin/sh
-    command: -c "sleep 5 && ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
-
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     restart: unless-stopped
@@ -129,9 +111,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://llm:11434
-      - VALIDATOR_MODEL=ollama:qwen2.5:3b
-      - TICKET_PARSER_MODEL=ollama:qwen2.5:3b
+      - FASTEMBED_CACHE_PATH=/opt/models/fastembed
+      - FASTEMBED_THREADS=2
       - NODE_ENV=development
       - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
       - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
@@ -177,6 +158,5 @@ services:
 volumes:
   pgdata:
   redisdata:
-  ollamadata:
   valhalladata:
   gtfsdata:

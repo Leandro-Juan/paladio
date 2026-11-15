@@ -1,0 +1,589 @@
+{
+  "version": "1.0",
+  "description": "50-prompt English baseline gold set for deterministic PromptIntentExtractor validation and ranking correlation.",
+  "city_catalog": {
+    "Madrid": [
+      {"name": "Museo del Prado", "aliases": ["El Prado", "Prado Museum"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]},
+      {"name": "Museo Reina Sofia", "aliases": ["Reina Sofia", "Museo Nacional Centro de Arte Reina Sofia"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture"]},
+      {"name": "Palacio Real de Madrid", "aliases": ["Palacio Real", "Royal Palace of Madrid"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Parque del Retiro", "aliases": ["Retiro Park", "El Retiro"], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "scenic_views"]},
+      {"name": "Templo de Debod", "aliases": ["Temple of Debod"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "scenic_views"]},
+      {"name": "Mercado de San Miguel", "aliases": ["San Miguel Market"], "category": "RESTAURANT", "cuisine": "tapas", "tags": ["food_culinary", "shopping"]},
+      {"name": "Plaza Mayor", "aliases": [], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Sobrino de Botin", "aliases": ["Botin"], "category": "RESTAURANT", "cuisine": "spanish", "tags": ["food_culinary", "history_heritage"]}
+    ],
+    "Paris": [
+      {"name": "Louvre Museum", "aliases": ["The Louvre", "Musee du Louvre", "Louvre"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage", "architecture"]},
+      {"name": "Eiffel Tower", "aliases": ["Tour Eiffel"], "category": "LANDMARK", "cuisine": null, "tags": ["scenic_views", "architecture"]},
+      {"name": "Musee d'Orsay", "aliases": ["Orsay Museum", "Musée d'Orsay"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "architecture"]},
+      {"name": "Jardin du Luxembourg", "aliases": ["Luxembourg Gardens"], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "scenic_views"]},
+      {"name": "Sainte-Chapelle", "aliases": ["Sainte Chapelle"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Le Marais Bistro", "aliases": [], "category": "RESTAURANT", "cuisine": "french", "tags": ["food_culinary"]}
+    ],
+    "Rome": [
+      {"name": "Colosseum", "aliases": ["Colosseo", "Flavian Amphitheatre"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Vatican Museums", "aliases": ["Musei Vaticani"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]},
+      {"name": "Pantheon", "aliases": [], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Villa Borghese", "aliases": ["Borghese Gardens"], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "art_culture"]},
+      {"name": "Trastevere Trattoria", "aliases": [], "category": "RESTAURANT", "cuisine": "italian", "tags": ["food_culinary"]}
+    ],
+    "London": [
+      {"name": "British Museum", "aliases": ["The British Museum"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]},
+      {"name": "Tower of London", "aliases": [], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Tate Modern", "aliases": ["The Tate Modern"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture"]},
+      {"name": "Hyde Park", "aliases": [], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors"]},
+      {"name": "Borough Market", "aliases": [], "category": "RESTAURANT", "cuisine": "british", "tags": ["food_culinary", "shopping"]},
+      {"name": "Dishoom Covent Garden", "aliases": ["Dishoom"], "category": "RESTAURANT", "cuisine": "indian", "tags": ["food_culinary"]}
+    ],
+    "Tokyo": [
+      {"name": "Senso-ji Temple", "aliases": ["Sensoji", "Senso-ji"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Tokyo National Museum", "aliases": [], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]},
+      {"name": "Shinjuku Gyoen", "aliases": ["Shinjuku Gyoen National Garden"], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "scenic_views"]},
+      {"name": "Meiji Jingu", "aliases": ["Meiji Shrine"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "nature_outdoors"]},
+      {"name": "Ichiran Shibuya", "aliases": ["Ichiran"], "category": "RESTAURANT", "cuisine": "ramen", "tags": ["food_culinary"]},
+      {"name": "Sukiyabashi Sushi", "aliases": [], "category": "RESTAURANT", "cuisine": "sushi", "tags": ["food_culinary"]}
+    ],
+    "Barcelona": [
+      {"name": "Sagrada Familia", "aliases": ["Basílica de la Sagrada Família"], "category": "LANDMARK", "cuisine": null, "tags": ["architecture", "history_heritage"]},
+      {"name": "Park Guell", "aliases": ["Parc Güell", "Park Güell"], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "architecture", "scenic_views"]},
+      {"name": "Picasso Museum", "aliases": ["Museu Picasso"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture"]},
+      {"name": "La Boqueria", "aliases": ["Mercat de la Boqueria"], "category": "RESTAURANT", "cuisine": "tapas", "tags": ["food_culinary", "shopping"]}
+    ],
+    "New York": [
+      {"name": "Museum of Modern Art", "aliases": ["MoMA"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture"]},
+      {"name": "Statue of Liberty", "aliases": [], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "scenic_views"]},
+      {"name": "Central Park", "aliases": [], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors", "scenic_views"]},
+      {"name": "Metropolitan Museum of Art", "aliases": ["The Met"], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]}
+    ],
+    "Budapest": [
+      {"name": "Hungarian Parliament Building", "aliases": ["Parliament Building", "Orszaghaz"], "category": "LANDMARK", "cuisine": null, "tags": ["architecture", "history_heritage"]},
+      {"name": "Fisherman's Bastion", "aliases": ["Halaszbastya"], "category": "LANDMARK", "cuisine": null, "tags": ["scenic_views", "architecture", "history_heritage"]},
+      {"name": "Szimpla Kert", "aliases": [], "category": "BAR", "cuisine": null, "tags": ["nightlife"]},
+      {"name": "Central Market Hall", "aliases": ["Great Market Hall"], "category": "RESTAURANT", "cuisine": "hungarian", "tags": ["food_culinary", "shopping"]}
+    ],
+    "Lisbon": [
+      {"name": "Belem Tower", "aliases": ["Torre de Belém"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture", "scenic_views"]},
+      {"name": "Jeronimos Monastery", "aliases": ["Mosteiro dos Jerónimos"], "category": "LANDMARK", "cuisine": null, "tags": ["history_heritage", "architecture"]},
+      {"name": "Time Out Market", "aliases": ["Mercado da Ribeira"], "category": "RESTAURANT", "cuisine": "portuguese", "tags": ["food_culinary"]}
+    ],
+    "Amsterdam": [
+      {"name": "Rijksmuseum", "aliases": [], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture", "history_heritage"]},
+      {"name": "Van Gogh Museum", "aliases": [], "category": "MUSEUM", "cuisine": null, "tags": ["art_culture"]},
+      {"name": "Vondelpark", "aliases": [], "category": "PARK", "cuisine": null, "tags": ["nature_outdoors"]}
+    ]
+  },
+  "cases": [
+    {
+      "id": "p01",
+      "city": "Paris",
+      "prompt": "I must visit the Louvre Museum and see the Eiffel Tower. I love French food and art.",
+      "expected_mandatory_pois": ["Louvre Museum", "Eiffel Tower"],
+      "expected_cuisines": ["french"],
+      "expected_top_tags": ["art_culture", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["art", "culinary"]}
+    },
+    {
+      "id": "p02",
+      "city": "Madrid",
+      "prompt": "We love modern art and paintings. We want to visit Museo del Prado and eat authentic tapas every night.",
+      "expected_mandatory_pois": ["Museo del Prado"],
+      "forbidden_mandatory_pois": ["MoMA", "Museum of Modern Art", "Louvre Museum"],
+      "expected_cuisines": ["tapas"],
+      "expected_top_tags": ["art_culture", "food_culinary"],
+      "expected_cuisine_freq": 2,
+      "expected_facets": {"themes": ["art", "culinary"]}
+    },
+    {
+      "id": "p03",
+      "city": "Rome",
+      "prompt": "3 days in Rome. Must see the Colosseum and Pantheon. Looking for historic monuments and Italian pasta.",
+      "expected_mandatory_pois": ["Colosseum", "Pantheon"],
+      "expected_cuisines": ["italian"],
+      "expected_top_tags": ["history_heritage", "architecture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["history"]}
+    },
+    {
+      "id": "p04",
+      "city": "London",
+      "prompt": "Rainy weekend in London. Indoor museums only, especially British Museum and Tate Modern, plus Indian curry.",
+      "expected_mandatory_pois": ["British Museum", "Tate Modern"],
+      "expected_cuisines": ["indian"],
+      "expected_top_tags": ["art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"rain_friendly": true, "indoor_outdoor": "indoor"}
+    },
+    {
+      "id": "p05",
+      "city": "Tokyo",
+      "prompt": "First time in Tokyo! Must see Senso-ji Temple and Meiji Shrine. Lots of ramen every day please.",
+      "expected_mandatory_pois": ["Senso-ji Temple", "Meiji Jingu"],
+      "expected_cuisines": ["ramen"],
+      "expected_top_tags": ["history_heritage", "food_culinary"],
+      "expected_cuisine_freq": 2,
+      "expected_facets": {"max_tier": 1}
+    },
+    {
+      "id": "p06",
+      "city": "Barcelona",
+      "prompt": "Architecture tour of Barcelona focusing on Sagrada Familia and Park Guell, plus scenic viewpoints.",
+      "expected_mandatory_pois": ["Sagrada Familia", "Park Guell"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["architecture", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["architecture"], "indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p07",
+      "city": "New York",
+      "prompt": "We want to walk through Central Park and visit MoMA and Statue of Liberty.",
+      "expected_mandatory_pois": ["Central Park", "Museum of Modern Art", "Statue of Liberty"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors", "art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p08",
+      "city": "Budapest",
+      "prompt": "Weekend trip to Budapest: Fisherman's Bastion for sunset views, Hungarian Parliament Building, and vibrant nightlife cocktail bars like Szimpla Kert.",
+      "expected_mandatory_pois": ["Fisherman's Bastion", "Hungarian Parliament Building", "Szimpla Kert"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["scenic_views", "nightlife", "architecture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["lively"]}
+    },
+    {
+      "id": "p09",
+      "city": "Lisbon",
+      "prompt": "Relaxed cultural trip to Lisbon. Must visit Jeronimos Monastery and Belem Tower. Traditional Portuguese food.",
+      "expected_mandatory_pois": ["Jeronimos Monastery", "Belem Tower"],
+      "expected_cuisines": ["portuguese"],
+      "expected_top_tags": ["history_heritage", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p10",
+      "city": "Amsterdam",
+      "prompt": "Art weekend in Amsterdam: Rijksmuseum and Van Gogh Museum are mandatory, plus a quiet stroll in Vondelpark.",
+      "expected_mandatory_pois": ["Rijksmuseum", "Van Gogh Museum", "Vondelpark"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "nature_outdoors"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p11",
+      "city": "Paris",
+      "prompt": "Quiet romantic courtyard and secret gardens away from noisy nightlife, no bars or clubs.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors", "scenic_views"],
+      "negated_tags": ["nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet", "romantic"]}
+    },
+    {
+      "id": "p12",
+      "city": "Madrid",
+      "prompt": "Free museums and budget outdoor parks in Madrid. No expensive shopping.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "nature_outdoors"],
+      "negated_tags": ["shopping"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"budget_tier": "free", "indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p13",
+      "city": "Rome",
+      "prompt": "We want iconic ancient ruins, Renaissance paintings, and a peaceful park walk without crowds.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["history_heritage", "art_culture", "nature_outdoors"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p14",
+      "city": "London",
+      "prompt": "Designer boutiques, antique vintage markets, and craft shopping across London.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["shopping"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p15",
+      "city": "Tokyo",
+      "prompt": "Looking for sushi restaurants, izakaya nightlife, and rooftop cityscapes at night.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["sushi"],
+      "expected_top_tags": ["food_culinary", "nightlife", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p16",
+      "city": "Madrid",
+      "prompt": "Must see El Prado and Royal Palace of Madrid. Also want sunset views at Templo de Debod.",
+      "expected_mandatory_pois": ["Museo del Prado", "Palacio Real de Madrid", "Templo de Debod"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "history_heritage", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p17",
+      "city": "Paris",
+      "prompt": "Gothic cathedrals, stained glass at Sainte-Chapelle, and impressionist paintings at Orsay Museum.",
+      "expected_mandatory_pois": ["Sainte-Chapelle", "Musee d'Orsay"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["architecture", "art_culture", "history_heritage"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["art", "architecture", "religion_spirituality"]}
+    },
+    {
+      "id": "p18",
+      "city": "Rome",
+      "prompt": "Stormy weather forecast! Need sheltered indoor churches, Vatican Museums, and historic palaces.",
+      "expected_mandatory_pois": ["Vatican Museums"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "history_heritage"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"rain_friendly": true, "indoor_outdoor": "indoor"}
+    },
+    {
+      "id": "p19",
+      "city": "London",
+      "prompt": "Need to visit Tower of London and eat at Dishoom. No nightlife please.",
+      "expected_mandatory_pois": ["Tower of London", "Dishoom Covent Garden"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["history_heritage"],
+      "negated_tags": ["nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p20",
+      "city": "Barcelona",
+      "prompt": "Foodie weekend! La Boqueria market, tapas bars, and Picasso Museum.",
+      "expected_mandatory_pois": ["La Boqueria", "Picasso Museum"],
+      "expected_cuisines": ["tapas"],
+      "expected_top_tags": ["food_culinary", "art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p21",
+      "city": "New York",
+      "prompt": "World-class art galleries and sculpture exhibitions. Definitely The Met!",
+      "expected_mandatory_pois": ["Metropolitan Museum of Art"],
+      "forbidden_mandatory_pois": ["Louvre Museum", "Museo del Prado"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["art"]}
+    },
+    {
+      "id": "p22",
+      "city": "Budapest",
+      "prompt": "Affordable backpacker trip with cheap street food, Central Market Hall, and panoramic viewpoints.",
+      "expected_mandatory_pois": ["Central Market Hall"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["scenic_views", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"budget_tier": "budget"}
+    },
+    {
+      "id": "p23",
+      "city": "Lisbon",
+      "prompt": "Dinner at Time Out Market, historic walks, and scenic miradouros overlooking the river.",
+      "expected_mandatory_pois": ["Time Out Market"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["scenic_views", "food_culinary", "history_heritage"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p24",
+      "city": "Amsterdam",
+      "prompt": "Outdoor botanical gardens, relaxed canal walks, and avoiding museums and shopping.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors"],
+      "negated_tags": ["art_culture", "shopping"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p25",
+      "city": "Madrid",
+      "prompt": "Lively nightlife, speakeasy cocktail bars, and late evening Plaza Mayor atmosphere.",
+      "expected_mandatory_pois": ["Plaza Mayor"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["lively"]}
+    },
+    {
+      "id": "p26",
+      "city": "Madrid",
+      "prompt": "Don't miss Retiro Park and Reina Sofia. We also want traditional Spanish cuisine.",
+      "expected_mandatory_pois": ["Parque del Retiro", "Museo Reina Sofia"],
+      "expected_cuisines": ["spanish"],
+      "expected_top_tags": ["nature_outdoors", "art_culture", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p27",
+      "city": "Paris",
+      "prompt": "Classic French bistro dining every evening, plus a romantic walk in Luxembourg Gardens.",
+      "expected_mandatory_pois": ["Jardin du Luxembourg"],
+      "expected_cuisines": ["french"],
+      "expected_top_tags": ["food_culinary", "nature_outdoors"],
+      "expected_cuisine_freq": 2,
+      "expected_facets": {"vibes": ["romantic"]}
+    },
+    {
+      "id": "p28",
+      "city": "Rome",
+      "prompt": "We love classical sculptures, cathedrals, and peaceful green gardens like Villa Borghese.",
+      "expected_mandatory_pois": ["Villa Borghese"],
+      "forbidden_mandatory_pois": ["Louvre Museum", "Colosseum"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "nature_outdoors"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p29",
+      "city": "London",
+      "prompt": "Free attractions, Hyde Park picnics, and British market food at Borough Market.",
+      "expected_mandatory_pois": ["Hyde Park", "Borough Market"],
+      "expected_cuisines": ["british"],
+      "expected_top_tags": ["nature_outdoors", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"budget_tier": "free"}
+    },
+    {
+      "id": "p30",
+      "city": "Tokyo",
+      "prompt": "Peaceful nature gardens like Shinjuku Gyoen and traditional history at Tokyo National Museum.",
+      "expected_mandatory_pois": ["Shinjuku Gyoen", "Tokyo National Museum"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors", "history_heritage", "art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p31",
+      "city": "Barcelona",
+      "prompt": "Modernist facades, bridges, urban architecture, and lively tapas tasting.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["tapas"],
+      "expected_top_tags": ["architecture", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["architecture", "culinary"], "vibes": ["lively"]}
+    },
+    {
+      "id": "p32",
+      "city": "New York",
+      "prompt": "Rooftop cocktail lounges, speakeasy bars, and elevated skyline observation decks.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nightlife", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p33",
+      "city": "Budapest",
+      "prompt": "Traditional Hungarian dishes, grand 19th century architecture, and no shopping malls.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["hungarian"],
+      "expected_top_tags": ["food_culinary", "architecture"],
+      "negated_tags": ["shopping"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["architecture"]}
+    },
+    {
+      "id": "p34",
+      "city": "Lisbon",
+      "prompt": "We have to see Torre de Belem and Mosteiro dos Jeronimos. Keep it affordable!",
+      "expected_mandatory_pois": ["Belem Tower", "Jeronimos Monastery"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["history_heritage", "architecture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"budget_tier": "budget"}
+    },
+    {
+      "id": "p35",
+      "city": "Amsterdam",
+      "prompt": "We're into contemporary art, photography exhibitions, and cozy wine bars.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["art"]}
+    },
+    {
+      "id": "p36",
+      "city": "Madrid",
+      "prompt": "Dinner at Sobrino de Botin and visiting Mercado de San Miguel. Focus on local gastronomy!",
+      "expected_mandatory_pois": ["Sobrino de Botin", "Mercado de San Miguel"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p37",
+      "city": "Paris",
+      "prompt": "We are NOT interested in Eiffel Tower or noisy bars. Just quiet art galleries and pastries.",
+      "expected_mandatory_pois": [],
+      "forbidden_mandatory_pois": ["Eiffel Tower"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture"],
+      "negated_tags": ["nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p38",
+      "city": "Rome",
+      "prompt": "Medieval heritage, ancient Roman ruins, and Italian food every single night.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["italian"],
+      "expected_top_tags": ["history_heritage", "food_culinary"],
+      "expected_cuisine_freq": 2,
+      "expected_facets": {"themes": ["history"]}
+    },
+    {
+      "id": "p39",
+      "city": "London",
+      "prompt": "Lots of Indian food on this trip! Plus scenic river viewpoints and historic landmarks.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["indian"],
+      "expected_top_tags": ["food_culinary", "scenic_views", "history_heritage"],
+      "expected_cuisine_freq": 2,
+      "expected_facets": {}
+    },
+    {
+      "id": "p40",
+      "city": "Tokyo",
+      "prompt": "Iconic must-see landmarks and artisan craft markets for souvenirs and antiques.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["shopping", "history_heritage"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"max_tier": 1}
+    },
+    {
+      "id": "p41",
+      "city": "Madrid",
+      "prompt": "I heard the Louvre is amazing, so I want amazing classic paintings in Madrid, maybe El Prado.",
+      "expected_mandatory_pois": ["Museo del Prado"],
+      "forbidden_mandatory_pois": ["Louvre Museum"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p42",
+      "city": "Barcelona",
+      "prompt": "Relaxing outdoor hike, panoramic horizon views, and avoid indoor museums.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors", "scenic_views"],
+      "negated_tags": ["art_culture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p43",
+      "city": "New York",
+      "prompt": "Budget-friendly walking tour of urban bridges, historic monuments, and green parks.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["architecture", "history_heritage", "nature_outdoors"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"budget_tier": "budget", "indoor_outdoor": "outdoor"}
+    },
+    {
+      "id": "p44",
+      "city": "Budapest",
+      "prompt": "Evening jazz pubs, vibrant music lounges, and late-night entertainment.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["lively"]}
+    },
+    {
+      "id": "p45",
+      "city": "Lisbon",
+      "prompt": "Portuguese seafood, scenic ocean viewpoints, and quiet cobbled streets.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": ["portuguese"],
+      "expected_top_tags": ["food_culinary", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p46",
+      "city": "Amsterdam",
+      "prompt": "Rain-friendly cultural itinerary with art exhibitions, historical buildings, and cozy bistros.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["art_culture", "history_heritage", "food_culinary"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"rain_friendly": true, "indoor_outdoor": "indoor"}
+    },
+    {
+      "id": "p47",
+      "city": "Paris",
+      "prompt": "Tour Eiffel and Louvre Museum are non-negotiable. Also interested in designer boutiques.",
+      "expected_mandatory_pois": ["Eiffel Tower", "Louvre Museum"],
+      "expected_cuisines": [],
+      "expected_top_tags": ["shopping", "art_culture", "scenic_views"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {}
+    },
+    {
+      "id": "p48",
+      "city": "Tokyo",
+      "prompt": "Must visit Ichiran for ramen and explore peaceful botanical gardens.",
+      "expected_mandatory_pois": ["Ichiran Shibuya"],
+      "expected_cuisines": ["ramen"],
+      "expected_top_tags": ["food_culinary", "nature_outdoors"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    },
+    {
+      "id": "p49",
+      "city": "Rome",
+      "prompt": "Sunset rooftop views, baroque palaces, and a lively evening wine bar.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["scenic_views", "architecture", "nightlife"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"themes": ["architecture"], "vibes": ["lively"]}
+    },
+    {
+      "id": "p50",
+      "city": "Madrid",
+      "prompt": "Just a calm, slow-paced 2-day trip with parks, architecture, and zero rush.",
+      "expected_mandatory_pois": [],
+      "expected_cuisines": [],
+      "expected_top_tags": ["nature_outdoors", "architecture"],
+      "expected_cuisine_freq": 1,
+      "expected_facets": {"vibes": ["quiet"]}
+    }
+  ]
+}

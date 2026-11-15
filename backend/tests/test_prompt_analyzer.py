@@ -1,23 +1,12 @@
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 from app.swarm.agents.prompt_analyzer import prompt_analyzer_node
 from app.swarm.state import SwarmState
-from app.schemas.rag_schema import RAGPromptAnalysis
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
-async def test_prompt_analyzer_node_extracts_preferences(mock_agent):
-    mock_run_result = MagicMock()
-    mock_run_result.output = RAGPromptAnalysis(
-        mandatory_pois=["Louvre Museum"],
-        preferred_cuisines=["french"],
-        travel_tastes=["art"],
-        tag_affinities={"art_culture": 0.95},
-        cuisine_target_frequency=2,
-    )
-    mock_agent.run = AsyncMock(return_value=mock_run_result)
-
+async def test_prompt_analyzer_node_extracts_preferences():
     state: SwarmState = {
         "messages": [
             MagicMock(
@@ -25,6 +14,22 @@ async def test_prompt_analyzer_node_extracts_preferences(mock_agent):
             )
         ],
         "validated_itinerary": {"destination_city": "Paris"},
+        "city_pois": [
+            {
+                "name": "Louvre Museum",
+                "aliases": ["The Louvre", "Louvre"],
+                "category": "MUSEUM",
+                "cuisine": None,
+                "tags": ["art_culture"],
+            },
+            {
+                "name": "Le Marais Bistro",
+                "aliases": [],
+                "category": "RESTAURANT",
+                "cuisine": "french",
+                "tags": ["food_culinary"],
+            },
+        ],
         "error_count": 0,
         "final_itinerary": None,
         "test_data": None,
@@ -47,14 +52,13 @@ async def test_prompt_analyzer_node_extracts_preferences(mock_agent):
     )
     assert "french" in val_it["preferred_cuisines"]
     assert "art" in val_it["travel_tastes"]
-    assert val_it["tag_affinities"]["art_culture"] == 0.95
-    assert val_it["cuisine_target_frequency"] == 2
+    assert val_it["tag_affinities"]["art_culture"] >= 0.65
+    assert val_it["cuisine_target_frequency"] == 1
     assert result["prompt_analysis"]["mandatory_pois"] == ["Louvre Museum"]
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
-async def test_prompt_analyzer_node_empty_prompt(mock_agent):
+async def test_prompt_analyzer_node_empty_prompt():
     state: SwarmState = {
         "messages": [],
         "validated_itinerary": {"destination_city": "Paris"},
@@ -73,16 +77,13 @@ async def test_prompt_analyzer_node_empty_prompt(mock_agent):
     result = await prompt_analyzer_node(state)
     assert "validated_itinerary" in result
     assert "prompt_analysis" in result
-    mock_agent.run.assert_not_called()
+    assert result["prompt_analysis"]["mandatory_pois"] == []
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
-async def test_prompt_analyzer_node_agent_failure_fallback(mock_agent):
-    mock_agent.run = AsyncMock(side_effect=RuntimeError("LLM connection error"))
-
+async def test_prompt_analyzer_node_general_prompt_without_named_pois():
     state: SwarmState = {
-        "messages": [MagicMock(content="Some user trip message")],
+        "messages": [MagicMock(content="Some relaxing cultural trip message in Rome")],
         "validated_itinerary": {"destination_city": "Rome"},
         "error_count": 0,
         "final_itinerary": None,
@@ -100,25 +101,35 @@ async def test_prompt_analyzer_node_agent_failure_fallback(mock_agent):
     assert "validated_itinerary" in result
     assert "prompt_analysis" in result
     assert result["validated_itinerary"]["destination_city"] == "Rome"
+    assert result["prompt_analysis"]["mandatory_pois"] == []
 
 
 @pytest.mark.asyncio
-@patch("app.swarm.agents.prompt_analyzer.prompt_analysis_agent")
-async def test_prompt_analyzer_filters_cross_city_hallucinations(mock_agent):
-    mock_run_result = MagicMock()
-    mock_run_result.output = RAGPromptAnalysis(
-        mandatory_pois=["MoMA", "Museo del Prado"],
-        preferred_cuisines=["tapas"],
-        travel_tastes=["art"],
-        tag_affinities={"art_culture": 0.9},
-        cuisine_target_frequency=1,
-    )
-    mock_agent.run = AsyncMock(return_value=mock_run_result)
-
+async def test_prompt_analyzer_filters_cross_city_hallucinations():
     state: SwarmState = {
-        "messages": [MagicMock(content="We love modern art and museums in Madrid")],
+        "messages": [
+            MagicMock(
+                content="We love modern art like MoMA and tapas in Madrid, and want to visit Museo del Prado"
+            )
+        ],
         "validated_itinerary": {"destination_city": "Madrid"},
         "destination_city": "Madrid",
+        "city_pois": [
+            {
+                "name": "Museo del Prado",
+                "aliases": ["El Prado"],
+                "category": "MUSEUM",
+                "cuisine": None,
+                "tags": ["art_culture"],
+            },
+            {
+                "name": "Mercado de San Miguel",
+                "aliases": [],
+                "category": "RESTAURANT",
+                "cuisine": "tapas",
+                "tags": ["food_culinary"],
+            },
+        ],
         "error_count": 0,
         "final_itinerary": None,
         "test_data": None,
@@ -133,7 +144,7 @@ async def test_prompt_analyzer_filters_cross_city_hallucinations(mock_agent):
 
     result = await prompt_analyzer_node(state)
     val_it = result["validated_itinerary"]
-    # MoMA should be filtered out because destination is Madrid
     assert not any(n["poi_id"] == "MoMA" for n in val_it.get("nodes", []))
     assert any(n["poi_id"] == "Museo del Prado" for n in val_it.get("nodes", []))
     assert result["prompt_analysis"]["mandatory_pois"] == ["Museo del Prado"]
+    assert "tapas" in result["prompt_analysis"]["preferred_cuisines"]

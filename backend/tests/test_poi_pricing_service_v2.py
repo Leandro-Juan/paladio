@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -93,24 +93,14 @@ def test_resolve_price_wikivoyage():
 
 @pytest.mark.asyncio
 async def test_official_website_literal_verification_success():
-    from app.services.poi_pricing_service import POIPriceExtraction
-
     html_content = "<html><body><h1>Welcome to Modern Art</h1><p>General admission ticket: 14.50 EUR for adults.</p></body></html>"
     mock_resp = httpx.Response(
         200,
         text=html_content,
         request=httpx.Request("GET", "https://modernart.example.com"),
     )
-    mock_extraction = POIPriceExtraction(price_eur=14.50, is_free=False)
 
-    with (
-        patch("httpx.AsyncClient.get", return_value=mock_resp),
-        patch(
-            "app.services.poi_pricing_service.LLMService.run_structured_extraction",
-            new_callable=AsyncMock,
-            return_value=mock_extraction,
-        ),
-    ):
+    with patch("httpx.AsyncClient.get", return_value=mock_resp):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",
             poi_name="Modern Art Museum",
@@ -122,33 +112,60 @@ async def test_official_website_literal_verification_success():
 
 
 @pytest.mark.asyncio
-async def test_official_website_literal_verification_rejection():
-    from app.services.poi_pricing_service import POIPriceExtraction
+async def test_official_website_jsonld_and_free_extraction():
+    html_jsonld = (
+        '<html><head><script type="application/ld+json">'
+        '{"@type": "TouristAttraction", "offers": {"price": "18.00", "priceCurrency": "EUR"}}'
+        "</script></head><body><h1>Gallery</h1></body></html>"
+    )
+    mock_resp_jsonld = httpx.Response(
+        200,
+        text=html_jsonld,
+        request=httpx.Request("GET", "https://gallery.example.com"),
+    )
+    with patch("httpx.AsyncClient.get", return_value=mock_resp_jsonld):
+        cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
+            website_url="https://gallery.example.com",
+            poi_name="National Gallery",
+            city="Madrid",
+        )
+        assert cost == 18.00
+        assert is_est is False
+        assert src == "official_website_literal_verified"
 
-    # LLM returns a hallucinated price that does not appear in source text!
+    html_free = "<html><body><p>Museum entry is free admission daily for all visitors.</p></body></html>"
+    mock_resp_free = httpx.Response(
+        200,
+        text=html_free,
+        request=httpx.Request("GET", "https://free-museum.example.com"),
+    )
+    with patch("httpx.AsyncClient.get", return_value=mock_resp_free):
+        cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
+            website_url="https://free-museum.example.com",
+            poi_name="Free Museum",
+            city="London",
+        )
+        assert cost == 0.0
+        assert is_est is False
+        assert src == "official_website_literal_verified"
+
+
+@pytest.mark.asyncio
+async def test_official_website_missing_or_unverified_price_rejected():
+    # Text mentions tickets without any numeric price -> must return no_price_extracted
     html_content = "<html><body><h1>Welcome to Modern Art</h1><p>Enjoy our exhibits with a day ticket.</p></body></html>"
     mock_resp = httpx.Response(
         200,
         text=html_content,
         request=httpx.Request("GET", "https://modernart.example.com"),
     )
-    # 25.00 never appears in HTML!
-    mock_extraction = POIPriceExtraction(price_eur=25.00, is_free=False)
 
-    with (
-        patch("httpx.AsyncClient.get", return_value=mock_resp),
-        patch(
-            "app.services.poi_pricing_service.LLMService.run_structured_extraction",
-            new_callable=AsyncMock,
-            return_value=mock_extraction,
-        ),
-    ):
+    with patch("httpx.AsyncClient.get", return_value=mock_resp):
         cost, is_est, src = await PoiPricingService.scrape_and_verify_official_price(
             website_url="https://modernart.example.com",
             poi_name="Modern Art Museum",
             city="Madrid",
         )
-        # Must be rejected!
         assert cost is None
         assert is_est is True
-        assert src == "literal_verification_failed"
+        assert src == "no_price_extracted"

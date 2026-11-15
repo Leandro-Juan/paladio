@@ -1,91 +1,110 @@
 import os
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import HumanMessage
 
-os.environ.setdefault("OLLAMA_BASE_URL", "http://localhost:11435")
-os.environ.setdefault("ROUTER_MODEL", "llama3.1:latest")
-os.environ.setdefault("VALIDATOR_MODEL", "llama3.1:latest")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from app.swarm.graph import graph
-from app.infrastructure.providers.travel_data import DefaultTravelDataProvider
-
-
-import urllib.request
-import urllib.error
-
-
-def is_ollama_running():
-    urls = [
-        os.getenv("OLLAMA_BASE_URL", "").rstrip("/"),
-        "http://127.0.0.1:11435",
-        "http://localhost:11435",
-        "http://llm:11434",
-        "http://localhost:11434",
-    ]
-    for url in urls:
-        if not url:
-            continue
-        try:
-            urllib.request.urlopen(f"{url}/", timeout=1)
-            return True
-        except Exception:
-            continue
-    return False
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="LLM inference too slow for local tests")
-@pytest.mark.skipif(
-    not is_ollama_running(),
-    reason="Requires a live local Ollama container running llama3.1 on port 11435",
-)
 async def test_full_trip_generation():
-    prompt = "Plan a 2 day trip from London to Oporto with a budget of 500 dollars. I want breakfast, lunch, and dinner each day."
+    """Verify full free-text booking + prompt trip generation runs offline with zero LLM calls."""
+    today = datetime.now(timezone.utc).date()
+    start_dt = today + timedelta(days=10)
+    end_dt = today + timedelta(days=12)
+    start_str = start_dt.isoformat()
+    end_str = end_dt.isoformat()
 
-    initial_state = {
-        "messages": [HumanMessage(content=prompt)],
-        "intent": "REACTIVE_PLANNING",
-        "error_count": 0,
-        "test_data": {
-            "flights": [
-                {"price": 50, "arrival_time": "10:00", "departure_time": "08:00"}
-            ],
-            "return_flights": [
-                {"price": 50, "arrival_time": "20:00", "departure_time": "18:00"}
-            ],
-            "hotels": [
-                {
-                    "name": "Test Hotel",
-                    "location": {"latitude": 0, "longitude": 0},
-                    "financials": {"price_per_night": 100},
-                }
-            ],
-            "restaurants": [
-                {"name": "Test Rest", "location": {"latitude": 0, "longitude": 0}}
-            ],
-            "pois": [
-                {
-                    "name": "Test POI",
-                    "category": "ATTRACTION",
-                    "location": {"latitude": 0, "longitude": 0},
-                    "financials": {"estimated_cost": 10},
-                    "schedule": {"recommended_duration_minutes": 60},
-                }
-            ],
-        },
-    }
-
-    # Run graph with test_data injected to bypass actual scraping in CI
-    provider = DefaultTravelDataProvider(test_data=initial_state["test_data"])
-    final_state = await graph.ainvoke(
-        initial_state,
-        config={
-            "configurable": {"thread_id": "test_e2e", "travel_data_provider": provider}
-        },
+    booking_text = (
+        f"Flight BA482 from LHR to OPO departing {start_str} 08:30 arriving {start_str} 10:50. "
+        f"Return OPO to LHR on {end_str} 18:00. "
+        f"Booked at The Yeatman Hotel in Porto from {start_str} to {end_str}."
+    )
+    prompt = (
+        "Plan a 2 day trip to Porto with scenic riverfront views, historic architecture, "
+        "and Portuguese seafood dinner."
     )
 
-    assert "final_itinerary" in final_state, "Should generate an itinerary"
-    assert "days" in final_state["final_itinerary"]
+    state = {
+        "booking_text": booking_text,
+        "manual_constraints": {
+            "budget_usd": 500.0,
+            "meals": [
+                {"meal_type": "LUNCH", "start_time": "12:30", "end_time": "14:00"},
+                {"meal_type": "DINNER", "start_time": "19:30", "end_time": "21:30"},
+            ],
+        },
+        "messages": [HumanMessage(content=prompt)],
+        "auto_verify": True,
+        "error_count": 0,
+    }
+
+    config = {
+        "configurable": {
+            "thread_id": "test_offline_e2e",
+            "user_id": "test_offline_user",
+            "engine": MagicMock(),
+            "travel_data_provider": MagicMock(),
+        }
+    }
+
+    offline_error = AssertionError(
+        "Offline trip generation must not invoke LLM or network"
+    )
+
+    with (
+        patch(
+            "app.services.llm_service.LLMService.run_structured_extraction",
+            new_callable=AsyncMock,
+            side_effect=offline_error,
+        ),
+        patch("urllib.request.urlopen", side_effect=offline_error),
+        patch(
+            "app.swarm.nodes.guardrails._find_overlapping_trip",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.swarm.graph.FetchTravelContextUseCase.execute",
+            new_callable=AsyncMock,
+            return_value={"daily_pois_data": [[], []]},
+        ),
+        patch(
+            "app.swarm.graph.OptimizeDailyItineraryUseCase.execute",
+            new_callable=AsyncMock,
+            return_value={
+                "days": [
+                    {
+                        "day": 1,
+                        "itinerary": {"path": [{"poi": {"name": "The Yeatman Hotel"}}]},
+                    },
+                    {
+                        "day": 2,
+                        "itinerary": {"path": [{"poi": {"name": "Ribeira District"}}]},
+                    },
+                ]
+            },
+        ),
+    ):
+        final_state = await graph.ainvoke(state, config=config)
+
+    assert final_state.get("booking_anchors") is not None
+    assert final_state["booking_anchors"]["outbound_flight"]["origin_iata"] == "LHR"
+    assert (
+        final_state["booking_anchors"]["outbound_flight"]["destination_iata"] == "OPO"
+    )
+    assert final_state["booking_anchors"]["hotel"]["city"] == "Porto"
+
+    assert final_state.get("validated_itinerary") is not None
+    assert final_state["validated_itinerary"]["destination_city"] == "Porto"
+    assert final_state["validated_itinerary"]["origin_city"] == "London"
+
+    assert final_state.get("prompt_analysis") is not None
+    assert "scenic_views" in final_state["prompt_analysis"]["tag_affinities"]
+
+    assert final_state.get("final_itinerary") is not None
     assert len(final_state["final_itinerary"]["days"]) == 2

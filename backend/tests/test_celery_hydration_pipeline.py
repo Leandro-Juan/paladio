@@ -194,7 +194,7 @@ async def test_run_enrich_tier12_city_pois():
             return_value={},
         ),
         patch(
-            "app.infrastructure.providers.ollama_embedding_provider.OllamaEmbeddingProvider.embed_batch",
+            "app.infrastructure.providers.onnx_embedding_provider.OnnxEmbeddingProvider.embed_batch",
             new_callable=AsyncMock,
             return_value=[fake_vector],
         ),
@@ -257,7 +257,7 @@ async def test_run_enrich_long_tail_city_pois():
             return_value=(mock_session_maker, mock_engine),
         ),
         patch(
-            "app.infrastructure.providers.ollama_embedding_provider.OllamaEmbeddingProvider.embed_batch",
+            "app.infrastructure.providers.onnx_embedding_provider.OnnxEmbeddingProvider.embed_batch",
             new_callable=AsyncMock,
             return_value=[fake_vector],
         ),

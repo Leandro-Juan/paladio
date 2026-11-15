@@ -122,7 +122,7 @@ async def test_search_category_transit_returns_empty(async_client: AsyncClient):
 async def test_search_free_text_excludes_transit(async_client: AsyncClient):
     """Free text search for a station name should not return transit rows."""
     with patch(
-        "app.api.pois.OllamaEmbeddingProvider.embed_text",
+        "app.api.pois.OnnxEmbeddingProvider.embed_text",
         new=AsyncMock(return_value=[0.0] * 768),
     ):
         resp = await async_client.get(

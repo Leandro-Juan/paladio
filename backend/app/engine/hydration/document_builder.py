@@ -1,4 +1,4 @@
-"""Versioned POI Document Builder for Paladio Itinerary Engine (VERSION = 2).
+"""Versioned POI Document Builder for Paladio Itinerary Engine (VERSION = 3).
 
 Transforms structured OpenStreetMap tags, Wikidata claims, Wikipedia extracts,
 and facets into high-entropy, boilerplate-free, noise-free documents for dense vector embedding.
@@ -13,7 +13,7 @@ import hashlib
 import re
 from typing import Any
 
-DOCUMENT_VERSION = 2
+DOCUMENT_VERSION = 3
 
 
 class PoiDocumentBuilder:
@@ -31,7 +31,7 @@ class PoiDocumentBuilder:
     def needs_reembedding(
         cls,
         poi: Any,
-        current_model: str = "nomic-embed-text",
+        current_model: str = "nomic-ai/nomic-embed-text-v1.5-Q",
     ) -> bool:
         """Determines whether a POI requires (re-)embedding."""
         emb = (

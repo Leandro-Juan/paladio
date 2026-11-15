@@ -64,10 +64,10 @@ graph TD
 ## 3. Node Specifications
 
 ### 3.1. `ticket_parser_node` (`backend/app/swarm/agents/ticket_parser.py`)
-- **Agent Type:** Pydantic AI `Agent` backed by local quantized Ollama model (`qwen2.5`).
+- **Node Type:** Pure deterministic booking parser (`parse_booking_text` using IATA lookup, regex, and `dateparser` with zero LLM calls).
 - **Input:** `state["booking_text"]`.
 - **Output:** Mutates `state["booking_anchors"]` with a typed `BookingAnchors` instance.
-- **Error Boundary:** Retries up to 3 times on schema failure. Strips dummy placeholder codes (e.g. `'XXX'`).
+- **Error Boundary:** Fails fast with `BookingParseError` (`status_code = 422`) listing missing fields if non-empty `booking_text` cannot be parsed and no prior anchors exist.
 
 ### 3.2. `assemble_constraints_node` (`backend/app/swarm/nodes/constraint_builder.py`)
 - **Node Type:** Pure deterministic Python function (zero LLM calls).
@@ -89,7 +89,7 @@ graph TD
 - **Soft Overlap Guardrail:** Queries PostgreSQL (`TripModel`) for scheduled trip date overlaps. Clashes trigger `interrupt({"type": "TRIP_OVERLAP_WARNING", ...})` displaying an amber warning modal (`#D97706`, zero emojis). Resumes to downstream optimization if confirmed (`PROCEED`) or cleanly terminates if aborted (`ABORT`).
 
 ### 3.5. `prompt_analyzer_node` (`backend/app/swarm/agents/prompt_analyzer.py`)
-- **Agent Type:** Pydantic AI `Agent` running `RAGPromptAnalysis`.
+- **Node Type:** Deterministic intent analyzer (`PromptIntentExtractor` using DB/candidate `rapidfuzz` POI matching, dynamic cuisine lookup, ONNX 768D `CATEGORY_ANCHORS` projection, and `QueryRewriter.rewrite_query`).
 - **Functionality:** Extracts mandatory POIs (e.g., *"El Prado"*), preferred cuisines, trip pacing, and 8 standard tag affinities:
   `['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']`.
 - **Output:** Enriches `state["validated_itinerary"]` and outputs `state["prompt_analysis"]`.

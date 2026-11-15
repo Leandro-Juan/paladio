@@ -1,62 +1,23 @@
 import logging
-import os
 
+from app.engine.nlp.intent_extractor import PromptIntentExtractor
 from app.schemas.itinerary import NodeConstraint, TravelConstraints
 from app.schemas.rag_schema import RAGPromptAnalysis
 from app.swarm.state import SwarmState
-from app.services.llm_service import LLMService
-from pydantic_ai import Agent
 
 logger = logging.getLogger(__name__)
 
 
-def get_prompt_model():
-    model_override = os.getenv("PROMPT_ANALYSIS_MODEL")
-    active_cfg = LLMService._cached_config or LLMService.get_fallback_config()
-    if (
-        model_override
-        and model_override.startswith("ollama:")
-        and active_cfg.provider != "ollama"
-    ):
-        model_override = None
-    return LLMService.get_model(model_name=model_override)
-
-
-prompt_analysis_agent = Agent(
-    name="prompt_analyzer",
-    output_type=RAGPromptAnalysis,
-    retries=2,
-    instructions=(
-        "You analyze user travel requests to extract mandatory POIs, preferred cuisines, travel tastes, and tag affinities. "
-        "IMPORTANT: You MUST use the `final_result` tool to return your answer. Do not output raw text. "
-        "Extract: "
-        "- `mandatory_pois`: Specific landmarks, museums, or places the user EXPLICITLY named in their request that they MUST or NEED to visit located in the Destination City. "
-        "CRITICAL RULES FOR MANDATORY POIS: "
-        "1. NEVER invent or infer specific attractions from general interests (e.g. 'we love modern art' does NOT mean 'MoMA' or any other specific museum; it only sets 'art_culture' affinity). "
-        "2. NEVER extract famous international attractions located outside the destination city (e.g. do NOT extract MoMA or Louvre unless the trip destination is explicitly New York or Paris). "
-        "3. If no specific real attraction name in the destination city was explicitly requested by the user, return an empty list [] for mandatory_pois. "
-        "- `preferred_cuisines`: Cuisines or food types mentioned (e.g. 'indian', 'italian', 'tapas'). "
-        "- `travel_tastes`: Desired atmospheres, trip styles, or activities (e.g. 'bar', 'relaxed', 'cultural', 'art'). "
-        "- `tag_affinities`: Dictionary with estimated affinity weights (0.0 to 1.0) for any relevant standard tags from: "
-        "['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']. "
-        "- `cuisine_target_frequency`: 1 or 2 meal slots for requested preferred cuisine across the trip. "
-        "- `semantic_subqueries`: 2-4 expanded dense retrieval queries in English and local destination language capturing the user's specific travel desires. "
-        "- `required_facets`: Key-value pairs for explicit constraints (e.g. {'rain_friendly': true, 'indoor_outdoor': 'indoor'})."
-    ),
-)
-
-
 async def prompt_analyzer_node(state: SwarmState) -> dict:
     """
-    LLM-powered prompt analyzer node:
+    Deterministic prompt analyzer node (LLM-free):
     1. Collects human messages from state.
-    2. Runs LLM prompt analysis (qwen2.5) to extract mandatory POIs, tastes, and tag affinities.
+    2. Runs PromptIntentExtractor (ONNX 768D anchor projection + DB POI fuzzy matching + rule rewriter).
     3. Updates validated_itinerary constraints with extracted values.
     4. Emits prompt_analysis and updated validated_itinerary to state.
     """
     logger.info("--- [PHASE: PROMPT_ANALYSIS] Analyzing user prompt & preferences ---")
 
-    # 1. Collect all human messages
     user_messages = []
     messages = state.get("messages") or []
     for msg in messages:
@@ -76,65 +37,33 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
     dest_city = (
         validated.get("destination_city") or state.get("destination_city") or "Unknown"
     )
-    agent_input = (
-        f"Destination City: {dest_city}\nUser Request: {full_prompt}"
-        if dest_city != "Unknown"
-        else full_prompt
-    )
     user_lang = state.get("user_language")
-    if user_lang and user_lang != "en":
-        agent_input += f"\nUser Preferred Language: {user_lang}. Ensure output travel tastes and subqueries accommodate this language."
 
-    # 2. Run LLM Analysis on the prompt
     analysis = RAGPromptAnalysis()
     if full_prompt.strip():
-        model = get_prompt_model()
         try:
-            res = await prompt_analysis_agent.run(agent_input, model=model)
-            analysis = res.output
-
-            # Filter out obvious cross-city hallucinations when destination is known
-            known_cross_city = {
-                "moma": "new york",
-                "museum of modern art": "new york",
-                "louvre": "paris",
-                "louvre museum": "paris",
-                "eiffel tower": "paris",
-                "colosseum": "rome",
-                "sagrada familia": "barcelona",
-                "statue of liberty": "new york",
-                "british museum": "london",
-                "tower of london": "london",
-            }
-            if dest_city.lower() != "unknown":
-                clean_mand = []
-                for p_name in analysis.mandatory_pois:
-                    norm = p_name.lower().strip()
-                    exp_city = known_cross_city.get(norm)
-                    if exp_city and exp_city != dest_city.lower():
-                        logger.warning(
-                            f"Filtered out cross-city hallucinated POI '{p_name}' (exclusive to {exp_city.title()}) for destination '{dest_city}'."
-                        )
-                        continue
-                    clean_mand.append(p_name)
-                analysis.mandatory_pois = clean_mand
-
+            analysis = await PromptIntentExtractor.extract(
+                prompt=full_prompt,
+                destination_city=dest_city,
+                user_language=user_lang,
+                state=state,
+            )
             logger.info(
-                f"LLM Prompt Analysis result: mandatory_pois={analysis.mandatory_pois}, "
+                f"Deterministic Prompt Analysis result: mandatory_pois={analysis.mandatory_pois}, "
                 f"preferred_cuisines={analysis.preferred_cuisines}, travel_tastes={analysis.travel_tastes}, "
                 f"tag_affinities={analysis.tag_affinities}"
             )
         except Exception as e:
-            logger.warning(f"LLM prompt analysis failed, proceeding with defaults: {e}")
+            logger.warning(
+                f"Deterministic prompt analysis failed, proceeding with defaults: {e}"
+            )
 
-    # 3. Update validated_itinerary constraints with extracted mandatory POIs and tastes
     constraints_dict = dict(validated)
     if full_prompt.strip():
         constraints_dict["prompt"] = full_prompt.strip()
     elif state_prompt:
         constraints_dict["prompt"] = state_prompt
 
-    # Existing nodes
     existing_nodes = constraints_dict.get("nodes") or []
     node_map = {}
     for n in existing_nodes:
@@ -143,7 +72,6 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
         elif isinstance(n, NodeConstraint):
             node_map[n.poi_id.lower()] = n.model_dump(mode="json")
 
-    # Inject LLM-extracted mandatory POIs
     for m_poi in analysis.mandatory_pois:
         m_key = m_poi.lower().strip()
         if m_key not in node_map:
@@ -155,7 +83,6 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
 
     constraints_dict["nodes"] = list(node_map.values())
 
-    # Add preferred_cuisines and travel_tastes
     existing_cuisines = constraints_dict.get("preferred_cuisines") or []
     combined_cuisines = list(
         dict.fromkeys(existing_cuisines + analysis.preferred_cuisines)
@@ -166,7 +93,6 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
     combined_tastes = list(dict.fromkeys(existing_tastes + analysis.travel_tastes))
     constraints_dict["travel_tastes"] = combined_tastes
 
-    # Add tag_affinities from prompt analysis
     existing_tag_affinities = dict(constraints_dict.get("tag_affinities") or {})
     if analysis.tag_affinities:
         existing_tag_affinities.update(analysis.tag_affinities)

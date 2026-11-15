@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -9,7 +10,6 @@ import httpx
 from app.db.models import TransitFareModel, TransitFareQuoteModel
 from app.domain.entities.poi import TransitRecommendation, TransitStep
 from app.domain.reference.iso_currencies import from_minor_units
-from app.services.llm_service import LLMService
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -521,45 +521,225 @@ class TransitFareService:
                 logger.warning(f"Wikivoyage fetch failed for '{city}': {e}")
                 return None
 
+    _PRICE_TOKEN_RE = re.compile(
+        r"(?:"
+        r"(?P<pre_curr>US\$|C\$|A\$|[€£$¥]|(?:CHF|EUR|GBP|USD|JPY|HUF|CZK|PLN|SEK|NOK|DKK|CAD|AUD)\b)\s*(?P<pre_num>\d{1,5}(?:[.,]\d{1,2})?)"
+        r"|"
+        r"(?P<post_num>\d{1,5}(?:[.,]\d{1,2})?)\s*(?P<post_curr>[€£$¥円]|(?:Ft|Kč|zł|kr|EUR|GBP|USD|JPY|CHF|HUF|CZK|PLN|SEK|NOK|DKK|CAD|AUD)\b)"
+        r")",
+        re.IGNORECASE,
+    )
+
+    _CURR_MAP: dict[str, str] = {
+        "€": "EUR",
+        "£": "GBP",
+        "$": "USD",
+        "US$": "USD",
+        "C$": "CAD",
+        "A$": "AUD",
+        "¥": "JPY",
+        "円": "JPY",
+        "FT": "HUF",
+        "KČ": "CZK",
+        "ZŁ": "PLN",
+        "KR": "SEK",
+    }
+
+    _ISO_CURRENCIES: set[str] = {
+        "EUR",
+        "GBP",
+        "USD",
+        "JPY",
+        "CHF",
+        "HUF",
+        "CZK",
+        "PLN",
+        "SEK",
+        "NOK",
+        "DKK",
+        "CAD",
+        "AUD",
+        "MXN",
+        "SGD",
+        "HKD",
+        "THB",
+        "TRY",
+    }
+
     @classmethod
-    async def extract_fare_with_llm(
-        cls, city: str, context: str, db: AsyncSession | None = None
+    def _extract_price_and_currency(cls, snippet: str) -> tuple[float, str] | None:
+        """Extracts the first positive price and ISO currency code from a text snippet."""
+        for m in cls._PRICE_TOKEN_RE.finditer(snippet):
+            if m.start() > 0 and snippet[m.start() - 1] == "-":
+                continue
+            raw_curr = (
+                (m.group("pre_curr") or m.group("post_curr") or "").strip().upper()
+            )
+            raw_num = (m.group("pre_num") or m.group("post_num") or "").strip()
+            if not raw_curr or not raw_num:
+                continue
+            if re.fullmatch(r"\d{1,3}(?:,\d{3})+", raw_num):
+                norm_num = raw_num.replace(",", "")
+            else:
+                norm_num = raw_num.replace(",", ".")
+            try:
+                val = float(norm_num)
+            except ValueError:
+                continue
+            if val <= 0.0:
+                continue
+            currency = cls._CURR_MAP.get(raw_curr, raw_curr)
+            return round(val, 2), currency
+        return None
+
+    @classmethod
+    def extract_fare_from_text(
+        cls, city: str, context: str
     ) -> TransitFareExtractionSchema | None:
         """
-        Extracts structured transit tariff details using configured LLM with Pydantic AI.
+        Deterministically extracts structured transit tariff details from Wikivoyage/web prose.
+        Returns None if no grounded single-ride fare can be extracted.
         """
-        prompt = (
-            f"You are a public transit pricing extraction specialist. Analyze the travel context for '{city}' below.\n"
-            f"Extract the exact pricing details from the context:\n"
-            f"- agency_name: Official transport authority or operator name (e.g. BVG, TfL, MTA, GVB, Wiener Linien)\n"
-            f"- single_fare: Numeric single journey ticket fare in native currency\n"
-            f"- currency: 3-letter ISO currency code (e.g. EUR, GBP, USD, JPY)\n"
-            f"- evidence_quote: An EXACT, verbatim sentence or phrase from the context that mentions the single ticket price. Do NOT summarize or invent text.\n"
-            f"- day_pass_name: Name of the 24-hour pass if mentioned, or null\n"
-            f"- day_pass_fare: Numeric 24-hour pass price if mentioned, or null\n"
-            f"- airport_surcharge: Numeric airport supplement or 0.0\n"
-            f"- airport_station_keywords: list of airport station tokens\n"
-            f"- source_url: Official website URL if mentioned in text, or null\n\n"
-            f"Context:\n{context}\n"
+        if not context or not context.strip():
+            return None
+
+        sentences = [
+            s.strip()
+            for s in re.split(r"(?<=[!?])\s+|\.(?=\s+[A-Z0-9\[]|\s*$)|\n+", context)
+            if s.strip()
+        ]
+        # Preserve trailing period when splitting at `.` so verbatim quotes match original sentences
+        raw_sentences: list[str] = []
+        cursor = 0
+        for part in sentences:
+            idx = context.find(part, cursor)
+            if idx != -1:
+                end = idx + len(part)
+                if end < len(context) and context[end] == ".":
+                    raw_sentences.append(context[idx : end + 1].strip())
+                    cursor = end + 1
+                else:
+                    raw_sentences.append(part)
+                    cursor = end
+            else:
+                raw_sentences.append(part)
+
+        single_strong_re = re.compile(
+            r"\bsingle\s+(?:ticket|fare|journey|ride|trip)\b|\bone[- ]way\s+(?:ticket|fare)\b|\b(?:standard|regular)\s+(?:ticket|fare)\b|\badult\s+(?:single|ticket|fare)\b",
+            re.IGNORECASE,
         )
-        instructions = (
-            "You extract structured public transit pricing information strictly matching the schema. "
-            "You must ensure evidence_quote is verbatim from the provided context."
+        single_soft_re = re.compile(
+            r"\b(?:metro|subway|bus|tram|ticket|fare)\b",
+            re.IGNORECASE,
+        )
+        non_single_re = re.compile(
+            r"\b(?:day\s+ticket|day\s+pass|24[- ]?h(?:our)?|weekly|monthly|tageskarte|airport\s+(?:supplement|surcharge|express))\b",
+            re.IGNORECASE,
         )
 
-        try:
-            parsed = await LLMService.run_structured_extraction(
-                output_type=TransitFareExtractionSchema,
-                prompt=prompt,
-                instructions=instructions,
-                session=db,
-            )
-            if parsed and parsed.single_fare and parsed.single_fare > 0:
-                return parsed
-        except Exception as e:
-            logger.warning(f"LLM fare extraction failed for {city}: {e}")
+        best_single: tuple[int, str, float, str] | None = None
+        for sent in raw_sentences:
+            cleaned = sent.replace("''", "")
+            parsed = cls._extract_price_and_currency(cleaned)
+            if not parsed:
+                continue
+            price_val, curr = parsed
+            is_strong = bool(single_strong_re.search(cleaned))
+            is_soft = bool(single_soft_re.search(cleaned))
+            has_non_single = bool(non_single_re.search(cleaned))
+            if not is_strong and not is_soft:
+                continue
+            if has_non_single and not is_strong:
+                continue
+            score = (3 if is_strong else 1) - (1 if has_non_single else 0)
+            if best_single is None or score > best_single[0]:
+                best_single = (score, sent, price_val, curr)
 
-        return None
+        if best_single is None:
+            return None
+
+        _, evidence_quote, single_fare, currency = best_single
+
+        # Extract 24h/day pass if mentioned
+        day_pass_re = re.compile(
+            r"\b((?:single\s+)?(?:day\s+ticket|day\s+pass|24[- ]?h(?:our)?\s*(?:ticket|pass|card)|1[- ]day\s*(?:ticket|pass)|tageskarte|abonnement\s+jour))\b",
+            re.IGNORECASE,
+        )
+        day_pass_fare: float | None = None
+        day_pass_name: str | None = None
+        for sent in raw_sentences:
+            cleaned = sent.replace("''", "")
+            dp_m = day_pass_re.search(cleaned)
+            if not dp_m:
+                continue
+            # Prefer price from day-pass substring onward
+            tail = cleaned[dp_m.start() :]
+            dp_price = cls._extract_price_and_currency(
+                tail
+            ) or cls._extract_price_and_currency(cleaned)
+            if dp_price:
+                day_pass_fare = dp_price[0]
+                paren_m = re.search(r"\(([^()]{3,50})\)", tail)
+                if paren_m:
+                    day_pass_name = paren_m.group(1).strip()
+                else:
+                    day_pass_name = dp_m.group(1).strip()
+                break
+
+        # Extract airport surcharge if mentioned
+        airport_re = re.compile(
+            r"\b(?:airport\s+(?:supplement|surcharge|fee|differential)|(?:supplement|surcharge)\s+(?:for|to|from)\s+(?:the\s+)?airport)\b",
+            re.IGNORECASE,
+        )
+        airport_surcharge = 0.0
+        for sent in raw_sentences:
+            cleaned = sent.replace("''", "")
+            ap_m = airport_re.search(cleaned)
+            if ap_m:
+                ap_price = cls._extract_price_and_currency(cleaned[ap_m.start() :])
+                if ap_price:
+                    airport_surcharge = ap_price[0]
+                    break
+
+        # Airport station keywords present in text
+        context_lower = context.lower()
+        airport_station_keywords = [
+            kw for kw in GENERIC_AIRPORT_KEYWORDS if kw in context_lower
+        ]
+
+        # Extract agency name syntactically
+        agency_name: str | None = None
+        for pat in (
+            r"\bthe\s+([A-Z][A-Za-z0-9&\-]{1,20}(?:\s+[A-Z][A-Za-z0-9&\-]{1,15})?)\s+(?:operates|runs|manages)\b",
+            r"\b([A-Z]{2,8})\s+(?:operates|runs|manages)\b",
+            r"\boperated\s+by\s+(?:the\s+)?([A-Z][A-Za-z0-9&\-]{1,20}(?:\s+[A-Z][A-Za-z0-9&\-]{1,15})?)\b",
+            r"\babout\s+([A-Z]{2,8})\b",
+        ):
+            ag_m = re.search(pat, context.replace("''", ""))
+            if ag_m:
+                cand = ag_m.group(1).strip()
+                if cand.upper() not in cls._ISO_CURRENCIES:
+                    agency_name = cand
+                    break
+
+        if not agency_name:
+            city_base = re.split(r"[,\(]", city)[0].strip().title()
+            agency_name = f"{city_base} Transit" if city_base else "Official Transit"
+
+        url_m = re.search(r"https?://[^\s<>\"'\)\]]+", context)
+        source_url = url_m.group(0).rstrip(".,;:") if url_m else None
+
+        return TransitFareExtractionSchema(
+            agency_name=agency_name,
+            single_fare=single_fare,
+            currency=currency,
+            evidence_quote=evidence_quote,
+            day_pass_name=day_pass_name,
+            day_pass_fare=day_pass_fare,
+            airport_surcharge=airport_surcharge,
+            airport_station_keywords=airport_station_keywords,
+            source_url=source_url,
+        )
 
     @classmethod
     async def resolve_city_transit_fare(
@@ -569,7 +749,7 @@ class TransitFareService:
         Multi-tier sovereign tariff resolver:
         Tier 1: Process In-Memory Cache (O(1))
         Tier 2: PostgreSQL Database Persistence
-        Tier 3: Sovereign Live Web Discovery (Wikivoyage API) + Dynamic LLM Structured Extraction
+        Tier 3: Sovereign Live Web Discovery (Wikivoyage API) + Deterministic Grounded Extraction
         Tier 4: Anti-Crash Resilient Baseline Fallback
         """
         city_key = CityTransitFareCache.normalize_city(city)
@@ -592,11 +772,11 @@ class TransitFareService:
         except (SQLAlchemyError, RuntimeError, OSError, ValueError, KeyError) as e:
             logger.debug(f"Database lookup skipped or failed for '{city_key}': {e}")
 
-        # Tier 3: Live Web Discovery + Dynamic LLM Grounded Extraction
+        # Tier 3: Live Web Discovery + Deterministic Grounded Extraction
         try:
             context = await cls.fetch_wikivoyage_transit_text(city_key)
             if context:
-                extracted = await cls.extract_fare_with_llm(city_key, context, db=db)
+                extracted = cls.extract_fare_from_text(city_key, context)
                 if extracted and extracted.single_fare:
                     # Strict Grounded Verbatim Verification:
                     clean_quote = (extracted.evidence_quote or "").strip()
@@ -624,19 +804,14 @@ class TransitFareService:
                         )
                         if not (quote_valid and num_valid):
                             logger.warning(
-                                f"Rejecting ungrounded LLM extraction for '{city_key}': quote_valid={quote_valid}, num_valid={num_valid}"
+                                f"Rejecting ungrounded fare extraction for '{city_key}': quote_valid={quote_valid}, num_valid={num_valid}"
                             )
                             extracted = None
 
                     if extracted and extracted.single_fare:
-                        raw_agency = (extracted.agency_name or "Official").strip()
-                        # Guard against LLM echoing the prompt instruction text
-                        if (
-                            "Official transport authority" in raw_agency
-                            or "e.g." in raw_agency
-                        ):
-                            raw_agency = city_key.title() + " Transit"
-                        agency_name = raw_agency
+                        agency_name = (
+                            extracted.agency_name or f"{city_key.title()} Transit"
+                        ).strip()
                         agency_slug = (
                             agency_name.lower().replace(" ", "_").replace("/", "_")
                         )

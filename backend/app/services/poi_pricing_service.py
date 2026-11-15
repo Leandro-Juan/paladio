@@ -10,6 +10,7 @@ Fallback: Category benchmark estimation with cost_is_estimated=True.
 """
 
 import asyncio
+import json
 import logging
 import re
 import unicodedata
@@ -20,18 +21,11 @@ import httpx
 from app.db.models import CityModel, PoiPriceCatalogModel
 from app.db.seeds.poi_prices import INITIAL_VERIFIED_PRICES
 from app.engine.currency import convert_currency
-from app.services.llm_service import LLMService
 from app.utils.opening_hours_parser import parse_osm_opening_hours
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-class POIPriceExtraction(BaseModel):
-    price_eur: float | None = None
-    is_free: bool = False
 
 
 @dataclass
@@ -393,17 +387,81 @@ class PoiPricingService:
         return cost, True, "category_benchmark_estimate"
 
     @classmethod
+    def _extract_jsonld_price(
+        cls, raw_html: str, city: str
+    ) -> tuple[float | None, bool] | None:
+        """Deterministically inspects JSON-LD structured data blocks for offer prices or free access."""
+        blocks = re.findall(
+            r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+            raw_html,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+        for block in blocks:
+            try:
+                data = json.loads(block.strip())
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            queue: list[object] = [data]
+            while queue:
+                node = queue.pop(0)
+                if isinstance(node, list):
+                    queue.extend(node)
+                    continue
+                if not isinstance(node, dict):
+                    continue
+
+                if node.get("isAccessibleForFree") is True:
+                    return 0.0, False
+
+                offers = node.get("offers")
+                if isinstance(offers, dict):
+                    offers = [offers]
+                if isinstance(offers, list):
+                    for offer in offers:
+                        if not isinstance(offer, dict):
+                            continue
+                        raw_p = offer.get("price")
+                        if raw_p is None:
+                            continue
+                        try:
+                            val = float(str(raw_p).replace(",", ".").strip())
+                        except ValueError:
+                            continue
+                        if val < 0.0:
+                            continue
+                        raw_num_str = str(raw_p).strip()
+                        if raw_num_str not in raw_html:
+                            continue
+                        if val == 0.0:
+                            return 0.0, False
+                        curr = str(
+                            offer.get("priceCurrency") or ""
+                        ).strip().upper() or _detect_currency(block, city)
+                        eur_val = (
+                            val
+                            if curr == "EUR"
+                            else convert_currency(
+                                val, from_currency=curr, to_currency="EUR"
+                            )
+                        )
+                        return round(eur_val, 2), False
+
+                for v in node.values():
+                    if isinstance(v, (dict, list)):
+                        queue.append(v)
+        return None
+
+    @classmethod
     async def scrape_and_verify_official_price(
         cls,
         website_url: str,
         poi_name: str,
         city: str,
-        ollama_url: str = "http://localhost:11434",
-        model: str = "qwen2.5:3b",
     ) -> tuple[float | None, bool, str]:
-        """Tier 4: Scrapes official website and verifies admission price with a strict literal verification gate.
+        """Tier 4: Scrapes official website and extracts admission price deterministically.
 
-        Guarantees: Any extracted numeric price must literally appear in the fetched text.
+        Guarantees: Any extracted numeric price must literally appear in the fetched HTML/text.
         """
         if not website_url or not website_url.startswith(("http://", "https://")):
             return None, True, "invalid_url"
@@ -415,6 +473,7 @@ class PoiPricingService:
         for sub in ("/tickets", "/visita", "/tarifs", "/en/tickets", "/prices"):
             candidate_urls.append(urljoin(website_url, sub))
 
+        raw_html = ""
         extracted_text = ""
         try:
             async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
@@ -422,8 +481,16 @@ class PoiPricingService:
                     try:
                         resp = await client.get(target_url, headers=headers)
                         if resp.status_code == 200:
-                            # Strip script, style and html tags
                             raw_html = resp.text
+                            jsonld_res = cls._extract_jsonld_price(raw_html, city)
+                            if jsonld_res is not None:
+                                return (
+                                    jsonld_res[0],
+                                    jsonld_res[1],
+                                    "official_website_literal_verified",
+                                )
+
+                            # Strip script, style and html tags
                             clean = re.sub(
                                 r"<(script|style)[^>]*>.*?</\1>",
                                 " ",
@@ -433,12 +500,17 @@ class PoiPricingService:
                             clean = re.sub(r"<[^>]+>", " ", clean)
                             clean = re.sub(r"\s+", " ", clean).strip()
 
-                            # Extract paragraphs with pricing signals
-                            matches = re.findall(
-                                r"[^.!?\n]{10,200}?(?:€|EUR|eur|\$|£|admission|ticket|entry|entrada|tarifs?|billet|free|gratis|gratuit)[^.!?\n]{0,100}",
-                                clean,
+                            # Extract sentences/segments with pricing signals without splitting decimals
+                            segments = [
+                                seg.strip()
+                                for seg in re.split(r"(?<!\d)\.(?!\d)|[!\?\n]+", clean)
+                                if seg.strip()
+                            ]
+                            signal_re = re.compile(
+                                r"(?:€|EUR|\$|£|¥|CHF|HUF|CZK|admission|ticket|entry|entrada|tarifs?|billet|free|gratis|gratuit)",
                                 re.IGNORECASE,
                             )
+                            matches = [seg for seg in segments if signal_re.search(seg)]
                             if matches:
                                 extracted_text = " ".join(matches[:8])
                                 break
@@ -451,63 +523,88 @@ class PoiPricingService:
         if not extracted_text:
             return None, True, "no_price_text_found"
 
-        # Run structured extraction via configured LLM
-        prompt = (
-            f"Extract the adult admission price in EUR from the following text for {poi_name} in {city}.\n"
-            "If admission is completely free of charge, set price_eur to 0.0 and is_free to true.\n"
-            "If no price is mentioned, set price_eur to null.\n\n"
-            f"Text:\n{extracted_text[:1200]}\n"
+        price_re = re.compile(
+            r"(?:"
+            r"(?P<pre_curr>US\$|C\$|A\$|[€£$¥]|(?:EUR|GBP|USD|JPY|CHF|HUF|CZK|PLN)\b)\s*(?P<pre_num>\d{1,5}(?:[.,]\d{1,2})?)"
+            r"|"
+            r"(?P<post_num>\d{1,5}(?:[.,]\d{1,2})?)\s*(?P<post_curr>[€£$¥円]|(?:EUR|GBP|USD|JPY|CHF|HUF|CZK|PLN|euros?)\b)"
+            r")",
+            re.IGNORECASE,
         )
-        instructions = "You extract adult admission prices from website text. Ensure output matches the schema strictly."
 
-        try:
-            res_data = await LLMService.run_structured_extraction(
-                output_type=POIPriceExtraction,
-                prompt=prompt,
-                instructions=instructions,
-            )
-            if not res_data:
-                return None, True, "llm_extraction_failed"
+        best_candidate: tuple[int, float, str, str] | None = None
+        for m in price_re.finditer(extracted_text):
+            if m.start() > 0 and extracted_text[m.start() - 1] == "-":
+                continue
+            raw_curr = (m.group("pre_curr") or m.group("post_curr") or "").strip()
+            raw_num = (m.group("pre_num") or m.group("post_num") or "").strip()
+            if not raw_curr or not raw_num:
+                continue
+            if re.fullmatch(r"\d{1,3}(?:,\d{3})+", raw_num):
+                norm_num = raw_num.replace(",", "")
+            else:
+                norm_num = raw_num.replace(",", ".")
+            try:
+                val = float(norm_num)
+            except ValueError:
+                continue
+            if val <= 0.0:
+                continue
 
-            extracted_price = res_data.price_eur
-            is_free = bool(res_data.is_free)
+            window = extracted_text[
+                max(0, m.start() - 45) : min(len(extracted_text), m.end() + 35)
+            ].lower()
+            score = 0
+            if re.search(
+                r"\b(?:adult|general\s+admission|standard|regular|full\s+price)\b",
+                window,
+            ):
+                score += 3
+            if re.search(
+                r"\b(?:admission|ticket|entry|entrada|tarif|billet)\b", window
+            ):
+                score += 1
+            if re.search(
+                r"\b(?:child|children|kid|student|senior|concession|reduced|youth|discount)\b",
+                window,
+            ):
+                score -= 3
 
-            if is_free and (extracted_price == 0.0 or extracted_price is None):
-                # Literal check for free terms
-                if any(
-                    term in extracted_text.lower()
-                    for term in ("free", "gratis", "gratuit", "libre")
-                ):
-                    return 0.0, False, "official_website_literal_verified"
+            if best_candidate is None or score > best_candidate[0]:
+                best_candidate = (score, val, raw_curr, raw_num)
 
-            if extracted_price is not None:
-                price_val = float(extracted_price)
-                if price_val < 0.0:
-                    return None, True, "negative_price_rejected"
-
-                # STRICT LITERAL VERIFICATION GATE:
-                # The numeric representation must literally appear in extracted_text!
-                int_str = str(int(price_val))
-                float_str_dot = f"{price_val:.2f}"
-                float_str_comma = f"{price_val:.2f}".replace(".", ",")
-                simple_float = str(price_val)
-
-                candidates = [int_str, float_str_dot, float_str_comma, simple_float]
-                matched_literal = any(c in extracted_text for c in candidates if c)
-
-                if matched_literal:
-                    return price_val, False, "official_website_literal_verified"
-                else:
-                    logger.warning(
-                        "LLM extracted price %s for %s, but literal verification failed in source text.",
-                        price_val,
-                        poi_name,
+        if best_candidate is not None:
+            _, price_val, raw_curr, raw_num = best_candidate
+            int_str = str(int(price_val))
+            float_str_dot = f"{price_val:.2f}"
+            float_str_comma = float_str_dot.replace(".", ",")
+            candidates = [
+                raw_num,
+                int_str,
+                float_str_dot,
+                float_str_comma,
+                str(price_val),
+            ]
+            if any(c in extracted_text for c in candidates if c):
+                curr = _detect_currency(f"{raw_curr} {extracted_text}", city)
+                eur_val = (
+                    price_val
+                    if curr == "EUR"
+                    else convert_currency(
+                        price_val, from_currency=curr, to_currency="EUR"
                     )
-                    return None, True, "literal_verification_failed"
-        except Exception as e:
-            logger.debug("LLM pricing extraction failed: %s", e)
+                )
+                return round(eur_val, 2), False, "official_website_literal_verified"
+            return None, True, "literal_verification_failed"
 
-        return None, True, "extraction_unsuccessful"
+        # Check explicit free-admission phrases only when no ticket price was found
+        if re.search(
+            r"\b(?:free\s+(?:admission|entry|access)|(?:admission|entry)\s+is\s+free|free\s+of\s+charge|entrada\s+gratuita|entr[ée]e\s+gratuite)\b",
+            extracted_text.lower(),
+        ):
+            return 0.0, False, "official_website_literal_verified"
+
+        return None, True, "no_price_extracted"
 
     @classmethod
     async def batch_resolve_unindexed_pois(
