@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.taste.taste_service import TasteService
 from app.application.trip_editing.events import publish_trip_event
 from app.application.trip_editing.recompute import RecomputeService
 from app.application.trip_editing.schemas import Change, ChangeSet
@@ -227,6 +228,16 @@ class TripService:
         await session.commit()
         await session.refresh(trip)
 
+        await TasteService.on_trip_revision(
+            session=session,
+            trip_id=trip.id,
+            user_id=user.id if user else trip.user_id,
+            before_doc=before_raw,
+            after_doc=trip.itinerary_data or {},
+            changes=[c.model_dump() for c in changeset.changes],
+            actor=actor,
+        )
+
         changeset.revision = new_rev
         changeset.undo_token = rev_id
 
@@ -292,6 +303,16 @@ class TripService:
         session.add(trip)
         await session.commit()
         await session.refresh(trip)
+
+        await TasteService.on_trip_revision(
+            session=session,
+            trip_id=trip.id,
+            user_id=user.id if user else trip.user_id,
+            before_doc=undo_rev_row.before or {},
+            after_doc=restored_data or {},
+            changes=None,
+            actor="user" if user else "system",
+        )
 
         summary = f"Undo successful: reverted '{latest_rev.summary}'."
         await publish_trip_event(
@@ -362,6 +383,17 @@ class TripService:
         session.add(trip)
         await session.commit()
         await session.refresh(trip)
+
+        await TasteService.on_trip_revision(
+            session=session,
+            user_id=user.id if user else trip.user_id,
+            trip_id=trip.id,
+            before_doc=undo_row.before or {},
+            after_doc=restored_data or {},
+            changes=[{"kind": "undo_to", "day": 0}],
+            actor="undo",
+            attribute_to_all_participants=True,
+        )
 
         summary = f"Reverted trip to revision {target_revision}."
         await publish_trip_event(

@@ -153,6 +153,7 @@ class PoiPhotoInput(BaseModel):
 class PoiCreateRequest(BaseModel):
     name: str
     city: str
+    country: str | None = None
     category: str = "attraction"
     lat: float
     lng: float
@@ -2889,6 +2890,11 @@ async def create_poi(
         "source": "user_created",
         "description": poi_in.description or "",
     }
+    if clean_city:
+        meta["city"] = clean_city
+    clean_country = (poi_in.country or "").strip() or None
+    if clean_country:
+        meta["country"] = clean_country
     if rating_val is not None:
         meta["rating"] = rating_val
     if tags:
@@ -2917,6 +2923,15 @@ async def create_poi(
         (poi_in.neighborhood or "").strip() or (poi_in.address or "").strip() or None
     )
 
+    location_payload: dict[str, Any] = {
+        "latitude": float(poi_in.lat),
+        "longitude": float(poi_in.lng),
+    }
+    if clean_city:
+        location_payload["city"] = clean_city
+    if clean_country:
+        location_payload["country"] = clean_country
+
     attraction = AttractionModel(
         id=new_id,
         city=clean_city,
@@ -2927,7 +2942,7 @@ async def create_poi(
         cost_is_estimated=False,
         cost_source="user",
         duration_mins=int(poi_in.duration_mins),
-        location={"latitude": float(poi_in.lat), "longitude": float(poi_in.lng)},
+        location=location_payload,
         scoring=scoring_data,
         metadata_field=meta,
         description=poi_in.description,

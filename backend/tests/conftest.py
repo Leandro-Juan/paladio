@@ -387,6 +387,7 @@ async def db_engine():
                 "ALTER TABLE deal_watch_alerts ALTER COLUMN latest_date DROP NOT NULL;",
                 "ALTER TABLE hotel_properties ADD COLUMN IF NOT EXISTS photo_url TEXT;",
                 "ALTER TABLE hotel_properties ADD COLUMN IF NOT EXISTS amenities VARCHAR[];",
+                "ALTER TABLE trip_collections ALTER COLUMN trip_id DROP NOT NULL;",
             ]:
                 await conn.execute(text(col_stmt))
             await conn.execute(
@@ -474,3 +475,42 @@ def pytest_collection_modifyitems(config, items):
     )
     if not has_cli_m and (has_k or has_specific_node or has_specific_file):
         config.option.markexpr = ""
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _reclaim_memory_after_module():
+    """
+    Reclaims heavy in-process caches (ONNX embedding models, GeoNames city index,
+    and cyclic references) at the end of each test module so long pytest runs do not
+    accumulate gigabytes of RSS across modules.
+    """
+    yield
+    import gc
+
+    onnx_mod = sys.modules.get("app.infrastructure.providers.onnx_embedding_provider")
+    if onnx_mod is not None:
+        provider_cls = getattr(onnx_mod, "OnnxEmbeddingProvider", None)
+        if provider_cls is not None and getattr(provider_cls, "_shared_models", None):
+            provider_cls.clear_cached_models()
+
+    intent_mod = sys.modules.get("app.engine.nlp.intent_extractor")
+    if intent_mod is not None:
+        extractor_cls = getattr(intent_mod, "PromptIntentExtractor", None)
+        if extractor_cls is not None:
+            if getattr(extractor_cls, "_city_cache", None):
+                extractor_cls._city_cache.clear()
+            extractor_cls._anchor_embeddings = None
+
+    ap_mod = sys.modules.get("app.services.airport_service")
+    if ap_mod is not None:
+        global_svc = getattr(ap_mod, "_GLOBAL_AIRPORT_SERVICE", None)
+        if global_svc is not None and hasattr(global_svc, "clear_geonames_cache"):
+            global_svc.clear_geonames_cache()
+
+    gc.collect()
+    try:
+        import ctypes
+
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass

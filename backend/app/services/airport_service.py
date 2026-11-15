@@ -11,6 +11,8 @@ All resolutions are computed dynamically via:
 
 from __future__ import annotations
 
+import ctypes
+import gc as _gc_mod
 import logging
 import math
 import re
@@ -86,6 +88,43 @@ class AirportInfo:
             return ZoneInfo(self.timezone) if self.timezone else ZoneInfo("UTC")
         except Exception:
             return ZoneInfo("UTC")
+
+
+class _GeoCity:
+    """Memory-compact city record (~5x smaller than raw geonamescache dicts)."""
+
+    __slots__ = (
+        "name",
+        "norm_name",
+        "latitude",
+        "longitude",
+        "countrycode",
+        "population",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        norm_name: str,
+        latitude: float | None,
+        longitude: float | None,
+        countrycode: str,
+        population: int,
+    ) -> None:
+        self.name = name
+        self.norm_name = norm_name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.countrycode = countrycode
+        self.population = population
+
+
+def _malloc_trim() -> None:
+    """Return freed C heap arenas to the OS on Linux."""
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 
 class AirportService:
@@ -173,42 +212,18 @@ class AirportService:
 
         # Lazy cache for resolved city lookups
         self._city_cache: dict[str, AirportInfo | None] = {}
-        self._gc_index: dict[str, list[dict[str, Any]]] | None = None
+        self._gc_index: dict[str, list[_GeoCity]] | None = None
         self._country_lookup: dict[str, str] | None = None
         self._capitals_lookup: dict[str, str] | None = None
         self._country_iso_to_name: dict[str, str] = {}
-        self._canonical_cities: list[dict[str, Any]] | None = None
+        self._canonical_cities: list[_GeoCity] | None = None
 
-    def _ensure_geonames_loaded(
-        self,
-    ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str], dict[str, str]]:
-        """
-        Lazy-loads GeoNames world cities database (234,000+ cities/towns worldwide),
-        global country name/code lookup table, and national capital table.
-        """
-        if (
-            self._gc_index is None
-            or self._country_lookup is None
-            or self._capitals_lookup is None
-        ):
-            logger.info("Initializing dynamic GeoNames world cities index...")
+    def _ensure_countries_loaded(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Lazy-loads only the lightweight (~250 entries) country and capital tables."""
+        if self._country_lookup is None or self._capitals_lookup is None:
             import geonamescache
 
-            gc = geonamescache.GeonamesCache(min_city_population=500)
-            raw = gc.get_cities()
-            indexed: dict[str, list[dict[str, Any]]] = {}
-            for c in raw.values():
-                norm_name = _normalize_name(c.get("name", ""))
-                if norm_name:
-                    indexed.setdefault(norm_name, []).append(c)
-
-                # Dynamically index all multilingual alternate names provided by GeoNames
-                for alt in c.get("alternatenames", []):
-                    norm_alt = _normalize_name(alt)
-                    if norm_alt and len(norm_alt) > 1:
-                        indexed.setdefault(norm_alt, []).append(c)
-
-            # Build country lookup table and national capitals lookup table dynamically
+            gc = geonamescache.GeonamesCache(min_city_population=15000)
             countries = gc.get_countries()
             c_map: dict[str, str] = {}
             capitals: dict[str, str] = {}
@@ -222,19 +237,73 @@ class AirportService:
                 if cap:
                     capitals[_normalize_name(cap)] = iso2
 
-            # Common abbreviations
             c_map["uk"] = "GB"
             c_map["usa"] = "US"
 
-            self._gc_index = indexed
             self._country_lookup = c_map
             self._capitals_lookup = capitals
             self._country_iso_to_name = {
                 iso2: c_data.get("name", iso2) for iso2, c_data in countries.items()
             }
-            self._canonical_cities = list(raw.values())
+        return self._country_lookup, self._capitals_lookup
 
-        return self._gc_index, self._country_lookup, self._capitals_lookup
+    def _ensure_geonames_loaded(
+        self,
+    ) -> tuple[dict[str, list[_GeoCity]], dict[str, str], dict[str, str]]:
+        """
+        Lazy-loads GeoNames world cities database (234,000+ cities/towns worldwide)
+        into compact _GeoCity slots objects, global country name/code lookup table,
+        and national capital table.
+        """
+        c_map, capitals = self._ensure_countries_loaded()
+        if self._gc_index is None:
+            logger.info("Initializing dynamic GeoNames world cities index...")
+            import geonamescache
+
+            gc = geonamescache.GeonamesCache(min_city_population=500)
+            raw = gc.get_cities()
+            indexed: dict[str, list[_GeoCity]] = {}
+            canonical: list[_GeoCity] = []
+            for c in raw.values():
+                name = c.get("name", "")
+                norm_name = _normalize_name(name)
+                city_obj = _GeoCity(
+                    name=name,
+                    norm_name=norm_name,
+                    latitude=c.get("latitude"),
+                    longitude=c.get("longitude"),
+                    countrycode=c.get("countrycode", ""),
+                    population=c.get("population", 0) or 0,
+                )
+                canonical.append(city_obj)
+                if norm_name:
+                    indexed.setdefault(norm_name, []).append(city_obj)
+
+                # Dynamically index all multilingual alternate names provided by GeoNames
+                for alt in c.get("alternatenames", ()):
+                    norm_alt = _normalize_name(alt)
+                    if norm_alt and len(norm_alt) > 1:
+                        indexed.setdefault(norm_alt, []).append(city_obj)
+
+            del raw, gc
+            _gc_mod.collect()
+            _malloc_trim()
+
+            self._gc_index = indexed
+            self._canonical_cities = canonical
+
+        return self._gc_index, c_map, capitals
+
+    def clear_geonames_cache(self) -> None:
+        """Releases the large GeoNames city index and caches to reclaim RAM."""
+        self._gc_index = None
+        self._canonical_cities = None
+        self._country_lookup = None
+        self._capitals_lookup = None
+        self._country_iso_to_name = {}
+        self._city_cache.clear()
+        _gc_mod.collect()
+        _malloc_trim()
 
     def is_valid_iata(self, iata_code: str | None) -> bool:
         """Returns True if the 3-letter IATA code corresponds to a known airport."""
@@ -391,7 +460,7 @@ class AirportService:
             parts = clean_query.split(",")
             clean_query = parts[0].strip()
             hint_str = _normalize_name(parts[-1].strip())
-            _, c_lookup, _ = self._ensure_geonames_loaded()
+            c_lookup, _ = self._ensure_countries_loaded()
             if hint_str in c_lookup:
                 target_country = c_lookup[hint_str]
 
@@ -420,7 +489,7 @@ class AirportService:
             # Filter by country if specified
             if target_country:
                 country_filtered = [
-                    c for c in candidates if c.get("countrycode") == target_country
+                    c for c in candidates if c.countrycode == target_country
                 ]
                 if country_filtered:
                     candidates = country_filtered
@@ -429,18 +498,18 @@ class AirportService:
             # - Canonical national capitals get top priority (e.g. Dili in TL over Delhi in IN)
             # - Canonical city names receive full population
             # - Multilingual alternate names / abbreviations receive 0.05x factor
-            def _score_city(c: dict[str, Any]) -> float:
-                pop = c.get("population", 0)
-                is_canonical = _normalize_name(c.get("name", "")) == norm
-                is_capital = c.get("countrycode") == capitals_lookup.get(norm)
+            def _score_city(c: _GeoCity) -> float:
+                pop = c.population
+                is_canonical = c.norm_name == norm
+                is_capital = c.countrycode == capitals_lookup.get(norm)
                 if is_canonical and is_capital:
                     return float(pop) * 1000.0
                 return float(pop) if is_canonical else float(pop) * 0.05
 
             best_city = max(candidates, key=_score_city)
-            lat = best_city.get("latitude")
-            lon = best_city.get("longitude")
-            cc = best_city.get("countrycode")
+            lat = best_city.latitude
+            lon = best_city.longitude
+            cc = best_city.countrycode
 
             if lat is not None and lon is not None:
                 # Query nearest 10 commercial airports
@@ -458,7 +527,7 @@ class AirportService:
                         k in ap.name.lower()
                         for k in ("international", "intercontinental")
                     )
-                    canonical_city_norm = _normalize_name(best_city.get("name", ""))
+                    canonical_city_norm = best_city.norm_name
                     ap_city_norm = _normalize_name(ap.city)
                     name_matches_city = (
                         ap_city_norm in (norm, canonical_city_norm)
@@ -641,17 +710,17 @@ class AirportService:
                 seen_keys.add(f"{city_name.lower()}::{ap.iata}")
                 seen_iatas.add(ap.iata)
                 matched_city = next(
-                    (c for c in city_gc_matches if c.get("countrycode") == ap.country),
+                    (c for c in city_gc_matches if c.countrycode == ap.country),
                     city_gc_matches[0] if city_gc_matches else None,
                 )
                 lat = (
-                    float(matched_city["latitude"])
-                    if matched_city and matched_city.get("latitude") is not None
+                    float(matched_city.latitude)
+                    if matched_city and matched_city.latitude is not None
                     else getattr(ap, "latitude", None)
                 )
                 lon = (
-                    float(matched_city["longitude"])
-                    if matched_city and matched_city.get("longitude") is not None
+                    float(matched_city.longitude)
+                    if matched_city and matched_city.longitude is not None
                     else getattr(ap, "longitude", None)
                 )
                 results.append(
@@ -672,10 +741,10 @@ class AirportService:
 
         # 3. Dynamic search across world cities (234k+ cities)
         all_cities = getattr(self, "_canonical_cities", None) or []
-        candidate_cities: list[dict[str, Any]] = []
+        candidate_cities: list[_GeoCity] = []
 
         for c in all_cities:
-            c_norm = _normalize_name(c.get("name", ""))
+            c_norm = c.norm_name
             if c_norm.startswith(norm_query) or (
                 len(norm_query) >= 3 and norm_query in c_norm
             ):
@@ -685,21 +754,19 @@ class AirportService:
         if len(candidate_cities) < 15 and norm_query in gc_index:
             candidate_cities.extend(gc_index[norm_query])
 
-        deduped: dict[tuple[str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, str], _GeoCity] = {}
         for c in candidate_cities:
-            c_name = c.get("name", "")
-            cc = c.get("countrycode", "")
+            c_name = c.name
+            cc = c.countrycode
             k_tuple = (c_name.lower(), cc)
-            if k_tuple not in deduped or c.get("population", 0) > deduped[k_tuple].get(
-                "population", 0
-            ):
+            if k_tuple not in deduped or c.population > deduped[k_tuple].population:
                 deduped[k_tuple] = c
 
-        def _rank(c: dict[str, Any]) -> float:
-            p = max(c.get("population", 0), 100)
+        def _rank(c: _GeoCity) -> float:
+            p = max(c.population, 100)
             p_score = math.log10(p)
-            c_norm = _normalize_name(c.get("name", ""))
-            is_cap = 1.3 if c.get("countrycode") == capitals_lookup.get(c_norm) else 1.0
+            c_norm = c.norm_name
+            is_cap = 1.3 if c.countrycode == capitals_lookup.get(c_norm) else 1.0
 
             if c_norm == norm_query and p >= 50000:
                 return p_score * 3.5 * is_cap
@@ -714,8 +781,8 @@ class AirportService:
         for c in sorted_cities:
             if len(results) >= limit:
                 break
-            city_name = c.get("name", "")
-            cc = c.get("countrycode", "")
+            city_name = c.name
+            cc = c.countrycode
             c_name = country_names.get(cc, cc)
 
             ap = self.resolve_airport_for_city(city_name, country_code=cc)

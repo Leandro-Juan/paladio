@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.taste.taste_service import TasteService
 from app.core.wallet_encryption import decrypt_wallet_secret, encrypt_wallet_secret
 from app.db.models import (
     TripModel,
@@ -256,6 +257,14 @@ async def create_ticket(
         await promote_temp_upload(data.upload_id, new_ticket.id, session)
         await session.refresh(new_ticket)
 
+    await TasteService.on_ticket_created(
+        session=session,
+        user_id=data.holder_user_id or (user.id if user else None),
+        trip_id=trip_id,
+        ticket=new_ticket,
+        attribute_to_all_participants=not bool(data.holder_user_id),
+    )
+
     return serialize_ticket_model(new_ticket)
 
 
@@ -341,6 +350,17 @@ async def update_ticket(
     ticket.user_modified = True
     await session.commit()
     await session.refresh(ticket)
+    if ticket.status != "cancelled" and any(
+        k in update_dict
+        for k in ("provider", "price", "location_or_venue", "start_time", "metadata")
+    ):
+        await TasteService.on_ticket_created(
+            session=session,
+            user_id=ticket.holder_user_id or (user.id if user else None),
+            trip_id=trip_id,
+            ticket=ticket,
+            attribute_to_all_participants=not bool(ticket.holder_user_id),
+        )
     return serialize_ticket_model(ticket)
 
 

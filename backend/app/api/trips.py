@@ -54,6 +54,7 @@ from app.services.photo_storage import (
     delete_photo_file,
 )
 from app.services.photo_sync_service import PhotoSyncService
+from app.services.settings_service import SettingsService
 
 from app.trip_package import (
     TripPackager,
@@ -1542,12 +1543,18 @@ async def sync_planned_trips_gtfs(
                 except Exception:
                     pass
             if should_queue:
+                if r:
+                    try:
+                        r.set(
+                            f"paladio:transit_queued_notified:{city_clean}",
+                            "1",
+                            ex=3600,
+                        )
+                    except Exception:
+                        pass
                 _publish_transit_event("TRANSIT_QUEUED", city_clean, city_clean.title())
                 queued.append(city_clean)
             else:
-                _publish_transit_event(
-                    "TRANSIT_DOWNLOAD_STARTED", city_clean, city_clean.title()
-                )
                 triggered.append(city_clean)
         except Exception as exc:
             logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
@@ -1747,9 +1754,11 @@ async def trigger_city_gtfs_compile(
         except Exception:
             pass
         if should_queue:
+            try:
+                r.set(f"paladio:transit_queued_notified:{city_clean}", "1", ex=3600)
+            except Exception:
+                pass
             _publish_transit_event("TRANSIT_QUEUED", city_clean, req.city)
-        else:
-            _publish_transit_event("TRANSIT_DOWNLOAD_STARTED", city_clean, req.city)
     except (OSError, RuntimeError) as exc:
         logger.warning(f"Could not dispatch celery task for {city_clean}: {exc}")
 
@@ -2116,6 +2125,26 @@ async def update_trip(
     await session.commit()
     await session.refresh(trip)
 
+    if update_data.itinerary_data is not None:
+        try:
+            from app.application.taste.taste_service import TasteService
+
+            await TasteService.on_trip_revision(
+                session=session,
+                user_id=(current_user.id if current_user else trip.user_id),
+                trip_id=trip.id,
+                before_doc=before_itinerary
+                if isinstance(before_itinerary, dict)
+                else {},
+                after_doc=trip.itinerary_data
+                if isinstance(trip.itinerary_data, dict)
+                else {},
+                actor="user" if current_user else "system",
+                attribute_to_all_participants=True,
+            )
+        except Exception as exc:
+            logger.debug("Taste hook skipped on update_trip: %s", exc)
+
     parts_models = await _ensure_trip_participants(trip, session)
     parts = [_participant_to_response(p) for p in parts_models]
     t_count = await _get_trip_tickets_count(trip.id, session)
@@ -2171,6 +2200,7 @@ async def reoptimize_trip_route(
         )
 
     try:
+        prev_itin = trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
         optimized_itin = await TripReoptimizationService.reoptimize_trip_itinerary(
             itinerary_data=current_itin,
             destination_city=trip.destination or "",
@@ -2180,6 +2210,18 @@ async def reoptimize_trip_route(
         session.add(trip)
         await session.commit()
         await session.refresh(trip)
+        if update_data and update_data.itinerary_data is not None:
+            from app.application.taste.taste_service import TasteService
+
+            await TasteService.on_trip_revision(
+                session=session,
+                user_id=(current_user.id if current_user else trip.user_id),
+                trip_id=trip.id,
+                before_doc=prev_itin,
+                after_doc=current_itin if isinstance(current_itin, dict) else {},
+                actor="user" if current_user else "system",
+                attribute_to_all_participants=True,
+            )
     except Exception as e:
         logger.error(f"Failed to re-optimize trip {trip_id} with C++ engine: {e}")
         raise HTTPException(
@@ -2646,7 +2688,7 @@ async def delete_trip_photo(
 async def export_trip(
     trip_id: str,
     background_tasks: BackgroundTasks,
-    profile: str = Query("full_vault", pattern="^(full_vault|community_shareable)$"),
+    profile: str | None = Query(None, pattern="^(full_vault|community_shareable)$"),
     include_attachments: bool = Query(True),
     include_photos: bool = Query(True),
     current_user: UserModel | None = Depends(get_optional_user),
@@ -2656,6 +2698,15 @@ async def export_trip(
     Exports a trip as a self-contained, air-gappable .trip file.
     Supports 'full_vault' (all data & attachments) and 'community_shareable' (sanitized).
     """
+    resolved_profile = profile
+    if resolved_profile is None:
+        vault_cfg = await SettingsService.get_domain_settings(session, "vault")
+        resolved_profile = (
+            "community_shareable"
+            if vault_cfg.get("export_anonymized_trips")
+            else "full_vault"
+        )
+
     result = await session.execute(select(TripModel).where(TripModel.id == trip_id))
     trip = result.scalar_one_or_none()
     if not trip:
@@ -2690,7 +2741,7 @@ async def export_trip(
         expenses=expenses,
         tickets=tickets,
         collections=collections,
-        export_profile=profile,
+        export_profile=resolved_profile,
         include_attachments=include_attachments,
         include_photos=include_photos,
     )

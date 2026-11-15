@@ -148,28 +148,27 @@ def parse_pkpass(
 
             barcode_val = None
             barcode_fmt = None
+
+            def _map_pkpass_barcode_fmt(raw_fmt: str) -> str:
+                f = raw_fmt.lower()
+                if "qr" in f:
+                    return "qr"
+                if "pdf417" in f:
+                    return "pdf417"
+                if "128" in f:
+                    return "code128"
+                if "matrix" in f:
+                    return "datamatrix"
+                return "aztec"
+
             if pass_data.get("barcodes"):
                 b = pass_data["barcodes"][0]
                 barcode_val = b.get("message")
-                raw_fmt = b.get("format", "").lower()
-                barcode_fmt = (
-                    "qr"
-                    if "qr" in raw_fmt
-                    else "pdf417"
-                    if "pdf417" in raw_fmt
-                    else "aztec"
-                )
+                barcode_fmt = _map_pkpass_barcode_fmt(b.get("format", ""))
             elif "barcode" in pass_data:
                 b = pass_data["barcode"]
                 barcode_val = b.get("message")
-                raw_fmt = b.get("format", "").lower()
-                barcode_fmt = (
-                    "qr"
-                    if "qr" in raw_fmt
-                    else "pdf417"
-                    if "pdf417" in raw_fmt
-                    else "aztec"
-                )
+                barcode_fmt = _map_pkpass_barcode_fmt(b.get("format", ""))
 
             desc = pass_data.get("description", "Pass")
             org = pass_data.get("organizationName", "")
@@ -216,6 +215,10 @@ def parse_pkpass(
                         )
 
                 # Fallback to fields in pass.json
+                transit_type = bp_info.get("transitType", "")
+                is_non_air_transit = bool(
+                    transit_type and transit_type != "PKTransitTypeAir"
+                )
                 orig_iata = None
                 dest_iata = None
                 for fld in bp_info.get("primaryFields", []):
@@ -224,13 +227,14 @@ def parse_pkpass(
                     elif fld.get("key") in ("destination", "to", "arrival"):
                         dest_iata = fld.get("value")
 
+                pass_label = "Transit Pass" if is_non_air_transit else "Boarding Pass"
                 title = (
                     f"{org} {orig_iata or ''} → {dest_iata or ''}".strip()
                     if (orig_iata or dest_iata)
-                    else (f"{org} Boarding Pass" if org else desc)
+                    else (f"{org} {pass_label}" if org else desc)
                 )
                 return TravelDocumentDraft(
-                    ticket_type="flight",
+                    ticket_type="transit" if is_non_air_transit else "flight",
                     title=title,
                     provider=org,
                     reference_code=barcode_val[:12] if barcode_val else None,
@@ -670,6 +674,32 @@ def classify_text_document(
         "coche",
         "andén",
         "plataforma",
+        "bahn",
+        "deutsche bahn",
+        "einzelticket",
+        "preisstufe",
+        "vrr",
+        "vbb",
+        "fahrkarte",
+        "billet",
+        "voiture",
+        "voyageurs",
+        "gare",
+        "bahnhof",
+        "al boraq",
+        "oncf",
+        "tgv",
+        "thalys",
+        "ice",
+        "s-bahn",
+        "u-bahn",
+        "metro",
+        "tram",
+        "subway",
+        "rail",
+        "railway",
+        "ferry",
+        "transit",
     )
 
     score_flight = sum(1 for k in flight_keywords if k in text_lower)
@@ -724,6 +754,31 @@ def classify_text_document(
         "NOT",
         "YES",
         "ALL",
+        "DIE",
+        "DES",
+        "DER",
+        "DAS",
+        "EIN",
+        "VON",
+        "UND",
+        "MIT",
+        "LES",
+        "SUR",
+        "PAR",
+        "UNE",
+        "EST",
+        "DEL",
+        "LAS",
+        "LOS",
+        "CON",
+        "POR",
+        "VIA",
+        "VRR",
+        "VBB",
+        "TGV",
+        "ICE",
+        "TER",
+        "RER",
     }
     iatas = re.findall(r"\b([A-Z]{3})\b", text)
     valid_iatas = [
@@ -731,7 +786,7 @@ def classify_text_document(
         for i in iatas
         if i not in NON_AIRPORT_ACRONYMS and airport_svc.is_valid_iata(i)
     ]
-    if len(valid_iatas) >= 2:
+    if len(valid_iatas) >= 2 and (score_transit == 0 or flight_num is not None):
         score_flight += 2
 
     scores = [
@@ -764,16 +819,18 @@ def classify_text_document(
         "ERENCE",
     }
 
-    pnr_match = re.search(
-        r"\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation(?:\s*Number|\s*Code|\s*Ref)?|Reference|Ref)(?:[\s/]+(?:PNR|Ref|Código|Code))*(?:[\s#:\(\)\-]+)+([A-Z0-9\-]{5,14})\b",
+    ref_code = None
+    for pnr_match in re.finditer(
+        r"\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation(?:\s*Number|\s*Code|\s*Ref)?|Reference|Ref)(?:[\s/]+(?:PNR|Ref|Código|Code))*(?:[ \t#:\(\)\-]+)+([A-Z0-9\-]{5,14})\b",
         text,
         re.IGNORECASE,
-    )
-    ref_code = None
-    if pnr_match and pnr_match.group(1).upper() not in INVALID_REF_CODES:
+    ):
         candidate = pnr_match.group(1)
-        if not (flight_num and candidate.upper() == flight_num.upper()):
+        if candidate.upper() not in INVALID_REF_CODES and not (
+            flight_num and candidate.upper() == flight_num.upper()
+        ):
             ref_code = candidate
+            break
     if not ref_code:
         for pnr_m in re.finditer(
             r"(?i:\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation)[\s\S]{0,40}?\b)([A-Z0-9\-]{5,10})\b",
@@ -1106,6 +1163,36 @@ def classify_text_document(
                     hotel_iata = found_iata
                     break
 
+        guest_m = re.search(
+            r"\b(?:Guest(?:\s*Name)?|Hu[eé]sped|Name|Titular)[:\s#]+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.\-']{2,50})",
+            text,
+            re.IGNORECASE,
+        )
+        hotel_holder = (
+            guest_m.group(1).strip().splitlines()[0].strip() if guest_m else None
+        )
+
+        room_m = re.search(
+            r"\b(?:Room(?:\s*Type)?|Habitaci[oó]n)[:\s#]+([^\n\r]{3,60})",
+            text,
+            re.IGNORECASE,
+        )
+        hotel_room = room_m.group(1).strip() if room_m else None
+
+        addr_m = re.search(
+            r"\b(?:Address|Direcci[oó]n)[:\s#]+([^\n\r]{5,100})",
+            text,
+            re.IGNORECASE,
+        )
+        hotel_addr = addr_m.group(1).strip() if addr_m else None
+
+        price_m = re.search(
+            r"\b(?:Total\s*Price|Total|Price|Precio)[:\s#]*(?:EUR|USD|GBP|€|\$|£)?\s*(\d+(?:[.,]\d{2})?)",
+            text,
+            re.IGNORECASE,
+        )
+        hotel_price = float(price_m.group(1).replace(",", ".")) if price_m else None
+
         conf.update({"ticket_type": 0.85, "title": 0.75})
         if access_code:
             conf["access_code"] = 0.95
@@ -1113,8 +1200,15 @@ def classify_text_document(
             ticket_type="hotel",
             title=hotel_name or "Hotel Lodging",
             reference_code=ref_code,
+            holder_name=hotel_holder,
             access_code=access_code,
+            seat_or_room=hotel_room,
+            location_or_venue=hotel_addr,
+            price=hotel_price,
             start_time=f"{date_found}T{checkin_hour}:00" if date_found else None,
+            end_time=f"{return_date_found}T{checkout_hour}:00"
+            if return_date_found
+            else None,
             metadata={
                 "hotel_name": hotel_name,
                 "destination_city": hotel_city,

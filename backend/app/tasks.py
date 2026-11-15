@@ -1082,12 +1082,6 @@ def _publish_transit_event(
         logger.warning(f"Could not publish {event_name} event: {r_err}")
 
 
-def _publish_transit_started_event(
-    city_clean: str, city_name: str, trip_id: str | None = None
-) -> None:
-    _publish_transit_event("TRANSIT_DOWNLOAD_STARTED", city_clean, city_name, trip_id)
-
-
 def is_transit_task_alive(city_clean: str) -> bool:
     """
     Checks if a GTFS/transit task for city_clean is genuinely active.
@@ -1246,9 +1240,6 @@ async def async_trigger_next_queued_city(session: Any | None = None) -> str | No
                     r.set(f"paladio:transit_task_id:{q_city}", task.id, ex=86400)
                 except Exception:
                     pass
-                _publish_transit_event(
-                    "TRANSIT_DOWNLOAD_STARTED", q_city, q_city.title(), None
-                )
                 return q_city
             else:
                 return q_city
@@ -1412,9 +1403,15 @@ async def async_trigger_city_gtfs_download_if_needed(
             pass
 
         if is_queued:
+            try:
+                import redis
+
+                redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+                r_q = redis.from_url(redis_url)
+                r_q.set(f"paladio:transit_queued_notified:{city_clean}", "1", ex=3600)
+            except Exception:
+                pass
             _publish_transit_event("TRANSIT_QUEUED", city_clean, city_name, trip_id)
-        else:
-            _publish_transit_started_event(city_clean, city_name, trip_id)
         return True
     except Exception as e:
         logger.error(f"Error checking/triggering GTFS download for {city_name}: {e}")
@@ -1789,7 +1786,17 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                     create_if_missing=False,
                 )
             )
-            _publish_transit_event("TRANSIT_QUEUED", city_lower, city_name, trip_id)
+            try:
+                already_notified = r.get(
+                    f"paladio:transit_queued_notified:{city_lower}"
+                )
+                if not already_notified:
+                    r.set(f"paladio:transit_queued_notified:{city_lower}", "1", ex=3600)
+                    _publish_transit_event(
+                        "TRANSIT_QUEUED", city_lower, city_name, trip_id
+                    )
+            except Exception:
+                _publish_transit_event("TRANSIT_QUEUED", city_lower, city_name, trip_id)
 
             # Loop-wait with short timeout so cancellation, deletion, or lock-holder death recovers promptly
             while not acquired:
@@ -1848,6 +1855,10 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 create_if_missing=False,
             )
         )
+        try:
+            r.delete(f"paladio:transit_queued_notified:{city_lower}")
+        except Exception:
+            pass
         _publish_transit_event(
             "TRANSIT_DOWNLOAD_STARTED", city_lower, city_name, trip_id
         )
@@ -2104,12 +2115,6 @@ def derive_city_transit_task(
                     city_name,
                     trip_id,
                     build_id=result.get("build_id"),
-                )
-                _publish_transit_event(
-                    "TRANSIT_TILES_READY",
-                    city_lower,
-                    city_name,
-                    trip_id,
                 )
                 return result
             except Exception as e:
@@ -2496,6 +2501,31 @@ def periodic_autoupdate_check_task() -> dict[str, Any]:
                     session=session, force_download=False
                 )
                 return {"status": "completed", "result": result}
+            finally:
+                await engine.dispose()
+
+    return _run_async(_run())
+
+
+@app.task(
+    name="app.tasks.retrain_taste_profiles_task",
+    queue="celery",
+)
+def retrain_taste_profiles_task(max_users: int = 100) -> dict[str, Any]:
+    """
+    Periodic Celery Beat job that ingests kept stops from completed trips
+    and refits per-user CPU TasteRankerModel weights from accumulated taste events.
+    """
+    from app.application.taste.taste_service import TasteService
+
+    async def _run():
+        session_maker, engine = _get_task_session_maker()
+        async with session_maker() as session:
+            try:
+                stats = await TasteService.retrain_active_profiles(
+                    session=session, max_users=max_users
+                )
+                return {"status": "completed", **stats}
             finally:
                 await engine.dispose()
 

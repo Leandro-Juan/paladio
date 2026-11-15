@@ -56,6 +56,10 @@ app.conf.update(
             "task": "app.tasks.periodic_autoupdate_check_task",
             "schedule": 21600.0,  # every 6 hours
         },
+        "retrain-taste-profiles": {
+            "task": "app.tasks.retrain_taste_profiles_task",
+            "schedule": crontab(hour=4, minute=0),  # Daily at 04:00 UTC
+        },
     },
 )
 

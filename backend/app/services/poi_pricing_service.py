@@ -97,19 +97,40 @@ def _ensure_city_currencies_initialized() -> None:
     try:
         import asyncio
 
-        from app.db.session import async_session
+        from sqlalchemy.ext.asyncio import (
+            AsyncSession,
+            async_sessionmaker,
+            create_async_engine,
+        )
+        from sqlalchemy.pool import NullPool
 
-        async def _fetch():
+        from app.db.session import DATABASE_URL, async_session
+
+        async def _fetch_on_current_pool():
             async with async_session() as session:
                 await PoiPricingService.load_catalog_from_db(session)
+
+        async def _fetch_isolated():
+            # Never check out shared engine pool connections inside a throwaway asyncio.run loop.
+            iso_engine = create_async_engine(
+                DATABASE_URL, echo=False, future=True, poolclass=NullPool
+            )
+            try:
+                iso_session = async_sessionmaker(
+                    iso_engine, class_=AsyncSession, expire_on_commit=False
+                )
+                async with iso_session() as session:
+                    await PoiPricingService.load_catalog_from_db(session)
+            finally:
+                await iso_engine.dispose()
 
         try:
             loop = asyncio.get_running_loop()
             if loop.is_running():
-                asyncio.create_task(_fetch())
+                asyncio.create_task(_fetch_on_current_pool())
                 return
         except RuntimeError:
-            asyncio.run(_fetch())
+            asyncio.run(_fetch_isolated())
     except Exception as exc:
         logger.debug("Could not lazily query city currencies from DB: %s", exc)
 
