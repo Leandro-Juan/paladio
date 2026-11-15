@@ -9,6 +9,9 @@ import {
   RealismRadarMockup,
   CostKnapsackMockup,
   SwarmAssistantMockup,
+  TransitRoutingMockup,
+  WalletPassbookMockup,
+  RouteMonitoringMockup,
 } from './HelpUiMockups';
 
 interface HelpArticleViewProps {
@@ -98,7 +101,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              TRIP COMFORT METER &amp; THE 5 HEALTH PILLARS
+              TASTE STAR &amp; DETERMINISTIC SOLVER GUARDRAILS
             </div>
             <RealismRadarMockup />
           </div>
@@ -107,9 +110,36 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              BUDGET PROGRESS &amp; EXPENSE SETTLEMENT
+              TRIP COSTS, SPEND PROGRESS &amp; SETTLEMENT
             </div>
             <CostKnapsackMockup />
+          </div>
+        );
+      case 'transit-routing':
+        return (
+          <div style={{ margin: '24px 0 32px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
+              GTFS TRANSIT ROUTING &amp; AREA FILTERING
+            </div>
+            <TransitRoutingMockup />
+          </div>
+        );
+      case 'wallet-passbook':
+        return (
+          <div style={{ margin: '24px 0 32px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
+              WALLET DROPZONE &amp; PASSBOOK VIEWER
+            </div>
+            <WalletPassbookMockup />
+          </div>
+        );
+      case 'route-monitoring':
+        return (
+          <div style={{ margin: '24px 0 32px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
+              ROUTE TELEMETRY &amp; P10 DEAL ALERTS
+            </div>
+            <RouteMonitoringMockup />
           </div>
         );
       case 'swarm-assistant':

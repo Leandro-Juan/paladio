@@ -390,3 +390,107 @@ export function SettingsHeroIllustration({ width = 180, height = 120, className 
     </svg>
   );
 }
+
+/**
+ * Wallet & Digital Passbook Hero Illustration
+ * Boarding pass ticket stub with QR matrix, hotel key badge, and confirmation pill.
+ */
+export function WalletHeroIllustration({ width = 180, height = 120, className = '', style }: IllustrationProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 120 80"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={{ display: 'block', ...style }}
+      aria-hidden="true"
+    >
+      {/* Ground Baseline */}
+      <line x1="12" y1="68" x2="108" y2="68" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+
+      {/* Back Hotel Keycard */}
+      <rect x="24" y="14" width="64" height="36" rx="5" fill="var(--color-accent-teal-deep, #0F4C5C)" stroke="var(--color-accent-teal-soft, #7CC4D1)" strokeWidth="1" opacity="0.85" />
+      <rect x="30" y="21" width="14" height="4" rx="2" fill="var(--color-accent-gold, #E2B33C)" />
+
+      {/* Front Boarding Pass Card */}
+      <rect x="16" y="24" width="88" height="38" rx="6" fill="var(--color-surface-card, #FAF6F0)" stroke="var(--color-accent-teal-mid, #1B8FA6)" strokeWidth="1.5" />
+      {/* Perforation Divider */}
+      <line x1="72" y1="26" x2="72" y2="60" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
+
+      {/* Route Code & Flight Vector */}
+      <text x="23" y="38" fontSize="8" fontFamily="monospace" fontWeight="bold" fill="var(--color-accent-teal-deep, #0F4C5C)">MAD</text>
+      <path d="M41 35 H51" stroke="var(--color-accent-coral, #D42A2F)" strokeWidth="1.5" strokeLinecap="round" />
+      <polygon points="50,33 54,35 50,37" fill="var(--color-accent-coral, #D42A2F)" />
+      <text x="56" y="38" fontSize="8" fontFamily="monospace" fontWeight="bold" fill="var(--color-accent-teal-deep, #0F4C5C)">HND</text>
+
+      {/* Seat / PNR Metadata Lines */}
+      <rect x="23" y="44" width="22" height="4" rx="2" fill="var(--color-accent-teal-soft, #7CC4D1)" opacity="0.55" />
+      <rect x="23" y="51" width="38" height="4" rx="2" fill="var(--color-border, #E2D9CC)" opacity="0.7" />
+      <rect x="48" y="44" width="18" height="4" rx="2" fill="var(--color-accent-gold, #E2B33C)" opacity="0.75" />
+
+      {/* QR Code Matrix on Stub */}
+      <rect x="78" y="31" width="20" height="20" rx="2" fill="#FFFFFF" stroke="var(--color-border, #E2D9CC)" strokeWidth="1" />
+      <rect x="81" y="34" width="5" height="5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+      <rect x="90" y="34" width="5" height="5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+      <rect x="81" y="43" width="5" height="5" fill="var(--color-accent-teal-deep, #0F4C5C)" />
+      <rect x="88" y="41" width="3" height="3" fill="var(--color-accent-coral, #D42A2F)" />
+      <rect x="92" y="45" width="3" height="3" fill="var(--color-accent-teal-mid, #1B8FA6)" />
+
+      {/* Verified Check Badge */}
+      <circle cx="96" cy="22" r="7" fill="var(--color-success, #1F7A4D)" stroke="#FFFFFF" strokeWidth="1.5" />
+      <polyline points="93,22 95.2,24.2 99.5,19.8" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+/**
+ * Route Monitoring & Deal Telemetry Hero Illustration
+ * Price drop curve, P10 target threshold line, and deal alert badge.
+ */
+export function MonitoringHeroIllustration({ width = 180, height = 120, className = '', style }: IllustrationProps) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 120 80"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={{ display: 'block', ...style }}
+      aria-hidden="true"
+    >
+      {/* Ground Baseline */}
+      <line x1="12" y1="68" x2="108" y2="68" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+
+      {/* Chart Panel */}
+      <rect x="16" y="16" width="88" height="46" rx="6" fill="var(--color-surface-card, #FAF6F0)" stroke="var(--color-border, #E2D9CC)" strokeWidth="1.5" />
+
+      {/* 30D Median & P10 Target Dashed Line */}
+      <line x1="22" y1="30" x2="98" y2="30" stroke="var(--color-text-muted, #566B76)" strokeWidth="1" strokeDasharray="3 2" opacity="0.5" />
+      <line x1="22" y1="47" x2="98" y2="47" stroke="var(--color-success, #1F7A4D)" strokeWidth="1.2" strokeDasharray="3 2" opacity="0.8" />
+
+      {/* Price Telemetry Curve */}
+      <path
+        d="M24 28 L38 33 L52 25 L66 36 L80 51 L94 49"
+        stroke="var(--color-accent-teal-mid, #1B8FA6)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+
+      {/* P10 Dip Highlight Node */}
+      <circle cx="80" cy="51" r="4.5" fill="var(--color-success, #1F7A4D)" stroke="#FFFFFF" strokeWidth="1.5" />
+      <circle cx="80" cy="51" r="8" stroke="var(--color-success, #1F7A4D)" strokeWidth="1" strokeDasharray="2 2" opacity="0.7" />
+
+      {/* Deal Tag Pill */}
+      <rect x="64" y="10" width="44" height="13" rx="6.5" fill="var(--color-accent-coral, #D42A2F)" stroke="#FFFFFF" strokeWidth="1.2" />
+      <text x="86" y="19" fontSize="6" fontFamily="monospace" fontWeight="bold" fill="#FFFFFF" textAnchor="middle">P10 DEAL</text>
+
+      {/* P10 Label */}
+      <text x="24" y="57" fontSize="5.5" fontFamily="monospace" fontWeight="bold" fill="var(--color-success, #1F7A4D)">TARGET P10</text>
+    </svg>
+  );
+}

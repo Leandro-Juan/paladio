@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense, useTransition } from 'react';
+import React, { useState, Suspense, useTransition, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HELP_CATEGORIES, HelpArticle } from '@/components/help/helpData';
@@ -12,6 +12,10 @@ import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { ChevronLeftIcon } from '@/components/icons';
 import styles from './help.module.css';
 
+function getHelpViewKey(categoryId: string, articleId: string | null): string {
+  return `${categoryId}::${articleId ?? '__hub__'}`;
+}
+
 function HelpPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,6 +26,24 @@ function HelpPageInner() {
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // Per-instance reading & scroll tracking (resets cleanly whenever user leaves and reopens /help)
+  const contentAreaRef = useRef<HTMLElement | null>(null);
+  const scrollPositionsRef = useRef<Map<string, number>>(new Map());
+  const visitedTabsRef = useRef<Set<string>>(new Set());
+  const tabLastArticleRef = useRef<Map<string, string | null>>(new Map());
+  const isRestoringScrollRef = useRef(false);
+
+  useEffect(() => {
+    const scrollPositions = scrollPositionsRef.current;
+    const visitedTabs = visitedTabsRef.current;
+    const tabLastArticles = tabLastArticleRef.current;
+    return () => {
+      scrollPositions.clear();
+      visitedTabs.clear();
+      tabLastArticles.clear();
+    };
+  }, []);
+
   // Current category object
   const activeCategory = HELP_CATEGORIES.find((c) => c.id === activeCategoryId) || HELP_CATEGORIES[0];
 
@@ -30,18 +52,97 @@ function HelpPageInner() {
     ? HELP_CATEGORIES.flatMap((c) => c.articles).find((a) => a.id === selectedArticleId) || null
     : null;
 
+  useLayoutEffect(() => {
+    const container = contentAreaRef.current;
+    if (!container) return;
+
+    const viewKey = getHelpViewKey(activeCategoryId, selectedArticleId);
+    visitedTabsRef.current.add(activeCategoryId);
+    tabLastArticleRef.current.set(activeCategoryId, selectedArticleId);
+
+    const targetScroll = scrollPositionsRef.current.get(viewKey) ?? 0;
+    container.scrollTop = targetScroll;
+
+    let rafId1: number | null = null;
+    let rafId2: number | null = null;
+    if (targetScroll > 0) {
+      isRestoringScrollRef.current = true;
+      rafId1 = window.requestAnimationFrame(() => {
+        if (contentAreaRef.current) {
+          contentAreaRef.current.scrollTop = targetScroll;
+        }
+        rafId2 = window.requestAnimationFrame(() => {
+          if (contentAreaRef.current) {
+            contentAreaRef.current.scrollTop = targetScroll;
+          }
+          isRestoringScrollRef.current = false;
+        });
+      });
+    } else {
+      isRestoringScrollRef.current = false;
+    }
+
+    return () => {
+      if (rafId1 !== null) window.cancelAnimationFrame(rafId1);
+      if (rafId2 !== null) window.cancelAnimationFrame(rafId2);
+      isRestoringScrollRef.current = false;
+    };
+  }, [activeCategoryId, selectedArticleId]);
+
+  const snapshotCurrentReadingState = useCallback(() => {
+    const container = contentAreaRef.current;
+    const viewKey = getHelpViewKey(activeCategoryId, selectedArticleId);
+    if (container) {
+      scrollPositionsRef.current.set(viewKey, container.scrollTop);
+    }
+    visitedTabsRef.current.add(activeCategoryId);
+    tabLastArticleRef.current.set(activeCategoryId, selectedArticleId);
+  }, [activeCategoryId, selectedArticleId]);
+
+  const handleContentScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (isRestoringScrollRef.current) return;
+    const viewKey = getHelpViewKey(activeCategoryId, selectedArticleId);
+    scrollPositionsRef.current.set(viewKey, e.currentTarget.scrollTop);
+    visitedTabsRef.current.add(activeCategoryId);
+    tabLastArticleRef.current.set(activeCategoryId, selectedArticleId);
+  };
+
   // Navigation handlers
   const handleSelectCategory = (categoryId: string) => {
     setIsMobileSidebarOpen(false);
+    snapshotCurrentReadingState();
+
+    if (categoryId === activeCategoryId) {
+      tabLastArticleRef.current.set(categoryId, null);
+      startTransition(() => {
+        router.push(`/help?cat=${categoryId}`, { scroll: false });
+      });
+      return;
+    }
+
+    const hasVisitedTarget = visitedTabsRef.current.has(categoryId);
+    const lastArticleId = hasVisitedTarget
+      ? tabLastArticleRef.current.get(categoryId) ?? null
+      : null;
+
+    const targetUrl = lastArticleId
+      ? `/help?cat=${categoryId}&doc=${lastArticleId}`
+      : `/help?cat=${categoryId}`;
+
     startTransition(() => {
-      router.push(`/help?cat=${categoryId}`);
+      router.push(targetUrl, { scroll: false });
     });
   };
 
   const handleSelectArticle = (article: HelpArticle) => {
     setIsMobileSidebarOpen(false);
+    snapshotCurrentReadingState();
+
+    visitedTabsRef.current.add(article.categoryId);
+    tabLastArticleRef.current.set(article.categoryId, article.id);
+
     startTransition(() => {
-      router.push(`/help?cat=${article.categoryId}&doc=${article.id}`);
+      router.push(`/help?cat=${article.categoryId}&doc=${article.id}`, { scroll: false });
     });
   };
 
@@ -97,7 +198,12 @@ function HelpPageInner() {
         />
 
         {/* Right Main Content Area */}
-        <main className={styles.helpContentArea}>
+        <main
+          ref={contentAreaRef}
+          onScroll={handleContentScroll}
+          className={styles.helpContentArea}
+          data-testid="help-content-area"
+        >
           {selectedArticle ? (
             /* Mode 1: Detailed Article View */
             <HelpArticleView

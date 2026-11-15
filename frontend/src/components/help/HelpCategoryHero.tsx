@@ -5,6 +5,8 @@ import {
   GettingStartedIllustration,
   TripsHeroIllustration,
   RoutesHeroIllustration,
+  WalletHeroIllustration,
+  MonitoringHeroIllustration,
   CostsHeroIllustration,
   MapHeroIllustration,
   SwarmHeroIllustration,
@@ -34,10 +36,15 @@ export function HelpCategoryHero({
         return <TripsHeroIllustration width={200} height={130} />;
       case 'routes':
         return <RoutesHeroIllustration width={200} height={130} />;
+      case 'wallet':
+        return <WalletHeroIllustration width={200} height={130} />;
+      case 'monitoring':
+        return <MonitoringHeroIllustration width={200} height={130} />;
       case 'costs':
         return <CostsHeroIllustration width={200} height={130} />;
       case 'map':
         return <MapHeroIllustration width={200} height={130} />;
+      case 'assistant':
       case 'swarm':
         return <SwarmHeroIllustration width={200} height={130} />;
       case 'settings':

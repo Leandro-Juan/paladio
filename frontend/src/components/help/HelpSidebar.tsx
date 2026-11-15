@@ -117,7 +117,19 @@ export function HelpSidebar({
                 (a) =>
                   a.title.toLowerCase().includes(q) ||
                   a.excerpt.toLowerCase().includes(q) ||
-                  (a.badge && a.badge.toLowerCase().includes(q))
+                  a.tldr.toLowerCase().includes(q) ||
+                  (a.badge && a.badge.toLowerCase().includes(q)) ||
+                  a.sections.some(
+                    (s) =>
+                      s.heading.toLowerCase().includes(q) ||
+                      s.content.some((p) => p.toLowerCase().includes(q)) ||
+                      (s.parameterTable &&
+                        s.parameterTable.some(
+                          (pt) =>
+                            pt.term.toLowerCase().includes(q) ||
+                            pt.meaning.toLowerCase().includes(q)
+                        ))
+                  )
               )
             : cat.articles;
 

@@ -29,6 +29,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
         return (
           a.title.toLowerCase().includes(q) ||
           a.excerpt.toLowerCase().includes(q) ||
+          a.tldr.toLowerCase().includes(q) ||
           a.categoryName.toLowerCase().includes(q) ||
           (a.badge && a.badge.toLowerCase().includes(q)) ||
           a.sections.some(
@@ -171,7 +172,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--color-text-muted, #566B76)', fontSize: '13px' }}>
-              No articles matching &ldquo;{query}&rdquo;. Try searching for <em>TSPTW</em>, <em>knapsack</em>, <em>realism</em>, or <em>lock</em>.
+              No articles matching &ldquo;{query}&rdquo;. Try searching for <em>transit</em>, <em>wallet</em>, <em>monitoring</em>, <em>lock</em>, or <em>currency</em>.
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
