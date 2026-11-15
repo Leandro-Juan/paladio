@@ -81,6 +81,50 @@ class SwarmSessionAdapter(ISwarmSession):
             )
             await self.user_repo.save_embedding(user_id, synthesized_768d)
 
+            # Persist structured taste event if SQL session or factory is available
+            sess_factory = getattr(self.user_repo, "session_factory", None)
+            raw_sess = getattr(self.user_repo, "session", None) or getattr(
+                self.user_repo, "_session", None
+            )
+            if (
+                (sess_factory is not None or raw_sess is not None)
+                and user_id
+                and user_id != "default_user"
+            ):
+                try:
+                    from app.application.taste.taste_service import TasteService
+                    from app.domain.entities.taste import (
+                        InferredReason,
+                        TasteEvent,
+                        TasteSignalType,
+                    )
+                    from app.engine.scoring.features import PoiEncoder as _PE
+
+                    cat = _PE._infer_category(poi)
+                    pol = max(-1.0, min(1.0, (target_score - 50.0) / 50.0))
+                    ev = TasteEvent(
+                        user_id=user_id,
+                        trip_id=data.get("trip_id"),
+                        entity_type="poi",
+                        entity_id=str(poi.get("id") or poi.get("name") or "poi"),
+                        event_type=TasteSignalType.CHAT_PREFERENCE,
+                        polarity=pol,
+                        weight=1.0,
+                        inferred_reason=InferredReason.EXPLICIT_CONSTRAINT,
+                        context={"category": cat, "embedding": poi.get("embedding")},
+                    )
+                    if sess_factory is not None:
+                        async with sess_factory() as db_sess:
+                            await TasteService.record_events(
+                                db_sess, user_id, [ev], trip_id=data.get("trip_id")
+                            )
+                    else:
+                        await TasteService.record_events(
+                            raw_sess, user_id, [ev], trip_id=data.get("trip_id")
+                        )
+                except Exception as exc:
+                    logger.debug("Feedback taste persistence skipped: %s", exc)
+
             yield {"event": "FEEDBACK_PROCESSED", "status": "completed"}
             return
 
@@ -92,6 +136,9 @@ class SwarmSessionAdapter(ISwarmSession):
             "messages": [HumanMessage(content=user_msg)] if user_msg else [],
             "error_count": 0,
             "prompt": prompt_val,
+            "user_id": data.get("user_id", "default_user"),
+            "trip_id": data.get("trip_id"),
+            "participants": data.get("participants"),
             "verification_completed": False,
             "guardrail_status": None,
             "guardrail_errors": None,

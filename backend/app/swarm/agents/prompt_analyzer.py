@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from app.engine.nlp.intent_extractor import PromptIntentExtractor
 from app.schemas.itinerary import NodeConstraint, TravelConstraints
@@ -39,6 +40,32 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
     )
     user_lang = state.get("user_language")
 
+    merged_taste_dict: dict[str, Any] | None = state.get("taste_profile")
+    user_id = state.get("user_id")
+    participants = state.get("participants") or validated.get("participants")
+    trip_id = state.get("trip_id") or validated.get("trip_id") or validated.get("id")
+
+    if merged_taste_dict is None and (user_id or trip_id or participants):
+        try:
+            from app.application.taste.taste_service import TasteService
+            from app.db.session import async_session
+
+            if TasteService.is_personalization_enabled():
+                async with async_session() as db_sess:
+                    merged_prof = await TasteService.get_merged_trip_profile(
+                        session=db_sess,
+                        organizer_user_id=user_id,
+                        trip_id=trip_id,
+                        participant_specs=participants,
+                    )
+                    merged_taste_dict = merged_prof.model_dump(mode="json")
+        except Exception as exc:
+            logger.debug("Could not load merged trip taste profile: %s", exc)
+
+    extract_state = dict(state)
+    if merged_taste_dict is not None:
+        extract_state["taste_profile"] = merged_taste_dict
+
     analysis = RAGPromptAnalysis()
     if full_prompt.strip():
         try:
@@ -46,7 +73,7 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
                 prompt=full_prompt,
                 destination_city=dest_city,
                 user_language=user_lang,
-                state=state,
+                state=extract_state,
             )
             logger.info(
                 f"Deterministic Prompt Analysis result: mandatory_pois={analysis.mandatory_pois}, "
@@ -101,6 +128,34 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
     constraints_dict["cuisine_target_frequency"] = max(
         1, analysis.cuisine_target_frequency
     )
+    manual_constraints = state.get("manual_constraints") or {}
+    if not manual_constraints.get("pace") and analysis.pace:
+        constraints_dict["pace"] = analysis.pace
+    if analysis.prefers_offbeat:
+        constraints_dict["prefers_offbeat"] = True
+    if trip_id is not None:
+        constraints_dict["trip_id"] = trip_id
+    if merged_taste_dict is not None:
+        constraints_dict["taste_profile"] = merged_taste_dict
+    if participants is not None:
+        constraints_dict["participants"] = participants
+
+    if full_prompt.strip() and user_id and user_id != "default_user":
+        try:
+            from app.application.taste.taste_service import TasteService
+            from app.db.session import async_session
+
+            if TasteService.is_personalization_enabled():
+                async with async_session() as db_sess:
+                    await TasteService.on_prompt_analyzed(
+                        session=db_sess,
+                        user_id=user_id,
+                        prompt_text=full_prompt,
+                        analysis_dict=analysis.model_dump(mode="json"),
+                        trip_id=trip_id,
+                    )
+        except Exception as exc:
+            logger.debug("Could not persist prompt taste signal: %s", exc)
 
     try:
         constraints = TravelConstraints(**constraints_dict)
@@ -109,7 +164,10 @@ async def prompt_analyzer_node(state: SwarmState) -> dict:
         logger.warning(f"Failed to re-validate constraints dict: {val_e}")
         updated_validated = constraints_dict
 
-    return {
+    out_state: dict[str, Any] = {
         "validated_itinerary": updated_validated,
         "prompt_analysis": analysis.model_dump(mode="json"),
     }
+    if merged_taste_dict is not None:
+        out_state["taste_profile"] = merged_taste_dict
+    return out_state

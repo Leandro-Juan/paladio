@@ -20,6 +20,9 @@ CORE_TOOLS = {
     "optimize_day",
     "what_if",
     "undo_last_change",
+    "record_taste_preference",
+    "forget_taste_preference",
+    "describe_taste_profile",
     "load_toolset",
 }
 

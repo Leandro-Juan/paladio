@@ -547,3 +547,139 @@ async def export_trip_package(
             "profile": profile,
         },
     )
+
+
+async def record_taste_preference(
+    target: str,
+    target_type: str = "category",
+    polarity: float = 1.0,
+    hard_veto: bool = False,
+    trip_id: str | None = None,
+    ctx: Context | None = None,
+) -> ToolResult:
+    """Persists an explicit user taste preference or hard veto from chat."""
+    from app.application.taste.taste_service import TasteService
+
+    u_ctx = await get_user_context(ctx)
+    if not u_ctx.user:
+        return ToolResult(
+            ok=False,
+            summary="Authenticated user required to record taste preferences.",
+        )
+    if trip_id:
+        await u_ctx.check_access(trip_id, TripAccessLevel.READ)
+
+    profile = await TasteService.on_chat_preference(
+        session=u_ctx.session,
+        user_id=u_ctx.user.id,
+        trip_id=trip_id,
+        target=target,
+        target_type=target_type,
+        polarity=polarity,
+        hard_veto=hard_veto,
+    )
+    if trip_id:
+        await log_agent_action(
+            session=u_ctx.session,
+            tool="record_taste_preference",
+            outcome="success",
+            user_id=u_ctx.user.id,
+            trip_id=trip_id,
+            args={
+                "target": target,
+                "target_type": target_type,
+                "polarity": polarity,
+                "hard_veto": hard_veto,
+            },
+        )
+    return ToolResult(
+        ok=True,
+        summary=(
+            f"Recorded {'veto' if hard_veto else 'preference'} for {target_type} '{target}'."
+        ),
+        data={
+            "target": target,
+            "target_type": target_type,
+            "polarity": polarity,
+            "hard_veto": hard_veto,
+            "version": profile.version if profile else None,
+        },
+    )
+
+
+async def forget_taste_preference(
+    target: str,
+    trip_id: str | None = None,
+    ctx: Context | None = None,
+) -> ToolResult:
+    """Removes a learned category, cuisine, dislike, or POI prior from the user's profile."""
+    from app.application.taste.taste_service import TasteService
+
+    u_ctx = await get_user_context(ctx)
+    if not u_ctx.user:
+        return ToolResult(
+            ok=False,
+            summary="Authenticated user required to modify taste profile.",
+        )
+
+    profile = await TasteService.forget_user_preference(
+        session=u_ctx.session, user_id=u_ctx.user.id, target=target
+    )
+    return ToolResult(
+        ok=True,
+        summary=f"Cleared stored preference '{target}' from your taste profile.",
+        data={"target": target, "version": profile.version},
+    )
+
+
+async def describe_taste_profile(
+    trip_id: str | None = None,
+    ctx: Context | None = None,
+) -> ToolResult:
+    """Summarizes the user's learned taste profile and optional group trip merge."""
+    from app.application.taste.taste_service import TasteService
+
+    u_ctx = await get_user_context(ctx)
+    if not u_ctx.user:
+        return ToolResult(
+            ok=False,
+            summary="Authenticated user required to inspect taste profile.",
+        )
+
+    profile = await TasteService.get_or_create_profile(u_ctx.session, u_ctx.user.id)
+    affs = profile.get_tag_affinities()
+    sorted_tags = sorted(affs.items(), key=lambda kv: kv[1], reverse=True)
+    preferred_cuisines = [
+        k
+        for k, post in profile.cuisine_posteriors.items()
+        if post.mean >= 0.58 and post.sample_size >= 0.5
+    ]
+    data: dict[str, Any] = {
+        "user_id": u_ctx.user.id,
+        "version": profile.version,
+        "event_count": profile.event_count,
+        "top_categories": sorted_tags[:4],
+        "disliked_tags": list(profile.disliked_tags),
+        "preferred_cuisines": preferred_cuisines,
+        "pace": profile.behavioral_params.pace,
+        "budget_tier": profile.economic_profile.budget_tier,
+    }
+    if trip_id:
+        await u_ctx.check_access(trip_id, TripAccessLevel.READ)
+        merged = await TasteService.get_merged_trip_profile(
+            session=u_ctx.session,
+            organizer_user_id=u_ctx.user.id,
+            trip_id=trip_id,
+        )
+        data["group_merged"] = {
+            "traveler_count": merged.traveler_count,
+            "active_profile_count": merged.active_profile_count,
+            "vetoed_categories": list(merged.vetoed_categories),
+            "tag_affinities": merged.tag_affinities,
+        }
+
+    return ToolResult(
+        ok=True,
+        summary=f"Taste profile v{profile.version} ({profile.event_count} events).",
+        data=data,
+    )

@@ -5,6 +5,7 @@ from datetime import datetime
 import dateparser
 from app.schemas.itinerary import BookingAnchors, FlightSegment, HotelAnchor
 from app.services.airport_service import get_airport_service
+from app.services.settings_service import SettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -376,6 +377,15 @@ def parse_booking_text(text: str) -> BookingAnchors | None:
 
 async def ticket_parser_node(state: dict) -> dict:
     """Deterministic booking-text parser node replacing the Pydantic AI LLM agent."""
+    swarm_cfg = await SettingsService.get_domain_settings_safe("swarm")
+    if not swarm_cfg.get("auto_ticket_ingestion", True) and not state.get(
+        "force_ticket_parse"
+    ):
+        logger.info(
+            "Auto ticket ingestion disabled in swarm settings. Bypassing ticket parser."
+        )
+        return {"booking_anchors": state.get("booking_anchors")}
+
     booking_text = state.get("booking_text")
     if not booking_text or not booking_text.strip():
         logger.info("No booking text provided. Bypassing ticket parser.")

@@ -76,6 +76,7 @@ class InstrumentedMCPToolset(MCPToolset):
             "load_toolset",
             "get_job_status",
             "cancel_job",
+            "forget_taste_preference",
         }
         if name not in non_trip_tools and self.trip_id:
             val = tool_args.get("trip_id")

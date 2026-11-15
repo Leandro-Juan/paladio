@@ -16,6 +16,7 @@ from typing import Any
 from app.engine.transit_matrix import haversine_distance
 from app.schemas.itinerary import TravelConstraints
 from app.schemas.user import PacePreference
+from app.services.settings_service import SettingsService
 from app.swarm.state import SwarmState
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
@@ -122,7 +123,11 @@ def _compute_day_zigzag_ratio(coords: list[tuple[float, float]]) -> float:
 
 
 def evaluate_itinerary_quality(
-    final_itinerary: dict[str, Any], constraints: TravelConstraints
+    final_itinerary: dict[str, Any],
+    constraints: TravelConstraints,
+    *,
+    attraction_burnout_limit: int | None = None,
+    critic_strictness: float = 0.75,
 ) -> tuple[list[CriticIssue], float]:
     """Pure, deterministic evaluation of an itinerary returning (issues, objective_score J)."""
     issues: list[CriticIssue] = []
@@ -138,6 +143,9 @@ def evaluate_itinerary_quality(
 
     pace = getattr(constraints, "pace", PacePreference.BALANCED)
     lo, hi = PACE_SIGHT_BOUNDS.get(pace, (3, 5))
+    if attraction_burnout_limit is not None and attraction_burnout_limit > 0:
+        hi = min(hi, int(attraction_burnout_limit))
+        lo = min(lo, hi)
     n_days = len(days)
 
     total_sights = 0
@@ -282,7 +290,8 @@ def evaluate_itinerary_quality(
         )
 
     # Objective function J: rewards sights scheduled, penalizes travel and critic penalties
-    penalty = sum(i.severity * 50.0 for i in issues)
+    strictness_scale = max(0.0, float(critic_strictness)) / 0.75
+    penalty = sum(i.severity * 50.0 for i in issues) * strictness_scale
     j_score = (total_sights * 100.0) - (total_travel_mins * 1.5) - penalty
 
     return issues, round(j_score, 2)
@@ -297,7 +306,14 @@ async def planner_critic_node(state: SwarmState, config: RunnableConfig) -> dict
     if not final_itin or not constraints:
         return {"critic_issues": [], "current_objective_j": 0.0}
 
-    issues, j_score = evaluate_itinerary_quality(final_itin, constraints)
+    engine_cfg = await SettingsService.get_domain_settings_safe("engine")
+    swarm_cfg = await SettingsService.get_domain_settings_safe("swarm")
+    issues, j_score = evaluate_itinerary_quality(
+        final_itin,
+        constraints,
+        attraction_burnout_limit=engine_cfg.get("attraction_burnout_limit"),
+        critic_strictness=float(swarm_cfg.get("critic_strictness", 0.75)),
+    )
     logger.info(
         f"--- [PHASE: CRITIC] Evaluated itinerary: {len(issues)} issue(s), Objective J = {j_score} ---"
     )

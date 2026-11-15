@@ -60,6 +60,24 @@ mcp.tool(
     annotations=make_annotations(read_only=True),
 )(tools.export_trip_package)
 
+mcp.tool(
+    name="record_taste_preference",
+    description="Records an explicit preference or hard dislike from chat into the user's persistent taste profile.",
+    annotations=make_annotations(read_only=False),
+)(tools.record_taste_preference)
+
+mcp.tool(
+    name="forget_taste_preference",
+    description="Removes a learned preference or hard veto from the user's taste profile.",
+    annotations=make_annotations(read_only=False),
+)(tools.forget_taste_preference)
+
+mcp.tool(
+    name="describe_taste_profile",
+    description="Summarizes the user's learned taste profile and optional group trip consensus.",
+    annotations=make_annotations(read_only=True, idempotent=True),
+)(tools.describe_taste_profile)
+
 # 2. POIs and Discovery Tools
 mcp.tool(
     name="search_pois",

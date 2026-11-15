@@ -59,11 +59,16 @@ async def planner_optimize_node(state: SwarmState, config: RunnableConfig) -> di
     use_case = OptimizeDailyItineraryUseCase(engine)
 
     try:
+        tp = getattr(constraints, "taste_profile", None) or {}
+        u_vec = tp.get("embedding") if isinstance(tp, dict) else None
         final_itinerary = await use_case.execute(
             constraints,
             state.get("daily_pois_data", []),
             state.get("outbound_flight"),
             state.get("return_flight"),
+            user_vector=u_vec
+            if isinstance(u_vec, list) and len(u_vec) == 768
+            else None,
         )
         return {"final_itinerary": final_itinerary}
     except (RuntimeError, ValueError, TypeError, KeyError) as e:

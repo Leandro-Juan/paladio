@@ -8,10 +8,20 @@ from app.schemas.itinerary import (
     NodeConstraint,
     TravelConstraints,
 )
+from app.schemas.user import PacePreference
 from app.services.airport_service import get_airport_service
+from app.services.settings_service import SettingsService
 from app.swarm.state import SwarmState
 
 logger = logging.getLogger(__name__)
+
+
+def _add_minutes(start: time, minutes: int) -> time:
+    """Add duration minutes to a clock time without overflowing past 23:59."""
+    total_mins = min(
+        23 * 60 + 59, max(0, start.hour * 60 + start.minute + int(minutes))
+    )
+    return time(total_mins // 60, total_mins % 60)
 
 
 def _parse_date(val: Any) -> date | None:
@@ -47,6 +57,8 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
     """
     logger.info("--- [PHASE: CONSTRAINTS] Assembling constraints deterministically ---")
 
+    engine_cfg = await SettingsService.get_domain_settings_safe("engine")
+    meal_windows = engine_cfg.get("meal_windows") or {}
     manual = state.get("manual_constraints") or {}
 
     # 1. Parse booking anchors from tickets
@@ -124,27 +136,36 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
             elif isinstance(m, str):
                 m_str = m.strip().upper()
                 if "BREAKFAST" in m_str:
+                    b_start = time(8, 0)
                     meals.append(
                         MealRequirement(
                             meal_type="BREAKFAST",
-                            start_time=time(8, 0),
-                            end_time=time(10, 30),
+                            start_time=b_start,
+                            end_time=_add_minutes(
+                                b_start, int(meal_windows.get("breakfast", 45))
+                            ),
                         )
                     )
                 elif "LUNCH" in m_str:
+                    l_start = time(12, 0)
                     meals.append(
                         MealRequirement(
                             meal_type="LUNCH",
-                            start_time=time(12, 0),
-                            end_time=time(15, 0),
+                            start_time=l_start,
+                            end_time=_add_minutes(
+                                l_start, int(meal_windows.get("lunch", 60))
+                            ),
                         )
                     )
                 elif "DINNER" in m_str:
+                    d_start = time(19, 30)
                     meals.append(
                         MealRequirement(
                             meal_type="DINNER",
-                            start_time=time(19, 30),
-                            end_time=time(23, 0),
+                            start_time=d_start,
+                            end_time=_add_minutes(
+                                d_start, int(meal_windows.get("dinner", 75))
+                            ),
                         )
                     )
 
@@ -202,10 +223,46 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
     if not plan_mode:
         plan_mode = "estimated" if state.get("test_mode") else "real"
 
+    prompt_pace: str | None = None
+    if prompt:
+        from app.engine.nlp.intent_extractor import (
+            _BALANCED_PACE_RE,
+            _INTENSE_PACE_RE,
+            _LEISURELY_PACE_RE,
+            _OFFBEAT_PREF_RE,
+        )
+
+        if _LEISURELY_PACE_RE.search(prompt):
+            prompt_pace = PacePreference.LEISURELY.value
+        elif _INTENSE_PACE_RE.search(prompt):
+            prompt_pace = PacePreference.INTENSE.value
+        elif _BALANCED_PACE_RE.search(prompt):
+            prompt_pace = PacePreference.BALANCED.value
+        prefers_offbeat = bool(
+            manual.get("prefers_offbeat") or _OFFBEAT_PREF_RE.search(prompt)
+        )
+    else:
+        prefers_offbeat = bool(manual.get("prefers_offbeat"))
+
+    raw_pace = (
+        manual.get("pace")
+        or prompt_pace
+        or engine_cfg.get("pacing_tempo", PacePreference.BALANCED.value)
+    )
+    try:
+        pace = (
+            raw_pace
+            if isinstance(raw_pace, PacePreference)
+            else PacePreference(str(raw_pace).lower())
+        )
+    except ValueError:
+        pace = PacePreference.BALANCED
+
     constraints = TravelConstraints(
         origin_city=origin_city,
         destination_city=destination_city,
         budget_usd=budget_usd,
+        pace=pace,
         start_date=start_date,
         end_date=end_date,
         booking_anchors=booking,
@@ -213,6 +270,10 @@ async def assemble_constraints_node(state: SwarmState) -> dict:
         nodes=nodes,
         prompt=prompt,
         plan_mode=plan_mode,
+        trip_id=state.get("trip_id"),
+        participants=state.get("participants"),
+        taste_profile=state.get("taste_profile"),
+        prefers_offbeat=prefers_offbeat,
     )
 
     logger.info(

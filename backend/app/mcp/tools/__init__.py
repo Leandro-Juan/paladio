@@ -8,6 +8,9 @@ from app.mcp.tools.trip import (
     get_trip_issues,
     update_trip_details,
     export_trip_package,
+    record_taste_preference,
+    forget_taste_preference,
+    describe_taste_profile,
 )
 from app.mcp.tools.pois import (
     search_pois,
@@ -105,6 +108,9 @@ __all__ = [
     "get_trip_issues",
     "update_trip_details",
     "export_trip_package",
+    "record_taste_preference",
+    "forget_taste_preference",
+    "describe_taste_profile",
     "search_pois",
     "get_poi_details",
     "search_places",

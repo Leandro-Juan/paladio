@@ -26,3 +26,9 @@ class SwarmState(TypedDict):
     current_objective_j: float | None
     user_language: str | None
     existing_trips: list[dict] | None
+    user_id: str | None
+    trip_id: str | None
+    participants: list[dict] | None
+    taste_profile: dict | None
+    requires_human_approval: bool | None
+    force_ticket_parse: bool | None

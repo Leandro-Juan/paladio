@@ -12,6 +12,7 @@ import copy
 import logging
 from typing import Any
 
+from app.services.settings_service import SettingsService
 from app.swarm.critic import CriticIssueType
 from app.swarm.state import SwarmState
 from langchain_core.runnables import RunnableConfig
@@ -189,6 +190,8 @@ async def planner_repair_node(state: SwarmState, config: RunnableConfig) -> dict
         lunch_window=lunch_window,
     )
     next_iteration = iteration + 1
+    swarm_cfg = await SettingsService.get_domain_settings_safe("swarm")
+    requires_approval = bool(swarm_cfg.get("require_human_approval_on_repair", False))
 
     logger.info(
         f"--- [PHASE: REPAIR] Applied repairs (modified={modified}, iteration={next_iteration}) ---"
@@ -196,10 +199,15 @@ async def planner_repair_node(state: SwarmState, config: RunnableConfig) -> dict
 
     if not modified:
         # If no repairs were possible, clear issues to prevent infinite loop
-        return {"refinement_iteration": next_iteration, "critic_issues": []}
+        return {
+            "refinement_iteration": next_iteration,
+            "critic_issues": [],
+            "requires_human_approval": requires_approval,
+        }
 
     return {
         "daily_pois_data": repaired_pois,
         "refinement_iteration": next_iteration,
         "critic_issues": [],
+        "requires_human_approval": requires_approval,
     }
