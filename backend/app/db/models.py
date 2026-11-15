@@ -193,6 +193,52 @@ class UserModel(Base):
     )
 
 
+class TasteEventModel(Base):
+    __tablename__ = "taste_events"
+
+    id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    entity_type = Column(String(32), nullable=False, index=True)
+    entity_id = Column(String(256), nullable=False, index=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    polarity = Column(Float, nullable=False, default=0.0)
+    weight = Column(Float, nullable=False, default=1.0)
+    inferred_reason = Column(String(64), nullable=True)
+    context = Column(JSONB, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+
+class UserTasteProfileModel(Base):
+    __tablename__ = "user_taste_profiles"
+
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    version = Column(Integer, default=1, nullable=False)
+    event_count = Column(Integer, default=0, nullable=False)
+    embedding = Column(Vector(768), nullable=True)
+    category_posteriors = Column(JSONB, nullable=False, default=dict)
+    poi_priors = Column(JSONB, nullable=False, default=dict)
+    contextual_profiles = Column(JSONB, nullable=False, default=dict)
+    behavioral_params = Column(JSONB, nullable=False, default=dict)
+    economic_profile = Column(JSONB, nullable=False, default=dict)
+    ranker_weights = Column(JSONB, nullable=True)
+    last_event_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class TripModel(Base):
     __tablename__ = "trips"
 
@@ -340,7 +386,7 @@ class TripCollectionModel(Base):
 
     id = Column(String, primary_key=True, index=True)
     trip_id = Column(
-        String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+        String, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True
     )
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
