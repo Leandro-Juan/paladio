@@ -1,6 +1,7 @@
 """Unit tests for Phase 5 high-volume PBF extractor and 6-stream signal gates."""
 
 from app.infrastructure.providers.pbf_poi_extractor import (
+    PoiPbfHandler,
     approx_polygon_area_m2,
     classify_stream,
     is_fast_food_chain,
@@ -178,3 +179,50 @@ def test_spatial_deduplicate_and_tag_merging():
     assert winner["metadata"]["tags"]["wheelchair"] == "yes"
     assert winner["osm_opening_hours"] == "Mo-Sa 10:00-20:00, Su 10:00-19:00"
     assert winner["metadata"]["hours_source"] == "osm"
+
+
+def test_poi_pbf_handler_positive_quadrant_dubai_bbox():
+    # Canonical (min_lat, max_lat, min_lon, max_lon) for Dubai positive quadrant
+    handler = PoiPbfHandler((25.0, 25.4, 55.0, 55.4))
+    assert handler._in_bbox(25.20, 55.27) is True
+    assert handler._in_bbox(25.28, 51.53) is False  # Doha, Qatar
+    assert handler._in_bbox(24.71, 46.67) is False  # Riyadh, Saudi Arabia
+
+
+def test_classify_stream_excludes_unnotable_exits():
+    assert (
+        classify_stream(
+            {"tourism": "attraction", "name": "Sortie des Catacombes"},
+            "Sortie des Catacombes",
+        )
+        is None
+    )
+    assert (
+        classify_stream(
+            {"tourism": "attraction", "name": "Catacombes Exit"},
+            "Catacombes Exit",
+        )
+        is None
+    )
+    assert (
+        classify_stream(
+            {
+                "tourism": "attraction",
+                "name": "Catacombes de Paris",
+                "wikidata": "Q28922",
+            },
+            "Catacombes de Paris",
+        )
+        == 1
+    )
+    assert (
+        classify_stream(
+            {
+                "historic": "monument",
+                "name": "Sortie Royale",
+                "wikidata": "Q999",
+            },
+            "Sortie Royale",
+        )
+        == 1
+    )

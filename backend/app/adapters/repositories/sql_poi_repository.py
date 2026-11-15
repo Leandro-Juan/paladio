@@ -429,15 +429,20 @@ class SqlPoiRepository(IPoiRepository):
         models = result.scalars().all()
         return [model_to_poi(model) for model in models]
 
-    async def find_meal_spots(self, city_name: str, limit: int = 400) -> list[Poi]:
+    async def find_meal_spots(self, city_name: str, limit: int = 2000) -> list[Poi]:
         filter_clause = await self._get_city_filter(city_name)
         stmt = (
             select(AttractionModel)
             .where(filter_clause)
             .where(
                 func.lower(AttractionModel.category).in_(
-                    ("restaurant", "cafe", "food", "bistrot")
+                    ("restaurant", "cafe", "food", "bistrot", "bakery")
                 )
+            )
+            .order_by(
+                AttractionModel.tier.asc(),
+                AttractionModel.iconicity_score.desc(),
+                AttractionModel.id.asc(),
             )
             .limit(limit)
         )

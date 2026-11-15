@@ -6,6 +6,7 @@ dining venues. Results are plain dict records ready for tiering and persistence.
 Failures raise `CityIngestError`: there is no silent fallback to made-up data.
 """
 
+import asyncio
 import logging
 import math
 from dataclasses import dataclass, field
@@ -128,7 +129,8 @@ async def geocode_city(city: str, client: httpx.AsyncClient | None = None) -> Ci
         lon=float(best["lon"]),
         radius_km=round(radius, 2),
         country_code=addr.get("country_code"),
-        bbox=bbox
+        # Normalize Nominatim [south, north, west, east] -> canonical [south, west, north, east]
+        bbox=[bbox[0], bbox[2], bbox[1], bbox[3]]
         if len(bbox) == 4
         else [
             float(best["lat"]) - 0.1,
@@ -330,9 +332,13 @@ async def fetch_city_records(
         try:
             pbf_path = await PbfPoiExtractor.ensure_city_pbf(geo.name)
             if pbf_path and geo.bbox and len(geo.bbox) == 4:
-                bbox_tuple = (geo.bbox[0], geo.bbox[1], geo.bbox[2], geo.bbox[3])
-                pbf_pois = PbfPoiExtractor.extract_from_pbf(
-                    pbf_path, bbox_tuple, config=config
+                # geo.bbox is canonical [south, west, north, east] -> (min_lat, max_lat, min_lon, max_lon)
+                bbox_tuple = (geo.bbox[0], geo.bbox[2], geo.bbox[1], geo.bbox[3])
+                pbf_pois = await asyncio.to_thread(
+                    PbfPoiExtractor.extract_from_pbf,
+                    pbf_path,
+                    bbox_tuple,
+                    config=config,
                 )
                 if pbf_pois:
                     existing_qids = {

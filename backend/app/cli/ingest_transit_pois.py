@@ -270,15 +270,9 @@ async def ingest_city_transit(
             logger.error(f"City '{cname}' does not have a valid 4-element bbox.")
             return 0
 
+        # Canonical CityModel.bbox order is [south, west, north, east]
         b0, b1, b2, b3 = bbox
-        if (
-            abs(b0) <= 90
-            and abs(b1) <= 90
-            and (abs(b2) > 90 or b2 < 0 or abs(b3) > 90 or b3 < 0 or b2 < b1)
-        ):
-            bbox_tuple = (min(b0, b1), max(b0, b1), min(b2, b3), max(b2, b3))
-        else:
-            bbox_tuple = (min(b0, b2), max(b0, b2), min(b1, b3), max(b1, b3))
+        bbox_tuple = (min(b0, b2), max(b0, b2), min(b1, b3), max(b1, b3))
 
         if force:
             from sqlalchemy import delete

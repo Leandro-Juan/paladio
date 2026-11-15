@@ -7,6 +7,7 @@ using stratified 6-stream extraction with signal gates and spatial deduplication
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import os
@@ -176,6 +177,12 @@ def is_fast_food_chain(tags: dict[str, str], name: str) -> bool:
     return False
 
 
+_EXIT_OR_ENTRANCE_RE = re.compile(
+    r"\b(?:sortie|exit|salida|uscita|ausgang|sa[íi]da|entrance|entr[ée]e|entrada|ingresso|eingang)\b",
+    re.IGNORECASE,
+)
+
+
 def classify_stream(
     tags: dict[str, str], name: str, area_m2: float = 0.0
 ) -> int | None:
@@ -184,6 +191,15 @@ def classify_stream(
     Returns the stream number (1..6) or None if the element fails gates or does not match.
     """
     if not name:
+        return None
+
+    # Exclude infrastructure exit/entrance nodes unless explicitly notable (wikidata/wikipedia/heritage)
+    if (
+        _EXIT_OR_ENTRANCE_RE.search(name)
+        and not tags.get("wikidata")
+        and not tags.get("wikipedia")
+        and not tags.get("heritage")
+    ):
         return None
 
     tourism = tags.get("tourism")
@@ -497,18 +513,11 @@ class PoiPbfHandler(osmium.SimpleHandler if osmium is not None else object):  # 
     """Streams .osm.pbf, filters within city bounding box, and buckets into 6 streams."""
 
     def __init__(self, bbox: tuple[float, float, float, float]) -> None:
+        """Accepts canonical (min_lat, max_lat, min_lon, max_lon)."""
         super().__init__()
         b0, b1, b2, b3 = bbox
-        if (
-            abs(b0) <= 90
-            and abs(b1) <= 90
-            and (abs(b2) > 90 or b2 < 0 or abs(b3) > 90 or b3 < 0 or b2 < b1)
-        ):
-            self.min_lat, self.max_lat = min(b0, b1), max(b0, b1)
-            self.min_lon, self.max_lon = min(b2, b3), max(b2, b3)
-        else:
-            self.min_lat, self.max_lat = min(b0, b2), max(b0, b2)
-            self.min_lon, self.max_lon = min(b1, b3), max(b1, b3)
+        self.min_lat, self.max_lat = min(b0, b1), max(b0, b1)
+        self.min_lon, self.max_lon = min(b2, b3), max(b2, b3)
 
         self.streams: dict[int, list[dict[str, Any]]] = {
             1: [],
@@ -643,7 +652,7 @@ class PbfPoiExtractor:
                 f"Downloading OSM PBF for '{city_name}' from {url} to temporary file {temp_path}..."
             )
             try:
-                urllib.request.urlretrieve(url, temp_path)
+                await asyncio.to_thread(urllib.request.urlretrieve, url, temp_path)
                 if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
                     os.replace(temp_path, dest_path)
                     logger.info(
@@ -667,13 +676,226 @@ class PbfPoiExtractor:
         bbox: tuple[float, float, float, float],
         config: CityIngestConfig | None = None,
     ) -> list[dict[str, Any]]:
-        """Extracts, deduplicates, and caps POIs across 6 streams from a local .osm.pbf."""
+        """Extracts, deduplicates, and caps POIs across 6 streams from a local .osm.pbf.
+
+        Uses a bounded-memory two-pass KeyFilter/TagFilter + chunked IdFilter strategy
+        with locations=False so country/region PBFs never allocate 1.3-2+ GB location maps.
+        """
+        if osmium is None:
+            raise RuntimeError("pyosmium is required for local PBF POI extraction")
+
         config = config or CityIngestConfig()
+        min_lat, max_lat = min(bbox[0], bbox[1]), max(bbox[0], bbox[1])
+        min_lon, max_lon = min(bbox[2], bbox[3]), max(bbox[2], bbox[3])
         logger.info(
-            f"Streaming OSM PBF {pbf_path} for bbox {bbox} across 6 stratified streams..."
+            f"Streaming OSM PBF {pbf_path} for bbox ({min_lat:.4f}, {max_lat:.4f}, "
+            f"{min_lon:.4f}, {max_lon:.4f}) across 6 stratified streams (low-memory mode)..."
         )
-        handler = PoiPbfHandler(bbox)
-        handler.apply_file(pbf_path, locations=True)
+
+        class _FirstPassHandler(osmium.SimpleHandler):
+            def __init__(self) -> None:
+                super().__init__()
+                self.streams: dict[int, list[dict[str, Any]]] = {
+                    i: [] for i in range(1, 7)
+                }
+                self.seen_node_ids: set[int] = set()
+                self.seen_way_ids: set[int] = set()
+                self.candidate_ways: list[
+                    tuple[int, list[int], bool, dict[str, str], str, int]
+                ] = []
+                self.needed_node_ids: set[int] = set()
+
+            def node(self, n: osmium.osm.Node) -> None:
+                nid = n.id
+                if nid in self.seen_node_ids or not n.location.valid():
+                    return
+                lat = n.location.lat
+                lon = n.location.lon
+                if not (min_lat <= lat <= max_lat and min_lon <= lon <= max_lon):
+                    return
+                tags = {t.k: t.v for t in n.tags}
+                name = _clean_display_name(tags)
+                if not name:
+                    return
+                self.seen_node_ids.add(nid)
+                stream = classify_stream(tags, name, area_m2=0.0)
+                if stream is not None:
+                    self.streams[stream].append(
+                        make_record("node", nid, lat, lon, tags, name, stream)
+                    )
+
+            def way(self, w: osmium.osm.Way) -> None:
+                wid = w.id
+                if wid in self.seen_way_ids:
+                    return
+                has_name = False
+                for t in w.tags:
+                    if t.k in ("name", "name:en", "int_name"):
+                        has_name = True
+                        break
+                if not has_name:
+                    return
+                nrefs = w.nodes
+                if len(nrefs) == 0:
+                    return
+
+                tags = {t.k: t.v for t in w.tags}
+                name = _clean_display_name(tags)
+                if not name:
+                    return
+                self.seen_way_ids.add(wid)
+
+                # Pass large preliminary area for Stream 2 ways so area gate waits until geometry resolves
+                is_s2_shape = (
+                    tags.get("leisure") in _STREAM2_LEISURE
+                    or tags.get("place") == "square"
+                    or tags.get("natural") in _STREAM2_NATURAL
+                )
+                stream = classify_stream(
+                    tags, name, area_m2=10000.0 if is_s2_shape else 0.0
+                )
+                if stream is None:
+                    return
+
+                total_refs = len(nrefs)
+                is_closed = bool(w.is_closed())
+                if stream == 2 and is_closed and total_refs >= 4:
+                    sample_count = min(16, total_refs)
+                    sample_refs = [
+                        nrefs[(i * total_refs) // sample_count].ref
+                        for i in range(sample_count)
+                    ]
+                elif total_refs > 1:
+                    sample_refs = [nrefs[0].ref, nrefs[total_refs // 2].ref]
+                else:
+                    sample_refs = [nrefs[0].ref]
+
+                for ref_id in sample_refs:
+                    self.needed_node_ids.add(ref_id)
+                self.candidate_ways.append(
+                    (wid, sample_refs, is_closed, tags, name, stream)
+                )
+
+        first = _FirstPassHandler()
+        key_filter = osmium.filter.KeyFilter(
+            "tourism", "historic", "leisure", "natural", "amenity", "shop", "place"
+        )
+        bldg_tags = [
+            ("building", val) for val in sorted(_STREAM1_BUILDINGS | {"market"})
+        ]
+        bldg_filter = osmium.filter.TagFilter(*bldg_tags)
+
+        first.apply_file(
+            pbf_path,
+            locations=False,
+            filters=[
+                osmium.filter.EntityFilter(osmium.osm.NODE | osmium.osm.WAY),
+                key_filter,
+            ],
+        )
+        first.apply_file(
+            pbf_path,
+            locations=False,
+            filters=[
+                osmium.filter.EntityFilter(osmium.osm.NODE | osmium.osm.WAY),
+                bldg_filter,
+            ],
+        )
+
+        # Pass 2: resolve needed way vertex coordinates in bounded IdFilter chunks (<= 256 MB C++ bitset each)
+        coords: dict[int, tuple[float, float]] = {}
+        if first.needed_node_ids:
+            pad_lat_min, pad_lat_max = min_lat - 0.25, max_lat + 0.25
+            pad_lon_min, pad_lon_max = min_lon - 0.25, max_lon + 0.25
+
+            class _NodeCoordResolver(osmium.SimpleHandler):
+                def node(self, n: osmium.osm.Node) -> None:
+                    if not n.location.valid():
+                        return
+                    lat = n.location.lat
+                    lon = n.location.lon
+                    if (
+                        pad_lat_min <= lat <= pad_lat_max
+                        and pad_lon_min <= lon <= pad_lon_max
+                    ):
+                        coords[n.id] = (lat, lon)
+
+            sorted_ids = sorted(first.needed_node_ids)
+            max_blocks_per_pass = 64  # ~256 MB worst-case IdSetDense footprint
+            batches: list[list[int]] = []
+            current_batch: list[int] = []
+            current_blocks = 0
+            last_block = -1
+            for nid in sorted_ids:
+                blk = nid >> 25
+                if blk != last_block:
+                    if current_batch and current_blocks >= max_blocks_per_pass:
+                        batches.append(current_batch)
+                        current_batch = []
+                        current_blocks = 0
+                    current_blocks += 1
+                    last_block = blk
+                current_batch.append(nid)
+            if current_batch:
+                batches.append(current_batch)
+
+            logger.info(
+                f"Pass 2 resolving {len(sorted_ids)} way vertex IDs across {len(batches)} bounded IdFilter pass(es)..."
+            )
+            node_entity_filter = osmium.filter.EntityFilter(osmium.osm.NODE)
+            for id_batch in batches:
+                resolver = _NodeCoordResolver()
+                id_filter = osmium.filter.IdFilter(id_batch)
+                resolver.apply_file(
+                    pbf_path,
+                    locations=False,
+                    filters=[node_entity_filter, id_filter],
+                )
+                del id_filter
+                del resolver
+
+        # Pass 3: assemble candidate ways inside bbox and validate Stream 2 area gates
+        for (
+            wid,
+            sample_refs,
+            is_closed,
+            tags,
+            name,
+            prelim_stream,
+        ) in first.candidate_ways:
+            lats: list[float] = []
+            lons: list[float] = []
+            for ref_id in sample_refs:
+                pt = coords.get(ref_id)
+                if pt is not None:
+                    lats.append(pt[0])
+                    lons.append(pt[1])
+            if not lats:
+                continue
+
+            centroid_lat = sum(lats) / len(lats)
+            centroid_lon = sum(lons) / len(lons)
+            if not (
+                min_lat <= centroid_lat <= max_lat
+                and min_lon <= centroid_lon <= max_lon
+            ):
+                continue
+
+            stream = prelim_stream
+            if stream == 2:
+                area_m2 = (
+                    approx_polygon_area_m2(lats, lons)
+                    if is_closed and len(lats) >= 4
+                    else 0.0
+                )
+                rechecked = classify_stream(tags, name, area_m2=area_m2)
+                if rechecked is None:
+                    continue
+                stream = rechecked
+
+            first.streams[stream].append(
+                make_record("way", wid, centroid_lat, centroid_lon, tags, name, stream)
+            )
 
         caps = {
             1: config.max_stream1_anchor,
@@ -686,8 +908,8 @@ class PbfPoiExtractor:
 
         all_curated_pois: list[dict[str, Any]] = []
 
-        for stream_id in sorted(handler.streams.keys()):
-            raw_recs = handler.streams[stream_id]
+        for stream_id in sorted(first.streams.keys()):
+            raw_recs = first.streams[stream_id]
             deduped = spatial_deduplicate(
                 raw_recs, dedup_distance_m=config.dedup_distance_m
             )
