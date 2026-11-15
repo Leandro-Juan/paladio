@@ -62,3 +62,22 @@ class SettingsService:
         await session.commit()
         await session.refresh(record)
         return validated_data
+
+    @staticmethod
+    async def get_domain_settings_safe(domain: str) -> dict[str, Any]:
+        """Fetch validated settings without requiring a caller-managed DB session."""
+        if domain not in DOMAIN_CONFIG_MAP:
+            raise ValueError(f"Unsupported settings domain: '{domain}'")
+
+        import app.db.session as db_session_mod
+
+        try:
+            async with db_session_mod.async_session() as session:
+                return await SettingsService.get_domain_settings(session, domain)
+        except Exception as exc:
+            logger.debug(
+                "Falling back to default '%s' settings (session unavailable): %s",
+                domain,
+                exc,
+            )
+            return get_default_domain_config(domain)

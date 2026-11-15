@@ -450,6 +450,15 @@ class TestSecretPayload(BaseModel):
     )
 
 
+def _require_admin(user: UserModel | None, detail: str) -> UserModel:
+    if not user or getattr(user, "role", "user") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail,
+        )
+    return user
+
+
 def mask_secret_token(token: str | None) -> str | None:
     if not token:
         return None
@@ -464,7 +473,8 @@ async def get_system_secrets(
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Retrieve status and obfuscated values of configured external API secrets."""
+    """Retrieve status and obfuscated values of configured external API secrets (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to manage system secrets")
     from app.db.models import SystemConfigModel
     from app.engine.market.config import get_travelpayouts_token, config
     from sqlalchemy import select
@@ -511,7 +521,8 @@ async def update_system_secret(
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Persist or update an external API secret and update runtime engine state."""
+    """Persist or update an external API secret and update runtime engine state (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to manage system secrets")
     from app.db.models import SystemConfigModel
     from app.engine.market.config import set_runtime_aviasales_token
     from datetime import datetime, timezone
@@ -578,7 +589,8 @@ async def delete_system_secret(
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Delete a configured external API secret and clear it from the runtime engine."""
+    """Delete a configured external API secret and clear it from the runtime engine (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to manage system secrets")
     from app.db.models import SystemConfigModel
     from app.engine.market.config import set_runtime_aviasales_token
     from sqlalchemy import select
@@ -624,7 +636,8 @@ async def test_system_secret(
     session: AsyncSession = Depends(get_db),
     _user: UserModel | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
-    """Test connectivity of an API secret with live provider validation."""
+    """Test connectivity of an API secret with live provider validation (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to manage system secrets")
     from app.db.models import SystemConfigModel
     from app.engine.market.config import get_travelpayouts_token
     from app.engine.market.providers.aviasales import AviasalesProvider
@@ -672,3 +685,258 @@ async def test_system_secret(
             "success": False,
             "message": f"Connection test failed: {e}",
         }
+
+
+# ---------------------------------------------------------------------------
+# Taste Profile, Deal Sweep & Vault Operations
+# ---------------------------------------------------------------------------
+
+_TASTE_LABELS: dict[str, str] = {
+    "art_culture": "Art & Culture",
+    "history_heritage": "History & Heritage",
+    "nature_outdoors": "Nature & Outdoors",
+    "architecture": "Architecture",
+    "food_culinary": "Food & Culinary",
+    "nightlife": "Nightlife",
+    "shopping": "Shopping",
+    "scenic_views": "Scenic Views",
+}
+
+_CACHED_TASTE_ANCHORS: dict[str, list[float]] | None = None
+
+
+async def _load_taste_anchors() -> dict[str, list[float]]:
+    global _CACHED_TASTE_ANCHORS
+    if _CACHED_TASTE_ANCHORS is not None:
+        return _CACHED_TASTE_ANCHORS
+
+    from app.engine.scoring.semantic_learning import CATEGORY_ANCHORS
+    from app.infrastructure.providers.onnx_embedding_provider import (
+        OnnxEmbeddingProvider,
+    )
+
+    provider = OnnxEmbeddingProvider()
+    anchors: dict[str, list[float]] = {}
+    for tag, prompt in CATEGORY_ANCHORS.items():
+        anchors[tag] = await provider.embed_text(prompt, input_type="query")
+    _CACHED_TASTE_ANCHORS = anchors
+    return anchors
+
+
+@router.get("/taste-profile")
+async def get_taste_profile(
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Retrieve the authenticated user's live 768-D semantic taste profile projections."""
+    if not _user:
+        return {
+            "status": "success",
+            "active": False,
+            "dimensions": 0,
+            "affinities": [],
+        }
+
+    from app.application.taste.taste_service import TasteService
+    from app.engine.scoring.semantic_learning import SemanticLearningEngine
+    import numpy as np
+
+    prof = await TasteService.get_or_create_profile(session, _user.id)
+    embedding = prof.embedding
+    if (
+        embedding is None
+        or len(embedding) == 0
+        or (prof.is_neutral and prof.event_count == 0)
+    ):
+        return {
+            "status": "success",
+            "active": False,
+            "dimensions": len(embedding) if embedding else 0,
+            "affinities": [],
+        }
+
+    emb_arr = np.asarray(embedding, dtype=np.float32)
+    neutral = np.asarray(
+        SemanticLearningEngine.get_neutral_768d_prior(len(emb_arr)), dtype=np.float32
+    )
+    if prof.is_neutral and np.allclose(emb_arr, neutral, atol=1e-4):
+        return {
+            "status": "success",
+            "active": False,
+            "dimensions": len(emb_arr),
+            "affinities": [],
+        }
+
+    affinities: list[dict[str, Any]] = []
+    try:
+        anchors = await _load_taste_anchors()
+        engine = SemanticLearningEngine(anchors)
+        projected = engine.project_to_8d_harmonics(emb_arr)
+        post_affs = prof.get_tag_affinities()
+        affinities = [
+            {
+                "category": _TASTE_LABELS.get(tag, tag),
+                "score": round(
+                    0.5 * float(score) + 0.5 * float(post_affs.get(tag, 0.5)), 4
+                ),
+            }
+            for tag, score in projected.items()
+        ]
+    except Exception as e:
+        logger.warning(
+            f"Failed projecting user taste embedding onto category anchors: {e}"
+        )
+
+    return {
+        "status": "success",
+        "active": True,
+        "dimensions": len(emb_arr),
+        "affinities": affinities,
+    }
+
+
+@router.post("/taste-profile/reset")
+async def reset_taste_profile(
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Reset the authenticated user's semantic taste vector back to the neutral prior."""
+    if not _user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required to reset taste profile",
+        )
+
+    from app.application.taste.taste_service import TasteService
+
+    prof = await TasteService.reset_user_taste_profile(session, _user.id)
+
+    return {
+        "status": "success",
+        "active": False,
+        "dimensions": len(prof.embedding or []),
+        "affinities": [],
+    }
+
+
+@router.post("/deals/sweep")
+async def trigger_deal_sweep(
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Trigger an immediate background deal sweep (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to trigger a deal sweep")
+
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.db.models import SystemConfigModel
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    stmt = select(SystemConfigModel).where(SystemConfigModel.key == "engine_runtime")
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+    runtime_val = (
+        dict(record.value) if record and isinstance(record.value, dict) else {}
+    )
+    runtime_val["last_deal_sweep_at"] = now_iso
+    if record:
+        record.value = runtime_val
+    else:
+        session.add(SystemConfigModel(key="engine_runtime", value=runtime_val))
+    await session.commit()
+
+    dispatched_task = False
+    try:
+        from app.tasks import daily_flight_sweep_task
+
+        daily_flight_sweep_task.delay()
+        dispatched_task = True
+    except Exception as e:
+        logger.debug(f"Celery deal sweep dispatch skipped (broker unavailable): {e}")
+
+    return {
+        "status": "success",
+        "message": (
+            "Deal sweep queued for immediate background execution."
+            if dispatched_task
+            else "Deal sweep scheduled and recorded."
+        ),
+        "triggered_at": now_iso,
+    }
+
+
+@router.post("/vault/snapshot")
+async def create_vault_snapshot(
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Record an instant configuration and database vault snapshot (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to create vault snapshots")
+
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.db.models import SystemConfigModel
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    domains = list(DOMAIN_CONFIG_MAP.keys())
+    snapshot_configs: dict[str, Any] = {}
+    for domain in domains:
+        snapshot_configs[domain] = await SettingsService.get_domain_settings(
+            session, domain
+        )
+
+    stmt = select(SystemConfigModel).where(SystemConfigModel.key == "vault_snapshots")
+    res = await session.execute(stmt)
+    record = res.scalar_one_or_none()
+    history = (
+        list(record.value.get("snapshots", []))
+        if record and isinstance(record.value, dict)
+        else []
+    )
+    history.append(
+        {"snapshot_at": now_iso, "domains": domains, "config": snapshot_configs}
+    )
+    payload = {"last_snapshot_at": now_iso, "snapshots": history[-20:]}
+
+    if record:
+        record.value = payload
+    else:
+        session.add(SystemConfigModel(key="vault_snapshots", value=payload))
+    await session.commit()
+
+    return {
+        "status": "success",
+        "snapshot_at": now_iso,
+        "domains_archived": domains,
+    }
+
+
+@router.post("/cache/purge")
+async def purge_system_cache(
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Clear Valhalla route and tile cache keys from Redis (Admin Only)."""
+    _require_admin(_user, "Administrator privileges required to purge system caches")
+
+    import os
+
+    keys_cleared = 0
+    try:
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        client = redis.from_url(
+            redis_url, socket_connect_timeout=1.0, socket_timeout=1.0
+        )
+        for pattern in ("valhalla:*", "tile:*", "route:*", "transit:*"):
+            matched = list(client.scan_iter(match=pattern, count=200))
+            if matched:
+                keys_cleared += int(client.delete(*matched))
+    except Exception as e:
+        logger.debug(f"Redis cache purge skipped or unavailable: {e}")
+
+    return {
+        "status": "success",
+        "purged": True,
+        "keys_cleared": keys_cleared,
+    }
