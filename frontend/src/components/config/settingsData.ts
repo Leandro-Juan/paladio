@@ -261,6 +261,7 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         iconName: 'database',
         iconTone: 'gold',
         keywords: ['vault', 'backup', 'snapshot', 'export', 'trips', 'archive', 'storage', 'photos', 'immich', 'synology', 'sync'],
+        requiresAdmin: true,
         statusBadge: 'Vault & Media',
         subTabs: [
           { id: 'storage', label: 'Storage & Snapshots' },
@@ -269,7 +270,7 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
       },
       {
         id: 'notifications',
-        title: 'Notification',
+        title: 'Notifications',
         description: 'Notification types, preferences, and push relay delivery (Pushify, Pushover, Ntfy, Webhooks)',
         category: 'infrastructure',
         iconName: 'bell',
@@ -292,6 +293,7 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         iconName: 'key',
         iconTone: 'gold',
         keywords: ['secrets', 'api', 'keys', 'token', 'aviasales', 'travelpayouts', 'credentials', 'verification', 'flights'],
+        requiresAdmin: true,
         statusBadge: 'Credentials',
       },
     ],

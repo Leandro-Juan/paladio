@@ -1,24 +1,53 @@
 'use strict';
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { useNavigationStore } from '@/stores/navigationStore';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
-import { notify } from '@/utils/notify';
 
 interface ExperienceSectionProps {
   onBackToOverview: () => void;
   subTab?: 'appearance' | 'typography' | 'navigation' | 'maps' | string;
+  initialSubTab?: string;
 }
+
+type ExperienceTabKey = 'theme' | 'typography' | 'navigation' | 'maps';
+
+function resolveExperienceSubTab(subTab?: string, initialSubTab?: string): ExperienceTabKey {
+  const candidate = (initialSubTab || subTab || 'theme').toLowerCase();
+  if (candidate === 'typography') return 'typography';
+  if (candidate === 'navigation') return 'navigation';
+  if (candidate === 'maps') return 'maps';
+  return 'theme';
+}
+
+const EXPERIENCE_SUBTABS: Array<{ id: ExperienceTabKey; label: string }> = [
+  { id: 'theme', label: 'Color Themes' },
+  { id: 'typography', label: 'Typography' },
+  { id: 'navigation', label: 'Navigation' },
+  { id: 'maps', label: 'Cartography' },
+];
 
 export function ExperienceSection({
   onBackToOverview,
+  subTab = 'appearance',
+  initialSubTab,
 }: ExperienceSectionProps) {
   const { theme, setTheme } = useThemeStore();
   const { typography, setTypography, toggleTypography } = useTypographyStore();
   const { navStyle, setNavStyle } = useNavigationStore();
+
+  const resolvedFromProps = resolveExperienceSubTab(subTab, initialSubTab);
+  const [prevPropKey, setPrevPropKey] = useState(`${subTab}:${initialSubTab ?? ''}`);
+  const [activeSubTab, setActiveSubTab] = useState<ExperienceTabKey>(resolvedFromProps);
+
+  const currentPropKey = `${subTab}:${initialSubTab ?? ''}`;
+  if (currentPropKey !== prevPropKey) {
+    setPrevPropKey(currentPropKey);
+    setActiveSubTab(resolvedFromProps);
+  }
 
   // Local state for maps preferences
   const [mapTileLayer, setMapTileLayer] = useState<'carto_dark' | 'carto_voyager' | 'osm' | 'satellite'>(() => {
@@ -40,6 +69,7 @@ export function ExperienceSection({
     setMapTileLayer(layer);
     if (typeof window !== 'undefined') {
       localStorage.setItem('paladio_map_layer', layer);
+      window.dispatchEvent(new Event('paladio_map_layer_changed'));
     }
   };
 
@@ -51,13 +81,64 @@ export function ExperienceSection({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <SettingsHeader
         title="Appearance & Interface"
+        subtitle="Pacific Jazz visual themes, interface typography pairings, navigation shell, and cartography layers"
         onBackToOverview={onBackToOverview}
       />
 
+      {/* Horizontal Sub-Tab Switcher */}
+      <div
+        role="tablist"
+        aria-label="Appearance & Interface sub-sections"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          backgroundColor: 'var(--color-bg-main, #F7F5F0)',
+          padding: '4px',
+          borderRadius: '9999px',
+          border: '1px solid var(--color-border, #E2DDD5)',
+          gap: '4px',
+          width: 'fit-content',
+          maxWidth: '100%',
+          overflowX: 'auto',
+        }}
+      >
+        {EXPERIENCE_SUBTABS.map((tab) => {
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveSubTab(tab.id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                border: 'none',
+                backgroundColor: isActive ? 'var(--color-surface-card, #FFFFFF)' : 'transparent',
+                color: isActive ? 'var(--color-accent-teal, #2A8C82)' : 'var(--color-text-muted, #718096)',
+                fontFamily: 'var(--font-ui, sans-serif)',
+                fontSize: '12px',
+                fontWeight: isActive ? 700 : 500,
+                cursor: 'pointer',
+                boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
+                transition: 'all 0.16s ease',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* 1. Interface Appearance & Theme Engine */}
+      {activeSubTab === 'theme' && (
       <SettingsCardFrame
         title="Pacific Jazz Visual Themes"
         subtitle="Engineered color harmonics designed for day, night, and silent waters navigation"
@@ -183,8 +264,10 @@ export function ExperienceSection({
           </button>
         </div>
       </SettingsCardFrame>
+      )}
 
       {/* 2. Interface Typography */}
+      {activeSubTab === 'typography' && (
       <SettingsCardFrame
         title="Interface Typography Pairings"
         subtitle="Tactical typographic hierarchy balancing modern neutral Inter with editorial Jost accents"
@@ -279,8 +362,10 @@ export function ExperienceSection({
           </button>
         </div>
       </SettingsCardFrame>
+      )}
 
       {/* 3. Navigation Presentation */}
+      {activeSubTab === 'navigation' && (
       <SettingsCardFrame
         title="Navigation Presentation"
         subtitle="Configure whether your travel workstation uses a floating dock or vertical sidebar rail"
@@ -351,8 +436,10 @@ export function ExperienceSection({
           </button>
         </div>
       </SettingsCardFrame>
+      )}
 
       {/* 4. Cartography & Map Layers */}
+      {activeSubTab === 'maps' && (
       <SettingsCardFrame
         title="Cartography & Map Layers"
         subtitle="Select sovereign vector/raster tile providers and configure transit line route overlays"
@@ -425,6 +512,7 @@ export function ExperienceSection({
           </div>
         </div>
       </SettingsCardFrame>
+      )}
     </div>
   );
 }

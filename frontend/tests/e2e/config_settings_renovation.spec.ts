@@ -61,24 +61,37 @@ test.describe('Settings Renovation & Consolidation', () => {
     await expect(page.getByText('Credentials', { exact: true })).toHaveCount(0);
   });
 
-  test('Appearance & Interface tab consolidates themes, typography, navigation, and cartography in 1 tab', async ({ page }) => {
+  test('Appearance & Interface tab isolates themes, typography, navigation, and cartography via sub-tabs', async ({ page }) => {
     await page.goto('/config?tab=appearance');
 
-    // 1. Verify all 4 visual & interface sections are present in this single tab
-    await expect(page.getByText('Pacific Jazz Visual Themes')).toBeVisible();
-    await expect(page.getByText('Interface Typography Pairings')).toBeVisible();
+    // 1. Default sub-tab shows Color Themes only
+    await expect(page.getByRole('heading', { name: 'Pacific Jazz Visual Themes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Interface Typography Pairings' })).toHaveCount(0);
+
+    // 2. Switch across horizontal sub-tabs cleanly
+    await page.getByRole('tab', { name: 'Typography' }).click();
+    await expect(page.getByRole('heading', { name: 'Interface Typography Pairings' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pacific Jazz Visual Themes' })).toHaveCount(0);
+
+    await page.getByRole('tab', { name: 'Navigation' }).click();
     await expect(page.getByText('Navigation Presentation')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Cartography' }).click();
     await expect(page.getByText('Cartography & Map Layers')).toBeVisible();
   });
 
-  test('Other settings tabs are accessible and render correctly', async ({ page }) => {
-    // Engine Solver tab
+  test('Other settings tabs are accessible and render isolated sections cleanly', async ({ page }) => {
+    // Engine Solver tab (includes Meal Allocation Windows, excludes Transit & Deals)
     await page.goto('/config?tab=solver');
     await expect(page.getByText('Deterministic Solver Constraints & Pacing')).toBeVisible();
+    await expect(page.getByText('Meal Allocation Windows (Minutes)')).toBeVisible();
+    await expect(page.getByText('Deal Engine & Background Scrapers')).toHaveCount(0);
 
-    // AI & Swarm tab
+    // AI & Swarm tab (isolated to Swarm card + human repair toggle)
     await page.goto('/config?tab=swarm');
     await expect(page.getByText('LangGraph Multi-Agent Swarm & Critic')).toBeVisible();
+    await expect(page.getByText('Require Human Approval on Swarm Repair')).toBeVisible();
+    await expect(page.getByText('Continuous ML Taste Learning & RAG')).toHaveCount(0);
 
     // Infrastructure Vault tab
     await page.goto('/config?tab=vault');
@@ -94,12 +107,12 @@ test.describe('Settings Renovation & Consolidation', () => {
     await expect(sidebar.getByRole('button', { name: 'Appearance & Interface' })).toBeVisible();
   });
 
-  test('Notification tab is renamed to Notification and features Notification Types card with All/None pill before relays', async ({ page }) => {
+  test('Notifications tab uses plural Notifications title and features Notification Types card before relays', async ({ page }) => {
     await page.goto('/config?tab=notifications');
 
-    // 1. Verify tab title in sidebar is "Notification" and not "Notification Relays"
+    // 1. Verify tab title in sidebar is "Notifications"
     const sidebar = page.locator('aside');
-    await expect(sidebar.getByRole('button', { name: 'Notification', exact: true })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
     await expect(sidebar.getByRole('button', { name: 'Notification Relays' })).toHaveCount(0);
 
     // 2. Verify Notification Types card is visible

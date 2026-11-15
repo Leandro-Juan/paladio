@@ -22,6 +22,14 @@ interface SettingsOverviewProps {
     userCount?: number;
     containerOnlineCount?: number;
     updateAvailable?: boolean;
+    mapLayerName?: string;
+    unitSummary?: string;
+    maxWalkingKm?: number;
+    dealCadenceHours?: number;
+    criticStrictnessPct?: number;
+    tasteActive?: boolean;
+    tasteDimensions?: number;
+    autoSnapshotsEnabled?: boolean;
   };
 }
 
@@ -90,19 +98,34 @@ export function SettingsOverview({
           ? { text: `${telemetrySummary.containerOnlineCount}/5 ONLINE`, active: true }
           : null;
       case 'maps':
-        return { text: 'CARTO DARK' };
+        return telemetrySummary.mapLayerName ? { text: telemetrySummary.mapLayerName } : null;
       case 'units':
-        return { text: 'METRIC / 24H', active: true };
+        return telemetrySummary.unitSummary ? { text: telemetrySummary.unitSummary, active: true } : null;
       case 'solver':
-        return { text: '12 KM/DAY', active: true };
+        return typeof telemetrySummary.maxWalkingKm === 'number'
+          ? { text: `${telemetrySummary.maxWalkingKm} KM/DAY`, active: true }
+          : null;
       case 'deals':
-        return { text: 'CADENCE: 24H' };
+        return typeof telemetrySummary.dealCadenceHours === 'number'
+          ? { text: `CADENCE: ${telemetrySummary.dealCadenceHours}H` }
+          : null;
       case 'swarm':
-        return { text: 'STRICT: 75%', active: true };
+        return typeof telemetrySummary.criticStrictnessPct === 'number'
+          ? { text: `STRICT: ${telemetrySummary.criticStrictnessPct}%`, active: true }
+          : null;
       case 'memory':
-        return { text: '16-D ACTIVE', active: true };
+        return typeof telemetrySummary.tasteActive === 'boolean'
+          ? telemetrySummary.tasteActive
+            ? { text: `${telemetrySummary.tasteDimensions || 768}-D ACTIVE`, active: true }
+            : { text: 'NEUTRAL PRIOR', active: false }
+          : null;
       case 'vault':
-        return { text: 'SNAPSHOTS: ON', active: true };
+        return typeof telemetrySummary.autoSnapshotsEnabled === 'boolean'
+          ? {
+              text: telemetrySummary.autoSnapshotsEnabled ? 'SNAPSHOTS: ON' : 'MANUAL',
+              active: telemetrySummary.autoSnapshotsEnabled,
+            }
+          : null;
       default:
         return null;
     }

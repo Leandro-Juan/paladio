@@ -22,6 +22,12 @@ import {
   triggerUpdateDownloadApi,
   SystemUpdateStatus,
   updatePreferencesApi,
+  fetchDomainSettingsApi,
+  fetchLlmConfigApi,
+  fetchTasteProfileApi,
+  EngineConfigData,
+  SwarmConfigData,
+  VaultConfigData,
 } from '@/utils/api';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
@@ -125,6 +131,14 @@ function ConfigPageInner() {
   const [installPromptDismissed, setInstallPromptDismissed] = useState<boolean>(false);
   const notifiedVersionRef = React.useRef<string | null>(null);
 
+  // Live Domain Telemetry Summary State
+  const [engineSummary, setEngineSummary] = useState<EngineConfigData | null>(null);
+  const [swarmSummary, setSwarmSummary] = useState<SwarmConfigData | null>(null);
+  const [vaultSummary, setVaultSummary] = useState<VaultConfigData | null>(null);
+  const [llmProviderName, setLlmProviderName] = useState<string | undefined>(undefined);
+  const [tasteStatus, setTasteStatus] = useState<{ active: boolean; dimensions: number } | null>(null);
+  const [localPrefsTick, setLocalPrefsTick] = useState(0);
+
   // Tab Selection Handler
   const handleSelectTab = (tab: SettingsTabId, subTab?: string) => {
     setActionError(null);
@@ -172,6 +186,56 @@ function ConfigPageInner() {
       ignore = true;
     };
   }, [fetchUpdaterData]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    fetchDomainSettingsApi<EngineConfigData>('engine')
+      .then((res) => {
+        if (!ignore && res.config) setEngineSummary(res.config);
+      })
+      .catch(() => {});
+
+    fetchDomainSettingsApi<SwarmConfigData>('swarm')
+      .then((res) => {
+        if (!ignore && res.config) setSwarmSummary(res.config);
+      })
+      .catch(() => {});
+
+    fetchLlmConfigApi()
+      .then((res) => {
+        if (!ignore && res?.provider) setLlmProviderName(res.provider);
+      })
+      .catch(() => {});
+
+    fetchTasteProfileApi()
+      .then((res) => {
+        if (!ignore) setTasteStatus({ active: Boolean(res.active), dimensions: res.dimensions || 0 });
+      })
+      .catch(() => {});
+
+    if (isAdmin) {
+      fetchDomainSettingsApi<VaultConfigData>('vault')
+        .then((res) => {
+          if (!ignore && res.config) setVaultSummary(res.config);
+        })
+        .catch(() => {});
+    }
+
+    const bumpLocalPrefs = () => setLocalPrefsTick((n) => n + 1);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('paladio_map_layer_changed', bumpLocalPrefs);
+      window.addEventListener('paladio_units_changed', bumpLocalPrefs);
+    }
+
+    return () => {
+      ignore = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('paladio_map_layer_changed', bumpLocalPrefs);
+        window.removeEventListener('paladio_units_changed', bumpLocalPrefs);
+      }
+    };
+  }, [isAdmin, activeTab]);
 
   const handleToggleAutoUpdate = async () => {
     if (!updaterStatus) return;
@@ -299,6 +363,7 @@ function ConfigPageInner() {
       window.addEventListener('paladio:transit_compile_started', onTransitUpdate);
       window.addEventListener('paladio:transit_download_started', onTransitUpdate);
       window.addEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+      window.addEventListener('paladio:transit_derivation_ready', onTransitUpdate);
       window.addEventListener('paladio:transit_compile_failed', onTransitUpdate);
       window.addEventListener('paladio:transit_deleted', onTransitUpdate);
     }
@@ -309,6 +374,7 @@ function ConfigPageInner() {
         window.removeEventListener('paladio:transit_compile_started', onTransitUpdate);
         window.removeEventListener('paladio:transit_download_started', onTransitUpdate);
         window.removeEventListener('paladio:transit_tiles_ready', onTransitUpdate);
+        window.removeEventListener('paladio:transit_derivation_ready', onTransitUpdate);
         window.removeEventListener('paladio:transit_compile_failed', onTransitUpdate);
         window.removeEventListener('paladio:transit_deleted', onTransitUpdate);
       }
@@ -618,6 +684,17 @@ function ConfigPageInner() {
   };
 
   const telemetrySummary = useMemo(() => {
+    void localPrefsTick;
+    let mapLayerName: string | undefined;
+    let unitSummary: string | undefined;
+    if (typeof window !== 'undefined') {
+      const layer = localStorage.getItem('paladio_map_layer') || 'carto_dark';
+      mapLayerName = layer.replace(/_/g, ' ').toUpperCase();
+      const dist = localStorage.getItem('paladio_unit_distance') || (currentUser?.preferences?.distance_unit as string) || 'km';
+      const clock = localStorage.getItem('paladio_unit_clock') || (currentUser?.preferences?.clock_format as string) || '24h';
+      unitSummary = `${dist === 'mi' ? 'IMPERIAL' : 'METRIC'} / ${clock.toUpperCase()}`;
+    }
+
     return {
       themeName:
         theme === 'light'
@@ -628,12 +705,35 @@ function ConfigPageInner() {
       typographyName: typography === 'inter' ? 'Inter Modern' : 'Classic Editorial',
       localeCode: locale,
       currencyCode: (currentUser?.preferences?.default_currency as string) || 'EUR',
+      llmProvider: llmProviderName,
       gtfsCompiledCount: gtfsTelemetry?.compiled_cities || 0,
       userCount: users.length,
       containerOnlineCount: 5,
       updateAvailable: Boolean(updaterStatus?.update_available),
+      mapLayerName,
+      unitSummary,
+      maxWalkingKm: engineSummary?.default_max_walking_km,
+      dealCadenceHours: engineSummary?.deal_scraper_cadence_hours,
+      criticStrictnessPct: swarmSummary ? Math.round(swarmSummary.critic_strictness * 100) : undefined,
+      tasteActive: tasteStatus?.active,
+      tasteDimensions: tasteStatus?.dimensions,
+      autoSnapshotsEnabled: vaultSummary?.auto_snapshot_enabled,
     };
-  }, [theme, typography, locale, currentUser, gtfsTelemetry, users, updaterStatus]);
+  }, [
+    theme,
+    typography,
+    locale,
+    currentUser,
+    gtfsTelemetry,
+    users,
+    updaterStatus,
+    llmProviderName,
+    engineSummary,
+    swarmSummary,
+    vaultSummary,
+    tasteStatus,
+    localPrefsTick,
+  ]);
 
   const handleRestoreDefaults = async () => {
     setActionError(null);
@@ -769,6 +869,7 @@ function ConfigPageInner() {
           <ExperienceSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
+            initialSubTab={searchParams?.get('subtab') || undefined}
           />
         )}
 
@@ -776,6 +877,7 @@ function ConfigPageInner() {
           <EngineSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
+            isAdmin={isAdmin}
             gtfsTelemetry={gtfsTelemetry}
             gtfsMessage={gtfsMessage}
             setGtfsMessage={setGtfsMessage}
@@ -793,6 +895,7 @@ function ConfigPageInner() {
           <IntelligenceSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
+            isAdmin={isAdmin}
           />
         )}
 

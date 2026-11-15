@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '@/types/auth';
-import { SystemUpdateStatus, fetchDomainSettingsApi, updateDomainSettingsApi, VaultConfigData } from '@/utils/api';
+import {
+  SystemUpdateStatus,
+  fetchDomainSettingsApi,
+  updateDomainSettingsApi,
+  createVaultSnapshotApi,
+  purgeSystemCacheApi,
+  VaultConfigData,
+} from '@/utils/api';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
@@ -256,12 +263,34 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
               {
                 id: 'create_snapshot',
                 label: 'Create Instant Snapshot',
-                onClick: () => notify.success('Snapshot Created', 'Database snapshot generated and archived to /vault.'),
+                onClick: async () => {
+                  try {
+                    const res = await createVaultSnapshotApi();
+                    notify.success(
+                      'Snapshot Created',
+                      `Snapshot recorded at ${new Date(res.snapshot_at).toLocaleTimeString()}.`
+                    );
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'Failed to create snapshot';
+                    notify.error('Snapshot Error', msg);
+                  }
+                },
               },
               {
                 id: 'purge_cache',
                 label: 'Purge Valhalla & Tile Cache',
-                onClick: () => notify.info('Cache Purged', 'Tile cache invalidated.'),
+                onClick: async () => {
+                  try {
+                    const res = await purgeSystemCacheApi();
+                    notify.info(
+                      'Cache Purged',
+                      `Cleared ${res.keys_cleared} cached routing/tile keys.`
+                    );
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'Failed to purge cache';
+                    notify.error('Cache Purge Error', msg);
+                  }
+                },
               },
             ]}
           >
@@ -341,11 +370,11 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
         </>
       )}
 
-      {/* 4. Notification (Admin Only) */}
+      {/* 4. Notifications (Admin Only) */}
       {subTab === 'notifications' && (
         <>
           <SettingsHeader
-            title="Notification"
+            title="Notifications"
             subtitle="Configure notification event triggers and push delivery relays"
             onBackToOverview={onBackToOverview}
           />

@@ -1,16 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GtfsRegistryResponse, CityGtfsItem, fetchDomainSettingsApi, updateDomainSettingsApi, EngineConfigData } from '@/utils/api';
+import React, { useState, useEffect } from 'react';
+import {
+  GtfsRegistryResponse,
+  CityGtfsItem,
+  fetchDomainSettingsApi,
+  updateDomainSettingsApi,
+  triggerDealSweepApi,
+  EngineConfigData,
+} from '@/utils/api';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
-import { TacticalToggle } from '../TacticalToggle';
 import { TransitSection } from './TransitSection';
 import { notify } from '@/utils/notify';
 
 interface EngineSectionProps {
   onBackToOverview: () => void;
   subTab?: 'solver' | 'transit' | 'deals';
+  isAdmin?: boolean;
   gtfsTelemetry: GtfsRegistryResponse | null;
   gtfsMessage: { type: 'success' | 'error'; text: string } | null;
   setGtfsMessage: React.Dispatch<React.SetStateAction<{ type: 'success' | 'error'; text: string } | null>>;
@@ -26,6 +33,7 @@ interface EngineSectionProps {
 export function EngineSection({
   onBackToOverview,
   subTab = 'transit',
+  isAdmin = true,
   gtfsTelemetry,
   gtfsMessage,
   setGtfsMessage,
@@ -63,15 +71,58 @@ export function EngineSection({
   }, []);
 
   const handleSaveEngineConfig = async (patch: Partial<EngineConfigData>) => {
+    if (!isAdmin) {
+      notify.error('Admin Required', 'Administrator privileges are required to modify engine settings.');
+      return;
+    }
+    const previous = engineConfig;
     const updated = { ...engineConfig, ...patch };
     setEngineConfig(updated);
     try {
-      await updateDomainSettingsApi<EngineConfigData>('engine', patch);
+      const res = await updateDomainSettingsApi<EngineConfigData>('engine', patch);
+      if (res.config) {
+        setEngineConfig(res.config);
+      }
       notify.success('Engine Settings Saved', 'Travel engine configuration updated');
     } catch {
+      setEngineConfig(previous);
       notify.error('Persistence Error', 'Failed to persist engine settings to backend');
     }
   };
+
+  const handleTriggerDealSweep = async () => {
+    if (!isAdmin) {
+      notify.error('Admin Required', 'Administrator privileges are required to trigger a deal sweep.');
+      return;
+    }
+    try {
+      const res = await triggerDealSweepApi();
+      notify.success('Scraper Dispatched', res.message || 'Background deal scraper sweep dispatched.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to trigger deal sweep';
+      notify.error('Deal Sweep Failed', msg);
+    }
+  };
+
+  if (subTab === 'transit') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <TransitSection
+          onBackToOverview={onBackToOverview}
+          gtfsTelemetry={gtfsTelemetry}
+          gtfsMessage={gtfsMessage}
+          setGtfsMessage={setGtfsMessage}
+          fetchGtfsData={fetchGtfsData}
+          deleteGtfsCandidate={deleteGtfsCandidate}
+          setDeleteGtfsCandidate={setDeleteGtfsCandidate}
+          deletingGtfs={deletingGtfs}
+          handleDeleteGtfs={handleDeleteGtfs}
+          syncTripsModalOpen={syncTripsModalOpen}
+          setSyncTripsModalOpen={setSyncTripsModalOpen}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -79,15 +130,28 @@ export function EngineSection({
         title={
           subTab === 'solver'
             ? 'C++ Solver Constraints & Pacing'
-            : subTab === 'deals'
-            ? 'Deal Hunter & Scraper Cadence'
-            : 'Public Transit & GTFS Schedules'
+            : 'Deal Hunter & Scraper Cadence'
         }
         onBackToOverview={onBackToOverview}
       />
 
+      {!isAdmin && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: '1px solid var(--color-border)',
+            backgroundColor: 'var(--color-surface-card)',
+            fontSize: '12px',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          Read-only preview: administrator privileges are required to save changes to instance engine settings.
+        </div>
+      )}
+
       {/* 1. Solver Constraints & Pacing Card */}
-      {(subTab === 'solver' || subTab === 'deals') && (
+      {subTab === 'solver' && (
         <SettingsCardFrame
           title="Deterministic Solver Constraints & Pacing"
           subtitle="Configure C++20 combinatorial TSPTW boundaries, daily walking limits, and meal intervals"
@@ -99,7 +163,13 @@ export function EngineSection({
             {
               id: 'reset_solver',
               label: 'Reset to Balanced Defaults (12 km/day)',
-              onClick: () => handleSaveEngineConfig({ default_max_walking_km: 12.0, pacing_tempo: 'balanced', attraction_burnout_limit: 6 }),
+              onClick: () =>
+                handleSaveEngineConfig({
+                  default_max_walking_km: 12.0,
+                  pacing_tempo: 'balanced',
+                  attraction_burnout_limit: 6,
+                  meal_windows: { breakfast: 45, lunch: 60, dinner: 90 },
+                }),
             },
           ]}
         >
@@ -120,11 +190,13 @@ export function EngineSection({
                   min="3"
                   max="30"
                   step="0.5"
+                  disabled={!isAdmin}
                   value={engineConfig.default_max_walking_km}
                   onChange={(e) => handleSaveEngineConfig({ default_max_walking_km: parseFloat(e.target.value) })}
+                  aria-label="Maximum daily walking distance"
                   style={{ width: '160px', accentColor: 'var(--color-accent-coral, #C86D51)' }}
                 />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, minWidth: '45px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, minWidth: '45px', textAlign: 'right' }}>
                   {engineConfig.default_max_walking_km} km
                 </span>
               </div>
@@ -144,7 +216,8 @@ export function EngineSection({
                   <button
                     key={tempo.id}
                     type="button"
-                    onClick={() => handleSaveEngineConfig({ pacing_tempo: tempo.id as any })}
+                    disabled={!isAdmin}
+                    onClick={() => handleSaveEngineConfig({ pacing_tempo: tempo.id as EngineConfigData['pacing_tempo'] })}
                     style={{
                       padding: '12px 14px',
                       borderRadius: '10px',
@@ -152,7 +225,8 @@ export function EngineSection({
                       backgroundColor: 'var(--color-surface-card)',
                       color: 'var(--color-text-primary)',
                       textAlign: 'left',
-                      cursor: 'pointer',
+                      cursor: isAdmin ? 'pointer' : 'not-allowed',
+                      opacity: isAdmin ? 1 : 0.7,
                     }}
                   >
                     <span style={{ fontWeight: 600, fontSize: '13px', display: 'block' }}>{tempo.title}</span>
@@ -174,43 +248,98 @@ export function EngineSection({
               </div>
               <input
                 type="number"
-                min="2"
-                max="15"
+                min="1"
+                max="20"
+                disabled={!isAdmin}
                 value={engineConfig.attraction_burnout_limit}
-                onChange={(e) => handleSaveEngineConfig({ attraction_burnout_limit: parseInt(e.target.value, 10) || 6 })}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 6));
+                  handleSaveEngineConfig({ attraction_burnout_limit: val });
+                }}
+                aria-label="Attraction fatigue threshold"
                 style={{
-                  width: '70px',
+                  width: '76px',
                   padding: '6px 10px',
                   borderRadius: '6px',
                   border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-surface-card)',
+                  color: 'var(--color-text-primary)',
                   fontFamily: 'var(--font-mono)',
                   fontSize: '13px',
                 }}
               />
             </div>
+
+            {/* Meal Allocation Windows (Minutes) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ minWidth: '220px', flex: '1 1 240px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Meal Allocation Windows (Minutes)
+                </span>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
+                  Default time budgets reserved for breakfast, lunch, and dinner stops
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {([
+                  { key: 'breakfast', label: 'Breakfast', min: 15, max: 120 },
+                  { key: 'lunch', label: 'Lunch', min: 30, max: 180 },
+                  { key: 'dinner', label: 'Dinner', min: 30, max: 240 },
+                ] as const).map((meal) => (
+                  <label
+                    key={meal.key}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      fontSize: '11px',
+                      color: 'var(--color-text-muted)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>{meal.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <input
+                        type="number"
+                        min={meal.min}
+                        max={meal.max}
+                        disabled={!isAdmin}
+                        value={engineConfig.meal_windows[meal.key]}
+                        onChange={(e) => {
+                          const parsed = parseInt(e.target.value, 10);
+                          if (Number.isNaN(parsed)) return;
+                          const clamped = Math.max(meal.min, Math.min(meal.max, parsed));
+                          handleSaveEngineConfig({
+                            meal_windows: {
+                              ...engineConfig.meal_windows,
+                              [meal.key]: clamped,
+                            },
+                          });
+                        }}
+                        aria-label={`${meal.label} window minutes`}
+                        style={{
+                          width: '68px',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border)',
+                          backgroundColor: 'var(--color-surface-card)',
+                          color: 'var(--color-text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '13px',
+                        }}
+                      />
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>m</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </SettingsCardFrame>
       )}
 
-      {/* 2. Public Transit & GTFS Schedules */}
-      {(subTab === 'transit' || subTab === 'solver') && (
-        <TransitSection
-          onBackToOverview={onBackToOverview}
-          gtfsTelemetry={gtfsTelemetry}
-          gtfsMessage={gtfsMessage}
-          setGtfsMessage={setGtfsMessage}
-          fetchGtfsData={fetchGtfsData}
-          deleteGtfsCandidate={deleteGtfsCandidate}
-          setDeleteGtfsCandidate={setDeleteGtfsCandidate}
-          deletingGtfs={deletingGtfs}
-          handleDeleteGtfs={handleDeleteGtfs}
-          syncTripsModalOpen={syncTripsModalOpen}
-          setSyncTripsModalOpen={setSyncTripsModalOpen}
-        />
-      )}
-
-      {/* 3. Deal Hunter & Scraper Cadence */}
-      {(subTab === 'deals' || subTab === 'solver') && (
+      {/* 2. Deal Hunter & Scraper Cadence */}
+      {subTab === 'deals' && (
         <SettingsCardFrame
           title="Deal Engine & Background Scrapers"
           subtitle="Configure flight and lodging scrapers, price drop alerts, and automatic ticket ingestion"
@@ -222,12 +351,12 @@ export function EngineSection({
             {
               id: 'trigger_scrape',
               label: 'Trigger Immediate Deal Sweep',
-              onClick: () => notify.info('Scraper Dispatched', 'Background deal scraper sweep dispatched.'),
+              onClick: handleTriggerDealSweep,
             },
           ]}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <div>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                   Scraping Interval: Every {engineConfig.deal_scraper_cadence_hours} Hours
@@ -237,8 +366,10 @@ export function EngineSection({
                 </p>
               </div>
               <select
+                disabled={!isAdmin}
                 value={engineConfig.deal_scraper_cadence_hours}
                 onChange={(e) => handleSaveEngineConfig({ deal_scraper_cadence_hours: parseInt(e.target.value, 10) })}
+                aria-label="Scraping interval"
                 style={{
                   padding: '6px 12px',
                   borderRadius: '8px',
@@ -256,7 +387,7 @@ export function EngineSection({
               </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <div>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                   Price Drop Notification Threshold: {engineConfig.price_alert_threshold_pct}%
@@ -265,9 +396,22 @@ export function EngineSection({
                   Minimum discount required to notify travelers of route bargains
                 </p>
               </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700 }}>
-                {engineConfig.price_alert_threshold_pct}%
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="range"
+                  min="1"
+                  max="90"
+                  step="1"
+                  disabled={!isAdmin}
+                  value={engineConfig.price_alert_threshold_pct}
+                  onChange={(e) => handleSaveEngineConfig({ price_alert_threshold_pct: parseFloat(e.target.value) })}
+                  aria-label="Price drop notification threshold"
+                  style={{ width: '160px', accentColor: 'var(--color-accent-gold, #E2B33C)' }}
+                />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, minWidth: '42px', textAlign: 'right' }}>
+                  {engineConfig.price_alert_threshold_pct}%
+                </span>
+              </div>
             </div>
           </div>
         </SettingsCardFrame>
