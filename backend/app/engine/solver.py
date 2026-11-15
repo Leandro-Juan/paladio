@@ -22,11 +22,18 @@ from app.domain.entities.poi import (
     TransitLeg,
 )
 from app.engine.budget import redistribute_budget_slack
-from app.engine.day_assignment import AssignedDay
+from app.engine.day_assignment import (
+    AssignedDay,
+    _is_intensive_museum,
+    compute_surplus_quota,
+)
 from app.engine.feasibility import probe_mandatory_feasibility
 from app.engine.transit_matrix import haversine_distance
 from app.engine.meals import (
     _extract_base_venue_name,
+    _identify_meal_indices,
+    _time_str_to_mins,
+    is_heavy_cultural_poi,
     select_daily_meal_candidates,
     snap_corridor_meals,
     verify_day_schedule,
@@ -47,6 +54,17 @@ try:
     import paladio_core
 except ImportError:
     paladio_core = None
+
+
+def _effective_duration(p: Any, pace: PacePreference) -> int:
+    """Apply pace floors while protecting heavy cultural sights in intense schedules."""
+    poi_ref = getattr(p, "poi", p)
+    dur = p.duration_mins
+    if pace == PacePreference.LEISURELY:
+        return max(75, dur)
+    if pace == PacePreference.BALANCED or is_heavy_cultural_poi(poi_ref):
+        return max(60, dur)
+    return dur
 
 
 class V2SolveError(RuntimeError):
@@ -246,8 +264,96 @@ def _smooth_post_snap_itinerary(
             )
         return d
 
+    def _museum_stack_count(steps: list[ScheduledPoi]) -> int:
+        direct = sum(
+            1
+            for a, b in zip(steps, steps[1:])
+            if _is_intensive_museum(a) and _is_intensive_museum(b)
+        )
+        sights_only = [
+            s
+            for s in steps
+            if s.poi.category
+            not in ("HOTEL", "DEPOT", "AIRPORT", "RESTAURANT", "BAR", "CAFE")
+            and not getattr(s.poi, "is_breakfast_spot", False)
+            and not getattr(s.poi, "is_lunch_spot", False)
+            and not getattr(s.poi, "is_dinner_spot", False)
+            and not any(
+                m in s.poi.name.lower() for m in ("breakfast", "lunch", "dinner")
+            )
+        ]
+        sight_adj = sum(
+            1
+            for a, b in zip(sights_only, sights_only[1:])
+            if _is_intensive_museum(a) and _is_intensive_museum(b)
+        )
+        return direct * 2 + sight_adj
+
+    def _meal_biology_violations(steps: list[ScheduledPoi]) -> int:
+        b_i, l_i, d_i = _identify_meal_indices(steps)
+        b_arr = (
+            _time_str_to_mins(steps[b_i].scheduled_start) if b_i is not None else None
+        )
+        l_arr = (
+            _time_str_to_mins(steps[l_i].scheduled_start) if l_i is not None else None
+        )
+        d_arr = (
+            _time_str_to_mins(steps[d_i].scheduled_start) if d_i is not None else None
+        )
+        v = 0
+        if l_arr is not None and l_arr > 900:
+            v += 1
+        if b_arr is not None and l_arr is not None and (l_arr - b_arr) < 180:
+            v += 1
+        if l_arr is not None and d_arr is not None and (d_arr - l_arr) < 180:
+            v += 1
+        return v
+
+    def _try_candidate_order(
+        cand_indices: list[int], max_allowed_museums: int, max_allowed_meal_viols: int
+    ) -> tuple[bool, int, int]:
+        cand_steps = [path[k] for k in cand_indices]
+        b_p, l_p, d_p = _identify_meal_indices(cand_steps)
+        if b_p is not None and l_p is not None and b_p > l_p:
+            return False, 99, 99
+        if l_p is not None and d_p is not None and l_p > d_p:
+            return False, 99, 99
+        if b_p is not None and d_p is not None and b_p > d_p:
+            return False, 99, 99
+        if b_p is not None and b_p > 1:
+            return False, 99, 99
+        if d_p is not None and d_p < len(cand_indices) - 2:
+            return False, 99, 99
+        m_stack = _museum_stack_count(cand_steps)
+        if m_stack > max_allowed_museums:
+            return False, m_stack, 99
+
+        cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
+        cand_itin = Itinerary(
+            total_score=day_itinerary.total_score,
+            total_cost_eur=day_itinerary.total_cost_eur,
+            total_time_mins=day_itinerary.total_time_mins,
+            path=cand_path,
+        )
+        try:
+            verified = verify_day_schedule(
+                cand_itin,
+                day_weekday=assigned_day.weekday,
+                day_end_mins=assigned_day.end_time_mins,
+                day_start_mins=assigned_day.start_time_mins,
+                rhythm=rhythm,
+            )
+            meal_viols = _meal_biology_violations(verified.path)
+            if meal_viols > max_allowed_meal_viols:
+                return False, m_stack, meal_viols
+            return True, _museum_stack_count(verified.path), meal_viols
+        except Exception:
+            return False, 99, 99
+
     best_indices = list(range(len(path)))
     best_dist = tour_dist(best_indices)
+    best_museums = _museum_stack_count(path)
+    best_meal_viols = _meal_biology_violations(path)
     n = len(path)
 
     improved = True
@@ -265,61 +371,16 @@ def _smooth_post_snap_itinerary(
                 )
                 cand_dist = tour_dist(cand_indices)
                 if cand_dist < best_dist - 0.05:
-                    b_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "breakfast" in path[k].poi.name.lower()
-                        ),
-                        None,
+                    ok, m_cnt, mv_cnt = _try_candidate_order(
+                        cand_indices, best_museums, best_meal_viols
                     )
-                    l_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "lunch" in path[k].poi.name.lower()
-                        ),
-                        None,
-                    )
-                    d_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "dinner" in path[k].poi.name.lower()
-                        ),
-                        None,
-                    )
-                    if b_p is not None and l_p is not None and b_p > l_p:
-                        continue
-                    if l_p is not None and d_p is not None and l_p > d_p:
-                        continue
-                    if b_p is not None and d_p is not None and b_p > d_p:
-                        continue
-                    if b_p is not None and b_p > 1:
-                        continue
-                    if d_p is not None and d_p < len(cand_indices) - 2:
-                        continue
-                    cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
-                    cand_itin = Itinerary(
-                        total_score=day_itinerary.total_score,
-                        total_cost_eur=day_itinerary.total_cost_eur,
-                        total_time_mins=day_itinerary.total_time_mins,
-                        path=cand_path,
-                    )
-                    try:
-                        verify_day_schedule(
-                            cand_itin,
-                            day_weekday=assigned_day.weekday,
-                            day_end_mins=assigned_day.end_time_mins,
-                            day_start_mins=assigned_day.start_time_mins,
-                            rhythm=rhythm,
-                        )
+                    if ok:
                         best_indices = cand_indices
                         best_dist = cand_dist
+                        best_museums = m_cnt
+                        best_meal_viols = mv_cnt
                         improved = True
                         break
-                    except Exception:
-                        pass
             if improved:
                 break
         if improved:
@@ -335,63 +396,44 @@ def _smooth_post_snap_itinerary(
                 cand_indices.insert(j, node)
                 cand_dist = tour_dist(cand_indices)
                 if cand_dist < best_dist - 0.05:
-                    b_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "breakfast" in path[k].poi.name.lower()
-                        ),
-                        None,
+                    ok, m_cnt, mv_cnt = _try_candidate_order(
+                        cand_indices, best_museums, best_meal_viols
                     )
-                    l_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "lunch" in path[k].poi.name.lower()
-                        ),
-                        None,
-                    )
-                    d_p = next(
-                        (
-                            pos
-                            for pos, k in enumerate(cand_indices)
-                            if "dinner" in path[k].poi.name.lower()
-                        ),
-                        None,
-                    )
-                    if b_p is not None and l_p is not None and b_p > l_p:
-                        continue
-                    if l_p is not None and d_p is not None and l_p > d_p:
-                        continue
-                    if b_p is not None and d_p is not None and b_p > d_p:
-                        continue
-                    if b_p is not None and b_p > 1:
-                        continue
-                    if d_p is not None and d_p < len(cand_indices) - 2:
-                        continue
-                    cand_path = [path[k].model_copy(deep=True) for k in cand_indices]
-                    cand_itin = Itinerary(
-                        total_score=day_itinerary.total_score,
-                        total_cost_eur=day_itinerary.total_cost_eur,
-                        total_time_mins=day_itinerary.total_time_mins,
-                        path=cand_path,
-                    )
-                    try:
-                        verify_day_schedule(
-                            cand_itin,
-                            day_weekday=assigned_day.weekday,
-                            day_end_mins=assigned_day.end_time_mins,
-                            day_start_mins=assigned_day.start_time_mins,
-                            rhythm=rhythm,
-                        )
+                    if ok:
                         best_indices = cand_indices
                         best_dist = cand_dist
+                        best_museums = m_cnt
+                        best_meal_viols = mv_cnt
                         improved = True
                         break
-                    except Exception:
-                        pass
             if improved:
                 break
+
+    # 3. Proactive museum un-stacking / meal-violation repair if any consecutive museums or violations remain
+    if best_museums > 0 or best_meal_viols > 0:
+        best_repair: tuple[int, int, float, list[int]] | None = None
+        for i in range(1, n - 1):
+            for j in range(1, n - 1):
+                if i == j:
+                    continue
+                cand_indices = list(best_indices)
+                node = cand_indices.pop(i)
+                cand_indices.insert(j, node)
+                cand_dist = tour_dist(cand_indices)
+                if cand_dist > best_dist + 2.5:
+                    continue
+                ok, m_cnt, mv_cnt = _try_candidate_order(
+                    cand_indices, best_museums, best_meal_viols
+                )
+                if ok and (
+                    mv_cnt < best_meal_viols
+                    or (mv_cnt == best_meal_viols and m_cnt < best_museums)
+                ):
+                    cand_key = (mv_cnt, m_cnt, cand_dist, cand_indices)
+                    if best_repair is None or cand_key[:3] < best_repair[:3]:
+                        best_repair = cand_key
+        if best_repair is not None:
+            best_indices = best_repair[3]
 
     if best_indices != list(range(len(path))):
         new_path = [path[k] for k in best_indices]
@@ -428,15 +470,7 @@ async def solve_day_v2(
     pace = getattr(constraints, "pace", PacePreference.BALANCED)
     for p in committed:
         poi_entity = p.poi if hasattr(p, "poi") and isinstance(p.poi, Poi) else None
-        eff_dur = (
-            max(75, p.duration_mins)
-            if pace == PacePreference.LEISURELY
-            else (
-                max(60, p.duration_mins)
-                if pace == PacePreference.BALANCED
-                else p.duration_mins
-            )
-        )
+        eff_dur = _effective_duration(p, pace)
         if not poi_entity:
             # Construct Poi from CandidatePoi
             lat = (
@@ -500,15 +534,7 @@ async def solve_day_v2(
     surplus_entities: list[Poi] = []
     for p in surplus_cands:
         poi_entity = p.poi if hasattr(p, "poi") and isinstance(p.poi, Poi) else None
-        eff_dur = (
-            max(75, p.duration_mins)
-            if pace == PacePreference.LEISURELY
-            else (
-                max(60, p.duration_mins)
-                if pace == PacePreference.BALANCED
-                else p.duration_mins
-            )
-        )
+        eff_dur = _effective_duration(p, pace)
         if not poi_entity:
             lat = (
                 p.location.get("latitude", 0.0) if isinstance(p.location, dict) else 0.0
@@ -665,12 +691,11 @@ async def solve_day_v2(
     end_depot.name = f"{depot_poi.name} (End)"
 
     pace = getattr(constraints, "pace", PacePreference.BALANCED)
-    if pace == PacePreference.LEISURELY:
-        max_surplus_allow = max(1, 4 - len(committed_entities))
-    elif pace == PacePreference.INTENSE:
-        max_surplus_allow = 20
-    else:  # BALANCED
-        max_surplus_allow = max(1, 5 - len(committed_entities))
+    max_surplus_allow = compute_surplus_quota(
+        pace,
+        len(committed_entities),
+        assigned_day.is_arrival_day or assigned_day.is_departure_day,
+    )
 
     avail_surplus = min(
         max_surplus_allow,
@@ -689,6 +714,13 @@ async def solve_day_v2(
 
     all_pois = [start_depot] + unique_mid_pois + [end_depot]
 
+    tp_active = bool(
+        getattr(constraints, "taste_profile", None)
+        and isinstance(constraints.taste_profile, dict)
+        and constraints.taste_profile.get("active_profile_count", 0) > 0
+    )
+    taste_w = 0.55 if tp_active else 0.40
+
     scored_pois: list[ScoredPoi] = []
     for idx, p in enumerate(all_pois):
         if idx in (0, len(all_pois) - 1):
@@ -700,13 +732,14 @@ async def solve_day_v2(
                 else max(50.0, float(getattr(p, "iconicity_score", 0.5) * 80.0))
             )
         elif p in meal_nodes:
-            score = 85.0
+            t_meal = getattr(p, "taste_score", 50.0)
+            score = 85.0 + (0.10 * (t_meal - 50.0) if tp_active else 0.0)
         else:
             t_score = getattr(p, "taste_score", 50.0)
             i_score = getattr(p, "iconicity_score", 0.5)
             tier_val = getattr(p, "tier", 3)
             score = max(
-                25.0, (t_score * 0.4) + (i_score * 25.0) + (5 - tier_val) * 10.0
+                25.0, (t_score * taste_w) + (i_score * 25.0) + (5 - tier_val) * 10.0
             )
         scored_pois.append(ScoredPoi(poi=p, score=score))
 

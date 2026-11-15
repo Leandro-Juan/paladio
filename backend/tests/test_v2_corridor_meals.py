@@ -399,3 +399,351 @@ async def test_solve_day_v2_end_to_end_meal_snapping():
         assert not str(m.poi.id).startswith("virtual_meal_")
         assert _has_data_provenance(m.poi.model_dump())
         assert m.shortfall_notice is None
+
+
+def test_verify_day_schedule_enforces_lunch_cutoff_and_meal_spacing():
+    long_afternoon_sight = Poi(
+        id="osm_long_sight",
+        name="Royal Armory",
+        city="Madrid",
+        category="MUSEUM",
+        location=PoiLocation(latitude=40.4155, longitude=-3.7025),
+        open_time_mins_by_day=[750] * 7,  # 12:30
+        close_time_mins_by_day=[1200] * 7,
+        duration_mins=160,
+        cost_eur=12.0,
+    )
+    lunch_1200 = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Midday Bistro", 40.415, -3.702, open_time=720, close_time=1380
+        ),
+        "lunch",
+    )
+    hotel = Poi(
+        id="hotel_dep",
+        name="Hotel",
+        city="Madrid",
+        category="HOTEL",
+        location=PoiLocation(latitude=40.414, longitude=-3.700),
+        open_time_mins_by_day=[0] * 7,
+        close_time_mins_by_day=[1440] * 7,
+        duration_mins=1,
+        cost_eur=0.0,
+    )
+
+    # Sight 12:30..15:10 before lunch would push lunch > 15:00 (900m); Step 0c moves lunch earlier
+    reloc_lunch_itin = Itinerary(
+        total_score=50.0,
+        total_cost_eur=30.0,
+        total_time_mins=260,
+        path=[
+            ScheduledPoi(poi=hotel, scheduled_start="09:00", scheduled_end="09:00"),
+            ScheduledPoi(
+                poi=long_afternoon_sight,
+                scheduled_start="12:30",
+                scheduled_end="15:10",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=lunch_1200,
+                scheduled_start="15:20",
+                scheduled_end="16:20",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=hotel,
+                scheduled_start="16:30",
+                scheduled_end="16:30",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    relocated = verify_day_schedule(reloc_lunch_itin)
+    lunch_steps = [s for s in relocated.path if "Midday Bistro" in s.poi.name]
+    assert len(lunch_steps) == 1
+    rl_h, rl_m = map(int, lunch_steps[0].scheduled_start.split(":"))
+    assert rl_h * 60 + rl_m <= 900
+
+    lunch_1400 = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Normal Bistro", 40.415, -3.702, open_time=840, close_time=1380
+        ),
+        "lunch",
+    )
+    early_closing_dinner = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Early Tapas", 40.416, -3.701, open_time=720, close_time=1060
+        ),
+        "dinner",
+    )
+    backup_late_dinner = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Late Brasserie", 40.4165, -3.7015, open_time=720, close_time=1380
+        ),
+        "dinner",
+    )
+    # Never pull an early-closing dinner into <180m after lunch; swap to backup instead
+    swap_cramped_itin = Itinerary(
+        total_score=40.0,
+        total_cost_eur=36.0,
+        total_time_mins=240,
+        path=[
+            ScheduledPoi(poi=hotel, scheduled_start="09:00", scheduled_end="09:00"),
+            ScheduledPoi(
+                poi=lunch_1400,
+                scheduled_start="14:00",
+                scheduled_end="15:00",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=early_closing_dinner,
+                backup_poi=backup_late_dinner,
+                scheduled_start="16:30",
+                scheduled_end="17:30",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=hotel,
+                scheduled_start="17:40",
+                scheduled_end="17:40",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    swapped = verify_day_schedule(swap_cramped_itin)
+    assert "Late Brasserie" in swapped.path[2].poi.name
+    sw_l_h, sw_l_m = map(int, swapped.path[1].scheduled_start.split(":"))
+    sw_d_h, sw_d_m = map(int, swapped.path[2].scheduled_start.split(":"))
+    assert (sw_d_h * 60 + sw_d_m) - (sw_l_h * 60 + sw_l_m) >= 180
+
+    # Without a late backup, mandatory early-closing dinner fails closing check
+    early_closing_dinner.is_user_mandatory = True  # type: ignore[attr-defined]
+    cramped_meals_itin = Itinerary(
+        total_score=40.0,
+        total_cost_eur=36.0,
+        total_time_mins=240,
+        path=[
+            ScheduledPoi(poi=hotel, scheduled_start="09:00", scheduled_end="09:00"),
+            ScheduledPoi(
+                poi=lunch_1400,
+                scheduled_start="14:00",
+                scheduled_end="15:00",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=early_closing_dinner,
+                scheduled_start="16:30",
+                scheduled_end="17:30",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=hotel,
+                scheduled_start="17:40",
+                scheduled_end="17:40",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    with pytest.raises(ItineraryInfeasible):
+        verify_day_schedule(cramped_meals_itin)
+
+    late_dinner = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Evening Tapas", 40.416, -3.701, open_time=720, close_time=1380
+        ),
+        "dinner",
+    )
+    spaced_itin = Itinerary(
+        total_score=40.0,
+        total_cost_eur=36.0,
+        total_time_mins=240,
+        path=[
+            ScheduledPoi(poi=hotel, scheduled_start="09:00", scheduled_end="09:00"),
+            ScheduledPoi(
+                poi=lunch_1400,
+                scheduled_start="14:00",
+                scheduled_end="15:00",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=late_dinner,
+                scheduled_start="15:30",
+                scheduled_end="16:30",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=hotel,
+                scheduled_start="17:40",
+                scheduled_end="17:40",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    verified = verify_day_schedule(spaced_itin)
+    l_h, l_m = map(int, verified.path[1].scheduled_start.split(":"))
+    d_h, d_m = map(int, verified.path[2].scheduled_start.split(":"))
+    assert (d_h * 60 + d_m) - (l_h * 60 + l_m) >= 180
+
+
+def test_verify_day_schedule_heavy_museum_floor_and_dinner_cutoff():
+    from app.domain.entities.poi import Poi, PoiLocation
+
+    depot = Poi(
+        id="depot",
+        name="Hotel",
+        city="New York City",
+        category="HOTEL",
+        duration_mins=15,
+        location=PoiLocation(latitude=40.76, longitude=-73.98),
+    )
+    museum = Poi(
+        id="amnh",
+        name="American Museum of Natural History",
+        city="New York City",
+        category="museum",
+        duration_mins=90,
+        location=PoiLocation(latitude=40.7813, longitude=-73.9739),
+        open_time_mins_by_day=[600] * 7,
+        close_time_mins_by_day=[1050] * 7,  # 17:30 close
+    )
+    morning = Poi(
+        id="morning_walk",
+        name="Central Park",
+        city="New York City",
+        category="park",
+        duration_mins=400,
+        location=PoiLocation(latitude=40.775, longitude=-73.974),
+    )
+    itin = Itinerary(
+        total_score=50.0,
+        total_cost_eur=0.0,
+        total_time_mins=500,
+        path=[
+            ScheduledPoi(poi=depot, scheduled_start="09:56", scheduled_end="09:56"),
+            ScheduledPoi(
+                poi=morning,
+                scheduled_start="10:06",
+                scheduled_end="16:46",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=museum,
+                scheduled_start="16:46",
+                scheduled_end="18:16",
+                transit_from_previous=TransitLeg(
+                    duration_mins=0, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=depot,
+                scheduled_start="18:26",
+                scheduled_end="18:26",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    verified = verify_day_schedule(itin)
+    amnh_step = verified.path[2]
+    s_h, s_m = map(int, amnh_step.scheduled_start.split(":"))
+    e_h, e_m = map(int, amnh_step.scheduled_end.split(":"))
+    assert (e_h * 60 + e_m) - (s_h * 60 + s_m) >= 50
+
+    dinner = _cand_to_meal_poi(
+        _make_dining_cand(
+            "Evening Bistro", 40.761, -73.981, open_time=1080, close_time=1410
+        ),
+        "dinner",
+    )
+    late_deck = Poi(
+        id="top_rock",
+        name="Top of the Rock",
+        city="New York City",
+        category="viewpoint",
+        duration_mins=150,
+        location=PoiLocation(latitude=40.759, longitude=-73.979),
+        open_time_mins_by_day=[600] * 7,
+        close_time_mins_by_day=[1430] * 7,
+    )
+    long_afternoon = Poi(
+        id="afternoon",
+        name="High Line Walk",
+        city="New York City",
+        category="park",
+        duration_mins=600,
+        location=PoiLocation(latitude=40.748, longitude=-74.004),
+    )
+    late_itin = Itinerary(
+        total_score=50.0,
+        total_cost_eur=40.0,
+        total_time_mins=800,
+        path=[
+            ScheduledPoi(poi=depot, scheduled_start="10:30", scheduled_end="10:30"),
+            ScheduledPoi(
+                poi=long_afternoon,
+                scheduled_start="10:40",
+                scheduled_end="20:40",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=dinner,
+                scheduled_start="20:50",
+                scheduled_end="22:05",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=late_deck,
+                scheduled_start="22:15",
+                scheduled_end="00:45",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+            ScheduledPoi(
+                poi=depot,
+                scheduled_start="00:55",
+                scheduled_end="00:55",
+                transit_from_previous=TransitLeg(
+                    duration_mins=10, cost_eur=0.0, mode="pedestrian"
+                ),
+            ),
+        ],
+    )
+    verified_late = verify_day_schedule(late_itin)
+    dinner_pos = next(
+        idx for idx, st in enumerate(verified_late.path) if "(Dinner)" in st.poi.name
+    )
+    d_h, d_m = map(int, verified_late.path[dinner_pos].scheduled_start.split(":"))
+    d_start = d_h * 60 + d_m
+    assert dinner_pos == 2 and d_start <= 1350

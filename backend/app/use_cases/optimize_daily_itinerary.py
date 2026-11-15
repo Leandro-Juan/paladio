@@ -444,6 +444,9 @@ class OptimizeDailyItineraryUseCase:
             "Deterministic C++ optimization via paladio_core with sequential schedule verification.",
         ]
 
+        tp_meta = getattr(constraints, "taste_profile", None) or {}
+        if not isinstance(tp_meta, dict):
+            tp_meta = {}
         out_result = {
             "metadata": {
                 "engine": "paladio_core_cpp20",
@@ -452,6 +455,23 @@ class OptimizeDailyItineraryUseCase:
                 "load_variance": v2_res.summary.load_variance,
                 "closure_violations": v2_res.summary.closure_violations,
                 "total_pois_scheduled": v2_res.summary.total_pois_scheduled,
+                "taste_profile_version": tp_meta.get("version"),
+                "taste_participant_count": tp_meta.get("traveler_count", 1),
+                "taste_active_profile_count": tp_meta.get("active_profile_count", 0),
+                "taste_personalization_active": bool(
+                    tp_meta and int(tp_meta.get("active_profile_count", 0)) > 0
+                ),
+                "stop_taste_breakdown": [
+                    {
+                        "poi_id": p.poi.id,
+                        "name": p.poi.name,
+                        "category": p.poi.taxonomy_category,
+                        "taste_score": round(
+                            float(getattr(p.poi, "taste_score", 0.0)), 2
+                        ),
+                    }
+                    for p in v2_res.selected_pois
+                ],
             },
             "travel_constraints": constraints.model_dump(mode="json"),
             "themes": themes,

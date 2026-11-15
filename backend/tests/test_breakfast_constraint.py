@@ -163,3 +163,21 @@ def test_paladio_core_engine_enforces_breakfast():
     assert len(result.path) > 0
     # The cafe (node index 1) MUST be included in the path to satisfy breakfast deadline
     assert 1 in result.path
+
+
+def test_build_trip_frame_includes_day1_and_final_day_breakfast():
+    from app.engine.trip_frame import build_trip_frame
+
+    constraints = TravelConstraints(
+        origin_city="Madrid",
+        destination_city="Paris",
+        duration_days=3,
+        budget_usd=1500,
+        meals=[],
+    )
+    frame = build_trip_frame(constraints, city_center=(48.8566, 2.3522))
+    assert len(frame.days) == 3
+    for day in frame.days:
+        assert "breakfast" in day.requested_meals
+        assert "lunch" in day.requested_meals
+        assert "dinner" in day.requested_meals
