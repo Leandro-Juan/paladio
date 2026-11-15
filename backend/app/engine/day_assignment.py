@@ -203,6 +203,19 @@ def _select_anchor_seeds(
     return seeds
 
 
+def compute_surplus_quota(
+    pace: PacePreference, committed_count: int, is_edge_day: bool
+) -> int:
+    """Return max surplus attractions allowed for a day given pace and edge status."""
+    if pace == PacePreference.LEISURELY:
+        target = 2
+    elif pace == PacePreference.INTENSE:
+        target = 4 if is_edge_day else 6
+    else:  # BALANCED
+        target = max(committed_count + 1, 5)
+    return max(0, target - committed_count)
+
+
 def _is_intensive_museum(p: Any) -> bool:
     poi = getattr(p, "poi", p)
     name_l = getattr(poi, "name", "").lower()
@@ -674,6 +687,14 @@ def assign_pois_to_days(
         claimed_surplus_ids: set[str] = set()
         claimed_surplus_names: set[str] = set()
 
+        pace = getattr(trip_frame, "pace", PacePreference.BALANCED)
+        prefers_offbeat = bool(getattr(trip_frame, "prefers_offbeat", False))
+        max_tier1_slots = int(getattr(trip_frame, "max_tier1_slots", 99) or 99)
+        total_t1_assigned = sum(
+            1 for ad in assigned_days for p in ad.pois if getattr(p.poi, "tier", 3) == 1
+        )
+        max_day_museums = 1 if pace == PacePreference.LEISURELY else 2
+
         for a_day in assigned_days:
             if a_day.pois:
                 day_coords = [_get_poi_coord(p) for p in a_day.pois]
@@ -700,6 +721,12 @@ def assign_pois_to_days(
                     continue
                 if getattr(cp, "is_meal_spot", False):
                     continue
+                if (
+                    prefers_offbeat
+                    and getattr(cp, "tier", 3) == 1
+                    and total_t1_assigned >= max_tier1_slots
+                ):
+                    continue
 
                 # Filter transit
                 pid = str(cand_id or "")
@@ -715,9 +742,9 @@ def assign_pois_to_days(
                 ):
                     continue
 
-                # Anti-burnout: max 2 intensive museums per day
+                # Anti-burnout: cap intensive museums per day and strongly prefer non-museums
                 is_museum = _is_intensive_museum(cp)
-                if is_museum and current_day_museums >= 2:
+                if is_museum and current_day_museums >= max_day_museums:
                     continue
 
                 loc = getattr(cp, "location", {})
@@ -742,19 +769,17 @@ def assign_pois_to_days(
                         + (5 - tier) * 15.0
                         - (dist * 10.0)
                     )
-                    # Slight penalty if second museum
-                    if is_museum and current_day_museums == 1:
-                        score -= 20.0
+                    # Strong penalty if second museum so outdoor/neighborhood anchors win
+                    if is_museum and current_day_museums >= 1:
+                        score -= 55.0
                     nearby_candidates.append((score, cp))
 
             nearby_candidates.sort(key=lambda x: x[0], reverse=True)
-            pace = getattr(trip_frame, "pace", PacePreference.BALANCED)
-            if pace == PacePreference.LEISURELY:
-                target_surplus = max(1, 4 - len(a_day.pois))
-            elif pace == PacePreference.INTENSE:
-                target_surplus = 15
-            else:  # BALANCED
-                target_surplus = max(1, 5 - len(a_day.pois))
+            target_surplus = compute_surplus_quota(
+                pace,
+                len(a_day.pois),
+                a_day.is_arrival_day or a_day.is_departure_day,
+            )
             top_surplus = nearby_candidates[:target_surplus]
             surplus_selected: list[SelectedPoi] = []
             for _, cand in top_surplus:
@@ -762,6 +787,8 @@ def assign_pois_to_days(
                 cand_name = normalize_poi_name(getattr(cand, "name", ""))
                 claimed_surplus_ids.add(cand_id)
                 claimed_surplus_names.add(cand_name)
+                if getattr(cand, "tier", 3) == 1:
+                    total_t1_assigned += 1
                 if _is_intensive_museum(cand):
                     current_day_museums += 1
                 surplus_selected.append(

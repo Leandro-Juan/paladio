@@ -58,6 +58,8 @@ class TripFrame(BaseModel):
     travel_tastes: list[str] = Field(default_factory=list)
     rhythm: RhythmProfile = Field(default_factory=RhythmProfile)
     city_center: tuple[float, float] | None = None
+    taste_profile: dict[str, Any] | None = None
+    prefers_offbeat: bool = False
 
 
 def _parse_flight_time_to_minutes(flight_time_str: str | None) -> int | None:
@@ -157,6 +159,14 @@ def build_trip_frame(
 
     days: list[DayFrame] = []
     total_anchors = 0
+    tp = getattr(constraints, "taste_profile", None)
+    bp = (
+        tp.get("behavioral_params")
+        if isinstance(tp, dict)
+        and tp.get("active_profile_count", 0) > 0
+        and isinstance(tp.get("behavioral_params"), dict)
+        else {}
+    )
 
     for d in range(num_days):
         is_arr = d == 0
@@ -168,6 +178,14 @@ def build_trip_frame(
             else (480 if pace == PacePreference.INTENSE else 510)
         )
         end_time = rhythm.evening_cutoff_min if rhythm else 1380  # 23:00 default
+
+        if bp:
+            if bp.get("start_time_mins") is not None:
+                start_time = int(
+                    round(0.5 * start_time + 0.5 * int(bp["start_time_mins"]))
+                )
+            if bp.get("end_time_mins") is not None:
+                end_time = min(end_time, int(bp["end_time_mins"]))
 
         # Arrival day window shrink (flight arrival + 120m buffer)
         if is_arr and arrival_flight_mins is not None:
@@ -191,6 +209,14 @@ def build_trip_frame(
             max_a = 2 if (is_arr or is_dep) else 3
             target_mins = 330 if (is_arr or is_dep) else 420
             util = 0.60 if (is_arr or is_dep) else 0.70
+
+        if (
+            bp
+            and not (is_arr or is_dep)
+            and bp.get("preferred_stops_per_day") is not None
+        ):
+            learned_stops = int(round(float(bp["preferred_stops_per_day"])))
+            max_a = max(1, min(6, int(round(0.5 * max_a + 0.5 * learned_stops))))
 
         total_anchors += max_a
 
@@ -243,6 +269,11 @@ def build_trip_frame(
             elif is_arr and is_dep:
                 # Single day trip
                 meals_single = []
+                if (
+                    arrival_flight_mins is None or start_time <= b_start + 90
+                ) and end_time >= b_start + 90:
+                    meals_single.append("breakfast")
+                    start_time = min(start_time, b_start)
                 if start_time <= l_start + 60 and end_time >= l_start + 60:
                     meals_single.append("lunch")
                 if start_time <= d_start + 60 and end_time >= d_start + 60:
@@ -250,6 +281,11 @@ def build_trip_frame(
                 day_meals = meals_single or ["lunch"]
             elif is_arr:
                 meals_arr = []
+                if (
+                    arrival_flight_mins is None or start_time <= b_start + 90
+                ) and end_time >= b_start + 90:
+                    meals_arr.append("breakfast")
+                    start_time = min(start_time, b_start)
                 if start_time <= l_start + 60:
                     meals_arr.append("lunch")
                 if start_time <= d_start + 90:
@@ -257,6 +293,9 @@ def build_trip_frame(
                 day_meals = meals_arr
             elif is_dep:
                 meals_dep = []
+                if end_time >= b_start + 90:
+                    meals_dep.append("breakfast")
+                    start_time = min(start_time, b_start)
                 if end_time >= l_start + 60:
                     meals_dep.append("lunch")
                 if end_time >= d_start + 60:
@@ -285,8 +324,12 @@ def build_trip_frame(
             )
         )
 
-    # 55% anchor cap for Tier 1 iconic POIs
-    max_t1_slots = min(total_anchors, max(1, int(0.55 * total_anchors)))
+    prefers_offbeat = bool(getattr(constraints, "prefers_offbeat", False))
+    # 55% anchor cap for Tier 1 iconic POIs (capped tightly when offbeat/neighborhoods preferred)
+    if prefers_offbeat:
+        max_t1_slots = min(total_anchors, max(1, min(3, int(0.35 * total_anchors))))
+    else:
+        max_t1_slots = min(total_anchors, max(1, int(0.55 * total_anchors)))
 
     return TripFrame(
         city=city,
@@ -300,4 +343,6 @@ def build_trip_frame(
         travel_tastes=list(constraints.travel_tastes or []),
         rhythm=r,
         city_center=city_center,
+        taste_profile=tp if isinstance(tp, dict) else None,
+        prefers_offbeat=prefers_offbeat,
     )

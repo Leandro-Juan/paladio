@@ -181,10 +181,13 @@ def default_duration_mins(
         return 60
     if historic in ("city_gate", "citywalls", "memorial", "monument", "tower"):
         return 20
+    if tags.get("building") in ("cathedral", "basilica", "abbey", "palace", "castle"):
+        return 60
     if tags.get("amenity") == "place_of_worship":
+        worship_name = (tags.get("name:en") or tags.get("name") or "").lower()
+        if any(w in worship_name for w in ("cathedral", "basilica", "abbey")):
+            return 60
         return 40 if sig.get("wikidata") else 25
-    if tags.get("building") in ("cathedral", "basilica", "palace", "castle"):
-        return 45
     if category == "viewpoint":
         return 30
     if category == "park":

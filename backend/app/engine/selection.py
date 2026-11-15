@@ -77,6 +77,21 @@ def is_poi_open_any_trip_day(cand: CandidatePoi, trip_weekdays: list[int]) -> bo
     )
 
 
+def _cand_traveler_affinity(
+    uid: str,
+    cand: CandidatePoi,
+    traveler_affinities: dict[str, dict[str, float]],
+    traveler_vectors: dict[str, list[float]],
+) -> float:
+    aff_map = traveler_affinities.get(uid) or {}
+    tag_aff = float(aff_map.get(cand.taxonomy_category, 0.5))
+    vec = traveler_vectors.get(uid)
+    if vec and cand.embedding and len(vec) == len(cand.embedding):
+        cos = (_cosine_similarity(vec, cand.embedding) + 1.0) / 2.0
+        return 0.65 * tag_aff + 0.35 * cos
+    return tag_aff
+
+
 def select_trip_pois(
     candidate_pool: list[CandidatePoi],
     trip_frame: TripFrame,
@@ -88,6 +103,19 @@ def select_trip_pois(
     current_time_mins = 0
     current_cost_eur = 0.0
     total_score = 0.0
+
+    tp = getattr(trip_frame, "taste_profile", None) or {}
+    traveler_affinities: dict[str, dict[str, float]] = (
+        tp.get("traveler_affinities")
+        if isinstance(tp, dict) and isinstance(tp.get("traveler_affinities"), dict)
+        else {}
+    )
+    traveler_vectors: dict[str, list[float]] = (
+        tp.get("traveler_vectors")
+        if isinstance(tp, dict) and isinstance(tp.get("traveler_vectors"), dict)
+        else {}
+    )
+    trav_scores: dict[str, list[float]] = {uid: [] for uid in traveler_affinities}
 
     max_anchor_slots = trip_frame.total_anchor_slots
     max_tier1_slots = trip_frame.max_tier1_slots
@@ -117,6 +145,12 @@ def select_trip_pois(
             )
             selected_ids.add(cand.id)
             selected_names.add(c_norm)
+            for uid in trav_scores:
+                trav_scores[uid].append(
+                    _cand_traveler_affinity(
+                        uid, cand, traveler_affinities, traveler_vectors
+                    )
+                )
             current_time_mins += dur
             current_cost_eur += cand.cost_eur
             total_score += 100.0
@@ -133,7 +167,7 @@ def select_trip_pois(
             and is_poi_open_any_trip_day(c, trip_weekdays)
             and c.taste_score >= 35.0
         ],
-        key=lambda x: (0.5 * (x.iconicity_score * 100.0) + 0.5 * x.taste_score),
+        key=lambda x: 0.5 * (x.iconicity_score * 100.0) + 0.5 * x.taste_score,
         reverse=True,
     )
     for cand in t1_candidates:
@@ -152,6 +186,12 @@ def select_trip_pois(
         )
         selected_ids.add(cand.id)
         selected_names.add(normalize_poi_name(cand.name))
+        for uid in trav_scores:
+            trav_scores[uid].append(
+                _cand_traveler_affinity(
+                    uid, cand, traveler_affinities, traveler_vectors
+                )
+            )
         current_time_mins += dur
         current_cost_eur += cand.cost_eur
         total_score += gain
@@ -163,9 +203,26 @@ def select_trip_pois(
         best_mode = "full"
         best_dur = 60
 
+        u_min: str | None = None
+        min_sat = 0.5
+        g_mean = 0.5
+        if len(trav_scores) > 1:
+            avg_s = {
+                uid: (sum(vals) / len(vals) if vals else 0.5)
+                for uid, vals in trav_scores.items()
+            }
+            g_mean = sum(avg_s.values()) / len(avg_s)
+            u_min = min(avg_s, key=avg_s.get)
+            min_sat = avg_s[u_min]
+
+        current_tier1_count = sum(1 for s in selected if s.poi.tier == 1)
+        prefers_offbeat = bool(getattr(trip_frame, "prefers_offbeat", False))
+
         for cand in candidate_pool:
             c_norm = normalize_poi_name(cand.name)
             if cand.id in selected_ids or c_norm in selected_names or cand.is_meal_spot:
+                continue
+            if not cand.is_mandatory and cand.taste_score <= 0.0:
                 continue
             if not cand.is_mandatory and not is_poi_open_any_trip_day(
                 cand, trip_weekdays
@@ -175,9 +232,15 @@ def select_trip_pois(
             # A. Base taste & quality
             base_score = cand.taste_score
 
-            # B. Tier bonus
-            tier_weights = {1: 40.0, 2: 25.0, 3: 5.0, 4: -15.0}
-            tier_bonus = tier_weights.get(cand.tier, 0.0)
+            # B. Tier bonus (moderate iconic Tier 1 dominance when user prefers offbeat/neighborhoods)
+            if prefers_offbeat:
+                tier_weights = {1: 15.0, 2: 40.0, 3: 25.0, 4: -15.0}
+                tier_bonus = tier_weights.get(cand.tier, 0.0)
+                if cand.tier == 1 and current_tier1_count >= max_tier1_slots:
+                    tier_bonus -= 50.0
+            else:
+                tier_weights = {1: 40.0, 2: 25.0, 3: 5.0, 4: -15.0}
+                tier_bonus = tier_weights.get(cand.tier, 0.0)
 
             # C. Category saturation penalty (scaled by trip duration; ignored for unknown category 255)
             cat_penalty = 0.0
@@ -205,9 +268,28 @@ def select_trip_pois(
             dur = cand.duration_mins
             time_penalty = (dur / 60.0) * 5.0
 
+            # F. Multi-traveler satisfaction floor & mild-dislike fairness balancing
+            group_fairness_adj = 0.0
+            if u_min is not None and len(trav_scores) > 1:
+                cand_affs = [
+                    _cand_traveler_affinity(
+                        uid, cand, traveler_affinities, traveler_vectors
+                    )
+                    for uid in trav_scores
+                ]
+                u_min_aff = _cand_traveler_affinity(
+                    u_min, cand, traveler_affinities, traveler_vectors
+                )
+                if min_sat < 0.50 or (g_mean - min_sat) > 0.10:
+                    group_fairness_adj += 18.0 * u_min_aff
+                min_cand_aff = min(cand_affs) if cand_affs else 0.5
+                if min_cand_aff < 0.25:
+                    group_fairness_adj -= (0.25 - min_cand_aff) * 20.0
+
             marginal = (
                 base_score
                 + tier_bonus
+                + group_fairness_adj
                 - cat_penalty
                 - redundancy_penalty
                 - time_penalty
@@ -255,6 +337,12 @@ def select_trip_pois(
         )
         selected_ids.add(best_cand.id)
         selected_names.add(normalize_poi_name(best_cand.name))
+        for uid in trav_scores:
+            trav_scores[uid].append(
+                _cand_traveler_affinity(
+                    uid, best_cand, traveler_affinities, traveler_vectors
+                )
+            )
         current_time_mins += best_dur
         current_cost_eur += best_cand.cost_eur
         total_score += best_gain

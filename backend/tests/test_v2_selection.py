@@ -494,3 +494,27 @@ def test_compute_taste_score_from_constraints():
     )
     score_bar = compute_taste_score(poi_bar, constraints=tc_nightlife)
     assert score_bar > 80.0
+
+
+def test_poi_to_candidate_preserves_category():
+    from app.domain.entities.poi import Poi
+    from app.engine.candidate_pool import _is_meal_poi, _poi_to_candidate
+
+    monument = Poi(
+        id="tower_london",
+        name="Tower of London",
+        city="London",
+        category="monument",
+        tier=1,
+    )
+    cand = _poi_to_candidate(monument, constraints=None)
+    assert cand.category == "monument"
+
+    bakery = Poi(
+        id="local_bakery",
+        name="Boulangerie Test",
+        city="Paris",
+        category="bakery",
+        tier=2,
+    )
+    assert _is_meal_poi(bakery) is True

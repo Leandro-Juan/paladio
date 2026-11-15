@@ -8,10 +8,15 @@ Constructs an exhaustive candidate pool combining:
 """
 
 import logging
+import zlib
+from datetime import datetime, timezone
 from typing import Any
 
+import numpy as np
 from app.domain.entities.poi import Poi
 from app.domain.interfaces.poi_repository import IPoiRepository
+from app.engine.scoring.learned_ranker import TasteRankerModel
+from app.engine.scoring.semantic_learning import SemanticLearningEngine
 from app.schemas.itinerary import TravelConstraints
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,6 +29,7 @@ class CandidatePoi(BaseModel):
     id: str
     name: str
     city: str
+    category: str = "attraction"
     tier: int = 3
     tier_confidence: str = "low"
     tier_source: str = "heuristic"
@@ -52,9 +58,39 @@ class CandidatePoi(BaseModel):
 
 def _is_meal_poi(poi: Poi) -> bool:
     return (
-        poi.category.lower() in ("restaurant", "food", "cafe", "bistrot")
+        poi.category.lower() in ("restaurant", "food", "cafe", "bistrot", "bakery")
         or poi.taxonomy_category == "food_culinary"
     )
+
+
+def _season_key_for_constraints(constraints: TravelConstraints | None) -> str | None:
+    start_dt = getattr(constraints, "start_date", None) if constraints else None
+    if not start_dt:
+        return None
+    month = getattr(start_dt, "month", None)
+    if month is None:
+        return None
+    if month in (12, 1, 2):
+        return "season:winter"
+    if month in (3, 4, 5):
+        return "season:spring"
+    if month in (6, 7, 8):
+        return "season:summer"
+    return "season:autumn"
+
+
+def _is_poi_mandatory(poi: Poi, constraints: TravelConstraints | None) -> bool:
+    if not constraints or not constraints.nodes:
+        return False
+    pid = str(poi.id or "").strip().lower()
+    pname = str(poi.name or "").strip().lower()
+    for n in constraints.nodes:
+        if not getattr(n, "mandatory", True):
+            continue
+        nid = str(getattr(n, "poi_id", "") or "").strip().lower()
+        if nid and (nid == pid or nid == pname or (pname and nid in pname)):
+            return True
+    return False
 
 
 def compute_taste_score(
@@ -62,20 +98,14 @@ def compute_taste_score(
     constraints: TravelConstraints | None = None,
     base_similarity: float | None = None,
 ) -> float:
-    """Computes a taste match score (0.0 to 100.0) reflecting user prompt and profile."""
-    # 1. Base score from similarity or iconicity
-    if base_similarity is not None:
-        base_score = float(base_similarity) * 100.0
-    else:
-        # Calibrated baseline from iconicity (20.0 to 75.0)
-        base_score = float(poi.iconicity_score) * 55.0 + 20.0
+    """Computes a taste match score (0.0 to 100.0) reflecting user prompt and learned multi-traveler profile."""
+    tp = (getattr(constraints, "taste_profile", None) or {}) if constraints else {}
+    if not isinstance(tp, dict):
+        tp = {}
 
-    if not constraints:
-        return round(max(0.0, min(100.0, base_score)), 2)
+    is_mandatory = _is_poi_mandatory(poi, constraints)
 
-    t_score = base_score
-
-    # 2. Tag affinities from user prompt (art_culture, nightlife, etc.)
+    # Resolve canonical taxonomy category
     tax_cat = poi.taxonomy_category
     if (not tax_cat or tax_cat in ("unknown", "art_culture")) and (
         poi.name or poi.category
@@ -95,11 +125,71 @@ def compute_taste_score(
         if derived_cat != "unknown":
             tax_cat = derived_cat
 
+    # 0. Hard veto check (from any group traveler's hard dislike or "do not repeat" veto)
+    poi_priors = tp.get("poi_priors") if isinstance(tp.get("poi_priors"), dict) else {}
+    poi_prior = poi_priors.get(str(poi.id or "")) or poi_priors.get(poi.name) or {}
+    if not is_mandatory:
+        if isinstance(poi_prior, dict) and poi_prior.get("hard_veto"):
+            return 0.0
+        vetoed_cats = tp.get("vetoed_categories") or []
+        prompt_aff = (
+            float(constraints.tag_affinities.get(tax_cat, 0.0))
+            if (constraints and constraints.tag_affinities)
+            else 0.0
+        )
+        if tax_cat in vetoed_cats and prompt_aff < 0.65:
+            return 0.0
+
+    # 1. Base score from similarity, profile 768D vector, or iconicity
+    tp_emb = tp.get("embedding")
+    poi_emb = getattr(poi, "embedding", None)
+    has_vectors = (
+        isinstance(tp_emb, list)
+        and len(tp_emb) == 768
+        and isinstance(poi_emb, list)
+        and len(poi_emb) == 768
+    )
+    vec_sim = 0.5
+    if has_vectors:
+        u_norm = SemanticLearningEngine.normalize_vector(tp_emb)
+        p_norm = SemanticLearningEngine.normalize_vector(poi_emb)
+        raw_cos = float(np.dot(u_norm, p_norm))
+        vec_sim = float(np.clip((raw_cos + 1.0) / 2.0, 0.0, 1.0))
+
+    if base_similarity is not None:
+        base_score = float(base_similarity) * 100.0
+        if not has_vectors:
+            vec_sim = float(np.clip(base_similarity, 0.0, 1.0))
+    else:
+        base_score = float(poi.iconicity_score) * 55.0 + 20.0
+        if has_vectors:
+            base_score = 0.50 * base_score + 0.50 * (vec_sim * 100.0)
+
+    if not constraints:
+        return round(max(0.0, min(100.0, base_score)), 2)
+
+    t_score = base_score
+
+    # 2. Tag affinities (session prompt blended with merged long-term profile + contextual sub-profile)
+    eff_affinity: float | None = None
     if constraints.tag_affinities and tax_cat in constraints.tag_affinities:
-        affinity = float(constraints.tag_affinities[tax_cat])
-        affinity_score = affinity * 100.0
-        # High-weight blend with user's explicit category affinity
-        t_score = 0.35 * t_score + 0.65 * affinity_score
+        eff_affinity = float(constraints.tag_affinities[tax_cat])
+    elif isinstance(tp.get("tag_affinities"), dict) and tax_cat in tp["tag_affinities"]:
+        eff_affinity = float(tp["tag_affinities"][tax_cat])
+
+    ctx_fit = eff_affinity if eff_affinity is not None else 0.5
+    if eff_affinity is not None:
+        ctx_profiles = tp.get("contextual_profiles") or {}
+        season_key = _season_key_for_constraints(constraints)
+        if (
+            season_key
+            and isinstance(ctx_profiles.get(season_key), dict)
+            and tax_cat in ctx_profiles[season_key]
+        ):
+            ctx_val = float(ctx_profiles[season_key][tax_cat])
+            ctx_fit = ctx_val
+            eff_affinity = 0.80 * eff_affinity + 0.20 * ctx_val
+        t_score = 0.35 * t_score + 0.65 * (eff_affinity * 100.0)
 
     # 3. Travel tastes keywords matching (e.g., ['bar', 'view', 'rooftop', 'modern'])
     if constraints.travel_tastes:
@@ -124,14 +214,89 @@ def compute_taste_score(
                 bonus = min(25.0, matches * 12.0)
                 t_score = min(100.0, t_score + bonus)
 
-    # 4. Preferred cuisines matching for food venues
-    if constraints.preferred_cuisines and _is_meal_poi(poi):
-        cuisines = [
-            c.lower().strip() for c in constraints.preferred_cuisines if c and c.strip()
-        ]
-        corpus = f"{poi.name} {poi.category}".lower()
+    # 4. Preferred cuisines matching + food price elasticity
+    cuisines_pool = list(constraints.preferred_cuisines or [])
+    if not cuisines_pool and isinstance(tp.get("preferred_cuisines"), list):
+        cuisines_pool = list(tp["preferred_cuisines"])
+    is_meal = _is_meal_poi(poi)
+    if cuisines_pool and is_meal:
+        cuisines = [c.lower().strip() for c in cuisines_pool if c and c.strip()]
+        corpus = (
+            f"{poi.name} {poi.category} {getattr(poi, 'description', '') or ''}".lower()
+        )
         if any(c in corpus for c in cuisines):
             t_score = min(100.0, t_score + 20.0)
+
+    econ = (
+        tp.get("economic_profile")
+        if isinstance(tp.get("economic_profile"), dict)
+        else {}
+    )
+    price_sens = float(econ.get("price_sensitivity", 0.5))
+    if is_meal and getattr(poi, "cost_eur", 0.0) and price_sens > 0.55:
+        t_score -= (price_sens - 0.5) * (min(float(poi.cost_eur), 100.0) / 100.0) * 15.0
+
+    # 5. Per-POI learned prior & repeat-visit decaying penalty
+    repeat_pen_norm = 0.0
+    if isinstance(poi_prior, dict) and poi_prior:
+        t_score += float(poi_prior.get("score_delta", 0.0))
+        visited_cnt = int(poi_prior.get("visited_count", 0) or 0)
+        if visited_cnt > 0 and not is_mandatory:
+            days_since = 0.0
+            last_v = poi_prior.get("last_visited_at")
+            if last_v:
+                try:
+                    dt = datetime.fromisoformat(str(last_v))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    days_since = max(
+                        0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
+                    )
+                except ValueError:
+                    days_since = 0.0
+            decay = 0.5 ** (days_since / 180.0)
+            repeat_pen = 25.0 * decay
+            repeat_pen_norm = float(decay)
+            t_score -= repeat_pen
+
+    # 6. Deterministic seeded exploration bonus (uncertainty-driven to avoid filter bubbles)
+    unc = float((tp.get("tag_uncertainties") or {}).get(tax_cat, 0.0))
+    if unc > 0.12:
+        h = zlib.crc32(f"{tp.get('version', 1)}:{poi.id or poi.name}".encode("utf-8"))
+        if (h % 100) < 15:
+            t_score += min(12.0, unc * 45.0)
+
+    # 7. Learned ranker blend when sufficient samples exist
+    rw = tp.get("ranker_weights")
+    if isinstance(rw, dict) and int(rw.get("n_samples", 0)) >= 5:
+        trav_affs = tp.get("traveler_affinities") or {}
+        if trav_affs and isinstance(trav_affs, dict):
+            g_min_aff = min(
+                float(tmap.get(tax_cat, 0.5))
+                for tmap in trav_affs.values()
+                if isinstance(tmap, dict)
+            )
+        else:
+            g_min_aff = eff_affinity if eff_affinity is not None else 0.5
+        feat = TasteRankerModel.build_feature_vector(
+            sim_768d=vec_sim,
+            cat_affinity=eff_affinity if eff_affinity is not None else 0.5,
+            cat_uncertainty=unc,
+            iconicity=float(getattr(poi, "iconicity_score", 0.5)),
+            tier=int(getattr(poi, "tier", 3)),
+            cost_eur=float(getattr(poi, "cost_eur", 0.0)),
+            duration_mins=int(getattr(poi, "duration_mins", 60)),
+            time_of_day_fit=0.5,
+            context_fit=ctx_fit,
+            is_meal=is_meal,
+            price_sensitivity=price_sens,
+            distance_km=1.5,
+            repeat_penalty=repeat_pen_norm,
+            group_min_affinity=g_min_aff,
+        )
+        r_score = float(TasteRankerModel.predict_score(feat, rw)[0])
+        alpha_r = min(0.40, float(rw["n_samples"]) / 80.0)
+        t_score = (1.0 - alpha_r) * t_score + alpha_r * r_score
 
     return round(max(0.0, min(100.0, t_score)), 2)
 
@@ -218,6 +383,7 @@ def _poi_to_candidate(
         id=str(poi.id or poi.name),
         name=poi.name,
         city=poi.city,
+        category=poi.category,
         tier=c_tier,
         tier_confidence=poi.tier_confidence,
         tier_source=poi.tier_source,
@@ -395,6 +561,14 @@ async def build_candidate_pool(
         else ""
     )
     req_facets = getattr(constraints, "required_facets", None)
+    if (not user_vector or len(user_vector) != 768) and constraints:
+        tp = getattr(constraints, "taste_profile", None)
+        if (
+            isinstance(tp, dict)
+            and isinstance(tp.get("embedding"), list)
+            and len(tp["embedding"]) == 768
+        ):
+            user_vector = tp["embedding"]
     if user_vector and len(user_vector) == 768:
         try:
             if hasattr(poi_repo, "find_hybrid_candidates"):
@@ -464,18 +638,31 @@ async def build_candidate_pool(
         _add_or_update_pool(pool, name_to_id, cand)
     logger.info(f"Candidate pool carries {len(meal_spots)} dining venues for {city}.")
 
-    # 3. Explicit user-mandatory POIs
+    # 3. Explicit user-mandatory POIs (never substring-match generic words onto dining venues)
+    _generic_dining = {
+        "street food",
+        "local food",
+        "fast food",
+        "food market",
+        "night market",
+        "street market",
+        "food court",
+    }
     if constraints and constraints.nodes:
         mand_names = {
             n.poi_id.strip().lower()
             for n in constraints.nodes
             if getattr(n, "mandatory", True)
+            and n.poi_id
+            and n.poi_id.strip().lower() not in _generic_dining
         }
         for c in pool.values():
-            if (
-                c.id.lower() in mand_names
-                or c.name.lower() in mand_names
-                or any(m in c.name.lower() for m in mand_names)
+            c_id = c.id.lower()
+            c_name = c.name.lower()
+            if c_id in mand_names or c_name in mand_names:
+                c.is_mandatory = True
+            elif not c.is_meal_spot and any(
+                len(m) >= 4 and m in c_name for m in mand_names
             ):
                 c.is_mandatory = True
 

@@ -276,10 +276,13 @@ def tier_city_attractions(
     for rec in ranked:
         i_raw = compute_unified_iconicity_raw(rec)
         sig = rec.get("metadata", {}).get("osm") or {}
+        meta = rec.get("metadata") if isinstance(rec.get("metadata"), dict) else {}
+        if not meta.get("tags") and sig:
+            meta = {**meta, "tags": _osm_tag_words(sig)}
         tax_cat, cat_id = classify_poi_taxonomy(
             rec.get("name", ""),
             rec.get("category", ""),
-            {"tags": _osm_tag_words(sig)},
+            meta,
         )
         strong = bool(
             sig.get("wikidata")

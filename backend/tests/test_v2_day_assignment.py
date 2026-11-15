@@ -442,3 +442,42 @@ def test_zone_surplus_candidates_populated():
     # Both days should have zone_candidates attached
     total_surplus = sum(len(d.zone_candidates) for d in result.assigned_days)
     assert total_surplus > 0
+
+
+def test_pace_quota_and_cathedral_duration_floors():
+    from app.engine.day_assignment import compute_surplus_quota
+    from app.engine.osm_signals import default_duration_mins
+    from app.engine.solver import _effective_duration
+    from app.domain.entities.poi import Poi
+    from app.schemas.user import PacePreference
+
+    assert compute_surplus_quota(PacePreference.LEISURELY, 1, False) == 1
+    assert compute_surplus_quota(PacePreference.LEISURELY, 2, False) == 0
+    assert compute_surplus_quota(PacePreference.INTENSE, 2, True) == 2
+    assert compute_surplus_quota(PacePreference.INTENSE, 2, False) == 4
+    assert compute_surplus_quota(PacePreference.BALANCED, 2, False) == 3
+
+    cathedral_dur = default_duration_mins(
+        {
+            "amenity": "place_of_worship",
+            "building": "cathedral",
+            "name": "St Paul's Cathedral",
+        },
+        "monument",
+        {"wikidata": "Q173882"},
+    )
+    assert cathedral_dur == 60
+
+    church_dur = default_duration_mins(
+        {"amenity": "place_of_worship", "building": "church", "name": "St Bride's"},
+        "attraction",
+        {"wikidata": "Q123"},
+    )
+    assert church_dur == 40
+
+    abbey_poi = Poi(
+        name="Westminster Abbey", city="London", category="monument", duration_mins=40
+    )
+    assert _effective_duration(abbey_poi, PacePreference.INTENSE) == 60
+    park_poi = Poi(name="Hyde Park", city="London", category="park", duration_mins=40)
+    assert _effective_duration(park_poi, PacePreference.INTENSE) == 40
